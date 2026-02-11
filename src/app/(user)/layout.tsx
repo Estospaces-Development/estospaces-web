@@ -1,39 +1,43 @@
-import type { Metadata } from 'next';
+"use client";
 
-export const metadata: Metadata = {
-  title: 'EstoSpaces - Find Your Perfect Property',
-  description: 'Search and discover properties, manage bookings, and applications',
-};
+import React, { Suspense } from 'react';
+import UserHeader from '../../components/layout/UserHeader';
+import HorizontalNavigation from '../../components/layout/HorizontalNavigation';
+import { LocationProvider } from '../../contexts/LocationContext';
+import { PropertyProvider } from '../../contexts/PropertyContext';
+import { PropertyFilterProvider } from '../../contexts/PropertyFilterContext';
+import { MessagesProvider } from '../../contexts/MessagesContext';
+import { NotificationsProvider } from '../../contexts/NotificationsContext';
 
-export default function UserLayout({
-  children,
-}: {
+interface UserLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+export default function UserLayout({ children }: UserLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* User Sidebar - TODO: Create UserSidebar component */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white shadow-md">
-        <div className="p-4">
-          <h2 className="text-xl font-bold text-gray-800">EstoSpaces</h2>
-        </div>
-        {/* Navigation will be added here */}
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="ml-64 min-h-screen">
-        {/* User Header - TODO: Create UserHeader component */}
-        <header className="bg-white shadow-sm">
-          <div className="px-6 py-4">
-            <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="p-6">
-          {children}
-        </div>
-      </main>
-    </div>
+    <NotificationsProvider>
+      <LocationProvider>
+        <PropertyProvider>
+          <Suspense fallback={null}>
+            <PropertyFilterProvider>
+              <MessagesProvider>
+                <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+                  <UserHeader />
+                  <Suspense fallback={<div className="h-12 bg-white animate-pulse" />}>
+                    <HorizontalNavigation />
+                  </Suspense>
+                  <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-black transition-colors duration-300">
+                    <Suspense fallback={<div className="h-full w-full flex items-center justify-center min-h-[50vh]">Loading...</div>}>
+                      {children}
+                    </Suspense>
+                  </main>
+                  {/* Lakshmi AI Assistant - Could be added here globally or per page */}
+                </div>
+              </MessagesProvider>
+            </PropertyFilterProvider>
+          </Suspense>
+        </PropertyProvider>
+      </LocationProvider>
+    </NotificationsProvider>
   );
 }

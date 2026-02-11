@@ -1,39 +1,45 @@
-import type { Metadata } from 'next';
+"use client";
 
-export const metadata: Metadata = {
-  title: 'Manager Dashboard - EstoSpaces',
-  description: 'EstoSpaces Manager Dashboard for property and client management',
-};
+import { useState } from 'react';
+import { ThemeProvider } from '../../contexts/ThemeContext';
+import { NotificationsProvider } from '../../contexts/NotificationsContext';
+import { ManagerVerificationProvider } from '../../contexts/ManagerVerificationContext';
+import { ToastProvider } from '../../contexts/ToastContext';
+import NotificationContainer from '../../components/ui/NotificationContainer';
+import Sidebar from '../../components/layout/Sidebar';
+import Header from '../../components/layout/Header';
+import { PropertyProvider } from '../../contexts/PropertyContext';
+import { LeadProvider } from '../../contexts/LeadContext';
 
-export default function ManagerLayout({
-  children,
-}: {
+interface ManagerLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+export default function ManagerLayout({ children }: ManagerLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Manager Sidebar - TODO: Create ManagerSidebar component */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white shadow-md">
-        <div className="p-4">
-          <h2 className="text-xl font-bold text-gray-800">Manager Panel</h2>
-        </div>
-        {/* Navigation will be added here */}
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="ml-64 min-h-screen">
-        {/* Manager Header - TODO: Create ManagerHeader component */}
-        <header className="bg-white shadow-sm">
-          <div className="px-6 py-4">
-            <h1 className="text-2xl font-semibold text-gray-800">Dashboard</h1>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="p-6">
-          {children}
-        </div>
-      </main>
-    </div>
+    <ThemeProvider>
+      <NotificationsProvider>
+        <ManagerVerificationProvider>
+          <PropertyProvider>
+            <LeadProvider>
+              <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
+                <NotificationContainer />
+                <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+                <div className={`flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+                  <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+                  <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 font-manager bg-gray-50 dark:bg-black transition-colors duration-300">
+                    <div className="mx-auto max-w-[1600px] w-full h-full animate-fadeIn">
+                      {children}
+                    </div>
+                  </main>
+                </div>
+              </div>
+            </LeadProvider>
+          </PropertyProvider>
+        </ManagerVerificationProvider>
+      </NotificationsProvider>
+    </ThemeProvider>
   );
 }
