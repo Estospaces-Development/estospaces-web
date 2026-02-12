@@ -2,7 +2,8 @@
 
 import { Zap } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import SatelliteMap from './SatelliteMap';
+import dynamic from 'next/dynamic';
+const SatelliteMap = dynamic(() => import('./SatelliteMap'), { ssr: false });
 
 interface Activity {
     id: string;

@@ -42,11 +42,15 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted) return;
 
         const root = document.documentElement;
-        // const isManagerRoute = pathname?.startsWith('/manager');
-        const activeTheme = theme; // Force theme for now, simplified logic
 
-        // Save theme to localStorage
-        localStorage.setItem('estospaces-theme', theme);
+        // Force light mode on user routes
+        const isUserRoute = pathname?.startsWith('/user');
+        const activeTheme = isUserRoute ? 'light' : theme;
+
+        // Save theme preference to localStorage (only if we are using the preference)
+        if (!isUserRoute) {
+            localStorage.setItem('estospaces-theme', theme);
+        }
 
         // Apply theme class to document root
         root.setAttribute('data-theme', activeTheme);
@@ -65,7 +69,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         if (metaThemeColor) {
             metaThemeColor.setAttribute('content', activeTheme === 'dark' ? '#1f2937' : '#ffffff');
         }
-    }, [theme, mounted]);
+    }, [theme, mounted, pathname]);
 
     const setTheme = useCallback((newTheme: Theme) => {
         setThemeState(newTheme);

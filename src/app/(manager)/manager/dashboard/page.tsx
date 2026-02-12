@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { UsePropertiesService } from '@/services/propertiesService';
+// import { UsePropertiesService } from '@/services/propertiesService';
 import { DollarSign, Building2, Eye, UserCheck, Plus, Filter, Download, Home, Bot } from 'lucide-react';
 
 // Components

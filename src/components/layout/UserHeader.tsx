@@ -8,7 +8,11 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import { useAuth } from '@/contexts/AuthContext';
 // import logoIcon from '../../assets/logo-icon.png'; // Need to handle image import or use next/image
 
-const UserHeader = () => {
+interface UserHeaderProps {
+    useSubdomain?: boolean;
+}
+
+const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     const router = useRouter();
     const { user, signOut } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -32,6 +36,11 @@ const UserHeader = () => {
         }
     };
 
+    const getLinkPath = (path: string) => {
+        if (!useSubdomain) return path;
+        return path.replace(/^\/user/, '') || '/';
+    };
+
     return (
         <header className="h-16 gradient-header sticky top-0 z-30 shadow-lg shadow-primary/15 border-b border-primary/10 bg-black text-white">
             {/* Added bg-black text-white to mimic gradient-header roughly until refined */}
@@ -39,7 +48,7 @@ const UserHeader = () => {
                 {/* Left side - Logo - Clickable to go to dashboard */}
                 <div className="flex items-center gap-6">
                     <Link
-                        href="/user/dashboard"
+                        href={getLinkPath('/user/dashboard')}
                         className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
                         aria-label="Navigate to dashboard"
                     >
@@ -104,7 +113,7 @@ const UserHeader = () => {
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);
-                                                router.push('/user/dashboard/settings');
+                                                router.push(getLinkPath('/user/dashboard/settings'));
                                             }}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                         >
@@ -114,7 +123,7 @@ const UserHeader = () => {
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);
-                                                router.push('/user/dashboard/help');
+                                                router.push(getLinkPath('/user/dashboard/help'));
                                             }}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                         >
@@ -128,7 +137,7 @@ const UserHeader = () => {
                                         <button
                                             onClick={handleSignOut}
                                             disabled={isSigningOut}
-                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {isSigningOut ? (
                                                 <Loader2 size={18} className="animate-spin" />

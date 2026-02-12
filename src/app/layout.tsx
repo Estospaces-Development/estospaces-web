@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { SavedPropertiesProvider } from "@/contexts/SavedPropertiesContext";
 import { ApplicationsProvider } from "@/contexts/ApplicationsContext";
+import { PropertyProvider } from "@/contexts/PropertyContext";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,10 +25,10 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "EstoSpaces | Modern Property Management & Discovery in the UK",
-  description: "Find your perfect space with EstoSpaces. The ultimate property platform for UK tenants, managers, and owners. Streamlined applications, real-time tracking, and expert support.",
-  keywords: ["UK property", "real estate", "rentals", "property management", "Leicester rentals", "London apartments"],
-  authors: [{ name: "EstoSpaces Team" }],
+  title: "Estospaces | Modern Property Management & Discovery in the UK",
+  description: "Find your perfect space with Estospaces. The ultimate property platform for UK tenants, managers, and owners. Streamlined applications, real-time tracking, and expert support.",
+  keywords: ["property management", "real estate UK", "tenant portal", "manager dashboard", "Estospaces"],
+  authors: [{ name: "Estospaces Team" }],
 };
 
 export default function RootLayout({
@@ -36,15 +37,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${plusJakartaSans.variable} antialiased`}>
+    <html lang="en" className={`${inter.variable} ${plusJakartaSans.variable}`}>
+      <body className="antialiased">
         <AuthProvider>
           <SavedPropertiesProvider>
-            <ApplicationsProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
-            </ApplicationsProvider>
+            <PropertyProvider>
+              <ApplicationsProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </ApplicationsProvider>
+            </PropertyProvider>
           </SavedPropertiesProvider>
         </AuthProvider>
       </body>

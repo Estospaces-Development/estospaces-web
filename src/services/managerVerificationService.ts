@@ -15,7 +15,7 @@ export type DocumentStatus =
     | 'rejected'
     | 'reupload_required';
 
-export type DocumentType =
+export type ManagerDocumentType =
     | 'government_id'
     | 'broker_license'
     | 'company_registration'
@@ -48,7 +48,7 @@ export interface ManagerProfile {
 export interface ManagerDocument {
     id: string;
     manager_id: string;
-    document_type: DocumentType;
+    document_type: ManagerDocumentType;
     document_url: string;
     document_name?: string;
     document_number?: string;
@@ -62,20 +62,30 @@ export interface ManagerDocument {
     metadata?: Record<string, unknown>;
 }
 
+export interface AuditLogEntry {
+    id: string;
+    manager_id: string;
+    action_type: string;
+    actor_id: string;
+    actor_role: string;
+    notes?: string;
+    created_at: string;
+}
+
 export interface ManagerVerificationSummary {
     profile: ManagerProfile | null;
     documents: ManagerDocument[];
-    requiredDocuments: DocumentType[];
+    requiredDocuments: ManagerDocumentType[];
     isComplete: boolean;
-    missingDocuments: DocumentType[];
+    missingDocuments: ManagerDocumentType[];
 }
 
-const REQUIRED_DOCUMENTS: Record<ManagerProfileType, DocumentType[]> = {
+const REQUIRED_DOCUMENTS: Record<ManagerProfileType, ManagerDocumentType[]> = {
     broker: ['government_id', 'broker_license'],
     company: ['company_registration', 'business_license', 'tax_certificate', 'representative_id'],
 };
 
-export const getRequiredDocuments = (type: ManagerProfileType): DocumentType[] => {
+export const getRequiredDocuments = (type: ManagerProfileType): ManagerDocumentType[] => {
     return REQUIRED_DOCUMENTS[type] || [];
 };
 
@@ -138,7 +148,7 @@ export const createOrUpdateManagerProfile = async (userId: string, data: Partial
     return { data: null, error: 'Not implemented in mock' };
 };
 
-export const uploadManagerDocument = async (file: File, managerId: string, documentType: DocumentType): Promise<{ url: string | null; path: string | null; error: string | null }> => {
+export const uploadManagerDocument = async (file: File, managerId: string, documentType: ManagerDocumentType): Promise<{ url: string | null; path: string | null; error: string | null }> => {
     return { url: 'mock_url', path: 'mock_path', error: null };
 };
 
@@ -146,7 +156,65 @@ export const submitManagerDocument = async (data: any): Promise<{ data: ManagerD
     return { data: null, error: null };
 };
 
-export const deleteManagerDocument = async (managerId: string, documentType: DocumentType): Promise<{ error: string | null }> => {
+export const deleteManagerDocument = async (managerId: string, documentType: ManagerDocumentType): Promise<{ error: string | null }> => {
+    return { error: null };
+};
+
+// Helper to get document name
+export const getManagerDocumentTypeName = (type: ManagerDocumentType): string => {
+    const names: Record<ManagerDocumentType, string> = {
+        government_id: 'Government ID',
+        broker_license: 'Broker License',
+        company_registration: 'Company Registration',
+        business_license: 'Business License',
+        tax_certificate: 'Tax Certificate',
+        representative_id: 'Representative ID',
+        address_proof: 'Proof of Address'
+    };
+    return names[type] || type;
+};
+
+export interface ManagerVerificationDetails {
+    profile: ManagerProfile | null;
+    documents: ManagerDocument[];
+    auditLog: AuditLogEntry[];
+    userInfo: { email?: string; full_name?: string } | null;
+}
+
+export const getManagerVerificationDetails = async (userId: string): Promise<{ data: ManagerVerificationDetails | null; error: string | null }> => {
+    const summary = await getManagerVerificationSummary(userId);
+    if (!summary.data) return { data: null, error: summary.error };
+
+    return {
+        data: {
+            profile: summary.data.profile,
+            documents: summary.data.documents,
+            auditLog: [],
+            userInfo: { email: 'manager@example.com', full_name: 'Test Manager' }
+        },
+        error: null
+    };
+};
+
+// Mocks updated to match ManagerReviewModal usage (actorId as 2nd arg)
+
+export const startReview = async (managerId: string, actorId: string): Promise<{ error: string | null }> => {
+    return { error: null };
+};
+
+export const approveManager = async (managerId: string, actorId: string, notes?: string): Promise<{ error: string | null }> => {
+    return { error: null };
+};
+
+export const rejectManager = async (managerId: string, actorId: string, reason: string): Promise<{ error: string | null }> => {
+    return { error: null };
+};
+
+export const revokeManagerApproval = async (managerId: string, actorId: string, reason: string): Promise<{ data: boolean; error: string | null }> => {
+    return { data: true, error: null };
+};
+
+export const requestDocumentReupload = async (managerId: string, actorId: string, documentType: ManagerDocumentType, reason: string): Promise<{ error: string | null }> => {
     return { error: null };
 };
 

@@ -19,6 +19,7 @@ const config: Config = {
             },
             fontFamily: {
                 sans: [
+                    "var(--font-inter)",
                     "Inter",
                     "-apple-system",
                     "BlinkMacSystemFont",
@@ -33,6 +34,7 @@ const config: Config = {
                     "sans-serif",
                 ],
                 manager: [
+                    "var(--font-jakarta)",
                     "Plus Jakarta Sans",
                     "Inter",
                     "-apple-system",

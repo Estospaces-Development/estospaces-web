@@ -1,444 +1,341 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+    Activity,
     Shield,
-    Clock,
-    CheckCircle,
-    XCircle,
-    User,
-    Building2,
-    Search,
-    RefreshCw,
-    FileText,
-    Eye,
-    AlertCircle,
-    LayoutDashboard,
-    TrendingUp,
-    LogOut,
-    ExternalLink,
     Users,
-    Briefcase,
-    Sparkles,
+    Building2,
+    Clock,
+    TrendingUp,
+    MessageSquare,
+    AlertCircle,
+    CheckCircle,
+    Star,
+    Zap,
     ArrowRight,
-    Filter,
-    MoreHorizontal
+    Bell
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import * as managerVerificationService from '@/services/managerVerificationService';
-import type { ManagerProfile, VerificationStatus } from '@/services/managerVerificationService';
-import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 
-type TabType = 'all' | 'pending' | 'under_review' | 'approved' | 'rejected';
+// Mock Data for Platform Health
+const healthMetrics = {
+    slaCompliance: 94.2, // %
+    avgResponseTime: "4m 12s",
+    npsScore: 4.8, // out of 5
+    activeTransactions: 156
+};
 
-interface ManagerWithUser extends ManagerProfile {
-    user_email?: string;
-    user_name?: string;
-}
+// Mock Data for Live Feed
+const activityFeed = [
+    { id: 1, type: 'lead', message: 'New lead assigned to James Wilson', time: '2 mins ago', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-50' },
+    { id: 2, type: 'verification', message: 'Skyline Real Estate verified by Admin', time: '15 mins ago', icon: Shield, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { id: 3, type: 'sla_breach', message: 'SLA Warning: Ticket #492 approaching 10m', time: '24 mins ago', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50' },
+    { id: 4, type: 'review', message: '5-star review received for Sarah Chen', time: '1 hour ago', icon: Star, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+];
 
-const AdminVerificationDashboard: React.FC = () => {
+export default function AdminDashboard() {
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<TabType>('all');
-    const [managers, setManagers] = useState<ManagerWithUser[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
-    const [refreshing, setRefreshing] = useState(false);
+    const [stats, setStats] = useState(healthMetrics);
 
-    const [counts, setCounts] = useState({
-        all: 0,
-        pending: 0,
-        under_review: 0,
-        approved: 0,
-        rejected: 0,
-    });
-
-    const handleLogout = async () => {
-        try {
-            if (supabase) await supabase.auth.signOut();
-            localStorage.clear();
-            router.push('/admin/login');
-        } catch {
-            localStorage.clear();
-            router.push('/admin/login');
-        }
-    };
-
-    const fetchManagers = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const statusMap: Record<TabType, VerificationStatus | undefined> = {
-                pending: 'submitted',
-                under_review: 'under_review',
-                approved: 'approved',
-                rejected: 'rejected',
-                all: undefined,
-            };
-
-            const status = statusMap[activeTab];
-            const allStatuses = activeTab === 'all';
-
-            const result = await managerVerificationService.getPendingVerifications(status, allStatuses);
-
-            if (result.error) {
-                setError(result.error);
-                // Fallback for demo if service fails or DB is empty
-                if (result.error.includes('fetch') || result.error.includes('network')) {
-                    setManagers([]);
-                }
-            } else {
-                setManagers(result.data || []);
-            }
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setLoading(false);
-        }
-    }, [activeTab]);
-
-    const fetchCounts = useCallback(async () => {
-        try {
-            const [all, pending, underReview, approved, rejected] = await Promise.all([
-                managerVerificationService.getPendingVerifications(undefined, true), // all statuses
-                managerVerificationService.getPendingVerifications('submitted'),
-                managerVerificationService.getPendingVerifications('under_review'),
-                managerVerificationService.getPendingVerifications('approved'),
-                managerVerificationService.getPendingVerifications('rejected'),
-            ]);
-            setCounts({
-                all: all.data?.length || 0,
-                pending: pending.data?.length || 0,
-                under_review: underReview.data?.length || 0,
-                approved: approved.data?.length || 0,
-                rejected: rejected.data?.length || 0,
-            });
-        } catch (err) {
-            console.error('Error fetching counts:', err);
-        }
+    // Simulate live updates
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setStats(prev => ({
+                ...prev,
+                slaCompliance: Math.min(100, Math.max(0, prev.slaCompliance + (Math.random() - 0.5) * 0.5))
+            }));
+        }, 3000);
+        return () => clearInterval(interval);
     }, []);
 
-    useEffect(() => { fetchManagers(); }, [fetchManagers]);
-    useEffect(() => { fetchCounts(); }, [fetchCounts]);
-
-    const handleRefresh = async () => {
-        setRefreshing(true);
-        await Promise.all([fetchManagers(), fetchCounts()]);
-        setRefreshing(false);
-    };
-
-    const filteredManagers = managers.filter(manager => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-            (manager.user_name || '').toLowerCase().includes(query) ||
-            (manager.user_email || '').toLowerCase().includes(query) ||
-            (manager.license_number || '').toLowerCase().includes(query) ||
-            (manager.company_registration_number || '').toLowerCase().includes(query)
-        );
-    });
-
-    const getStatusConfig = (status: VerificationStatus) => {
-        const configs: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-            approved: { bg: 'bg-emerald-500/10', text: 'text-emerald-600', dot: 'bg-emerald-500', label: 'Approved' },
-            rejected: { bg: 'bg-red-500/10', text: 'text-red-600', dot: 'bg-red-500', label: 'Rejected' },
-            under_review: { bg: 'bg-blue-500/10', text: 'text-blue-600', dot: 'bg-blue-500', label: 'In Review' },
-            submitted: { bg: 'bg-amber-500/10', text: 'text-amber-600', dot: 'bg-amber-500', label: 'Pending' },
-            verification_required: { bg: 'bg-orange-500/10', text: 'text-orange-600', dot: 'bg-orange-500', label: 'Update Needed' },
-            incomplete: { bg: 'bg-gray-500/10', text: 'text-gray-600', dot: 'bg-gray-400', label: 'Incomplete' },
-        };
-        return configs[status] || configs.incomplete;
-    };
-
-    const statCards = [
-        { id: 'pending', label: 'Pending', count: counts.pending, icon: Clock, gradient: 'from-amber-500 to-orange-500', bg: 'bg-amber-50' },
-        { id: 'under_review', label: 'In Review', count: counts.under_review, icon: Eye, gradient: 'from-blue-500 to-indigo-500', bg: 'bg-blue-50' },
-        { id: 'approved', label: 'Approved', count: counts.approved, icon: CheckCircle, gradient: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50' },
-        { id: 'rejected', label: 'Rejected', count: counts.rejected, icon: XCircle, gradient: 'from-red-500 to-rose-500', bg: 'bg-red-50' },
-    ];
-
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-            {/* Glassmorphism Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 border-b border-gray-200/50">
-                <div className="max-w-7xl mx-auto px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
-                                <Shield className="text-white" size={20} />
-                            </div>
-                            <div>
-                                <h1 className="font-bold text-gray-900">Verifications</h1>
-                                <p className="text-xs text-gray-500">Manager Review Portal</p>
-                            </div>
-                        </div>
+        <div className="min-h-screen bg-gray-50/50 p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">
 
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => router.push('/admin/chat')}
-                                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
-                            >
-                                <LayoutDashboard size={16} />
-                                <span className="hidden sm:inline">Dashboard</span>
-                            </button>
-                            <button
-                                onClick={() => router.push('/admin/analytics')}
-                                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
-                            >
-                                <TrendingUp size={16} />
-                                <span className="hidden sm:inline">Analytics</span>
-                            </button>
-                            <div className="w-px h-6 bg-gray-200 mx-2" />
-                            <button
-                                onClick={handleRefresh}
-                                disabled={refreshing}
-                                className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all disabled:opacity-50"
-                            >
-                                <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
-                            </button>
-                            <button
-                                onClick={handleLogout}
-                                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                            >
-                                <LogOut size={18} />
-                            </button>
-                        </div>
+            {/* Header */}
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className="px-3 py-1 bg-indigo-600 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/20">
+                            Command Center
+                        </span>
+                        <span className="text-gray-400 text-xs font-bold flex items-center gap-1">
+                            <Activity size={12} /> System Operational
+                        </span>
                     </div>
+                    <h1 className="text-4xl font-black text-gray-900 tracking-tight leading-none">
+                        Platform Health
+                    </h1>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button className="p-3 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm">
+                        <Bell size={20} />
+                    </button>
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg ring-4 ring-white"></div>
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    {statCards.map((stat) => {
-                        const Icon = stat.icon;
-                        const isActive = activeTab === stat.id;
-                        return (
-                            <button
-                                key={stat.id}
-                                onClick={() => setActiveTab(stat.id as TabType)}
-                                className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all duration-300 ${isActive
-                                        ? 'bg-white shadow-xl shadow-gray-200/50 ring-2 ring-gray-900 scale-[1.02]'
-                                        : 'bg-white/60 hover:bg-white hover:shadow-lg border border-gray-100'
-                                    }`}
-                            >
-                                <div className="flex items-start justify-between">
-                                    <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-lg`}>
-                                        <Icon className="text-white" size={20} />
-                                    </div>
-                                    {isActive && (
-                                        <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                            Active
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="mt-4">
-                                    <p className="text-3xl font-bold text-gray-900">{stat.count}</p>
-                                    <p className="text-sm text-gray-500 mt-0.5">{stat.label}</p>
-                                </div>
-                                {isActive && (
-                                    <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient}`} />
-                                )}
-                            </button>
-                        );
-                    })}
+            {/* Core Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+                {/* SLA Compliance */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
+                        <Clock size={100} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+                                <Zap size={24} />
+                            </div>
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest">SLA Compliance</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-gray-900">{stats.slaCompliance.toFixed(1)}%</span>
+                            <span className="text-sm font-bold text-emerald-500 flex items-center">
+                                <TrendingUp size={14} className="mr-1" /> +2.4%
+                            </span>
+                        </div>
+                        <p className="text-xs text-gray-400 font-medium mt-2">Responses under 10 mins</p>
+
+                        {/* Progress Bar */}
+                        <div className="w-full bg-gray-100 h-1.5 rounded-full mt-4 overflow-hidden">
+                            <div
+                                className="bg-emerald-500 h-full rounded-full transition-all duration-1000"
+                                style={{ width: `${stats.slaCompliance}%` }}
+                            ></div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Main Panel */}
-                <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/40 border border-gray-100 overflow-hidden">
-                    {/* Toolbar */}
-                    <div className="p-4 sm:p-6 border-b border-gray-100">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setActiveTab('all')}
-                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'all'
-                                            ? 'bg-gray-900 text-white shadow-lg'
-                                            : 'text-gray-600 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    All ({counts.all})
-                                </button>
-                                <div className="h-6 w-px bg-gray-200" />
-                                <div className="flex items-center gap-1">
-                                    {statCards.map(stat => (
-                                        <button
-                                            key={stat.id}
-                                            onClick={() => setActiveTab(stat.id as TabType)}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${activeTab === stat.id
-                                                    ? 'bg-gray-100 text-gray-900'
-                                                    : 'text-gray-500 hover:text-gray-700'
-                                                }`}
-                                        >
-                                            {stat.label}
-                                        </button>
-                                    ))}
+                {/* Avg Response Time */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
+                        <Zap size={100} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+                                <Clock size={24} />
+                            </div>
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Avg Response</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-gray-900">{stats.avgResponseTime}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 font-medium mt-2">Global broker average</p>
+                        <div className="flex items-center gap-1 mt-4 text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg w-fit">
+                            TARGET: &lt; 5m 00s
+                        </div>
+                    </div>
+                </div>
+
+                {/* NPS Score */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
+                        <Star size={100} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+                                <Star size={24} />
+                            </div>
+                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Net Promoter</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-gray-900">{stats.npsScore}</span>
+                            <span className="text-lg text-gray-300">/ 5.0</span>
+                        </div>
+                        <div className="flex gap-1 mt-3">
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <Star
+                                    key={i}
+                                    size={16}
+                                    className={`${i <= Math.round(stats.npsScore) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Active Transactions */}
+                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-6 rounded-[2rem] shadow-xl shadow-indigo-500/30 text-white relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:scale-110 transition-transform">
+                        <Activity size={100} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-3 bg-white/10 rounded-xl text-white backdrop-blur-sm">
+                                <Activity size={24} />
+                            </div>
+                            <span className="text-xs font-black text-indigo-200 uppercase tracking-widest">Live Deals</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-black text-white">{stats.activeTransactions}</span>
+                        </div>
+                        <p className="text-xs text-indigo-100 font-medium mt-2">Active fast-track flows</p>
+                        <button className="mt-5 w-full py-2 bg-white text-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 transition-colors">
+                            View Live Map
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                {/* Main Content Area - Quick Actions & Feed */}
+                <div className="lg:col-span-2 space-y-8">
+
+                    {/* Quick Actions Rail */}
+                    <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-gray-200/40 border border-gray-100">
+                        <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+                            <Zap className="text-indigo-500" size={20} /> Quick Actions
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button
+                                onClick={() => router.push('/admin/verifications')}
+                                className="group p-4 rounded-2xl bg-gray-50 hover:bg-orange-50 hover:border-orange-100 border border-transparent transition-all text-left flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white rounded-xl shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
+                                        <Shield size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 group-hover:text-orange-700 transition-colors">Verifications</h4>
+                                        <p className="text-xs text-gray-500 group-hover:text-orange-600/70">12 Pending Reviews</p>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
+                                    <ArrowRight size={16} />
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => router.push('/admin/properties')}
+                                className="group p-4 rounded-2xl bg-gray-50 hover:bg-blue-50 hover:border-blue-100 border border-transparent transition-all text-left flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white rounded-xl shadow-sm text-blue-500 group-hover:scale-110 transition-transform">
+                                        <Building2 size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">Property Hub</h4>
+                                        <p className="text-xs text-gray-500 group-hover:text-blue-600/70">Manage Inventory</p>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-blue-500">
+                                    <ArrowRight size={16} />
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => router.push('/admin/users')}
+                                className="group p-4 rounded-2xl bg-gray-50 hover:bg-emerald-50 hover:border-emerald-100 border border-transparent transition-all text-left flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white rounded-xl shadow-sm text-emerald-500 group-hover:scale-110 transition-transform">
+                                        <Users size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">User Registry</h4>
+                                        <p className="text-xs text-gray-500 group-hover:text-emerald-600/70">View Clients</p>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-emerald-500">
+                                    <ArrowRight size={16} />
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => router.push('/admin/chat')}
+                                className="group p-4 rounded-2xl bg-gray-50 hover:bg-purple-50 hover:border-purple-100 border border-transparent transition-all text-left flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white rounded-xl shadow-sm text-purple-500 group-hover:scale-110 transition-transform">
+                                        <MessageSquare size={24} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors">Support Chat</h4>
+                                        <p className="text-xs text-gray-500 group-hover:text-purple-600/70">3 New Messages</p>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-purple-500">
+                                    <ArrowRight size={16} />
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Banner */}
+                    <div className="rounded-[2.5rem] bg-gray-900 p-8 text-white relative overflow-hidden">
+                        <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-50 -translate-y-1/2 translate-x-1/3"></div>
+                        <div className="relative z-10 flex items-start justify-between">
+                            <div>
+                                <h3 className="text-2xl font-black mb-2">Quarterly Goals</h3>
+                                <p className="text-gray-400 text-sm max-w-md mb-6">
+                                    The team is on track to hit the Q1 target of 150 verified properties.
+                                    Keep monitoring fast-track transaction speeds.
+                                </p>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex -space-x-3">
+                                        {[1, 2, 3, 4].map(i => (
+                                            <div key={i} className={`w-8 h-8 rounded-full border-2 border-gray-900 bg-gray-800 flex items-center justify-center text-[10px] font-bold`}>
+                                                {String.fromCharCode(64 + i)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-400">Team Active</span>
                                 </div>
                             </div>
-
-                            <div className="flex items-center gap-3">
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search by name, email..."
-                                        className="pl-10 pr-4 py-2.5 w-64 text-sm bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-gray-900 focus:bg-white transition-all"
-                                    />
+                            <div className="hidden sm:block">
+                                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md border border-white/20">
+                                    <TrendingUp size={32} />
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    {/* Error */}
-                    {error && (
-                        <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3">
-                            <AlertCircle className="text-red-500" size={20} />
-                            <p className="text-sm text-red-700 flex-1">{error}</p>
-                            <button onClick={handleRefresh} className="text-sm font-medium text-red-600 hover:underline">
-                                Retry
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Content */}
-                    {loading ? (
-                        <div className="py-24 text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-100 mb-4">
-                                <RefreshCw className="text-gray-400 animate-spin" size={28} />
-                            </div>
-                            <p className="text-gray-500 font-medium">Loading applications...</p>
-                        </div>
-                    ) : filteredManagers.length === 0 ? (
-                        <div className="py-24 text-center">
-                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-gray-100 to-gray-50 mb-4">
-                                <Sparkles className="text-gray-300" size={36} />
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-1">No applications found</h3>
-                            <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                                {searchQuery ? 'Try adjusting your search terms' : 'There are no verification requests in this category yet'}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="divide-y divide-gray-50">
-                            {filteredManagers.map((manager, index) => {
-                                const statusConfig = getStatusConfig(manager.verification_status);
-                                const isBroker = manager.profile_type === 'broker';
-
-                                return (
-                                    <div
-                                        key={manager.id}
-                                        className="group px-6 py-5 hover:bg-gray-50/50 transition-all cursor-pointer"
-                                        onClick={() => setSelectedManagerId(manager.id)}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            {/* Avatar */}
-                                            <div className={`relative w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${isBroker
-                                                    ? 'bg-gradient-to-br from-orange-400 to-red-500'
-                                                    : 'bg-gradient-to-br from-blue-400 to-indigo-500'
-                                                }`}>
-                                                {isBroker ? (
-                                                    <User className="text-white" size={22} />
-                                                ) : (
-                                                    <Building2 className="text-white" size={22} />
-                                                )}
-                                                <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${statusConfig.dot}`} />
-                                            </div>
-
-                                            {/* Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className="font-semibold text-gray-900 truncate">
-                                                        {manager.user_name ||
-                                                            manager.user_email?.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) ||
-                                                            `Manager ${manager.id.slice(0, 8)}`}
-                                                    </h3>
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${statusConfig.bg} ${statusConfig.text}`}>
-                                                        {statusConfig.label}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                                    <span className="truncate">{manager.user_email || manager.id.slice(0, 8) + '...'}</span>
-                                                    <span className="hidden sm:inline">•</span>
-                                                    <span className="hidden sm:inline font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">
-                                                        {manager.license_number || manager.company_registration_number || 'No license'}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Type Badge */}
-                                            <div className="hidden md:block">
-                                                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${isBroker ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
-                                                    }`}>
-                                                    {isBroker ? <Briefcase size={12} /> : <Building2 size={12} />}
-                                                    {isBroker ? 'Broker' : 'Company'}
-                                                </span>
-                                            </div>
-
-                                            {/* Date */}
-                                            <div className="hidden lg:block text-right">
-                                                <p className="text-xs text-gray-400">Submitted</p>
-                                                <p className="text-sm font-medium text-gray-700">
-                                                    {manager.submitted_at
-                                                        ? new Date(manager.submitted_at).toLocaleDateString('en-US', {
-                                                            month: 'short',
-                                                            day: 'numeric'
-                                                        })
-                                                        : '—'}
-                                                </p>
-                                            </div>
-
-                                            {/* Action */}
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedManagerId(manager.id);
-                                                }}
-                                                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-gray-800 transition-all opacity-0 group-hover:opacity-100 shadow-lg"
-                                            >
-                                                Review
-                                                <ArrowRight size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-
-                    {/* Footer */}
-                    {!loading && filteredManagers.length > 0 && (
-                        <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between">
-                            <p className="text-sm text-gray-500">
-                                Showing <span className="font-medium text-gray-900">{filteredManagers.length}</span> of{' '}
-                                <span className="font-medium text-gray-900">{counts.all}</span> applications
-                            </p>
-                            <button
-                                onClick={() => setActiveTab('all')}
-                                className="text-sm text-gray-600 hover:text-gray-900 font-medium"
-                            >
-                                View all →
-                            </button>
-                        </div>
-                    )}
                 </div>
-            </main>
 
-            {/* Modal */}
-            {selectedManagerId && (
-                <ManagerReviewModal
-                    managerId={selectedManagerId}
-                    onClose={() => {
-                        setSelectedManagerId(null);
-                        handleRefresh();
-                    }}
-                />
-            )}
+                {/* Live Feed Sidebar */}
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-gray-200/40 border border-gray-100 h-fit">
+                    <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                            <Activity className="text-indigo-500" size={20} /> Live Feed
+                        </h3>
+                        <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                    </div>
+
+                    <div className="relative">
+                        {/* Connector Line */}
+                        <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gray-100"></div>
+
+                        <div className="space-y-8">
+                            {activityFeed.map((item) => (
+                                <div key={item.id} className="relative flex gap-4">
+                                    <div className={`relative z-10 w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center shrink-0 border-4 border-white shadow-sm`}>
+                                        <item.icon size={18} />
+                                    </div>
+                                    <div className="pt-1">
+                                        <p className="text-sm font-bold text-gray-900 leading-snug mb-1">
+                                            {item.message}
+                                        </p>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                            {item.time}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button className="w-full mt-8 py-3 rounded-xl border-2 border-gray-100 text-gray-400 font-bold text-xs uppercase tracking-widest hover:border-indigo-100 hover:text-indigo-600 transition-all">
+                        View All Activity
+                    </button>
+                </div>
+            </div>
         </div>
     );
-};
-
-export default AdminVerificationDashboard;
+}

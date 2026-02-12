@@ -121,7 +121,7 @@ function PropertiesContent() {
         getPropertyStats,
     } = useProperties();
 
-    if (!isMounted) return <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center font-bold">Loading...</div>;
+
 
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [activeTab, setActiveTab] = useState<TabType>('all');

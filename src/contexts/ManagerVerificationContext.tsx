@@ -8,7 +8,7 @@ import type {
     ManagerDocument,
     VerificationStatus,
     ManagerProfileType,
-    DocumentType
+    ManagerDocumentType
 } from '../services/managerVerificationService';
 
 // ============================================================================
@@ -25,8 +25,8 @@ interface ManagerVerificationContextValue {
     error: string | null;
 
     // Computed
-    requiredDocuments: DocumentType[];
-    missingDocuments: DocumentType[];
+    requiredDocuments: ManagerDocumentType[];
+    missingDocuments: ManagerDocumentType[];
     isComplete: boolean;
     canSubmit: boolean;
 
@@ -34,16 +34,16 @@ interface ManagerVerificationContextValue {
     refetch: () => Promise<void>;
     createProfile: (profileType: ManagerProfileType) => Promise<{ error: string | null }>;
     updateProfile: (data: Partial<ManagerProfile>) => Promise<{ error: string | null }>;
-    uploadDocument: (file: File, documentType: DocumentType, metadata?: {
+    uploadDocument: (file: File, documentType: ManagerDocumentType, metadata?: {
         documentNumber?: string;
         expiryDate?: string;
     }) => Promise<{ error: string | null }>;
-    deleteDocument: (documentType: DocumentType) => Promise<{ error: string | null }>;
+    deleteDocument: (documentType: ManagerDocumentType) => Promise<{ error: string | null }>;
     submitForVerification: () => Promise<{ error: string | null }>;
 
     // Helpers
-    getDocumentByType: (type: DocumentType) => ManagerDocument | undefined;
-    getDocumentStatus: (type: DocumentType) => 'not_uploaded' | 'pending' | 'approved' | 'rejected' | 'reupload_required';
+    getDocumentByType: (type: ManagerDocumentType) => ManagerDocument | undefined;
+    getDocumentStatus: (type: ManagerDocumentType) => 'not_uploaded' | 'pending' | 'approved' | 'rejected' | 'reupload_required';
 }
 
 const ManagerVerificationContext = createContext<ManagerVerificationContextValue | null>(null);
@@ -72,9 +72,9 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         ? managerVerificationService.getRequiredDocuments(managerProfile.profile_type)
         : [];
 
-    const uploadedDocumentTypes = documents.map(d => d.document_type);
+    const uploadedManagerDocumentTypes = documents.map(d => d.document_type);
     const missingDocuments = requiredDocuments.filter(
-        d => !uploadedDocumentTypes.includes(d)
+        d => !uploadedManagerDocumentTypes.includes(d)
     );
 
     const isComplete = missingDocuments.length === 0 && managerProfile !== null;
@@ -161,7 +161,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
 
     const uploadDocument = useCallback(async (
         file: File,
-        documentType: DocumentType,
+        documentType: ManagerDocumentType,
         metadata?: { documentNumber?: string; expiryDate?: string }
     ): Promise<{ error: string | null }> => {
         if (!user?.id) return { error: 'Not authenticated' };
@@ -174,7 +174,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
     }, [user?.id, refetch]);
 
     const deleteDocument = useCallback(async (
-        documentType: DocumentType
+        documentType: ManagerDocumentType
     ): Promise<{ error: string | null }> => {
         if (!user?.id) return { error: 'Not authenticated' };
         const result = await managerVerificationService.deleteManagerDocument(user.id, documentType);
@@ -195,12 +195,12 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
     // Helpers
     // ========================================================================
 
-    const getDocumentByType = useCallback((type: DocumentType): ManagerDocument | undefined => {
+    const getDocumentByType = useCallback((type: ManagerDocumentType): ManagerDocument | undefined => {
         return documents.find(d => d.document_type === type);
     }, [documents]);
 
     const getDocumentStatus = useCallback((
-        type: DocumentType
+        type: ManagerDocumentType
     ): 'not_uploaded' | 'pending' | 'approved' | 'rejected' | 'reupload_required' => {
         const doc = documents.find(d => d.document_type === type);
         if (!doc) return 'not_uploaded';

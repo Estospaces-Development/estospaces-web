@@ -25,13 +25,13 @@ import {
     Sparkles,
     type LucideIcon
 } from 'lucide-react';
-import * as managerVerificationService from '@/services/managerVerificationService';
 import { useAuth } from '@/contexts/AuthContext';
+import * as managerVerificationService from '@/services/managerVerificationService';
 import {
     ManagerProfile,
     ManagerDocument,
     AuditLogEntry,
-    DocumentType
+    ManagerDocumentType
 } from '@/services/managerVerificationService';
 
 // ============================================================================
@@ -61,7 +61,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [showRejectForm, setShowRejectForm] = useState(false);
-    const [showReuploadForm, setShowReuploadForm] = useState<DocumentType | null>(null);
+    const [showReuploadForm, setShowReuploadForm] = useState<ManagerDocumentType | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [reuploadReason, setReuploadReason] = useState('');
     const [approveNotes, setApproveNotes] = useState('');
@@ -213,7 +213,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         }
     };
 
-    const handleRequestReupload = async (documentType: DocumentType) => {
+    const handleRequestReupload = async (documentType: ManagerDocumentType) => {
         if (!user?.id || !reuploadReason.trim()) return;
 
         setActionLoading(`reupload-${documentType}`);
@@ -733,7 +733,7 @@ const DocumentCard: React.FC<{
                         </div>
                         <div className="min-w-0">
                             <p className="font-medium text-gray-900">
-                                {managerVerificationService.getDocumentTypeName(document.document_type)}
+                                {managerVerificationService.getManagerDocumentTypeName(document.document_type)}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                                 {document.document_name || 'Document uploaded'}

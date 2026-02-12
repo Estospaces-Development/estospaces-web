@@ -17,6 +17,7 @@ interface User {
 
 interface AuthContextType {
     user: User | null;
+    profile: User | null;
     isAuthenticated: boolean;
     loading: boolean;
     error: string | null;
@@ -188,6 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return (
         <AuthContext.Provider value={{
             user,
+            profile: user,
             isAuthenticated,
             loading,
             error,
@@ -213,10 +215,11 @@ export function useAuth() {
 export function getRedirectPath(role: string): string {
     switch (role) {
         case 'admin':
-            return '/admin/verifications';
+            return '/admin/dashboard';
         case 'manager':
             return '/manager/dashboard';
+        case 'user':
         default:
-            return '/dashboard';
+            return '/user/dashboard';
     }
 }

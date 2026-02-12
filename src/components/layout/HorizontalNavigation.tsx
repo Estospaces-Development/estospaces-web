@@ -32,7 +32,11 @@ const UnreadCountBadge = ({ count }: { count: number }) => {
     );
 };
 
-const HorizontalNavigation = () => {
+interface HorizontalNavigationProps {
+    useSubdomain?: boolean;
+}
+
+const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProps) => {
     const pathname = usePathname();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -56,16 +60,23 @@ const HorizontalNavigation = () => {
         { icon: HelpCircle, label: 'Help & Support', path: '/user/dashboard/help' },
     ];
 
+    const getLinkPath = (path: string) => {
+        if (!useSubdomain) return path;
+        return path.replace(/^\/user/, '') || '/';
+    };
+
     const isActive = (path: string) => {
-        if (path === '/user/dashboard') {
-            return pathname === path;
+        const checkPath = getLinkPath(path);
+        if (checkPath === '/dashboard') { // Handle dashboard specifically if stripped
+            return pathname === '/dashboard';
         }
-        return pathname?.startsWith(path);
+        return pathname?.startsWith(checkPath);
     };
 
     // Check if Buy or Rent is active based on URL
     const isBuyActive = () => {
-        if (pathname === '/user/dashboard/discover') {
+        const path = useSubdomain ? '/dashboard/discover' : '/user/dashboard/discover';
+        if (pathname === path) {
             const type = searchParams.get('type');
             return type === 'buy' || (!type); // Default is buy if no type specified on discover
         }
@@ -73,7 +84,8 @@ const HorizontalNavigation = () => {
     };
 
     const isRentActive = () => {
-        if (pathname === '/user/dashboard/discover') {
+        const path = useSubdomain ? '/dashboard/discover' : '/user/dashboard/discover';
+        if (pathname === path) {
             const type = searchParams.get('type');
             return type === 'rent';
         }
@@ -112,11 +124,12 @@ const HorizontalNavigation = () => {
                     {navItems.slice(0, 1).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
+                        const linkPath = getLinkPath(item.path);
 
                         return (
                             <Link
                                 key={item.path}
-                                href={item.path}
+                                href={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-2 px-2 py-2.5 text-sm font-medium transition-all duration-200 ease-out
@@ -202,11 +215,12 @@ const HorizontalNavigation = () => {
                     {navItems.slice(1, 2).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
+                        const linkPath = getLinkPath(item.path);
 
                         return (
                             <Link
                                 key={item.path}
-                                href={item.path}
+                                href={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-2 px-2 py-3 text-sm font-medium transition-all duration-300 ease-out
@@ -240,11 +254,12 @@ const HorizontalNavigation = () => {
                     {navItems.slice(2).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
+                        const linkPath = getLinkPath(item.path);
 
                         return (
                             <Link
                                 key={item.path}
-                                href={item.path}
+                                href={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-2 px-2 py-3 text-sm font-medium transition-all duration-300 ease-out
@@ -281,11 +296,12 @@ const HorizontalNavigation = () => {
                     {navItems.slice(0, 1).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
+                        const linkPath = getLinkPath(item.path);
 
                         return (
                             <Link
                                 key={item.path}
-                                href={item.path}
+                                href={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
@@ -362,11 +378,12 @@ const HorizontalNavigation = () => {
                     {navItems.slice(1, 2).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
+                        const linkPath = getLinkPath(item.path);
 
                         return (
                             <Link
                                 key={item.path}
-                                href={item.path}
+                                href={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
@@ -397,11 +414,12 @@ const HorizontalNavigation = () => {
                     {navItems.slice(2).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
+                        const linkPath = getLinkPath(item.path);
 
                         return (
                             <Link
                                 key={item.path}
-                                href={item.path}
+                                href={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out

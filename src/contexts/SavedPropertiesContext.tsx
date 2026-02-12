@@ -64,6 +64,8 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
         } catch (err: any) {
             console.error('Error fetching saved properties:', err);
             setError(err.message);
+            // Fallback to empty array to prevent crashes
+            setSavedProperties([]);
         } finally {
             setLoading(false);
         }

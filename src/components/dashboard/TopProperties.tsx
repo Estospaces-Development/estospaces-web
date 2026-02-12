@@ -59,7 +59,7 @@ const TopProperties = () => {
                 // Assuming inquiries count is 0 for now as it requires complex join or separate query.
 
                 const sortedProperties = properties
-                    .map(prop => ({
+                    .map((prop: any) => ({
                         id: prop.id,
                         name: prop.title || 'Untitled Property',
                         price: parseFloat(prop.price || '0').toLocaleString('en-US', {
@@ -74,7 +74,7 @@ const TopProperties = () => {
                             ? 'Available'
                             : prop.status || 'Unknown',
                     }))
-                    .sort((a, b) => b.views - a.views)
+                    .sort((a: TopProperty, b: TopProperty) => b.views - a.views)
                     .slice(0, 3); // Top 3 properties
 
                 setTopProperties(sortedProperties);

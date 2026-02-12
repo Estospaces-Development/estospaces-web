@@ -120,7 +120,21 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
         setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
     };
 
-    const formatPrice = (price: number | string) => {
+    const formatPrice = (price: number | string | any) => {
+        if (typeof price === 'object' && price !== null && 'amount' in price) {
+            const { amount, currency } = price;
+            const formatted = new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: currency || 'USD',
+                maximumFractionDigits: 0
+            }).format(amount);
+
+            if (property.property_type === 'rent' || property.listingType === 'rent' || property.type?.toLowerCase() === 'rent') {
+                return `${formatted}/month`;
+            }
+            return formatted;
+        }
+
         if (typeof price === 'number') {
             const formatted = `£${price.toLocaleString('en-GB')}`;
             if (property.property_type === 'rent' || property.type?.toLowerCase() === 'rent') {
@@ -280,7 +294,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                     <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 line-clamp-1">{property.title}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1">
                         <MapPin size={14} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        <span className="line-clamp-1">{property.location}</span>
+                        <span className="line-clamp-1">
+                            {typeof property.location === 'string'
+                                ? property.location
+                                : (property.address || property.location?.addressLine1 || property.location?.city || 'Location unavailable')}
+                        </span>
                     </p>
 
                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">

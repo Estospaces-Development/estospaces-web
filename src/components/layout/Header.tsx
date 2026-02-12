@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, User, Palette, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut } from 'lucide-react';
+import { Search, User, Palette, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -75,8 +75,9 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-xs font-medium rounded-full border border-yellow-200 dark:border-yellow-800">
                         {/* Verification Status (Manager Only) */}
                         <div className="hidden sm:block">
-                            {getVerificationBadge()}
-                        </div></div>
+                            <span className="text-yellow-700 dark:text-yellow-400">Pending Review</span>
+                        </div>
+                    </div>
                 );
             case 'rejected':
                 return (
@@ -123,6 +124,72 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                 {/* Right: Actions & Profile */}
                 <div className="flex items-center gap-2 sm:gap-4">
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        aria-label="Toggle theme"
+                    >
+                        <Palette size={20} />
+                    </button>
+
+                    {/* Verification Badge (Desktop) */}
+                    <div className="hidden md:block">
+                        {getVerificationBadge()}
+                    </div>
+
+                    {/* Notifications */}
+                    <div className="relative">
+                        <NotificationDropdown />
+                    </div>
+
+                    {/* Profile Dropdown */}
+                    <div className="relative" ref={profileRef}>
+                        <button
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold shadow-sm">
+                                {getDisplayName().charAt(0).toUpperCase()}
+                            </div>
+                        </button>
+
+                        {isProfileOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 animate-in fade-in slide-in-from-top-2">
+                                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{getDisplayName()}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{getRole()}</p>
+                                </div>
+                                <div className="py-1">
+                                    <Link
+                                        href={`/${getRole()}/profile`}
+                                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                        onClick={() => setIsProfileOpen(false)}
+                                    >
+                                        <User size={16} />
+                                        Profile
+                                    </Link>
+                                    <Link
+                                        href="/settings"
+                                        className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                        onClick={() => setIsProfileOpen(false)}
+                                    >
+                                        <Settings size={16} />
+                                        Settings
+                                    </Link>
+                                </div>
+                                <div className="py-1 border-t border-gray-100 dark:border-gray-800">
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10"
+                                    >
+                                        <LogOut size={16} />
+                                        Sign Out
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </header>

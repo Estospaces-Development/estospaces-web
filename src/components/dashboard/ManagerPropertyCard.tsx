@@ -105,39 +105,50 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
             </div>
 
             <div className="p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-1 truncate">{title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-1 truncate">
-                    <MapPin size={14} />
+                <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate flex-1 pr-2">{title}</h3>
+                    {property.price !== undefined && (
+                        <p className="font-display font-bold text-lg text-orange-600 dark:text-orange-500 whitespace-nowrap">
+                            £{property.price.toLocaleString()}
+                        </p>
+                    )}
+                </div>
+
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-1.5 truncate">
+                    <MapPin size={14} className="flex-shrink-0 text-gray-400" />
                     {address}
                 </p>
 
-                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <div className="flex items-center gap-1">
+                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-5 border-t border-b border-gray-100 dark:border-gray-800 py-3">
+                    <div className="flex items-center gap-1.5" title="Bedrooms">
                         <Bed size={16} className="text-gray-400" />
-                        <span>{beds}</span>
+                        <span className="font-medium">{beds}</span> <span className="text-xs text-gray-400 hidden sm:inline">Beds</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="w-px h-4 bg-gray-200 dark:bg-gray-800"></div>
+                    <div className="flex items-center gap-1.5" title="Bathrooms">
                         <Bath size={16} className="text-gray-400" />
-                        <span>{baths}</span>
+                        <span className="font-medium">{baths}</span> <span className="text-xs text-gray-400 hidden sm:inline">Baths</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="w-px h-4 bg-gray-200 dark:bg-gray-800"></div>
+                    <div className="flex items-center gap-1.5" title="Area">
                         <Maximize size={16} className="text-gray-400" />
-                        <span>{size} sqft</span>
+                        <span className="font-medium">{size}</span> <span className="text-xs text-gray-400 hidden sm:inline">sqft</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <button
-                        onClick={() => onEdit && onEdit(property.id)}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                        onClick={(e) => { e.stopPropagation(); onEdit && onEdit(property.id); }}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold transition-colors"
                     >
-                        <Edit size={14} />
+                        <Edit size={16} />
                         Edit
                     </button>
                     <button
-                        onClick={() => onView && onView(property.id)}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-black border border-gray-200 dark:border-gray-700 hover:border-orange-500 hover:text-orange-500 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium transition-colors"
+                        onClick={(e) => { e.stopPropagation(); onView && onView(property.id); }}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black border border-transparent hover:bg-gray-800 dark:hover:bg-gray-100 rounded-xl text-sm font-bold transition-all shadow-lg shadow-gray-200 dark:shadow-none"
                     >
+                        <Eye size={16} />
                         View
                     </button>
                 </div>

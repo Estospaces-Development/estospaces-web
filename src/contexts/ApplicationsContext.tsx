@@ -53,6 +53,11 @@ export interface Application {
     propertyPrice?: number;
     propertyType?: string;
     agentName?: string;
+    agentAgency?: string;
+    agentEmail?: string;
+    agentPhone?: string;
+    listingType?: string;
+    submittedDate?: string;
     lastUpdated?: string;
     requiresAction?: boolean;
     hasAppointment?: boolean;
@@ -78,6 +83,8 @@ interface ApplicationsContextType {
     dateRangeFilter: { start: string | null; end: string | null };
     setDateRangeFilter: (range: { start: string | null; end: string | null }) => void;
     fetchApplications: () => Promise<void>;
+    withdrawApplication: (id: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
+    updateApplicationStatus: (id: string, status: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const ApplicationsContext = createContext<ApplicationsContextType | undefined>(undefined);
@@ -122,6 +129,11 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 propertyPrice: lead.property?.price || 0,
                 propertyType: lead.property?.property_type || 'apartment',
                 agentName: lead.property?.agent_name || 'Agent',
+                agentAgency: 'Premier Estates',
+                agentEmail: 'agent@example.com',
+                agentPhone: '+44 7700 900000',
+                listingType: lead.property?.property_type === 'rent' ? 'rent' : 'sale',
+                submittedDate: lead.created_at,
                 lastUpdated: lead.updated_at || lead.created_at,
                 requiresAction: lead.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
                 // In a real app, these would come from the lead data or another endpoint
@@ -140,6 +152,23 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
     const createApplication = async (data: any) => {
         // This should call a backend service to create a lead
+        return { success: true };
+    };
+
+    const withdrawApplication = async (id: string, reason?: string) => {
+        // This should call a backend service to withdraw the application
+        // For now, we'll just update local state to reflect withdrawal for UI responsiveness
+        setApplications(prev => prev.map(app =>
+            app.id === id ? { ...app, status: APPLICATION_STATUS.WITHDRAWN } : app
+        ));
+        return { success: true };
+    };
+
+    const updateApplicationStatus = async (id: string, status: string) => {
+        // Mock implementation for UI only
+        setApplications(prev => prev.map(app =>
+            app.id === id ? { ...app, status: status as ApplicationStatus } : app
+        ));
         return { success: true };
     };
 
@@ -182,7 +211,9 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             setPropertyTypeFilter,
             dateRangeFilter,
             setDateRangeFilter,
-            fetchApplications
+            fetchApplications,
+            withdrawApplication,
+            updateApplicationStatus
         }}>
             {children}
         </ApplicationsContext.Provider>

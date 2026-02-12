@@ -18,10 +18,15 @@ import {
     Search,
     MapPin,
     Briefcase,
-    Zap
+    Zap,
+    Calendar,
+    CreditCard,
+    BarChart3,
+    Activity,
+    UserCircle
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
 import Image from 'next/image';
@@ -29,43 +34,63 @@ import Image from 'next/image';
 interface SidebarProps {
     isOpen: boolean;
     onToggle: () => void;
+    useSubdomain?: boolean;
 }
 
-const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
+const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     const pathname = usePathname();
     const { user, getDisplayName, signOut, getRole } = useAuth();
     const { isVerified, isLoading: isVerificationLoading } = useManagerVerification();
     const role = getRole();
-
+    const router = useRouter();
     const handleSignOut = async () => {
         try {
             await signOut();
+            router.push('/login');
         } catch (error) {
             console.error('Error signing out:', error);
         }
     };
 
-    const isActive = (path: string) => {
-        return pathname === path || pathname?.startsWith(path + '/');
+    const getLinkPath = (path: string) => {
+        if (!useSubdomain) return path;
+        // Strip the role prefix from the path
+        const newPath = path.replace(/^\/(manager|user|admin)/, '');
+        return newPath || '/'; // If empty (was just /manager), return /
     };
 
+    const isActive = (path: string) => {
+        const checkPath = getLinkPath(path);
+        return pathname === checkPath || pathname?.startsWith(checkPath + '/');
+    };
+
+    // Manager menu items — matches legacy sidebar ordering exactly
     const managerMenuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/manager/dashboard' },
-        { icon: Zap, label: 'Fast Track (24h)', path: '/manager/fast-track' },
-        { icon: Users, label: 'Community', path: '/manager/community' },
+        { icon: Zap, label: 'Fast Track 24h', path: '/manager/fast-track' },
+        { icon: Users, label: 'Brokers Community', path: '/manager/community' },
         { icon: Building2, label: 'Properties', path: '/manager/properties' },
-        { icon: Briefcase, label: 'Leads & CRM', path: '/manager/leads' },
+        { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
         { icon: FileText, label: 'Applications', path: '/manager/applications' },
+        { icon: Calendar, label: 'Appointments', path: '/manager/appointments' },
         { icon: MessageSquare, label: 'Messages', path: '/manager/messages' },
-        { icon: PieChart, label: 'Analytics', path: '/manager/analytics' },
+        { icon: BarChart3, label: 'Analytics', path: '/manager/analytics' },
+        { icon: CreditCard, label: 'Billing', path: '/manager/billing' },
+    ];
+
+    // Manager footer items — matches legacy sidebar footer exactly
+    const managerFooterItems = [
+        { icon: Shield, label: 'Verification', path: '/manager/verification' },
+        { icon: UserCircle, label: 'Profile', path: '/manager/profile' },
+        { icon: HelpCircle, label: 'Help & Support', path: '/manager/help' },
     ];
 
     const userMenuItems = [
         { icon: Search, label: 'Explore', path: '/user/dashboard' },
         { icon: Heart, label: 'Saved', path: '/user/saved' },
         { icon: FileText, label: 'Applications', path: '/user/applications' },
-        { icon: MessageSquare, label: 'Messages', path: '/user/messages' },
-        { icon: Home, label: 'My Home', path: '/user/my-home' },
+        { icon: MessageSquare, label: 'Messages', path: '/user/dashboard/messages' },
+        { icon: Home, label: 'My Home', path: '/user/dashboard/contracts' },
     ];
 
     const adminMenuItems = [
@@ -82,7 +107,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'
+            className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'
                 }`}
         >
             {/* Logo Section */}
@@ -101,7 +126,7 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
                         className={`font-display font-bold text-xl tracking-tight text-gray-900 dark:text-white whitespace-nowrap transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0'
                             }`}
                     >
-                        EstoBytes
+                        Estospaces
                     </span>
                 </div>
                 {isOpen && (
@@ -149,67 +174,81 @@ const Sidebar = ({ isOpen, onToggle }: SidebarProps) => {
                 </div>
             </div>
 
-            {/* Navigation Links */}
-            <div className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700">
-                <nav className="px-3 space-y-1">
-                    {menuItems.map((item) => {
-                        const active = isActive(item.path);
-                        return (
-                            <Link
-                                key={item.path}
-                                href={item.path}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${active
-                                    ? 'bg-orange-50 dark:bg-orange-900/10 text-orange-600 dark:text-orange-400 font-medium shadow-sm'
-                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200'
-                                    }`}
-                                title={!isOpen ? item.label : ''}
-                            >
-                                <item.icon
-                                    size={20}
-                                    className={`flex-shrink-0 transition-colors ${active ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'
-                                        }`}
-                                />
-                                <span
-                                    className={`whitespace-nowrap transition-all duration-300 ${isOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 absolute'
-                                        }`}
-                                >
-                                    {item.label}
-                                </span>
-
-                                {/* Active Indicator Bar */}
-                                {active && (
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-orange-500 rounded-r-full"></div>
-                                )}
-                            </Link>
-                        );
-                    })}
+            {/* Navigation Links — matches legacy active style: bg-primary text-white shadow-md */}
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0">
+                <nav>
+                    <ul className="space-y-2">
+                        {menuItems.map((item) => {
+                            const active = isActive(item.path);
+                            const linkPath = getLinkPath(item.path);
+                            return (
+                                <li key={item.path}>
+                                    <Link
+                                        href={linkPath}
+                                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group ${active
+                                            ? 'bg-primary text-white shadow-md'
+                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white hover:scale-[1.02] hover:shadow-sm hover:brightness-105 dark:hover:brightness-110'
+                                            }`}
+                                        title={!isOpen ? item.label : ''}
+                                    >
+                                        <item.icon
+                                            className={`w-5 h-5 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`}
+                                        />
+                                        {isOpen && (
+                                            <span className={`menu-item transition-all duration-300 ${!active && 'group-hover:translate-x-1'}`}>
+                                                {item.label}
+                                            </span>
+                                        )}
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 </nav>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-1">
-                <Link
-                    href="/settings"
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors w-full group ${!isOpen && 'justify-center'
-                        }`}
-                    title={!isOpen ? 'Settings' : ''}
-                >
-                    <Settings size={20} className="flex-shrink-0 group-hover:rotate-45 transition-transform duration-300" />
-                    <span className={`whitespace-nowrap transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0 hidden'}`}>
-                        Settings
-                    </span>
-                </Link>
+            {/* Footer Menu Items — Verification, Profile, Help & Support for manager */}
+            {role === 'manager' && (
+                <div className="p-4 border-t border-gray-200 dark:border-gray-800 transition-colors duration-300">
+                    <ul className="space-y-2">
+                        {managerFooterItems.map((item) => {
+                            const active = isActive(item.path);
+                            const linkPath = getLinkPath(item.path);
+                            return (
+                                <li key={item.path}>
+                                    <Link
+                                        href={linkPath}
+                                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group ${active
+                                            ? 'bg-primary text-white shadow-md'
+                                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white hover:scale-[1.02] hover:shadow-sm hover:brightness-105 dark:hover:brightness-110'
+                                            }`}
+                                        title={!isOpen ? item.label : ''}
+                                    >
+                                        <item.icon
+                                            className={`w-5 h-5 transition-transform duration-300 ${!active && 'group-hover:scale-110'}`}
+                                        />
+                                        {isOpen && (
+                                            <span className={`menu-item transition-all duration-300 ${!active && 'group-hover:translate-x-1'}`}>
+                                                {item.label}
+                                            </span>
+                                        )}
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
 
+            {/* Sign Out */}
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800 transition-colors duration-300">
                 <button
                     onClick={handleSignOut}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400 transition-colors w-full group ${!isOpen && 'justify-center'
-                        }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300 group hover:scale-[1.02] hover:shadow-sm ${!isOpen && 'justify-center'}`}
                     title={!isOpen ? 'Sign Out' : ''}
                 >
-                    <LogOut size={20} className="flex-shrink-0 group-hover:translate-x-1 transition-transform" />
-                    <span className={`whitespace-nowrap transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0 hidden'}`}>
-                        Sign Out
-                    </span>
+                    <LogOut className="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
+                    {isOpen && <span className="text-sm font-medium transition-all duration-300 group-hover:translate-x-1">Sign out</span>}
                 </button>
             </div>
         </aside>
