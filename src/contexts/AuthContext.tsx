@@ -30,7 +30,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const CORE_SERVICE_URL = 'http://localhost:8080';
+import { silentFetch } from '@/lib/apiUtils';
+
+const CORE_SERVICE_URL = process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -58,22 +60,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
         try {
-            const response = await fetch(`${CORE_SERVICE_URL}/api/v1/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
+            const result = await silentFetch<any>(
+                `${CORE_SERVICE_URL}/api/v1/auth/login`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                },
+                null,
+                'AuthContext'
+            );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                // If backend rejects the credentials (e.g. users not seeded),
-                // fall back to mock login for demo purposes
+            if (!result.data || result.error) {
                 console.warn('Backend login failed, trying mock login fallback');
                 return tryMockLogin(email, password);
             }
 
-            // Store token and user info
+            const data = result.data;
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email };
 
@@ -91,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             return { success: true };
         } catch (err) {
-            // If backend is down, try mock login for demo purposes
             console.warn('Backend unavailable, using mock login:', err);
             return tryMockLogin(email, password);
         }
@@ -132,21 +134,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const register = useCallback(async (name: string, email: string, password: string, role: string) => {
         setError(null);
         try {
-            const response = await fetch(`${CORE_SERVICE_URL}/api/v1/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password, role }),
-            });
+            const result = await silentFetch<any>(
+                `${CORE_SERVICE_URL}/api/v1/auth/register`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, role }),
+                },
+                null,
+                'AuthContext'
+            );
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                const errMsg = data.error || data.message || 'Registration failed';
+            if (!result.data || result.error) {
+                const errMsg = result.error || 'Registration failed';
                 setError(errMsg);
                 return { success: false, error: errMsg };
             }
 
-            // Auto-login after registration
+            const data = result.data;
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email, name, role };
 

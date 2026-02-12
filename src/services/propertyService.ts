@@ -1,4 +1,6 @@
-const CORE_SERVICE_URL = 'http://localhost:8080';
+import { silentFetch } from '@/lib/apiUtils';
+
+const CORE_SERVICE_URL = process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export interface Property {
     id: string;
@@ -110,46 +112,26 @@ const getHeaders = () => {
 };
 
 export const getProperties = async (filters: any = {}) => {
-    try {
-        const url = new URL(`${CORE_SERVICE_URL}/api/v1/properties`);
-        Object.keys(filters).forEach(key => {
-            if (filters[key]) url.searchParams.append(key, filters[key]);
-        });
+    const url = new URL(`${CORE_SERVICE_URL}/api/v1/properties`);
+    Object.keys(filters).forEach(key => {
+        if (filters[key]) url.searchParams.append(key, filters[key]);
+    });
 
-        const response = await fetch(url.toString(), {
-            headers: getHeaders()
-        });
-
-        if (!response.ok) {
-            // Fallback to mock data for now if API fails
-            console.warn('API fetch failed, using mock properties');
-            return { data: MOCK_PROPERTIES, error: null };
-        }
-
-        const data = await response.json();
-        return { data: data.data as Property[], error: null };
-    } catch (error: any) {
-        console.error('Error fetching properties:', error);
-        return { data: MOCK_PROPERTIES, error: null };
-    }
+    return silentFetch<Property[]>(
+        url.toString(),
+        { headers: getHeaders() },
+        MOCK_PROPERTIES,
+        'propertyService'
+    );
 };
 
 export const getPropertyById = async (id: string) => {
-    try {
-        const response = await fetch(`${CORE_SERVICE_URL}/api/v1/properties/${id}`, {
-            headers: getHeaders()
-        });
-        const data = await response.json();
+    const mockProp = MOCK_PROPERTIES.find(p => p.id === id) || MOCK_PROPERTIES[0];
 
-        if (!response.ok) {
-            const mockProp = MOCK_PROPERTIES.find(p => p.id === id);
-            return { data: mockProp, error: null };
-        }
-
-        return { data: data as Property, error: null };
-    } catch (error: any) {
-        console.error('Error fetching property:', error);
-        const mockProp = MOCK_PROPERTIES.find(p => p.id === id);
-        return { data: mockProp, error: null };
-    }
+    return silentFetch<Property>(
+        `${CORE_SERVICE_URL}/api/v1/properties/${id}`,
+        { headers: getHeaders() },
+        mockProp,
+        'propertyService'
+    );
 };

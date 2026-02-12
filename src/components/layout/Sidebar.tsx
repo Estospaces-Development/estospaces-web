@@ -61,6 +61,13 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
 
     const isActive = (path: string) => {
         const checkPath = getLinkPath(path);
+
+        // Special handling for dashboard root paths to prevent overlapping with sub-paths that are also sidebar items
+        // e.g. /manager/dashboard vs /manager/dashboard/properties
+        if (checkPath.endsWith('/dashboard')) {
+            return pathname === checkPath;
+        }
+
         return pathname === checkPath || pathname?.startsWith(checkPath + '/');
     };
 
@@ -69,7 +76,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/manager/dashboard' },
         { icon: Zap, label: 'Fast Track 24h', path: '/manager/fast-track' },
         { icon: Users, label: 'Brokers Community', path: '/manager/community' },
-        { icon: Building2, label: 'Properties', path: '/manager/properties' },
+        { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
         { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
         { icon: FileText, label: 'Applications', path: '/manager/applications' },
         { icon: Calendar, label: 'Appointments', path: '/manager/appointments' },

@@ -1,7 +1,7 @@
 // Import EXR assets
 // Note: In a real app, you might want to lazy load these or handle them differently
 // but for this mock setup we import them to get the resolved Vite URL
-// immport blueStudioExr from '../assets/virtual-data/blue_photo_studio_4k.exr';
+// import blueStudioExr from '../assets/virtual-data/blue_photo_studio_4k.exr';
 const blueStudioExr = '/assets/virtual-data/blue_photo_studio_4k.exr';
 const brownStudioExr = '/assets/virtual-data/brown_photostudio_02_4k.exr';
 const neonStudioExr = '/assets/virtual-data/neon_photostudio_4k.exr';

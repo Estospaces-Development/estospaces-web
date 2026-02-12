@@ -74,7 +74,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
     const handleViewProperty = (e: React.MouseEvent) => {
         e.stopPropagation();
         // Navigate to a property detail or list for now
-        router.push(`/manager/properties`);
+        router.push(`/manager/dashboard/properties`);
     };
 
     const formatTime = (seconds: number) => {

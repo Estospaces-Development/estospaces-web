@@ -1,14 +1,14 @@
 "use client";
 
-import { Search, User, Palette, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings } from 'lucide-react';
+import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
+import ThemeSwitcher from '../dashboard/ThemeSwitcher';
 
 interface HeaderProps {
     onMenuToggle?: () => void;
@@ -16,7 +16,6 @@ interface HeaderProps {
 
 const Header = ({ onMenuToggle }: HeaderProps) => {
     const router = useRouter();
-    const { theme, toggleTheme } = useTheme();
     const { user, signOut, getDisplayName, getRole } = useAuth();
     const { notifications, unreadCount } = useNotifications();
     const { verificationStatus, isLoading: isVerificationLoading } = useManagerVerification();
@@ -125,13 +124,8 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 {/* Right: Actions & Profile */}
                 <div className="flex items-center gap-2 sm:gap-4">
                     {/* Theme Toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        className="p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                        aria-label="Toggle theme"
-                    >
-                        <Palette size={20} />
-                    </button>
+                    {/* Theme Toggle */}
+                    <ThemeSwitcher />
 
                     {/* Verification Badge (Desktop) */}
                     <div className="hidden md:block">

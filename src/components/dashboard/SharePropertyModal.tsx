@@ -34,7 +34,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
 
     if (!property) return null;
 
-    const url = typeof window !== 'undefined' ? `${window.location.origin}/manager/properties/edit/${property.id}` : '';
+    const url = typeof window !== 'undefined' ? `${window.location.origin}/manager/dashboard/properties/edit/${property.id}` : '';
     const propertyImage = property.media?.images?.[0]?.url || (typeof property.images?.[0] === 'string' ? property.images[0] : '') || '';
     const price = property.priceString || (property.price?.amount ? `${property.price?.currency} ${property.price?.amount}` : 'Price on Request');
 

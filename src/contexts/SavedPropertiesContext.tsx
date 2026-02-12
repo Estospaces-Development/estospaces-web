@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { notifyPropertySaved } from '../services/notificationsService';
 import { useAuth } from './AuthContext';
 
+import { silentFetch } from '@/lib/apiUtils';
+
 interface SavedPropertiesContextType {
     savedProperties: any[];
     savedPropertyIds: Set<string>;
@@ -27,7 +29,7 @@ export const useSavedProperties = () => {
     return context;
 };
 
-const CORE_SERVICE_URL = 'http://localhost:8080';
+const CORE_SERVICE_URL = process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
@@ -49,26 +51,17 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
             return;
         }
 
-        try {
-            setLoading(true);
-            const response = await fetch(`${CORE_SERVICE_URL}/api/v1/properties/saved`, {
-                headers: getHeaders()
-            });
-            const data = await response.json();
+        setLoading(true);
+        const result = await silentFetch<any[]>(
+            `${CORE_SERVICE_URL}/api/v1/properties/saved`,
+            { headers: getHeaders() },
+            [],
+            'SavedPropertiesContext'
+        );
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to fetch saved properties');
-            }
-
-            setSavedProperties(data.data || []);
-        } catch (err: any) {
-            console.error('Error fetching saved properties:', err);
-            setError(err.message);
-            // Fallback to empty array to prevent crashes
-            setSavedProperties([]);
-        } finally {
-            setLoading(false);
-        }
+        setSavedProperties(result.data);
+        setError(result.error);
+        setLoading(false);
     }, [user]);
 
     useEffect(() => {

@@ -80,17 +80,17 @@ function DashboardContent() {
       router.push('/manager/analytics'); // Assuming it exists or will handle 404 gracefully
     } else if (tab === 'properties') {
       // Navigate to full properties list
-      router.push('/manager/properties');
+      router.push('/manager/dashboard/properties');
     }
   };
 
   const handleEditProperty = (id: string) => {
-    // router.push(`/manager/properties/edit/${id}`);
+    // router.push(`/manager/dashboard/properties/edit/${id}`);
     console.log('Edit', id);
   };
 
   const handleViewProperty = (id: string) => {
-    // router.push(`/manager/properties/${id}`);
+    // router.push(`/manager/dashboard/properties/${id}`);
     console.log('View', id);
   };
 
@@ -176,7 +176,7 @@ function DashboardContent() {
                     <span>Export</span>
                   </button>
                   <button
-                    onClick={() => router.push('/manager/properties/add')}
+                    onClick={() => router.push('/manager/dashboard/properties/add')}
                     className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium shadow-lg shadow-orange-500/20"
                   >
                     <Plus className="w-4 h-4" />

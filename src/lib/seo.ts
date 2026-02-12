@@ -66,7 +66,7 @@ export const pageMetadata = {
     userBookings: generateMetadata({ title: 'My Bookings', path: '/user/bookings', noIndex: true }),
     userFavorites: generateMetadata({ title: 'Saved Properties', path: '/user/favorites', noIndex: true }),
     managerDashboard: generateMetadata({ title: 'Manager Dashboard', path: '/manager/dashboard', noIndex: true }),
-    managerProperties: generateMetadata({ title: 'Manage Properties', path: '/manager/properties', noIndex: true }),
+    managerProperties: generateMetadata({ title: 'Manage Properties', path: '/manager/dashboard/properties', noIndex: true }),
     managerLeads: generateMetadata({ title: 'Leads & CRM', path: '/manager/leads', noIndex: true }),
     managerClients: generateMetadata({ title: 'Client Management', path: '/manager/clients', noIndex: true }),
     managerAnalytics: generateMetadata({ title: 'Analytics', path: '/manager/analytics', noIndex: true }),

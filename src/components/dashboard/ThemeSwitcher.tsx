@@ -37,10 +37,10 @@ const ThemeSwitcher = () => {
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 aria-label="Change theme"
             >
-                <CurrentIcon size={20} className="text-white" />
+                <CurrentIcon size={20} className="text-gray-700 dark:text-gray-200" />
                 <ChevronDown
                     size={16}
-                    className={`text-white transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`text-gray-700 dark:text-gray-200 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                 />
             </button>
 
