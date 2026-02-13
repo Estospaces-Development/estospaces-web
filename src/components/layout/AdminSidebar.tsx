@@ -56,17 +56,17 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-full flex flex-col bg-white border-r border-gray-200 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'}`}
+            className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'}`}
         >
             {/* Logo Section */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800">
                 <div className={`flex items-center gap-3 overflow-hidden ${!isOpen && 'justify-center w-full'}`}>
                     <div className="relative w-8 h-8 flex-shrink-0">
                         {/* Placeholder for logo */}
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">E</div>
+                        <div className="w-8 h-8 bg-orange-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-orange-500/30">E</div>
                     </div>
                     <span
-                        className={`font-bold text-xl tracking-tight text-gray-900 whitespace-nowrap transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}
+                        className={`font-bold text-xl tracking-tight text-gray-900 dark:text-white whitespace-nowrap transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 w-0'}`}
                     >
                         EstoAdmin
                     </span>
@@ -74,7 +74,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                 {isOpen && onToggle && (
                     <button
                         onClick={onToggle}
-                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors md:hidden"
+                        className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors md:hidden"
                     >
                         <ChevronLeft size={18} />
                     </button>
@@ -85,7 +85,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
             {onToggle && (
                 <button
                     onClick={onToggle}
-                    className="absolute -right-3 top-20 bg-white border border-gray-200 rounded-full p-1.5 text-gray-500 hover:text-indigo-600 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+                    className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1.5 text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
                 >
                     {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
                 </button>
@@ -102,9 +102,9 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                                 <li key={item.path}>
                                     <Link
                                         href={linkPath}
-                                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group ${active
-                                            ? 'bg-indigo-600 text-white shadow-md'
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-indigo-600 hover:scale-[1.02]'
+                                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${active
+                                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/30'
+                                            : 'text-gray-600 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-gray-800 hover:text-orange-600 dark:hover:text-orange-400 hover:scale-[1.02]'
                                             }`}
                                         title={!isOpen ? item.label : ''}
                                     >
@@ -125,10 +125,10 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
             </div>
 
             {/* Sign Out */}
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
                 <button
                     onClick={handleSignOut}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-all duration-300 group hover:scale-[1.02] ${!isOpen && 'justify-center'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300 group hover:scale-[1.02] ${!isOpen && 'justify-center'}`}
                     title={!isOpen ? 'Sign Out' : ''}
                 >
                     <LogOut className="w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />

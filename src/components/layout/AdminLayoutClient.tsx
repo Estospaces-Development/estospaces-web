@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 
@@ -35,19 +36,21 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
-            <AdminSidebar
-                isOpen={sidebarOpen}
-                onToggle={() => setSidebarOpen(!sidebarOpen)}
-                useSubdomain={isSubdomain}
-            />
+        <ThemeProvider>
+            <div className="min-h-screen bg-gray-50 dark:bg-black flex transition-colors duration-300">
+                <AdminSidebar
+                    isOpen={sidebarOpen}
+                    onToggle={() => setSidebarOpen(!sidebarOpen)}
+                    useSubdomain={isSubdomain}
+                />
 
-            <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
-                <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                <main className="flex-1 p-6">
-                    {children}
-                </main>
+                <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+                    <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+                    <main className="flex-1 p-6">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </ThemeProvider>
     );
 }
