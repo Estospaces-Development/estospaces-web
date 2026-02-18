@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { MapPin, CheckCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 
 const NearestBrokerWidget = () => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const [status, setStatus] = useState<'idle' | 'connecting' | 'connected'>('idle');
     const [progress, setProgress] = useState(0);
 
@@ -123,7 +123,7 @@ const NearestBrokerWidget = () => {
                                 Call
                             </button>
                             <button
-                                onClick={() => router.push(`/user/dashboard/messages?newConversationWith=${encodeURIComponent(broker.name)}`)}
+                                onClick={() => navigate(`/user/dashboard/messages?newConversationWith=${encodeURIComponent(broker.name)}`)}
                                 className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium text-xs transition-colors shadow-sm"
                             >
                                 Message
@@ -144,3 +144,4 @@ const NearestBrokerWidget = () => {
 };
 
 export default NearestBrokerWidget;
+

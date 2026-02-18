@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { Timer, ArrowRight, MoreHorizontal, Info, BellRing } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 
 const BrokerResponseWidget: React.FC = () => {
-    const router = useRouter();
+    const navigate = useNavigate();
     // Generate mock data with timestamps relative to now for realistic countdowns
     const [requests, setRequests] = useState<BrokerRequest[]>(() => {
         // Safe to run in hydration? We need consistent initial state.
@@ -107,7 +107,7 @@ const BrokerResponseWidget: React.FC = () => {
                     <span>USP: Guaranteed 10-minute response time active.</span>
                 </div>
                 <button
-                    onClick={() => router.push('/manager/messages')}
+                    onClick={() => navigate('/manager/messages')}
                     className="flex items-center gap-1 text-orange-500 hover:text-orange-600 font-medium group"
                 >
                     View All Requests
@@ -119,3 +119,4 @@ const BrokerResponseWidget: React.FC = () => {
 };
 
 export default BrokerResponseWidget;
+

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle, MapPin, User, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import ClientProfileModal from './ClientProfileModal';
 
 export type RequestStatus = 'pending' | 'responded' | 'expired';
@@ -23,7 +23,7 @@ interface BrokerRequestItemProps {
 }
 
 const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespond }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Initialize seconds remaining based on 10 minutes minus time elapsed since timestamp
@@ -68,13 +68,13 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
         e.stopPropagation();
         setCurrentStatus('responded');
         onRespond(request.id);
-        router.push('/manager/messages'); // Redirect to messages
+        navigate('/manager/messages'); // Redirect to messages
     };
 
     const handleViewProperty = (e: React.MouseEvent) => {
         e.stopPropagation();
         // Navigate to a property detail or list for now
-        router.push(`/manager/dashboard/properties`);
+        navigate(`/manager/dashboard/properties`);
     };
 
     const formatTime = (seconds: number) => {
@@ -220,3 +220,4 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
 };
 
 export default BrokerRequestItem;
+

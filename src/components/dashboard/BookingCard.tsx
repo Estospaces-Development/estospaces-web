@@ -39,7 +39,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-black rounded-xl p-5 border border-gray-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-800' : ''} ${className}`}
+            className={`bg-white dark:bg-black rounded-xl p-5 hover:shadow-md transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${className}`}
         >
             <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
@@ -65,7 +65,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
                 </div>
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-zinc-900">
+            <div className="flex items-center justify-between pt-3">
                 <Badge variant="outline" size="sm">
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                 </Badge>
@@ -75,7 +75,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
                     </span>
                 )}
                 <StatusIcon className={`w-4 h-4 ${status === 'confirmed' || status === 'completed' ? 'text-green-500' :
-                        status === 'pending' ? 'text-amber-500' : 'text-red-500'
+                    status === 'pending' ? 'text-amber-500' : 'text-red-500'
                     }`} />
             </div>
         </div>

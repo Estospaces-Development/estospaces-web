@@ -43,7 +43,7 @@ const MapViewReal = ({ houses = [], agencies = [] }: MapViewRealProps) => {
         zoom: 13,
     });
 
-    const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+    const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
     if (!MAPBOX_TOKEN) {
         return (

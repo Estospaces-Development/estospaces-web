@@ -24,7 +24,7 @@ import {
     Key,
     LucideIcon,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useApplications, APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
 import StatusTracker from './StatusTracker';
 
@@ -48,7 +48,7 @@ interface ApplicationDetailProps {
 }
 
 const ApplicationDetail = ({ applicationId, application: initialApplication, onClose, onUpdateStatus }: ApplicationDetailProps) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const { allApplications, withdrawApplication, updateApplicationStatus } = useApplications();
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
@@ -289,7 +289,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                 </div>
 
                                 <button
-                                    onClick={() => router.push(`/user/dashboard/property/${application.propertyId}`)}
+                                    onClick={() => navigate(`/user/dashboard/property/${application.propertyId}`)}
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
                                 >
                                     <span>View Property</span>
@@ -395,7 +395,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => router.push('/user/dashboard/messages')}
+                                        onClick={() => navigate('/user/dashboard/messages')}
                                         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                                     >
                                         <MessageSquare size={18} />
@@ -526,7 +526,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                 </p>
                                                 <div className="flex flex-wrap gap-3">
                                                     <button
-                                                        onClick={() => router.push('/user/dashboard/messages')}
+                                                        onClick={() => navigate('/user/dashboard/messages')}
                                                         className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors"
                                                     >
                                                         <MessageSquare size={18} />
@@ -560,7 +560,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                     Congratulations! The process is complete. You have successfully {application.listingType === 'rent' ? 'rented' : 'purchased'} this property.
                                                 </p>
                                                 <button
-                                                    onClick={() => router.push('/user/dashboard')}
+                                                    onClick={() => navigate('/user/dashboard')}
                                                     className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                                                 >
                                                     <Home size={18} />
@@ -730,3 +730,4 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
 };
 
 export default ApplicationDetail;
+

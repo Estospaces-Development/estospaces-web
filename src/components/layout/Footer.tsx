@@ -1,5 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 import { Building2, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer: React.FC = () => {
@@ -62,7 +62,7 @@ const Footer: React.FC = () => {
                                 {links.map((link) => (
                                     <li key={link.label}>
                                         <Link
-                                            href={link.href}
+                                            to={link.href}
                                             className="text-sm text-gray-400 hover:text-white transition-colors"
                                         >
                                             {link.label}
@@ -80,9 +80,9 @@ const Footer: React.FC = () => {
                         © {currentYear} EstoSpaces. All rights reserved.
                     </p>
                     <div className="flex items-center gap-6 text-xs text-gray-500">
-                        <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-                        <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-                        <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
+                        <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+                        <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
+                        <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
                     </div>
                 </div>
             </div>
@@ -91,3 +91,4 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
+

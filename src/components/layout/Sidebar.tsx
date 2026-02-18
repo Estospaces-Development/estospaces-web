@@ -25,11 +25,9 @@ import {
     Activity,
     UserCircle
 } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
-import Image from 'next/image';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -38,15 +36,15 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
-    const pathname = usePathname();
+    const { pathname } = useLocation();
     const { user, getDisplayName, signOut, getRole } = useAuth();
     const { isVerified, isLoading: isVerificationLoading } = useManagerVerification();
     const role = getRole();
-    const router = useRouter();
+    const navigate = useNavigate();
     const handleSignOut = async () => {
         try {
             await signOut();
-            router.push('/login');
+            navigate('/login');
         } catch (error) {
             console.error('Error signing out:', error);
         }
@@ -121,10 +119,9 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
             <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800">
                 <div className={`flex items-center gap-3 overflow-hidden ${!isOpen && 'justify-center w-full'}`}>
                     <div className="relative w-8 h-8 flex-shrink-0">
-                        <Image
+                        <img
                             src="/images/logo-icon.png"
                             alt="Logo"
-                            fill
                             className="object-contain"
                             sizes="32px"
                         />
@@ -169,12 +166,11 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
                             <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                                 {role}
                             </span>
-                            {role === 'manager' && !isVerificationLoading && (
-                                isVerified ? (
-                                    <Shield size={12} className="text-green-500" fill="currentColor" />
-                                ) : (
-                                    <Shield size={12} className="text-gray-400" />
-                                )
+                            {role === 'manager' && !isVerificationLoading && isVerified && (
+                                <Shield size={12} className="text-green-500" />
+                            )}
+                            {role === 'manager' && !isVerificationLoading && !isVerified && (
+                                <Shield size={12} className="text-gray-400" />
                             )}
                         </div>
                     </div>
@@ -191,7 +187,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
                             return (
                                 <li key={item.path}>
                                     <Link
-                                        href={linkPath}
+                                        to={linkPath}
                                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group ${active
                                             ? 'bg-primary text-white shadow-md'
                                             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white hover:scale-[1.02] hover:shadow-sm hover:brightness-105 dark:hover:brightness-110'
@@ -224,7 +220,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
                             return (
                                 <li key={item.path}>
                                     <Link
-                                        href={linkPath}
+                                        to={linkPath}
                                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 group ${active
                                             ? 'bg-primary text-white shadow-md'
                                             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 dark:hover:text-white hover:scale-[1.02] hover:shadow-sm hover:brightness-105 dark:hover:brightness-110'
@@ -263,3 +259,4 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
 };
 
 export default Sidebar;
+

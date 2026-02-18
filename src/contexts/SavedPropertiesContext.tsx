@@ -29,7 +29,7 @@ export const useSavedProperties = () => {
     return context;
 };
 
-const CORE_SERVICE_URL = process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:8080';
+const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();

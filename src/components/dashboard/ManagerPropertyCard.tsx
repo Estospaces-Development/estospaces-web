@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Star, Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye, Filter } from 'lucide-react';
-import Image from 'next/image';
+;
 
 interface ManagerPropertyCardProps {
     property: {
@@ -72,13 +72,13 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const statusLabel = property.status?.replace(/_/g, ' ') || 'Draft';
 
     return (
-        <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden group hover:shadow-lg transition-all duration-300">
+        <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
             <div className="relative h-48 bg-gray-100 dark:bg-gray-900">
                 {imageUrl ? (
-                    <Image
+                    <img
                         src={imageUrl}
                         alt={title}
-                        fill
+
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : (
@@ -119,7 +119,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     {address}
                 </p>
 
-                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-5 border-t border-b border-gray-100 dark:border-gray-800 py-3">
+                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-5 py-3">
                     <div className="flex items-center gap-1.5" title="Bedrooms">
                         <Bed size={16} className="text-gray-400" />
                         <span className="font-medium">{beds}</span> <span className="text-xs text-gray-400 hidden sm:inline">Beds</span>
@@ -146,7 +146,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); onView && onView(property.id); }}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black border border-transparent hover:bg-gray-800 dark:hover:bg-gray-100 rounded-xl text-sm font-bold transition-all shadow-lg shadow-gray-200 dark:shadow-none"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-100 rounded-xl text-sm font-bold transition-all shadow-lg shadow-gray-200 dark:shadow-none"
                     >
                         <Eye size={16} />
                         View
@@ -158,3 +158,4 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
 };
 
 export default ManagerPropertyCard;
+

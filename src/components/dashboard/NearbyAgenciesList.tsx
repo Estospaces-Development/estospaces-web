@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { MapPin, Star, ChevronRight, Building } from 'lucide-react';
-import Link from 'next/link';
+import { Link } from 'react-router-dom';
 
 // Mock Data
 const NEARBY_AGENCIES = [
@@ -40,7 +40,7 @@ const NEARBY_AGENCIES = [
 
 const NearbyAgenciesList = () => {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -52,7 +52,7 @@ const NearbyAgenciesList = () => {
                     </div>
                 </div>
                 <Link
-                    href="/user/dashboard/agencies"
+                    to="/user/dashboard/agencies"
                     className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center gap-1"
                 >
                     View All <ChevronRight size={14} />
@@ -103,3 +103,4 @@ const NearbyAgenciesList = () => {
 };
 
 export default NearbyAgenciesList;
+

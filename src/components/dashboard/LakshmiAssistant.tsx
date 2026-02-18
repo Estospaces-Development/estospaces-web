@@ -2,14 +2,14 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MessageCircle, X, Send, Bot, ArrowRight, Mic, MicOff, Loader2, MapPin, Home, TrendingUp, Eye, Heart, FileText, Map as MapIcon, Sparkles, User } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 // import { useProperties } from '@/contexts/PropertiesContext'; // Use new PropertyContext
 import { useUserLocation } from '@/contexts/LocationContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 
 const LakshmiAssistant = () => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { activeLocation } = useUserLocation();
     const { savedProperties } = useSavedProperties();
@@ -287,3 +287,4 @@ const LakshmiAssistant = () => {
 };
 
 export default LakshmiAssistant;
+

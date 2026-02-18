@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, Suspense, lazy } from 'react';
 import { MapPin, ExternalLink, Map, Square } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 
 // Dynamic imports for modals
-const StreetViewModal = dynamic(() => import('@/components/ui/StreetViewModal'), { ssr: false });
-const Tour360Modal = dynamic(() => import('@/components/ui/Tour360Modal'), { ssr: false });
+const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
+const Tour360Modal = lazy(() => import('@/components/ui/Tour360Modal'));
 
 interface PropertyData {
     propertyId?: string;
@@ -24,7 +23,7 @@ interface MessagingPropertyCardProps {
 }
 
 const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const [showStreetView, setShowStreetView] = useState(false);
     const [showTour, setShowTour] = useState(false);
 
@@ -39,7 +38,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
     const handleViewDetails = () => {
         if (property.propertyId) {
-            router.push(`/user/dashboard/property/${property.propertyId}`);
+            navigate(`/user/dashboard/property/${property.propertyId}`);
         }
     };
 
@@ -51,7 +50,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
     return (
         <>
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 mb-4">
+            <div className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-4 mb-4">
                 <div className="flex gap-3">
                     {/* Property Image */}
                     {property.propertyImage && (
@@ -95,7 +94,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
                             <button
                                 onClick={() => setShowStreetView(true)}
-                                className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm border border-gray-200 dark:border-gray-700"
+                                className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
                                 title="Street View"
                             >
                                 <Map size={14} />
@@ -103,7 +102,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
                             <button
                                 onClick={() => setShowTour(true)}
-                                className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm border border-gray-200 dark:border-gray-700"
+                                className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
                                 title="360 Tour"
                             >
                                 <Square size={14} />
@@ -113,10 +112,13 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
                 </div>
             </div>
 
-            {showStreetView && <StreetViewModal location={location} onClose={() => setShowStreetView(false)} />}
-            {showTour && <Tour360Modal tourUrl={property.tourUrl} onClose={() => setShowTour(false)} />}
+            <Suspense fallback={null}>
+                {showStreetView && <StreetViewModal location={location} onClose={() => setShowStreetView(false)} />}
+                {showTour && <Tour360Modal tourUrl={property.tourUrl} onClose={() => setShowTour(false)} />}
+            </Suspense>
         </>
     );
 };
 
 export default MessagingPropertyCard;
+

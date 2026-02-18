@@ -18,7 +18,7 @@ import {
     Building2,
     TrendingUp
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
 
 
@@ -29,7 +29,7 @@ interface ApplicationCardProps {
 }
 
 const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
 
     const getStatusConfig = (status: string) => {
         switch (status) {
@@ -182,7 +182,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
 
     const handleMessageAgent = (e: React.MouseEvent) => {
         e.stopPropagation();
-        router.push('/user/dashboard/messages');
+        navigate('/user/dashboard/messages');
     };
 
     // Get progress percentage based on status
@@ -231,10 +231,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     return (
         <div
             onClick={onClick}
-            className={`group bg-white dark:bg-gray-800 rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-lg ${application.requiresAction
-                ? 'border-orange-200 dark:border-orange-800 ring-1 ring-orange-100 dark:ring-orange-900/30'
-                : 'border-gray-200 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800'
-                }`}
         >
             <div className="flex">
                 {/* Property Image */}
@@ -298,7 +294,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
 
                         {/* Appointment Info */}
                         {application.hasAppointment && formatAppointment() && (
-                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg">
+                            <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                                 <Calendar size={14} className="text-purple-600 dark:text-purple-400" />
                                 <span className="text-sm text-purple-700 dark:text-purple-300 font-medium">
                                     Appointment: {formatAppointment()}
@@ -330,7 +326,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
 
                         {/* Deadline Warning */}
                         {isDeadlineWarning() && (
-                            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
+                            <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg">
                                 <Clock size={13} className="text-red-500" />
                                 <span className="text-xs font-medium text-red-600 dark:text-red-400">
                                     Due: {formatDate(application.deadline)}
@@ -340,7 +336,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     </div>
 
                     {/* Bottom Section - Actions */}
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center justify-between mt-4 pt-3">
                         {/* Price */}
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
@@ -379,3 +375,4 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
 };
 
 export default ApplicationCard;
+

@@ -1,9 +1,9 @@
 "use client";
 
 import { Zap } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-const SatelliteMap = dynamic(() => import('./SatelliteMap'), { ssr: false });
+import { useState, useEffect, Suspense, lazy } from 'react';
+
+const SatelliteMap = lazy(() => import('./SatelliteMap'));
 
 interface Activity {
     id: string;
@@ -45,7 +45,7 @@ const RecentActivity = () => {
     }, []);
 
     return (
-        <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:brightness-105 dark:hover:brightness-110">
+        <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6 relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:brightness-105 dark:hover:brightness-110">
             {/* Animated light overlay */}
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/10 dark:via-white/5 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out"></div>
 
@@ -79,8 +79,10 @@ const RecentActivity = () => {
                 </div>
 
                 {/* Satellite Map */}
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg h-[500px] md:h-[650px] lg:h-[800px] relative overflow-hidden border border-gray-200 dark:border-gray-800">
-                    <SatelliteMap />
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg h-[500px] md:h-[650px] lg:h-[800px] relative overflow-hidden">
+                    <Suspense fallback={<div className="flex items-center justify-center h-full">Loading map...</div>}>
+                        <SatelliteMap />
+                    </Suspense>
                 </div>
             </div>
         </div>

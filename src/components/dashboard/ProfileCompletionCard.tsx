@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ProfileCompletionCard = () => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const { user, loading } = useAuth(); // User might be null, handle safely
     const [isVisible, setIsVisible] = useState(true);
 
@@ -32,7 +32,7 @@ const ProfileCompletionCard = () => {
                 {/* Blinking/Pulsing Glow Effect - Refined for elegance */}
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-400/50 to-pink-600/50 rounded-xl opacity-50 blur-sm group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
 
-                <div className="relative flex items-center gap-4 bg-white dark:bg-gray-800 p-3 pr-8 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 max-w-sm hover:shadow-xl transition-shadow duration-300">
+                <div className="relative flex items-center gap-4 bg-white dark:bg-gray-800 p-3 pr-8 rounded-xl shadow-lg max-w-sm hover:shadow-xl transition-shadow duration-300">
 
                     {/* Icon */}
                     <div className="flex-shrink-0 w-10 h-10 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center">
@@ -51,7 +51,7 @@ const ProfileCompletionCard = () => {
 
                     {/* Action Button */}
                     <button
-                        onClick={() => router.push('/user/dashboard/profile')}
+                        onClick={() => navigate('/user/dashboard/profile')}
                         className="flex-shrink-0 flex items-center justify-center w-8 h-8 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full hover:scale-105 transition-transform shadow-md"
                     >
                         <ArrowRight size={14} />
@@ -72,3 +72,4 @@ const ProfileCompletionCard = () => {
 };
 
 export default ProfileCompletionCard;
+

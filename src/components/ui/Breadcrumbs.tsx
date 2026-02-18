@@ -1,8 +1,7 @@
 "use client";
 
 import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 
 interface BreadcrumbsProps {
@@ -37,7 +36,7 @@ const defaultLabels: Record<string, string> = {
 };
 
 const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ overrides = {}, className = '' }) => {
-    const pathname = usePathname();
+    const pathname = useLocation().pathname;
     if (!pathname) return null;
 
     // Remove route group markers like (admin), (manager), (user)
@@ -53,7 +52,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ overrides = {}, className = '
 
     return (
         <nav aria-label="Breadcrumbs" className={`flex items-center gap-1 text-sm ${className}`}>
-            <Link href="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <Link to="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
                 <Home className="w-4 h-4" />
             </Link>
             {crumbs.map((crumb) => (
@@ -63,7 +62,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ overrides = {}, className = '
                         <span className="text-gray-900 dark:text-white font-medium truncate max-w-[200px]">{crumb.label}</span>
                     ) : (
                         <Link
-                            href={crumb.href}
+                            to={crumb.href}
                             className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors truncate max-w-[200px]"
                         >
                             {crumb.label}
@@ -76,3 +75,4 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ overrides = {}, className = '
 };
 
 export default Breadcrumbs;
+

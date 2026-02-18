@@ -18,6 +18,8 @@ const config: Config = {
             },
             fontFamily: {
                 sans: [
+                    "var(--font-jakarta)",
+                    "Plus Jakarta Sans",
                     "var(--font-inter)",
                     "Inter",
                     "-apple-system",

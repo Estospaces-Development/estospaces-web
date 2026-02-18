@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle2, Clock, MapPin, ChevronDown, Activity, FileText,
     Loader2, Eye, MessageCircle, ArrowRight,
@@ -213,7 +213,7 @@ const TimelineSkeleton = () => (
 // --- Main Component ---
 
 const ApplicationTimelineWidget = () => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'applications' | 'listings'>('applications');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showTimeline, setShowTimeline] = useState<Record<string, boolean>>({});
@@ -360,7 +360,7 @@ const ApplicationTimelineWidget = () => {
                                     )}
 
                                     <div className="flex gap-3">
-                                        <button onClick={() => router.push(`/user/dashboard/property/${item.property.id}`)} className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2">View Property <ExternalLink size={14} /></button>
+                                        <button onClick={() => navigate(`/user/dashboard/property/${item.property.id}`)} className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2">View Property <ExternalLink size={14} /></button>
                                         <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
                                     </div>
                                 </div>
@@ -374,3 +374,4 @@ const ApplicationTimelineWidget = () => {
 };
 
 export default ApplicationTimelineWidget;
+

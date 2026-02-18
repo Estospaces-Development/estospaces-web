@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { Home, X, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
 
 interface UserLocation {
@@ -57,7 +57,7 @@ const NearbyPropertiesMap = ({
     userLocation = null,
     onPropertyClick = null,
 }: NearbyPropertiesMapProps) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
     const defaultLocation = { lat: 51.5074, lng: -0.1278 }; // London
@@ -166,7 +166,7 @@ const NearbyPropertiesMap = ({
     };
 
     const handleViewDetails = (property: Property) => {
-        router.push(`/user/dashboard/property/${property.id}`);
+        navigate(`/user/dashboard/property/${property.id}`);
     };
 
     // Get marker color based on distance category
@@ -204,7 +204,7 @@ const NearbyPropertiesMap = ({
     };
 
     return (
-        <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div className="relative w-full h-full rounded-lg overflow-hidden bg-white dark:bg-gray-800">
             {/* Map Container */}
             <div className="relative w-full h-full">
                 {/* Google Maps Satellite Background */}
@@ -272,7 +272,7 @@ const NearbyPropertiesMap = ({
 
                                         {/* Selected Property Popup */}
                                         {selectedProperty?.id === property.id && (
-                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-30 border border-gray-200 dark:border-gray-700">
+                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-30">
                                                 <div className="flex items-start justify-between mb-2">
                                                     <div className="flex-1">
                                                         <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">
@@ -323,7 +323,7 @@ const NearbyPropertiesMap = ({
                         })}
 
                         {/* Legend */}
-                        <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 border border-gray-200 dark:border-gray-700 z-20">
+                        <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 z-20">
                             <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Distance</p>
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
@@ -349,20 +349,20 @@ const NearbyPropertiesMap = ({
                         <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
                             <button
                                 onClick={() => setZoom(prev => Math.min(20, prev + 1))}
-                                className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                                 <ZoomIn size={20} className="text-gray-700 dark:text-gray-300" />
                             </button>
                             <button
                                 onClick={() => setZoom(prev => Math.max(5, prev - 1))}
-                                className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             >
                                 <ZoomOut size={20} className="text-gray-700 dark:text-gray-300" />
                             </button>
                         </div>
 
                         {/* Properties Count */}
-                        <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg px-4 py-2 border border-gray-200 dark:border-gray-700 z-20">
+                        <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg px-4 py-2 z-20">
                             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? 'Property' : 'Properties'} Nearby
                             </p>
@@ -373,7 +373,7 @@ const NearbyPropertiesMap = ({
 
             {/* Properties List Sidebar (Optional - can be toggled) */}
             {selectedProperty && (
-                <div className="absolute top-4 right-4 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-30 max-h-[80vh] overflow-y-auto">
+                <div className="absolute top-4 right-4 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-30 max-h-[80vh] overflow-y-auto">
                     <div className="flex items-start justify-between mb-3">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Property Details</h3>
                         <button
@@ -403,3 +403,4 @@ const NearbyPropertiesMap = ({
 };
 
 export default NearbyPropertiesMap;
+

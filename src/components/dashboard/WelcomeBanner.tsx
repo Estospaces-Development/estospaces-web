@@ -1,14 +1,14 @@
 "use client";
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
 const WelcomeBanner = () => {
     const { getDisplayName, getRole, user } = useAuth();
-    const router = useRouter();
+    const navigate = useNavigate();
     const [stats, setStats] = useState({
         activeProperties: 0,
         activeLeads: 0,
@@ -70,7 +70,7 @@ const WelcomeBanner = () => {
                     </p>
                 </div>
                 <button
-                    onClick={() => router.push('/manager/dashboard/properties/add')}
+                    onClick={() => navigate('/manager/dashboard/properties/add')}
                     className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-primary/20"
                 >
                     <Plus className="w-5 h-5" />
@@ -79,7 +79,7 @@ const WelcomeBanner = () => {
             </div>
 
             {/* Summary Stats */}
-            <div className="flex flex-wrap items-center gap-6 mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+            <div className="flex flex-wrap items-center gap-6 mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -106,3 +106,4 @@ const WelcomeBanner = () => {
 };
 
 export default WelcomeBanner;
+

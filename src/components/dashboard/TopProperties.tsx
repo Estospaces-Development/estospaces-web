@@ -93,7 +93,7 @@ const TopProperties = () => {
     }, [user]);
 
     return (
-        <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
                 <Star className="w-5 h-5 text-primary" />
                 <h3 className="section-heading text-gray-800 dark:text-white">Top Performing properties</h3>
@@ -104,7 +104,7 @@ const TopProperties = () => {
                     {[1, 2, 3].map((i) => (
                         <div
                             key={i}
-                            className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-white dark:bg-black animate-pulse"
+                            className="rounded-lg p-4 bg-white dark:bg-black animate-pulse shadow-sm"
                         >
                             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
                             <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
@@ -121,7 +121,7 @@ const TopProperties = () => {
                     {topProperties.map((property) => (
                         <div
                             key={property.id}
-                            className="border border-gray-200 dark:border-gray-800 rounded-lg p-4 bg-white dark:bg-black"
+                            className="rounded-lg p-4 bg-white dark:bg-black shadow-sm"
                         >
                             <div className="flex items-start justify-between mb-2">
                                 <h4 className="body-text font-semibold text-gray-800 dark:text-white">{property.name}</h4>

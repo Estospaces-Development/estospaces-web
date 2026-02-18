@@ -14,7 +14,7 @@ export default function ConversationList({ onSelectConversation, selectedConvers
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-800">
-            <div className="p-4 border-b dark:border-gray-700">
+            <div className="p-4">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
@@ -29,7 +29,7 @@ export default function ConversationList({ onSelectConversation, selectedConvers
 
             <div className="flex-1 overflow-y-auto">
                 {conversations.length > 0 ? (
-                    <div className="divide-y dark:divide-gray-700">
+                    <div className="">
                         {conversations.map((conv: any) => (
                             <button
                                 key={conv.id}

@@ -1,6 +1,6 @@
 import { silentFetch } from '@/lib/apiUtils';
 
-const CORE_SERVICE_URL = process.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:8080';
+const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export interface Lead {
     id: string;

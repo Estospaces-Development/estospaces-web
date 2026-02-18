@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle,
     Clock,
@@ -76,7 +76,7 @@ const VerificationStatusBadge: React.FC<VerificationStatusBadgeProps> = ({
     isLoading = false,
     hasProfile = true,
 }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
 
     if (!hasProfile && !isLoading) return null;
 
@@ -95,7 +95,7 @@ const VerificationStatusBadge: React.FC<VerificationStatusBadgeProps> = ({
     const Icon = config.icon;
 
     const handleClick = () => {
-        if (clickable) router.push('/manager/dashboard/verification');
+        if (clickable) navigate('/manager/dashboard/verification');
     };
 
     const content = (
@@ -151,7 +151,7 @@ export const VerificationStatusBanner: React.FC<{
     isLoading?: boolean;
     hasProfile?: boolean;
 }> = ({ className = '', verificationStatus, isLoading = false, hasProfile = true }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
 
     if (isLoading || !hasProfile || verificationStatus === 'approved') return null;
 
@@ -179,7 +179,7 @@ export const VerificationStatusBanner: React.FC<{
                 </div>
             </div>
             <button
-                onClick={() => router.push('/manager/dashboard/verification')}
+                onClick={() => navigate('/manager/dashboard/verification')}
                 className={`px-4 py-2 rounded-lg font-medium text-sm bg-orange-600 text-white hover:bg-orange-700 transition-colors whitespace-nowrap`}
             >
                 {verificationStatus === 'rejected' || verificationStatus === 'verification_required' ? 'Resubmit Documents' : verificationStatus === 'incomplete' ? 'Complete Verification' : 'View Status'}
@@ -189,3 +189,4 @@ export const VerificationStatusBanner: React.FC<{
 };
 
 export default VerificationStatusBadge;
+

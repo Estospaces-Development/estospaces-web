@@ -1,7 +1,4 @@
-"use client";
-
-import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import { useEffect, useState, Suspense, lazy } from 'react';
 import {
     Home,
     Building2,
@@ -14,24 +11,7 @@ import {
     Filter,
     X
 } from 'lucide-react';
-
-// Dynamically import Leaflet components with ssr: false
-const MapContainer = dynamic(
-    () => import('react-leaflet').then((mod) => mod.MapContainer),
-    { ssr: false }
-);
-const TileLayer = dynamic(
-    () => import('react-leaflet').then((mod) => mod.TileLayer),
-    { ssr: false }
-);
-const Marker = dynamic(
-    () => import('react-leaflet').then((mod) => mod.Marker),
-    { ssr: false }
-);
-const Popup = dynamic(
-    () => import('react-leaflet').then((mod) => mod.Popup),
-    { ssr: false }
-);
+import { useMap, MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 
 // We need to import leaflet CSS
 import 'leaflet/dist/leaflet.css';
@@ -125,7 +105,6 @@ function MapController({ center }: { center: [number, number] }) {
     // We need to import useMap dynamically or just import normally?
     // Hooks can be imported normally.
 
-    const { useMap } = require('react-leaflet');
     const map = useMap();
 
     useEffect(() => {
@@ -209,8 +188,8 @@ const SatelliteMap = () => {
                                     key={filter.id}
                                     onClick={() => toggleFilter(filter.id)}
                                     className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all ${isActive
-                                            ? 'bg-gray-100 dark:bg-gray-700 border-2 border-primary'
-                                            : 'bg-transparent border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
+                                        ? 'bg-gray-100 dark:bg-gray-700 border-2 border-primary'
+                                        : 'bg-transparent border-2 border-transparent hover:bg-gray-50 dark:hover:bg-gray-800'
                                         }`}
                                 >
                                     <div

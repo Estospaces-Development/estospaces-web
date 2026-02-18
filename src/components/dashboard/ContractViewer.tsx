@@ -35,7 +35,7 @@ const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-5xl h-[85vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-3">
                         <FileText className="text-orange-600" size={24} />
                         <div>
@@ -65,7 +65,7 @@ const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
                     ) : (
                         <div className="max-w-3xl mx-auto bg-white dark:bg-gray-900 shadow-lg min-h-[800px] p-12">
                             {/* Document Header */}
-                            <div className="text-center mb-12 border-b border-gray-200 dark:border-gray-800 pb-8">
+                            <div className="text-center mb-12 pb-8">
                                 <div className="flex items-center justify-center gap-2 mb-4">
                                     <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold">E</div>
                                     <span className="text-xl font-bold text-gray-900 dark:text-white">ESTOSPACES</span>
@@ -106,7 +106,7 @@ const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
                             </div>
 
                             {/* Signature Section */}
-                            <div className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-800">
+                            <div className="mt-16 pt-8">
                                 <div className="grid grid-cols-2 gap-12">
                                     <div>
                                         <div className="h-16 border-b border-gray-300 dark:border-gray-700 mb-2"></div>

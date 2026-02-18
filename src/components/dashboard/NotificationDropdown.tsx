@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { notificationsService, NOTIFICATION_TYPES } from '@/services/notificationsService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -41,7 +41,7 @@ const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState<any[]>(MOCK_NOTIFICATIONS);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const router = useRouter();
+    const navigate = useNavigate();
     const { user } = useAuth();
 
     // Close on click outside
@@ -85,31 +85,31 @@ const NotificationDropdown = () => {
             case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
             case NOTIFICATION_TYPES.VIEWING_BOOKED:
             case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-                router.push('/user/dashboard/viewings');
+                navigate('/user/dashboard/viewings');
                 break;
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
             case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
-                router.push('/user/dashboard/applications');
+                navigate('/user/dashboard/applications');
                 break;
             case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
-                router.push('/user/dashboard/messages');
+                navigate('/user/dashboard/messages');
                 break;
             case NOTIFICATION_TYPES.PROPERTY_SAVED:
             case NOTIFICATION_TYPES.PRICE_DROP:
             case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
                 if (notification.data?.propertyId) {
-                    router.push(`/user/dashboard/property/${notification.data.propertyId}`);
+                    navigate(`/user/dashboard/property/${notification.data.propertyId}`);
                 } else {
-                    router.push('/user/dashboard/saved');
+                    navigate('/user/dashboard/saved');
                 }
                 break;
             case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
             case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-                router.push('/user/dashboard/payments');
+                navigate('/user/dashboard/payments');
                 break;
             case NOTIFICATION_TYPES.CONTRACT_UPDATE:
-                router.push('/user/dashboard/contracts');
+                navigate('/user/dashboard/contracts');
                 break;
             default:
                 // Stay on dashboard
@@ -165,7 +165,7 @@ const NotificationDropdown = () => {
                 className="relative p-2 rounded-lg transition-colors hover:bg-white/10"
                 aria-label="Notifications"
             >
-                <div className="w-8 h-8 bg-white/20 dark:bg-gray-700 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 dark:border-gray-600">
+                <div className="w-8 h-8 bg-white/20 dark:bg-gray-700 backdrop-blur-sm rounded-full flex items-center justify-center">
                     <Bell size={18} className="text-white dark:text-gray-200" />
                 </div>
                 {unreadCount > 0 && (
@@ -174,8 +174,8 @@ const NotificationDropdown = () => {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden animate-fadeIn origin-top-right">
-                    <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm z-10">
+                <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-fadeIn origin-top-right">
+                    <div className="p-4 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm z-10">
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
@@ -247,9 +247,9 @@ const NotificationDropdown = () => {
                         )}
                     </div>
 
-                    <div className="p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-center">
+                    <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
                         <button
-                            onClick={() => { setIsOpen(false); router.push('/user/dashboard/notifications'); }}
+                            onClick={() => { setIsOpen(false); navigate('/user/dashboard/notifications'); }}
                             className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                         >
                             View All Notifications
@@ -262,3 +262,4 @@ const NotificationDropdown = () => {
 };
 
 export default NotificationDropdown;
+

@@ -13,7 +13,7 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, change, icon: Icon, iconColor, trendColor }: StatCardProps) => {
     return (
-        <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-800 relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:brightness-110 dark:hover:brightness-150">
+        <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6 relative overflow-hidden group cursor-pointer transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:brightness-110 dark:hover:brightness-150">
             {/* Animated light overlay */}
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out"></div>
 

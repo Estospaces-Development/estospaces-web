@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
     LayoutDashboard,
     FileText,
@@ -37,9 +36,9 @@ interface HorizontalNavigationProps {
 }
 
 const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProps) => {
-    const pathname = usePathname();
-    const router = useRouter();
-    const searchParams = useSearchParams();
+    const pathname = useLocation().pathname;
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     const { totalUnreadCount } = useMessages();
     const { setActiveTab } = usePropertyFilter();
@@ -48,8 +47,8 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
 
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/user/dashboard' },
-        { icon: Heart, label: 'Saved Properties', path: '/user/dashboard/saved', showBadge: true, badgeCount: savedProperties?.length || 0 },
-        { icon: FileText, label: 'My Applications', path: '/user/dashboard/applications' },
+        { icon: Heart, label: 'Saved Properties', path: '/user/saved', showBadge: true, badgeCount: savedProperties?.length || 0 },
+        { icon: FileText, label: 'My Applications', path: '/user/applications' },
         { icon: Calendar, label: 'Viewings', path: '/user/dashboard/viewings' },
         { icon: MessageSquare, label: 'Messages', path: '/user/dashboard/messages', showBadge: true, badgeCount: totalUnreadCount },
         { icon: CreditCard, label: 'Payments', path: '/user/dashboard/payments' },
@@ -129,7 +128,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
                         return (
                             <Link
                                 key={item.path}
-                                href={linkPath}
+                                to={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-2 px-2 py-2.5 text-sm font-medium transition-all duration-200 ease-out
@@ -211,8 +210,8 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
                         </button>
                     </div>
 
-                    {/* Saved Properties - After Rent */}
-                    {navItems.slice(1, 2).map((item) => {
+                    {/* Saved Properties, Applications, and rest of navigation items */}
+                    {navItems.slice(1).map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.path);
                         const linkPath = getLinkPath(item.path);
@@ -220,66 +219,27 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
                         return (
                             <Link
                                 key={item.path}
-                                href={linkPath}
+                                to={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
-                  relative flex items-center gap-2 px-2 py-3 text-sm font-medium transition-all duration-300 ease-out
-                  border-b-2 border-transparent
+                  relative flex items-center gap-2 px-2 py-2.5 text-sm font-medium transition-all duration-200 ease-out
+                  rounded-lg
                   ${active
-                                        ? 'text-orange-600 dark:text-orange-400 border-orange-500 dark:border-orange-400 bg-orange-50 dark:bg-orange-900/20 active:text-orange-700 dark:active:text-orange-300 active:bg-orange-100 dark:active:bg-orange-900/30'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 active:text-gray-900 dark:active:text-gray-100 active:bg-gray-100 dark:active:bg-gray-700'
+                                        ? 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                                     }
-                  ${clickedTab === item.path ? 'scale-95 transform active:scale-90' : 'scale-100'}
+                  ${clickedTab === item.path ? 'scale-95' : 'scale-100'}
                   whitespace-nowrap cursor-pointer
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-1
                 `}
                                 aria-current={active ? 'page' : undefined}
                             >
                                 <Icon
                                     size={18}
-                                    className={`flex-shrink-0 transition-transform duration-300 ${active
-                                        ? 'text-orange-600 dark:text-orange-400'
-                                        : 'text-gray-500 dark:text-gray-400'
-                                        } ${clickedTab === item.path ? 'rotate-12 scale-110' : 'rotate-0 scale-100'}`}
-                                />
-                                <span>{item.label}</span>
-                                {item.showBadge && item.badgeCount > 0 && (
-                                    <UnreadCountBadge count={item.badgeCount} />
-                                )}
-                            </Link>
-                        );
-                    })}
-
-                    {/* Rest of navigation items */}
-                    {navItems.slice(2).map((item) => {
-                        const Icon = item.icon;
-                        const active = isActive(item.path);
-                        const linkPath = getLinkPath(item.path);
-
-                        return (
-                            <Link
-                                key={item.path}
-                                href={linkPath}
-                                onClick={() => handleNavClick(item.path)}
-                                className={`
-                  relative flex items-center gap-2 px-2 py-3 text-sm font-medium transition-all duration-300 ease-out
-                  border-b-2 border-transparent
-                  ${active
-                                        ? 'text-orange-600 dark:text-orange-400 border-orange-500 dark:border-orange-400 bg-orange-50 dark:bg-orange-900/20 active:text-orange-700 dark:active:text-orange-300 active:bg-orange-100 dark:active:bg-orange-900/30'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 active:text-gray-900 dark:active:text-gray-100 active:bg-gray-100 dark:active:bg-gray-700'
-                                    }
-                  ${clickedTab === item.path ? 'scale-95 transform active:scale-90' : 'scale-100'}
-                  whitespace-nowrap cursor-pointer
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900
-                `}
-                                aria-current={active ? 'page' : undefined}
-                            >
-                                <Icon
-                                    size={18}
-                                    className={`flex-shrink-0 transition-transform duration-300 ${active
-                                        ? 'text-orange-600 dark:text-orange-400'
-                                        : 'text-gray-500 dark:text-gray-400'
-                                        } ${clickedTab === item.path ? 'rotate-12 scale-110' : 'rotate-0 scale-100'}`}
+                                    className={`flex-shrink-0 transition-colors duration-200 ${active
+                                        ? 'text-orange-500 dark:text-orange-400'
+                                        : 'text-gray-400 dark:text-gray-500'
+                                        }`}
                                 />
                                 <span>{item.label}</span>
                                 {item.showBadge && item.badgeCount > 0 && (
@@ -301,7 +261,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
                         return (
                             <Link
                                 key={item.path}
-                                href={linkPath}
+                                to={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
@@ -383,7 +343,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
                         return (
                             <Link
                                 key={item.path}
-                                href={linkPath}
+                                to={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
@@ -419,7 +379,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
                         return (
                             <Link
                                 key={item.path}
-                                href={linkPath}
+                                to={linkPath}
                                 onClick={() => handleNavClick(item.path)}
                                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
@@ -452,3 +412,4 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
 };
 
 export default HorizontalNavigation;
+

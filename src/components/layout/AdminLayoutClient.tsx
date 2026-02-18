@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import AdminSidebar from './AdminSidebar';
@@ -15,17 +15,17 @@ interface AdminLayoutClientProps {
 export default function AdminLayoutClient({ children, isSubdomain = false }: AdminLayoutClientProps) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const { user, loading, isAuthenticated } = useAuth();
-    const router = useRouter();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!loading) {
             if (!isAuthenticated) {
-                router.push('/login');
+                navigate('/login');
             } else if (user?.role !== 'admin') {
-                router.push('/login'); // Or unauthorized page
+                navigate('/login'); // Or unauthorized page
             }
         }
-    }, [isAuthenticated, loading, user, router]);
+    }, [isAuthenticated, loading, user, navigate]);
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -54,3 +54,4 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
         </ThemeProvider>
     );
 }
+

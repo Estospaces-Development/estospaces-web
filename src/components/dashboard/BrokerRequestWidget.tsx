@@ -39,7 +39,7 @@ const BrokerRequestWidget = () => {
 
     if (success) {
         return (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 h-full flex flex-col items-center justify-center text-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 h-full flex flex-col items-center justify-center text-center">
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
                     <CheckCircle size={32} className="text-green-600 dark:text-green-400" />
                 </div>
@@ -58,7 +58,7 @@ const BrokerRequestWidget = () => {
     }
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
                     <Send size={20} className="text-orange-600 dark:text-orange-400" />

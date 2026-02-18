@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
 interface PropertyFilterContextType {
     activeTab: string;
@@ -12,9 +12,9 @@ interface PropertyFilterContextType {
 const PropertyFilterContext = createContext<PropertyFilterContextType | undefined>(undefined);
 
 export const PropertyFilterProvider = ({ children }: { children: React.ReactNode }) => {
-    const pathname = usePathname();
-    const router = useRouter();
-    const searchParams = useSearchParams();
+    const pathname = useLocation().pathname;
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     // Get initial tab from URL or default to 'all'
     const getInitialTab = useCallback(() => {
@@ -44,17 +44,17 @@ export const PropertyFilterProvider = ({ children }: { children: React.ReactNode
                 } else if (tab === 'rent') {
                     params.set('type', 'rent');
                 }
-                router.replace(`/user/dashboard/discover?${params.toString()}`);
+                navigate(`/user/dashboard/discover?${params.toString()}`);
             } else {
                 // Navigate to discover page with the filter
                 if (tab === 'all') {
-                    router.push('/user/dashboard/discover');
+                    navigate('/user/dashboard/discover');
                 } else {
-                    router.push(`/user/dashboard/discover?type=${tab}`);
+                    navigate(`/user/dashboard/discover?type=${tab}`);
                 }
             }
         }
-    }, [pathname, router, searchParams]);
+    }, [pathname, navigate, searchParams]);
 
     // Sync with URL when location changes
     useEffect(() => {
@@ -89,3 +89,4 @@ export const usePropertyFilter = () => {
     }
     return context;
 };
+

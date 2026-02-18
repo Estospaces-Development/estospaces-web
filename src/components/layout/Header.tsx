@@ -2,8 +2,7 @@
 
 import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
@@ -15,7 +14,7 @@ interface HeaderProps {
 }
 
 const Header = ({ onMenuToggle }: HeaderProps) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const { user, signOut, getDisplayName, getRole } = useAuth();
     const { notifications, unreadCount } = useNotifications();
     const { verificationStatus, isLoading: isVerificationLoading } = useManagerVerification();
@@ -47,7 +46,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     const handleSignOut = async () => {
         try {
             await signOut();
-            router.push('/login');
+            navigate('/login');
         } catch (error) {
             console.error('Error signing out:', error);
         }
@@ -87,7 +86,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 );
             default:
                 return (
-                    <Link href="/manager/verification" className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <Link to="/manager/verification" className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <Shield size={12} />
                         <span>Verify Profile</span>
                     </Link>
@@ -156,7 +155,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                                 </div>
                                 <div className="py-1">
                                     <Link
-                                        href={`/${getRole()}/profile`}
+                                        to={`/${getRole()}/profile`}
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                         onClick={() => setIsProfileOpen(false)}
                                     >
@@ -164,7 +163,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                                         Profile
                                     </Link>
                                     <Link
-                                        href="/settings"
+                                        to="/settings"
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                         onClick={() => setIsProfileOpen(false)}
                                     >
@@ -191,3 +190,4 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 };
 
 export default Header;
+

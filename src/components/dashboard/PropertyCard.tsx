@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { useNavigate } from 'react-router-dom';
+;
 import {
     Heart,
     Bed,
@@ -15,11 +15,12 @@ import {
     ChevronRight,
     CheckCircle,
     Eye,
+    Loader2,
 } from 'lucide-react';
 import VirtualTourModal from './VirtualTourModal';
 import ShareModal from './ShareModal';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
-import { useProperties } from '@/contexts/PropertyContext'; // Updated import
+import { useProperties } from '@/contexts/PropertyContext';
 import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -30,7 +31,7 @@ interface PropertyCardProps {
 }
 
 const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, onClick }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showVirtualTour, setShowVirtualTour] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
@@ -40,8 +41,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
 
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
-    // useProperty hook might differ from legacy useProperties, assume context provides needed fns or we skip tracking for now if complex
-    // const { trackPropertyView } = useProperty(); 
+    const { incrementViews } = useProperties();
     const { allApplications } = useApplications();
 
     const isSaved = isPropertySaved(property.id);
@@ -52,14 +52,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
 
     const handleViewDetails = (e: React.MouseEvent) => {
         e?.stopPropagation();
-        // if (user) trackPropertyView(property.id); // Implement later
+        if (user) incrementViews(property.id);
 
         if (onClick) {
             onClick();
         } else if (onViewDetails) {
             onViewDetails(property);
         } else {
-            router.push(`/user/dashboard/property/${property.id}`);
+            navigate(`/user/dashboard/property/${property.id}`);
         }
     };
 
@@ -123,9 +123,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
     const formatPrice = (price: number | string | any) => {
         if (typeof price === 'object' && price !== null && 'amount' in price) {
             const { amount, currency } = price;
-            const formatted = new Intl.NumberFormat('en-US', {
+            const formatted = new Intl.NumberFormat('en-GB', {
                 style: 'currency',
-                currency: currency || 'USD',
+                currency: currency || 'GBP',
                 maximumFractionDigits: 0
             }).format(amount);
 
@@ -143,6 +143,16 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
             return formatted;
         }
         return price;
+    };
+
+    const formatListedDate = (date: string | Date) => {
+        if (!date) return '';
+        const days = Math.floor((new Date().getTime() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+        if (days === 0) return 'Listed today';
+        if (days === 1) return 'Listed 1 day ago';
+        if (days < 7) return `Listed ${days} days ago`;
+        if (days < 14) return 'Listed 1 week ago';
+        return `Listed ${Math.floor(days / 7)} weeks ago`;
     };
 
     // Toast Component
@@ -186,19 +196,17 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
 
             <div
                 onClick={handleViewDetails}
-                className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800 hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:-translate-y-1.5 hover:border-orange-200 dark:hover:border-orange-500/30 transition-all duration-300 group cursor-pointer h-full flex flex-col"
+                className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 hover:-translate-y-1.5 transition-all duration-300 group cursor-pointer h-full flex flex-col"
             >
                 {/* Image Carousel */}
                 <div className="relative h-56 bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
                     {images.length > 0 ? (
                         <>
-                            <Image
+                            <img
                                 src={images[currentImageIndex]}
                                 alt={property.title}
-                                fill
                                 className="object-cover group-hover:scale-105 transition-transform duration-500"
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                priority={property.featured}
                             />
 
                             {hasMultipleImages && (
@@ -236,14 +244,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                         </>
                     ) : (
                         <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-                            <span className="text-gray-500 font-medium">No Image</span>
+                            <span className="text-gray-500 font-medium font-manager">No Image</span>
                         </div>
                     )}
 
                     {/* Property Type Badge */}
                     {property.type && (
                         <div className="absolute top-3 left-3">
-                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm ${property.type?.toLowerCase() === 'rent'
+                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold font-manager shadow-sm ${property.type?.toLowerCase() === 'rent'
                                 ? 'bg-blue-500 text-white'
                                 : property.type?.toLowerCase() === 'sale'
                                     ? 'bg-emerald-500 text-white'
@@ -260,30 +268,36 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                             onClick={handleSave}
                             disabled={isSaving}
                             className={`p-2 rounded-full backdrop-blur-sm transition-all ${isSaved
-                                ? 'bg-red-500 text-white'
-                                : 'bg-white/90 dark:bg-white/90 text-gray-700 dark:text-gray-800 hover:bg-white dark:hover:bg-white'
+                                ? 'bg-red-500 text-white shadow-lg'
+                                : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 shadow-sm'
                                 } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            aria-label={isSaved ? 'Remove from saved' : 'Save property'}
+                            title={isSaved ? 'Saved' : 'Save property'}
                         >
-                            <Heart size={16} className={isSaved ? 'fill-current' : ''} />
+                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
                         </button>
                         {isApplied && (
                             <button
-                                className="p-2 rounded-full backdrop-blur-sm bg-green-500 text-white"
+                                className="p-2 rounded-full backdrop-blur-sm bg-green-500 text-white shadow-lg"
                                 title={`Applied - ${applicationStatus}`}
+                                aria-label="Already applied"
                             >
                                 <CheckCircle size={16} className="fill-current" />
                             </button>
                         )}
                         {viewCount > 0 && (
-                            <div className="p-2 rounded-full backdrop-blur-sm bg-blue-500 text-white flex items-center gap-1">
+                            <div
+                                className="p-2 rounded-full backdrop-blur-sm bg-blue-500 text-white flex items-center gap-1 shadow-lg"
+                                title={`Viewed ${viewCount} time${viewCount > 1 ? 's' : ''}`}
+                            >
                                 <Eye size={14} />
-                                <span className="text-xs font-medium">{viewCount}</span>
+                                <span className="text-[10px] font-bold">{viewCount}</span>
                             </div>
                         )}
                     </div>
 
                     <div className="absolute bottom-3 left-3">
-                        <span className="bg-white/95 backdrop-blur-sm text-gray-900 px-3 py-1.5 rounded-md font-bold text-lg">
+                        <span className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm text-gray-900 dark:text-white px-3 py-1.5 rounded-xl font-bold font-manager text-lg shadow-sm">
                             {formatPrice(property.price)}
                         </span>
                     </div>
@@ -302,16 +316,16 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                     </p>
 
                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">
-                        {property.beds && (
+                        {property.bedrooms && (
                             <div className="flex items-center gap-1">
                                 <Bed size={16} className="text-gray-400 dark:text-gray-500" />
-                                <span>{property.beds} Bed{property.beds > 1 ? 's' : ''}</span>
+                                <span>{property.bedrooms} Bed{property.bedrooms > 1 ? 's' : ''}</span>
                             </div>
                         )}
-                        {property.baths && (
+                        {property.bathrooms && (
                             <div className="flex items-center gap-1">
                                 <Bath size={16} className="text-gray-400 dark:text-gray-500" />
-                                <span>{property.baths} Bath{property.baths > 1 ? 's' : ''}</span>
+                                <span>{property.bathrooms} Bath{property.bathrooms > 1 ? 's' : ''}</span>
                             </div>
                         )}
                         {property.area && (
@@ -322,13 +336,54 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                         )}
                     </div>
 
+                    {/* Rating & Date */}
+                    {(property.rating || property.createdAt) && (
+                        <div className="flex items-center gap-2 mb-3">
+                            {property.rating && (
+                                <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                                    <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                                    <span className="text-xs font-bold text-yellow-700 dark:text-yellow-400">{property.rating}</span>
+                                    {property.reviews_count && (
+                                        <span className="text-[10px] text-yellow-600/60 dark:text-yellow-400/60">({property.reviews_count})</span>
+                                    )}
+                                </div>
+                            )}
+                            {(property.createdAt || property.listedDate) && (
+                                <span className="text-[10px] text-gray-400 font-medium ml-auto">
+                                    {formatListedDate(property.createdAt || property.listedDate)}
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Tags */}
+                    {property.tags && Array.isArray(property.tags) && property.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-4">
+                            {property.tags.slice(0, 3).map((tag: string, index: number) => (
+                                <span
+                                    key={index}
+                                    className="px-2 py-0.5 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider rounded-md"
+                                >
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="mt-auto pt-4 flex gap-2">
+                        <button
+                            onClick={handleViewDetails}
+                            className="flex-1 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+                        >
+                            View Details
+                        </button>
+
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setShowVirtualTour(true);
                             }}
-                            className="px-3 py-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-medium transition-all"
+                            className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-all duration-200"
                         >
                             Virtual Tour
                         </button>
@@ -337,15 +392,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                                 e.stopPropagation();
                                 setShowShareModal(true);
                             }}
-                            className="p-2 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl transition-all"
+                            className="p-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-xl transition-all duration-200"
+                            title="Share Property"
                         >
                             <Share2 size={16} />
-                        </button>
-                        <button
-                            onClick={handleViewDetails}
-                            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-xl font-medium text-xs transition-all shadow-sm"
-                        >
-                            View Details
                         </button>
                     </div>
                 </div>
@@ -369,3 +419,4 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
 };
 
 export default React.memo(PropertyCard);
+

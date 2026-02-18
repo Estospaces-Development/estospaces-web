@@ -97,9 +97,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'approved': return 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800';
-            case 'rejected': return 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800';
-            default: return 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-orange-200 transition-all';
+            case 'approved': return 'bg-green-50 dark:bg-green-900/10';
+            case 'rejected': return 'bg-red-50 dark:bg-red-900/10';
+            default: return 'bg-white dark:bg-gray-800 hover:shadow-md transition-all';
         }
     };
 
@@ -117,9 +117,9 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-3xl p-10 text-center transition-all cursor-pointer group ${dragActive
-                        ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                        : 'border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20 hover:border-gray-300 dark:hover:border-gray-600'
+                className={`rounded-3xl p-10 text-center transition-all cursor-pointer group ${dragActive
+                    ? 'bg-orange-50 dark:bg-orange-900/20 shadow-inner'
+                    : 'bg-gray-50/50 dark:bg-gray-900/20 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
             >
                 <div className="w-16 h-16 bg-white dark:bg-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 transition-transform">
@@ -146,7 +146,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
                     {documents.map((doc) => (
                         <div
                             key={doc.id}
-                            className={`flex items-center gap-4 p-4 rounded-2xl border ${getStatusColor(doc.status)} shadow-sm`}
+                            className={`flex items-center gap-4 p-4 rounded-2xl ${getStatusColor(doc.status)} shadow-sm`}
                         >
                             <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
                                 {doc.type.startsWith('image/') ? <ImageIcon size={20} className="text-gray-500" /> : <FileText size={20} className="text-gray-500" />}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight, TrendingUp, Star, Clock, Zap, Eye } from 'lucide-react';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
@@ -31,7 +31,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
     emptyMessage = 'No properties found in this section.',
     limit = 6,
 }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
 
     // Transform property for card display
     const transformPropertyForCard = (property: any) => {
@@ -137,7 +137,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
     if (error) {
         return (
             <div className="mb-8">
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
                     <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
                 </div>
             </div>
@@ -168,7 +168,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                 </div>
                 {displayedProperties.length > 0 && (
                     <button
-                        onClick={() => router.push(viewAllLink)}
+                        onClick={() => navigate(viewAllLink)}
                         className="hidden sm:flex items-center gap-2 px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 text-sm font-medium transition-colors whitespace-nowrap"
                     >
                         <span>View All</span>
@@ -188,7 +188,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
 
             {/* Empty State */}
             {!loading && displayedProperties.length === 0 && (
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 p-8 lg:p-12 text-center">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-8 lg:p-12 text-center">
                     <div className="max-w-md mx-auto">
                         {Icon && (
                             <div className="mb-4 flex justify-center">
@@ -204,7 +204,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                             {emptyMessage}
                         </p>
                         <button
-                            onClick={() => router.push(viewAllLink)}
+                            onClick={() => navigate(viewAllLink)}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
                         >
                             Browse All Properties
@@ -222,7 +222,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                             <PropertyCard
                                 key={property.id}
                                 property={property}
-                                onViewDetails={(prop: any) => router.push(`/user/dashboard/property/${prop.id}`)}
+                                onViewDetails={(prop: any) => navigate(`/user/dashboard/property/${prop.id}`)}
                             />
                         ))}
                     </div>
@@ -231,7 +231,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                     {displayedProperties.length >= limit && (
                         <div className="mt-4 sm:hidden">
                             <button
-                                onClick={() => router.push(viewAllLink)}
+                                onClick={() => navigate(viewAllLink)}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
                             >
                                 <span>View All Properties</span>
@@ -246,3 +246,4 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
 };
 
 export default PropertyDiscoverySection;
+

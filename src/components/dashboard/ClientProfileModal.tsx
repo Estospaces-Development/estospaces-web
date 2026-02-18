@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { X, User, Phone, Mail, MapPin, Calendar, Home } from 'lucide-react';
 
 interface ClientProfileModalProps {
@@ -13,16 +13,16 @@ interface ClientProfileModalProps {
 }
 
 const ClientProfileModal: React.FC<ClientProfileModalProps> = ({ isOpen, onClose, clientName, avatar, clientId = '1' }) => {
-    const router = useRouter();
+    const navigate = useNavigate();
 
     if (!isOpen) return null;
 
     const handleViewHistory = () => {
-        router.push(`/manager/leads`); // Using leads page as proxy for client history for now
+        navigate(`/manager/leads`); // Using leads page as proxy for client history for now
     };
 
     const handleMessage = () => {
-        router.push('/manager/messages');
+        navigate('/manager/messages');
     };
 
     return (
@@ -114,3 +114,4 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({ isOpen, onClose
 };
 
 export default ClientProfileModal;
+

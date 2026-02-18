@@ -1,16 +1,16 @@
 "use client";
 
 import { Bell, Search, Menu, Globe } from 'lucide-react';
-import { usePathname } from 'next/navigation';
+import { useLocation, Link } from 'react-router-dom';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
-import Link from 'next/link';
 
 interface AdminHeaderProps {
     onMenuToggle?: () => void;
 }
 
 const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
-    const pathname = usePathname();
+    const location = useLocation();
+    const pathname = location.pathname;
 
     const getPageTitle = () => {
         if (pathname?.includes('/dashboard')) return 'Dashboard';
@@ -47,7 +47,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                     <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden sm:block"></div>
 
                     <Link
-                        href="/"
+                        to="/"
                         target="_blank"
                         className="p-2 text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400 transition-colors"
                         title="Visit Landing Page"
@@ -72,3 +72,4 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 };
 
 export default AdminHeader;
+

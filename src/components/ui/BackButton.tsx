@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 interface BackButtonProps {
@@ -9,11 +9,11 @@ interface BackButtonProps {
 }
 
 const BackButton = ({ label = 'Back', className = '' }: BackButtonProps) => {
-    const router = useRouter();
+    const navigate = useNavigate();
 
     return (
         <button
-            onClick={() => router.back()}
+            onClick={() => navigate(-1)}
             className={`flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors ${className}`}
         >
             <ArrowLeft className="w-5 h-5" />
@@ -23,3 +23,4 @@ const BackButton = ({ label = 'Back', className = '' }: BackButtonProps) => {
 };
 
 export default BackButton;
+

@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, ChevronDown, Loader2, LogOut, Settings, HelpCircle } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +12,7 @@ interface UserHeaderProps {
 }
 
 const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
-    const router = useRouter();
+    const navigate = useNavigate();
     const { user, signOut } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
@@ -29,7 +28,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
 
         try {
             await signOut();
-            router.push('/login');
+            navigate('/login');
         } catch (error) {
             console.error('Error signing out:', error);
             setIsSigningOut(false);
@@ -48,7 +47,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                 {/* Left side - Logo - Clickable to go to dashboard */}
                 <div className="flex items-center gap-6">
                     <Link
-                        href={getLinkPath('/user/dashboard')}
+                        to={getLinkPath('/user/dashboard')}
                         className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
                         aria-label="Navigate to dashboard"
                     >
@@ -113,7 +112,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);
-                                                router.push(getLinkPath('/user/dashboard/settings'));
+                                                navigate(getLinkPath('/user/dashboard/settings'));
                                             }}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                         >
@@ -123,7 +122,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);
-                                                router.push(getLinkPath('/user/dashboard/help'));
+                                                navigate(getLinkPath('/user/dashboard/help'));
                                             }}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                         >
@@ -158,3 +157,4 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
 };
 
 export default UserHeader;
+

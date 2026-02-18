@@ -12,10 +12,8 @@ import {
     MessageSquare,
     Activity
 } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import Image from 'next/image';
 
 interface AdminSidebarProps {
     isOpen?: boolean;
@@ -24,9 +22,9 @@ interface AdminSidebarProps {
 }
 
 const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSidebarProps) => {
-    const pathname = usePathname();
+    const { pathname } = useLocation();
     const { signOut } = useAuth();
-    const router = useRouter();
+    const navigate = useNavigate();
 
     const handleSignOut = async () => {
         signOut();
@@ -101,7 +99,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                             return (
                                 <li key={item.path}>
                                     <Link
-                                        href={linkPath}
+                                        to={linkPath}
                                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${active
                                             ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/30'
                                             : 'text-gray-600 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-gray-800 hover:text-orange-600 dark:hover:text-orange-400 hover:scale-[1.02]'

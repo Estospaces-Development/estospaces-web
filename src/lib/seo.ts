@@ -1,4 +1,27 @@
-import type { Metadata } from 'next';
+// Custom type to replace Next.js Metadata
+export interface Metadata {
+    title?: string;
+    description?: string;
+    robots?: string | { index: boolean; follow: boolean };
+    openGraph?: {
+        title?: string;
+        description?: string;
+        url?: string;
+        siteName?: string;
+        locale?: string;
+        type?: string;
+        images?: Array<{ url: string; width: number; height: number; alt: string }>;
+    };
+    twitter?: {
+        card?: string;
+        title?: string;
+        description?: string;
+        images?: string[];
+    };
+    alternates?: {
+        canonical?: string;
+    };
+}
 
 const SITE_NAME = 'Estospaces';
 const SITE_URL = 'https://estospaces.co.uk';

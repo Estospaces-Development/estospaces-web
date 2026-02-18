@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Home, DollarSign, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 export interface SearchFilters {
@@ -81,8 +81,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     navigateOnSearch = true,
     searchPath = '/user/search',
 }) => {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [filters, setFilters] = useState<SearchFilters>({ ...defaultFilters, ...initialFilters });
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
@@ -175,7 +175,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (filters.minBathrooms !== null) params.set('baths', filters.minBathrooms.toString());
 
         if (onSearch) onSearch(filters);
-        if (navigateOnSearch) router.push(`${searchPath}?${params.toString()}`);
+        if (navigateOnSearch) navigate(`${searchPath}?${params.toString()}`);
     };
 
     const handleClearFilters = () => {
@@ -203,8 +203,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
                             key={type}
                             type="button"
                             className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm tracking-wide transition-all duration-300 ${filters.listingType === (type === 'buy' ? 'sale' : type)
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]'
-                                    : 'text-white/80 hover:text-white hover:bg-white/10'
+                                ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]'
+                                : 'text-white/80 hover:text-white hover:bg-white/10'
                                 }`}
                             onClick={() => handleInputChange('listingType', type === 'buy' ? 'sale' : 'rent')}
                         >
@@ -435,3 +435,4 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
 export default SearchBar;
 export { defaultFilters, propertyTypes, priceRanges };
+

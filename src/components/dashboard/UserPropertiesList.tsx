@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Loader2, AlertCircle, ChevronLeft, ChevronRight, Filter, Map, Square } from 'lucide-react';
 
 // Dynamic imports for modals
-const StreetViewModal = dynamic(() => import('@/components/ui/StreetViewModal'), { ssr: false });
-const Tour360Modal = dynamic(() => import('@/components/ui/Tour360Modal'), { ssr: false });
+const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
+const Tour360Modal = lazy(() => import('@/components/ui/Tour360Modal'));
 
 interface Property {
     id: string;
@@ -117,7 +116,7 @@ const UserPropertiesList = () => {
     return (
         <div className="space-y-6">
             {/* Filters */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                         <Filter size={18} className="text-gray-500 dark:text-gray-400" />
@@ -178,7 +177,7 @@ const UserPropertiesList = () => {
                                 setOrder(order === 'asc' ? 'desc' : 'asc');
                                 setPage(1);
                             }}
-                            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                            className="px-3 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg text-sm shadow-sm"
                         >
                             {order === 'asc' ? '↑' : '↓'}
                         </button>
@@ -188,7 +187,7 @@ const UserPropertiesList = () => {
 
             {/* Error State */}
             {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
+                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 flex items-start gap-3">
                     <AlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />
                     <div>
                         <h3 className="font-semibold text-red-900 dark:text-red-100 mb-1">Error</h3>
@@ -204,7 +203,7 @@ const UserPropertiesList = () => {
             {!error && (
                 <>
                     {properties.length === 0 ? (
-                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+                        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8 text-center">
                             <p className="text-gray-600 dark:text-gray-400">
                                 {status
                                     ? `No ${status} properties found.`
@@ -216,7 +215,7 @@ const UserPropertiesList = () => {
                             {properties.map((property) => (
                                 <div
                                     key={property.id}
-                                    className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6"
+                                    className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
@@ -247,14 +246,14 @@ const UserPropertiesList = () => {
                                             <div className="flex items-center gap-3 mt-4">
                                                 <button
                                                     onClick={() => setViewStreetFor(property)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
                                                 >
                                                     <Map size={14} />
                                                     Street View
                                                 </button>
                                                 <button
                                                     onClick={() => setViewTourFor(property)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
                                                 >
                                                     <Square size={14} />
                                                     360° Tour
@@ -269,7 +268,7 @@ const UserPropertiesList = () => {
 
                     {/* Pagination */}
                     {pagination && pagination.totalPages > 1 && (
-                        <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+                        <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
                             <div className="text-sm text-gray-600 dark:text-gray-400">
                                 Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
                                 {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{' '}
@@ -279,7 +278,7 @@ const UserPropertiesList = () => {
                                 <button
                                     onClick={() => handlePageChange(pagination.page - 1)}
                                     disabled={!pagination.hasPreviousPage}
-                                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                    className="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
                                 >
                                     <ChevronLeft size={16} />
                                     Previous
@@ -290,7 +289,7 @@ const UserPropertiesList = () => {
                                 <button
                                     onClick={() => handlePageChange(pagination.page + 1)}
                                     disabled={!pagination.hasNextPage}
-                                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                    className="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
                                 >
                                     Next
                                     <ChevronRight size={16} />
@@ -302,21 +301,23 @@ const UserPropertiesList = () => {
             )}
 
             {/* Modals */}
-            {viewStreetFor && (
-                <StreetViewModal
-                    location={{
-                        lat: viewStreetFor.latitude || 51.5074,
-                        lng: viewStreetFor.longitude || -0.1278
-                    }}
-                    onClose={() => setViewStreetFor(null)}
-                />
-            )}
+            <Suspense fallback={null}>
+                {viewStreetFor && (
+                    <StreetViewModal
+                        location={{
+                            lat: viewStreetFor.latitude || 51.5074,
+                            lng: viewStreetFor.longitude || -0.1278
+                        }}
+                        onClose={() => setViewStreetFor(null)}
+                    />
+                )}
 
-            {viewTourFor && (
-                <Tour360Modal
-                    onClose={() => setViewTourFor(null)}
-                />
-            )}
+                {viewTourFor && (
+                    <Tour360Modal
+                        onClose={() => setViewTourFor(null)}
+                    />
+                )}
+            </Suspense>
         </div>
     );
 };
