@@ -85,11 +85,24 @@ const AddressSection = ({
                 return;
             }
 
-            setCountries(data || []);
+            const loaded = data || [];
+            setCountries(loaded);
             setLoadingCountries(false);
+
+            // Auto-select if only one country
+            if (loaded.length === 1 && !value.countryId) {
+                const c = loaded[0];
+                onChange({
+                    ...value,
+                    countryId: c.id,
+                    countryName: c.name,
+                    countryCode: c.code,
+                });
+            }
         };
 
         loadCountries();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Initialize with IDs when countries are loaded and we have IDs
@@ -377,12 +390,12 @@ const AddressSection = ({
         });
     }, [value, onChange]);
 
-    // Handler for postal code - only allows integers
+    // Handler for postal code - allows alphanumeric (UK postcodes have letters)
     const handlePostalCodeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputValue = e.target.value;
-        // Only allow digits (0-9)
-        const numericValue = inputValue.replace(/\D/g, '');
-        handleTextChange('postalCode', numericValue);
+        const inputValue = e.target.value.toUpperCase();
+        // Allow letters, digits, and spaces for UK postcodes like SW1A 1AA
+        const cleanedValue = inputValue.replace(/[^A-Z0-9 ]/g, '');
+        handleTextChange('postalCode', cleanedValue);
     }, [handleTextChange]);
 
     // Retry handlers
@@ -544,7 +557,7 @@ const AddressSection = ({
                 {/* State */}
                 {renderSelect(
                     'state',
-                    'State / Province',
+                    'Region',
                     value.stateId,
                     states,
                     handleStateChange,
@@ -552,7 +565,7 @@ const AddressSection = ({
                     isStateDisabled,
                     stateError,
                     retryStates,
-                    value.countryId ? 'Select State' : 'Select Country first',
+                    value.countryId ? 'Select Region' : 'Select Country first',
                     errors.state
                 )}
 
@@ -645,17 +658,17 @@ const AddressSection = ({
                         htmlFor="postalCode"
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
-                        Postal / ZIP Code {required && <span className="text-red-500">*</span>}
+                        Postcode {required && <span className="text-red-500">*</span>}
                     </label>
                     <input
                         id="postalCode"
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
+                        inputMode="text"
+                        pattern="[A-Za-z0-9 ]*"
                         value={value.postalCode}
                         onChange={handlePostalCodeChange}
                         disabled={disabled}
-                        placeholder="Enter postal code"
+                        placeholder="e.g. SW1A 1AA"
                         className={`
               w-full px-3 py-2.5
               border rounded-lg

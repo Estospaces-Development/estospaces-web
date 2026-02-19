@@ -12,28 +12,40 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build application
+# Build-time env vars (baked into the Vite bundle)
+ARG VITE_CORE_SERVICE_URL=http://localhost:8080
+ARG VITE_BOOKING_SERVICE_URL=http://localhost:8081
+ARG VITE_PAYMENT_SERVICE_URL=http://localhost:8082
+ARG VITE_NOTIFICATION_SERVICE_URL=http://localhost:8083
+ARG VITE_SEARCH_SERVICE_URL=http://localhost:8084
+ARG VITE_MEDIA_SERVICE_URL=http://localhost:8085
+
+# Build the Vite app
 RUN npm run build
 
-# Production stage
-FROM node:20-alpine AS runner
+# Production stage — serve static files with Nginx
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy built assets
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Set environment to production
-ENV NODE_ENV=production
+# SPA fallback — serve index.html for all routes
+RUN echo 'server { \
+  listen 3000; \
+  root /usr/share/nginx/html; \
+  index index.html; \
+  location / { \
+  try_files $uri $uri/ /index.html; \
+  } \
+  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
+  expires 1y; \
+  add_header Cache-Control "public, immutable"; \
+  } \
+  }' > /etc/nginx/conf.d/default.conf
 
-# Copy necessary files
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000 || exit 1
 
-# Start application
-CMD ["node", "server.js"]
+CMD ["nginx", "-g", "daemon off;"]

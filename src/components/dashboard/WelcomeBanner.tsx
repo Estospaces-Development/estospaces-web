@@ -1,13 +1,13 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import * as analyticsService from '@/services/analyticsService';
 
 const WelcomeBanner = () => {
-    const { getDisplayName, getRole, user } = useAuth();
+    const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
         activeProperties: 0,
@@ -23,33 +23,16 @@ const WelcomeBanner = () => {
     useEffect(() => {
         const fetchStats = async () => {
             if (!user) return;
-
+            setLoading(true);
             try {
-                // Fetch properties count
-                const { count: propertiesCount } = await supabase
-                    .from('properties')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('agent_id', user.id)
-                    .eq('status', 'active');
-
-                // Fetch leads count
-                const { count: leadsCount } = await supabase
-                    .from('leads')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('agent_id', user.id);
-
-                // Fetch applications count
-                const { count: applicationsCount } = await supabase
-                    .from('applications')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('agent_id', user.id)
-                    .eq('status', 'pending');
-
-                setStats({
-                    activeProperties: propertiesCount || 0,
-                    activeLeads: leadsCount || 0,
-                    totalApplications: applicationsCount || 0
-                });
+                const res = await analyticsService.getAnalyticsData();
+                if (res.data) {
+                    setStats({
+                        activeProperties: res.data.leadAnalytics?.totalProperties || 0,
+                        activeLeads: res.data.leadAnalytics?.totalLeads || 0,
+                        totalApplications: res.data.propertyPerformance?.reduce((acc, p) => acc + p.applications, 0) || 0
+                    });
+                }
             } catch (error) {
                 console.error('Error fetching dashboard stats:', error);
             } finally {
@@ -106,4 +89,3 @@ const WelcomeBanner = () => {
 };
 
 export default WelcomeBanner;
-

@@ -54,16 +54,16 @@ function LeadsContent() {
 
     const filteredLeads = leads.filter((lead) => {
         const matchesSearch =
-            lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            lead.propertyInterested.toLowerCase().includes(searchQuery.toLowerCase());
+            (lead.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (lead.email || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (lead.propertyInterested || '').toLowerCase().includes(searchQuery.toLowerCase());
 
         const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
 
         const matchesScore = scoreFilter === 'all' ||
-            (scoreFilter === 'high' && lead.score >= 90) ||
-            (scoreFilter === 'medium' && lead.score >= 70 && lead.score < 90) ||
-            (scoreFilter === 'low' && lead.score < 70);
+            (scoreFilter === 'high' && (lead.score || 0) >= 90) ||
+            (scoreFilter === 'medium' && (lead.score || 0) >= 70 && (lead.score || 0) < 90) ||
+            (scoreFilter === 'low' && (lead.score || 0) < 70);
 
         return matchesSearch && matchesStatus && matchesScore;
     });
@@ -111,13 +111,13 @@ function LeadsContent() {
             title: 'Leads Export',
             headers: ['Name', 'Email', 'Property Interested', 'Status', 'Score', 'Budget', 'Last Contact'],
             rows: leadsToExport.map(lead => [
-                lead.name,
-                lead.email,
-                lead.propertyInterested,
+                lead.name || '',
+                lead.email || '',
+                lead.propertyInterested || '',
                 lead.status,
-                lead.score,
-                lead.budget,
-                lead.lastContact,
+                lead.score || 0,
+                lead.budget || '',
+                lead.lastContact || '',
             ]),
         };
 

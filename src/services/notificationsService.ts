@@ -1,3 +1,14 @@
+/**
+ * Notifications Service
+ * Fetches and creates notifications via the notification-service backend
+ */
+
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+
+const NOTIFICATION_URL = () => getServiceUrl('notification');
+
+// ── Notification Types ──────────────────────────────────────────────────────
+
 export const NOTIFICATION_TYPES = {
     // Appointments/Viewings
     APPOINTMENT_APPROVED: 'appointment_approved',
@@ -46,6 +57,21 @@ export const NOTIFICATION_TYPES = {
 
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
 
+// ── Interfaces ──────────────────────────────────────────────────────────────
+
+export interface Notification {
+    id: string;
+    user_id: string;
+    type: string;
+    title: string;
+    message: string;
+    data: string;
+    is_read: boolean;
+    read_at?: string;
+    channel: string;
+    created_at: string;
+}
+
 export interface NotificationData {
     propertyId?: string;
     propertyTitle?: string;
@@ -66,10 +92,48 @@ export interface CreateNotificationParams {
     title: string;
     message: string;
     data?: NotificationData;
+    channel?: string;
+}
+
+// ── API Functions ───────────────────────────────────────────────────────────
+
+/**
+ * Get notifications for the current user
+ * GET /api/v1/notifications
+ */
+export async function getNotifications(unreadOnly: boolean = false): Promise<{
+    notifications: Notification[];
+    unread_count: number;
+}> {
+    const url = `${NOTIFICATION_URL()}/api/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`;
+    return apiFetch<{ notifications: Notification[]; unread_count: number }>(url);
+}
+
+/**
+ * Mark a single notification as read
+ * PUT /api/v1/notifications/:id/read
+ */
+export async function markRead(notificationId: string): Promise<void> {
+    await apiFetch<any>(
+        `${NOTIFICATION_URL()}/api/v1/notifications/${notificationId}/read`,
+        { method: 'PUT' },
+    );
+}
+
+/**
+ * Mark all notifications as read
+ * PUT /api/v1/notifications/read-all
+ */
+export async function markAllRead(): Promise<void> {
+    await apiFetch<any>(
+        `${NOTIFICATION_URL()}/api/v1/notifications/read-all`,
+        { method: 'PUT' },
+    );
 }
 
 /**
  * Create a notification for a user
+ * POST /api/v1/notifications
  */
 export async function createNotification({
     userId,
@@ -77,17 +141,38 @@ export async function createNotification({
     title,
     message,
     data = {},
+    channel = 'in_app',
 }: CreateNotificationParams): Promise<boolean> {
-    console.log('Mock Notification Created:', { userId, type, title, message, data });
-    return true;
+    try {
+        await apiFetch<Notification>(
+            `${NOTIFICATION_URL()}/api/v1/notifications`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    user_id: userId,
+                    type,
+                    title,
+                    message,
+                    data: JSON.stringify(data),
+                    channel,
+                }),
+            },
+        );
+        return true;
+    } catch (error: any) {
+        console.error('[notificationsService] createNotification error:', error.message);
+        return false;
+    }
 }
+
+// ── Convenience Wrappers ────────────────────────────────────────────────────
 
 export async function notifyViewingBooked(
     userId: string,
     propertyTitle: string,
     propertyId: string,
     date: string,
-    time: string
+    time: string,
 ): Promise<boolean> {
     return createNotification({
         userId,
@@ -102,7 +187,7 @@ export async function notifyPropertySaved(
     userId: string,
     propertyTitle: string,
     propertyId: string,
-    propertyImage?: string
+    propertyImage?: string,
 ): Promise<boolean> {
     return createNotification({
         userId,
@@ -118,7 +203,7 @@ export async function notifyViewingCancelled(
     propertyTitle: string,
     propertyId: string,
     date: string,
-    reason: string
+    reason: string,
 ): Promise<boolean> {
     return createNotification({
         userId,
@@ -129,11 +214,15 @@ export async function notifyViewingCancelled(
     });
 }
 
-// Add other notification functions as needed (mocked)
+// ── Default Export ──────────────────────────────────────────────────────────
+
 export const notificationsService = {
+    getNotifications,
+    markRead,
+    markAllRead,
     createNotification,
     notifyViewingBooked,
     notifyPropertySaved,
     notifyViewingCancelled,
-    NOTIFICATION_TYPES
+    NOTIFICATION_TYPES,
 };

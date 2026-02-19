@@ -1,18 +1,60 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { mockFastTrackCases, FastTrackCase } from '@/mocks/fastTrackCases';
+import React, { useState, useMemo, useEffect } from 'react';
+import { FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
 import FastTrackCaseCard from '@/components/manager/FastTrack/FastTrackCaseCard';
 import FastTrackCaseDetail from '@/components/manager/FastTrack/FastTrackCaseDetail';
-import { Zap, Clock, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { Zap, Clock, CheckCircle2, AlertOctagon, RefreshCw } from 'lucide-react';
 import BackButton from '@/components/ui/BackButton';
+import Toast from '@/components/ui/Toast';
 
 const AdminFastTrackDashboard = () => {
-    const [cases, setCases] = useState<FastTrackCase[]>(mockFastTrackCases);
+    const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
+        message: '',
+        type: 'success',
+        visible: false
+    });
 
-    const handleUpdateCase = (updatedCase: FastTrackCase) => {
+    const fetchCases = async () => {
+        setLoading(true);
+        const { data, error } = await getFastTrackCases();
+        if (data) {
+            setCases(data);
+            if (selectedCaseId) {
+                const updatedSelected = data.find(c => c.caseId === selectedCaseId);
+                if (!updatedSelected && selectedCaseId) {
+                    setSelectedCaseId(null);
+                }
+            }
+        } else {
+            setError(error || 'Failed to fetch cases');
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchCases();
+    }, []);
+
+    const handleUpdateCase = async (updatedCase: FastTrackCase) => {
         setCases(prev => prev.map(c => c.caseId === updatedCase.caseId ? updatedCase : c));
+
+        const { error } = await updateFastTrackCase(updatedCase.id, {
+            current_step: updatedCase.currentStep,
+            final_status: updatedCase.finalStatus,
+            documents: updatedCase.documents
+        });
+
+        if (error) {
+            setToast({ message: 'Failed to update case', type: 'error', visible: true });
+            fetchCases();
+        } else {
+            setToast({ message: 'Case updated successfully', type: 'success', visible: true });
+        }
     };
 
     const selectedCase = useMemo(() =>

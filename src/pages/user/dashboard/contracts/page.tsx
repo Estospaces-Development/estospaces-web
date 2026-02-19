@@ -10,32 +10,10 @@ import {
 import ContractViewer from '@/components/dashboard/ContractViewer';
 import SignatureModal from '@/components/dashboard/SignatureModal';
 
-const MOCK_CONTRACTS = [
-    { id: 1, name: 'Lease Agreement', property: 'Modern Downtown Apartment', type: 'Lease Agreement', date: '2024-01-10', status: 'pending', amount: 1500, daysUntilExpiration: 300 },
-    { id: 2, name: 'Service Agreement', property: 'Modern Downtown Apartment', type: 'Maintenance', date: '2024-02-15', status: 'signed', amount: 50 },
-    { id: 3, name: 'Tenancy Deposit', property: 'Luxury Studio Flat', type: 'Deposit', date: '2024-03-01', status: 'signed', amount: 2400 },
-];
+// Services
+import { bookingsService, Contract } from '@/services/bookingsService';
 
-const MOCK_FORMS = [
-    {
-        id: 'form-1',
-        name: 'Standard Tenant Application Form',
-        description: 'Mandatory form for all new tenancy applications.',
-        type: 'Application Form',
-        date: '2024-01-01',
-        status: 'available',
-        isMandatory: true
-    },
-    {
-        id: 'form-2',
-        name: 'Pet Policy Agreement',
-        description: 'Required if you intend to bring pets into the property.',
-        type: 'Agreement',
-        date: '2024-01-01',
-        status: 'available',
-        isMandatory: false
-    }
-];
+
 
 export default function ContractsPage() {
     const navigate = useNavigate();
@@ -44,6 +22,45 @@ export default function ContractsPage() {
     const [selectedContract, setSelectedContract] = useState<any>(null);
     const [showViewer, setShowViewer] = useState(false);
     const [showSignatureModal, setShowSignatureModal] = useState(false);
+    const [contracts, setContracts] = useState<any[]>([]);
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchContracts = React.useCallback(async () => {
+        setLoading(true);
+        try {
+            const result = await bookingsService.getContracts();
+            if (result.data) {
+                const mapped = result.data.map((c: Contract) => ({
+                    ...c,
+                    name: c.contract_type === 'rental' ? 'Lease Agreement' : 'Purchase Agreement',
+                    property: 'Property ID: ' + c.property_id, // Ideally join title
+                    type: c.contract_type === 'rental' ? 'Rental' : 'Purchase',
+                    date: c.created_at?.split('T')[0] || 'N/A',
+                    amount: c.monthly_rent || c.deposit_amount || 0,
+                    status: c.status === 'sent' ? 'pending' : (c.status === 'signed' || c.status === 'active' ? 'signed' : c.status)
+                }));
+                setContracts(mapped);
+            }
+        } catch (err) {
+            console.error('[Contracts] Error fetching:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        fetchContracts();
+        const fetchTemplates = async () => {
+            try {
+                const res = await bookingsService.getContractTemplates();
+                if (res.data) setTemplates(res.data);
+            } catch (err) {
+                console.error('[Templates] Error fetching:', err);
+            }
+        };
+        fetchTemplates();
+    }, [fetchContracts]);
 
     const getStatusConfig = (status: string) => {
         const configs: any = {
@@ -98,14 +115,13 @@ export default function ContractsPage() {
                     </div>
                 </div>
 
-                {/* Mandatory Forms Section */}
                 <div className="mb-12">
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-6 flex items-center gap-3">
                         <FileCheck className="text-orange-500" size={28} />
                         Mandatory Forms
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {MOCK_FORMS.map((form) => (
+                        {templates.map((form) => (
                             <div key={form.id} className="bg-white dark:bg-gray-800 rounded-[2rem] p-6 shadow-xl shadow-gray-200/50 dark:shadow-none group hover:scale-[1.02] transition-all">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600">
@@ -174,7 +190,7 @@ export default function ContractsPage() {
                 {/* Contracts Display */}
                 {viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {MOCK_CONTRACTS.map((contract) => {
+                        {contracts.map((contract: any) => {
                             const config = getStatusConfig(contract.status);
                             return (
                                 <div key={contract.id} className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl shadow-gray-200/50 dark:shadow-none overflow-hidden group hover:scale-[1.02] transition-all">
@@ -239,7 +255,7 @@ export default function ContractsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y dark:divide-gray-700">
-                                    {MOCK_CONTRACTS.map((contract) => {
+                                    {contracts.map((contract: any) => {
                                         const config = getStatusConfig(contract.status);
                                         return (
                                             <tr key={contract.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">

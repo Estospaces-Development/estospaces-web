@@ -20,45 +20,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
 
-// Fallback mock data structure
-const MOCK_VIEWINGS = [
-    {
-        id: 'viewing-1',
-        scheduled_date: '2026-02-15',
-        scheduled_time: '14:30',
-        status: 'confirmed',
-        property_id: 'prop-1',
-        property: {
-            title: 'Modern Luxury Apartment',
-            address_line_1: '123 Canary Wharf',
-            price: 3500,
-            listing_type: 'rent',
-            image_urls: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800']
-        },
-        agent: {
-            name: 'Sarah Connor',
-            phone: '07123 456 789'
-        }
-    },
-    {
-        id: 'viewing-2',
-        scheduled_date: '2026-02-18',
-        scheduled_time: '10:00',
-        status: 'pending',
-        property_id: 'prop-2',
-        property: {
-            title: 'Executive Penthouse',
-            address_line_1: '45 Victoria Street',
-            price: 1250000,
-            listing_type: 'sale',
-            image_urls: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800']
-        },
-        agent: {
-            name: 'John Smith',
-            phone: '07987 654 321'
-        }
-    }
-];
+// Services
+import { bookingsService } from '@/services/bookingsService';
 
 export default function ViewingsPage() {
     const navigate = useNavigate();
@@ -69,23 +32,28 @@ export default function ViewingsPage() {
 
     const fetchViewings = useCallback(async () => {
         setLoading(true);
-        // Simulate API fetch delay
-        setTimeout(() => {
-            const mappedViewings = MOCK_VIEWINGS.map(viewing => ({
-                ...viewing,
-                date: viewing.scheduled_date,
-                time: viewing.scheduled_time,
-                propertyImage: viewing.property?.image_urls?.[0] || null,
-                propertyTitle: viewing.property?.title || 'Unknown Property',
-                propertyAddress: viewing.property?.address_line_1 || 'Address not available',
-                propertyPrice: viewing.property?.price || 0,
-                listingType: viewing.property?.listing_type || 'sale',
-                agentName: viewing.agent?.name || 'Agent',
-                agentPhone: viewing.agent?.phone || ''
-            }));
-            setViewings(mappedViewings);
+        try {
+            const result = await bookingsService.getViewings();
+            if (result.data) {
+                const mappedViewings = result.data.map((viewing: any) => ({
+                    ...viewing,
+                    date: viewing.scheduled_at?.split('T')[0] || viewing.scheduled_at,
+                    time: viewing.scheduled_at?.split('T')[1]?.substring(0, 5) || '',
+                    propertyImage: viewing.property?.image_urls?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
+                    propertyTitle: viewing.property?.title || 'Property',
+                    propertyAddress: viewing.property?.address_line_1 || 'Address not available',
+                    propertyPrice: viewing.property?.price || 0,
+                    listingType: viewing.property?.listing_type || 'sale',
+                    agentName: viewing.agent?.name || 'Agent',
+                    agentPhone: viewing.agent?.phone || ''
+                }));
+                setViewings(mappedViewings);
+            }
+        } catch (err: any) {
+            console.error('[Viewings] Error fetching viewings:', err);
+        } finally {
             setLoading(false);
-        }, 500);
+        }
     }, []);
 
     useEffect(() => {
@@ -93,6 +61,7 @@ export default function ViewingsPage() {
     }, [fetchViewings]);
 
     const filteredViewings = viewings.filter(viewing => {
+        if (!viewing.date) return true;
         const viewingDate = new Date(viewing.date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -112,13 +81,15 @@ export default function ViewingsPage() {
     const handleCancelViewing = async (viewingId: string) => {
         if (!window.confirm('Are you sure you want to cancel this viewing?')) return;
 
-        setViewings(prev => prev.map(v =>
-            v.id === viewingId ? { ...v, status: 'cancelled' } : v
-        ));
+        try {
+            await bookingsService.cancelViewing(viewingId);
 
-        const viewing = viewings.find(v => v.id === viewingId);
-        if (viewing) {
-            try {
+            setViewings(prev => prev.map(v =>
+                v.id === viewingId ? { ...v, status: 'cancelled' } : v
+            ));
+
+            const viewing = viewings.find(v => v.id === viewingId);
+            if (viewing) {
                 await notifyViewingCancelled(
                     user?.id || 'mock-user-id',
                     viewing.propertyTitle,
@@ -126,9 +97,10 @@ export default function ViewingsPage() {
                     viewing.date,
                     'Cancelled by you'
                 );
-            } catch (err) {
-                console.error('Error sending cancellation notification:', err);
             }
+        } catch (err) {
+            console.error('Error cancelling viewing:', err);
+            alert('Failed to cancel viewing. Please try again.');
         }
     };
 

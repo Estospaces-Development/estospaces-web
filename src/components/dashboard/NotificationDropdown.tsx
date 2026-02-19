@@ -1,48 +1,61 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { notificationsService, NOTIFICATION_TYPES } from '@/services/notificationsService';
+import { getNotifications, markRead, markAllRead, NOTIFICATION_TYPES, type Notification } from '@/services/notificationsService';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Mock notifications for demo
-const MOCK_NOTIFICATIONS = [
-    {
-        id: 'notif-1',
-        type: NOTIFICATION_TYPES.VIEWING_CONFIRMED,
-        title: 'Viewing Confirmed! ✓',
-        message: 'Great news! Your viewing for "Modern Downtown Apartment" on Oct 24 at 10:00 AM has been confirmed.',
-        read: false,
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-        data: { propertyId: 'prop-1' }
-    },
-    {
-        id: 'notif-2',
-        type: NOTIFICATION_TYPES.PROPERTY_SAVED,
-        title: 'Price Drop Alert! 📉',
-        message: 'Good news! "Luxury Suburban Home" has dropped from £750,000 to £725,000.',
-        read: false,
-        timestamp: new Date(Date.now() - 86400000).toISOString(),
-        data: { propertyId: 'prop-2' }
-    },
-    {
-        id: 'notif-3',
-        type: NOTIFICATION_TYPES.WELCOME,
-        title: 'Welcome to Estospaces! 🏠',
-        message: 'Hi there! Welcome to Estospaces. Start exploring properties and find your perfect home.',
-        read: true,
-        timestamp: new Date(Date.now() - 172800000).toISOString(),
-        data: {}
-    }
-];
+interface DisplayNotification {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    read: boolean;
+    timestamp: string;
+    data: Record<string, any>;
+}
+
+const mapNotification = (n: Notification): DisplayNotification => ({
+    id: n.id,
+    type: n.type,
+    title: n.title,
+    message: n.message,
+    read: n.is_read,
+    timestamp: n.created_at,
+    data: n.data ? (typeof n.data === 'string' ? JSON.parse(n.data) : n.data) : {},
+});
 
 const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [notifications, setNotifications] = useState<any[]>(MOCK_NOTIFICATIONS);
+    const [notifications, setNotifications] = useState<DisplayNotification[]>([]);
+    const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const { user } = useAuth();
+
+    // Fetch notifications from backend
+    const fetchNotifications = useCallback(async () => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            const result = await getNotifications();
+            setNotifications((result.notifications || []).map(mapNotification));
+        } catch (error) {
+            console.error('[NotificationDropdown] Error fetching:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user]);
+
+    // Fetch on mount & when dropdown opens
+    useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications]);
+
+    useEffect(() => {
+        if (isOpen) fetchNotifications();
+    }, [isOpen, fetchNotifications]);
 
     // Close on click outside
     useEffect(() => {
@@ -58,13 +71,23 @@ const NotificationDropdown = () => {
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const markAsRead = (id: string, e: React.MouseEvent) => {
+    const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        try {
+            await markRead(id);
+        } catch {
+            // Optimistic update already applied
+        }
     };
 
-    const markAllAsRead = () => {
+    const handleMarkAllAsRead = async () => {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        try {
+            await markAllRead();
+        } catch {
+            // Optimistic update already applied
+        }
     };
 
     const removeNotification = (id: string, e: React.MouseEvent) => {
@@ -72,10 +95,11 @@ const NotificationDropdown = () => {
         setNotifications(prev => prev.filter(n => n.id !== id));
     };
 
-    const handleNotificationClick = (notification: any) => {
+    const handleNotificationClick = async (notification: DisplayNotification) => {
         // Mark as read
         if (!notification.read) {
             setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n));
+            try { await markRead(notification.id); } catch { /* optimistic */ }
         }
 
         setIsOpen(false);
@@ -165,8 +189,8 @@ const NotificationDropdown = () => {
                 className="relative p-2 rounded-lg transition-colors hover:bg-white/10"
                 aria-label="Notifications"
             >
-                <div className="w-8 h-8 bg-white/20 dark:bg-gray-700 backdrop-blur-sm rounded-full flex items-center justify-center">
-                    <Bell size={18} className="text-white dark:text-gray-200" />
+                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <Bell size={18} className="text-gray-600 dark:text-gray-200" />
                 </div>
                 {unreadCount > 0 && (
                     <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-transparent shadow-sm indicator-pulse" />
@@ -179,7 +203,7 @@ const NotificationDropdown = () => {
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
-                                onClick={markAllAsRead}
+                                onClick={handleMarkAllAsRead}
                                 className="text-xs font-medium text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
                             >
                                 Mark all as read
@@ -188,7 +212,11 @@ const NotificationDropdown = () => {
                     </div>
 
                     <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
-                        {notifications.length > 0 ? (
+                        {loading && notifications.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-gray-500 dark:text-gray-400 text-sm">Loading...</p>
+                            </div>
+                        ) : notifications.length > 0 ? (
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
                                 {notifications.map(notification => (
                                     <div
@@ -219,7 +247,7 @@ const NotificationDropdown = () => {
                                         <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             {!notification.read && (
                                                 <button
-                                                    onClick={(e) => markAsRead(notification.id, e)}
+                                                    onClick={(e) => handleMarkAsRead(notification.id, e)}
                                                     className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
                                                     title="Mark as read"
                                                 >
@@ -262,4 +290,3 @@ const NotificationDropdown = () => {
 };
 
 export default NotificationDropdown;
-

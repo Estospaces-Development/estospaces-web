@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
+import * as propertyService from '../services/propertyService';
 
 // Type definitions
 export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'INR' | 'AED' | 'CAD' | 'AUD' | 'JPY' | 'CNY' | 'SGD';
@@ -223,9 +224,9 @@ interface PropertyContextType {
     setPage: (page: number) => void;
     setLimit: (limit: number) => void;
 
-    incrementViews: (id: string) => void;
-    incrementInquiries: (id: string) => void;
-    incrementShares: (id: string) => void;
+    incrementViews: (id: string) => Promise<void>;
+    incrementInquiries: (id: string) => Promise<void>;
+    incrementShares: (id: string) => Promise<void>;
     exportProperties: (format: 'csv' | 'json' | 'pdf', ids?: string[]) => void;
     formatPrice: (price: PriceInfo | undefined) => string;
     formatArea: (area: number, unit: AreaUnit) => string;
@@ -242,117 +243,136 @@ export const useProperties = () => {
     return context;
 };
 
-// Mock Properties
-const MOCK_PROPERTIES: Property[] = [
-    {
-        id: '1',
-        title: 'Luxury Villa in Beverly Hills',
-        description: 'A stunning 5-bedroom villa with ocean views and a private pool.',
-        shortDescription: 'Luxury 5-bed villa with pool.',
-        price: { amount: 5000000, currency: 'USD', negotiable: true },
-        priceString: '$5,000,000',
-        propertyType: 'villa',
-        listingType: 'sale',
-        status: 'active',
-        location: {
-            addressLine1: '123 Palm Drive',
-            city: 'Beverly Hills',
-            state: 'California',
-            country: 'USA',
-            countryCode: 'US'
-        },
-        address: '123 Palm Drive',
-        city: 'Beverly Hills',
-        state: 'California',
-        zipCode: '90210',
-        dimensions: { totalArea: 4500, areaUnit: 'sqft', floors: 2 },
-        area: 4500,
-        rooms: { bedrooms: 5, bathrooms: 6, parkingSpaces: 3 },
-        bedrooms: 5,
-        bathrooms: 6,
-        yearBuilt: 2020,
-        furnishing: 'furnished',
-        condition: 'excellent',
-        amenities: { interior: ['AC', 'Heater'], exterior: ['Pool', 'Garden'], community: ['Gym'], security: ['CCTV'], utilities: ['Water', 'Electricity'] },
-        media: { images: [], videos: [], floorPlans: [] },
-        images: [],
-        analytics: { views: 1200, inquiries: 45, favorites: 30, shares: 15 },
-
-        availableFrom: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        published: true,
-        draft: false,
-        featured: true,
-        verified: true
-    },
-    {
-        id: '2',
-        title: 'Modern Apartment in Downtown',
-        description: 'Spacious 2-bedroom apartment in the heart of the city.',
-        shortDescription: 'Modern 2-bed apartment.',
-        price: { amount: 2500, currency: 'USD', negotiable: false },
-        priceString: '$2,500/mo',
-        propertyType: 'apartment',
-        listingType: 'rent',
-        status: 'active',
-        location: {
-            addressLine1: '456 Main St',
-            city: 'New York',
-            state: 'New York',
-            country: 'USA',
-            countryCode: 'US'
-        },
-        address: '456 Main St',
-        city: 'New York',
-        state: 'New York',
-        zipCode: '10001',
-        dimensions: { totalArea: 1200, areaUnit: 'sqft', floorNumber: 15, totalFloors: 40 },
-        area: 1200,
-        rooms: { bedrooms: 2, bathrooms: 2, parkingSpaces: 1 },
-        bedrooms: 2,
-        bathrooms: 2,
-        yearBuilt: 2018,
-        furnishing: 'semi_furnished',
-        condition: 'good',
-        amenities: { interior: ['AC'], exterior: ['Balcony'], community: ['Gym', 'Pool'], security: ['24/7 Security'], utilities: ['Water', 'Gas'] },
-        media: { images: [], videos: [], floorPlans: [] },
-        images: [],
-        analytics: { views: 800, inquiries: 25, favorites: 15, shares: 8 },
-
-        availableFrom: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        published: true,
-        draft: false,
-        featured: false,
-        verified: true
-    }
-];
+// Provider Implementation
 
 export const PropertyProvider = ({ children }: { children: ReactNode }) => {
-    const [properties, setProperties] = useState<Property[]>(MOCK_PROPERTIES);
+    const [properties, setProperties] = useState<Property[]>([]);
     const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
     const [filters, setFiltersState] = useState<PropertyFilters>({});
     const [sort, setSort] = useState<SortOption>({ field: 'createdAt', order: 'desc' });
-    const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 12, total: MOCK_PROPERTIES.length, totalPages: 1 });
+    const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 12, total: 0, totalPages: 1 });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Mappers
+    const mapServiceToContextProperty = (p: propertyService.Property): Property => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        price: {
+            amount: p.price || 0,
+            currency: (p.currency as CurrencyCode) || 'GBP',
+            negotiable: false
+        },
+        priceString: p.price ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: p.currency || 'GBP' }).format(p.price) : 'POA',
+        propertyType: (p.property_type as PropertyType) || 'house',
+        listingType: (p.listing_type as ListingType) || 'rent',
+        status: (p.status as PropertyStatus) || 'available',
+        location: {
+            addressLine1: p.address_line_1,
+            addressLine2: p.address_line_2,
+            city: p.city,
+            postalCode: p.postcode,
+            country: p.country || 'UK',
+        },
+        address: p.address_line_1,
+        city: p.city,
+        area: p.property_size_sqft,
+        bedrooms: p.bedrooms,
+        bathrooms: p.bathrooms,
+        rooms: {
+            bedrooms: p.bedrooms || 0,
+            bathrooms: p.bathrooms || 0,
+            parkingSpaces: p.parking_spaces || 0,
+        },
+        dimensions: {
+            totalArea: p.property_size_sqft || 0,
+            areaUnit: 'sqft',
+        },
+        amenities: {
+            interior: [],
+            exterior: [],
+            community: [],
+            security: [],
+            utilities: [],
+        },
+        furnishing: p.furnished ? 'furnished' : 'unfurnished',
+        condition: 'excellent',
+        analytics: {
+            views: p.views || 0,
+            inquiries: p.inquiries || 0,
+            favorites: p.favorites || 0,
+            shares: 0,
+        },
+        media: {
+            images: (p.image_urls || []).map((url, i) => ({ id: `${p.id}-img-${i}`, url, type: 'image', uploadedAt: new Date().toISOString() })),
+            videos: (p.video_urls || []).map((url, i) => ({ id: `${p.id}-vid-${i}`, url, type: 'video', uploadedAt: new Date().toISOString() })),
+            floorPlans: [],
+        },
+        images: p.image_urls || [],
+        createdAt: p.created_at || new Date().toISOString(),
+        updatedAt: p.updated_at || new Date().toISOString(),
+        availableFrom: p.created_at || new Date().toISOString(),
+        published: p.status === 'published',
+        draft: p.status === 'draft',
+    });
+
+    const mapContextToServiceProperty = (p: Partial<Property>): Partial<propertyService.Property> => {
+        const serviceProps: any = {};
+        if (p.title) serviceProps.title = p.title;
+        if (p.description) serviceProps.description = p.description;
+        if (p.price?.amount) serviceProps.price = p.price.amount;
+        if (p.location?.addressLine1) serviceProps.address_line_1 = p.location.addressLine1;
+        if (p.location?.addressLine2) serviceProps.address_line_2 = p.location.addressLine2;
+        if (p.location?.city) serviceProps.city = p.location.city;
+        if (p.location?.postalCode) serviceProps.postcode = p.location.postalCode;
+        if (p.propertyType) serviceProps.property_type = p.propertyType;
+        if (p.listingType) serviceProps.listing_type = p.listingType;
+
+        // Handle status mapping
+        if (p.status) {
+            serviceProps.status = p.status;
+        } else if (p.published) {
+            serviceProps.status = 'published';
+        } else if (p.draft) {
+            serviceProps.status = 'draft';
+        }
+
+        if (p.bedrooms) serviceProps.bedrooms = p.bedrooms;
+        if (p.bathrooms) serviceProps.bathrooms = p.bathrooms;
+        if (p.area) serviceProps.property_size_sqft = p.area;
+        if (p.furnishing) serviceProps.furnished = p.furnishing === 'furnished';
+        if (p.rooms?.parkingSpaces) serviceProps.parking_spaces = p.rooms.parkingSpaces;
+        if (p.images) serviceProps.image_urls = p.images.filter(img => typeof img === 'string');
+        return serviceProps;
+    };
+
     const fetchProperties = async () => {
         setLoading(true);
-        // Simulate API delay
-        setTimeout(() => {
-            setProperties(MOCK_PROPERTIES);
+        setError(null);
+        try {
+            const result = await propertyService.getProperties(filters);
+            if (result.error) {
+                setError(result.error);
+                setProperties([]);
+            } else if (result.data) {
+                setProperties(result.data.map(mapServiceToContextProperty));
+                setPagination(prev => ({ ...prev, total: result.data?.length || 0 }));
+            }
+        } catch (err: any) {
+            console.error('[PropertyContext] fetchProperties error:', err);
+            setError(err.message);
+        } finally {
             setLoading(false);
-        }, 500);
+        }
     };
 
     useEffect(() => {
         fetchProperties();
-    }, []);
+    }, [filters]);
 
-    const filteredProperties = properties; // Placeholder for actual filtering logic
+    const filteredProperties = properties;
+    // Placeholder for actual filtering logic
 
     return (
         <PropertyContext.Provider value={{
@@ -365,11 +385,102 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             loading,
             error,
             fetchProperties,
-            addProperty: async () => null,
-            updateProperty: async () => null,
-            deleteProperty: async () => { },
-            deleteProperties: async () => { },
-            duplicateProperty: async () => null,
+            addProperty: async (propertyData: Partial<Property>) => {
+                setLoading(true);
+                try {
+                    const mappedData = mapContextToServiceProperty(propertyData);
+                    console.log('[PropertyContext] Adding property:', mappedData);
+                    const { data, error } = await propertyService.createProperty(mappedData);
+                    if (error) throw new Error(error);
+                    if (data) {
+                        const newProp = mapServiceToContextProperty(data);
+                        setProperties(prev => [newProp, ...prev]);
+                        return newProp;
+                    }
+                    return null;
+                } catch (err: any) {
+                    console.error('[PropertyContext] addProperty error:', err);
+                    setError(err.message);
+                    return null;
+                } finally {
+                    setLoading(false);
+                }
+            },
+            updateProperty: async (id: string, propertyData: Partial<Property>) => {
+                setLoading(true);
+                try {
+                    const mappedData = mapContextToServiceProperty(propertyData);
+                    console.log('[PropertyContext] Updating property:', id, mappedData);
+                    const { data, error } = await propertyService.updateProperty(id, mappedData);
+                    if (error) throw new Error(error);
+                    if (data) {
+                        const updatedProp = mapServiceToContextProperty(data);
+                        setProperties(prev => prev.map(p => p.id === id ? updatedProp : p));
+                        return updatedProp;
+                    }
+                    return null;
+                } catch (err: any) {
+                    console.error('[PropertyContext] updateProperty error:', err);
+                    setError(err.message);
+                    return null;
+                } finally {
+                    setLoading(false);
+                }
+            },
+            deleteProperty: async (id: string) => {
+                setLoading(true);
+                try {
+                    const { error } = await propertyService.deleteProperty(id);
+                    if (error) throw new Error(error);
+                    setProperties(prev => prev.filter(p => p.id !== id));
+                    setSelectedProperties(prev => prev.filter(pid => pid !== id));
+                } catch (err: any) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            deleteProperties: async (ids: string[]) => {
+                setLoading(true);
+                try {
+                    // Execute sequentially or parallel. Parallel is faster.
+                    await Promise.all(ids.map(id => propertyService.deleteProperty(id)));
+                    setProperties(prev => prev.filter(p => !ids.includes(p.id)));
+                    setSelectedProperties([]);
+                } catch (err: any) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            duplicateProperty: async (id: string) => {
+                const propertyToDuplicate = properties.find(p => p.id === id);
+                if (!propertyToDuplicate) return null;
+
+                setLoading(true);
+                try {
+                    const { id: _, createdAt, updatedAt, ...rest } = propertyToDuplicate;
+                    const newPropertyData = {
+                        ...rest,
+                        title: `${rest.title} (Copy)`,
+                        status: 'draft' as PropertyStatus
+                    };
+                    const mappedData = mapContextToServiceProperty(newPropertyData);
+                    const { data, error } = await propertyService.createProperty(mappedData);
+                    if (error) throw new Error(error);
+                    if (data) {
+                        const newProp = mapServiceToContextProperty(data);
+                        setProperties(prev => [newProp, ...prev]);
+                        return newProp;
+                    }
+                    return null;
+                } catch (err: any) {
+                    setError(err.message);
+                    return null;
+                } finally {
+                    setLoading(false);
+                }
+            },
             getProperty: (id) => properties.find(p => p.id === id),
             uploadImages: async () => [],
             uploadVideos: async () => [],
@@ -377,21 +488,46 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             deselectProperty: (id) => setSelectedProperties(prev => prev.filter(pId => pId !== id)),
             selectAllProperties: () => setSelectedProperties(properties.map(p => p.id)),
             clearSelection: () => setSelectedProperties([]),
-            bulkUpdateStatus: async () => { },
+            bulkUpdateStatus: async (ids: string[], status: PropertyStatus) => {
+                setLoading(true);
+                try {
+                    await Promise.all(ids.map(id => propertyService.updateProperty(id, { status })));
+                    setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status } : p));
+                    setSelectedProperties([]);
+                } catch (err: any) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            },
             setFilters: setFiltersState,
             clearFilters: () => setFiltersState({}),
             setSort,
             setPage: (page) => setPagination(prev => ({ ...prev, page })),
             setLimit: (limit) => setPagination(prev => ({ ...prev, limit })),
-            incrementViews: () => { },
-            incrementInquiries: () => { },
-            incrementShares: () => { },
+            incrementViews: async (id) => {
+                // Currently just optimistic update, backend should handle real views
+                setProperties(prev => prev.map(p => p.id === id ? { ...p, analytics: { ...p.analytics, views: (p.analytics?.views || 0) + 1 } } : p));
+            },
+            incrementInquiries: async (id) => {
+                setProperties(prev => prev.map(p => p.id === id ? { ...p, analytics: { ...p.analytics, inquiries: (p.analytics?.inquiries || 0) + 1 } } : p));
+            },
+            incrementShares: async (id) => {
+                setProperties(prev => prev.map(p => p.id === id ? { ...p, analytics: { ...p.analytics, shares: (p.analytics?.shares || 0) + 1 } } : p));
+            },
             exportProperties: () => { },
             formatPrice: (price) => price ? new Intl.NumberFormat('en-US', { style: 'currency', currency: price.currency }).format(price.amount) : '',
             formatArea: (area, unit) => `${area} ${unit}`,
-            getPropertyStats: () => ({ total: properties.length, available: 1, sold: 0, rented: 0, pending: 0 })
-        }}>
+            getPropertyStats: () => ({
+                total: properties.length,
+                available: properties.filter(p => p.status === 'available' || p.status === 'active').length,
+                sold: properties.filter(p => p.status === 'sold').length,
+                rented: properties.filter(p => p.status === 'rented' || p.status === 'let').length,
+                pending: properties.filter(p => p.status === 'pending' || p.status === 'under_offer').length
+            })
+        }
+        } >
             {children}
-        </PropertyContext.Provider>
+        </PropertyContext.Provider >
     );
 };

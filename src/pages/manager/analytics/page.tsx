@@ -47,8 +47,8 @@ const Analytics = () => {
     // Use service data or fallbacks
     const applicationsList = applications.length > 0 ? applications : [];
 
-    const approvedApplications = applicationsList.filter(app => app.status === 'Approved');
-    const pendingApplications = applicationsList.filter(app => app.status === 'Pending');
+    const approvedApplications = applicationsList.filter(app => app.status === 'approved');
+    const pendingApplications = applicationsList.filter(app => app.status === 'submitted');
 
     const monthlyRevenue = analyticsData?.revenueTrend.map((item) => ({
         month: item.label,
@@ -556,7 +556,7 @@ const Analytics = () => {
                         data={[
                             { label: 'Approved', value: approvedApplications.length, color: '#10b981' },
                             { label: 'Pending', value: pendingApplications.length, color: '#f59e0b' },
-                            { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'Rejected').length, color: '#ef4444' },
+                            { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: '#ef4444' },
                         ]}
                         size={200}
                     />

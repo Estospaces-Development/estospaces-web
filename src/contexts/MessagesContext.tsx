@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import * as messagesService from '@/services/messagesService';
+import { useAuth } from './AuthContext';
 
 interface Message {
     id: string;
@@ -22,11 +24,11 @@ interface Conversation {
     agentEmail: string;
     agentPhone: string;
     isOnline: boolean;
-    propertyId: string;
-    propertyTitle: string;
-    propertyAddress: string;
-    propertyImage: string;
-    propertyPrice: number;
+    propertyId: string | null;
+    propertyTitle: string | null;
+    propertyAddress: string | null;
+    propertyImage: string | null;
+    propertyPrice: number | null;
     isArchived: boolean;
     isMuted: boolean;
     lastActivity: string;
@@ -45,9 +47,9 @@ interface MessagesContextType {
     setSearchQuery: (query: string) => void;
     isLoading: boolean;
     totalUnreadCount: number;
-    createConversation: (agentData: any, propertyData: any) => string;
-    sendMessage: (conversationId: string, text: string, attachments?: any[]) => void;
-    markAsRead: (conversationId: string) => void;
+    createConversation: (agentData: any, propertyData: any) => Promise<string>;
+    sendMessage: (conversationId: string, text: string, attachments?: any[]) => Promise<void>;
+    markAsRead: (conversationId: string) => Promise<void>;
     archiveConversation: (conversationId: string) => void;
     unarchiveConversation: (conversationId: string) => void;
     muteConversation: (conversationId: string) => void;
@@ -55,6 +57,7 @@ interface MessagesContextType {
     deleteConversation: (conversationId: string) => void;
     getConversation: (conversationId: string) => Conversation | undefined;
     quickReplyTemplates: string[];
+    refreshConversations: () => Promise<void>;
 }
 
 const MessagesContext = createContext<MessagesContextType | undefined>(undefined);
@@ -67,51 +70,6 @@ export const useMessages = () => {
     return context;
 };
 
-// Mock data
-const mockConversations: Conversation[] = [
-    {
-        id: '1',
-        agentId: 'agent-1',
-        agentName: 'Sarah Johnson',
-        agentAgency: 'Prime Realty Group',
-        agentAvatar: null,
-        agentEmail: 'sarah@primerealty.com',
-        agentPhone: '+1 (555) 123-4567',
-        isOnline: true,
-        propertyId: 'prop-1',
-        propertyTitle: 'Modern Downtown Apartment',
-        propertyAddress: '123 Main St, Downtown',
-        propertyImage: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400',
-        propertyPrice: 450000,
-        isArchived: false,
-        isMuted: false,
-        lastActivity: new Date(Date.now() - 120000).toISOString(),
-        unreadCount: 2,
-        messages: [
-            {
-                id: 'msg-1',
-                senderId: 'agent-1',
-                senderType: 'agent',
-                text: 'Hi! I have some properties that might interest you.',
-                timestamp: new Date(Date.now() - 120000).toISOString(),
-                read: true,
-                delivered: true,
-                attachments: [],
-            },
-            {
-                id: 'msg-2',
-                senderId: 'user',
-                senderType: 'user',
-                text: 'Hello! I\'m interested in learning more about the Modern Downtown Apartment.',
-                timestamp: new Date(Date.now() - 60000).toISOString(),
-                read: true,
-                delivered: true,
-                attachments: [],
-            },
-        ],
-    }
-];
-
 const quickReplyTemplates = [
     "Is this property still available?",
     "Can I schedule a viewing?",
@@ -121,43 +79,91 @@ const quickReplyTemplates = [
 ];
 
 export const MessagesProvider = ({ children }: { children: React.ReactNode }) => {
-    const [conversations, setConversations] = useState<Conversation[]>(() => {
-        // Load from localStorage or use mock data
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('estospaces-conversations');
-            if (saved) {
-                try {
-                    return JSON.parse(saved);
-                } catch (e) {
-                    return mockConversations;
-                }
-            }
-        }
-        return mockConversations;
-    });
-
+    const { user } = useAuth();
+    const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-    const [filter, setFilter] = useState('all'); // all, unread, archived, property-specific
+    const [filter, setFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Save to localStorage whenever conversations change
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('estospaces-conversations', JSON.stringify(conversations));
-        }
-    }, [conversations]);
+    const mapBackendConversation = useCallback((conv: messagesService.Conversation): Conversation => {
+        let metadata = {
+            agentId: '',
+            agentName: 'Estate Agent',
+            agentAgency: '',
+            agentAvatar: null,
+            agentEmail: '',
+            agentPhone: '',
+            isOnline: false,
+            propertyId: null,
+            propertyTitle: null,
+            propertyAddress: null,
+            propertyImage: null,
+            propertyPrice: null,
+            isArchived: false,
+            isMuted: false,
+        };
 
-    // Get total unread count
+        try {
+            if (conv.metadata) {
+                const parsed = JSON.parse(conv.metadata);
+                metadata = { ...metadata, ...parsed };
+            }
+        } catch (e) {
+            console.error('Failed to parse conversation metadata', e);
+        }
+
+        const messages: Message[] = (conv.messages || []).map(msg => ({
+            id: msg.id,
+            senderId: msg.sender_id,
+            senderType: msg.sender_id === user?.id ? 'user' : 'agent',
+            text: msg.content,
+            timestamp: msg.created_at,
+            read: msg.is_read,
+            delivered: true,
+            attachments: [] // Attachments logic can be added later
+        }));
+
+        const unreadCount = messages.filter(m => !m.read && m.senderId !== user?.id).length;
+
+        return {
+            id: conv.id,
+            ...metadata,
+            lastActivity: conv.updated_at,
+            unreadCount: unreadCount,
+            messages
+        } as Conversation;
+    }, [user?.id]);
+
+    const refreshConversations = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const backendConvs = await messagesService.getConversations();
+            setConversations(backendConvs.map(mapBackendConversation));
+        } catch (error) {
+            console.error('Failed to fetch conversations', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [mapBackendConversation]);
+
+    useEffect(() => {
+        if (user) {
+            refreshConversations();
+        }
+    }, [user, refreshConversations]);
+
+    // Save locale changes? Not needed if syncing with DB.
+    // However, mute/archive might be local-only or need backend support.
+    // For now, let's keep them as mock/local updates.
+
     const totalUnreadCount = conversations.reduce((sum, conv) => {
         return sum + (conv.isArchived ? 0 : conv.unreadCount);
     }, 0);
 
-    // Get filtered conversations
     const getFilteredConversations = useCallback(() => {
         let filtered = [...conversations];
 
-        // Apply filter
         switch (filter) {
             case 'unread':
                 filtered = filtered.filter((conv) => !conv.isArchived && conv.unreadCount > 0);
@@ -165,16 +171,12 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             case 'archived':
                 filtered = filtered.filter((conv) => conv.isArchived);
                 break;
-            case 'property-specific':
-                // Filter by property if needed - can be enhanced
-                break;
             case 'all':
             default:
                 filtered = filtered.filter((conv) => !conv.isArchived);
                 break;
         }
 
-        // Apply search
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter((conv) => {
@@ -190,199 +192,109 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             });
         }
 
-        // Sort by last activity (most recent first)
         return filtered.sort((a, b) => {
             return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
         });
     }, [conversations, filter, searchQuery]);
 
-    // Create a new conversation
-    const createConversation = useCallback((agentData: any, propertyData: any) => {
-        const newConversation: Conversation = {
-            id: `conv-${Date.now()}`,
-            agentId: agentData.id || `agent-${Date.now()}`,
-            agentName: agentData.name,
-            agentAgency: agentData.agency || '',
-            agentAvatar: agentData.avatar || null,
-            agentEmail: agentData.email || '',
-            agentPhone: agentData.phone || '',
-            isOnline: agentData.isOnline || false,
-            propertyId: propertyData?.id || null,
-            propertyTitle: propertyData?.title || null,
-            propertyAddress: propertyData?.address || null,
-            propertyImage: propertyData?.image || null,
-            propertyPrice: propertyData?.price || null,
-            isArchived: false,
-            isMuted: false,
-            lastActivity: new Date().toISOString(),
-            unreadCount: 0,
-            messages: [],
-        };
+    const createConversation = useCallback(async (agentData: any, propertyData: any) => {
+        setIsLoading(true);
+        try {
+            const metadata = {
+                agentId: agentData.id,
+                agentName: agentData.name,
+                agentAgency: agentData.agency || '',
+                agentAvatar: agentData.avatar || null,
+                agentEmail: agentData.email || '',
+                agentPhone: agentData.phone || '',
+                isOnline: agentData.isOnline || false,
+                propertyId: propertyData?.id || null,
+                propertyTitle: propertyData?.title || null,
+                propertyAddress: propertyData?.address || null,
+                propertyImage: propertyData?.image || null,
+                propertyPrice: propertyData?.price || null,
+                isArchived: false,
+                isMuted: false,
+            };
 
-        setConversations((prev) => [newConversation, ...prev]);
-        setSelectedConversationId(newConversation.id);
-        return newConversation.id;
-    }, []);
+            // This is a simplified call - in reality, we might need to check if one exists
+            const msg = await messagesService.sendMessage({
+                recipientId: agentData.id,
+                content: `Hi, I'm interested in learning more about "${propertyData?.title || 'this property'}".`
+            });
 
-    // Send a message
-    const sendMessage = useCallback((conversationId: string, text: string, attachments: any[] = []) => {
+            await refreshConversations();
+            setSelectedConversationId(msg.conversation_id);
+            return msg.conversation_id;
+        } catch (error) {
+            console.error('Failed to create conversation', error);
+            return '';
+        } finally {
+            setIsLoading(false);
+        }
+    }, [refreshConversations]);
+
+    const sendMessage = useCallback(async (conversationId: string, text: string, attachments: any[] = []) => {
         if (!text.trim() && attachments.length === 0) return;
 
-        const newMessage: Message = {
-            id: `msg-${Date.now()}`,
-            senderId: 'user',
-            senderType: 'user',
-            text: text.trim(),
-            timestamp: new Date().toISOString(),
-            read: false,
-            delivered: false,
-            attachments: attachments.map((att) => ({
-                id: `att-${Date.now()}-${Math.random()}`,
-                name: att.name,
-                type: att.type,
-                url: att.url || URL.createObjectURL(att.file),
-                size: att.size,
-            })),
-        };
+        try {
+            await messagesService.sendMessage({
+                conversationId,
+                content: text.trim(),
+                type: 'text'
+            });
+            await refreshConversations();
+        } catch (error) {
+            console.error('Failed to send message', error);
+        }
+    }, [refreshConversations]);
 
-        setConversations((prev) =>
-            prev.map((conv) => {
-                if (conv.id === conversationId) {
-                    return {
-                        ...conv,
-                        messages: [...conv.messages, newMessage],
-                        lastActivity: new Date().toISOString(),
-                    };
-                }
-                return conv;
-            })
-        );
-
-        // Simulate message delivery and read status
-        setTimeout(() => {
-            setConversations((prev) =>
-                prev.map((conv) => {
-                    if (conv.id === conversationId) {
-                        return {
-                            ...conv,
-                            messages: conv.messages.map((msg) =>
-                                msg.id === newMessage.id
-                                    ? { ...msg, delivered: true, read: true }
-                                    : msg
-                            ),
-                        };
-                    }
-                    return conv;
-                })
-            );
-        }, 500);
-
-        // Simulate agent response (mock)
-        setTimeout(() => {
-            const conversation = conversations.find((c) => c.id === conversationId);
-            if (conversation && Math.random() > 0.5) {
-                const responses = [
-                    'Thanks for your message! I\'ll get back to you shortly.',
-                    'I\'ll check on that and get back to you.',
-                    'Great question! Let me find that information for you.',
-                ];
-                const response = responses[Math.floor(Math.random() * responses.length)];
-
-                const agentMessage: Message = {
-                    id: `msg-${Date.now()}-agent`,
-                    senderId: conversation.agentId,
-                    senderType: 'agent',
-                    text: response,
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    delivered: true,
-                    attachments: [],
-                };
-
-                setConversations((prev) =>
-                    prev.map((conv) => {
-                        if (conv.id === conversationId) {
-                            return {
-                                ...conv,
-                                messages: [...conv.messages, agentMessage],
-                                lastActivity: new Date().toISOString(),
-                                unreadCount: conv.unreadCount + 1,
-                            };
-                        }
-                        return conv;
-                    })
-                );
-            }
-        }, 2000);
-    }, [conversations]);
-
-    // Mark conversation as read
-    const markAsRead = useCallback((conversationId: string) => {
-        setConversations((prev) =>
-            prev.map((conv) => {
-                if (conv.id === conversationId) {
-                    return {
-                        ...conv,
-                        unreadCount: 0,
-                        messages: conv.messages.map((msg) => ({ ...msg, read: true })),
-                    };
-                }
-                return conv;
-            })
-        );
+    const markAsRead = useCallback(async (conversationId: string) => {
+        try {
+            await messagesService.markAsRead(conversationId);
+            setConversations(prev => prev.map(conv =>
+                conv.id === conversationId ? { ...conv, unreadCount: 0, messages: conv.messages.map(m => ({ ...m, read: true })) } : conv
+            ));
+        } catch (error) {
+            console.error('Failed to mark as read', error);
+        }
     }, []);
 
-    // Archive conversation
     const archiveConversation = useCallback((conversationId: string) => {
         setConversations((prev) =>
-            prev.map((conv) =>
-                conv.id === conversationId ? { ...conv, isArchived: true } : conv
-            )
+            prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: true } : conv)
         );
     }, []);
 
-    // Unarchive conversation
     const unarchiveConversation = useCallback((conversationId: string) => {
         setConversations((prev) =>
-            prev.map((conv) =>
-                conv.id === conversationId ? { ...conv, isArchived: false } : conv
-            )
+            prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: false } : conv)
         );
     }, []);
 
-    // Mute conversation
     const muteConversation = useCallback((conversationId: string) => {
         setConversations((prev) =>
-            prev.map((conv) =>
-                conv.id === conversationId ? { ...conv, isMuted: true } : conv
-            )
+            prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: true } : conv)
         );
     }, []);
 
-    // Unmute conversation
     const unmuteConversation = useCallback((conversationId: string) => {
         setConversations((prev) =>
-            prev.map((conv) =>
-                conv.id === conversationId ? { ...conv, isMuted: false } : conv
-            )
+            prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: false } : conv)
         );
     }, []);
 
-    // Delete conversation (soft delete)
     const deleteConversation = useCallback((conversationId: string) => {
+        // Soft delete locally, could be backend if supported
         setConversations((prev) => prev.filter((conv) => conv.id !== conversationId));
         if (selectedConversationId === conversationId) {
             setSelectedConversationId(null);
         }
     }, [selectedConversationId]);
 
-    // Get conversation by ID
-    const getConversation = useCallback(
-        (conversationId: string) => {
-            return conversations.find((conv) => conv.id === conversationId);
-        },
-        [conversations]
-    );
+    const getConversation = useCallback((conversationId: string) => {
+        return conversations.find((conv) => conv.id === conversationId);
+    }, [conversations]);
 
     const value = {
         conversations: getFilteredConversations(),
@@ -405,6 +317,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         deleteConversation,
         getConversation,
         quickReplyTemplates,
+        refreshConversations
     };
 
     return <MessagesContext.Provider value={value}>{children}</MessagesContext.Provider>;

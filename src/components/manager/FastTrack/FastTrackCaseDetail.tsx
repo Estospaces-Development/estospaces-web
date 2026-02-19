@@ -18,7 +18,7 @@ import {
     FileSignature,
     Eye
 } from 'lucide-react';
-import { FastTrackCase, FastTrackStep } from '../../../mocks/fastTrackCases';
+import { FastTrackCase, FastTrackStep } from '../../../services/fastTrackService';
 
 interface FastTrackCaseDetailProps {
     caseData: FastTrackCase;

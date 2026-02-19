@@ -1,18 +1,78 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { mockFastTrackCases, FastTrackCase } from '../../../mocks/fastTrackCases';
+import React, { useState, useMemo, useEffect } from 'react';
+import { FastTrackCase, getFastTrackCases, updateFastTrackCase, createFastTrackCase } from '../../../services/fastTrackService';
 import FastTrackCaseCard from '../../../components/manager/FastTrack/FastTrackCaseCard';
 import FastTrackCaseDetail from '../../../components/manager/FastTrack/FastTrackCaseDetail';
-import { Zap, Clock, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { Zap, Clock, CheckCircle2, AlertOctagon, RefreshCw } from 'lucide-react';
 import BackButton from '../../../components/ui/BackButton';
+import Toast from '../../../components/ui/Toast';
 
 const FastTrackDashboard = () => {
-    const [cases, setCases] = useState<FastTrackCase[]>(mockFastTrackCases);
+    const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    // Add toast state
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
+        message: '',
+        type: 'success',
+        visible: false
+    });
 
-    const handleUpdateCase = (updatedCase: FastTrackCase) => {
+    const fetchCases = async () => {
+        setLoading(true);
+        const { data, error } = await getFastTrackCases();
+        if (data) {
+            setCases(data);
+            // If selected case exists, update it
+            if (selectedCaseId) {
+                const updatedSelected = data.find(c => c.caseId === selectedCaseId);
+                if (!updatedSelected && selectedCaseId) {
+                    // Case might have been removed or ID changed (unlikely)
+                    setSelectedCaseId(null);
+                }
+            }
+        } else {
+            setError(error || 'Failed to fetch cases');
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchCases();
+    }, []);
+
+    const handleUpdateCase = async (updatedCase: FastTrackCase) => {
+        // Optimistic update
         setCases(prev => prev.map(c => c.caseId === updatedCase.caseId ? updatedCase : c));
+
+        const { error } = await updateFastTrackCase(updatedCase.id, {
+            current_step: updatedCase.currentStep,
+            final_status: updatedCase.finalStatus,
+            documents: updatedCase.documents
+        });
+
+        if (error) {
+            setToast({ message: 'Failed to update case', type: 'error', visible: true });
+            // Revert or fetch again
+            fetchCases();
+        } else {
+            setToast({ message: 'Case updated successfully', type: 'success', visible: true });
+        }
+    };
+
+    // Temporary helper to seed data if empty (for demo continuity)
+    const handleSeedData = async () => {
+        const seed = {
+            property_id: "prop-seed-" + Date.now(),
+            client_id: "client-seed-" + Date.now(),
+            client_name: "Demo Client",
+            property_title: "Demo Property " + Date.now(),
+            property_type: "rent" as const
+        };
+        await createFastTrackCase(seed);
+        fetchCases();
     };
 
     const selectedCase = useMemo(() =>
@@ -109,11 +169,29 @@ const FastTrackDashboard = () => {
                         ))}
                     </div>
 
-                    {cases.length === 0 && (
-                        <div className="text-center py-20 bg-gray-50 dark:bg-black/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                            <p className="text-gray-500 dark:text-gray-400">No active fast track cases.</p>
+                    {loading ? (
+                        <div className="flex justify-center items-center py-20">
+                            <RefreshCw className="w-8 h-8 animate-spin text-primary" />
                         </div>
-                    )}
+                    ) : error ? (
+                        <div className="text-center py-20 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                            <p className="text-red-500 dark:text-red-400">{error}</p>
+                            <button onClick={fetchCases} className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/70 transition-colors">
+                                Retry
+                            </button>
+                        </div>
+                    ) : cases.length === 0 ? (
+                        <div className="text-center py-20 bg-gray-50 dark:bg-black/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+                            <p className="text-gray-500 dark:text-gray-400 mb-4">No active fast track cases.</p>
+                            <button
+                                onClick={handleSeedData}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 flex items-center gap-2 mx-auto"
+                            >
+                                <Zap className="w-4 h-4" />
+                                Generate Demo Case
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </div>

@@ -2,8 +2,8 @@
 
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import * as analyticsService from '@/services/analyticsService';
 
 interface TopProperty {
     id: string;
@@ -23,61 +23,20 @@ const TopProperties = () => {
         const fetchTopProperties = async () => {
             setLoading(true);
             try {
-                if (!user) {
+                const res = await analyticsService.getAnalyticsData();
+                if (res.data && res.data.propertyPerformance) {
+                    const mapped = res.data.propertyPerformance.map(p => ({
+                        id: p.property, // Analytics returns property name/id
+                        name: p.property,
+                        price: '$0.00', // Analytics doesn't have price, we'd need a join or just show views
+                        views: p.views,
+                        inquiries: p.applications, // Using applications as proxy for inquiries
+                        status: 'Active'
+                    }));
+                    setTopProperties(mapped.slice(0, 3));
+                } else {
                     setTopProperties([]);
-                    setLoading(false);
-                    return;
                 }
-
-                // Fetch properties for this agent
-                const { data: properties, error: propertiesError } = await supabase
-                    .from('properties')
-                    .select('id, title, price, view_count, status') // view_count from updated schema
-                    .eq('agent_id', user.id)
-                    .in('status', ['online', 'active', 'published']);
-
-                if (propertiesError) {
-                    console.error('Error fetching top properties:', propertiesError);
-                    setTopProperties([]);
-                    setLoading(false);
-                    return;
-                }
-
-                if (!properties || properties.length === 0) {
-                    // Fallback to mock data if no properties found, to keep UI populated like legacy
-                    // But legacy shows "No properties found" if empty.
-                    // However, legacy mock service might have returned something.
-                    // I will stick to empty state if no real data found, but maybe seed some mocks if user has no properties?
-                    // No, let's respect the empty state.
-                    setTopProperties([]);
-                    setLoading(false);
-                    return;
-                }
-
-                // Sort by performance (views) and get top 3
-                // Note: inquiries count needs to be fetched separately or mocked if not in property table.
-                // Assuming inquiries count is 0 for now as it requires complex join or separate query.
-
-                const sortedProperties = properties
-                    .map((prop: any) => ({
-                        id: prop.id,
-                        name: prop.title || 'Untitled Property',
-                        price: parseFloat(prop.price || '0').toLocaleString('en-US', {
-                            style: 'currency',
-                            currency: 'USD', // Legacy used USD format
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                        }),
-                        views: prop.view_count || 0,
-                        inquiries: 0, // Mocking inquiries as 0 for now
-                        status: prop.status === 'online' || prop.status === 'active' || prop.status === 'published'
-                            ? 'Available'
-                            : prop.status || 'Unknown',
-                    }))
-                    .sort((a: TopProperty, b: TopProperty) => b.views - a.views)
-                    .slice(0, 3); // Top 3 properties
-
-                setTopProperties(sortedProperties);
             } catch (error) {
                 console.error('Error fetching top properties:', error);
                 setTopProperties([]);
@@ -87,9 +46,6 @@ const TopProperties = () => {
         };
 
         fetchTopProperties();
-        // Refresh every 30 seconds
-        const interval = setInterval(fetchTopProperties, 30000);
-        return () => clearInterval(interval);
     }, [user]);
 
     return (

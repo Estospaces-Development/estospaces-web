@@ -59,19 +59,9 @@ import Toast from '@/components/ui/Toast';
 // Mode type for clear distinction
 type FormMode = 'create' | 'edit';
 
-// Countries list
+// Countries list — UK only
 const countries = [
-    { code: 'US', name: 'United States', currency: 'USD' as CurrencyCode },
-    { code: 'IN', name: 'India', currency: 'INR' as CurrencyCode },
     { code: 'GB', name: 'United Kingdom', currency: 'GBP' as CurrencyCode },
-    { code: 'AE', name: 'United Arab Emirates', currency: 'AED' as CurrencyCode },
-    { code: 'CA', name: 'Canada', currency: 'CAD' as CurrencyCode },
-    { code: 'AU', name: 'Australia', currency: 'AUD' as CurrencyCode },
-    { code: 'SG', name: 'Singapore', currency: 'SGD' as CurrencyCode },
-    { code: 'DE', name: 'Germany', currency: 'EUR' as CurrencyCode },
-    { code: 'FR', name: 'France', currency: 'EUR' as CurrencyCode },
-    { code: 'JP', name: 'Japan', currency: 'JPY' as CurrencyCode },
-    { code: 'CN', name: 'China', currency: 'CNY' as CurrencyCode },
 ];
 
 // Property types with icons

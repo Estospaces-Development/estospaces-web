@@ -1,6 +1,11 @@
-import { silentFetch } from '@/lib/apiUtils';
+/**
+ * Leads Service
+ * Fetches lead data from core-service backend
+ */
 
-const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+
+const CORE_URL = () => getServiceUrl('core');
 
 export interface Lead {
     id: string;
@@ -12,6 +17,22 @@ export interface Lead {
     sla_start_time?: string;
     sla_deadline?: string;
     sla_status?: string;
+    sla_duration_seconds?: number;
+    first_response_at?: string;
+    response_time_seconds?: number;
+    response_type?: string;
+    user_verification_level?: string;
+    documents_uploaded?: boolean;
+    documents_verified?: boolean;
+    viewing_scheduled?: boolean;
+    viewing_scheduled_at?: string;
+    viewing_completed_at?: string;
+    application_submitted_at?: string;
+    outcome?: string;
+    closed_at?: string;
+    notes?: string;
+    reassigned_from?: string;
+    reassign_count?: number;
     property?: {
         id: string;
         title: string;
@@ -22,152 +43,262 @@ export interface Lead {
         property_type: string;
         agent_name: string;
     };
-    // UI specific fields (mapped or from mock data)
-    name: string;
-    email: string;
+    // UI-mapped fields
+    name?: string;
+    email?: string;
     phone?: string;
-    propertyInterested: string;
-    score: number;
-    budget: string;
-    lastContact: string;
-
+    propertyInterested?: string;
+    score?: number;
+    budget?: string;
+    lastContact?: string;
     created_at: string;
     updated_at: string;
 }
 
-export const MOCK_LEADS: Lead[] = [
-    {
-        id: 'lead-1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        phone: '+44 7700 900123',
-        status: 'new',
-        propertyInterested: 'Modern Luxury Apartment',
-        score: 85,
-        budget: '£3,000 - £4,000',
-        lastContact: '2 hours ago',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        property: {
-            id: 'prop-1',
-            title: 'Modern Luxury Apartment',
-            address_line_1: '123 Canary Wharf',
-            city: 'London',
-            price: 3500,
-            image_urls: JSON.stringify(['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800']),
-            property_type: 'rent',
-            agent_name: 'Premium Estates'
-        }
-    },
-    {
-        id: 'lead-2',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        phone: '+44 7700 900456',
-        status: 'contacted',
-        propertyInterested: 'Executive Penthouse',
-        score: 92,
-        budget: '£1,000,000+',
-        lastContact: '1 day ago',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        property: {
-            id: 'prop-2',
-            title: 'Executive Penthouse',
-            address_line_1: '45 Victoria Street',
-            city: 'London',
-            price: 1250000,
-            image_urls: JSON.stringify(['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800']),
-            property_type: 'sale',
-            agent_name: 'Luxury Living'
-        }
-    }
-];
+export interface CreateManualLeadRequest {
+    name: string;
+    email: string;
+    phone?: string;
+    property_interested: string;
+    status?: string;
+    score?: number;
+    budget?: string;
+    last_contact?: string;
+}
 
-const getHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : '';
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-};
+export interface UpdateLeadRequest {
+    name?: string;
+    email?: string;
+    phone?: string;
+    property_interested?: string;
+    status?: string;
+    score?: number;
+    budget?: string;
+    last_contact?: string;
+}
 
 /**
  * Fetch leads for the logged-in user
+ * GET /api/v1/leads/mine (core-service)
  */
-export const getUserLeads = async () => {
-    return silentFetch<Lead[]>(
-        `${CORE_SERVICE_URL}/api/v1/leads/mine`,
-        { headers: getHeaders() },
-        MOCK_LEADS,
-        'leadsService'
-    );
+export const getUserLeads = async (): Promise<{ data: Lead[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Lead[]>(
+            `${CORE_URL()}/api/v1/leads/mine`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] getUserLeads error:', error.message);
+        return { data: null, error: error.message };
+    }
 };
 
 /**
  * Fetch leads for the logged-in broker
+ * GET /api/v1/leads/broker (core-service)
  */
-export const getBrokerLeads = async (status?: string) => {
+export const getBrokerLeads = async (status?: string): Promise<{ data: Lead[] | null; error: string | null }> => {
     try {
-        const url = new URL(`${CORE_SERVICE_URL}/api/v1/leads/broker`);
+        const url = new URL(`${CORE_URL()}/api/v1/leads/broker`);
         if (status) url.searchParams.append('status', status);
 
-        const response = await fetch(url.toString(), {
-            headers: getHeaders()
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to fetch broker leads');
-        }
-
-        return { data: data.data as Lead[], error: null };
+        const data = await apiFetch<Lead[]>(url.toString());
+        return { data, error: null };
     } catch (error: any) {
-        console.error('Error fetching broker leads:', error);
+        console.error('[leadsService] getBrokerLeads error:', error.message);
         return { data: null, error: error.message };
     }
 };
 
 /**
  * Fetch a single lead by ID
+ * GET /api/v1/leads/:id (core-service)
  */
-export const getLeadById = async (leadId: string) => {
+export const getLeadById = async (leadId: string): Promise<{ data: Lead | null; error: string | null }> => {
     try {
-        const response = await fetch(`${CORE_SERVICE_URL}/api/v1/leads/${leadId}`, {
-            headers: getHeaders()
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to fetch lead');
-        }
-
-        return { data: data as Lead, error: null };
+        const data = await apiFetch<Lead>(
+            `${CORE_URL()}/api/v1/leads/${leadId}`,
+        );
+        return { data, error: null };
     } catch (error: any) {
-        console.error('Error fetching lead details:', error);
+        console.error('[leadsService] getLeadById error:', error.message);
         return { data: null, error: error.message };
     }
 };
 
 /**
  * Update lead status
+ * PUT /api/v1/leads/:id/status (core-service)
  */
-export const updateLeadStatus = async (leadId: string, status: string) => {
+export const updateLeadStatus = async (leadId: string, status: string): Promise<{ data: any; error: string | null }> => {
     try {
-        const response = await fetch(`${CORE_SERVICE_URL}/api/v1/leads/${leadId}/status`, {
-            method: 'PUT',
-            headers: getHeaders(),
-            body: JSON.stringify({ status })
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to update lead status');
-        }
-
+        const data = await apiFetch<any>(
+            `${CORE_URL()}/api/v1/leads/${leadId}/status`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({ status }),
+            },
+        );
         return { data, error: null };
     } catch (error: any) {
-        console.error('Error updating lead status:', error);
+        console.error('[leadsService] updateLeadStatus error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Create a new lead (fast-track)
+ * POST /api/v1/leads (core-service)
+ */
+export const createLead = async (propertyId: string): Promise<{ data: Lead | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Lead>(
+            `${CORE_URL()}/api/v1/leads`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ property_id: propertyId }),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] createLead error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Create a NEW MANUAL lead (broker)
+ * POST /api/v1/leads/manual (core-service)
+ */
+export const createManualLead = async (leadData: CreateManualLeadRequest): Promise<{ data: Lead | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Lead>(
+            `${CORE_URL()}/api/v1/leads/manual`,
+            {
+                method: 'POST',
+                body: JSON.stringify(leadData),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] createManualLead error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Update lead details
+ * PUT /api/v1/leads/:id (core-service)
+ */
+export const updateLead = async (leadId: string, leadData: UpdateLeadRequest): Promise<{ data: Lead | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Lead>(
+            `${CORE_URL()}/api/v1/leads/${leadId}`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(leadData),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] updateLead error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Delete lead (soft delete)
+ * DELETE /api/v1/leads/:id (core-service)
+ */
+export const deleteLead = async (leadId: string): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        await apiFetch<any>(
+            `${CORE_URL()}/api/v1/leads/${leadId}`,
+            {
+                method: 'DELETE',
+            },
+        );
+        return { success: true, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] deleteLead error:', error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Respond to a lead (broker action)
+ * POST /api/v1/leads/:id/respond (core-service)
+ */
+export const respondToLead = async (
+    leadId: string,
+    responseType: 'call' | 'message' | 'schedule_viewing' | 'request_docs',
+    message?: string,
+    viewingDate?: string,
+): Promise<{ data: any; error: string | null }> => {
+    try {
+        const data = await apiFetch<any>(
+            `${CORE_URL()}/api/v1/leads/${leadId}/respond`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    response_type: responseType,
+                    message,
+                    viewing_date: viewingDate,
+                }),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] respondToLead error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Get lead audit trail
+ * GET /api/v1/leads/:id/audit (core-service)
+ */
+export const getLeadAudit = async (leadId: string): Promise<{ data: any[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<any[]>(
+            `${CORE_URL()}/api/v1/leads/${leadId}/audit`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Get all leads (admin)
+ * GET /api/v1/leads (core-service, admin)
+ */
+export const getAllLeads = async (page: number = 1, limit: number = 20): Promise<{ data: Lead[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Lead[]>(
+            `${CORE_URL()}/api/v1/leads?page=${page}&limit=${limit}`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Reassign a lead to another broker (admin)
+ * PUT /api/v1/leads/:id/reassign (core-service, admin)
+ */
+export const reassignLead = async (leadId: string, newBrokerId: string): Promise<{ data: any; error: string | null }> => {
+    try {
+        const data = await apiFetch<any>(
+            `${CORE_URL()}/api/v1/leads/${leadId}/reassign`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({ broker_id: newBrokerId }),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
         return { data: null, error: error.message };
     }
 };

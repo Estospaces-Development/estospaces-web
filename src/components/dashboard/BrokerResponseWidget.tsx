@@ -4,65 +4,51 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Timer, ArrowRight, MoreHorizontal, Info, BellRing } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
+import * as leadsService from '@/services/leadsService';
 
 const BrokerResponseWidget: React.FC = () => {
     const navigate = useNavigate();
-    // Generate mock data with timestamps relative to now for realistic countdowns
-    const [requests, setRequests] = useState<BrokerRequest[]>(() => {
-        // Safe to run in hydration? We need consistent initial state.
-        // We will hydrate with empty or fixed date, then update in useEffect
-        return [];
-    });
+    const [requests, setRequests] = useState<BrokerRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchRequests = async () => {
+        setLoading(true);
+        try {
+            const res = await leadsService.getBrokerLeads('pending');
+            if (res.data) {
+                const mapped = res.data.map(lead => ({
+                    id: lead.id,
+                    propertyName: lead.property?.title || 'Unknown Property',
+                    brokerName: lead.property?.agent_name || 'Assigned Broker',
+                    distance: 'Nearby', // Distance not in lead model yet
+                    timestamp: new Date(lead.created_at),
+                    status: (lead.status as any) || 'pending'
+                }));
+                setRequests(mapped.slice(0, 4));
+            }
+        } catch (error) {
+            console.error('Error fetching broker leads:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const now = new Date();
-        setRequests([
-            {
-                id: '1',
-                propertyName: 'Sunset Villa, Mumbai',
-                brokerName: 'Rajesh Kumar',
-                distance: '1.2 km away',
-                timestamp: new Date(now.getTime() - 1000 * 60 * 2),
-                status: 'pending'
-            },
-            {
-                id: '2',
-                propertyName: 'Green Heights Apt 4B',
-                brokerName: 'Priya Sharma',
-                distance: '0.8 km away',
-                timestamp: new Date(now.getTime() - 1000 * 60 * 8),
-                status: 'pending'
-            },
-            {
-                id: '3',
-                propertyName: 'Commercial Hub Office',
-                brokerName: 'Amit Patel',
-                distance: '3.5 km away',
-                timestamp: new Date(now.getTime() - 1000 * 60 * 1),
-                status: 'pending'
-            },
-            {
-                id: '4',
-                propertyName: 'Lakeview Penthouse',
-                brokerName: 'Sneha Gupta',
-                distance: '2.1 km away',
-                timestamp: new Date(now.getTime() - 1000 * 60 * 12),
-                status: 'expired'
-            }
-        ]);
+        fetchRequests();
     }, []);
 
-    const handleRespond = (id: string) => {
-        setRequests(prev => prev.map(req => {
-            if (req.id === id) {
-                // If this was a user request, notify them back (mock logic)
-                if (req.propertyName === 'User Location Request') {
-                    // Logic for responding to user
-                }
-                return { ...req, status: 'responded' };
+    const handleRespond = async (id: string) => {
+        try {
+            // Default response for quick tracking
+            const res = await leadsService.respondToLead(id, 'message', 'I am looking into your request.');
+            if (res.data) {
+                setRequests(prev => prev.map(req =>
+                    req.id === id ? { ...req, status: 'responded' } : req
+                ));
             }
-            return req;
-        }));
+        } catch (error) {
+            console.error('Error responding to lead:', error);
+        }
     };
 
     const pendingCount = requests.filter(r => r.status === 'pending').length;
@@ -92,13 +78,19 @@ const BrokerResponseWidget: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {requests.map(request => (
-                    <BrokerRequestItem
-                        key={request.id}
-                        request={request}
-                        onRespond={handleRespond}
-                    />
-                ))}
+                {loading ? (
+                    <div className="col-span-full py-8 text-center text-gray-400">Loading requests...</div>
+                ) : requests.length > 0 ? (
+                    requests.map(request => (
+                        <BrokerRequestItem
+                            key={request.id}
+                            request={request}
+                            onRespond={handleRespond}
+                        />
+                    ))
+                ) : (
+                    <div className="col-span-full py-8 text-center text-gray-400">No active requests.</div>
+                )}
             </div>
 
             <div className="mt-6 flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 dark:border-gray-800 pt-4">
@@ -119,4 +111,3 @@ const BrokerResponseWidget: React.FC = () => {
 };
 
 export default BrokerResponseWidget;
-

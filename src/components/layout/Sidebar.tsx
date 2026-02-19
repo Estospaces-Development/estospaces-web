@@ -77,6 +77,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
         { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
         { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
         { icon: FileText, label: 'Applications', path: '/manager/applications' },
+        { icon: FileText, label: 'Contracts', path: '/manager/contracts' },
         { icon: Calendar, label: 'Appointments', path: '/manager/appointments' },
         { icon: MessageSquare, label: 'Messages', path: '/manager/messages' },
         { icon: BarChart3, label: 'Analytics', path: '/manager/analytics' },

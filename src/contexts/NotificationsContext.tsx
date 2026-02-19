@@ -2,47 +2,30 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
+import * as notificationsService from '../services/notificationsService';
+import type { Notification } from '../services/notificationsService';
 
-const NotificationsContext = createContext<any>(undefined);
+interface NotificationsContextType {
+    notifications: Notification[];
+    unreadCount: number;
+    loading: boolean;
+    fetchNotifications: () => Promise<void>;
+    markAsRead: (notificationId: string) => Promise<void>;
+    markAllAsRead: () => Promise<void>;
+    createNotification: (type: string, title: string, message: string, data?: Record<string, any>) => Promise<Notification | null>;
+    deleteNotification: (notificationId: string) => void;
+}
 
-export const NOTIFICATION_TYPES = {
-    APPOINTMENT_APPROVED: 'appointment_approved',
-    APPOINTMENT_REJECTED: 'appointment_rejected',
-    APPOINTMENT_REMINDER: 'appointment_reminder',
-    VIEWING_BOOKED: 'viewing_booked',
-    VIEWING_CONFIRMED: 'viewing_confirmed',
-    VIEWING_CANCELLED: 'viewing_cancelled',
-    VIEWING_RESCHEDULED: 'viewing_rescheduled',
-    APPLICATION_UPDATE: 'application_update',
-    APPLICATION_SUBMITTED: 'application_submitted',
-    APPLICATION_APPROVED: 'application_approved',
-    APPLICATION_REJECTED: 'application_rejected',
-    DOCUMENTS_REQUESTED: 'documents_requested',
-    DOCUMENT_VERIFIED: 'document_verified',
-    PROFILE_VERIFIED: 'profile_verified',
-    MESSAGE_RECEIVED: 'message_received',
-    TICKET_RESPONSE: 'ticket_response',
-    PROPERTY_SAVED: 'property_saved',
-    PRICE_DROP: 'price_drop',
-    NEW_PROPERTY_MATCH: 'new_property_match',
-    PROPERTY_AVAILABLE: 'property_available',
-    PROPERTY_UNAVAILABLE: 'property_unavailable',
-    PAYMENT_REMINDER: 'payment_reminder',
-    PAYMENT_RECEIVED: 'payment_received',
-    PAYMENT_FAILED: 'payment_failed',
-    CONTRACT_UPDATE: 'contract_update',
-    CONTRACT_EXPIRING: 'contract_expiring',
-    SYSTEM: 'system',
-    WELCOME: 'welcome',
-};
+const NotificationsContext = createContext<NotificationsContextType | undefined>(undefined);
+
+export { NOTIFICATION_TYPES } from '../services/notificationsService';
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
 
-    // Fetch notifications
     const fetchNotifications = useCallback(async () => {
         if (!user) {
             setNotifications([]);
@@ -52,69 +35,77 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
         setLoading(true);
         try {
-            // MOCK DATA for now
-            const mocks = [
-                {
-                    id: 'mock-1',
-                    title: 'New Lead: Alex Mercer',
-                    message: 'Alex Mercer inquired about "Stunning 4-Bedroom Victorian House".',
-                    created_at: new Date(Date.now() - 3600000).toISOString(),
-                    read: false,
-                    type: 'message_received'
-                },
-                {
-                    id: 'mock-2',
-                    title: 'Welcome to Estospaces',
-                    message: 'Your account has been created successfully.',
-                    created_at: new Date(Date.now() - 86400000).toISOString(),
-                    read: true,
-                    type: 'welcome'
-                }
-            ];
-            setNotifications(mocks);
-            setUnreadCount(mocks.filter(n => !n.read).length);
+            const result = await notificationsService.getNotifications();
+            setNotifications(result.notifications || []);
+            setUnreadCount(result.unread_count || 0);
         } catch (err) {
             console.error('Error fetching notifications:', err);
+            // Gracefully degrade — keep existing state
         } finally {
             setLoading(false);
         }
     }, [user]);
 
-    // Mark notification as read
     const markAsRead = useCallback(async (notificationId: string) => {
-        setNotifications(prev =>
-            prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        try {
+            await notificationsService.markRead(notificationId);
+            setNotifications(prev =>
+                prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
+            );
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (err) {
+            console.error('Error marking notification as read:', err);
+        }
     }, []);
 
-    // Mark all as read
     const markAllAsRead = useCallback(async () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        setUnreadCount(0);
+        try {
+            await notificationsService.markAllRead();
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
+            setUnreadCount(0);
+        } catch (err) {
+            console.error('Error marking all as read:', err);
+        }
     }, []);
 
-    // Create a notification (used by other parts of the app)
-    const createNotification = useCallback(async (type: string, title: string, message: string, data = {}) => {
-        const newNotification = {
-            id: `new-${Date.now()}`,
-            type,
-            title,
-            message,
-            data,
-            read: false,
-            created_at: new Date().toISOString()
-        };
-        setNotifications(prev => [newNotification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-        return newNotification;
-    }, []);
+    const createNotification = useCallback(async (type: string, title: string, message: string, data: Record<string, any> = {}) => {
+        if (!user?.id) return null;
+        try {
+            const success = await notificationsService.createNotification({
+                userId: user.id,
+                type: type as any,
+                title,
+                message,
+                data,
+            });
+            if (success) {
+                // Optimistically add to local state
+                const newNotification: Notification = {
+                    id: `local-${Date.now()}`,
+                    user_id: user.id,
+                    type,
+                    title,
+                    message,
+                    data: JSON.stringify(data),
+                    is_read: false,
+                    channel: 'in_app',
+                    created_at: new Date().toISOString(),
+                };
+                setNotifications(prev => [newNotification, ...prev]);
+                setUnreadCount(prev => prev + 1);
+                return newNotification;
+            }
+            return null;
+        } catch (err) {
+            console.error('Error creating notification:', err);
+            return null;
+        }
+    }, [user?.id]);
 
-    // Delete notification
-    const deleteNotification = useCallback(async (notificationId: string) => {
+    const deleteNotification = useCallback((notificationId: string) => {
         const notification = notifications.find(n => n.id === notificationId);
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
-        if (notification && !notification.read) {
+        if (notification && !notification.is_read) {
             setUnreadCount(prev => Math.max(0, prev - 1));
         }
     }, [notifications]);
@@ -123,6 +114,13 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
+
+    // Poll every 30 seconds for new notifications
+    useEffect(() => {
+        if (!user) return;
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
+    }, [user, fetchNotifications]);
 
     return (
         <NotificationsContext.Provider

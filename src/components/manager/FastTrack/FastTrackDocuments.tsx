@@ -1,5 +1,5 @@
 import React from 'react';
-import { FastTrackDocuments as IFastTrackDocuments } from '../../../mocks/fastTrackCases';
+import { FastTrackDocuments as IFastTrackDocuments } from '../../../services/fastTrackService';
 import { Check, Loader2 } from 'lucide-react';
 
 interface FastTrackDocumentsProps {

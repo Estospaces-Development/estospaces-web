@@ -1,50 +1,77 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Bell, CheckCircle, AlertCircle, FileText, Shield, MessageCircle, Calendar, Home, DollarSign, Trash2, CheckCheck, Clock, Filter, ArrowLeft, Settings, Search, X, Inbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import * as notificationsService from '@/services/notificationsService';
 
 type FilterType = 'all' | 'unread' | 'read';
 type CategoryType = 'all' | 'appointments' | 'applications' | 'messages' | 'system';
 
-interface Notification {
-    id: string; title: string; message: string; type: string; read: boolean; created_at: string;
-    data?: { propertyId?: string; applicationId?: string; viewingId?: string };
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-    { id: '1', title: 'Appointment Confirmed', message: 'Sarah Johnson confirmed viewing for Canary Wharf Apartment', type: 'appointment_approved', read: false, created_at: new Date().toISOString() },
-    { id: '2', title: 'New Application', message: 'Michael Chen submitted an application for Kensington Townhouse', type: 'application_update', read: false, created_at: new Date(Date.now() - 3600000).toISOString() },
-    { id: '3', title: 'Message Received', message: 'You have a new message from Emily Wilson regarding Shoreditch Penthouse', type: 'ticket_response', read: true, created_at: new Date(Date.now() - 86400000).toISOString() },
-    { id: '4', title: 'Profile Verified', message: 'Your manager profile has been verified successfully', type: 'profile_verified', read: true, created_at: new Date(Date.now() - 172800000).toISOString() },
-    { id: '5', title: 'Viewing Scheduled', message: 'New viewing booked for Richmond Family Home on March 5', type: 'viewing_booked', read: false, created_at: new Date(Date.now() - 7200000).toISOString() },
-];
+type AppNotification = notificationsService.Notification;
 
 export default function ManagerNotificationsPage() {
     const navigate = useNavigate();
-    const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [filter, setFilter] = useState<FilterType>('all');
     const [category, setCategory] = useState<CategoryType>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const fetchNotifs = async () => {
+        setIsLoading(true);
+        try {
+            const res = await notificationsService.getNotifications();
+            if (res.notifications) {
+                setNotifications(res.notifications);
+            }
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchNotifs();
+    }, []);
+
+    const unreadCount = notifications.filter(n => !n.is_read).length;
 
     const filteredNotifications = useMemo(() => {
         return notifications.filter((n) => {
-            if (filter === 'unread' && n.read) return false;
-            if (filter === 'read' && !n.read) return false;
-            if (searchQuery) {
-                const q = searchQuery.toLowerCase();
-                return n.title.toLowerCase().includes(q) || n.message.toLowerCase().includes(q);
-            }
-            return true;
+            const matchesFilter = filter === 'all' || (filter === 'unread' ? !n.is_read : n.is_read);
+            const matchesCategory = category === 'all' || n.type === category; // Mapping type to category if applicable
+            const matchesSearch = !searchQuery ||
+                n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                n.message.toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesFilter && matchesCategory && matchesSearch;
         });
-    }, [notifications, filter, searchQuery]);
+    }, [notifications, filter, category, searchQuery]);
 
-    const markAsRead = (id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-    const markAllAsRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    const deleteNotification = (id: string) => setNotifications(prev => prev.filter(n => n.id !== id));
+    const markAsRead = async (id: string) => {
+        try {
+            await notificationsService.markRead(id);
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    };
+
+    const markAllAsRead = async () => {
+        try {
+            await notificationsService.markAllRead();
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        } catch (error) {
+            console.error('Error marking all as read:', error);
+        }
+    };
+
+    const deleteNotification = async (id: string) => {
+        // Backend doesn't have deleteNotification yet, so we just filter locally
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    };
 
     const getIcon = (type: string) => {
         switch (type) {
@@ -90,7 +117,7 @@ export default function ManagerNotificationsPage() {
 
     // Group by date
     const grouped = useMemo(() => {
-        const g: Record<string, Notification[]> = {};
+        const g: Record<string, AppNotification[]> = {};
         filteredNotifications.forEach(n => {
             const d = new Date(n.created_at);
             const today = new Date();
@@ -189,13 +216,13 @@ export default function ManagerNotificationsPage() {
                             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">{group}</h3>
                             <div className="space-y-2">
                                 {grouped[group].map(n => (
-                                    <div key={n.id} onClick={() => { if (!n.read) markAsRead(n.id); }} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${!n.read ? getColor(n.type) : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-75'}`}>
+                                    <div key={n.id} onClick={() => { if (!n.is_read) markAsRead(n.id); }} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${!n.is_read ? getColor(n.type) : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-75'}`}>
                                         <input type="checkbox" checked={selectedNotifications.includes(n.id)} onChange={(e) => { e.stopPropagation(); if (selectedNotifications.includes(n.id)) setSelectedNotifications(s => s.filter(i => i !== n.id)); else setSelectedNotifications(s => [...s, n.id]); }} className="mt-1 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
                                         <div className="flex-shrink-0 mt-0.5">{getIcon(n.type)}</div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h4 className={`text-sm font-semibold ${!n.read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{n.title}</h4>
-                                                {!n.read && <span className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0" />}
+                                                <h4 className={`text-sm font-semibold ${!n.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{n.title}</h4>
+                                                {!n.is_read && <span className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0" />}
                                             </div>
                                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{n.message}</p>
                                             <div className="flex items-center gap-2 mt-2"><Clock size={14} className="text-gray-400" /><span className="text-xs text-gray-400">{formatTime(n.created_at)}</span></div>

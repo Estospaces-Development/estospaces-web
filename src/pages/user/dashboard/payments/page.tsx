@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CreditCard, Calendar, CheckCircle, Clock, AlertCircle, ArrowLeft,
@@ -9,24 +9,41 @@ import {
     MoreVertical, FileText, ArrowUpRight, ArrowDownLeft, Loader2
 } from 'lucide-react';
 
-// Mock data for payments
-const MOCK_PAYMENTS = [
-    { id: '1', type: 'rent', property_title: 'Luxury Studio Flat', amount: 1200, date: '2024-03-01', status: 'paid', reference: 'EST-RENT-001' },
-    { id: '2', type: 'electric', property_title: 'Luxury Studio Flat', amount: 85, date: '2024-03-05', status: 'paid', reference: 'EST-UTIL-002' },
-    { id: '3', type: 'rent', property_title: 'Modern 2-Bedroom Apartment', amount: 1800, date: '2024-04-01', status: 'due_soon', reference: 'EST-RENT-003' },
-    { id: '4', type: 'council_tax', property_title: 'Modern 2-Bedroom Apartment', amount: 120, date: '2024-03-15', status: 'pending', reference: 'EST-TAX-004' },
-    { id: '5', type: 'water', property_title: 'Luxury Studio Flat', amount: 45, date: '2024-03-10', status: 'paid', reference: 'EST-UTIL-005' },
-];
+// Services
+import { paymentsService, Payment, Invoice } from '@/services/paymentsService';
 
 export default function PaymentsPage() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('overview');
     const [searchQuery, setSearchQuery] = useState('');
     const [historyFilter, setHistoryFilter] = useState('all');
+    const [payments, setPayments] = useState<Payment[]>([]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const upcomingPayments = MOCK_PAYMENTS.filter(p => ['due_soon', 'pending'].includes(p.status)).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [pRes, iRes] = await Promise.all([
+                paymentsService.getPayments(),
+                paymentsService.getInvoices()
+            ]);
+            if (pRes.data) setPayments(pRes.data);
+            if (iRes.data) setInvoices(iRes.data);
+        } catch (err) {
+            console.error('[Payments] Error fetching data:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const upcomingPayments = payments.filter(p => p.status === 'pending').sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     const nextPayment = upcomingPayments[0];
-    const totalPaidAmount = MOCK_PAYMENTS.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+    const totalPaidAmount = payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
     const totalPendingAmount = upcomingPayments.reduce((sum, p) => sum + p.amount, 0);
 
     const getTypeConfig = (type: string) => {
@@ -40,12 +57,19 @@ export default function PaymentsPage() {
             internet: { label: 'Internet', icon: Sparkles, color: 'text-indigo-600 bg-indigo-100 dark:bg-indigo-900/20' },
             council_tax: { label: 'Council Tax', icon: Building, color: 'text-red-600 bg-red-100 dark:bg-red-900/20' },
         };
+        // Normalize description/type
+        const lowerDesc = type.toLowerCase();
+        if (lowerDesc.includes('rent')) return configs.rent;
+        if (lowerDesc.includes('deposit')) return configs.deposit;
+        if (lowerDesc.includes('electric')) return configs.electric;
+
         return configs[type] || { label: 'Payment', icon: CreditCard, color: 'text-gray-600 bg-gray-100 dark:bg-gray-800/50' };
     };
 
     const formatCurrency = (amount: number) => `£${amount.toLocaleString('en-GB')}`;
 
-    const formatDate = (dateString: string) => {
+    const formatDate = (dateString: string | undefined) => {
+        if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('en-GB', {
             day: 'numeric',
             month: 'short',
@@ -144,7 +168,7 @@ export default function PaymentsPage() {
                                     <div>
                                         <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2">Next Scheduled</p>
                                         <h3 className="text-2xl font-black text-white dark:text-gray-900">{formatCurrency(nextPayment.amount)}</h3>
-                                        <p className="text-gray-400 dark:text-gray-500 text-sm font-bold mt-1">{getTypeConfig(nextPayment.type).label} • {formatDate(nextPayment.date)}</p>
+                                        <p className="text-gray-400 dark:text-gray-500 text-sm font-bold mt-1">{getTypeConfig(nextPayment.description || '').label} • {formatDate(nextPayment.created_at)}</p>
                                     </div>
                                     <button className="w-full mt-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-xl shadow-lg shadow-orange-500/30 transition-all flex items-center justify-center gap-2">
                                         Pay Early <ChevronRight size={18} />
@@ -170,8 +194,8 @@ export default function PaymentsPage() {
                                 </button>
                             </div>
                             <div className="divide-y dark:divide-gray-700">
-                                {MOCK_PAYMENTS.map((payment) => {
-                                    const config = getTypeConfig(payment.type);
+                                {payments.map((payment) => {
+                                    const config = getTypeConfig(payment.description || '');
                                     return (
                                         <div key={payment.id} className="px-10 py-6 flex items-center gap-6 hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-all">
                                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${config.color}`}>
@@ -179,14 +203,14 @@ export default function PaymentsPage() {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-gray-900 dark:text-white truncate">{config.label}</h4>
-                                                <p className="text-sm text-gray-500 font-medium truncate">{payment.property_title}</p>
+                                                <p className="text-sm text-gray-500 font-medium truncate">{payment.description}</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-lg font-black text-gray-900 dark:text-white">{formatCurrency(payment.amount)}</p>
                                                 <div className="flex items-center justify-end gap-2 mt-1">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${payment.status === 'paid' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${payment.status === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
-                                                        {payment.status === 'paid' ? 'Completed' : 'Upcoming'}
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${payment.status === 'completed' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${payment.status === 'completed' ? 'text-green-600' : 'text-orange-600'}`}>
+                                                        {payment.status === 'completed' ? 'Completed' : 'Upcoming'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -239,21 +263,21 @@ export default function PaymentsPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y dark:divide-gray-700">
-                                        {MOCK_PAYMENTS.map((p) => (
+                                        {payments.map((p) => (
                                             <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
                                                 <td className="px-8 py-6">
                                                     <div className="flex items-center gap-3">
-                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTypeConfig(p.type).color}`}>
-                                                            {React.createElement(getTypeConfig(p.type).icon, { size: 16 })}
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getTypeConfig(p.description || '').color}`}>
+                                                            {React.createElement(getTypeConfig(p.description || '').icon, { size: 16 })}
                                                         </div>
-                                                        <span className="font-bold text-gray-900 dark:text-white">{getTypeConfig(p.type).label}</span>
+                                                        <span className="font-bold text-gray-900 dark:text-white">{getTypeConfig(p.description || '').label}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-8 py-6 text-sm text-gray-500 font-medium">{formatDate(p.date)}</td>
-                                                <td className="px-8 py-6 text-xs font-mono text-gray-400 font-bold">{p.reference}</td>
+                                                <td className="px-8 py-6 text-sm text-gray-500 font-medium">{formatDate(p.created_at)}</td>
+                                                <td className="px-8 py-6 text-xs font-mono text-gray-400 font-bold">{p.id.substring(0, 8)}</td>
                                                 <td className="px-8 py-6 text-right font-black text-gray-900 dark:text-white">{formatCurrency(p.amount)}</td>
                                                 <td className="px-8 py-6 text-right">
-                                                    <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${p.status === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400'
+                                                    <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${p.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400'
                                                         }`}>
                                                         {p.status}
                                                     </span>

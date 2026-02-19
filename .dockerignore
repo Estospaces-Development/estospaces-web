@@ -1,0 +1,16 @@
+node_modules
+dist
+.next
+.git
+.gitignore
+.env
+.env.*
+!.env.production
+*.md
+.vscode
+.idea
+coverage
+.nyc_output
+*.log
+.DS_Store
+Thumbs.db

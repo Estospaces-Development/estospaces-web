@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getUserLeads, Lead } from '../services/leadsService';
+import { getUserLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
 
 // Re-export Lead type
 export type { Lead } from '../services/leadsService';
@@ -9,8 +9,8 @@ export type { Lead } from '../services/leadsService';
 interface LeadContextType {
     leads: Lead[];
     addLead: (lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => Promise<Lead>;
-    updateLead: (id: string, lead: Partial<Lead>) => void;
-    deleteLead: (id: string) => void;
+    updateLead: (id: string, lead: Partial<Lead>) => Promise<void>;
+    deleteLead: (id: string) => Promise<void>;
     getLead: (id: string) => Lead | undefined;
 }
 
@@ -32,16 +32,9 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const fetchLeads = async () => {
             try {
-                // Try to load from localStorage first
-                const savedLeads = localStorage.getItem('leads');
-                if (savedLeads) {
-                    setLeads(JSON.parse(savedLeads));
-                } else {
-                    // If no local storage, load from service
-                    const result = await getUserLeads();
-                    if (result.data) {
-                        setLeads(result.data);
-                    }
+                const result = await getUserLeads();
+                if (result.data) {
+                    setLeads(result.data);
                 }
             } catch (error) {
                 console.error('Error fetching leads:', error);
@@ -53,39 +46,71 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
         fetchLeads();
     }, []);
 
-    // Save leads to localStorage whenever they change
-    useEffect(() => {
-        if (isInitialized) {
-            localStorage.setItem('leads', JSON.stringify(leads));
-        }
-    }, [leads, isInitialized]);
-
     const addLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {
-        const newLead: Lead = {
-            ...leadData,
-            id: Date.now().toString(),
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-        };
-        setLeads((prev) => [...prev, newLead]);
+        try {
+            const req: CreateManualLeadRequest = {
+                name: leadData.name || 'Unknown',
+                email: leadData.email || 'no-email@example.com',
+                phone: leadData.phone,
+                property_interested: leadData.propertyInterested || 'General Inquiry',
+                status: leadData.status,
+                score: leadData.score,
+                budget: leadData.budget,
+                last_contact: leadData.lastContact
+            };
 
-        // Send notification log here if needed
-
-        return newLead;
+            const result = await createManualLead(req);
+            if (result.data) {
+                setLeads((prev) => [result.data!, ...prev]);
+                return result.data;
+            } else {
+                throw new Error(result.error || 'Failed to create lead');
+            }
+        } catch (error) {
+            console.error('Error adding lead:', error);
+            throw error;
+        }
     };
 
-    const updateLead = (id: string, leadData: Partial<Lead>) => {
-        setLeads((prev) =>
-            prev.map((lead) =>
-                lead.id === id
-                    ? { ...lead, ...leadData, updated_at: new Date().toISOString() }
-                    : lead
-            )
-        );
+    const updateLead = async (id: string, leadData: Partial<Lead>) => {
+        try {
+            const req: UpdateLeadRequest = {
+                name: leadData.name,
+                email: leadData.email,
+                phone: leadData.phone,
+                property_interested: leadData.propertyInterested,
+                status: leadData.status,
+                score: leadData.score,
+                budget: leadData.budget,
+                last_contact: leadData.lastContact
+            };
+
+            const result = await updateLeadService(id, req);
+            if (result.data) {
+                setLeads((prev) =>
+                    prev.map((lead) =>
+                        lead.id === id ? result.data! : lead
+                    )
+                );
+            } else {
+                console.error('Failed to update lead:', result.error);
+            }
+        } catch (error) {
+            console.error('Error updating lead:', error);
+        }
     };
 
-    const deleteLead = (id: string) => {
-        setLeads((prev) => prev.filter((lead) => lead.id !== id));
+    const deleteLead = async (id: string) => {
+        try {
+            const result = await deleteLeadService(id);
+            if (result.success) {
+                setLeads((prev) => prev.filter((lead) => lead.id !== id));
+            } else {
+                console.error('Failed to delete lead:', result.error);
+            }
+        } catch (error) {
+            console.error('Error deleting lead:', error);
+        }
     };
 
     const getLead = (id: string): Lead | undefined => {

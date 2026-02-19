@@ -81,91 +81,7 @@ const SELL_STAGES: Stage[] = [
     { name: 'Sale Completed', description: 'Sale complete.', icon: CheckCircle2, color: 'green' }
 ];
 
-// --- Mock Data ---
 
-const MOCK_APPLICATIONS: ApplicationItem[] = [
-    {
-        id: 'app-1',
-        type: 'buy',
-        currentStage: 'Document Verification',
-        currentStageNumber: 2,
-        totalStages: 5,
-        progress: 40,
-        lastUpdated: new Date(Date.now() - 7200000),
-        nextAction: 'Upload remaining documents',
-        estimatedCompletion: '3-5 business days',
-        property: {
-            id: 'prop-1',
-            title: 'Modern 3BR Apartment',
-            city: 'Canary Wharf, London',
-            price: 450000,
-            image_urls: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400']
-        },
-        broker: {
-            name: 'Sarah Mitchell',
-            phone: '+44 7700 900123',
-            avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100'
-        },
-        stages: BUY_STAGES.map((s, i) => ({ ...s, status: i < 1 ? 'completed' : i === 1 ? 'current' : 'upcoming', completedAt: i < 1 ? new Date() : null })),
-        timeline: [
-            { date: new Date(Date.now() - 86400000), event: 'Application submitted', type: 'milestone' },
-            { date: new Date(Date.now() - 7200000), event: 'Awaiting: Proof of funds', type: 'action' }
-        ]
-    },
-    {
-        id: 'app-2',
-        type: 'rent',
-        currentStage: 'Viewing Scheduled',
-        currentStageNumber: 3,
-        totalStages: 4,
-        progress: 75,
-        lastUpdated: new Date(Date.now() - 1800000),
-        nextAction: 'Attend scheduled viewing',
-        viewingDate: new Date(Date.now() + 172800000),
-        estimatedCompletion: '1-2 weeks',
-        property: {
-            id: 'prop-2',
-            title: 'Luxury Studio Flat',
-            city: 'Manchester City Centre',
-            price: 1500,
-            image_urls: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400']
-        },
-        broker: {
-            name: 'James Wilson',
-            phone: '+44 7700 900456',
-            avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100'
-        },
-        stages: RENT_STAGES.map((s, i) => ({ ...s, status: i < 2 ? 'completed' : i === 2 ? 'current' : 'upcoming', completedAt: i < 2 ? new Date() : null })),
-        timeline: [
-            { date: new Date(Date.now() - 1800000), event: 'Viewing scheduled for tomorrow', type: 'action' }
-        ]
-    }
-];
-
-const MOCK_LISTINGS: ApplicationItem[] = [
-    {
-        id: 'list-1',
-        type: 'sell',
-        currentStage: 'Published & Live',
-        currentStageNumber: 3,
-        totalStages: 5,
-        progress: 60,
-        lastUpdated: new Date(Date.now() - 3600000),
-        nextAction: 'Review incoming inquiries',
-        property: {
-            id: 'prop-3',
-            title: 'Victorian Townhouse',
-            city: 'Cotswolds',
-            price: 850000,
-            image_urls: ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?q=80&w=400']
-        },
-        stats: { views: 127, inquiries: 8, saved: 23 },
-        stages: SELL_STAGES.map((s, i) => ({ ...s, status: i < 2 ? 'completed' : i === 2 ? 'current' : 'upcoming', completedAt: i < 2 ? new Date() : null })),
-        timeline: [
-            { date: new Date(Date.now() - 3600000), event: '8 new inquiries received', type: 'info' }
-        ]
-    }
-];
 
 // --- Subcomponents ---
 
@@ -212,18 +128,89 @@ const TimelineSkeleton = () => (
 
 // --- Main Component ---
 
+import { getApplications } from '../../services/applicationsService';
+import { getUserProperties } from '../../services/userPropertiesService';
+
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'applications' | 'listings'>('applications');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [showTimeline, setShowTimeline] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(true);
+    const [applications, setApplications] = useState<ApplicationItem[]>([]);
+    const [listings, setListings] = useState<ApplicationItem[]>([]);
 
     useEffect(() => {
-        setLoading(false);
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Fetch Applications
+                const appsRes = await getApplications();
+                if (appsRes.data) {
+                    const mappedApps: ApplicationItem[] = appsRes.data.map((app: any) => ({
+                        id: app.id,
+                        type: 'rent', //Defaulting to rent as most applications are for rentals
+                        currentStage: app.status === 'approved' ? 'Tenancy Agreement' : app.status === 'rejected' ? 'Application Rejected' : 'Documents Submitted',
+                        currentStageNumber: app.status === 'approved' ? 4 : 2,
+                        totalStages: 4,
+                        progress: app.status === 'approved' ? 100 : 50,
+                        lastUpdated: new Date(app.updated_at),
+                        nextAction: app.status === 'approved' ? 'Sign Agreement' : 'Wait for review',
+                        estimatedCompletion: '1-2 weeks',
+                        property: {
+                            id: app.property_id,
+                            title: app.propertyInterested || 'Unknown Property',
+                            city: 'Unknown City', // Placeholder
+                            price: 0, // Placeholder
+                            image_urls: ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1073&q=80'] // Placeholder
+                        },
+                        stages: RENT_STAGES.map((s, i) => ({
+                            ...s,
+                            status: (app.status === 'approved' && i < 4) || (app.status !== 'approved' && i < 2) ? 'completed' : (app.status !== 'approved' && i === 2) ? 'current' : 'upcoming'
+                        }))
+                    }));
+                    setApplications(mappedApps);
+                }
+
+                // Fetch Listings (User Properties)
+                const propsRes = await getUserProperties({ limit: 50 });
+                if (propsRes.data) {
+                    const mappedProps: ApplicationItem[] = propsRes.data.map((prop: any) => ({
+                        id: prop.id,
+                        type: prop.status === 'sold' ? 'sell' : 'rent', // Infer type
+                        currentStage: prop.status === 'available' ? 'Published & Live' : prop.status === 'sold' ? 'Sale Completed' : 'Property Listed',
+                        currentStageNumber: prop.status === 'available' ? 3 : prop.status === 'sold' ? 5 : 1,
+                        totalStages: 5,
+                        progress: prop.status === 'available' ? 60 : prop.status === 'sold' ? 100 : 20,
+                        lastUpdated: new Date(prop.updated_at),
+                        nextAction: 'Manage listing',
+                        property: {
+                            id: prop.id,
+                            title: prop.title,
+                            city: prop.city || 'Unknown',
+                            price: prop.price || 0,
+                            image_urls: prop.images && prop.images.length > 0 ? prop.images : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1073&q=80']
+                        },
+                        stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
+                        stages: SELL_STAGES.map((s, i) => ({
+                            ...s,
+                            status: (prop.status === 'sold') ? 'completed' : (prop.status === 'available' && i < 3) ? 'completed' : (prop.status === 'available' && i === 2) ? 'current' : 'upcoming'
+                        }))
+                    }));
+                    setListings(mappedProps);
+                }
+
+            } catch (error) {
+                console.error("Failed to fetch timeline data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, []);
 
-    const dataToShow = activeTab === 'applications' ? MOCK_APPLICATIONS : MOCK_LISTINGS;
+    const dataToShow = activeTab === 'applications' ? applications : listings;
 
     const getStageColor = (status: string | undefined, color: string) => {
         if (status === 'completed') return 'bg-green-500 border-green-500 text-white';
@@ -265,10 +252,10 @@ const ApplicationTimelineWidget = () => {
 
                     <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1.5">
                         <button onClick={() => setActiveTab('applications')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'applications' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
-                            My Applications ({MOCK_APPLICATIONS.length})
+                            My Applications ({applications.length})
                         </button>
                         <button onClick={() => setActiveTab('listings')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'listings' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
-                            My Listings ({MOCK_LISTINGS.length})
+                            My Listings ({listings.length})
                         </button>
                     </div>
                 </div>

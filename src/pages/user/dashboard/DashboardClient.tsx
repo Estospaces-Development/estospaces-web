@@ -24,15 +24,15 @@ import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import DashboardFooter from '@/components/dashboard/DashboardFooter';
 import ProfileCompletionCard from '@/components/dashboard/ProfileCompletionCard';
 
-// Mock data
-const MOCK_PROPERTIES: any[] = [];
+// Services
+import * as propertyService from '@/services/propertyService';
 
 const DashboardClient = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { activeLocation, loading: locationLoading } = useUserLocation();
-  const { activeTab, setActiveTab } = usePropertyFilter();
+  const { setActiveTab } = usePropertyFilter();
   const { savedProperties } = useSavedProperties();
 
   // State for selected property type tab (Buy/Rent/Sold) - default to 'sold'
@@ -108,67 +108,32 @@ const DashboardClient = () => {
     setShowFilteredResults(true);
 
     try {
-      let results = [...MOCK_PROPERTIES];
+      const filters: any = {
+        search: searchInput.trim(),
+        listingType: selectedPropertyType === 'rent' ? ['rent'] : ['sale'],
+      };
 
-      // Filter by property type
-      if (selectedPropertyType === 'rent') {
-        results = results.filter((p: any) => p.property_type === 'rent');
-      } else {
-        results = results.filter((p: any) => p.property_type === 'sale' || p.listing_type === 'sale');
-        if (selectedPropertyType === 'sold') {
-          results = results.slice(0, 5);
-        }
+      if (selectedPropertyType === 'sold') {
+        filters.status = ['sold'];
       }
 
-      // Apply filter options
-      if (selectedFilters.length > 0) {
-        let filteredResults: any[] = [];
+      const result = await propertyService.getProperties(filters);
 
-        if (selectedFilters.includes('recently_added')) {
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-          const recent = results.filter((p: any) => new Date(p.created_at || Date.now()) >= sevenDaysAgo);
-          filteredResults = [...filteredResults, ...recent];
+      if (result.error) {
+        setError(result.error);
+        setFilteredProperties([]);
+        setFilteredCount(0);
+      } else if (result.data) {
+        setFilteredProperties(result.data);
+        setFilteredCount(result.data.length);
+        if (result.data.length === 0) {
+          setLocationMessage('No properties found matching your search. Try adjusting your criteria.');
         }
-        if (selectedFilters.includes('most_viewed')) {
-          const popular = results.filter((p: any) => (p.view_count || 0) > 200);
-          filteredResults = [...filteredResults, ...popular];
-        }
-        if (selectedFilters.includes('high_demand')) {
-          const highDemand = results.filter((p: any) => (p.view_count || 0) > 150);
-          filteredResults = [...filteredResults, ...highDemand];
-        }
-        if (selectedFilters.includes('budget_friendly')) {
-          const budget = results.filter((p: any) => {
-            const price = parseFloat(p.price) || 0;
-            return selectedPropertyType === 'rent' ? price <= 2000 : price <= 1000000;
-          });
-          filteredResults = [...filteredResults, ...budget];
-        }
-        results = [...new Set(filteredResults)];
       }
-
-      // Apply location filter
-      const locationTerm = searchInput.trim().toLowerCase();
-      if (locationTerm) {
-        results = results.filter((p: any) =>
-          (p.city || '').toLowerCase().includes(locationTerm) ||
-          (p.address_line_1 || '').toLowerCase().includes(locationTerm) ||
-          (p.postcode || '').toLowerCase().includes(locationTerm)
-        );
-      }
-
-      results.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-
-      setFilteredProperties(results);
-      setFilteredCount(results.length);
-
-      if (results.length === 0) {
-        setLocationMessage('No properties found matching your filters. Try adjusting your search criteria.');
-      }
-      setSearchLoading(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Dashboard] Error filtering properties:', err);
+      setError(err.message);
+    } finally {
       setSearchLoading(false);
     }
   }, [selectedPropertyType, selectedFilters, searchInput]);
@@ -207,8 +172,8 @@ const DashboardClient = () => {
 
   // Map properties - pass raw properties with latitude/longitude for NearbyPropertiesMap
   const mapProperties = useMemo(() => {
-    return MOCK_PROPERTIES.filter((p: any) => p && p.latitude && p.longitude);
-  }, []);
+    return filteredProperties.filter((p: any) => p && p.latitude && p.longitude);
+  }, [filteredProperties]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto dark:bg-[#0a0a0a] min-h-screen transition-all duration-300">

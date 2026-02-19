@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
     ArrowLeft,
@@ -27,8 +25,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useApplications, APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
 import StatusTracker from './StatusTracker';
-
-
+import UserContractModal from '@/components/dashboard/contracts/UserContractModal';
+import { getUserContracts, Contract } from '@/services/contractsService';
 
 interface ActivityItem {
     id: number;
@@ -54,8 +52,34 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
 
+    // Contract state
+    const [contract, setContract] = useState<Contract | null>(null);
+    const [showContractModal, setShowContractModal] = useState(false);
+    const [checkingContract, setCheckingContract] = useState(false);
+
     // Find the application - prioritize the passed prop, fall back to context search
     const application = initialApplication || allApplications?.find((app) => app.id === applicationId);
+
+    // Fetch contract if application is approved
+    useEffect(() => {
+        const fetchContract = async () => {
+            if (application?.status === APPLICATION_STATUS.APPROVED || application?.status === APPLICATION_STATUS.COMPLETED) {
+                setCheckingContract(true);
+                const { data } = await getUserContracts();
+                if (data) {
+                    const relevantContract = data.find(c => c.property_id === application.propertyId);
+                    if (relevantContract) {
+                        setContract(relevantContract);
+                    }
+                }
+                setCheckingContract(false);
+            }
+        };
+
+        if (application) {
+            fetchContract();
+        }
+    }, [application?.status, application?.propertyId]);
 
     if (!application) {
         return (
@@ -113,7 +137,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         }
     };
 
-    // Generate mock activity history based on status
+    // Generate activity history based on status
     const getActivityHistory = (): ActivityItem[] => {
         const history: ActivityItem[] = [
             {
@@ -509,7 +533,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         </div>
                                     )}
 
-                                {/* Approved Message */}
+                                {/* Approved Message with Contract Integration */}
                                 {application.status === APPLICATION_STATUS.APPROVED && (
                                     <div className="lg:col-span-2 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-6 border border-green-200 dark:border-green-800">
                                         <div className="flex items-start gap-4">
@@ -532,12 +556,32 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                         <MessageSquare size={18} />
                                                         <span>Contact Agent</span>
                                                     </button>
+
+                                                    {/* Contract Button */}
+                                                    {contract && (
+                                                        <button
+                                                            onClick={() => setShowContractModal(true)}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+                                                        >
+                                                            <FileText size={18} />
+                                                            <span>
+                                                                {contract.user_signed_at ? 'View Contract' : 'Review & Sign Contract'}
+                                                            </span>
+                                                        </button>
+                                                    )}
+
+                                                    {!contract && !checkingContract && (
+                                                        <span className="inline-flex items-center gap-2 px-4 py-2 text-gray-500 dark:text-gray-400 text-sm italic">
+                                                            Contract pending from agent
+                                                        </span>
+                                                    )}
+
                                                     <button
                                                         onClick={() => setShowCompleteConfirm(true)}
                                                         className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-sm"
                                                     >
-                                                        <FileText size={18} />
-                                                        <span>Sign Contract &amp; Complete</span>
+                                                        <Key size={18} />
+                                                        <span>Complete Handover</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -725,9 +769,24 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                 </div>,
                 document.body
             )}
+
+            {/* Contract Modal */}
+            {showContractModal && contract && (
+                <UserContractModal
+                    contract={contract}
+                    onClose={() => setShowContractModal(false)}
+                    onSigned={() => {
+                        getUserContracts().then(({ data }) => {
+                            if (data) {
+                                const updated = data.find(c => c.id === contract.id);
+                                if (updated) setContract(updated);
+                            }
+                        });
+                    }}
+                />
+            )}
         </div>
     );
 };
 
 export default ApplicationDetail;
-

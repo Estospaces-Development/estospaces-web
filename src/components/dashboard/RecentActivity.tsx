@@ -2,6 +2,8 @@
 
 import { Zap } from 'lucide-react';
 import { useState, useEffect, Suspense, lazy } from 'react';
+import * as leadsService from '@/services/leadsService';
+import * as applicationsService from '@/services/applicationsService';
 
 const SatelliteMap = lazy(() => import('./SatelliteMap'));
 
@@ -11,6 +13,7 @@ interface Activity {
     name: string;
     property: string;
     date: string;
+    timestamp: Date;
 }
 
 const RecentActivity = () => {
@@ -21,17 +24,45 @@ const RecentActivity = () => {
         const fetchActivities = async () => {
             setLoading(true);
             try {
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 800));
+                const [leadsRes, appsRes] = await Promise.all([
+                    leadsService.getUserLeads(),
+                    applicationsService.getApplications()
+                ]);
 
-                const mockData: Activity[] = [
-                    { id: '1', type: 'New Lead', name: 'John Doe', property: 'Sunset Villa', date: '2 mins ago' },
-                    { id: '2', type: 'Viewing Request', name: 'Sarah Smith', property: 'Downtown Loft', date: '1 hour ago' },
-                    { id: '3', type: 'Application Submitted', name: 'Mike Johnson', property: 'Seaside Condo', date: '3 hours ago' },
-                    { id: '4', type: 'Message Received', name: 'Emily Davis', property: 'Mountain Cabin', date: '5 hours ago' },
-                ];
-                setActivities(mockData);
+                const integratedActivities: Activity[] = [];
+
+                if (leadsRes.data) {
+                    leadsRes.data.forEach(lead => {
+                        integratedActivities.push({
+                            id: `lead-${lead.id}`,
+                            type: 'New Lead',
+                            name: lead.name || 'Interested User',
+                            property: lead.property?.title || 'General Interest',
+                            date: new Date(lead.created_at).toLocaleDateString(),
+                            timestamp: new Date(lead.created_at)
+                        });
+                    });
+                }
+
+                if (appsRes.data) {
+                    appsRes.data.forEach(app => {
+                        integratedActivities.push({
+                            id: `app-${app.id}`,
+                            type: 'Application Submitted',
+                            name: app.name || 'Anonymous Applicant',
+                            property: app.propertyInterested || 'Property Application',
+                            date: new Date(app.created_at).toLocaleDateString(),
+                            timestamp: new Date(app.created_at)
+                        });
+                    });
+                }
+
+                // Sort by most recent
+                integratedActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+                setActivities(integratedActivities.slice(0, 5));
             } catch (error) {
+                console.error('Error fetching activities:', error);
                 setActivities([]);
             } finally {
                 setLoading(false);
@@ -39,9 +70,6 @@ const RecentActivity = () => {
         };
 
         fetchActivities();
-        // Refresh every 30 seconds to match legacy behavior
-        const interval = setInterval(fetchActivities, 30000);
-        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -52,7 +80,7 @@ const RecentActivity = () => {
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
                     <Zap className="w-5 h-5 text-blue-500 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
-                    <h3 className="section-heading text-gray-800 dark:text-white transition-colors duration-300 group-hover:text-primary dark:group-hover:text-primary-light">Recently Activity</h3>
+                    <h3 className="section-heading text-gray-800 dark:text-white transition-colors duration-300 group-hover:text-primary dark:group-hover:text-primary-light">Recent Activity</h3>
                 </div>
 
                 <div className="space-y-4 mb-6">

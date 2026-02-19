@@ -78,20 +78,20 @@ const AddLeadModal = ({
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
-        if (!formData.name.trim()) newErrors.name = 'Name is required';
-        if (!formData.email.trim()) {
+        if (!(formData.name || '').trim()) newErrors.name = 'Name is required';
+        if (!(formData.email || '').trim()) {
             newErrors.email = 'Email is required';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email || '')) {
             newErrors.email = 'Invalid email format';
         }
         // Property interested is crucial but we allow manual entry if properties list is empty or specific property not in list
-        if (!formData.propertyInterested.trim()) {
+        if (!(formData.propertyInterested || '').trim()) {
             newErrors.propertyInterested = 'Property interested is required';
         }
-        if (formData.score < 0 || formData.score > 100) {
+        if ((formData.score || 0) < 0 || (formData.score || 0) > 100) {
             newErrors.score = 'Score must be between 0 and 100';
         }
-        if (!formData.budget.trim()) {
+        if (!(formData.budget || '').trim()) {
             newErrors.budget = 'Budget is required';
         }
         setErrors(newErrors);

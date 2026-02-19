@@ -3,8 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { notifyPropertySaved } from '../services/notificationsService';
 import { useAuth } from './AuthContext';
-
-import { silentFetch } from '@/lib/apiUtils';
+import { apiFetch, getServiceUrl, getAuthHeaders } from '@/lib/apiUtils';
 
 interface SavedPropertiesContextType {
     savedProperties: any[];
@@ -29,21 +28,11 @@ export const useSavedProperties = () => {
     return context;
 };
 
-const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
-
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
     const [savedProperties, setSavedProperties] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    const getHeaders = () => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : '';
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        };
-    };
 
     const fetchSavedProperties = useCallback(async () => {
         if (!user) {
@@ -52,16 +41,19 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
         }
 
         setLoading(true);
-        const result = await silentFetch<any[]>(
-            `${CORE_SERVICE_URL}/api/v1/properties/saved`,
-            { headers: getHeaders() },
-            [],
-            'SavedPropertiesContext'
-        );
-
-        setSavedProperties(result.data);
-        setError(result.error);
-        setLoading(false);
+        try {
+            const data = await apiFetch<any[]>(
+                `${getServiceUrl('core')}/api/v1/properties/saved`,
+            );
+            setSavedProperties(data || []);
+            setError(null);
+        } catch (err: any) {
+            console.error('[SavedProperties] Error:', err.message);
+            setSavedProperties([]);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     }, [user]);
 
     useEffect(() => {
@@ -71,16 +63,10 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
     const saveProperty = useCallback(async (property: any) => {
         const propertyId = typeof property === 'string' ? property : property.id;
         try {
-            const response = await fetch(`${CORE_SERVICE_URL}/api/v1/properties/${propertyId}/save`, {
-                method: 'POST',
-                headers: getHeaders()
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to save property');
-            }
-
+            await apiFetch<any>(
+                `${getServiceUrl('core')}/api/v1/properties/${propertyId}/save`,
+                { method: 'POST' },
+            );
             await fetchSavedProperties();
             return { success: true };
         } catch (err: any) {
@@ -91,16 +77,10 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
 
     const removeProperty = useCallback(async (propertyId: string) => {
         try {
-            const response = await fetch(`${CORE_SERVICE_URL}/api/v1/properties/${propertyId}/save`, {
-                method: 'DELETE',
-                headers: getHeaders()
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to remove property');
-            }
-
+            await apiFetch<any>(
+                `${getServiceUrl('core')}/api/v1/properties/${propertyId}/save`,
+                { method: 'DELETE' },
+            );
             setSavedProperties(prev => prev.filter(p => p.id !== propertyId));
             return { success: true };
         } catch (err: any) {

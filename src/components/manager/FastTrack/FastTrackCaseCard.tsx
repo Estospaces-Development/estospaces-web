@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FastTrackCase, FastTrackStep, FastTrackDocuments as IFastTrackDocuments } from '../../../mocks/fastTrackCases';
+import { FastTrackCase, FastTrackStep, FastTrackDocuments as IFastTrackDocuments } from '../../../services/fastTrackService';
 import FastTrackProgress from './FastTrackProgress';
 import FastTrackDocuments from './FastTrackDocuments';
 import FastTrackActions from './FastTrackActions';

@@ -1,21 +1,40 @@
 /**
  * Applications Service
- * Returns mock data for applications (no backend API calls)
+ * Fetches rental/sale application data from the booking-service backend
  */
+
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+
+const BOOKING_URL = () => getServiceUrl('booking');
 
 export interface Application {
     id: string;
-    name: string;
-    email: string;
-    propertyInterested: string;
-    status: 'Pending' | 'Approved' | 'Rejected';
-    score: number;
-    budget: string;
-    submittedDate: string;
-    lastContact: string;
-    phone: string;
-    createdAt: string;
-    updatedAt: string;
+    property_id: string;
+    user_id: string;
+    move_in_date: string;
+    lease_duration_months?: number;
+    employment_status?: string;
+    employer_name?: string;
+    annual_income?: number;
+    current_address?: string;
+    reason_for_moving?: string;
+    references?: string;
+    document_urls?: string;
+    status: 'submitted' | 'approved' | 'rejected' | 'withdrawn';
+    reviewed_by?: string;
+    reviewed_at?: string;
+    review_notes?: string;
+    created_at: string;
+    updated_at: string;
+    // UI-mapped fields (populated from join or client-side)
+    name?: string;
+    email?: string;
+    phone?: string;
+    propertyInterested?: string;
+    score?: number;
+    budget?: string;
+    submittedDate?: string;
+    lastContact?: string;
 }
 
 export interface ApplicationsResponse {
@@ -29,101 +48,86 @@ export interface ApplicationResponse {
 }
 
 /**
- * Fetch applications for the logged-in manager's properties
+ * Fetch applications for the logged-in user
+ * GET /api/v1/applications (booking-service)
  */
 export const getApplications = async (): Promise<ApplicationsResponse> => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const mockApplications: Application[] = [
-        {
-            id: 'app-1',
-            name: 'John Smith',
-            email: 'john.smith@example.com',
-            propertyInterested: 'Sunset Villa',
-            status: 'Pending',
-            score: 88,
-            budget: '$2,400/mo',
-            submittedDate: new Date().toISOString(),
-            lastContact: 'Today',
-            phone: '+1 (555) 111-2222',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-        },
-        {
-            id: 'app-2',
-            name: 'Emily Brown',
-            email: 'emily.b@example.com',
-            propertyInterested: 'Downtown Loft',
-            status: 'Approved',
-            score: 95,
-            budget: '$3,500/mo',
-            submittedDate: new Date(Date.now() - 172800000).toISOString(),
-            lastContact: '2 days ago',
-            phone: '+1 (555) 333-4444',
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-            updatedAt: new Date(Date.now() - 172800000).toISOString(),
-        },
-        {
-            id: 'app-3',
-            name: 'Michael Wilson',
-            email: 'm.wilson@example.com',
-            propertyInterested: 'Green Heights',
-            status: 'Rejected',
-            score: 60,
-            budget: '$1,600/mo',
-            submittedDate: new Date(Date.now() - 432000000).toISOString(),
-            lastContact: '5 days ago',
-            phone: '+1 (555) 555-6666',
-            createdAt: new Date(Date.now() - 432000000).toISOString(),
-            updatedAt: new Date(Date.now() - 432000000).toISOString(),
-        },
-        {
-            id: 'app-4',
-            name: 'Sarah Davis',
-            email: 'sdavis@example.com',
-            propertyInterested: 'Luxury Penthouse',
-            status: 'Pending',
-            score: 91,
-            budget: '$5,200/mo',
-            submittedDate: new Date(Date.now() - 86400000).toISOString(),
-            lastContact: '1 day ago',
-            phone: '+1 (555) 777-8888',
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-            updatedAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-        {
-            id: 'app-5',
-            name: 'Robert Miller',
-            email: 'r.miller@example.com',
-            propertyInterested: 'Cozy Cottage',
-            status: 'Approved',
-            score: 84,
-            budget: '$1,400/mo',
-            submittedDate: new Date(Date.now() - 259200000).toISOString(),
-            lastContact: '3 days ago',
-            phone: '+1 (555) 999-0000',
-            createdAt: new Date(Date.now() - 259200000).toISOString(),
-            updatedAt: new Date(Date.now() - 259200000).toISOString(),
-        }
-    ];
-
-    return {
-        data: mockApplications,
-        error: null,
-    };
+    try {
+        const data = await apiFetch<Application[]>(
+            `${BOOKING_URL()}/api/v1/applications`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[applicationsService] Error:', error.message);
+        return { data: null, error: error.message };
+    }
 };
 
 /**
  * Fetch a single application by ID
+ * GET /api/v1/applications/:id (booking-service)
  */
 export const getApplicationById = async (applicationId: string): Promise<ApplicationResponse> => {
-    const apps = (await getApplications()).data || [];
-    const app = apps.find(a => a.id === applicationId);
-
-    if (!app) {
-        return { error: 'Application not found', data: null };
+    try {
+        const data = await apiFetch<Application>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[applicationsService] Error:', error.message);
+        return { data: null, error: error.message };
     }
+};
 
-    return { data: app, error: null };
+/**
+ * Create a new application
+ * POST /api/v1/applications (booking-service)
+ */
+export const createApplication = async (applicationData: {
+    property_id: string;
+    move_in_date: string;
+    lease_duration_months?: number;
+    employment_status?: string;
+    employer_name?: string;
+    annual_income?: number;
+    current_address?: string;
+    reason_for_moving?: string;
+}): Promise<ApplicationResponse> => {
+    try {
+        const data = await apiFetch<Application>(
+            `${BOOKING_URL()}/api/v1/applications`,
+            {
+                method: 'POST',
+                body: JSON.stringify(applicationData),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[applicationsService] Error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Review an application (approve/reject)
+ * PUT /api/v1/applications/:id/review (booking-service)
+ */
+export const reviewApplication = async (
+    applicationId: string,
+    status: 'approved' | 'rejected',
+    reviewNotes?: string,
+): Promise<ApplicationResponse> => {
+    try {
+        const data = await apiFetch<Application>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/review`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({ status, review_notes: reviewNotes }),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[applicationsService] Error:', error.message);
+        return { data: null, error: error.message };
+    }
 };

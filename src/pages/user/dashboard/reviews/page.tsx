@@ -3,46 +3,36 @@
 import { useState, useEffect } from 'react';
 import { Star, ThumbsUp, MessageSquare } from 'lucide-react';
 
-const MOCK_REVIEWS = [
-    {
-        id: '1',
-        property_title: 'Modern City Centre Flat',
-        property_image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=200&h=200&fit=crop',
-        rating: 5,
-        date: '2 Jan 2026',
-        comment: 'Excellent property in a great location. The flat was well-maintained and the agent was very professional throughout.',
-        likes: 12,
-    },
-    {
-        id: '2',
-        property_title: 'Cosy Shoreditch Studio',
-        property_image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=200&h=200&fit=crop',
-        rating: 4,
-        date: '28 Dec 2025',
-        comment: 'Good value for money. The studio was compact but well-designed. Would recommend for young professionals.',
-        likes: 8,
-    },
-    {
-        id: '3',
-        property_title: 'Spacious Kensington Penthouse',
-        property_image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=200&h=200&fit=crop',
-        rating: 5,
-        date: '15 Dec 2025',
-        comment: 'Absolutely stunning property with breathtaking views. The viewing experience was seamless.',
-        likes: 24,
-    },
-];
+// Services
+import { reviewsService, Review } from '@/services/reviewsService';
 
 export default function ReviewsPage() {
-    const [reviews, setReviews] = useState<typeof MOCK_REVIEWS>([]);
+    const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    const fetchReviews = async () => {
         setLoading(true);
-        setTimeout(() => {
-            setReviews(MOCK_REVIEWS);
+        try {
+            const result = await reviewsService.getUserReviews();
+            if (result.data) {
+                const mapped = result.data.map((r: any) => ({
+                    ...r,
+                    property_title: 'Property Review', // Join with property title if possible
+                    property_image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=200&h=200&fit=crop',
+                    date: new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    likes: 0 // Backend doesn't support likes yet
+                }));
+                setReviews(mapped);
+            }
+        } catch (err) {
+            console.error('[Reviews] Error fetching:', err);
+        } finally {
             setLoading(false);
-        }, 500);
+        }
+    };
+
+    useEffect(() => {
+        fetchReviews();
     }, []);
 
     return (

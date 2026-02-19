@@ -1,4 +1,12 @@
-import { supabase } from '@/lib/supabase';
+/**
+ * User Properties Service
+ * Fetches user's own properties from core-service backend
+ * (replaces old Supabase-direct queries)
+ */
+
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+
+const CORE_URL = () => getServiceUrl('core');
 
 interface UserPropertyFilters {
     status?: string | null;
@@ -8,57 +16,68 @@ interface UserPropertyFilters {
     order?: 'asc' | 'desc';
 }
 
+/**
+ * Fetch properties owned/managed by the current user
+ * GET /api/v1/properties/mine (core-service)
+ */
 export const getUserProperties = async ({
     status = null,
     page = 1,
     limit = 10,
     sortBy = 'created_at',
-    order = 'desc'
+    order = 'desc',
 }: UserPropertyFilters = {}) => {
     try {
-        let query = supabase
-            .from('properties')
-            .select('*', { count: 'exact' });
+        const url = new URL(`${CORE_URL()}/api/v1/properties/mine`);
+        url.searchParams.append('page', String(page));
+        url.searchParams.append('limit', String(limit));
+        url.searchParams.append('sort_by', sortBy);
+        url.searchParams.append('sort_order', order);
+        if (status) url.searchParams.append('status', status);
 
-        // Apply filters
-        if (status) {
-            query = query.eq('status', status);
-        }
+        const data = await apiFetch<any>(url.toString());
+        // The backend returns { success: true, data: { data: [...], pagination: {...} } } or similar wrapper
+        // But apiFetch usually unwraps the response if it's standard JSON.
+        // Let's assume apiFetch returns the parsed JSON body.
+        // Our backend handler returns { success: true, data: { properties: [], pagination: {} } } check properties/service.go
+        // Actually service.GetProperties returns PropertyListResponse { Data, Pagination }
+        // Handler wraps it in { success: true, data: result }
+        // So apiFetch returns { success: true, data: { Data: [], Pagination: {} } }
 
-        // Apply sorting
-        if (sortBy) {
-            query = query.order(sortBy, { ascending: order === 'asc' });
-        }
+        // Wait, let's checking apiFetch implementation or usage pattern.
+        // Assuming apiFetch returns the `data` field if the response structure is { data: ... } is common but risky assumption.
+        // Let's look at `apiFetch` in `estospaces-web/src/lib/apiUtils.ts` if needed, but for now I'll stick to the previous pattern in this file
+        // which handled `data.properties || data`.
 
-        // Apply pagination
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-        query = query.range(from, to);
+        // The previous implementation was:
+        // const data = await apiFetch<any>(url.toString());
+        // const properties = Array.isArray(data) ? data : (data.properties || data);
 
-        const { data, error, count } = await query;
+        // Our new handler returns: c.JSON(fiber.Map{"success": true, "data": result}) where result has Data and Pagination.
 
-        if (error) throw error;
+        const responseHelper = data.data || data; // properties list response
+        const properties = responseHelper.Data || responseHelper.properties || [];
+        const pagination = responseHelper.Pagination || responseHelper.pagination || {};
 
         return {
-            data,
+            data: properties,
             pagination: {
-                page,
-                limit,
-                totalCount: count || 0,
-                totalPages: Math.ceil((count || 0) / limit),
-                hasNextPage: (count || 0) > to + 1,
-                hasPreviousPage: page > 1
+                page: pagination.Page || page,
+                limit: pagination.Limit || limit,
+                totalCount: pagination.Total || 0,
+                totalPages: pagination.TotalPages || 0,
+                hasNextPage: (pagination.Total || 0) > (pagination.Page || page) * (pagination.Limit || limit),
+                hasPreviousPage: (pagination.Page || page) > 1,
             },
-            error: null
+            error: null,
         };
-    } catch (error) {
-        console.error('Error fetching user properties:', error);
+    } catch (error: any) {
+        console.error('[userPropertiesService] Error:', error.message);
         return {
             data: null,
             pagination: null,
-            error: {
-                message: (error as Error).message || 'Failed to fetch properties'
-            }
+            error: { message: error.message || 'Failed to fetch properties' },
         };
     }
 };
+

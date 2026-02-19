@@ -1,137 +1,223 @@
-import { silentFetch } from '@/lib/apiUtils';
+/**
+ * Property Service
+ * Fetches property data from core-service backend
+ */
 
-const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+
+const CORE_URL = () => getServiceUrl('core');
 
 export interface Property {
     id: string;
+    manager_id?: string;
     title: string;
-    address_line_1: string;
-    city: string;
-    postcode: string;
+    description?: string;
+    property_type: string; // house, apartment, etc.
+    listing_type: 'rent' | 'sale';
+    status: string;
     price: number;
+    currency: string;
+    deposit_amount?: number;
     bedrooms: number;
     bathrooms: number;
-    area?: number;
-    property_type: 'rent' | 'sale';
-    image_urls?: string[];
-    description?: string;
-    view_count?: number;
+    property_size_sqft?: number;
+    year_built?: number;
+    furnished?: boolean;
+    parking_spaces?: number;
+    address_line_1: string;
+    address_line_2?: string;
+    city: string;
+    postcode: string;
+    country: string;
     latitude?: string;
     longitude?: string;
+    image_urls?: string[];
+    video_urls?: string[];
+    features?: string[] | string;
+    amenities?: string[] | string;
+    views?: number;
+    inquiries?: number;
+    favorites?: number;
+    is_verified?: boolean;
+    featured?: boolean;
     created_at?: string;
-    has_virtual_tour?: boolean;
-    virtual_tour_url?: string;
-    agent_name?: string;
-    is_applied?: boolean;
-    application_status?: string;
+    updated_at?: string;
 }
 
-export const MOCK_PROPERTIES: Property[] = [
-    {
-        id: 'prop-1',
-        title: 'Modern Luxury Apartment',
-        address_line_1: '123 Canary Wharf',
-        city: 'London',
-        postcode: 'E14 5AB',
-        price: 3500,
-        bedrooms: 2,
-        bathrooms: 2,
-        area: 950,
-        property_type: 'rent',
-        image_urls: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
-        description: 'A stunning modern apartment with river views.',
-        view_count: 124,
-        latitude: '51.5054',
-        longitude: '-0.0235',
-        agent_name: 'Premium Estates',
-        has_virtual_tour: true
-    },
-    {
-        id: 'prop-2',
-        title: 'Executive Penthouse',
-        address_line_1: '45 Victoria Street',
-        city: 'London',
-        postcode: 'SW1E 6AS',
-        price: 1250000,
-        bedrooms: 3,
-        bathrooms: 3,
-        area: 2100,
-        property_type: 'sale',
-        image_urls: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'],
-        description: 'Exclusive penthouse with panoramic city views.',
-        view_count: 89,
-        latitude: '51.4984',
-        longitude: '-0.1335',
-        agent_name: 'Luxury Living',
-        has_virtual_tour: true
-    },
-    {
-        id: 'prop-3',
-        title: 'Cozy Family Home',
-        address_line_1: '78 Garden Road',
-        city: 'Manchester',
-        postcode: 'M14 6RF',
-        price: 450000,
-        bedrooms: 4,
-        bathrooms: 2,
-        area: 1650,
-        property_type: 'sale',
-        image_urls: ['https://images.unsplash.com/photo-1480074568708-e7b720bb3f09?w=800'],
-        description: 'Perfect family home with a large garden.',
-        view_count: 56,
-        latitude: '53.4808',
-        longitude: '-2.2426',
-        agent_name: 'North Homes'
-    },
-    {
-        id: 'prop-4',
-        title: 'Stylish Studio',
-        address_line_1: '12 Creative Lane',
-        city: 'Bristol',
-        postcode: 'BS1 2EQ',
-        price: 1200,
-        bedrooms: 1,
-        bathrooms: 1,
-        area: 450,
-        property_type: 'rent',
-        image_urls: ['https://images.unsplash.com/photo-1536376074432-8d2a3d31707d?w=800'],
-        description: 'Compact and stylish studio in the city heart.',
-        view_count: 210,
-        latitude: '51.4545',
-        longitude: '-2.5879',
-        agent_name: 'Urban Rentals'
+export interface PropertyFilters {
+    country?: string;
+    city?: string;
+    type?: string;
+    status?: string;
+    search?: string;
+    manager_id?: string;
+    sort_by?: string;
+    sort_order?: string;
+    page?: number;
+    limit?: number;
+    min_price?: number;
+    max_price?: number;
+    min_bedrooms?: number;
+    max_bedrooms?: number;
+    featured?: boolean;
+    is_verified?: boolean;
+}
+
+/**
+ * Fetch properties with optional filters
+ * GET /api/v1/properties (core-service)
+ */
+export const getProperties = async (filters: Record<string, any> = {}): Promise<{ data: Property[] | null; error: string | null }> => {
+    try {
+        const url = new URL(`${CORE_URL()}/api/v1/properties`);
+        Object.keys(filters).forEach(key => {
+            if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+                url.searchParams.append(key, String(filters[key]));
+            }
+        });
+
+        const data = await apiFetch<any>(url.toString());
+        // Backend returns { success: true, data: { data: [...], pagination: {...} } }
+        // apiFetch returns the 'data' part: { data: [...], pagination: {...} }
+        const properties = Array.isArray(data) ? data : (data.data || data.properties || data);
+        return { data: properties as Property[], error: null };
+    } catch (error: any) {
+        console.error('[propertyService] getProperties error:', error.message);
+        return { data: null, error: error.message };
     }
-];
-
-const getHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : '';
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
 };
 
-export const getProperties = async (filters: any = {}) => {
-    const url = new URL(`${CORE_SERVICE_URL}/api/v1/properties`);
-    Object.keys(filters).forEach(key => {
-        if (filters[key]) url.searchParams.append(key, filters[key]);
-    });
-
-    return silentFetch<Property[]>(
-        url.toString(),
-        { headers: getHeaders() },
-        MOCK_PROPERTIES,
-        'propertyService'
-    );
+/**
+ * Fetch a single property by ID
+ * GET /api/v1/properties/:id (core-service)
+ */
+export const getPropertyById = async (id: string): Promise<{ data: Property | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Property>(
+            `${CORE_URL()}/api/v1/properties/${id}`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[propertyService] getPropertyById error:', error.message);
+        return { data: null, error: error.message };
+    }
 };
 
-export const getPropertyById = async (id: string) => {
-    const mockProp = MOCK_PROPERTIES.find(p => p.id === id) || MOCK_PROPERTIES[0];
+/**
+ * Create a new property
+ * POST /api/v1/properties (core-service, manager/admin)
+ */
+export const createProperty = async (propertyData: Partial<Property>): Promise<{ data: Property | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Property>(
+            `${CORE_URL()}/api/v1/properties`,
+            {
+                method: 'POST',
+                body: JSON.stringify(propertyData),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[propertyService] createProperty error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
 
-    return silentFetch<Property>(
-        `${CORE_SERVICE_URL}/api/v1/properties/${id}`,
-        { headers: getHeaders() },
-        mockProp,
-        'propertyService'
-    );
+/**
+ * Update a property
+ * PUT /api/v1/properties/:id (core-service, owner/admin)
+ */
+export const updateProperty = async (id: string, propertyData: Partial<Property>): Promise<{ data: Property | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Property>(
+            `${CORE_URL()}/api/v1/properties/${id}`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(propertyData),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        console.error('[propertyService] updateProperty error:', error.message);
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Delete a property
+ * DELETE /api/v1/properties/:id (core-service, owner/admin)
+ */
+export const deleteProperty = async (id: string): Promise<{ error: string | null }> => {
+    try {
+        await apiFetch<any>(
+            `${CORE_URL()}/api/v1/properties/${id}`,
+            { method: 'DELETE' },
+        );
+        return { error: null };
+    } catch (error: any) {
+        console.error('[propertyService] deleteProperty error:', error.message);
+        return { error: error.message };
+    }
+};
+
+/**
+ * Save a property to favorites
+ * POST /api/v1/properties/:id/save (core-service)
+ */
+export const saveProperty = async (id: string): Promise<{ error: string | null }> => {
+    try {
+        await apiFetch<any>(
+            `${CORE_URL()}/api/v1/properties/${id}/save`,
+            { method: 'POST' },
+        );
+        return { error: null };
+    } catch (error: any) {
+        return { error: error.message };
+    }
+};
+
+/**
+ * Unsave a property from favorites
+ * DELETE /api/v1/properties/:id/save (core-service)
+ */
+export const unsaveProperty = async (id: string): Promise<{ error: string | null }> => {
+    try {
+        await apiFetch<any>(
+            `${CORE_URL()}/api/v1/properties/${id}/save`,
+            { method: 'DELETE' },
+        );
+        return { error: null };
+    } catch (error: any) {
+        return { error: error.message };
+    }
+};
+
+/**
+ * Get user's saved properties
+ * GET /api/v1/properties/saved/list (core-service)
+ */
+export const getSavedProperties = async (): Promise<{ data: Property[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Property[]>(
+            `${CORE_URL()}/api/v1/properties/saved/list`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Get property sections for the homepage
+ * GET /api/v1/properties/sections (core-service)
+ */
+export const getPropertySections = async (country: string = 'UK'): Promise<{ data: any; error: string | null }> => {
+    try {
+        const data = await apiFetch<any>(
+            `${CORE_URL()}/api/v1/properties/sections?country=${country}`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: error.message };
+    }
 };
