@@ -58,12 +58,12 @@ export interface ManagerAnalyticsResponse {
 
 /**
  * Fetch analytics data from the core-service backend (Admin Platform Stats)
- * GET /api/v1/analytics (requires admin role)
+ * GET /api/v1/admin/analytics (requires admin role)
  */
 export const getPlatformAnalytics = async (): Promise<AnalyticsResponse> => {
     try {
         const data = await apiFetch<AnalyticsData>(
-            `${CORE_URL()}/api/v1/analytics`,
+            `${CORE_URL()}/api/v1/admin/analytics`,
         );
         return { data, error: null };
     } catch (error: any) {
@@ -77,12 +77,12 @@ export const getAnalyticsData = getPlatformAnalytics;
 
 /**
  * Fetch analytics data for the current manager
- * GET /api/v1/analytics/manager (requires manager/admin role)
+ * GET /api/v1/manager/analytics (requires manager/admin role)
  */
 export const getManagerAnalytics = async (): Promise<ManagerAnalyticsResponse> => {
     try {
         const data = await apiFetch<ManagerAnalytics>(
-            `${CORE_URL()}/api/v1/analytics/manager`,
+            `${CORE_URL()}/api/v1/manager/analytics`,
         );
         return { data, error: null };
     } catch (error: any) {

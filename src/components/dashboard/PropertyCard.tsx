@@ -90,21 +90,47 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
 
     // Helper to get images
     const getPropertyImages = () => {
-        const imagesList = property.images || property.image_urls;
-        if (imagesList && Array.isArray(imagesList) && imagesList.length > 0) {
-            return imagesList.slice(0, 4);
-        }
+        let imagesList: any[] = [];
 
-        if (typeof property.images === 'string') {
+        if (Array.isArray(property.images)) {
+            imagesList = property.images;
+        } else if (Array.isArray(property.image_urls)) {
+            imagesList = property.image_urls;
+        } else if (property.media?.images?.length > 0) {
+            imagesList = property.media.images.map((img: any) => img.url);
+        } else if (typeof property.images === 'string') {
             try {
                 const parsed = JSON.parse(property.images);
-                if (Array.isArray(parsed)) return parsed.slice(0, 4);
-            } catch { }
-            if (property.images.startsWith('http')) return [property.images];
+                if (Array.isArray(parsed)) imagesList = parsed;
+                else if (typeof parsed === 'string' && parsed.startsWith('[')) {
+                    imagesList = JSON.parse(parsed);
+                }
+            } catch {
+                if (property.images.startsWith('http') || property.images.startsWith('data:')) imagesList = [property.images];
+            }
+        } else if (typeof property.image_urls === 'string') {
+            try {
+                const parsed = JSON.parse(property.image_urls);
+                if (Array.isArray(parsed)) imagesList = parsed;
+                else if (typeof parsed === 'string' && parsed.startsWith('[')) {
+                    imagesList = JSON.parse(parsed);
+                }
+            } catch {
+                if (property.image_urls.startsWith('http') || property.image_urls.startsWith('data:')) imagesList = [property.image_urls];
+            }
         }
 
-        const singleImage = property.image || property.image_url || property.thumbnail_url || property.photo || property.main_image;
-        return singleImage ? [singleImage] : [];
+        // Strictly filter to strings that actually look like urls, or relative paths, filtering out empty or stringified array brackets "[]"
+        let validImages = imagesList.filter((img): img is string => typeof img === 'string' && img.length > 5 && !img.includes('[]'));
+
+        if (validImages.length === 0) {
+            const singleImage = property.image || property.image_url || property.thumbnail_url || property.photo || property.main_image;
+            if (typeof singleImage === 'string' && singleImage.length > 5 && !singleImage.includes('[]')) {
+                validImages = [singleImage];
+            }
+        }
+
+        return validImages;
     };
 
     const images = getPropertyImages();

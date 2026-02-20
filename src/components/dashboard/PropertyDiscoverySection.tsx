@@ -37,18 +37,28 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
     const transformPropertyForCard = (property: any) => {
         if (!property) return null;
 
-        let images: string[] = [];
-        if (property.image_urls) {
-            if (Array.isArray(property.image_urls)) {
-                images = property.image_urls;
-            } else if (typeof property.image_urls === 'string') {
-                try {
-                    images = JSON.parse(property.image_urls);
-                } catch (e) {
-                    images = [];
-                }
+        let images: any[] = [];
+        if (Array.isArray(property.images)) {
+            images = property.images;
+        } else if (Array.isArray(property.image_urls)) {
+            images = property.image_urls;
+        } else if (typeof property.images === 'string') {
+            try {
+                const parsed = JSON.parse(property.images);
+                if (Array.isArray(parsed)) images = parsed;
+            } catch {
+                if (property.images.startsWith('http')) images = [property.images];
+            }
+        } else if (typeof property.image_urls === 'string') {
+            try {
+                const parsed = JSON.parse(property.image_urls);
+                if (Array.isArray(parsed)) images = parsed;
+            } catch {
+                if (property.image_urls.startsWith('http')) images = [property.image_urls];
             }
         }
+
+        const validImages = images.filter((img): img is string => typeof img === 'string');
 
         const locationParts = [
             property.address_line_1,
@@ -60,15 +70,23 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
         return {
             id: property.id,
             title: property.title || 'Property',
-            location: location,
-            price: property.price || 0,
-            type: property.property_type === 'rent' ? 'Rent' : property.property_type === 'sale' ? 'Sale' : 'Property',
-            property_type: property.property_type,
-            beds: property.bedrooms || 0,
-            baths: property.bathrooms || 0,
-            area: property.property_size_sqm || null,
-            image: images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
-            images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+            location: locationParts.length > 0 ? locationParts.join(', ') : 'Location on request',
+            price: { amount: parseFloat(property.price), currency: property.currency || 'USD' },
+            specs: [
+                { icon: 'bed', label: `${property.bedrooms || 0} Beds` },
+                { icon: 'bath', label: `${property.bathrooms || 0} Baths` },
+                { icon: 'maximize', label: `${property.property_size_sqft || 0} sqft` },
+            ],
+            image: validImages[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
+            images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+            type: property.listing_type || 'rent',
+            category: property.property_type || 'house',
+            status: property.status || 'available',
+            property_type: property.property_type || 'house',
+            listingType: property.listing_type || 'rent',
+            hasVirtualTour: !!property.virtual_tour_url,
+            isVerified: property.is_verified || false,
+            featured: property.featured || false,
             description: property.description || '',
             is_saved: property.is_saved || false,
             is_applied: property.is_applied || false,
@@ -77,7 +95,6 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
             latitude: property.latitude,
             longitude: property.longitude,
             listedDate: property.created_at ? new Date(property.created_at) : new Date(),
-            featured: property.featured || false,
 
             trending: property.trending || false,
             recently_added: property.recently_added || false,

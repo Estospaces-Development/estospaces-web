@@ -62,6 +62,10 @@ export async function apiFetch<T>(
     return (json.data ?? json) as T;
 }
 
+// ── Environment Check ───────────────────────────────────────────────────────
+
+const isDev = import.meta.env.MODE === 'development';
+
 // ── silentFetch — graceful mock fallback (backward compat) ──────────────────
 
 /**
@@ -78,20 +82,26 @@ export async function silentFetch<T>(
         const response = await fetch(url, options);
 
         if (!response.ok) {
-            console.warn(`[${serviceName}] API call failed with status ${response.status}. Using mock data.`);
-            return { data: mockData, error: null };
+            console.warn(`[${serviceName}] API call failed with status ${response.status}.`);
+            if (isDev) {
+                console.info(`[${serviceName}] Using mock data (Dev Mode).`);
+                return { data: mockData, error: null };
+            }
+            return { data: null as unknown as T, error: `API error: ${response.status}` };
         }
 
         const data = await response.json();
         return { data: (data.data || data) as T, error: null };
     } catch (error: any) {
-        // Network error (likely backend down) → silently return mock data
         if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-            return { data: mockData, error: null };
+            if (isDev) {
+                return { data: mockData, error: null };
+            }
+            return { data: null as unknown as T, error: 'Network error: Backend is unreachable' };
         }
 
         console.error(`[${serviceName}] Unexpected error:`, error);
-        return { data: mockData, error: error.message };
+        return { data: null as unknown as T, error: error.message };
     }
 }
 
@@ -113,10 +123,13 @@ export async function safeFetch<T>(
         return { data, error: null };
     } catch (error: any) {
         if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
-            // Backend offline → silent mock fallback
-            return { data: mockData, error: null };
+            // Backend offline
+            if (isDev) {
+                return { data: mockData, error: null };
+            }
+            return { data: null as unknown as T, error: 'Network error: Backend is unreachable' };
         }
         console.error(`[${serviceName}]`, error.message);
-        return { data: mockData, error: error.message };
+        return { data: null as unknown as T, error: error.message };
     }
 }

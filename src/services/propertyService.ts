@@ -13,7 +13,7 @@ export interface Property {
     title: string;
     description?: string;
     property_type: string; // house, apartment, etc.
-    listing_type: 'rent' | 'sale';
+    listing_type: 'rent' | 'sale' | 'lease' | 'short_term';
     status: string;
     price: number;
     currency: string;
@@ -24,6 +24,7 @@ export interface Property {
     year_built?: number;
     furnished?: boolean;
     parking_spaces?: number;
+    featured?: boolean;
     address_line_1: string;
     address_line_2?: string;
     city: string;
@@ -33,16 +34,21 @@ export interface Property {
     longitude?: string;
     image_urls?: string[];
     video_urls?: string[];
+    virtual_tour_url?: string;
     features?: string[] | string;
     amenities?: string[] | string;
     views?: number;
     inquiries?: number;
     favorites?: number;
     is_verified?: boolean;
-    featured?: boolean;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_company?: string;
     created_at?: string;
     updated_at?: string;
 }
+
 
 export interface PropertyFilters {
     country?: string;
@@ -79,7 +85,8 @@ export const getProperties = async (filters: Record<string, any> = {}): Promise<
         const data = await apiFetch<any>(url.toString());
         // Backend returns { success: true, data: { data: [...], pagination: {...} } }
         // apiFetch returns the 'data' part: { data: [...], pagination: {...} }
-        const properties = Array.isArray(data) ? data : (data.data || data.properties || data);
+        const propertiesData = data.data || data.properties || data;
+        const properties = Array.isArray(propertiesData) ? propertiesData : (Array.isArray(data) ? data : []);
         return { data: properties as Property[], error: null };
     } catch (error: any) {
         console.error('[propertyService] getProperties error:', error.message);

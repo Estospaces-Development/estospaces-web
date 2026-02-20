@@ -255,82 +255,98 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
     const [error, setError] = useState<string | null>(null);
 
     // Mappers
-    const mapServiceToContextProperty = (p: propertyService.Property): Property => ({
-        id: p.id,
-        title: p.title,
-        description: p.description,
-        price: {
-            amount: p.price || 0,
-            currency: (p.currency as CurrencyCode) || 'GBP',
-            negotiable: false
-        },
-        priceString: p.price ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: p.currency || 'GBP' }).format(p.price) : 'POA',
-        propertyType: (p.property_type as PropertyType) || 'house',
-        listingType: (p.listing_type as ListingType) || 'rent',
-        status: (p.status as PropertyStatus) || 'available',
-        location: {
-            addressLine1: p.address_line_1,
-            addressLine2: p.address_line_2,
+    const parseStringArray = (val: any): string[] => {
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+            try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed;
+            } catch (e) {
+                if (val.trim() === '') return [];
+                if (val.includes(',')) return val.split(',').map(s => s.trim());
+                return [val];
+            }
+        }
+        return [];
+    };
+
+    const mapServiceToContextProperty = (p: propertyService.Property): Property => {
+        const imageList = parseStringArray(p.image_urls);
+        const videoList = parseStringArray(p.video_urls);
+
+        return {
+            id: p.id,
+            title: p.title,
+            description: p.description,
+            price: {
+                amount: p.price || 0,
+                currency: (p.currency as CurrencyCode) || 'GBP',
+                negotiable: false
+            },
+            priceString: p.price ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: p.currency || 'GBP' }).format(p.price) : 'POA',
+            propertyType: (p.property_type as PropertyType) || 'house',
+            listingType: (p.listing_type as ListingType) || 'rent',
+            status: (p.status as PropertyStatus) || 'available',
+            location: {
+                addressLine1: p.address_line_1,
+                addressLine2: p.address_line_2,
+                city: p.city,
+                postalCode: p.postcode,
+                country: p.country || 'UK',
+            },
+            address: p.address_line_1,
             city: p.city,
-            postalCode: p.postcode,
-            country: p.country || 'UK',
-        },
-        address: p.address_line_1,
-        city: p.city,
-        area: p.property_size_sqft,
-        bedrooms: p.bedrooms,
-        bathrooms: p.bathrooms,
-        rooms: {
-            bedrooms: p.bedrooms || 0,
-            bathrooms: p.bathrooms || 0,
-            parkingSpaces: p.parking_spaces || 0,
-        },
-        dimensions: {
-            totalArea: p.property_size_sqft || 0,
-            areaUnit: 'sqft',
-        },
-        amenities: {
-            interior: [],
-            exterior: [],
-            community: [],
-            security: [],
-            utilities: [],
-        },
-        furnishing: p.furnished ? 'furnished' : 'unfurnished',
-        condition: 'excellent',
-        analytics: {
-            views: p.views || 0,
-            inquiries: p.inquiries || 0,
-            favorites: p.favorites || 0,
-            shares: 0,
-        },
-        media: {
-            images: (p.image_urls || []).map((url, i) => ({ id: `${p.id}-img-${i}`, url, type: 'image', uploadedAt: new Date().toISOString() })),
-            videos: (p.video_urls || []).map((url, i) => ({ id: `${p.id}-vid-${i}`, url, type: 'video', uploadedAt: new Date().toISOString() })),
-            floorPlans: [],
-        },
-        images: p.image_urls || [],
-        createdAt: p.created_at || new Date().toISOString(),
-        updatedAt: p.updated_at || new Date().toISOString(),
-        availableFrom: p.created_at || new Date().toISOString(),
-        published: p.status === 'published',
-        draft: p.status === 'draft',
-    });
+            area: p.property_size_sqft,
+            bedrooms: p.bedrooms,
+            bathrooms: p.bathrooms,
+            rooms: {
+                bedrooms: p.bedrooms || 0,
+                bathrooms: p.bathrooms || 0,
+                parkingSpaces: p.parking_spaces || 0,
+            },
+            dimensions: {
+                totalArea: p.property_size_sqft || 0,
+                areaUnit: 'sqft',
+            },
+            amenities: {
+                interior: [],
+                exterior: [],
+                community: [],
+                security: [],
+                utilities: [],
+            },
+            furnishing: p.furnished ? 'furnished' : 'unfurnished',
+            condition: 'excellent',
+            analytics: {
+                views: p.views || 0,
+                inquiries: p.inquiries || 0,
+                favorites: p.favorites || 0,
+                shares: 0,
+            },
+            media: {
+                images: imageList.map((url, i) => ({ id: `${p.id}-img-${i}`, url: url as string, type: 'image', uploadedAt: new Date().toISOString() })),
+                videos: videoList.map((url, i) => ({ id: `${p.id}-vid-${i}`, url: url as string, type: 'video', uploadedAt: new Date().toISOString() })),
+                floorPlans: [],
+            },
+            images: imageList,
+            videos: videoList,
+            createdAt: p.created_at || new Date().toISOString(),
+            updatedAt: p.updated_at || new Date().toISOString(),
+            availableFrom: p.created_at || new Date().toISOString(),
+            published: p.status === 'published',
+            draft: p.status === 'draft',
+        };
+    };
 
     const mapContextToServiceProperty = (p: Partial<Property>): Partial<propertyService.Property> => {
         const serviceProps: any = {};
-        if (p.title) serviceProps.title = p.title;
-        if (p.description) serviceProps.description = p.description;
-        if (p.price?.amount) serviceProps.price = p.price.amount;
-        if (p.location?.addressLine1) serviceProps.address_line_1 = p.location.addressLine1;
-        if (p.location?.addressLine2) serviceProps.address_line_2 = p.location.addressLine2;
-        if (p.location?.city) serviceProps.city = p.location.city;
-        if (p.location?.postalCode) serviceProps.postcode = p.location.postalCode;
-        if (p.propertyType) serviceProps.property_type = p.propertyType;
-        if (p.listingType) serviceProps.listing_type = p.listingType;
+        if (p.title !== undefined) serviceProps.title = p.title;
+        if (p.description !== undefined) serviceProps.description = p.description;
+        if (p.propertyType !== undefined) serviceProps.property_type = p.propertyType;
+        if (p.listingType !== undefined) serviceProps.listing_type = p.listingType;
 
         // Handle status mapping
-        if (p.status) {
+        if (p.status !== undefined) {
             serviceProps.status = p.status;
         } else if (p.published) {
             serviceProps.status = 'published';
@@ -338,14 +354,61 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             serviceProps.status = 'draft';
         }
 
-        if (p.bedrooms) serviceProps.bedrooms = p.bedrooms;
-        if (p.bathrooms) serviceProps.bathrooms = p.bathrooms;
-        if (p.area) serviceProps.property_size_sqft = p.area;
-        if (p.furnishing) serviceProps.furnished = p.furnishing === 'furnished';
-        if (p.rooms?.parkingSpaces) serviceProps.parking_spaces = p.rooms.parkingSpaces;
+        // Price fields
+        if (p.price?.amount !== undefined) serviceProps.price = p.price.amount;
+        if (p.price?.currency !== undefined) serviceProps.currency = p.price.currency;
+        if (p.financial?.deposit !== undefined) serviceProps.deposit_amount = p.financial.deposit;
+
+        // Location fields
+        if (p.location?.addressLine1 !== undefined) serviceProps.address_line_1 = p.location.addressLine1;
+        if (p.location?.addressLine2 !== undefined) serviceProps.address_line_2 = p.location.addressLine2;
+        if (p.location?.city !== undefined) serviceProps.city = p.location.city;
+        if (p.location?.postalCode !== undefined) serviceProps.postcode = p.location.postalCode;
+        if (p.location?.country !== undefined) serviceProps.country = p.location.country;
+        // Fallback to top-level fields
+        if (!serviceProps.city && p.city) serviceProps.city = p.city;
+        if (!serviceProps.address_line_1 && p.address) serviceProps.address_line_1 = p.address;
+
+        // Property details
+        if (p.bedrooms !== undefined) serviceProps.bedrooms = p.bedrooms;
+        if (p.bathrooms !== undefined) serviceProps.bathrooms = p.bathrooms;
+        if (p.area !== undefined) serviceProps.property_size_sqft = p.area;
+        if (p.dimensions?.totalArea !== undefined) serviceProps.property_size_sqft = p.dimensions.totalArea;
+        if (p.yearBuilt !== undefined) serviceProps.year_built = p.yearBuilt;
+        if (p.furnishing !== undefined) serviceProps.furnished = p.furnishing === 'furnished';
+        if (p.rooms?.parkingSpaces !== undefined) serviceProps.parking_spaces = p.rooms.parkingSpaces;
+        if (p.featured !== undefined) serviceProps.featured = p.featured;
+
+        // Media
         if (p.images) serviceProps.image_urls = p.images.filter(img => typeof img === 'string');
+        if (p.videos) serviceProps.video_urls = p.videos.filter(vid => typeof vid === 'string');
+        if (p.virtualTourUrl !== undefined) serviceProps.virtual_tour_url = p.virtualTourUrl;
+
+        // Features & amenities (flatten grouped amenities into a single array)
+        if (p.features) serviceProps.features = p.features;
+        if (p.amenities) {
+            const flatAmenities: string[] = [];
+            if (typeof p.amenities === 'object' && !Array.isArray(p.amenities)) {
+                Object.values(p.amenities).forEach((group: any) => {
+                    if (Array.isArray(group)) flatAmenities.push(...group);
+                });
+            }
+            if (flatAmenities.length > 0) serviceProps.amenities = flatAmenities;
+        }
+
+        // Agent/contact info
+        if (p.contact?.name !== undefined) serviceProps.agent_name = p.contact.name;
+        if (p.contact?.email !== undefined) serviceProps.agent_email = p.contact.email;
+        if (p.contact?.phone !== undefined) serviceProps.agent_phone = p.contact.phone;
+        if (p.contact?.company !== undefined) serviceProps.agent_company = p.contact.company;
+        // Fallback to top-level contact fields
+        if (!serviceProps.agent_name && p.contactName) serviceProps.agent_name = p.contactName;
+        if (!serviceProps.agent_email && p.emailAddress) serviceProps.agent_email = p.emailAddress;
+        if (!serviceProps.agent_phone && p.phoneNumber) serviceProps.agent_phone = p.phoneNumber;
+
         return serviceProps;
     };
+
 
     const fetchProperties = async () => {
         setLoading(true);

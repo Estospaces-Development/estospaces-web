@@ -175,8 +175,9 @@ export const getManagerProfile = async (_userId: string): Promise<{ data: Manage
  */
 const getManagerDocuments = async (): Promise<ManagerDocument[]> => {
     try {
-        const data = await apiFetch<any[]>(`${CORE_URL()}/api/v1/documents`);
-        return (data || []).map((doc: any) => ({
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`);
+        const docsArray = Array.isArray(data) ? data : (data && Array.isArray(data.documents) ? data.documents : []);
+        return docsArray.map((doc: any) => ({
             id: doc.id,
             manager_id: doc.user_id,
             document_type: doc.document_category || doc.document_type,

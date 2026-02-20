@@ -14,7 +14,6 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import VirtualTourViewer from '@/components/virtual-tour/VirtualTourViewer';
 import ShareModal from '@/components/dashboard/ShareModal';
-import { getTourByPropertyId } from '@/mocks/virtualTourMock';
 
 // Helper for currency formatting
 const formatPrice = (price: any) => {
@@ -63,7 +62,7 @@ export default function PropertyDetailPage() {
     const isFavorited = id ? isPropertySaved(id) : false;
 
     // Get virtual tour
-    const defaultVirtualTour = id ? getTourByPropertyId(id) : null;
+    const defaultVirtualTour = null;
 
     // Increment views on mount - only once per session per property
     useEffect(() => {
