@@ -9,9 +9,11 @@ export default function RegisterPage() {
     const navigate = useNavigate();
     const { isAuthenticated, loading: authLoading, getRole, register } = useAuth();
 
-    const [name, setName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [phone, setPhone] = useState('');
     const [role, setRole] = useState('user');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -39,8 +41,12 @@ export default function RegisterPage() {
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!name.trim()) {
-            setError('Please enter your name');
+        if (!firstName.trim()) {
+            setError('Please enter your first name');
+            return;
+        }
+        if (!lastName.trim()) {
+            setError('Please enter your last name');
             return;
         }
         if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
@@ -56,7 +62,7 @@ export default function RegisterPage() {
         setError('');
 
         try {
-            const result = await register(name, email, password, role);
+            const result = await register(firstName, lastName, email, password, role, phone);
 
             if (!result.success) {
                 setError(result.error || 'Sign-up failed. Please try again.');
@@ -160,16 +166,28 @@ export default function RegisterPage() {
                     </div>
                 </div>
 
-                {/* Name Input */}
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
-                    <input
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
-                    />
+                {/* Name Inputs */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">First Name</label>
+                        <input
+                            type="text"
+                            placeholder="First name"
+                            value={firstName}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFirstName(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Last Name</label>
+                        <input
+                            type="text"
+                            placeholder="Last name"
+                            value={lastName}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLastName(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                        />
+                    </div>
                 </div>
 
                 {/* Email Input */}
@@ -179,7 +197,19 @@ export default function RegisterPage() {
                         type="email"
                         placeholder="Enter your email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                    />
+                </div>
+
+                {/* Phone Input */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Phone Number (Optional)</label>
+                    <input
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phone}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                     />
                 </div>
@@ -192,7 +222,7 @@ export default function RegisterPage() {
                             type={showPassword ? 'text' : 'password'}
                             placeholder="Create a password"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                             className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                         />
                         <button

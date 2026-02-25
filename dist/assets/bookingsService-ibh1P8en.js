@@ -1,0 +1,2 @@
+import{a5 as n,a6 as a}from"./index-D9fuy-ar.js";const t=()=>a("booking");async function e(){return n(`${t()}/api/v1/bookings`)}async function c(){return n(`${t()}/api/v1/viewings`)}async function o(){return n(`${t()}/api/v1/contracts`)}async function s(i){await n(`${t()}/api/v1/viewings/${i}/cancel`,{method:"POST"})}async function r(){return n(`${t()}/api/v1/contract-templates`)}const p={getBookings:e,getViewings:c,getContracts:o,getContractTemplates:r,cancelViewing:s};export{p as b};
+//# sourceMappingURL=bookingsService-ibh1P8en.js.map

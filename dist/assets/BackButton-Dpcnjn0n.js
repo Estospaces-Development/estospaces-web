@@ -1,0 +1,2 @@
+import{u as r,j as t}from"./index-D9fuy-ar.js";import{A as o}from"./arrow-left-BaPK0xsr.js";const c=({label:a="Back",className:e=""})=>{const s=r();return t.jsxs("button",{onClick:()=>s(-1),className:`flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors ${e}`,children:[t.jsx(o,{className:"w-5 h-5"}),t.jsx("span",{className:"font-medium",children:a})]})};export{c as B};
+//# sourceMappingURL=BackButton-Dpcnjn0n.js.map

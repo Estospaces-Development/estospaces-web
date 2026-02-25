@@ -91,7 +91,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         }
     }, [isOpen, step]);
 
-    // Load recent properties on modal open using direct REST API
+    // Load recent properties on modal open - (Temporarily commented out Supabase logic)
     useEffect(() => {
         const fetchRecentProperties = async () => {
             if (!isOpen) {
@@ -101,11 +101,13 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             setLoadingRecent(true);
             try {
+                // Supabase logic removed/commented out
+                /*
                 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yydtsteyknbpfpxjtlxe.supabase.co';
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHRzdGV5a25icGZweGp0bHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkzODgsImV4cCI6MjA3OTM3NTM4OH0.QTUVmTdtnoFhzZ0G6XjdzhFDxcFae0hDSraFhazdNsU';
+                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '...';
 
                 const response = await fetch(
-                    `${supabaseUrl}/rest/v1/properties?status=eq.online&order=created_at.desc&limit=6&select=id,title,address_line_1,city,postcode,price,property_type,listing_type,image_urls,bedrooms,bathrooms,contact_name,contact_email,contact_phone,company`,
+                    `${supabaseUrl}/rest/v1/properties?...`,
                     {
                         headers: {
                             'apikey': supabaseKey,
@@ -116,12 +118,10 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('[NewApplication] Fetched recent properties:', data?.length);
                     setRecentProperties(data || []);
-                } else {
-                    console.error('[NewApplication] Failed to fetch properties:', response.status);
-                    setRecentProperties([]);
                 }
+                */
+                setRecentProperties([]);
             } catch (err) {
                 console.error('[NewApplication] Error fetching recent properties:', err);
                 setRecentProperties([]);
@@ -133,7 +133,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         fetchRecentProperties();
     }, [isOpen]);
 
-    // Search properties with debounce using direct REST API
+    // Search properties with debounce - (Temporarily commented out Supabase logic)
     useEffect(() => {
         const fetchProperties = async () => {
             if (!searchQuery.trim()) {
@@ -143,12 +143,14 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             setLoadingProperties(true);
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yydtsteyknbpfpxjtlxe.supabase.co';
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHRzdGV5a25icGZweGp0bHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkzODgsImV4cCI6MjA3OTM3NTM4OH0.QTUVmTdtnoFhzZ0G6XjdzhFDxcFae0hDSraFhazdNsU';
+                // Supabase logic removed/commented out
+                /*
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '...';
+                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '...';
 
                 const encodedQuery = encodeURIComponent(searchQuery);
                 const response = await fetch(
-                    `${supabaseUrl}/rest/v1/properties?status=eq.online&or=(title.ilike.*${encodedQuery}*,city.ilike.*${encodedQuery}*,postcode.ilike.*${encodedQuery}*,address_line_1.ilike.*${encodedQuery}*)&limit=6&select=id,title,address_line_1,city,postcode,price,property_type,listing_type,image_urls,bedrooms,bathrooms,contact_name,contact_email,contact_phone,company`,
+                    `${supabaseUrl}/rest/v1/properties?...`,
                     {
                         headers: {
                             'apikey': supabaseKey,
@@ -159,12 +161,10 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('[NewApplication] Search results:', data?.length);
                     setProperties(data || []);
-                } else {
-                    console.error('[NewApplication] Search failed:', response.status);
-                    setProperties([]);
                 }
+                */
+                setProperties([]);
             } catch (err) {
                 console.error('[NewApplication] Error searching properties:', err);
                 setProperties([]);
@@ -180,11 +180,15 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
     // Pre-fill user data from profile
     useEffect(() => {
         if (profile || user) {
+            const firstName = (user as any)?.first_name || '';
+            const lastName = (user as any)?.last_name || '';
+            const userFullName = firstName ? `${firstName} ${lastName}`.trim() : ((user as any)?.name || (user as any)?.user_metadata?.full_name);
+
             setFormData(prev => ({
                 ...prev,
-                fullName: (profile as any)?.full_name || (user as any)?.user_metadata?.full_name || prev.fullName,
+                fullName: (profile as any)?.full_name || userFullName || prev.fullName,
                 email: (profile as any)?.email || (user as any)?.email || prev.email,
-                phone: (profile as any)?.phone || prev.phone,
+                phone: (profile as any)?.phone || (user as any)?.phone || prev.phone,
             }));
         }
     }, [profile, user]);
@@ -443,7 +447,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                 ref={searchInputRef}
                                                 type="text"
                                                 value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 placeholder="Search by name, city, or postcode..."
                                                 className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"

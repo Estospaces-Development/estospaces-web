@@ -5,14 +5,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 interface User {
     id: string;
     email: string;
-    name: string;
+    first_name: string;
+    last_name: string;
+    name?: string; // Derived or fallback
     role: string;
+    phone?: string;
     isAuthenticated: boolean;
     avatar_url?: string;
-    user_metadata?: {
-        full_name?: string;
-        [key: string]: any;
-    };
 }
 
 interface AuthContextType {
@@ -22,7 +21,7 @@ interface AuthContextType {
     loading: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-    register: (name: string, email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
+    register: (firstName: string, lastName: string, email: string, password: string, role: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
     signOut: () => void;
     getRole: () => string;
     getDisplayName: () => string;
@@ -83,8 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userObj: User = {
                 id: userData.id || '',
                 email: userData.email || email,
-                name: userData.name || userData.full_name || email.split('@')[0],
+                first_name: userData.first_name || userData.name?.split(' ')[0] || '',
+                last_name: userData.last_name || userData.name?.split(' ').slice(1).join(' ') || '',
+                name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : (userData.name || email.split('@')[0]),
                 role: userData.role || 'user',
+                phone: userData.phone || '',
                 isAuthenticated: true,
             };
 
@@ -116,9 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return { success: false, error: 'Invalid password. Use Estospaces@123 for demo.' };
         }
 
+        const nameParts = mockUser.name.split(' ');
         const userObj: User = {
             id: 'mock-' + Date.now(),
             email: email.toLowerCase(),
+            first_name: nameParts[0],
+            last_name: nameParts.slice(1).join(' '),
             name: mockUser.name,
             role: mockUser.role,
             isAuthenticated: true,
@@ -131,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
     };
 
-    const register = useCallback(async (name: string, email: string, password: string, role: string) => {
+    const register = useCallback(async (firstName: string, lastName: string, email: string, password: string, role: string, phone?: string) => {
         setError(null);
         try {
             const result = await silentFetch<any>(
@@ -139,7 +144,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password, role }),
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email,
+                        password,
+                        role,
+                        phone
+                    }),
                 },
                 null,
                 'AuthContext'
@@ -153,13 +165,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const data = result.data;
             const token = data.token || data.data?.token;
-            const userData = data.user || data.data?.user || { email, name, role };
+            const userData = data.user || data.data?.user || { email, first_name: firstName, last_name: lastName, role, phone };
 
             const userObj: User = {
                 id: userData.id || '',
                 email: userData.email || email,
-                name: userData.name || name,
+                first_name: userData.first_name || firstName,
+                last_name: userData.last_name || lastName,
+                name: `${userData.first_name || firstName} ${userData.last_name || lastName}`.trim(),
                 role: userData.role || role,
+                phone: userData.phone || phone,
                 isAuthenticated: true,
             };
 
