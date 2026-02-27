@@ -1,0 +1,55 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop]
+
+env:
+  GCP_REGION: europe-west2
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+
+  deploy-staging:
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: build-and-lint
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+      - name: Build & Deploy
+        run: |
+          IMAGE=${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/estospaces/estospaces-web
+          docker build \
+            --build-arg VITE_CORE_SERVICE_URL=${{ vars.STAGING_CORE_URL }} \
+            --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.STAGING_BOOKING_URL }} \
+            --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.STAGING_PAYMENT_URL }} \
+            --build-arg VITE_NOTIFICATION_SERVICE_URL=${{ vars.STAGING_NOTIFICATION_URL }} \
+            --build-arg VITE_SEARCH_SERVICE_URL=${{ vars.STAGING_SEARCH_URL }} \
+            --build-arg VITE_MEDIA_SERVICE_URL=${{ vars.STAGING_MEDIA_URL }} \
+            --build-arg VITE_MESSAGING_SERVICE_URL=${{ vars.STAGING_MESSAGING_URL }} \
+            -t $IMAGE:${{ github.sha }} -t $IMAGE:staging .
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:staging
+          gcloud run deploy estospaces-web-staging \
+            --image $IMAGE:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --port 3000 \
+            --allow-unauthenticated
