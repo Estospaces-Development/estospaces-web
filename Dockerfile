@@ -3,11 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package.json only (skip lock file to resolve native deps for Linux)
+COPY package.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies fresh for Linux/Alpine platform
+RUN npm install
 
 # Copy source code
 COPY . .
