@@ -28,16 +28,20 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-      - name: Build & Push
+      - name: Build & Deploy
         run: |
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/estospaces/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-          docker build -t $IMAGE .
-          docker push $IMAGE
-
-      - name: Deploy to Cloud Run
-        run: |
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/estospaces/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/estospaces/${{ env.SERVICE_NAME }}"
+          docker build \
+            --build-arg VITE_CORE_SERVICE_URL=${{ vars.STAGING_CORE_URL }} \
+            --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.STAGING_BOOKING_URL }} \
+            --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.STAGING_PAYMENT_URL }} \
+            --build-arg VITE_NOTIFICATION_SERVICE_URL=${{ vars.STAGING_NOTIFICATION_URL }} \
+            --build-arg VITE_SEARCH_SERVICE_URL=${{ vars.STAGING_SEARCH_URL }} \
+            --build-arg VITE_MEDIA_SERVICE_URL=${{ vars.STAGING_MEDIA_URL }} \
+            --build-arg VITE_MESSAGING_SERVICE_URL=${{ vars.STAGING_MESSAGING_URL }} \
+            -t $IMAGE:${{ github.sha }} .
+          docker push $IMAGE:${{ github.sha }}
           gcloud run services update ${{ env.SERVICE_NAME }}-dev \
-            --image=$IMAGE \
+            --image=$IMAGE:${{ github.sha }} \
             --region=${{ env.REGION }} \
             --project=${{ env.PROJECT_ID }}
