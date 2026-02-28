@@ -1,0 +1,43 @@
+name: CD — Build & Deploy to Cloud Run
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SERVICE_NAME: estospaces-web
+      REGION: europe-west2
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build & Push
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/estospaces/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/estospaces/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          gcloud run services update ${{ env.SERVICE_NAME }}-dev \
+            --image=$IMAGE \
+            --region=${{ env.REGION }} \
+            --project=${{ env.PROJECT_ID }}
