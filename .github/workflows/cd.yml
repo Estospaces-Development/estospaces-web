@@ -11,6 +11,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: staging
     env:
       SERVICE_NAME: estospaces-web
       REGION: europe-west2
