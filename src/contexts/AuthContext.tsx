@@ -134,12 +134,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const register = useCallback(async (name: string, email: string, password: string, role: string) => {
         setError(null);
         try {
+            const nameParts = name.trim().split(' ');
+            const first_name = nameParts[0] || 'Unknown';
+            const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : first_name;
+
             const result = await silentFetch<any>(
                 `${CORE_SERVICE_URL}/api/v1/auth/register`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, email, password, role }),
+                    body: JSON.stringify({ first_name, last_name, email, password, role }),
                 },
                 null,
                 'AuthContext'
