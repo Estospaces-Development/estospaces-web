@@ -33,13 +33,13 @@ jobs:
         run: |
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/estospaces/${{ env.SERVICE_NAME }}"
           docker build \
-            --build-arg VITE_CORE_SERVICE_URL=${{ vars.STAGING_CORE_URL }} \
-            --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.STAGING_BOOKING_URL }} \
-            --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.STAGING_PAYMENT_URL }} \
-            --build-arg VITE_NOTIFICATION_SERVICE_URL=${{ vars.STAGING_NOTIFICATION_URL }} \
-            --build-arg VITE_SEARCH_SERVICE_URL=${{ vars.STAGING_SEARCH_URL }} \
-            --build-arg VITE_MEDIA_SERVICE_URL=${{ vars.STAGING_MEDIA_URL }} \
-            --build-arg VITE_MESSAGING_SERVICE_URL=${{ vars.STAGING_MESSAGING_URL }} \
+            --build-arg VITE_CORE_SERVICE_URL=${{ vars.DEV_CORE_URL }} \
+            --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.DEV_BOOKING_URL }} \
+            --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.DEV_PAYMENT_URL }} \
+            --build-arg VITE_NOTIFICATION_SERVICE_URL=${{ vars.DEV_NOTIFICATION_URL }} \
+            --build-arg VITE_SEARCH_SERVICE_URL=${{ vars.DEV_SEARCH_URL }} \
+            --build-arg VITE_MEDIA_SERVICE_URL=${{ vars.DEV_MEDIA_URL }} \
+            --build-arg VITE_MESSAGING_SERVICE_URL=${{ vars.DEV_MESSAGING_URL }} \
             -t $IMAGE:${{ github.sha }} .
           docker push $IMAGE:${{ github.sha }}
           gcloud run services update ${{ env.SERVICE_NAME }}-dev \
