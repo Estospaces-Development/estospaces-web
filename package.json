@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint"
+    "lint": "eslint",
+    "env:local": "node -e \"require('fs').copyFileSync('.env.local-preset', '.env.development')\" && echo Switched to LOCAL backend",
+    "env:dev": "node -e \"require('fs').copyFileSync('.env.gcp-dev', '.env.development')\" && echo Switched to GCP DEV backend"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
