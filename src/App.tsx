@@ -22,6 +22,8 @@ const TermsPage = lazy(() => import('./pages/public/terms/page'));
 // Lazy loaded pages - Auth
 const LoginPage = lazy(() => import('./pages/auth/login/page'));
 const RegisterPage = lazy(() => import('./pages/auth/register/page'));
+const ForgotPasswordPage = lazy(() => import('./pages/auth/forgot-password/page'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/reset-password/page'));
 
 // Lazy loaded pages - Admin
 const AdminDashboard = lazy(() => import('./pages/admin/dashboard/page'));
@@ -95,6 +97,8 @@ const App: React.FC = () => {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         {/* Admin Routes */}

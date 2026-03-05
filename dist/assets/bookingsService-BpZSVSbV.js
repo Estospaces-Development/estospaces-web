@@ -1,2 +1,0 @@
-import{a5 as n,a6 as a}from"./index-Da7XMO_V.js";const i=()=>a("booking");async function c(){return n(`${i()}/api/v1/bookings`)}async function e(){return n(`${i()}/api/v1/viewings`)}async function o(){return n(`${i()}/api/v1/contracts`)}async function s(t){await n(`${i()}/api/v1/viewings/${t}/cancel`,{method:"POST"})}const g={getBookings:c,getViewings:e,getContracts:o,cancelViewing:s};export{g as b};
-//# sourceMappingURL=bookingsService-BpZSVSbV.js.map
