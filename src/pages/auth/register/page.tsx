@@ -65,11 +65,8 @@ export default function RegisterPage() {
                 return;
             }
 
-            // Registration successful — redirect to appropriate dashboard
+            // Registration successful — show email verification prompt
             setSuccess(true);
-            setTimeout(() => {
-                navigate(getRedirectPath(role));
-            }, 1500);
         } catch {
             setError('An unexpected error occurred. Please try again.');
         } finally {
@@ -102,14 +99,22 @@ export default function RegisterPage() {
                 </h2>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                    Redirecting to your dashboard...
+                    We sent a verification link to <strong>{email}</strong>.
+                    <br />
+                    Please check your inbox and click the link to activate your account.
                 </p>
 
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg px-4 py-2 mb-4">
-                    <p className="text-primary text-sm font-medium">
-                        Signed up as: {role === 'manager' ? 'Property Manager' : 'User'}
-                    </p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3 mb-6 w-full text-left">
+                    <p className="text-blue-700 dark:text-blue-300 text-xs font-medium mb-1">📧 Check your email</p>
+                    <p className="text-blue-600 dark:text-blue-400 text-xs">The activation link expires in 24 hours. Check your spam folder too.</p>
                 </div>
+
+                <Link
+                    to="/login"
+                    className="w-full inline-block py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-center"
+                >
+                    Back to Sign In
+                </Link>
             </div>
         );
     }

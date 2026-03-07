@@ -58,7 +58,13 @@ export default function LoginPage() {
       const result = await login(email, password);
 
       if (!result.success) {
-        setGeneralError(result.error || 'Login failed. Please try again.');
+        // Check for unverified account specifically
+        const errMsg = result.error || '';
+        if (errMsg.toLowerCase().includes('not active') || errMsg.toLowerCase().includes('verify')) {
+          setGeneralError('Your email is not verified. Please check your inbox for the verification link.');
+        } else {
+          setGeneralError(errMsg || 'Login failed. Please try again.');
+        }
         setLoading(false);
         return;
       }
@@ -142,7 +148,7 @@ export default function LoginPage() {
 
         {/* Forgot Password Link */}
         <div className="text-right mb-6">
-          <Link to="/forgot-password" className="text-primary text-sm font-medium cursor-pointer hover:underline">
+          <Link to="/forgot-password" className="text-primary text-sm font-medium hover:underline">
             Forgot Password?
           </Link>
         </div>
