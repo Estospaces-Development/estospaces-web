@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRedirectPath } from '@/lib/authUtils';
-import { Check, X, Eye, EyeOff, User, Briefcase } from 'lucide-react';
+import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw } from 'lucide-react';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export default function RegisterPage() {
     const navigate = useNavigate();
@@ -18,6 +21,9 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const [resendMessage, setResendMessage] = useState('');
 
     const rules: Record<string, boolean> = {
         length: password.length >= 8,
@@ -108,6 +114,37 @@ export default function RegisterPage() {
                     <p className="text-blue-700 dark:text-blue-300 text-xs font-medium mb-1">📧 Check your email</p>
                     <p className="text-blue-600 dark:text-blue-400 text-xs">The activation link expires in 24 hours. Check your spam folder too.</p>
                 </div>
+
+                {resendMessage && (
+                    <p className="text-green-600 dark:text-green-400 text-sm mb-4">{resendMessage}</p>
+                )}
+
+                <button
+                    onClick={async () => {
+                        setResending(true);
+                        setResendMessage('');
+                        try {
+                            await axios.post(`${API_URL}/api/v1/auth/resend-verification`, { email });
+                            setResendMessage('Verification email resent! Check your inbox.');
+                            setResendCooldown(60);
+                            const timer = setInterval(() => {
+                                setResendCooldown((prev) => {
+                                    if (prev <= 1) { clearInterval(timer); return 0; }
+                                    return prev - 1;
+                                });
+                            }, 1000);
+                        } catch {
+                            setResendMessage('Failed to resend. Please try again later.');
+                        } finally {
+                            setResending(false);
+                        }
+                    }}
+                    disabled={resending || resendCooldown > 0}
+                    className="w-full py-3 mb-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                    <RefreshCw size={16} className={resending ? 'animate-spin' : ''} />
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : resending ? 'Resending...' : 'Resend Verification Email'}
+                </button>
 
                 <Link
                     to="/login"
