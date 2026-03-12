@@ -18,7 +18,7 @@ import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import MapView from '@/components/dashboard/MapView';
-import { getProperties, Property } from '@/services/propertyService';
+import { searchService, FilterOptions, SearchResult } from '@/services/searchService';
 
 function DiscoverContent() {
     const navigate = useNavigate();
@@ -27,7 +27,9 @@ function DiscoverContent() {
 
     // Local state
     const [loading, setLoading] = useState(true);
-    const [properties, setProperties] = useState<Property[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [properties, setProperties] = useState<SearchResult[]>([]);
+    const [total, setTotal] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
     const [locationQuery, setLocationQuery] = useState('');
     const [propertyType, setPropertyType] = useState('all');
@@ -36,69 +38,99 @@ function DiscoverContent() {
     const [baths, setBaths] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    const itemsPerPage = 12;
+
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Initialize filters from URL/Context
     useEffect(() => {
         const type = searchParams.get('type');
         if (type === 'rent') setActiveTab('rent');
         else if (type === 'buy') setActiveTab('buy');
-
-        fetchData();
     }, [searchParams, setActiveTab]);
+
+    // Initial load for filters
+    useEffect(() => {
+        const loadFilters = async () => {
+            const opts = await searchService.getFilters();
+            if (opts) setFilterOptions(opts);
+        };
+        loadFilters();
+    }, []);
 
     const fetchData = async () => {
         setLoading(true);
-        const { data } = await getProperties();
-        if (data) setProperties(data);
-        setLoading(false);
+        setError(null);
+        try {
+            const result = await searchService.search(
+                searchQuery,
+                {
+                    propertyType: propertyType !== 'all' ? propertyType : undefined,
+                    minPrice: priceRange.min ? parseInt(priceRange.min) : undefined,
+                    maxPrice: priceRange.max ? parseInt(priceRange.max) : undefined,
+                    minBedrooms: beds ? parseInt(beds) : undefined,
+                    minBathrooms: baths ? parseInt(baths) : undefined,
+                    listingType: activeTab === 'buy' ? 'sale' : activeTab === 'rent' ? 'rent' : 'all',
+                    location: locationQuery.trim() ? locationQuery.trim() : undefined,
+                    page: currentPage,
+                    limit: itemsPerPage
+                }
+            );
+
+            if (result.success) {
+                setProperties(result.data || []);
+                setTotal(result.pagination?.total || 0);
+            } else {
+                setProperties([]);
+                setTotal(0);
+                setError('Failed to fetch properties from server.');
+            }
+        } catch (error) {
+            console.error('Error fetching properties', error);
+            setProperties([]);
+            setTotal(0);
+            setError('An unexpected error occurred while processing the search.');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // Filter properties logic
-    const filteredProperties = useMemo(() => {
-        return properties.filter(p => {
-            // Filter by type (buy/rent)
-            if (activeTab === 'buy' && p.property_type !== 'sale') return false;
-            if (activeTab === 'rent' && p.property_type !== 'rent') return false;
+    // Refetch when dependencies change
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchData();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery]);
 
-            // Search query
-            if (searchQuery.trim()) {
-                const query = searchQuery.toLowerCase();
-                const matches =
-                    p.title.toLowerCase().includes(query) ||
-                    p.address_line_1.toLowerCase().includes(query) ||
-                    p.city.toLowerCase().includes(query) ||
-                    p.postcode.toLowerCase().includes(query);
-                if (!matches) return false;
+    // Autocomplete location suggestions
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (searchQuery.length >= 2) {
+                try {
+                    const suggestions = await searchService.autocomplete(searchQuery);
+                    setLocationSuggestions(suggestions.slice(0, 6));
+                } catch {
+                    setLocationSuggestions([]);
+                }
+            } else {
+                setLocationSuggestions([]);
             }
+        };
 
-            // Location
-            if (locationQuery.trim()) {
-                const loc = locationQuery.toLowerCase();
-                const matches =
-                    p.city.toLowerCase().includes(loc) ||
-                    p.postcode.toLowerCase().includes(loc);
-                if (!matches) return false;
-            }
+        const timer = setTimeout(() => {
+            fetchSuggestions();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
-            // Price
-            if (priceRange.min && p.price < parseInt(priceRange.min)) return false;
-            if (priceRange.max && p.price > parseInt(priceRange.max)) return false;
+    // The backend now handles all filtering and pagination natively.
+    const filteredProperties = properties;
 
-            // Beds/Baths
-            if (beds && p.bedrooms < parseInt(beds)) return false;
-            if (baths && p.bathrooms < parseInt(baths)) return false;
-
-            return true;
-        });
-    }, [properties, activeTab, searchQuery, locationQuery, priceRange, beds, baths]);
-
-    // Pagination
-    const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
-    const paginatedProperties = filteredProperties.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const totalPages = Math.ceil(total / itemsPerPage);
+    const paginatedProperties = properties; // Backend paginates for us
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -109,15 +141,17 @@ function DiscoverContent() {
         setCurrentPage(1);
     };
 
-    const transformForMap = (props: Property[]) => {
-        return props.filter(p => p.latitude && p.longitude).map(p => ({
-            id: p.id,
-            title: p.title,
-            lat: parseFloat(p.latitude || '0'),
-            lng: parseFloat(p.longitude || '0'),
-            price: `£${p.price.toLocaleString()}`,
-            address: p.address_line_1
-        }));
+    const transformForMap = (props: SearchResult[]) => {
+        return props
+            .filter(p => p.latitude != null && p.longitude != null)
+            .map(p => ({
+                id: p.id,
+                title: p.title,
+                lat: p.latitude as number,
+                lng: p.longitude as number,
+                price: `£${p.price.toLocaleString()}`,
+                address: p.location || p.city || 'Unknown Location'
+            }));
     };
 
     return (
@@ -176,9 +210,38 @@ function DiscoverContent() {
                                     type="text"
                                     placeholder="Postcode, street, or property name..."
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setCurrentPage(1);
+                                        setShowSuggestions(true);
+                                    }}
+                                    onFocus={() => {
+                                        if (locationSuggestions.length > 0) setShowSuggestions(true);
+                                    }}
+                                    onBlur={() => setShowSuggestions(false)}
                                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
                                 />
+                                {showSuggestions && locationSuggestions.length > 0 && (
+                                    <div
+                                        className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-auto"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                    >
+                                        {locationSuggestions.map((suggestion, index) => (
+                                            <button
+                                                key={index}
+                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2"
+                                                onClick={() => {
+                                                    setSearchQuery(suggestion);
+                                                    setCurrentPage(1);
+                                                    setShowSuggestions(false);
+                                                }}
+                                            >
+                                                <MapPin className="w-4 h-4 text-gray-400" />
+                                                {suggestion}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -190,7 +253,10 @@ function DiscoverContent() {
                                     type="text"
                                     placeholder="City or Town"
                                     value={locationQuery}
-                                    onChange={(e) => setLocationQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        setLocationQuery(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
                                 />
                             </div>
@@ -201,27 +267,57 @@ function DiscoverContent() {
                             <div className="flex items-center gap-2">
                                 <input
                                     type="number"
-                                    placeholder="Min"
+                                    placeholder={filterOptions?.price_range?.min ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min"}
                                     value={priceRange.min}
-                                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
+                                    min={filterOptions?.price_range?.min}
+                                    max={priceRange.max || filterOptions?.price_range?.max}
+                                    onChange={(e) => {
+                                        setPriceRange({ ...priceRange, min: e.target.value });
+                                        setCurrentPage(1);
+                                    }}
                                     className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
                                     type="number"
-                                    placeholder="Max"
+                                    placeholder={filterOptions?.price_range?.max ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max"}
                                     value={priceRange.max}
-                                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
+                                    min={priceRange.min || filterOptions?.price_range?.min}
+                                    max={filterOptions?.price_range?.max}
+                                    onChange={(e) => {
+                                        setPriceRange({ ...priceRange, max: e.target.value });
+                                        setCurrentPage(1);
+                                    }}
                                     className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                 />
                             </div>
                         </div>
 
                         <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Type</label>
+                            <select
+                                value={propertyType}
+                                onChange={(e) => {
+                                    setPropertyType(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                            >
+                                <option value="all">Any Type</option>
+                                {(filterOptions?.property_types || []).map((t: string) => (
+                                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bedrooms</label>
                             <select
                                 value={beds}
-                                onChange={(e) => setBeds(e.target.value)}
+                                onChange={(e) => {
+                                    setBeds(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="">Any Beds</option>
@@ -236,7 +332,10 @@ function DiscoverContent() {
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bathrooms</label>
                             <select
                                 value={baths}
-                                onChange={(e) => setBaths(e.target.value)}
+                                onChange={(e) => {
+                                    setBaths(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="">Any Baths</option>
@@ -269,6 +368,25 @@ function DiscoverContent() {
                                 {[...Array(8)].map((_, i) => (
                                     <PropertyCardSkeleton key={i} />
                                 ))}
+                            </div>
+                        ) : error ? (
+                            <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-red-100 dark:border-red-900/30">
+                                <div className="inline-flex items-center justify-center p-6 bg-red-50 dark:bg-red-900/20 rounded-full mb-6">
+                                    <AlertCircle className="text-red-500" size={48} />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Something went wrong</h3>
+                                <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
+                                    {error}
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        setError(null);
+                                        fetchData();
+                                    }}
+                                    className="mt-8 px-8 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all shadow-md active:scale-95"
+                                >
+                                    Try Again
+                                </button>
                             </div>
                         ) : paginatedProperties.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

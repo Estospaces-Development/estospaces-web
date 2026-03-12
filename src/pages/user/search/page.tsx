@@ -1,57 +1,167 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List } from 'lucide-react';
-import PropertyCard from '../../../components/dashboard/PropertyCard';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2 } from 'lucide-react';
 import Select from '../../../components/ui/Select';
-import Spinner from '../../../components/ui/Spinner';
-
-// Mock property data for search results
-const mockProperties = [
-    { id: '1', title: '2 Bed Apartment in Canary Wharf', address: 'Canary Wharf, London E14', price: 450000, type: 'apartment', bedrooms: 2, bathrooms: 1, area: 750, image: '', status: 'available' as const },
-    { id: '2', title: '3 Bed Semi-Detached in Richmond', address: 'Richmond, London TW10', price: 875000, type: 'house', bedrooms: 3, bathrooms: 2, area: 1200, image: '', status: 'available' as const },
-    { id: '3', title: 'Studio Flat in Shoreditch', address: 'Shoreditch, London E1', price: 320000, type: 'apartment', bedrooms: 1, bathrooms: 1, area: 450, image: '', status: 'available' as const },
-    { id: '4', title: '4 Bed Detached in Kensington', address: 'Kensington, London W8', price: 2100000, type: 'house', bedrooms: 4, bathrooms: 3, area: 2500, image: '', status: 'available' as const },
-    { id: '5', title: '1 Bed Flat in Brixton', address: 'Brixton, London SW2', price: 375000, type: 'apartment', bedrooms: 1, bathrooms: 1, area: 550, image: '', status: 'available' as const },
-    { id: '6', title: '3 Bed Terraced in Wimbledon', address: 'Wimbledon, London SW19', price: 725000, type: 'house', bedrooms: 3, bathrooms: 2, area: 1100, image: '', status: 'available' as const },
-];
+import { searchService, SearchResult, FilterOptions } from '../../../services/searchService';
 
 const PropertySearch = () => {
-    const [query, setQuery] = useState('');
-    const [propertyType, setPropertyType] = useState('');
-    const [minPrice, setMinPrice] = useState('');
-    const [maxPrice, setMaxPrice] = useState('');
-    const [bedrooms, setBedrooms] = useState('');
+    const [searchParams] = useSearchParams();
+
+    // Initialize derived state from URL once
+    const initialQuery = searchParams.get('q') || searchParams.get('keyword') || '';
+    const initialLocation = searchParams.get('location') || '';
+    const initialType = searchParams.get('propertyType') || '';
+    const initialMin = searchParams.get('minPrice') || '';
+    const initialMax = searchParams.get('maxPrice') || '';
+    const initialBeds = searchParams.get('beds') || searchParams.get('minBedrooms') || '';
+    const initialListingType = searchParams.get('type') || '';
+    const initialBaths = searchParams.get('baths') || searchParams.get('minBathrooms') || '';
+
+    const [query, setQuery] = useState(initialQuery);
+    const [location, setLocation] = useState(initialLocation);
+    const [propertyType, setPropertyType] = useState(initialType);
+    const [minPrice, setMinPrice] = useState(initialMin);
+    const [maxPrice, setMaxPrice] = useState(initialMax);
+    const [bedrooms, setBedrooms] = useState(initialBeds);
+    const [listingType, setListingType] = useState(initialListingType);
+    const [baths, setBaths] = useState(initialBaths);
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-    const filteredProperties = useMemo(() => {
-        return mockProperties.filter(p => {
-            if (query && !p.title.toLowerCase().includes(query.toLowerCase()) && !p.address.toLowerCase().includes(query.toLowerCase())) return false;
-            if (propertyType && p.type !== propertyType) return false;
-            if (minPrice && p.price < parseInt(minPrice)) return false;
-            if (maxPrice && p.price > parseInt(maxPrice)) return false;
-            if (bedrooms && p.bedrooms !== parseInt(bedrooms)) return false;
-            return true;
-        });
-    }, [query, propertyType, minPrice, maxPrice, bedrooms]);
+    const [properties, setProperties] = useState<SearchResult[]>([]);
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    // Initial load for filters
+    useEffect(() => {
+        const loadFilters = async () => {
+            const opts = await searchService.getFilters();
+            if (opts) setFilterOptions(opts);
+        };
+        loadFilters();
+    }, []);
+
+    // Refetch when search dependencies change
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchProperties();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, page]);
+
+    // Handle forward/back navigation by re-syncing from URL params
+    useEffect(() => {
+        setQuery(searchParams.get('q') || searchParams.get('keyword') || '');
+        setLocation(searchParams.get('location') || '');
+        setPropertyType(searchParams.get('propertyType') || '');
+        setMinPrice(searchParams.get('minPrice') || '');
+        setMaxPrice(searchParams.get('maxPrice') || '');
+        setBedrooms(searchParams.get('beds') || searchParams.get('minBedrooms') || '');
+        setListingType(searchParams.get('type') || '');
+        setBaths(searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+        setPage(1);
+    }, [searchParams]);
+
+    // Autocomplete location suggestions
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (query.length >= 2) {
+                try {
+                    const suggestions = await searchService.autocomplete(query);
+                    setLocationSuggestions(suggestions.slice(0, 6));
+                } catch {
+                    setLocationSuggestions([]);
+                }
+            } else {
+                setLocationSuggestions([]);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            fetchSuggestions();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [query]);
+
+    const fetchProperties = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await searchService.search(
+                query,
+                {
+                    location: location || undefined,
+                    propertyType: propertyType || undefined,
+                    minPrice: minPrice ? parseInt(minPrice) : undefined,
+                    maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
+                    minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
+                    listingType: listingType || undefined,
+                    minBathrooms: baths ? parseInt(baths) : undefined,
+                    page,
+                    limit: 12
+                }
+            );
+
+            if (result.success) {
+                setProperties(result.data || []);
+                setTotal(result.pagination?.total || 0);
+            } else {
+                setError('Failed to fetch properties. Please try again.');
+                setProperties([]);
+                setTotal(0);
+            }
+        } catch (error) {
+            console.error('Error fetching properties', error);
+            setError('An error occurred while fetching properties.');
+            setProperties([]);
+            setTotal(0);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const clearFilters = () => {
         setQuery('');
+        setLocation('');
         setPropertyType('');
         setMinPrice('');
         setMaxPrice('');
         setBedrooms('');
+        setListingType('');
+        setBaths('');
+        setPage(1);
     };
 
-    const hasFilters = query || propertyType || minPrice || maxPrice || bedrooms;
+    const hasFilters = query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths;
+
+    // Helper for images
+    const getCoverImage = (property: SearchResult) => {
+        if (!property.images) return null;
+        if (Array.isArray(property.images) && property.images.length > 0) return property.images[0];
+        if (typeof property.images === 'string') {
+            try {
+                const parsed = JSON.parse(property.images);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+            } catch {
+                return property.images;
+            }
+        }
+        return null;
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             {/* Search Header */}
             <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Find Your Property</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Search through thousands of verified listings</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Search through verified listings</p>
             </div>
 
             {/* Search Bar */}
@@ -61,10 +171,39 @@ const PropertySearch = () => {
                     <input
                         type="text"
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            setPage(1);
+                            setShowSuggestions(true);
+                        }}
+                        onFocus={() => {
+                            if (locationSuggestions.length > 0) setShowSuggestions(true);
+                        }}
+                        onBlur={() => setShowSuggestions(false)}
                         placeholder="Search by location, property name..."
                         className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                     />
+                    {showSuggestions && locationSuggestions.length > 0 && (
+                        <div
+                            className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-60 overflow-auto"
+                            onMouseDown={(e) => e.preventDefault()} // Prevents input blur before click registers
+                        >
+                            {locationSuggestions.map((suggestion, index) => (
+                                <button
+                                    key={index}
+                                    className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-zinc-800 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2"
+                                    onClick={() => {
+                                        setQuery(suggestion);
+                                        setShowSuggestions(false);
+                                        setPage(1);
+                                    }}
+                                >
+                                    <MapPin className="w-4 h-4 text-gray-400" />
+                                    {suggestion}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <button
                     onClick={() => setShowFilters(!showFilters)}
@@ -79,26 +218,43 @@ const PropertySearch = () => {
             {/* Filters Panel */}
             {showFilters && (
                 <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-5 animate-in slide-in-from-top-2 duration-200">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <Select
+                            label="Listing Type"
+                            options={[
+                                { value: 'rent', label: 'For Rent' },
+                                { value: 'sale', label: 'For Sale' },
+                            ]}
+                            value={listingType}
+                            onChange={(val) => { setListingType(val); setPage(1); }}
+                            placeholder="Any"
+                        />
                         <Select
                             label="Property Type"
-                            options={[
-                                { value: 'apartment', label: 'Apartment' },
-                                { value: 'house', label: 'House' },
-                                { value: 'villa', label: 'Villa' },
-                                { value: 'commercial', label: 'Commercial' },
-                            ]}
+                            options={(filterOptions?.property_types || []).map((t: string) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
                             value={propertyType}
-                            onChange={setPropertyType}
+                            onChange={(val) => { setPropertyType(val); setPage(1); }}
                             placeholder="Any type"
                         />
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Location</label>
+                            <input
+                                type="text"
+                                value={location}
+                                onChange={(e) => { setLocation(e.target.value); setPage(1); }}
+                                placeholder="City or postcode"
+                                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
                         <div>
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Min Price (£)</label>
                             <input
                                 type="number"
                                 value={minPrice}
-                                onChange={(e) => setMinPrice(e.target.value)}
-                                placeholder="No min"
+                                min={filterOptions?.price_range?.min}
+                                max={maxPrice || filterOptions?.price_range?.max}
+                                onChange={(e) => { setMinPrice(e.target.value); setPage(1); }}
+                                placeholder={filterOptions?.price_range?.min ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "No min"}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
@@ -107,23 +263,38 @@ const PropertySearch = () => {
                             <input
                                 type="number"
                                 value={maxPrice}
-                                onChange={(e) => setMaxPrice(e.target.value)}
-                                placeholder="No max"
+                                min={minPrice || filterOptions?.price_range?.min}
+                                max={filterOptions?.price_range?.max}
+                                onChange={(e) => { setMaxPrice(e.target.value); setPage(1); }}
+                                placeholder={filterOptions?.price_range?.max ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "No max"}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
-                        <Select
-                            label="Bedrooms"
-                            options={[
-                                { value: '1', label: '1 Bedroom' },
-                                { value: '2', label: '2 Bedrooms' },
-                                { value: '3', label: '3 Bedrooms' },
-                                { value: '4', label: '4+ Bedrooms' },
-                            ]}
-                            value={bedrooms}
-                            onChange={setBedrooms}
-                            placeholder="Any"
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <Select
+                                label="Bedrooms"
+                                options={[
+                                    { value: '1', label: '1+' },
+                                    { value: '2', label: '2+' },
+                                    { value: '3', label: '3+' },
+                                    { value: '4', label: '4+' },
+                                ]}
+                                value={bedrooms}
+                                onChange={(val) => { setBedrooms(val); setPage(1); }}
+                                placeholder="Any"
+                            />
+                            <Select
+                                label="Bathrooms"
+                                options={[
+                                    { value: '1', label: '1+' },
+                                    { value: '2', label: '2+' },
+                                    { value: '3', label: '3+' },
+                                ]}
+                                value={baths}
+                                onChange={(val) => { setBaths(val); setPage(1); }}
+                                placeholder="Any"
+                            />
+                        </div>
                     </div>
                     {hasFilters && (
                         <button onClick={clearFilters} className="mt-4 flex items-center gap-1.5 text-sm text-red-600 hover:underline">
@@ -136,7 +307,7 @@ const PropertySearch = () => {
             {/* Results Header */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-white">{filteredProperties.length}</span> properties found
+                    <span className="font-semibold text-gray-900 dark:text-white">{loading ? '...' : total}</span> properties found
                 </p>
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
                     <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}>
@@ -149,7 +320,18 @@ const PropertySearch = () => {
             </div>
 
             {/* Results Grid */}
-            {filteredProperties.length === 0 ? (
+            {loading ? (
+                <div className="flex justify-center flex-col items-center py-20 text-indigo-600">
+                    <Loader2 className="w-10 h-10 animate-spin mb-4" />
+                    <span className="text-sm font-medium text-gray-500">Searching properties...</span>
+                </div>
+            ) : error ? (
+                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl border border-red-200 dark:border-red-800 p-12 text-center">
+                    <X className="w-12 h-12 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Error Loading Results</h3>
+                    <p className="text-sm">{error}</p>
+                </div>
+            ) : properties.length === 0 ? (
                 <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-12 text-center">
                     <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No properties found</h3>
@@ -157,19 +339,54 @@ const PropertySearch = () => {
                 </div>
             ) : (
                 <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-4'}>
-                    {filteredProperties.map(p => (
-                        <div key={p.id} className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
-                            <div className="bg-gray-100 dark:bg-zinc-800 rounded-lg h-40 mb-3 flex items-center justify-center">
-                                <MapPin className="w-8 h-8 text-gray-300" />
+                    {properties.map(p => {
+                        const coverImg = getCoverImage(p);
+                        return (
+                            <div key={p.id} className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
+                                <div className="bg-gray-100 dark:bg-zinc-800 rounded-lg h-40 mb-3 flex items-center justify-center overflow-hidden">
+                                    {coverImg ? (
+                                        <img src={coverImg} alt={p.title} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <MapPin className="w-8 h-8 text-gray-300" />
+                                    )}
+                                </div>
+                                <h3 className="font-semibold text-gray-900 dark:text-white mb-1 truncate">{p.title}</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 truncate">{p.location || p.city || p.postcode}</p>
+                                <div className="flex items-center justify-between mt-3">
+                                    <span className="text-lg font-bold text-indigo-600">
+                                        £{p.price?.toLocaleString()}
+                                        {p.listing_type === 'rent' && <span className="text-sm font-normal text-gray-500">/mo</span>}
+                                    </span>
+                                    <span className="text-xs text-gray-500">{p.bedrooms} bed · {p.bathrooms} bath {p.square_feet ? `· ${p.square_feet} sqft` : ''}</span>
+                                </div>
                             </div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-1 truncate">{p.title}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{p.address}</p>
-                            <div className="flex items-center justify-between">
-                                <span className="text-lg font-bold text-indigo-600">£{p.price.toLocaleString()}</span>
-                                <span className="text-xs text-gray-500">{p.bedrooms} bed · {p.bathrooms} bath · {p.area} sqft</span>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Pagination Controls */}
+            {total > 12 && (
+                <div className="flex justify-center pt-8">
+                    <div className="flex items-center gap-2">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(page - 1)}
+                            className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg disabled:opacity-50 text-sm font-medium"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-gray-600 dark:text-gray-400 px-4">
+                            Page {page} of {Math.ceil(total / 12)}
+                        </span>
+                        <button
+                            disabled={page >= Math.ceil(total / 12)}
+                            onClick={() => setPage(page + 1)}
+                            className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg disabled:opacity-50 text-sm font-medium"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
