@@ -55,10 +55,18 @@ export interface SearchResponse {
     };
 }
 
+export interface AutocompleteSuggestion {
+    id?: string;
+    text: string;
+    title?: string;
+    city?: string;
+    type: 'location' | 'city' | 'property' | 'popular';
+}
+
 export interface AutocompleteResponse {
     success: boolean;
     data: {
-        suggestions: string[];
+        suggestions: AutocompleteSuggestion[];
     };
 }
 
@@ -139,10 +147,10 @@ export const searchService = {
     /**
      * Get autocomplete suggestions
      */
-    autocomplete: async (query: string): Promise<string[]> => {
+    autocomplete: async (query: string): Promise<AutocompleteSuggestion[]> => {
         if (!query || query.length < 2) return [];
         try {
-            const data = await apiFetch<{ suggestions: string[] }>(`${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`);
+            const data = await apiFetch<{ suggestions: AutocompleteSuggestion[] }>(`${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`);
             return data?.suggestions || [];
         } catch (error) {
             return [];

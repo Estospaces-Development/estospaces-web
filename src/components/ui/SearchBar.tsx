@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Home, DollarSign, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
-import { searchService, FilterOptions } from '../../services/searchService';
+import { searchService, FilterOptions, AutocompleteSuggestion } from '../../services/searchService';
 
 export interface SearchFilters {
     keyword: string;
@@ -86,7 +86,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [searchParams] = useSearchParams();
     const [filters, setFilters] = useState<SearchFilters>({ ...defaultFilters, ...initialFilters });
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-    const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+    const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
 
@@ -237,9 +237,25 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
                                 {locationSuggestions.map((suggestion, index) => (
-                                    <button key={index} type="button" onClick={(e) => { e.preventDefault(); handleInputChange('location', suggestion); setShowSuggestions(false); }} className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center gap-2">
-                                        <MapPin size={14} className="text-primary" />
-                                        <span>{suggestion}</span>
+                                    <button
+                                        key={index}
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (suggestion.type === 'property' && suggestion.id) {
+                                                navigate(`/user/properties/${suggestion.id}`);
+                                            } else {
+                                                handleInputChange('location', suggestion.text);
+                                            }
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center justify-between gap-2"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {suggestion.type === 'property' ? <Home size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
+                                            <span>{suggestion.text}</span>
+                                        </div>
+                                        <span className="text-[10px] uppercase font-bold text-gray-400">{suggestion.type}</span>
                                     </button>
                                 ))}
                             </div>
@@ -371,9 +387,24 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
                                 {locationSuggestions.map((suggestion, index) => (
-                                    <button key={index} type="button" onClick={() => { handleInputChange('location', suggestion); setShowSuggestions(false); }} className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center gap-2">
-                                        <MapPin size={14} className="text-primary" />
-                                        <span>{suggestion}</span>
+                                    <button
+                                        key={index}
+                                        type="button"
+                                        onClick={() => {
+                                            if (suggestion.type === 'property' && suggestion.id) {
+                                                navigate(`/user/properties/${suggestion.id}`);
+                                            } else {
+                                                handleInputChange('location', suggestion.text);
+                                            }
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center justify-between gap-2"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {suggestion.type === 'property' ? <Home size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
+                                            <span>{suggestion.text}</span>
+                                        </div>
+                                        <span className="text-[10px] uppercase font-bold text-gray-400">{suggestion.type}</span>
                                     </button>
                                 ))}
                             </div>
