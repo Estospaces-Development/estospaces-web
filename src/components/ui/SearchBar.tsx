@@ -148,7 +148,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
         try {
             const suggestions = await searchService.autocomplete(query);
-            setLocationSuggestions(suggestions.slice(0, 6));
+            setLocationSuggestions(suggestions.slice(0, 10));
         } catch {
             setLocationSuggestions([]);
         }

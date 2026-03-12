@@ -110,7 +110,7 @@ function DiscoverContent() {
             if (searchQuery.length >= 2) {
                 try {
                     const suggestions = await searchService.autocomplete(searchQuery);
-                    setLocationSuggestions(suggestions.slice(0, 6));
+                    setLocationSuggestions(suggestions.slice(0, 10));
                 } catch {
                     setLocationSuggestions([]);
                 }
