@@ -87,8 +87,7 @@ function DiscoverContent() {
                 setTotal(0);
                 setError('Failed to fetch properties from server.');
             }
-        } catch (error) {
-            console.error('Error fetching properties', error);
+        } catch {
             setProperties([]);
             setTotal(0);
             setError('An unexpected error occurred while processing the search.');

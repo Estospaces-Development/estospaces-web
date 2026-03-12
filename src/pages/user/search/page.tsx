@@ -117,8 +117,7 @@ const PropertySearch = () => {
                 setProperties([]);
                 setTotal(0);
             }
-        } catch (error) {
-            console.error('Error fetching properties', error);
+        } catch {
             setError('An error occurred while fetching properties.');
             setProperties([]);
             setTotal(0);
