@@ -23,6 +23,7 @@ import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import DashboardFooter from '@/components/dashboard/DashboardFooter';
 import ProfileCompletionCard from '@/components/dashboard/ProfileCompletionCard';
+import SearchBar from '../../../components/ui/SearchBar';
 
 // Services
 import * as propertyService from '@/services/propertyService';
@@ -227,142 +228,9 @@ const DashboardClient = () => {
 
           {/* Search Card - Clean Glass Effect */}
           <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 lg:p-8 shadow-2xl max-w-4xl mx-auto animate-slideUp border border-white/50 ring-1 ring-black/5" style={{ animationDelay: '0.2s' }}>
-            {/* Tabs */}
-            <div className="flex items-center gap-2 mb-6 bg-gray-100/80 p-1.5 rounded-2xl w-fit mx-auto border border-gray-200/50">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedPropertyType('buy');
-                  setSearchParams({ type: 'buy' }, { replace: true });
-                }}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${selectedPropertyType === 'buy'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
-                  }`}
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedPropertyType('rent');
-                  setSearchParams({ type: 'rent' }, { replace: true });
-                }}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${selectedPropertyType === 'rent'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
-                  }`}
-              >
-                Rent
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedPropertyType('sold');
-                  setSearchParams({ type: 'sold' }, { replace: true });
-                }}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${selectedPropertyType === 'sold'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
-                  }`}
-              >
-                Sold
-              </button>
+            <div className="w-full">
+              <SearchBar variant="hero" navigateOnSearch={true} searchPath="/user/search" className="w-full text-left" />
             </div>
-
-            {/* Filter Options Row - Multiple Selection */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-              {[
-                { id: 'all', label: 'All Properties', icon: Sparkles },
-                { id: 'recently_added', label: 'Recently Added', icon: Clock },
-                { id: 'most_viewed', label: 'Most Visited', icon: Eye },
-                { id: 'high_demand', label: 'High Demand', icon: TrendingUp },
-                { id: 'budget_friendly', label: 'Budget Friendly', icon: DollarSign },
-              ].map((filter) => {
-                const Icon = filter.icon;
-                const isAllSelected = filter.id === 'all' && selectedFilters.length === 0;
-                const isSelected = filter.id === 'all' ? isAllSelected : selectedFilters.includes(filter.id);
-
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      let newFilters: string[];
-
-                      if (filter.id === 'all') {
-                        newFilters = [];
-                      } else {
-                        if (selectedFilters.includes(filter.id)) {
-                          newFilters = selectedFilters.filter(f => f !== filter.id);
-                        } else {
-                          newFilters = [...selectedFilters, filter.id];
-                        }
-                      }
-
-                      setSelectedFilters(newFilters);
-
-                      const newParams = new URLSearchParams(searchParams);
-                      if (newFilters.length === 0) {
-                        newParams.delete('filter');
-                      } else {
-                        newParams.set('filter', newFilters.join(','));
-                      }
-                      setSearchParams(newParams, { replace: true });
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${isSelected
-                      ? 'bg-orange-50 text-orange-600 border-orange-200 shadow-none'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                  >
-                    <Icon size={16} className={isSelected ? 'text-orange-500' : 'text-gray-400'} />
-                    <span>{filter.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Search Form - Inline */}
-            <form onSubmit={handleLocationSearch} className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative group/input">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/input:text-orange-500 transition-colors" size={22} />
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Enter postcode, city, or area..."
-                  className="w-full pl-14 pr-12 py-4 bg-gray-50 hover:bg-white border-2 border-transparent focus:bg-white focus:border-orange-500 rounded-2xl text-gray-900 placeholder-gray-400 text-lg transition-all duration-300 outline-none shadow-inner"
-                  disabled={searchLoading}
-                />
-                {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchInput('')}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                  >
-                    <X size={20} />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                disabled={searchLoading}
-                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:from-orange-700 active:to-orange-800 text-white rounded-2xl font-bold text-lg transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 min-w-[160px] shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 transform hover:-translate-y-1"
-              >
-                {searchLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    <span>Searching</span>
-                  </>
-                ) : (
-                  <span>Search</span>
-                )}
-              </button>
-            </form>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, ChevronDown, Loader2, LogOut, Settings, HelpCircle } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
+import SearchBar from '../ui/SearchBar';
 import { useAuth } from '@/contexts/AuthContext';
 // import logoIcon from '../../assets/logo-icon.png'; // Need to handle image import or use next/image
 
@@ -68,6 +69,11 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                         </span>
                     </Link>
 
+                </div>
+
+                {/* Center - Global Search */}
+                <div className="flex-1 max-w-xl mx-4 md:mx-8">
+                    <SearchBar variant="compact" searchPath={getLinkPath('/user/search')} />
                 </div>
 
                 {/* Right side - Notifications, User */}

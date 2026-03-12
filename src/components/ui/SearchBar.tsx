@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Home, DollarSign, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { searchService, FilterOptions } from '../../services/searchService';
 
 export interface SearchFilters {
     keyword: string;
@@ -87,41 +88,56 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
 
-    // Initialize from URL params
+    // Fetch dynamic filters
     useEffect(() => {
-        const urlFilters: Partial<SearchFilters> = {};
+        const loadFilters = async () => {
+            const opts = await searchService.getFilters();
+            if (opts) setFilterOptions(opts);
+        };
+        loadFilters();
+    }, []);
 
-        const keyword = searchParams.get('q') || searchParams.get('keyword');
-        if (keyword) urlFilters.keyword = keyword;
+    // Sync with initialFilters anytime they change substantially
+    useEffect(() => {
+        if (initialFilters && Object.keys(initialFilters).length > 0) {
+            setFilters(prev => ({ ...prev, ...initialFilters }));
+        } else {
+            // Fallback to URL parsing if no initialFilters provided (e.g Header search)
+            const urlFilters: Partial<SearchFilters> = {};
 
-        const location = searchParams.get('location');
-        if (location) urlFilters.location = location;
+            const keyword = searchParams.get('q') || searchParams.get('keyword');
+            if (keyword) urlFilters.keyword = keyword;
 
-        const listingType = searchParams.get('type') as 'all' | 'rent' | 'sale';
-        if (listingType && ['all', 'rent', 'sale'].includes(listingType)) {
-            urlFilters.listingType = listingType;
+            const location = searchParams.get('location');
+            if (location) urlFilters.location = location;
+
+            const listingType = searchParams.get('type') as 'all' | 'rent' | 'sale';
+            if (listingType && ['all', 'rent', 'sale'].includes(listingType)) {
+                urlFilters.listingType = listingType;
+            }
+
+            const propertyType = searchParams.get('propertyType');
+            if (propertyType) urlFilters.propertyType = propertyType;
+
+            const minPrice = searchParams.get('minPrice');
+            if (minPrice) urlFilters.minPrice = parseInt(minPrice);
+
+            const maxPrice = searchParams.get('maxPrice');
+            if (maxPrice) urlFilters.maxPrice = parseInt(maxPrice);
+
+            const minBedrooms = searchParams.get('beds') || searchParams.get('minBedrooms');
+            if (minBedrooms) urlFilters.minBedrooms = parseInt(minBedrooms);
+
+            const minBathrooms = searchParams.get('baths') || searchParams.get('minBathrooms');
+            if (minBathrooms) urlFilters.minBathrooms = parseInt(minBathrooms);
+
+            if (Object.keys(urlFilters).length > 0) {
+                setFilters((prev) => ({ ...prev, ...urlFilters }));
+            }
         }
-
-        const propertyType = searchParams.get('propertyType');
-        if (propertyType) urlFilters.propertyType = propertyType;
-
-        const minPrice = searchParams.get('minPrice');
-        if (minPrice) urlFilters.minPrice = parseInt(minPrice);
-
-        const maxPrice = searchParams.get('maxPrice');
-        if (maxPrice) urlFilters.maxPrice = parseInt(maxPrice);
-
-        const minBedrooms = searchParams.get('beds') || searchParams.get('minBedrooms');
-        if (minBedrooms) urlFilters.minBedrooms = parseInt(minBedrooms);
-
-        const minBathrooms = searchParams.get('baths') || searchParams.get('minBathrooms');
-        if (minBathrooms) urlFilters.minBathrooms = parseInt(minBathrooms);
-
-        if (Object.keys(urlFilters).length > 0) {
-            setFilters((prev) => ({ ...prev, ...urlFilters }));
-        }
-    }, [searchParams]);
+    }, [initialFilters, searchParams]);
 
     // Location autocomplete
     const fetchLocationSuggestions = useCallback(async (query: string) => {
@@ -131,20 +147,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
         }
 
         try {
-            const response = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(query)}/autocomplete`);
-            const data = await response.json();
-
-            if (data.result && Array.isArray(data.result)) {
-                setLocationSuggestions(data.result.slice(0, 6));
-            } else {
-                setLocationSuggestions([]);
-            }
+            const suggestions = await searchService.autocomplete(query);
+            setLocationSuggestions(suggestions.slice(0, 6));
         } catch {
-            const cities = ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Liverpool', 'Edinburgh', 'Bristol', 'Sheffield', 'Newcastle'];
-            const filtered = cities.filter((city) =>
-                city.toLowerCase().includes(query.toLowerCase()),
-            );
-            setLocationSuggestions(filtered.slice(0, 6));
+            setLocationSuggestions([]);
         }
     }, []);
 
@@ -231,7 +237,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
                                 {locationSuggestions.map((suggestion, index) => (
-                                    <button key={index} type="button" onClick={() => { handleInputChange('location', suggestion); setShowSuggestions(false); }} className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center gap-2">
+                                    <button key={index} type="button" onClick={(e) => { e.preventDefault(); handleInputChange('location', suggestion); setShowSuggestions(false); }} className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center gap-2">
                                         <MapPin size={14} className="text-primary" />
                                         <span>{suggestion}</span>
                                     </button>
@@ -245,9 +251,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <div className="flex items-center border-b border-gray-200 dark:border-gray-700 pb-2">
                             <Home size={18} className="text-primary mr-2" />
                             <select value={filters.propertyType} onChange={(e) => handleInputChange('propertyType', e.target.value)} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent cursor-pointer">
-                                {propertyTypes.map((type) => (
-                                    <option key={type.value} value={type.value}>{type.label}</option>
-                                ))}
+                                <option value="">All Types</option>
+                                {filterOptions?.property_types.length
+                                    ? filterOptions.property_types.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)
+                                    : propertyTypes.slice(1).map((type) => (
+                                        <option key={type.value} value={type.value}>{type.label}</option>
+                                    ))}
                             </select>
                         </div>
                     </div>
@@ -271,14 +280,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Min Price</label>
                             <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-3 py-2">
                                 <DollarSign size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Min £" className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Max Price</label>
                             <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-3 py-2">
                                 <DollarSign size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Max £" className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
@@ -320,7 +329,18 @@ const SearchBar: React.FC<SearchBarProps> = ({
             <form onSubmit={handleSearch} className={`flex items-center gap-2 ${className}`}>
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                    <input type="text" value={filters.keyword || filters.location} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Search properties..." className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                    <input
+                        type="text"
+                        value={filters.keyword || filters.location}
+                        onChange={(e) => {
+                            handleInputChange('keyword', e.target.value);
+                            if (filters.location) {
+                                handleInputChange('location', ''); // Ensure old hidden locations don't silently apply
+                            }
+                        }}
+                        placeholder="Search properties..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    />
                 </div>
                 <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
                     Search

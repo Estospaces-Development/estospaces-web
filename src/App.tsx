@@ -160,7 +160,7 @@ const App: React.FC = () => {
           <Route path="favorites" element={<UserSaved />} />
           <Route path="profile" element={<UserProfileDash />} />
           <Route path="saved" element={<UserSaved />} />
-          <Route path="search" element={<UserDiscover />} />
+          <Route path="search" element={<UserSearch />} />
           <Route path="settings" element={<UserSettingsDash />} />
         </Route>
 
