@@ -65,6 +65,7 @@ const UserFavorites = lazy(() => import('./pages/user/favorites/page'));
 const UserProfile = lazy(() => import('./pages/user/profile/page'));
 const UserSaved = lazy(() => import('./pages/user/saved/page'));
 const UserSearch = lazy(() => import('./pages/user/search/page'));
+const UserPropertyDetail = lazy(() => import('./pages/user/properties/[id]/page'));
 const UserSettings = lazy(() => import('./pages/user/settings/page'));
 
 // Nested User Dashboard pages
@@ -161,6 +162,7 @@ const App: React.FC = () => {
           <Route path="profile" element={<UserProfileDash />} />
           <Route path="saved" element={<UserSaved />} />
           <Route path="search" element={<UserSearch />} />
+          <Route path="properties/:id" element={<UserPropertyDetail />} />
           <Route path="settings" element={<UserSettingsDash />} />
         </Route>
 

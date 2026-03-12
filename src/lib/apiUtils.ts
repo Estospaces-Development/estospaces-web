@@ -6,20 +6,20 @@
 // ── Service URL Registry ────────────────────────────────────────────────────
 
 const SERVICE_URLS = {
-    core: () => import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080',
-    booking: () => import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8081',
-    notification: () => import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
-    payment: () => import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
-    search: () => import.meta.env.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
-    messaging: () => import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8085',
-    media: () => import.meta.env.VITE_MEDIA_SERVICE_URL || 'http://localhost:8086',
+    core: import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080',
+    booking: import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8081',
+    notification: import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
+    payment: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
+    search: import.meta.env.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
+    messaging: import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8085',
+    media: import.meta.env.VITE_MEDIA_SERVICE_URL || 'http://localhost:8086',
 } as const;
 
 export type ServiceName = keyof typeof SERVICE_URLS;
 
 /** Returns the base URL for a given backend service. */
 export function getServiceUrl(service: ServiceName): string {
-    return SERVICE_URLS[service]();
+    return SERVICE_URLS[service];
 }
 
 // ── Auth Header Helper ──────────────────────────────────────────────────────

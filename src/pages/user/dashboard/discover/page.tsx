@@ -18,7 +18,7 @@ import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import MapView from '@/components/dashboard/MapView';
-import { searchService, FilterOptions, SearchResult } from '@/services/searchService';
+import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
 
 function DiscoverContent() {
     const navigate = useNavigate();
@@ -41,7 +41,7 @@ function DiscoverContent() {
     const itemsPerPage = 12;
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
-    const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+    const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Initialize filters from URL/Context
@@ -228,15 +228,22 @@ function DiscoverContent() {
                                         {locationSuggestions.map((suggestion, index) => (
                                             <button
                                                 key={index}
-                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center gap-2"
+                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center justify-between gap-2"
                                                 onClick={() => {
-                                                    setSearchQuery(suggestion);
+                                                    if (suggestion.type === 'property' && suggestion.id) {
+                                                        navigate(`/user/properties/${suggestion.id}`);
+                                                    } else {
+                                                        setSearchQuery(suggestion.text);
+                                                    }
                                                     setCurrentPage(1);
                                                     setShowSuggestions(false);
                                                 }}
                                             >
-                                                <MapPin className="w-4 h-4 text-gray-400" />
-                                                {suggestion}
+                                                <div className="flex items-center gap-2">
+                                                    {suggestion.type === 'property' ? <Home className="w-4 h-4 text-orange-500" /> : <MapPin className="w-4 h-4 text-gray-400" />}
+                                                    <span>{suggestion.text}</span>
+                                                </div>
+                                                <span className="text-[10px] uppercase font-bold text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{suggestion.type}</span>
                                             </button>
                                         ))}
                                     </div>
