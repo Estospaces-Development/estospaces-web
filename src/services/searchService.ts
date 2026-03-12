@@ -97,6 +97,23 @@ export interface FilterOptionsResponse {
     data: FilterOptions;
 }
 
+export interface SavedSearch {
+    id: string;
+    name: string;
+    query?: string;
+    location?: string;
+    postcode?: string;
+    min_price?: number;
+    max_price?: number;
+    property_type?: string;
+    listing_type?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    features?: string;
+    alert_enabled: boolean;
+    created_at: string;
+}
+
 export const searchService = {
     /**
      * Main search endpoint for properties
@@ -179,5 +196,51 @@ export const searchService = {
         } catch (error) {
             return null;
         }
+    },
+
+    /**
+     * Save a search for the user
+     */
+    saveSearch: async (data: Partial<SavedSearch>): Promise<{ success: boolean; data?: SavedSearch; error?: string }> => {
+        try {
+            const res = await fetch(`${API_URL}/api/v1/search/saved`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
+            const json = await res.json();
+            return json;
+        } catch (error) {
+            return { success: false, error: 'Failed to save search' };
+        }
+    },
+
+    /**
+     * Get user's saved searches
+     */
+    getSavedSearches: async (): Promise<SavedSearch[]> => {
+        const data = await apiFetch<SavedSearch[]>(`${API_URL}/api/v1/search/saved`);
+        return data || [];
+    },
+
+    /**
+     * Delete a saved search
+     */
+    deleteSavedSearch: async (id: string): Promise<boolean> => {
+        await apiFetch(`${API_URL}/api/v1/search/saved/${id}`, {
+            method: 'DELETE'
+        });
+        return true;
+    },
+
+    /**
+     * Toggle alert for a saved search
+     */
+    toggleAlert: async (id: string, enabled: boolean): Promise<boolean> => {
+        await apiFetch(`${API_URL}/api/v1/search/saved/${id}/alert`, {
+            method: 'PUT',
+            body: JSON.stringify({ enabled })
+        });
+        return true;
     }
 };

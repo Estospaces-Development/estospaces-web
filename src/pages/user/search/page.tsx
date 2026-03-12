@@ -2,11 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell } from 'lucide-react';
 import Select from '../../../components/ui/Select';
+import Modal from '../../../components/ui/Modal';
 import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion } from '../../../services/searchService';
 
 const PropertySearch = () => {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
     // Initialize derived state from URL once
@@ -38,6 +40,12 @@ const PropertySearch = () => {
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+
+    // Save Search State
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+    const [searchName, setSearchName] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
 
     // Initial load for filters
     useEffect(() => {
@@ -126,6 +134,39 @@ const PropertySearch = () => {
         }
     };
 
+    const handleSaveSearch = async () => {
+        if (!searchName.trim()) return;
+        setIsSaving(true);
+        try {
+            const res = await searchService.saveSearch({
+                name: searchName,
+                query,
+                location,
+                property_type: propertyType,
+                min_price: minPrice ? parseInt(minPrice) : undefined,
+                max_price: maxPrice ? parseInt(maxPrice) : undefined,
+                bedrooms: bedrooms ? parseInt(bedrooms) : undefined,
+                listing_type: listingType,
+                bathrooms: baths ? parseInt(baths) : undefined,
+            });
+
+            if (res.success) {
+                setSaveSuccess(true);
+                setTimeout(() => {
+                    setIsSaveModalOpen(false);
+                    setSaveSuccess(false);
+                    setSearchName('');
+                }, 1500);
+            } else {
+                alert('Error saving search: ' + (res.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Failed to save search');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const clearFilters = () => {
         setQuery('');
         setLocation('');
@@ -158,9 +199,23 @@ const PropertySearch = () => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             {/* Search Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Find Your Property</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Search through verified listings</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Find Your Property</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Search through verified listings</p>
+                </div>
+                {hasFilters && (
+                    <button
+                        onClick={() => {
+                            setSearchName(`${query || location || 'Search'} ${new Date().toLocaleDateString()}`);
+                            setIsSaveModalOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors text-sm font-semibold"
+                    >
+                        <BookmarkPlus className="w-4 h-4" />
+                        Save this search
+                    </button>
+                )}
             </div>
 
             {/* Search Bar */}
@@ -178,14 +233,13 @@ const PropertySearch = () => {
                         onFocus={() => {
                             if (locationSuggestions.length > 0) setShowSuggestions(true);
                         }}
-                        onBlur={() => setShowSuggestions(false)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         placeholder="Search by location, property name..."
                         className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                     />
                     {showSuggestions && locationSuggestions.length > 0 && (
                         <div
                             className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-60 overflow-auto"
-                            onMouseDown={(e) => e.preventDefault()} // Prevents input blur before click registers
                         >
                             {locationSuggestions.map((suggestion, index) => (
                                 <button
@@ -349,14 +403,14 @@ const PropertySearch = () => {
                         const coverImg = getCoverImage(p);
                         return (
                             <div key={p.id} className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
-                                <div className="bg-gray-100 dark:bg-zinc-800 rounded-lg h-40 mb-3 flex items-center justify-center overflow-hidden">
+                                <div className="bg-gray-100 dark:bg-zinc-800 rounded-lg h-40 mb-3 flex items-center justify-center overflow-hidden" onClick={() => navigate(`/user/properties/${p.id}`)}>
                                     {coverImg ? (
-                                        <img src={coverImg} alt={p.title} className="w-full h-full object-cover" />
+                                        <img src={coverImg} alt={p.title} className="w-full h-full object-cover cursor-pointer" />
                                     ) : (
                                         <MapPin className="w-8 h-8 text-gray-300" />
                                     )}
                                 </div>
-                                <h3 className="font-semibold text-gray-900 dark:text-white mb-1 truncate">{p.title}</h3>
+                                <h3 className="font-semibold text-gray-900 dark:text-white mb-1 truncate cursor-pointer" onClick={() => navigate(`/user/properties/${p.id}`)}>{p.title}</h3>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 truncate">{p.location || p.city || p.postcode}</p>
                                 <div className="flex items-center justify-between mt-3">
                                     <span className="text-lg font-bold text-indigo-600">
@@ -395,6 +449,54 @@ const PropertySearch = () => {
                     </div>
                 </div>
             )}
+
+            {/* Save Search Modal */}
+            <Modal
+                isOpen={isSaveModalOpen}
+                onClose={() => setIsSaveModalOpen(false)}
+                title="Save this search"
+            >
+                {saveSuccess ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-4">
+                            <BookmarkPlus className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Search Saved!</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">You'll find this in your Saved Searches</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4 py-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Give your search a name so you can easily re-run it later. We'll also notify you when new properties match these criteria.
+                        </p>
+                        <div>
+                            <label className="text-xs font-bold uppercase text-gray-400 mb-1.5 block">Search Name</label>
+                            <input
+                                type="text"
+                                value={searchName}
+                                onChange={(e) => setSearchName(e.target.value)}
+                                placeholder="e.g. 2 Bed Flats in London"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                        </div>
+                        <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl flex gap-3">
+                            <Bell className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                            <div>
+                                <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Email Alerts</h4>
+                                <p className="text-xs text-indigo-700 dark:text-indigo-300 mt-0.5">We'll send you an email as soon as new matching properties are listed.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleSaveSearch}
+                            disabled={isSaving || !searchName.trim()}
+                            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none transition-all flex items-center justify-center gap-2 mt-4"
+                        >
+                            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <BookmarkPlus className="w-5 h-5" />}
+                            Save Search
+                        </button>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };
