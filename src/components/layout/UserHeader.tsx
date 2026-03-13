@@ -6,7 +6,7 @@ import { User, ChevronDown, Loader2, LogOut, Settings, HelpCircle } from 'lucide
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
 import { useAuth } from '@/contexts/AuthContext';
-// import logoIcon from '../../assets/logo-icon.png'; // Need to handle image import or use next/image
+import { useHost } from '@/lib/utils/hostUtils';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -15,9 +15,9 @@ interface UserHeaderProps {
 const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     const navigate = useNavigate();
     const { user, signOut } = useAuth();
+    const { currentApp } = useHost();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
-    // const logoRef = useRef(null);
 
     // Get user display name and email
     const displayName = user?.name || (user?.email?.split('@')[0] || 'User');
@@ -38,7 +38,15 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
 
     const getLinkPath = (path: string) => {
         if (!useSubdomain) return path;
-        return path.replace(/^\/user/, '') || '/';
+
+        if (currentApp === 'admin') {
+            return path.replace(/^\/admin/, '') || '/';
+        }
+        if (currentApp === 'app') {
+            // Strip both /user and /manager as they are top-level on app subdomain
+            return path.replace(/^\/user/, '').replace(/^\/manager/, '') || '/';
+        }
+        return path;
     };
 
     return (
