@@ -1,6 +1,6 @@
 import React from 'react';
 import { Filter, SortAsc } from 'lucide-react';
-import { PostTag, AuthorRole } from '../../mocks/communityPosts';
+import { PostTag, AuthorRole } from '@/services/communityService';
 
 export type SortOption = 'latest' | 'most_active' | 'pinned_first';
 

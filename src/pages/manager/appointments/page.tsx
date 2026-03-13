@@ -16,91 +16,44 @@ import {
     ArrowLeft,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-interface Appointment {
-    id: string;
-    clientName: string;
-    date: string;
-    time: string;
-    description: string;
-    status: string;
-    property?: string;
-    phone?: string;
-    email?: string;
-}
+import { bookingsService, Viewing } from '@/services/bookingsService';
 
 export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [appointments, setAppointments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
-    useEffect(() => {
-        // Mock data — matches legacy Appointment.tsx UK-localised
-        const mockAppointments: Appointment[] = [
-            {
-                id: '1',
-                clientName: 'Sarah Johnson',
-                date: '2026-02-28',
-                time: '14:00',
-                description: 'First viewing - Canary Wharf Apartment',
-                status: 'Confirmed',
-                property: 'Canary Wharf Apartment',
-                phone: '+44 20 7123 4567',
-                email: 'sarah.j@example.com',
-            },
-            {
-                id: '2',
-                clientName: 'Michael Chen',
-                date: '2026-03-01',
-                time: '10:30',
-                description: 'Second viewing - Kensington Townhouse',
-                status: 'Pending',
-                property: 'Kensington Townhouse',
-                phone: '+44 20 7987 6543',
-                email: 'michael.c@example.com',
-            },
-            {
-                id: '3',
-                clientName: 'Emily Wilson',
-                date: '2026-02-25',
-                time: '16:00',
-                description: 'Initial consultation',
-                status: 'Completed',
-                property: 'Shoreditch Penthouse',
-                phone: '+44 20 7456 7890',
-                email: 'emily.w@example.com',
-            },
-            {
-                id: '4',
-                clientName: 'David Brown',
-                date: '2026-03-05',
-                time: '11:00',
-                description: 'Follow-up viewing',
-                status: 'Cancelled',
-                property: 'Richmond Family Home',
-                phone: '+44 20 7234 5678',
-                email: 'david.b@example.com',
-            },
-            {
-                id: '5',
-                clientName: 'Jessica Taylor',
-                date: '2026-03-10',
-                time: '15:30',
-                description: 'Contract signing',
-                status: 'Confirmed',
-                property: 'Canary Wharf Apartment',
-                phone: '+44 20 7345 6789',
-                email: 'jessica.t@example.com',
-            },
-        ];
-
-        setTimeout(() => {
-            setAppointments(mockAppointments);
+    const fetchAppointments = useCallback(async () => {
+        setLoading(true);
+        try {
+            const { data } = await bookingsService.getViewings();
+            if (data) {
+                const mapped = data.map(v => ({
+                    id: v.id,
+                    clientName: v.agent?.name || 'Client',
+                    date: v.scheduled_at?.split('T')[0] || '',
+                    time: v.scheduled_at?.split('T')[1]?.substring(0, 5) || '',
+                    description: v.viewing_type === 'virtual' ? 'Virtual Viewing' : 'In-person Viewing',
+                    status: v.status.charAt(0).toUpperCase() + v.status.slice(1),
+                    property: v.property?.title || 'Property',
+                    email: 'client@example.com',
+                }));
+                setAppointments(mapped);
+            }
+        } catch (err: any) {
+            console.error('Error fetching appointments:', err);
+            setError(err.message || 'Failed to load appointments');
+        } finally {
             setLoading(false);
-        }, 300);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchAppointments();
+    }, [fetchAppointments]);
 
     const handleDeleteAppointment = (id: string) => {
         setAppointments((prev) => prev.filter((apt) => apt.id !== id));

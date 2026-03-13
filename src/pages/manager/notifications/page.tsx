@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Bell, CheckCircle, AlertCircle, FileText, Shield, MessageCircle, Calendar, Home, DollarSign, Trash2, CheckCheck, Clock, Filter, ArrowLeft, Settings, Search, X, Inbox } from 'lucide-react';
+import { Bell, CheckCircle, AlertCircle, FileText, Shield, MessageCircle, Calendar, Home, DollarSign, Trash2, CheckCheck, Clock, Filter, ArrowLeft, Settings, Search, X, Inbox, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/contexts/ToastContext';
 import * as notificationsService from '@/services/notificationsService';
 
 type FilterType = 'all' | 'unread' | 'read';
@@ -12,8 +13,10 @@ type AppNotification = notificationsService.Notification;
 
 export default function ManagerNotificationsPage() {
     const navigate = useNavigate();
+    const { error: showToastError } = useToast();
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<FilterType>('all');
     const [category, setCategory] = useState<CategoryType>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -21,13 +24,15 @@ export default function ManagerNotificationsPage() {
 
     const fetchNotifs = async () => {
         setIsLoading(true);
+        setError(null);
         try {
             const res = await notificationsService.getNotifications();
             if (res.notifications) {
                 setNotifications(res.notifications);
             }
-        } catch (error) {
-            console.error('Error fetching notifications:', error);
+        } catch (err: any) {
+            console.error('Error fetching notifications:', err);
+            setError(err.message || 'Failed to sync alerts');
         } finally {
             setIsLoading(false);
         }
@@ -54,8 +59,9 @@ export default function ManagerNotificationsPage() {
         try {
             await notificationsService.markRead(id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-        } catch (error) {
-            console.error('Error marking as read:', error);
+        } catch (err: any) {
+            console.error('Error marking as read:', err);
+            showToastError(err.message || 'Failed to update alert status');
         }
     };
 
@@ -63,15 +69,48 @@ export default function ManagerNotificationsPage() {
         try {
             await notificationsService.markAllRead();
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-        } catch (error) {
-            console.error('Error marking all as read:', error);
+        } catch (err: any) {
+            console.error('Error marking all as read:', err);
+            showToastError(err.message || 'Failed to clear all alerts');
         }
     };
 
     const deleteNotification = async (id: string) => {
-        // Backend doesn't have deleteNotification yet, so we just filter locally
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        try {
+            await notificationsService.deleteNotification(id);
+            setNotifications(prev => prev.filter(n => n.id !== id));
+        } catch (err: any) {
+            console.error('Error deleting notification:', err);
+            showToastError(err.message || 'Failed to remove alert');
+        }
     };
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 animate-pulse">
+                <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-6" />
+                <p className="text-gray-500 font-black uppercase tracking-[0.3em] text-xs">Accessing Notification Center...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col items-center justify-center py-32 px-4">
+                <div className="bg-red-50 dark:bg-red-900/20 p-10 rounded-[3rem] text-center max-w-lg border border-red-100 dark:border-red-900/30">
+                    <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-3 uppercase tracking-tight">Signal Interrupted</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-8 font-bold leading-relaxed">{error}</p>
+                    <button 
+                        onClick={() => fetchNotifs()}
+                        className="px-10 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-500/20"
+                    >
+                        Reconnect Link
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const getIcon = (type: string) => {
         switch (type) {

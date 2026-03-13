@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Heart, MessageCircle, Pin, Eye, EyeOff, MoreVertical } from 'lucide-react';
-import { CommunityPost } from '../../mocks/communityPosts';
+import { CommunityPost } from '@/services/communityService';
 import { formatDistanceToNow } from 'date-fns';
 
 interface CommunityPostCardProps {

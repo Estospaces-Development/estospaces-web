@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import * as propertyService from '@/services/propertyService';
 
 interface Property {
     id: string;
@@ -22,6 +23,11 @@ interface Property {
     image_urls?: string[] | string;
     bedrooms?: number;
     bathrooms?: number;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_company?: string;
+    // Keep legacy fields for compatibility
     contact_name?: string;
     contact_email?: string;
     contact_phone?: string;
@@ -91,7 +97,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         }
     }, [isOpen, step]);
 
-    // Load recent properties on modal open using direct REST API
+    // Load recent properties on modal open
     useEffect(() => {
         const fetchRecentProperties = async () => {
             if (!isOpen) {
@@ -101,25 +107,26 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             setLoadingRecent(true);
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yydtsteyknbpfpxjtlxe.supabase.co';
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHRzdGV5a25icGZweGp0bHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkzODgsImV4cCI6MjA3OTM3NTM4OH0.QTUVmTdtnoFhzZ0G6XjdzhFDxcFae0hDSraFhazdNsU';
+                const { data, error } = await propertyService.getProperties({
+                    status: 'online',
+                    sort_by: 'created_at',
+                    sort_order: 'desc',
+                    limit: 6
+                });
 
-                const response = await fetch(
-                    `${supabaseUrl}/rest/v1/properties?status=eq.online&order=created_at.desc&limit=6&select=id,title,address_line_1,city,postcode,price,property_type,listing_type,image_urls,bedrooms,bathrooms,contact_name,contact_email,contact_phone,company`,
-                    {
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                        },
-                    }
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[NewApplication] Fetched recent properties:', data?.length);
-                    setRecentProperties(data || []);
+                if (!error && data) {
+                    console.log('[NewApplication] Fetched recent properties:', data.length);
+                    // Map service properties to local Property interface if needed
+                    const mappedData = data.map(p => ({
+                        ...p,
+                        contact_name: p.agent_name,
+                        contact_email: p.agent_email,
+                        contact_phone: p.agent_phone,
+                        company: p.agent_company
+                    }));
+                    setRecentProperties(mappedData);
                 } else {
-                    console.error('[NewApplication] Failed to fetch properties:', response.status);
+                    console.error('[NewApplication] Failed to fetch properties:', error);
                     setRecentProperties([]);
                 }
             } catch (err) {
@@ -133,7 +140,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         fetchRecentProperties();
     }, [isOpen]);
 
-    // Search properties with debounce using direct REST API
+    // Search properties with debounce
     useEffect(() => {
         const fetchProperties = async () => {
             if (!searchQuery.trim()) {
@@ -143,26 +150,24 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             setLoadingProperties(true);
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yydtsteyknbpfpxjtlxe.supabase.co';
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHRzdGV5a25icGZweGp0bHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkzODgsImV4cCI6MjA3OTM3NTM4OH0.QTUVmTdtnoFhzZ0G6XjdzhFDxcFae0hDSraFhazdNsU';
+                const { data, error } = await propertyService.getProperties({
+                    status: 'online',
+                    search: searchQuery,
+                    limit: 6
+                });
 
-                const encodedQuery = encodeURIComponent(searchQuery);
-                const response = await fetch(
-                    `${supabaseUrl}/rest/v1/properties?status=eq.online&or=(title.ilike.*${encodedQuery}*,city.ilike.*${encodedQuery}*,postcode.ilike.*${encodedQuery}*,address_line_1.ilike.*${encodedQuery}*)&limit=6&select=id,title,address_line_1,city,postcode,price,property_type,listing_type,image_urls,bedrooms,bathrooms,contact_name,contact_email,contact_phone,company`,
-                    {
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                        },
-                    }
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[NewApplication] Search results:', data?.length);
-                    setProperties(data || []);
+                if (!error && data) {
+                    console.log('[NewApplication] Search results:', data.length);
+                    const mappedData = data.map(p => ({
+                        ...p,
+                        contact_name: p.agent_name,
+                        contact_email: p.agent_email,
+                        contact_phone: p.agent_phone,
+                        company: p.agent_company
+                    }));
+                    setProperties(mappedData);
                 } else {
-                    console.error('[NewApplication] Search failed:', response.status);
+                    console.error('[NewApplication] Search failed:', error);
                     setProperties([]);
                 }
             } catch (err) {

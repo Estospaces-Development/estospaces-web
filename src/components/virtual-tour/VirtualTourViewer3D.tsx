@@ -4,11 +4,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
-import { VirtualTourScene } from '../../mocks/virtualTourMock';
+import { TourScene, Hotspot } from '@/services/virtualTourService';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 interface VirtualTourViewer3DProps {
-    scene: VirtualTourScene;
+    scene: TourScene;
     onHotspotClick: (targetSceneId: string) => void;
     initialRotation?: { x: number; y: number };
 }
@@ -170,7 +170,7 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
         const hotspotGroup = new THREE.Group();
         sceneRef.current.add(hotspotGroup);
 
-        scene.hotspots.forEach(hotspot => {
+        scene.hotspots.forEach((hotspot: Hotspot) => {
             // Convert percent x,y to spherical coordinates
             const phi = THREE.MathUtils.degToRad(90 - (hotspot.position.y / 100 * 180 - 90)); // vertical
             const theta = THREE.MathUtils.degToRad(hotspot.position.x / 100 * 360); // horizontal
@@ -194,7 +194,7 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
             circle.position.set(-x, y, z);
             circle.lookAt(0, 0, 0);
 
-            circle.userData = { isHotspot: true, targetId: hotspot.targetSceneId, label: hotspot.label };
+            circle.userData = { isHotspot: true, targetId: hotspot.targetSceneId, label: hotspot.title };
 
             hotspotGroup.add(circle);
         });

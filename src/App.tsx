@@ -81,94 +81,98 @@ const UserReviews = lazy(() => import('./pages/user/dashboard/reviews/page'));
 const UserSettingsDash = lazy(() => import('./pages/user/dashboard/settings/page'));
 const UserViewings = lazy(() => import('./pages/user/dashboard/viewings/page'));
 
+import SubdomainRouter from './components/routing/SubdomainRouter';
+
 const App: React.FC = () => {
   return (
     <Suspense fallback={<Loading />}>
-      <Routes>
-        {/* Public Routes */}
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/cookies" element={<CookiesPage />} />
-          <Route path="/faq" element={<FAQPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-        </Route>
+      <SubdomainRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/cookies" element={<CookiesPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+          </Route>
 
-        {/* Auth Routes */}
-        <Route element={<AuthLayout />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-        </Route>
+          {/* Auth Routes */}
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+          </Route>
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="analytics" element={<AdminAnalytics />} />
-          <Route path="chat" element={<AdminChat />} />
-          <Route path="fast-track" element={<AdminFastTrack />} />
-          <Route path="properties" element={<AdminProperties />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="verifications" element={<AdminVerifications />} />
-        </Route>
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="chat" element={<AdminChat />} />
+            <Route path="fast-track" element={<AdminFastTrack />} />
+            <Route path="properties" element={<AdminProperties />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="verifications" element={<AdminVerifications />} />
+          </Route>
 
-        {/* Manager Routes */}
-        <Route path="/manager" element={<ManagerLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<ManagerDashboard />} />
-          <Route path="dashboard/properties" element={<ManagerProperties />} />
-          <Route path="dashboard/properties/add" element={<ManagerAddProperty />} />
-          <Route path="dashboard/properties/edit/:id" element={<ManagerEditProperty />} />
-          <Route path="dashboard/properties/:id" element={<ManagerPropertyDetail />} />
-          <Route path="analytics" element={<ManagerAnalytics />} />
-          <Route path="applications" element={<ManagerApplications />} />
-          <Route path="appointments" element={<ManagerAppointments />} />
-          <Route path="contracts" element={<ManagerContracts />} />
-          <Route path="billing" element={<ManagerBilling />} />
-          <Route path="clients" element={<ManagerClients />} />
-          <Route path="community" element={<ManagerCommunity />} />
-          <Route path="fast-track" element={<ManagerFastTrack />} />
-          <Route path="help" element={<ManagerHelp />} />
-          <Route path="leads" element={<ManagerLeads />} />
-          <Route path="messages" element={<ManagerMessages />} />
-          <Route path="notifications" element={<ManagerNotifications />} />
-          <Route path="profile" element={<ManagerProfile />} />
-          <Route path="verification" element={<ManagerVerification />} />
-        </Route>
+          {/* Manager Routes */}
+          <Route path="/manager" element={<ManagerLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<ManagerDashboard />} />
+            <Route path="dashboard/properties" element={<ManagerProperties />} />
+            <Route path="dashboard/properties/add" element={<ManagerAddProperty />} />
+            <Route path="dashboard/properties/edit/:id" element={<ManagerEditProperty />} />
+            <Route path="dashboard/properties/:id" element={<ManagerPropertyDetail />} />
+            <Route path="analytics" element={<ManagerAnalytics />} />
+            <Route path="applications" element={<ManagerApplications />} />
+            <Route path="appointments" element={<ManagerAppointments />} />
+            <Route path="contracts" element={<ManagerContracts />} />
+            <Route path="billing" element={<ManagerBilling />} />
+            <Route path="clients" element={<ManagerClients />} />
+            <Route path="community" element={<ManagerCommunity />} />
+            <Route path="fast-track" element={<ManagerFastTrack />} />
+            <Route path="help" element={<ManagerHelp />} />
+            <Route path="leads" element={<ManagerLeads />} />
+            <Route path="messages" element={<ManagerMessages />} />
+            <Route path="notifications" element={<ManagerNotifications />} />
+            <Route path="profile" element={<ManagerProfile />} />
+            <Route path="verification" element={<ManagerVerification />} />
+          </Route>
 
-        {/* User Routes */}
-        <Route path="/user" element={<UserLayout />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<UserDashboard />} />
-          <Route path="dashboard/contracts" element={<UserContracts />} />
-          <Route path="dashboard/discover" element={<UserDiscover />} />
-          <Route path="dashboard/help" element={<UserHelp />} />
-          <Route path="dashboard/messages" element={<UserMessages />} />
-          <Route path="dashboard/notifications" element={<UserNotifications />} />
-          <Route path="dashboard/overseas" element={<UserOverseas />} />
-          <Route path="dashboard/payments" element={<UserPayments />} />
-          <Route path="dashboard/profile" element={<UserProfileDash />} />
-          <Route path="dashboard/reviews" element={<UserReviews />} />
-          <Route path="dashboard/settings" element={<UserSettingsDash />} />
-          <Route path="dashboard/viewings" element={<UserViewings />} />
-          <Route path="applications" element={<UserApplications />} />
-          <Route path="bookings" element={<UserViewings />} />
-          <Route path="favorites" element={<UserSaved />} />
-          <Route path="profile" element={<UserProfileDash />} />
-          <Route path="saved" element={<UserSaved />} />
-          <Route path="search" element={<UserSearch />} />
-          <Route path="properties/:id" element={<UserPropertyDetail />} />
-          <Route path="settings" element={<UserSettingsDash />} />
-        </Route>
+          {/* User Routes */}
+          <Route path="/user" element={<UserLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<UserDashboard />} />
+            <Route path="dashboard/contracts" element={<UserContracts />} />
+            <Route path="dashboard/discover" element={<UserDiscover />} />
+            <Route path="dashboard/help" element={<UserHelp />} />
+            <Route path="dashboard/messages" element={<UserMessages />} />
+            <Route path="dashboard/notifications" element={<UserNotifications />} />
+            <Route path="dashboard/overseas" element={<UserOverseas />} />
+            {/* <Route path="dashboard/payments" element={<UserPayments />} /> */}
+            <Route path="dashboard/profile" element={<UserProfileDash />} />
+            <Route path="dashboard/reviews" element={<UserReviews />} />
+            <Route path="dashboard/settings" element={<UserSettingsDash />} />
+            <Route path="dashboard/viewings" element={<UserViewings />} />
+            <Route path="applications" element={<UserApplications />} />
+            <Route path="bookings" element={<UserViewings />} />
+            <Route path="favorites" element={<UserSaved />} />
+            <Route path="profile" element={<UserProfileDash />} />
+            <Route path="saved" element={<UserSaved />} />
+            <Route path="search" element={<UserSearch />} />
+            <Route path="properties/:id" element={<UserPropertyDetail />} />
+            <Route path="settings" element={<UserSettingsDash />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </SubdomainRouter>
     </Suspense>
   );
 };

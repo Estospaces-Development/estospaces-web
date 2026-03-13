@@ -1,5 +1,5 @@
 import React from 'react';
-import { FastTrackStep } from '../../../mocks/fastTrackCases';
+import { FastTrackStep } from '@/services/fastTrackService';
 import { CheckCircle, Home, Scale, CreditCard, ArrowRight } from 'lucide-react';
 
 interface FastTrackActionsProps {

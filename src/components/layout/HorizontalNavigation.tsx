@@ -51,7 +51,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
         { icon: FileText, label: 'My Applications', path: '/user/applications' },
         { icon: Calendar, label: 'Viewings', path: '/user/dashboard/viewings' },
         { icon: MessageSquare, label: 'Messages', path: '/user/dashboard/messages', showBadge: true, badgeCount: totalUnreadCount },
-        { icon: CreditCard, label: 'Payments', path: '/user/dashboard/payments' },
+        // { icon: CreditCard, label: 'Payments', path: '/user/dashboard/payments' },
         { icon: FileText, label: 'Contracts', path: '/user/dashboard/contracts' },
         { icon: Globe, label: 'Overseas', path: '/user/dashboard/overseas' },
         { icon: User, label: 'Profile', path: '/user/dashboard/profile' },

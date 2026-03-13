@@ -1,23 +1,50 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Calendar, Filter } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar, Filter, Loader2 } from 'lucide-react';
 import BookingCard from '@/components/dashboard/BookingCard';
 import Select from '@/components/ui/Select';
-
-const mockBookings = [
-    { id: 'b1', propertyTitle: '2 Bed Apartment, Canary Wharf', propertyAddress: 'Canary Wharf, London E14', date: '15 Feb 2026', time: '10:00 AM', status: 'confirmed' as const, type: 'viewing' as const, agentName: 'Sarah Johnson' },
-    { id: 'b2', propertyTitle: '3 Bed Semi-Detached, Richmond', propertyAddress: 'Richmond, London TW10', date: '18 Feb 2026', time: '2:30 PM', status: 'pending' as const, type: 'inspection' as const, agentName: 'Mike Peters' },
-    { id: 'b3', propertyTitle: 'Studio Flat, Shoreditch', propertyAddress: 'Shoreditch, London E1', date: '10 Feb 2026', time: '11:00 AM', status: 'completed' as const, type: 'viewing' as const, agentName: 'Emily Davis' },
-    { id: 'b4', propertyTitle: '4 Bed Detached, Kensington', propertyAddress: 'Kensington, London W8', date: '20 Feb 2026', time: '3:00 PM', status: 'confirmed' as const, type: 'meeting' as const, agentName: 'James Wilson' },
-    { id: 'b5', propertyTitle: '1 Bed Flat, Brixton', propertyAddress: 'Brixton, London SW2', date: '5 Feb 2026', time: '9:30 AM', status: 'cancelled' as const, type: 'viewing' as const, agentName: 'Alice Brown' },
-];
+import { bookingsService, Booking } from '@/services/bookingsService';
 
 const BookingsPage = () => {
+    const [bookings, setBookings] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('');
 
-    const filtered = mockBookings.filter(b => {
+    const fetchBookings = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { data } = await bookingsService.getBookings();
+            if (data) {
+                // Map backend bookings to UI format
+                const mapped = data.map(b => ({
+                    id: b.id,
+                    propertyTitle: 'Property Booking', // Ideally joined from backend
+                    propertyAddress: 'Location',
+                    date: new Date(b.check_in_date).toLocaleDateString(),
+                    time: 'All Day',
+                    status: b.status,
+                    type: 'booking',
+                    agentName: 'Manager'
+                }));
+                setBookings(mapped);
+            }
+        } catch (err: any) {
+            console.error('Error fetching bookings:', err);
+            setError(err.message || 'Failed to load bookings');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchBookings();
+    }, [fetchBookings]);
+
+    const filtered = bookings.filter(b => {
         if (statusFilter && b.status !== statusFilter) return false;
         if (typeFilter && b.type !== typeFilter) return false;
         return true;

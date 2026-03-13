@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, CheckCircle } from 'lucide-react';
+import { MapPin, CheckCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/contexts/ToastContext';
 
 const NearestBrokerWidget = () => {
     const navigate = useNavigate();
+    const { success: showToastSuccess } = useToast();
     const [status, setStatus] = useState<'idle' | 'connecting' | 'connected'>('idle');
     const [progress, setProgress] = useState(0);
 
@@ -117,7 +119,7 @@ const NearestBrokerWidget = () => {
                     ) : status === 'connected' ? (
                         <div className="grid grid-cols-2 gap-2">
                             <button
-                                onClick={() => alert(`Calling ${broker.name}...`)}
+                                onClick={() => showToastSuccess(`Calling ${broker.name}...`)}
                                 className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 text-gray-700 dark:text-gray-200 rounded-xl font-medium text-xs transition-colors"
                             >
                                 Call

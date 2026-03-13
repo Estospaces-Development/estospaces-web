@@ -45,6 +45,8 @@ export interface Property {
     agent_email?: string;
     agent_phone?: string;
     agent_company?: string;
+    available_from?: string;
+    maintenance_charges?: number;
     created_at?: string;
     updated_at?: string;
 }

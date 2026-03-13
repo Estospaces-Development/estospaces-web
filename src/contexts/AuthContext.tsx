@@ -30,7 +30,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-import { silentFetch } from '@/lib/apiUtils';
+import { apiFetch } from '@/lib/apiUtils';
 
 const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
 
@@ -60,23 +60,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
         try {
-            const result = await silentFetch<any>(
+            const data = await apiFetch<any>(
                 `${CORE_SERVICE_URL}/api/v1/auth/login`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),
-                },
-                null,
-                'AuthContext'
+                }
             );
 
-            if (!result.data || result.error) {
-                console.warn('Backend login failed, trying mock login fallback');
-                return tryMockLogin(email, password);
+            if (!data) {
+                return { success: false, error: 'Login failed' };
             }
 
-            const data = result.data;
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email };
 
@@ -93,43 +89,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(userObj);
 
             return { success: true };
-        } catch (err) {
-            console.warn('Backend unavailable, using mock login:', err);
-            return tryMockLogin(email, password);
+        } catch (err: any) {
+            console.error('Login error:', err);
+            const errMsg = err.message || 'Login failed. Please check your credentials.';
+            setError(errMsg);
+            return { success: false, error: errMsg };
         }
     }, []);
-
-    const tryMockLogin = (email: string, password: string) => {
-        const MOCK_USERS: Record<string, { password: string; role: string; name: string }> = {
-            'manager@gmail.com': { password: 'Estospaces@123', role: 'manager', name: 'Manager User' },
-            'manager@estospaces.com': { password: 'Estospaces@123', role: 'manager', name: 'Manager User' },
-            'user@gmail.com': { password: 'Estospaces@123', role: 'user', name: 'Demo User' },
-            'user@estospaces.com': { password: 'Estospaces@123', role: 'user', name: 'Demo User' },
-            'admin@estospaces.com': { password: 'Estospaces@123', role: 'admin', name: 'Admin User' },
-        };
-
-        const mockUser = MOCK_USERS[email.toLowerCase()];
-        if (!mockUser) {
-            return { success: false, error: 'Invalid email. Try manager@gmail.com or user@gmail.com for demo.' };
-        }
-        if (password !== mockUser.password) {
-            return { success: false, error: 'Invalid password. Use Estospaces@123 for demo.' };
-        }
-
-        const userObj: User = {
-            id: 'mock-' + Date.now(),
-            email: email.toLowerCase(),
-            name: mockUser.name,
-            role: mockUser.role,
-            isAuthenticated: true,
-        };
-
-        localStorage.setItem('esto_token', 'mock-token-' + Date.now());
-        localStorage.setItem('esto_user', JSON.stringify(userObj));
-        setUser(userObj);
-
-        return { success: true };
-    };
 
     const register = useCallback(async (name: string, email: string, password: string, role: string) => {
         setError(null);
@@ -138,24 +104,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const first_name = nameParts[0] || 'Unknown';
             const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : first_name;
 
-            const result = await silentFetch<any>(
+            const data = await apiFetch<any>(
                 `${CORE_SERVICE_URL}/api/v1/auth/register`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ first_name, last_name, email, password, role }),
-                },
-                null,
-                'AuthContext'
+                }
             );
 
-            if (!result.data || result.error) {
-                const errMsg = result.error || 'Registration failed';
-                setError(errMsg);
-                return { success: false, error: errMsg };
+            if (!data) {
+                setError('Registration failed');
+                return { success: false, error: 'Registration failed' };
             }
 
-            const data = result.data;
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email, name, role };
 
@@ -174,9 +136,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             return { success: true };
-        } catch (err) {
-            console.warn('Backend unavailable for registration:', err);
-            return { success: false, error: 'Backend service unavailable. Please ensure the core service is running on port 8080.' };
+        } catch (err: any) {
+            console.error('Registration error:', err);
+            setError(err.message || 'Registration failed');
+            return { success: false, error: err.message || 'Registration failed' };
         }
     }, []);
 

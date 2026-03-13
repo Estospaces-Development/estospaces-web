@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Send } from 'lucide-react';
-import { CommunityPost, AuthorRole } from '../../mocks/communityPosts';
+import { CommunityPost, AuthorRole, PostComment } from '@/services/communityService';
 import { formatDistanceToNow } from 'date-fns';
 
 interface CommentsModalProps {
@@ -75,7 +75,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                             <p className="text-gray-500 dark:text-gray-400">No comments yet. Be the first to comment!</p>
                         </div>
                     ) : (
-                        post.comments.map((comment) => (
+                        post.comments.map((comment: PostComment) => (
                             <div key={comment.commentId} className="flex gap-3">
                                 <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
                                     <span className="text-white font-semibold text-xs">{comment.authorName.charAt(0)}</span>

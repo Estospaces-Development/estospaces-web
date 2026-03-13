@@ -273,6 +273,25 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
     const mapServiceToContextProperty = (p: propertyService.Property): Property => {
         const imageList = parseStringArray(p.image_urls);
         const videoList = parseStringArray(p.video_urls);
+        const amenitiesList = parseStringArray(p.amenities);
+        const featuresList = parseStringArray(p.features);
+        
+        // Define amenity categories to parse back from flat array
+        const categories = {
+            interior: ['ac', 'heating', 'fireplace', 'walk_in_closet', 'hardwood_floors', 'high_ceiling'],
+            exterior: ['balcony', 'garden', 'terrace', 'patio', 'deck', 'rooftop'],
+            community: ['pool', 'gym', 'clubhouse', 'playground', 'tennis_court', 'sports_facility'],
+            security: ['24hr_security', 'cctv', 'gated_community', 'intercom', 'fire_alarm', 'smart_locks'],
+            utilities: ['wifi', 'cable_tv', 'water_supply', 'power_backup', 'gas_pipeline', 'waste_disposal']
+        };
+
+        const parsedAmenities = {
+            interior: amenitiesList.filter(a => categories.interior.includes(a)),
+            exterior: amenitiesList.filter(a => categories.exterior.includes(a)),
+            community: amenitiesList.filter(a => categories.community.includes(a)),
+            security: amenitiesList.filter(a => categories.security.includes(a)),
+            utilities: amenitiesList.filter(a => categories.utilities.includes(a))
+        };
 
         return {
             id: p.id,
@@ -296,6 +315,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             },
             address: p.address_line_1,
             city: p.city,
+            zipCode: p.postcode,
             area: p.property_size_sqft,
             bedrooms: p.bedrooms,
             bathrooms: p.bathrooms,
@@ -308,15 +328,11 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 totalArea: p.property_size_sqft || 0,
                 areaUnit: 'sqft',
             },
-            amenities: {
-                interior: [],
-                exterior: [],
-                community: [],
-                security: [],
-                utilities: [],
-            },
+            amenities: parsedAmenities,
+            features: featuresList,
             furnishing: p.furnished ? 'furnished' : 'unfurnished',
             condition: 'excellent',
+            yearBuilt: p.year_built,
             analytics: {
                 views: p.views || 0,
                 inquiries: p.inquiries || 0,
@@ -327,14 +343,31 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 images: imageList.map((url, i) => ({ id: `${p.id}-img-${i}`, url: url as string, type: 'image', uploadedAt: new Date().toISOString() })),
                 videos: videoList.map((url, i) => ({ id: `${p.id}-vid-${i}`, url: url as string, type: 'video', uploadedAt: new Date().toISOString() })),
                 floorPlans: [],
+                virtualTourUrl: p.virtual_tour_url,
             },
             images: imageList,
             videos: videoList,
+            virtualTourUrl: p.virtual_tour_url,
+            contact: {
+                name: p.agent_name || '',
+                email: p.agent_email || '',
+                phone: p.agent_phone || '',
+                company: p.agent_company || '',
+                preferredContactMethod: 'any'
+            },
+            contactName: p.agent_name,
+            phoneNumber: p.agent_phone,
+            emailAddress: p.agent_email,
+            financial: {
+                deposit: p.deposit_amount,
+            },
             createdAt: p.created_at || new Date().toISOString(),
             updatedAt: p.updated_at || new Date().toISOString(),
-            availableFrom: p.created_at || new Date().toISOString(),
-            published: p.status === 'published',
+            availableFrom: p.available_from || p.created_at || new Date().toISOString(),
+            published: p.status === 'published' || p.status === 'available' || p.status === 'online',
             draft: p.status === 'draft',
+            featured: p.featured,
+            verified: p.is_verified,
         };
     };
 
@@ -358,6 +391,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         if (p.price?.amount !== undefined) serviceProps.price = p.price.amount;
         if (p.price?.currency !== undefined) serviceProps.currency = p.price.currency;
         if (p.financial?.deposit !== undefined) serviceProps.deposit_amount = p.financial.deposit;
+        if (p.financial?.maintenanceCharges !== undefined) serviceProps.maintenance_charges = p.financial.maintenanceCharges;
 
         // Location fields
         if (p.location?.addressLine1 !== undefined) serviceProps.address_line_1 = p.location.addressLine1;
@@ -368,6 +402,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         // Fallback to top-level fields
         if (!serviceProps.city && p.city) serviceProps.city = p.city;
         if (!serviceProps.address_line_1 && p.address) serviceProps.address_line_1 = p.address;
+        if (!serviceProps.postcode && p.zipCode) serviceProps.postcode = p.zipCode;
 
         // Property details
         if (p.bedrooms !== undefined) serviceProps.bedrooms = p.bedrooms;
@@ -383,6 +418,9 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         if (p.images) serviceProps.image_urls = p.images.filter(img => typeof img === 'string');
         if (p.videos) serviceProps.video_urls = p.videos.filter(vid => typeof vid === 'string');
         if (p.virtualTourUrl !== undefined) serviceProps.virtual_tour_url = p.virtualTourUrl;
+        if (p.media?.virtualTourUrl !== undefined && !serviceProps.virtual_tour_url) {
+            serviceProps.virtual_tour_url = p.media.virtualTourUrl;
+        }
 
         // Features & amenities (flatten grouped amenities into a single array)
         if (p.features) serviceProps.features = p.features;
@@ -392,6 +430,8 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 Object.values(p.amenities).forEach((group: any) => {
                     if (Array.isArray(group)) flatAmenities.push(...group);
                 });
+            } else if (Array.isArray(p.amenities)) {
+                flatAmenities.push(...p.amenities);
             }
             if (flatAmenities.length > 0) serviceProps.amenities = flatAmenities;
         }
@@ -405,6 +445,8 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         if (!serviceProps.agent_name && p.contactName) serviceProps.agent_name = p.contactName;
         if (!serviceProps.agent_email && p.emailAddress) serviceProps.agent_email = p.emailAddress;
         if (!serviceProps.agent_phone && p.phoneNumber) serviceProps.agent_phone = p.phoneNumber;
+
+        if (p.availableFrom !== undefined) serviceProps.available_from = p.availableFrom;
 
         return serviceProps;
     };

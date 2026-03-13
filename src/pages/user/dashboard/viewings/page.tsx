@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
+import { useToast } from '@/contexts/ToastContext';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
@@ -26,6 +27,7 @@ import { bookingsService } from '@/services/bookingsService';
 export default function ViewingsPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { success: showToastSuccess, error: showToastError } = useToast();
     const [viewings, setViewings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, upcoming, past, cancelled
@@ -79,8 +81,6 @@ export default function ViewingsPage() {
     });
 
     const handleCancelViewing = async (viewingId: string) => {
-        if (!window.confirm('Are you sure you want to cancel this viewing?')) return;
-
         try {
             await bookingsService.cancelViewing(viewingId);
 
@@ -98,9 +98,10 @@ export default function ViewingsPage() {
                     'Cancelled by you'
                 );
             }
+            showToastSuccess('Viewing appointment cancelled successfully.');
         } catch (err) {
             console.error('Error cancelling viewing:', err);
-            alert('Failed to cancel viewing. Please try again.');
+            showToastError('Failed to cancel viewing. Please try again.');
         }
     };
 
@@ -258,14 +259,18 @@ export default function ViewingsPage() {
 
                                             <div className="flex gap-3 w-full sm:w-auto">
                                                 <button
-                                                    onClick={() => navigate(`/user/dashboard/property/${viewing.property_id}`)}
+                                                    onClick={() => navigate(`/user/properties/${viewing.property_id}`)}
                                                     className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
                                                 >
                                                     View Listing
                                                 </button>
                                                 {(viewing.status === 'pending' || viewing.status === 'confirmed') && (
                                                     <button
-                                                        onClick={() => handleCancelViewing(viewing.id)}
+                                                        onClick={() => {
+                                                            if (window.confirm('Are you sure you want to cancel this viewing?')) {
+                                                                handleCancelViewing(viewing.id);
+                                                            }
+                                                        }}
                                                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
                                                     >
                                                         Cancel Appointment

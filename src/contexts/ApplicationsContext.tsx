@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { getUserLeads, Lead as BackendLead } from '../services/leadsService';
+import { getUserLeads, Lead as BackendLead, createLead, updateLeadStatus as updateBackendLeadStatus } from '../services/leadsService';
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -125,7 +125,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 updatedAt: lead.updated_at,
                 propertyTitle: lead.property?.title || 'Property',
                 propertyAddress: lead.property?.address_line_1 || 'UK',
-                propertyImage: lead.property?.image_urls ? JSON.parse(lead.property.image_urls)[0] : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400',
+                propertyImage: lead.property?.image_urls ? (lead.property.image_urls.startsWith('[') ? JSON.parse(lead.property.image_urls)[0] : lead.property.image_urls) : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400',
                 propertyPrice: lead.property?.price || 0,
                 propertyType: lead.property?.property_type || 'apartment',
                 agentName: lead.property?.agent_name || 'Agent',
@@ -151,13 +151,28 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     }, [user]);
 
     const createApplication = async (data: any) => {
-        // This should call a backend service to create a lead
+        const { property_id } = data;
+        if (!property_id) return { success: false, error: 'Property ID is required' };
+
+        const { data: lead, error: createError } = await createLead(property_id);
+
+        if (createError) {
+            return { success: false, error: createError };
+        }
+
+        // Refresh applications list
+        await fetchApplications();
         return { success: true };
     };
 
     const withdrawApplication = async (id: string, reason?: string) => {
-        // This should call a backend service to withdraw the application
-        // For now, we'll just update local state to reflect withdrawal for UI responsiveness
+        const { error: updateError } = await updateBackendLeadStatus(id, APPLICATION_STATUS.WITHDRAWN);
+
+        if (updateError) {
+            return { success: false, error: updateError };
+        }
+
+        // Update local state to reflect withdrawal for UI responsiveness
         setApplications(prev => prev.map(app =>
             app.id === id ? { ...app, status: APPLICATION_STATUS.WITHDRAWN } : app
         ));
@@ -165,7 +180,12 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     };
 
     const updateApplicationStatus = async (id: string, status: string) => {
-        // Mock implementation for UI only
+        const { error: updateError } = await updateBackendLeadStatus(id, status);
+
+        if (updateError) {
+            return { success: false, error: updateError };
+        }
+
         setApplications(prev => prev.map(app =>
             app.id === id ? { ...app, status: status as ApplicationStatus } : app
         ));

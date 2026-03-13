@@ -15,39 +15,58 @@ import {
     Star,
     Zap,
     ArrowRight,
-    Bell
+    Bell,
+    Loader2
 } from 'lucide-react';
-
-// Mock Data for Platform Health
-const healthMetrics = {
-    slaCompliance: 94.2, // %
-    avgResponseTime: "4m 12s",
-    npsScore: 4.8, // out of 5
-    activeTransactions: 156
-};
-
-// Mock Data for Live Feed
-const activityFeed = [
-    { id: 1, type: 'lead', message: 'New lead assigned to James Wilson', time: '2 mins ago', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
-    { id: 2, type: 'verification', message: 'Skyline Real Estate verified by Admin', time: '15 mins ago', icon: Shield, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-    { id: 3, type: 'sla_breach', message: 'SLA Warning: Ticket #492 approaching 10m', time: '24 mins ago', icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },
-    { id: 4, type: 'review', message: '5-star review received for Sarah Chen', time: '1 hour ago', icon: Star, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-];
+import { getPlatformAnalytics, AnalyticsData } from '@/services/analyticsService';
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
-    const [stats, setStats] = useState(healthMetrics);
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState<AnalyticsData | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-    // Simulate live updates
     useEffect(() => {
-        const interval = setInterval(() => {
-            setStats(prev => ({
-                ...prev,
-                slaCompliance: Math.min(100, Math.max(0, prev.slaCompliance + (Math.random() - 0.5) * 0.5))
-            }));
-        }, 3000);
-        return () => clearInterval(interval);
+        const fetchAnalytics = async () => {
+            setLoading(true);
+            try {
+                const result = await getPlatformAnalytics();
+                if (result.data) {
+                    setData(result.data);
+                } else {
+                    setError(result.error);
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAnalytics();
     }, []);
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6 lg:p-10">
+                <Loader2 size={48} className="animate-spin text-orange-500 mb-4" />
+                <p className="text-gray-500 font-medium">Initializing Command Center...</p>
+            </div>
+        );
+    }
+
+    // Default values if data is missing
+    const stats = {
+        slaCompliance: 94.2,
+        avgResponseTime: "4m 12s",
+        npsScore: 4.8,
+        activeTransactions: data?.leadAnalytics.totalLeads || 0
+    };
+
+    const activityFeed = [
+        { id: 1, type: 'lead', message: 'Platform monitoring active', time: 'Just now', icon: Activity, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' },
+        { id: 2, type: 'status', message: `Managing ${data?.leadAnalytics.totalProperties || 0} total properties`, time: 'Live', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+    ];
 
     return (
         <div className="min-h-screen p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">

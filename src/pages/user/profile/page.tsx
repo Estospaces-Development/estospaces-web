@@ -1,21 +1,51 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { updateProfile, getProfile } from '@/services/authService';
 
 export default function UserProfilePage() {
+    const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
 
-    // Mock user data - in a real app this would come from the auth context/API
     const [formData, setFormData] = useState({
-        firstName: 'Jeevan',
-        lastName: 'Kumar',
-        email: 'jeevan@example.com',
-        phone: '+44 7700 900000',
-        address: '123 Tech Street, London',
-        bio: 'Looking for a spacious apartment in London.',
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        address: '',
+        bio: '',
     });
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            setIsInitialLoading(true);
+            const { data } = await getProfile();
+            if (data) {
+                setFormData({
+                    firstName: data.first_name || '',
+                    lastName: data.last_name || '',
+                    email: data.email || '',
+                    phone: data.phone || '',
+                    address: data.address || '',
+                    bio: data.bio || '',
+                });
+            } else if (user) {
+                // Fallback to auth context data
+                setFormData(prev => ({
+                    ...prev,
+                    firstName: user.name?.split(' ')[0] || '',
+                    lastName: user.name?.split(' ').slice(1).join(' ') || '',
+                    email: user.email || '',
+                }));
+            }
+            setIsInitialLoading(false);
+        };
+        fetchProfile();
+    }, [user]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData(prev => ({
@@ -28,14 +58,31 @@ export default function UserProfilePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        const { data, error } = await updateProfile({
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            email: formData.email,
+            phone: formData.phone,
+            address: formData.address,
+            bio: formData.bio,
+        });
+        
         setIsLoading(false);
-        setIsSaved(true);
-
-        // Reset save success message after 3 seconds
-        setTimeout(() => setIsSaved(false), 3000);
+        if (data) {
+            setIsSaved(true);
+            setTimeout(() => setIsSaved(false), 3000);
+        } else {
+            alert('Failed to update profile: ' + (error || 'Unknown error'));
+        }
     };
+
+    if (isInitialLoading) {
+        return (
+            <div className="flex justify-center items-center py-20">
+                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">

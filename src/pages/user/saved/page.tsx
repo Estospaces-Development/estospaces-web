@@ -21,6 +21,7 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import { searchService, SavedSearch } from '@/services/searchService';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function SavedPage() {
     const [activeTab, setActiveTab] = useState<'properties' | 'searches'>('properties');
@@ -32,11 +33,13 @@ export default function SavedPage() {
         refreshSavedProperties
     } = useSavedProperties();
     const navigate = useNavigate();
+    const { success: showToastSuccess } = useToast();
 
     const handleRemoveProperty = async (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
         await removeProperty(id);
+        showToastSuccess('Property removed from your saved list.');
     };
 
     return (
@@ -169,6 +172,7 @@ function SavedSearchesTab() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const { success: showToastSuccess, error: showToastError } = useToast();
 
     const fetchSearches = async () => {
         setLoading(true);
@@ -188,14 +192,14 @@ function SavedSearchesTab() {
     }, []);
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this saved search?')) return;
         try {
             const success = await searchService.deleteSavedSearch(id);
             if (success) {
                 setSearches(prev => prev.filter(s => s.id !== id));
+                showToastSuccess('Saved search deleted.');
             }
         } catch (err: any) {
-            alert(err.message || 'Failed to delete search');
+            showToastError(err.message || 'Failed to delete search');
         }
     };
 
@@ -204,9 +208,10 @@ function SavedSearchesTab() {
             const success = await searchService.toggleAlert(id, enabled);
             if (success) {
                 setSearches(prev => prev.map(s => s.id === id ? { ...s, alert_enabled: enabled } : s));
+                showToastSuccess(enabled ? 'Email alerts enabled.' : 'Email alerts disabled.');
             }
         } catch (err: any) {
-            alert(err.message || 'Failed to update alert settings');
+            showToastError(err.message || 'Failed to update alert settings');
         }
     };
 
