@@ -5,6 +5,7 @@ import { Clock, TrendingUp, CheckCircle, FileText, Search, MessageSquare, Headph
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { useToast } from '@/contexts/ToastContext';
 import * as messagesService from '@/services/messagesService';
 
 type ViewType = 'search' | 'contact' | 'tickets' | 'notifications';
@@ -22,6 +23,7 @@ export default function ManagerHelpPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { notifications } = useNotifications();
+    const { success: showToastSuccess, error: showToastError } = useToast();
     const [currentView, setCurrentView] = useState<ViewType>('search');
     const [showNewTicketModal, setShowNewTicketModal] = useState(false);
     const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
@@ -78,10 +80,10 @@ export default function ManagerHelpPage() {
                 category: 'general',
             });
             setFormData(prev => ({ ...prev, subject: '', message: '' }));
-            alert('Message sent successfully!');
+            showToastSuccess('Message sent successfully!');
         } catch (err) {
             console.error('Failed to send message:', err);
-            alert('Failed to send message. Please try again.');
+            showToastError('Failed to send message. Please try again.');
         } finally {
             setContactLoading(false);
         }
@@ -99,9 +101,10 @@ export default function ManagerHelpPage() {
             setShowNewTicketModal(false);
             setNewTicket({ title: '', description: '', priority: 'medium', category: 'general' });
             await fetchTickets();
+            showToastSuccess('Ticket created successfully!');
         } catch (err) {
             console.error('Failed to create ticket:', err);
-            alert('Failed to create ticket. Please try again.');
+            showToastError('Failed to create ticket. Please try again.');
         }
     };
 

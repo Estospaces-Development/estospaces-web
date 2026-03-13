@@ -81,7 +81,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
         { icon: Calendar, label: 'Appointments', path: '/manager/appointments' },
         { icon: MessageSquare, label: 'Messages', path: '/manager/messages' },
         { icon: BarChart3, label: 'Analytics', path: '/manager/analytics' },
-        { icon: CreditCard, label: 'Billing', path: '/manager/billing' },
+        // { icon: CreditCard, label: 'Billing', path: '/manager/billing' }, // Commented out — fully mock, no backend API yet
     ];
 
     // Manager footer items — matches legacy sidebar footer exactly
