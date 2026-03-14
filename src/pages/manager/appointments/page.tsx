@@ -33,13 +33,13 @@ export default function ManagerAppointmentsPage() {
             if (data) {
                 const mapped = data.map(v => ({
                     id: v.id,
-                    clientName: v.agent?.name || 'Client',
+                    clientName: v.agent?.name || `User: ${v.user_id.substring(0, 8)}`,
                     date: v.scheduled_at?.split('T')[0] || '',
                     time: v.scheduled_at?.split('T')[1]?.substring(0, 5) || '',
                     description: v.viewing_type === 'virtual' ? 'Virtual Viewing' : 'In-person Viewing',
                     status: v.status.charAt(0).toUpperCase() + v.status.slice(1),
-                    property: v.property?.title || 'Property',
-                    email: 'client@example.com',
+                    property: v.property?.title || `Property ID: ${v.property_id.substring(0, 8)}`,
+                    user_id: v.user_id,
                 }));
                 setAppointments(mapped);
             }
@@ -55,9 +55,16 @@ export default function ManagerAppointmentsPage() {
         fetchAppointments();
     }, [fetchAppointments]);
 
-    const handleDeleteAppointment = (id: string) => {
-        setAppointments((prev) => prev.filter((apt) => apt.id !== id));
-        setShowDeleteConfirm(null);
+    const handleDeleteAppointment = async (id: string) => {
+        try {
+            await bookingsService.cancelViewing(id);
+            setAppointments((prev) => prev.filter((apt) => apt.id !== id));
+            setShowDeleteConfirm(null);
+        } catch (err: any) {
+            console.error('Error cancelling appointment:', err);
+            // Fallback if component doesn't have toast context yet
+            alert('Failed to cancel appointment: ' + err.message);
+        }
     };
 
     const formatDate = (dateString: string) => {

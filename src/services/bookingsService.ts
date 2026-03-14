@@ -27,6 +27,7 @@ export interface Viewing {
     id: string;
     property_id: string;
     user_id: string;
+    manager_id: string;
     scheduled_at: string;
     duration_minutes: number;
     viewing_type: 'in_person' | 'virtual';
@@ -74,6 +75,15 @@ export interface ContractTemplate {
     isMandatory: boolean;
 }
 
+export interface CreateViewingRequest {
+    property_id: string;
+    manager_id: string;
+    requested_date: string; // YYYY-MM-DD
+    requested_time: string; // HH:MM
+    viewing_type?: string;
+    user_notes?: string;
+}
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -81,6 +91,16 @@ export interface ContractTemplate {
  */
 export async function getBookings(): Promise<{ data: Booking[] }> {
     return apiFetch<{ data: Booking[] }>(`${BOOKING_URL()}/api/v1/bookings`);
+}
+
+/**
+ * Create a new viewing
+ */
+export async function createViewing(request: CreateViewingRequest): Promise<{ data: Viewing }> {
+    return apiFetch<{ data: Viewing }>(`${BOOKING_URL()}/api/v1/viewings`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+    });
 }
 
 /**
@@ -118,6 +138,7 @@ export async function getContractTemplates(): Promise<{ data: ContractTemplate[]
 export const bookingsService = {
     getBookings,
     getViewings,
+    createViewing,
     getContracts,
     getContractTemplates,
     cancelViewing,
