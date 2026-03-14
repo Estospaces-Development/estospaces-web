@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle, Clock, MessageSquare } from 'lucide-react';
-import { contactService } from '../../../services/contactService';
-import { useToast } from '../../../contexts/ToastContext';
+import { ArrowLeft, Mail, Phone, MapPin, Send, CheckCircle, Clock, MessageSquare, Loader2 } from 'lucide-react';
+import { contactService } from '@/services/contactService';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function ContactPage() {
     const navigate = useNavigate();

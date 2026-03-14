@@ -9,6 +9,8 @@ interface User {
     role: string;
     isAuthenticated: boolean;
     avatar_url?: string;
+    phone?: string;
+    address?: string;
     user_metadata?: {
         full_name?: string;
         [key: string]: any;
@@ -192,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             login,
             register,
             signOut,
+            refreshUser,
             getRole,
             getDisplayName,
         }}>

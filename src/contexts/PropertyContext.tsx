@@ -297,21 +297,23 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             id: p.id,
             title: p.title,
             description: p.description,
-            price: {
-                amount: p.price || 0,
+            price: p.price ? {
+                amount: p.price,
                 currency: (p.currency as CurrencyCode) || 'GBP',
                 negotiable: false
-            },
+            } : undefined,
             priceString: p.price ? new Intl.NumberFormat('en-GB', { style: 'currency', currency: p.currency || 'GBP' }).format(p.price) : 'POA',
-            propertyType: (p.property_type as PropertyType) || 'house',
-            listingType: (p.listing_type as ListingType) || 'rent',
-            status: (p.status as PropertyStatus) || 'available',
+            propertyType: (p.property_type as PropertyType),
+            listingType: (p.listing_type as ListingType),
+            status: (p.status as PropertyStatus),
             location: {
                 addressLine1: p.address_line_1,
                 addressLine2: p.address_line_2,
                 city: p.city,
                 postalCode: p.postcode,
-                country: p.country || 'UK',
+                country: p.country,
+                latitude: p.latitude ? parseFloat(p.latitude) : undefined,
+                longitude: p.longitude ? parseFloat(p.longitude) : undefined,
             },
             address: p.address_line_1,
             city: p.city,
@@ -331,7 +333,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             amenities: parsedAmenities,
             features: featuresList,
             furnishing: p.furnished ? 'furnished' : 'unfurnished',
-            condition: 'excellent',
+            condition: 'excellent', // TODO: Backend should provide condition
             yearBuilt: p.year_built,
             analytics: {
                 views: p.views || 0,

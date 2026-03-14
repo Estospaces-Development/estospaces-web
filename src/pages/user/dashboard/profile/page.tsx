@@ -15,16 +15,18 @@ import {
     Save
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile, type UserProfile } from '../../../services/authService';
-import { leadsService } from '../../../services/leadsService';
-import { bookingsService } from '../../../services/bookingsService';
-import { useToast } from '../../../contexts/ToastContext';
+import { updateProfile, type UserProfile } from '@/services/authService';
+import { leadsService } from '@/services/leadsService';
+import { bookingsService } from '@/services/bookingsService';
+import { useToast } from '@/contexts/ToastContext';
+import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
 import DocumentUpload from '@/components/dashboard/DocumentUpload';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
     const { user: currentUser, refreshUser } = useAuth();
+    const { savedCount } = useSavedProperties();
     const toast = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -56,14 +58,14 @@ export default function ProfilePage() {
             ]);
             
             setStats({
-                saved: 0, // Backend mock for now
+                saved: savedCount,
                 leads: leadsData.data?.length || 0,
                 viewings: viewingsData.data?.length || 0
             });
         } catch (error) {
             console.error('[ProfilePage] Stats Error:', error);
         }
-    }, []);
+    }, [savedCount]);
 
     useEffect(() => {
         if (currentUser) {

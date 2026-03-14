@@ -18,8 +18,8 @@ import {
     Globe as LangIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getPreferences, updatePreferences, type UserPreferences } from '../../../services/authService';
-import { useToast } from '../../../contexts/ToastContext';
+import { getPreferences, updatePreferences, type UserPreferences } from '@/services/authService';
+import { useToast } from '@/contexts/ToastContext';
 import Toggle from '@/components/ui/Toggle';
 
 export default function SettingsPage() {
@@ -67,7 +67,7 @@ export default function SettingsPage() {
 
     const handleToggle = (key: keyof UserPreferences) => {
         if (typeof preferences[key] !== 'boolean') return;
-        setPreferences(prev => ({ ...prev, [key]: !prev[key] }));
+        setPreferences((prev: UserPreferences) => ({ ...prev, [key]: !prev[key] }));
         setSaveSuccess(false);
     };
 

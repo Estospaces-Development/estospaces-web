@@ -45,7 +45,7 @@ const ManagerPropertyDetail = lazy(() => import('./pages/manager/dashboard/prope
 const ManagerAnalytics = lazy(() => import('./pages/manager/analytics/page'));
 const ManagerApplications = lazy(() => import('./pages/manager/applications/page'));
 const ManagerAppointments = lazy(() => import('./pages/manager/appointments/page'));
-// const ManagerBilling = lazy(() => import('./pages/manager/billing/page')); // Commented out — fully mock, no backend API yet
+// const ManagerBilling = lazy(() => import('./pages/manager/billing/page'));
 const ManagerClients = lazy(() => import('./pages/manager/clients/page'));
 const ManagerCommunity = lazy(() => import('./pages/manager/community/page'));
 const ManagerContracts = lazy(() => import('./pages/manager/contracts/page'));

@@ -549,7 +549,7 @@ export default function AddPropertyPage() {
                 cancelText="Stay Here"
                 variant="warning"
             />
-            {toast.visible && <Toast message={{ ...toast, isVisible: toast.visible }} onClose={hideToast} />}
+            {toast.visible && <Toast {...toast} isVisible={toast.visible} onClose={hideToast} />}
         </div>
     );
 }

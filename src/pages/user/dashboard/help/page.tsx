@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Book, Mail, Send, CheckCircle, Loader2, ArrowLeft, ChevronRight } from 'lucide-react';
-import { messagesService } from '../../../services/messagesService';
-import { useToast } from '../../../contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function HelpPage() {
     const navigate = useNavigate();

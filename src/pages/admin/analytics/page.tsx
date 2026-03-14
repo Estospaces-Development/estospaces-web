@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { analyticsService, type AnalyticsData } from '../../../services/analyticsService';
+import { getPlatformAnalytics, type AnalyticsData } from '../../../services/analyticsService';
 
 function AnalyticsContent() {
     const { user } = useAuth();
@@ -23,7 +23,7 @@ function AnalyticsContent() {
             if (refresh) setIsRefreshing(true);
             else setIsLoading(true);
 
-            const response = await analyticsService.getPlatformAnalytics();
+            const response = await getPlatformAnalytics();
             if (response.error) {
                 throw new Error(response.error);
             }
@@ -49,32 +49,24 @@ function AnalyticsContent() {
         { 
             label: 'Total Leads', 
             value: data?.leadAnalytics.totalLeads.toLocaleString() || '0', 
-            trend: '+14%', 
-            up: true, 
             icon: Users, 
             color: 'text-blue-500' 
         },
         { 
             label: 'Total Properties', 
             value: data?.leadAnalytics.totalProperties.toLocaleString() || '0', 
-            trend: '+8%', 
-            up: true, 
             icon: Activity, 
             color: 'text-purple-500' 
         },
         { 
             label: 'Total Views', 
             value: data?.leadAnalytics.passed.toLocaleString() || '0', 
-            trend: '+22%', 
-            up: true, 
             icon: Eye, 
             color: 'text-green-500' 
         },
         { 
             label: 'Conversion Rate', 
             value: `${data?.leadAnalytics.conversionRate || 0}%`, 
-            trend: '-2%', 
-            up: false, 
             icon: Zap, 
             color: 'text-orange-500' 
         },
@@ -141,9 +133,6 @@ function AnalyticsContent() {
                                 <div className={`p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 ${stat.color}`}>
                                     <stat.icon size={28} />
                                 </div>
-                                <div className={`flex items-center gap-1 text-[10px] font-black tracking-widest ${stat.up ? 'text-green-500' : 'text-red-500'}`}>
-                                    {stat.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />} {stat.trend}
-                                </div>
                             </div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">{stat.label}</p>
                             <h3 className="text-4xl font-black text-gray-900 dark:text-white">{stat.value}</h3>
@@ -152,8 +141,8 @@ function AnalyticsContent() {
                 ))}
             </div>
 
+            {/* Hardcoded analytics sections commented out as there are no backend endpoints yet
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Main Chart */}
                 <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border dark:border-gray-700 relative overflow-hidden group">
                     <div className="flex items-center justify-between mb-12 relative z-10">
                         <div>
@@ -172,7 +161,6 @@ function AnalyticsContent() {
                         </div>
                     </div>
 
-                    {/* Decorative Pulse Line */}
                     <div className="h-64 relative flex items-end justify-between px-4 pb-10">
                         <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                             <path
@@ -195,7 +183,6 @@ function AnalyticsContent() {
                             </path>
                         </svg>
 
-                        {/* Pulse Dot */}
                         <div className="absolute top-[40px] right-[10%] w-4 h-4 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)] animate-ping"></div>
 
                         <div className="absolute bottom-0 left-0 w-full flex justify-between px-4 text-[8px] font-black text-gray-400 uppercase tracking-widest">
@@ -204,7 +191,6 @@ function AnalyticsContent() {
                     </div>
                 </div>
 
-                {/* Device Breakdown */}
                 <div className="lg:col-span-4 space-y-10">
                     <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border dark:border-gray-700 overflow-hidden group">
                         <h3 className="text-xl font-black text-gray-900 dark:text-white mb-8 tracking-tight">Access Points</h3>
@@ -249,6 +235,7 @@ function AnalyticsContent() {
                     </div>
                 </div>
             </div>
+            */}
 
             {/* Pages Table */}
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">

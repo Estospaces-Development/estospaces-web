@@ -284,7 +284,7 @@ const Analytics = () => {
                 })()}
             </div>
 
-            {/* Future Property Analysis */}
+            {/* Future Property Analysis - Commented out as there's no backend endpoint yet
             <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
                 <div className="flex items-center gap-2 mb-6">
                     <Lightbulb className="w-6 h-6 text-primary" />
@@ -361,9 +361,8 @@ const Analytics = () => {
 
                     return (
                         <>
-                            {/* Summary Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-blue-800">
                                     <div className="flex items-center justify-between mb-2">
                                         <p className="text-sm text-gray-600 dark:text-gray-400">Properties Increasing</p>
                                         <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -397,7 +396,6 @@ const Analytics = () => {
                                 </div>
                             </div>
 
-                            {/* Prediction Chart */}
                             <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
                                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4">Rate Prediction Trend (Next 2 Months)</h3>
                                 <LineChart
@@ -412,7 +410,6 @@ const Analytics = () => {
                                 <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 text-center">Sample: {propertyPredictions[0].name}</p>
                             </div>
 
-                            {/* Property Predictions Table */}
                             <div className="mb-6">
                                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4">Property Rate Predictions</h3>
                                 <div className="overflow-x-auto">
@@ -507,7 +504,6 @@ const Analytics = () => {
                                 </div>
                             </div>
 
-                            {/* Agent Recommendations */}
                             <div className="p-4 bg-gradient-to-r from-primary/10 to-orange-100 dark:from-primary/20 dark:to-orange-900/20 rounded-lg border border-primary/20 dark:border-primary/30">
                                 <div className="flex items-start gap-3">
                                     <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
@@ -546,6 +542,7 @@ const Analytics = () => {
                     );
                 })()}
             </div>
+            */}
 
             {/* Charts Row 1: Pie Charts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -598,8 +595,8 @@ const Analytics = () => {
                     <BarChart
                         data={propertyPerformance.slice(0, 3).map((p) => ({
                             label: p.property.split(' ').slice(0, 2).join(' '), // Shorten name
-                            value: p.views,
-                            color: p.views > 500 ? '#10b981' : p.views > 300 ? '#3b82f6' : '#FF6B35'
+                            value: p.applications,
+                            color: p.applications > 50 ? '#10b981' : p.applications > 20 ? '#3b82f6' : '#FF6B35'
                         }))}
                         title="Applications Received"
                         height={200}

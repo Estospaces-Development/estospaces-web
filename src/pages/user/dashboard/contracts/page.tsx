@@ -15,8 +15,8 @@ import {
     ChevronRight,
     Search
 } from 'lucide-react';
-import { bookingsService, type Contract, type ContractTemplate } from '../../../services/bookingsService';
-import { useToast } from '../../../contexts/ToastContext';
+import { bookingsService, type Contract, type ContractTemplate } from '@/services/bookingsService';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function ContractsPage() {
     const navigate = useNavigate();

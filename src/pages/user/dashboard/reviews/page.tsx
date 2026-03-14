@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, MessageSquare, ArrowLeft, Loader2, Calendar } from 'lucide-react';
-import { reviewsService, type Review } from '../../../services/reviewsService';
-import { useToast } from '../../../contexts/ToastContext';
+import { reviewsService, type Review } from '@/services/reviewsService';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function ReviewsPage() {
     const navigate = useNavigate();

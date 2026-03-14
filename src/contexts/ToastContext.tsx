@@ -105,7 +105,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
                 {toasts.map((toast) => (
                     <div key={toast.id} className="pointer-events-auto">
                         <Toast 
-                            message={toast} 
+                            {...toast} 
                             onClose={() => removeToast(toast.id)} 
                         />
                     </div>

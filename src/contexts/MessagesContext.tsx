@@ -153,10 +153,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         }
     }, [user, refreshConversations]);
 
-    // Save locale changes? Not needed if syncing with DB.
-    // However, mute/archive might be local-only or need backend support.
-    // For now, let's keep them as mock/local updates.
-
     const totalUnreadCount = conversations.reduce((sum, conv) => {
         return sum + (conv.isArchived ? 0 : conv.unreadCount);
     }, 0);
@@ -261,27 +257,47 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     }, []);
 
     const archiveConversation = useCallback((conversationId: string) => {
+        // TODO: Backend API for Archive not implemented
+        // integrate when backend is implemented
+        console.warn('Archive not implemented on backend');
+        /*
         setConversations((prev) =>
             prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: true } : conv)
         );
+        */
     }, []);
 
     const unarchiveConversation = useCallback((conversationId: string) => {
+        // TODO: Backend API for Unarchive not implemented
+        // integrate when backend is implemented
+        console.warn('Unarchive not implemented on backend');
+        /*
         setConversations((prev) =>
             prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: false } : conv)
         );
+        */
     }, []);
 
     const muteConversation = useCallback((conversationId: string) => {
+        // TODO: Backend API for Mute not implemented
+        // integrate when backend is implemented
+        console.warn('Mute not implemented on backend');
+        /*
         setConversations((prev) =>
             prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: true } : conv)
         );
+        */
     }, []);
 
     const unmuteConversation = useCallback((conversationId: string) => {
+        // TODO: Backend API for Unmute not implemented
+        // integrate when backend is implemented
+        console.warn('Unmute not implemented on backend');
+        /*
         setConversations((prev) =>
             prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: false } : conv)
         );
+        */
     }, []);
 
     const deleteConversation = useCallback((conversationId: string) => {

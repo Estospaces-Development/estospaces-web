@@ -327,3 +327,19 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
         return { data: null, error: error.message };
     }
 };
+
+export const leadsService = {
+    getUserLeads,
+    getBrokerLeads,
+    getLeadById,
+    updateLeadStatus,
+    createLead,
+    createBrokerRequest,
+    createManualLead,
+    updateLead,
+    deleteLead,
+    respondToLead,
+    getLeadAudit,
+    getAllLeads,
+    reassignLead,
+};
