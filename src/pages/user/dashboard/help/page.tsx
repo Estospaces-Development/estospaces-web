@@ -2,20 +2,44 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HelpCircle, MessageSquare, Book, Mail, Send, X, CheckCircle, Clock, Loader2, ArrowLeft, ChevronRight, Search, FileText } from 'lucide-react';
+import { MessageSquare, Book, Mail, Send, CheckCircle, Loader2, ArrowLeft, ChevronRight } from 'lucide-react';
+import { messagesService } from '../../../services/messagesService';
+import { useToast } from '../../../contexts/ToastContext';
 
 export default function HelpPage() {
     const navigate = useNavigate();
+    const toast = useToast();
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [formData, setFormData] = useState({
+        category: 'General Inquiry',
+        subject: '',
+        message: ''
+    });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitting(true);
-        setTimeout(() => {
-            setSubmitting(false);
+        try {
+            setSubmitting(true);
+            await messagesService.createTicket({
+                subject: formData.subject,
+                message: formData.message,
+                category: formData.category,
+                priority: 'medium'
+            });
             setSubmitted(true);
-        }, 1500);
+            toast.success('Support ticket created successfully');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to submit ticket');
+            console.error('[HelpPage] Submit Error:', error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     return (
@@ -47,9 +71,13 @@ export default function HelpPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {[
                                 { title: 'Guides & Docs', icon: Book, color: 'text-blue-500 bg-blue-50' },
-                                { title: 'Live Chat', icon: MessageSquare, color: 'text-green-500 bg-green-50' },
+                                { title: 'Live Chat', icon: MessageSquare, color: 'text-green-500 bg-green-50', action: () => navigate('/user/dashboard/messages') },
                             ].map((act) => (
-                                <button key={act.title} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center text-center group hover:scale-[1.05] transition-all">
+                                <button 
+                                    key={act.title} 
+                                    onClick={act.action}
+                                    className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center text-center group hover:scale-[1.05] transition-all"
+                                >
                                     <div className={`p-5 rounded-2xl mb-6 ${act.color} dark:bg-gray-700 dark:text-white group-hover:bg-orange-500 group-hover:text-white transition-all`}>
                                         <act.icon size={32} />
                                     </div>
@@ -81,7 +109,7 @@ export default function HelpPage() {
 
                     {/* Right Column: Contact Us Form */}
                     <div className="lg:col-span-5">
-                        <div className="bg-gray-900 dark:bg-white rounded-[2.5rem] p-10 shadow-2xl sticky top-8">
+                        <div className="bg-gray-900 dark:bg-white rounded-[2.5rem] p-10 shadow-2xl sticky top-8 border dark:border-gray-100">
                             <div className="flex items-center gap-4 mb-10">
                                 <div className="p-3 bg-orange-500 rounded-2xl text-white">
                                     <Mail size={24} />
@@ -97,7 +125,10 @@ export default function HelpPage() {
                                     <h3 className="text-2xl font-black text-white dark:text-gray-900 mb-2">Message Sent!</h3>
                                     <p className="text-gray-400 dark:text-gray-500 font-bold mb-10">Our team will get back to you within 24 hours.</p>
                                     <button
-                                        onClick={() => setSubmitted(false)}
+                                        onClick={() => {
+                                            setSubmitted(false);
+                                            setFormData({ category: 'General Inquiry', subject: '', message: '' });
+                                        }}
                                         className="w-full py-4 bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-black border border-white/20 dark:border-gray-200 transition-all active:scale-95"
                                     >
                                         Send Another
@@ -107,16 +138,24 @@ export default function HelpPage() {
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 px-1">Reason</label>
-                                        <select className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 appearance-none shadow-sm">
-                                            <option>General Inquiry</option>
-                                            <option>Technical Problem</option>
-                                            <option>Billing Issue</option>
+                                        <select 
+                                            name="category"
+                                            value={formData.category}
+                                            onChange={handleInputChange}
+                                            className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 appearance-none shadow-sm"
+                                        >
+                                            <option value="General Inquiry">General Inquiry</option>
+                                            <option value="Technical Problem">Technical Problem</option>
+                                            <option value="Billing Issue">Billing Issue</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 px-1">Subject</label>
                                         <input
                                             type="text"
+                                            name="subject"
+                                            value={formData.subject}
+                                            onChange={handleInputChange}
                                             placeholder="What's it about?"
                                             required
                                             className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 shadow-sm"
@@ -125,6 +164,9 @@ export default function HelpPage() {
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 px-1">Your Message</label>
                                         <textarea
+                                            name="message"
+                                            value={formData.message}
+                                            onChange={handleInputChange}
                                             rows={4}
                                             placeholder="Give us more details..."
                                             required

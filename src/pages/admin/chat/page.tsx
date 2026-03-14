@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
-import { MessageSquare, Send, Search, User, Clock } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MessageSquare, Send, Search, Clock, Loader2 } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
 import Badge from '../../../components/ui/Badge';
+import { messagesService, type Conversation as APIConversation, type Message as APIMessage } from '../../../services/messagesService';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface Message {
     id: string;
@@ -23,49 +25,115 @@ interface Conversation {
     messages: Message[];
 }
 
-const mockConversations: Conversation[] = [
-    {
-        id: 'conv-1', userName: 'James Thompson', userRole: 'User',
-        lastMessage: 'I need help with my property verification', lastTime: '2 min ago', unread: 2,
-        messages: [
-            { id: 'm1', sender: 'user', senderName: 'James Thompson', content: 'Hello, I submitted my verification documents but haven\'t heard back.', time: '10:15 AM' },
-            { id: 'm2', sender: 'admin', senderName: 'Admin', content: 'Hi James, let me check your submission status.', time: '10:18 AM' },
-            { id: 'm3', sender: 'user', senderName: 'James Thompson', content: 'I need help with my property verification', time: '10:20 AM' },
-        ],
-    },
-    {
-        id: 'conv-2', userName: 'Olivia Williams', userRole: 'Broker',
-        lastMessage: 'Commission payment query for last month', lastTime: '15 min ago', unread: 0,
-        messages: [
-            { id: 'm4', sender: 'user', senderName: 'Olivia Williams', content: 'Hi, I have a question about my commission for the deal closed last week.', time: '9:45 AM' },
-            { id: 'm5', sender: 'admin', senderName: 'Admin', content: 'Sure, which deal are you referring to?', time: '9:50 AM' },
-            { id: 'm6', sender: 'user', senderName: 'Olivia Williams', content: 'Commission payment query for last month', time: '9:55 AM' },
-        ],
-    },
-    {
-        id: 'conv-3', userName: 'Sophia Martinez', userRole: 'Manager',
-        lastMessage: 'Need access to analytics dashboard', lastTime: '1 hour ago', unread: 1,
-        messages: [
-            { id: 'm7', sender: 'user', senderName: 'Sophia Martinez', content: 'Need access to analytics dashboard', time: '9:00 AM' },
-        ],
-    },
-];
-
 const AdminChatPage = () => {
-    const [selectedConv, setSelectedConv] = useState<Conversation | null>(mockConversations[0]);
+    const toast = useToast();
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSending, setIsSending] = useState(false);
 
-    const filteredConvs = mockConversations.filter(c =>
+    const parseMetadata = (metadataStr: string) => {
+        try {
+            return JSON.parse(metadataStr);
+        } catch (e) {
+            return {};
+        }
+    };
+
+    const fetchConversations = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const apiConvs = await messagesService.getConversations();
+            
+            const mappedConvs: Conversation[] = apiConvs.map(c => {
+                const metadata = parseMetadata(c.metadata);
+                return {
+                    id: c.id,
+                    userName: metadata.userName || c.title || 'Unknown User',
+                    userRole: metadata.userRole || 'User',
+                    lastMessage: c.messages && c.messages.length > 0 ? c.messages[0].content : 'No messages',
+                    lastTime: new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    unread: 0, // Should come from backend ideally
+                    messages: (c.messages || []).map(m => ({
+                        id: m.id,
+                        sender: m.sender_id === 'admin' ? 'admin' : 'user', // Replace with proper check
+                        senderName: m.sender_id === 'admin' ? 'Admin' : (metadata.userName || 'User'),
+                        content: m.content,
+                        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    }))
+                };
+            });
+
+            setConversations(mappedConvs);
+            if (mappedConvs.length > 0 && !selectedConvId) {
+                setSelectedConvId(mappedConvs[0].id);
+            }
+        } catch (error: any) {
+            toast.error('Failed to load conversations');
+            console.error('[AdminChatPage] Load Error:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [selectedConvId, toast]);
+
+    useEffect(() => {
+        fetchConversations();
+    }, []);
+
+    const selectedConv = conversations.find(c => c.id === selectedConvId);
+
+    const filteredConvs = conversations.filter(c =>
         c.userName.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleSend = (e: React.FormEvent) => {
+    const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim() || !selectedConv) return;
-        // In production, send via API
-        setNewMessage('');
+        if (!newMessage.trim() || !selectedConvId || isSending) return;
+
+        try {
+            setIsSending(true);
+            const sentMsg = await messagesService.sendMessage({
+                conversationId: selectedConvId,
+                content: newMessage,
+                type: 'text'
+            });
+
+            // Update local state
+            const mappedMsg: Message = {
+                id: sentMsg.id,
+                sender: 'admin',
+                senderName: 'Admin',
+                content: sentMsg.content,
+                time: new Date(sentMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            setConversations(prev => prev.map(c => 
+                c.id === selectedConvId 
+                    ? { ...c, messages: [...c.messages, mappedMsg], lastMessage: mappedMsg.content, lastTime: mappedMsg.time }
+                    : c
+            ));
+            
+            setNewMessage('');
+        } catch (error: any) {
+            toast.error('Failed to send message');
+            console.error('[AdminChatPage] Send Error:', error);
+        } finally {
+            setIsSending(false);
+        }
     };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-4" />
+                    <p className="text-gray-500">Loading conversations...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-[calc(100vh-100px)] bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden animate-in fade-in duration-500">
@@ -85,28 +153,34 @@ const AdminChatPage = () => {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    {filteredConvs.map(conv => (
-                        <button
-                            key={conv.id}
-                            onClick={() => setSelectedConv(conv)}
-                            className={`w-full flex items-start gap-3 p-4 text-left border-b border-gray-100 dark:border-zinc-900 transition-colors ${selectedConv?.id === conv.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-950'
-                                }`}
-                        >
-                            <Avatar name={conv.userName} size="sm" status="online" />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between mb-0.5">
-                                    <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{conv.userName}</span>
-                                    <span className="text-[10px] text-gray-500 flex-shrink-0">{conv.lastTime}</span>
+                    {filteredConvs.length > 0 ? (
+                        filteredConvs.map(conv => (
+                            <button
+                                key={conv.id}
+                                onClick={() => setSelectedConvId(conv.id)}
+                                className={`w-full flex items-start gap-3 p-4 text-left border-b border-gray-100 dark:border-zinc-900 transition-colors ${selectedConvId === conv.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-950'
+                                    }`}
+                            >
+                                <Avatar name={conv.userName} size="sm" status="online" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between mb-0.5">
+                                        <span className="font-medium text-sm text-gray-900 dark:text-white truncate">{conv.userName}</span>
+                                        <span className="text-[10px] text-gray-500 flex-shrink-0">{conv.lastTime}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{conv.lastMessage}</p>
                                 </div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{conv.lastMessage}</p>
-                            </div>
-                            {conv.unread > 0 && (
-                                <span className="flex-shrink-0 w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                                    {conv.unread}
-                                </span>
-                            )}
-                        </button>
-                    ))}
+                                {conv.unread > 0 && (
+                                    <span className="flex-shrink-0 w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                        {conv.unread}
+                                    </span>
+                                )}
+                            </button>
+                        ))
+                    ) : (
+                        <div className="p-8 text-center text-gray-500">
+                            <p className="text-sm">No conversations found</p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -124,19 +198,25 @@ const AdminChatPage = () => {
 
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {selectedConv.messages.map(msg => (
-                            <div key={msg.id} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${msg.sender === 'admin'
-                                    ? 'bg-indigo-600 text-white rounded-br-sm'
-                                    : 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-bl-sm'
-                                    }`}>
-                                    <p className="text-sm">{msg.content}</p>
-                                    <span className={`text-[10px] mt-1 block ${msg.sender === 'admin' ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}>
-                                        {msg.time}
-                                    </span>
+                        {selectedConv.messages.length > 0 ? (
+                            selectedConv.messages.map(msg => (
+                                <div key={msg.id} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${msg.sender === 'admin'
+                                        ? 'bg-indigo-600 text-white rounded-br-sm'
+                                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white rounded-bl-sm'
+                                        }`}>
+                                        <p className="text-sm">{msg.content}</p>
+                                        <span className={`text-[10px] mt-1 block ${msg.sender === 'admin' ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                            {msg.time}
+                                        </span>
+                                    </div>
                                 </div>
+                            ))
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-gray-500">
+                                <p>No messages in this conversation yet</p>
                             </div>
-                        ))}
+                        )}
                     </div>
 
                     {/* Input */}
@@ -148,13 +228,14 @@ const AdminChatPage = () => {
                                 onChange={(e) => setNewMessage(e.target.value)}
                                 placeholder="Type a message..."
                                 className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                disabled={isSending}
                             />
                             <button
                                 type="submit"
-                                disabled={!newMessage.trim()}
-                                className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!newMessage.trim() || isSending}
+                                className="px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                <Send className="w-4 h-4" />
+                                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             </button>
                         </div>
                     </form>
@@ -172,3 +253,4 @@ const AdminChatPage = () => {
 };
 
 export default AdminChatPage;
+

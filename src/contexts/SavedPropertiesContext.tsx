@@ -3,16 +3,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { notifyPropertySaved } from '../services/notificationsService';
 import { useAuth } from './AuthContext';
-import { apiFetch, getServiceUrl, getAuthHeaders } from '@/lib/apiUtils';
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { Property } from './PropertyContext';
 
 interface SavedPropertiesContextType {
-    savedProperties: any[];
+    savedProperties: Property[];
     savedPropertyIds: Set<string>;
     loading: boolean;
     error: string | null;
-    saveProperty: (property: any) => Promise<any>;
+    saveProperty: (property: Property | string) => Promise<any>;
     removeProperty: (propertyId: string) => Promise<any>;
-    toggleProperty: (property: any) => Promise<any>;
+    toggleProperty: (property: Property | string) => Promise<any>;
     isPropertySaved: (propertyId: string) => boolean;
     savedCount: number;
     refreshSavedProperties: () => void;
@@ -30,7 +31,7 @@ export const useSavedProperties = () => {
 
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
-    const [savedProperties, setSavedProperties] = useState<any[]>([]);
+    const [savedProperties, setSavedProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,7 +43,7 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
 
         setLoading(true);
         try {
-            const data = await apiFetch<any[]>(
+            const data = await apiFetch<Property[]>(
                 `${getServiceUrl('core')}/api/v1/properties/saved`,
             );
             setSavedProperties(data || []);

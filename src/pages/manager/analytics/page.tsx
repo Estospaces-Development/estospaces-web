@@ -8,7 +8,7 @@ import LineChart from '@/components/ui/LineChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useLeads } from '@/contexts/LeadContext';
-import { getAnalyticsData, AnalyticsData } from '@/services/analyticsService';
+import { getManagerAnalytics, AnalyticsData } from '@/services/analyticsService';
 import { getApplications, Application } from '@/services/applicationsService';
 
 const Analytics = () => {
@@ -23,7 +23,7 @@ const Analytics = () => {
         const fetchData = async () => {
             try {
                 const [analyticsResult, applicationsResult] = await Promise.all([
-                    getAnalyticsData(),
+                    getManagerAnalytics(),
                     getApplications()
                 ]);
 

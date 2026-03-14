@@ -494,7 +494,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 setLoading(true);
                 try {
                     const mappedData = mapContextToServiceProperty(propertyData);
-                    console.log('[PropertyContext] Adding property:', mappedData);
+                    // removed console.log
                     const { data, error } = await propertyService.createProperty(mappedData);
                     if (error) throw new Error(error);
                     if (data) {
@@ -515,7 +515,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 setLoading(true);
                 try {
                     const mappedData = mapContextToServiceProperty(propertyData);
-                    console.log('[PropertyContext] Updating property:', id, mappedData);
+                    // removed console.log
                     const { data, error } = await propertyService.updateProperty(id, mappedData);
                     if (error) throw new Error(error);
                     if (data) {

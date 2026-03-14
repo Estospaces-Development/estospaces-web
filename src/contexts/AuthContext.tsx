@@ -24,6 +24,7 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     register: (name: string, email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
     signOut: () => void;
+    refreshUser: () => Promise<void>;
     getRole: () => string;
     getDisplayName: () => string;
 }
@@ -41,21 +42,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAuthenticated = !!user?.isAuthenticated;
 
+    const refreshUser = useCallback(async () => {
+        const token = localStorage.getItem('esto_token');
+        if (!token) {
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const data = await apiFetch<any>(`${CORE_SERVICE_URL}/api/v1/auth/me`);
+            const userData = data.user || data.data || data;
+            const userObj: User = {
+                id: userData.id,
+                email: userData.email,
+                name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : userData.name || userData.email.split('@')[0],
+                role: userData.role || 'user',
+                isAuthenticated: true,
+                avatar_url: userData.avatar_url,
+                phone: userData.phone,
+                address: userData.address
+            };
+            localStorage.setItem('esto_user', JSON.stringify(userObj));
+            setUser(userObj);
+        } catch (err) {
+            console.error('Failed to refresh user:', err);
+            // If token is invalid, sign out
+            localStorage.removeItem('esto_token');
+            localStorage.removeItem('esto_user');
+            setUser(null);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Check for existing session on mount
     useEffect(() => {
-        const stored = localStorage.getItem('esto_user');
-        const token = localStorage.getItem('esto_token');
-        if (stored && token) {
-            try {
-                const parsed = JSON.parse(stored);
-                setUser({ ...parsed, isAuthenticated: true });
-            } catch {
-                localStorage.removeItem('esto_user');
-                localStorage.removeItem('esto_token');
-            }
-        }
-        setLoading(false);
-    }, []);
+        refreshUser();
+    }, [refreshUser]);
 
     const login = useCallback(async (email: string, password: string) => {
         setError(null);

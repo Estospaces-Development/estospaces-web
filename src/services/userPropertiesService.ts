@@ -1,7 +1,6 @@
 /**
  * User Properties Service
  * Fetches user's own properties from core-service backend
- * (replaces old Supabase-direct queries)
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';

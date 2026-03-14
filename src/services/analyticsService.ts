@@ -79,9 +79,9 @@ export const getAnalyticsData = getPlatformAnalytics;
  * Fetch analytics data for the current manager
  * GET /api/v1/manager/analytics (requires manager/admin role)
  */
-export const getManagerAnalytics = async (): Promise<ManagerAnalyticsResponse> => {
+export const getManagerAnalytics = async (): Promise<AnalyticsResponse> => {
     try {
-        const data = await apiFetch<ManagerAnalytics>(
+        const data = await apiFetch<AnalyticsData>(
             `${CORE_URL()}/api/v1/manager/analytics`,
         );
         return { data, error: null };

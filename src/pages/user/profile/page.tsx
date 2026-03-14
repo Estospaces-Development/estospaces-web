@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile, getProfile } from '@/services/authService';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function UserProfilePage() {
     const { user } = useAuth();
+    const { error: showToastError } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
@@ -72,7 +74,7 @@ export default function UserProfilePage() {
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
         } else {
-            alert('Failed to update profile: ' + (error || 'Unknown error'));
+            showToastError('Failed to update profile: ' + (error || 'Unknown error'));
         }
     };
 

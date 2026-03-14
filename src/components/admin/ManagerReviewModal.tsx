@@ -175,12 +175,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         setActionLoading('revoke');
         setError(null);
         try {
-            console.log('Revoking manager approval:', {
-                managerId,
-                adminId: user.id,
-                reasonLength: revokeReason.length,
-                userRole: user.user_metadata?.role || 'unknown'
-            });
+            // removed console.log
 
             const result = await managerVerificationService.revokeManagerApproval(managerId, user.id, revokeReason);
 
@@ -190,7 +185,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 setError(result.error || 'Failed to revoke approval. Please try again.');
                 // Don't close the form on error - let user see the error message
             } else {
-                console.log('Revocation successful:', result.data);
+                // removed console.log
                 // Clear the form
                 setRevokeReason('');
                 setShowRevokeConfirm(false);
@@ -540,7 +535,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    console.log('Revoke button clicked');
                                     setShowRevokeConfirm(true);
                                 }}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"

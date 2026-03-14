@@ -48,6 +48,13 @@ export async function apiFetch<T>(
     url: string,
     options: RequestInit = {},
 ): Promise<T> {
+    const isDebug = import.meta.env.DEV;
+    const method = options.method || 'GET';
+
+    if (isDebug) {
+        console.log(`[API Request] ${method} ${url}`, options.body ? JSON.parse(options.body as string) : '');
+    }
+
     const response = await fetch(url, {
         ...options,
         headers: { ...getAuthHeaders(), ...options.headers },
@@ -61,10 +68,15 @@ export async function apiFetch<T>(
         } catch {
             // No JSON body
         }
+        if (isDebug) console.error(`[API Response Error] ${method} ${url}:`, errorMsg);
         throw new Error(errorMsg);
     }
 
     const json = await response.json();
+
+    if (isDebug) {
+        console.log(`[API Response Success] ${method} ${url}:`, json);
+    }
 
     if (json.success === false) {
         throw new Error(json.error || json.message || 'API operation failed');

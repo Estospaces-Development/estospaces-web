@@ -167,6 +167,31 @@ export const createLead = async (propertyId: string): Promise<{ data: Lead | nul
 };
 
 /**
+ * Create a generic broker request (user)
+ * POST /api/v1/leads/request (core-service)
+ */
+export const createBrokerRequest = async (requestData: {
+    requestType: string;
+    location: string;
+    budget: string;
+    details: string;
+}): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        await apiFetch<any>(
+            `${CORE_URL()}/api/v1/leads/request`,
+            {
+                method: 'POST',
+                body: JSON.stringify(requestData),
+            },
+        );
+        return { success: true, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] createBrokerRequest error:', error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
  * Create a NEW MANUAL lead (broker)
  * POST /api/v1/leads/manual (core-service)
  */

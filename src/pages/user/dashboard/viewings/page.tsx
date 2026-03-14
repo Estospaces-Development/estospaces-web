@@ -6,20 +6,14 @@ import {
     Calendar,
     Clock,
     MapPin,
-    Home,
     Plus,
-    ChevronRight,
-    X,
     Loader2,
-    CheckCircle,
-    XCircle,
-    AlertCircle,
-    Search,
     ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
 import { useToast } from '@/contexts/ToastContext';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
@@ -27,10 +21,12 @@ import { bookingsService } from '@/services/bookingsService';
 export default function ViewingsPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { success: showToastSuccess, error: showToastError } = useToast();
+    const toast = useToast();
     const [viewings, setViewings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, upcoming, past, cancelled
+    const [cancelModalOpen, setCancelModalOpen] = useState(false);
+    const [viewingToCancel, setViewingToCancel] = useState<string | null>(null);
 
     const fetchViewings = useCallback(async () => {
         setLoading(true);
@@ -53,10 +49,11 @@ export default function ViewingsPage() {
             }
         } catch (err: any) {
             console.error('[Viewings] Error fetching viewings:', err);
+            toast.error('Failed to load viewings');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [toast]);
 
     useEffect(() => {
         fetchViewings();
@@ -81,6 +78,11 @@ export default function ViewingsPage() {
     });
 
     const handleCancelViewing = async (viewingId: string) => {
+        if (!user?.id) {
+            toast.error('You must be logged in to cancel a viewing.');
+            return;
+        }
+
         try {
             await bookingsService.cancelViewing(viewingId);
 
@@ -91,17 +93,20 @@ export default function ViewingsPage() {
             const viewing = viewings.find(v => v.id === viewingId);
             if (viewing) {
                 await notifyViewingCancelled(
-                    user?.id || 'mock-user-id',
+                    user.id,
                     viewing.propertyTitle,
                     viewing.property_id,
                     viewing.date,
                     'Cancelled by you'
                 );
             }
-            showToastSuccess('Viewing appointment cancelled successfully.');
+            toast.success('Viewing appointment cancelled successfully.');
         } catch (err) {
             console.error('Error cancelling viewing:', err);
-            showToastError('Failed to cancel viewing. Please try again.');
+            toast.error('Failed to cancel viewing. Please try again.');
+        } finally {
+            setCancelModalOpen(false);
+            setViewingToCancel(null);
         }
     };
 
@@ -267,9 +272,8 @@ export default function ViewingsPage() {
                                                 {(viewing.status === 'pending' || viewing.status === 'confirmed') && (
                                                     <button
                                                         onClick={() => {
-                                                            if (window.confirm('Are you sure you want to cancel this viewing?')) {
-                                                                handleCancelViewing(viewing.id);
-                                                            }
+                                                            setViewingToCancel(viewing.id);
+                                                            setCancelModalOpen(true);
                                                         }}
                                                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
                                                     >
@@ -301,7 +305,17 @@ export default function ViewingsPage() {
                     </div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={cancelModalOpen}
+                onClose={() => setCancelModalOpen(false)}
+                onConfirm={() => viewingToCancel && handleCancelViewing(viewingToCancel)}
+                title="Cancel Viewing Appointment"
+                message="Are you sure you want to cancel this viewing appointment? This action cannot be undone."
+                confirmText="Yes, Cancel"
+                cancelText="No, Keep It"
+                variant="danger"
+            />
         </div>
     );
 }
-

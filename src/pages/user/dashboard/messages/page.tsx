@@ -34,8 +34,6 @@ function MessagesContent() {
 
             if (existing) {
                 setSelectedConversationId(existing.id);
-            } else {
-                console.log(`Starting new conversation with ${newContactName}`);
             }
         }
     }, [searchParams, conversations, setSelectedConversationId]);

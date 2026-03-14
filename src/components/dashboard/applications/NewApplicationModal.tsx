@@ -115,7 +115,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 });
 
                 if (!error && data) {
-                    console.log('[NewApplication] Fetched recent properties:', data.length);
                     // Map service properties to local Property interface if needed
                     const mappedData = data.map(p => ({
                         ...p,

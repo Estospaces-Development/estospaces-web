@@ -168,7 +168,6 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         const result = await managerVerificationService.uploadManagerDocument(file, user.id, documentType);
         if (result.error) return { error: result.error };
 
-        // Mock submit logic for now
         await refetch();
         return { error: null };
     }, [user?.id, refetch]);

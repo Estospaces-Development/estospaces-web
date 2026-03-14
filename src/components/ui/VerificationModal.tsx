@@ -24,13 +24,11 @@ const VerificationModal = ({ isOpen, onClose, onVerified, email, phone }: Verifi
     const handleSendEmailCode = () => {
         setEmailSent(true);
         setError('');
-        console.log('Verification code sent to:', email);
     };
 
     const handleSendPhoneCode = () => {
         setPhoneCodeSent(true);
         setError('');
-        console.log('Verification code sent to:', phone);
     };
 
     const handleVerifyEmail = () => {

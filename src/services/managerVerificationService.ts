@@ -198,6 +198,49 @@ const getManagerDocuments = async (): Promise<ManagerDocument[]> => {
 };
 
 /**
+ * Get all managers (brokers) for admin review
+ * GET /api/v1/admin/brokers (core-service, admin only)
+ */
+export const getManagers = async (status?: string, page = 1, limit = 20): Promise<{ data: ManagerProfile[]; total: number; error: string | null }> => {
+    try {
+        const query = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
+        if (status && status !== 'all') query.append('status', status);
+
+        const response = await apiFetch<{ data: any[]; total: number }>(
+            `${CORE_URL()}/api/v1/admin/brokers?${query.toString()}`
+        );
+
+        const profiles: ManagerProfile[] = response.data.map((data: any) => ({
+            id: data.user_id,
+            profile_type: 'broker',
+            company_name: data.company_name,
+            company_description: data.company_description,
+            license_number: data.company_reg_number,
+            verification_status: mapVerificationStatus(data.verification_status),
+            company_registration_number: data.company_reg_number,
+            company_address: data.business_phone,
+            has_ombudsman: data.has_ombudsman || false,
+            has_insurance: data.has_insurance || false,
+            has_client_money: data.has_client_money || false,
+            arla_member: data.arla_member || false,
+            naea_member: data.naea_member || false,
+            rics_member: data.rics_member || false,
+            submitted_at: data.created_at, // Using created_at as proxy for submission
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            // Add email/name if available in response, otherwise they need to be fetched separately or joined
+            authorized_representative_name: data.user?.full_name || 'Unknown',
+            authorized_representative_email: data.user?.email || 'Unknown', 
+        }));
+
+        return { data: profiles, total: response.total, error: null };
+    } catch (error: any) {
+        console.error('[managerVerificationService] getManagers error:', error.message);
+        return { data: [], total: 0, error: error.message };
+    }
+};
+
+/**
  * Get full verification summary (profile + docs + completeness check)
  */
 export const getManagerVerificationSummary = async (userId: string): Promise<{ data: ManagerVerificationSummary | null; error: string | null }> => {

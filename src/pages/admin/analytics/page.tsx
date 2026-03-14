@@ -1,35 +1,98 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import {
-    BarChart3, Users, Eye, Globe, TrendingUp, RefreshCw,
-    Monitor, Smartphone, Tablet, Clock, Shield, LayoutDashboard,
-    Activity, MapPin, Zap, PieChart as PieChartIcon, LineChart as LineChartIcon,
-    Calendar, ArrowUpRight, ArrowDownRight, Globe2
+    BarChart3, Users, Eye, Globe, RefreshCw,
+    Monitor, Smartphone, Tablet, Activity, Zap, 
+    Globe2, ArrowUpRight, ArrowDownRight, Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { analyticsService, type AnalyticsData } from '../../../services/analyticsService';
 
 function AnalyticsContent() {
     const { user } = useAuth();
     const toast = useToast();
+    const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [timeRange, setTimeRange] = useState('7d');
+    const [data, setData] = useState<AnalyticsData | null>(null);
 
-    const stats = [
-        { label: 'Total Visitors', value: '12,482', trend: '+14%', up: true, icon: Users, color: 'text-blue-500' },
-        { label: 'Active Sessions', value: '842', trend: '+8%', up: true, icon: Activity, color: 'text-purple-500' },
-        { label: 'Page Views', value: '84,201', trend: '+22%', up: true, icon: Eye, color: 'text-green-500' },
-        { label: 'Bounce Rate', value: '24.2%', trend: '-2%', up: false, icon: Zap, color: 'text-orange-500' },
-    ];
+    const fetchAnalytics = useCallback(async (refresh = false) => {
+        try {
+            if (refresh) setIsRefreshing(true);
+            else setIsLoading(true);
+
+            const response = await analyticsService.getPlatformAnalytics();
+            if (response.error) {
+                throw new Error(response.error);
+            }
+            setData(response.data);
+        } catch (error: any) {
+            toast.error('Failed to load analytics data');
+            console.error('[AdminAnalyticsPage] Error:', error);
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
+    }, [data, toast]);
+
+    useEffect(() => {
+        fetchAnalytics();
+    }, []);
 
     const handleRefresh = () => {
-        setIsRefreshing(true);
-        setTimeout(() => setIsRefreshing(false), 1500);
+        fetchAnalytics(true);
     };
 
+    const stats = [
+        { 
+            label: 'Total Leads', 
+            value: data?.leadAnalytics.totalLeads.toLocaleString() || '0', 
+            trend: '+14%', 
+            up: true, 
+            icon: Users, 
+            color: 'text-blue-500' 
+        },
+        { 
+            label: 'Total Properties', 
+            value: data?.leadAnalytics.totalProperties.toLocaleString() || '0', 
+            trend: '+8%', 
+            up: true, 
+            icon: Activity, 
+            color: 'text-purple-500' 
+        },
+        { 
+            label: 'Total Views', 
+            value: data?.leadAnalytics.passed.toLocaleString() || '0', 
+            trend: '+22%', 
+            up: true, 
+            icon: Eye, 
+            color: 'text-green-500' 
+        },
+        { 
+            label: 'Conversion Rate', 
+            value: `${data?.leadAnalytics.conversionRate || 0}%`, 
+            trend: '-2%', 
+            up: false, 
+            icon: Zap, 
+            color: 'text-orange-500' 
+        },
+    ];
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-[calc(100vh-100px)]">
+                <div className="text-center">
+                    <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mx-auto mb-4" />
+                    <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Synchronizing Intelligence...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-10 animate-in fade-in duration-500">
+        <div className="space-y-10 animate-in fade-in duration-500 pb-12">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
@@ -58,7 +121,8 @@ function AnalyticsContent() {
                     </div>
                     <button
                         onClick={handleRefresh}
-                        className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all"
+                        disabled={isRefreshing}
+                        className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all disabled:opacity-50"
                     >
                         <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
                     </button>
@@ -99,11 +163,11 @@ function AnalyticsContent() {
                         <div className="flex gap-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mobile</span>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Engagement</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Desktop</span>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Baseline</span>
                             </div>
                         </div>
                     </div>
@@ -190,7 +254,7 @@ function AnalyticsContent() {
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
                 <div className="px-10 py-8 border-b dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
                     <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
-                        <BarChart3 className="text-indigo-500" /> Page Performance
+                        <BarChart3 className="text-indigo-500" /> Top Performing Paths
                     </h2>
                     <button className="text-xs font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600">Export Report</button>
                 </div>
@@ -200,23 +264,22 @@ function AnalyticsContent() {
                             <tr className="border-b dark:border-gray-700">
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Path</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Views</th>
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg. Time</th>
-                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Exit Rate</th>
+                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Applications</th>
+                                <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Conv. Rate</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y dark:divide-gray-700">
-                            {[
-                                { path: '/explore', views: '12,401', time: '2m 14s', exit: '12%' },
-                                { path: '/manager/dashboard', views: '8,214', time: '5m 45s', exit: '5%' },
-                                { path: '/property/:id', views: '6,482', time: '1m 50s', exit: '24%' },
-                                { path: '/auth/login', views: '4,102', time: '0m 45s', exit: '38%' },
-                            ].map((page, i) => (
+                            {(data?.propertyPerformance || []).map((page, i) => (
                                 <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
-                                    <td className="px-10 py-6 font-black text-gray-900 dark:text-white text-sm">{page.path}</td>
-                                    <td className="px-10 py-6 text-sm text-gray-500 font-bold">{page.views}</td>
-                                    <td className="px-10 py-6 text-sm text-gray-500 font-bold">{page.time}</td>
+                                    <td className="px-10 py-6 font-black text-gray-900 dark:text-white text-sm">{page.property}</td>
+                                    <td className="px-10 py-6 text-sm text-gray-500 font-bold">{page.views.toLocaleString()}</td>
+                                    <td className="px-10 py-6 text-sm text-gray-500 font-bold">{page.applications.toLocaleString()}</td>
                                     <td className="px-10 py-6">
-                                        <span className="text-[10px] font-black text-red-500 bg-red-50 dark:bg-red-900/10 px-3 py-1 rounded-full uppercase tracking-widest">{page.exit}</span>
+                                        <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
+                                            page.conversionRate > 2 ? 'text-green-500 bg-green-50 dark:bg-green-900/10' : 'text-orange-500 bg-orange-50 dark:bg-orange-900/10'
+                                        }`}>
+                                            {page.conversionRate}%
+                                        </span>
                                     </td>
                                 </tr>
                             ))}
@@ -230,8 +293,9 @@ function AnalyticsContent() {
 
 export default function AdminAnalyticsPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center font-bold">Loading Analytics...</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center font-bold">Loading Analytics...</div>}>
             <AnalyticsContent />
         </Suspense>
     );
 }
+

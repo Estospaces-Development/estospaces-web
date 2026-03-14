@@ -142,7 +142,7 @@ function LeadsContent() {
             try {
                 await navigator.share(shareData);
             } catch (err) {
-                console.log('Error sharing:', err);
+                // removed console.log
             }
         } else {
             // Fallback

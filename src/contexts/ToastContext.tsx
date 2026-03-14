@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import Toast from '@/components/ui/Toast';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -100,6 +101,16 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             }}
         >
             {children}
+            <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
+                {toasts.map((toast) => (
+                    <div key={toast.id} className="pointer-events-auto">
+                        <Toast 
+                            message={toast} 
+                            onClose={() => removeToast(toast.id)} 
+                        />
+                    </div>
+                ))}
+            </div>
         </ToastContext.Provider>
     );
 };
