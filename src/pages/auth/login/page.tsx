@@ -72,8 +72,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Successfully logged in — redirect
-      const role = getRole();
+      // Successfully logged in — redirect using role from response
+      const role = result.role || getRole();
       navigate(getRedirectPath(role));
     } catch (err: any) {
       setGeneralError(err.message || 'An unexpected error occurred. Please try again.');
@@ -205,9 +205,9 @@ export default function LoginPage() {
           </>
       )}
 
-      {/* Demo credentials hint */}
+      {/* Test credentials hint */}
       <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md w-full">
-        <p className="text-orange-700 dark:text-orange-300 text-xs font-medium mb-1">Demo Credentials:</p>
+        <p className="text-orange-700 dark:text-orange-300 text-xs font-medium mb-1">Test Credentials:</p>
         <p className="text-orange-600 dark:text-orange-400 text-[10px]">Admin: admin@estospaces.com / admin123</p>
         <p className="text-orange-600 dark:text-orange-400 text-[10px]">Manager: manager@gmail.com / Estospaces@123</p>
         <p className="text-orange-600 dark:text-orange-400 text-[10px]">User: user@gmail.com / Estospaces@123</p>

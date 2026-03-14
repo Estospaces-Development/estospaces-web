@@ -18,7 +18,7 @@ export default function AdminSettingsPage() {
                 setIsLoading(true);
                 const [settingsData, statsData] = await Promise.all([
                     adminService.getSettings(),
-                    adminService.getPlatformStats()
+                    adminService.getPlatformStats(),
                 ]);
                 setSettings(settingsData);
                 setStats(statsData);
@@ -54,8 +54,8 @@ export default function AdminSettingsPage() {
             ...settings,
             notifications: {
                 ...settings.notifications,
-                [category]: value
-            }
+                [category]: value,
+            },
         });
     };
 
@@ -72,9 +72,13 @@ export default function AdminSettingsPage() {
 
     if (!settings) return null;
 
+    const hasStorageQuota = Boolean(stats && stats.storageTotal > 0);
+    const storageUsagePercent = hasStorageQuota
+        ? Math.min(100, ((stats?.storageUsed || 0) / (stats?.storageTotal || 1)) * 100)
+        : 0;
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-12">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">System Settings</h1>
@@ -90,9 +94,7 @@ export default function AdminSettingsPage() {
                 </button>
             </div>
 
-            {/* Settings Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* General Settings */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 p-8 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
@@ -103,38 +105,37 @@ export default function AdminSettingsPage() {
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Platform Name</label>
-                            <input 
-                                type="text" 
-                                value={settings.platformName} 
+                            <input
+                                type="text"
+                                value={settings.platformName}
                                 onChange={(e) => setSettings({ ...settings, platformName: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white" 
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Support Email</label>
-                            <input 
-                                type="email" 
-                                value={settings.supportEmail} 
+                            <input
+                                type="email"
+                                value={settings.supportEmail}
                                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white" 
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Currency</label>
-                            <select 
+                            <select
                                 value={settings.defaultCurrency}
                                 onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
                                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
                             >
-                                <option>GBP (£)</option>
-                                <option>EUR (€)</option>
-                                <option>USD ($)</option>
+                                <option>GBP</option>
+                                <option>EUR</option>
+                                <option>USD</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
-                {/* Security Settings */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 p-8 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
@@ -148,7 +149,7 @@ export default function AdminSettingsPage() {
                                 <p className="font-medium text-gray-900 dark:text-white">Two-Factor Authentication</p>
                                 <p className="text-sm text-gray-500">Require 2FA for admin accounts</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setSettings({ ...settings, twoFactorAuth: !settings.twoFactorAuth })}
                                 className={`relative w-12 h-6 rounded-full transition-colors ${settings.twoFactorAuth ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
                             >
@@ -160,7 +161,7 @@ export default function AdminSettingsPage() {
                                 <p className="font-medium text-gray-900 dark:text-white">Session Timeout</p>
                                 <p className="text-sm text-gray-500">Auto-logout after inactivity</p>
                             </div>
-                            <select 
+                            <select
                                 value={settings.sessionTimeout}
                                 onChange={(e) => setSettings({ ...settings, sessionTimeout: e.target.value })}
                                 className="px-3 py-1.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
@@ -173,7 +174,6 @@ export default function AdminSettingsPage() {
                     </div>
                 </div>
 
-                {/* Notification Settings */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 p-8 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
@@ -186,11 +186,11 @@ export default function AdminSettingsPage() {
                             { key: 'registrations' as const, label: 'New user registrations' },
                             { key: 'verifications' as const, label: 'Verification requests' },
                             { key: 'alerts' as const, label: 'System alerts' },
-                            { key: 'reports' as const, label: 'Weekly reports' }
+                            { key: 'reports' as const, label: 'Weekly reports' },
                         ].map((item) => (
                             <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                                 <p className="font-medium text-gray-900 dark:text-white text-sm">{item.label}</p>
-                                <button 
+                                <button
                                     onClick={() => updateNestedSetting(item.key, !settings.notifications[item.key])}
                                     className={`relative w-12 h-6 rounded-full transition-colors ${settings.notifications[item.key] ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
                                 >
@@ -201,7 +201,6 @@ export default function AdminSettingsPage() {
                     </div>
                 </div>
 
-                {/* Database Settings */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 p-8 shadow-sm">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
@@ -213,14 +212,22 @@ export default function AdminSettingsPage() {
                         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                             <div className="flex justify-between mb-2">
                                 <p className="font-medium text-gray-900 dark:text-white text-sm">Storage Used</p>
-                                <p className="text-sm text-gray-500">{stats?.storageUsed || 0} GB / {stats?.storageTotal || 0} GB</p>
+                                <p className="text-sm text-gray-500">
+                                    {hasStorageQuota
+                                        ? `${stats?.storageUsed || 0} GB / ${stats?.storageTotal || 0} GB`
+                                        : `${stats?.storageUsed || 0} GB tracked`}
+                                </p>
                             </div>
-                            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-purple-500 rounded-full transition-all duration-1000" 
-                                    style={{ width: `${stats ? (stats.storageUsed / stats.storageTotal) * 100 : 0}%` }}
-                                />
-                            </div>
+                            {hasStorageQuota ? (
+                                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-purple-500 rounded-full transition-all duration-1000"
+                                        style={{ width: `${storageUsagePercent}%` }}
+                                    />
+                                </div>
+                            ) : (
+                                <p className="text-xs text-gray-500">Live database usage is available, but no storage quota is configured.</p>
+                            )}
                         </div>
                         <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                             <div className="flex justify-between mb-2">
@@ -234,4 +241,3 @@ export default function AdminSettingsPage() {
         </div>
     );
 }
-

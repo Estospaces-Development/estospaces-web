@@ -23,7 +23,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     loading: boolean;
     error: string | null;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (email: string, password: string) => Promise<{ success: boolean; role?: string; error?: string }>;
     register: (name: string, email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
     signOut: () => void;
     refreshUser: () => Promise<void>;
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
 
-            return { success: true };
+            return { success: true, role: userObj.role };
         } catch (err: any) {
             console.error('Login error:', err);
             const errMsg = err.message || 'Login failed. Please check your credentials.';

@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { Contract, ContractTemplate } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -47,32 +48,6 @@ export interface Viewing {
         name: string;
         phone: string;
     };
-}
-
-export interface Contract {
-    id: string;
-    property_id: string;
-    user_id: string;
-    manager_id: string;
-    contract_type: 'rental' | 'purchase';
-    start_date: string;
-    end_date?: string;
-    monthly_rent?: number;
-    deposit_amount?: number;
-    contract_pdf_url?: string;
-    status: 'draft' | 'sent' | 'signed' | 'active' | 'expired' | 'terminated';
-    user_signed_at?: string;
-    created_at: string;
-}
-
-export interface ContractTemplate {
-    id: string;
-    name: string;
-    description: string;
-    type: string;
-    date: string;
-    status: string;
-    isMandatory: boolean;
 }
 
 export interface CreateViewingRequest {

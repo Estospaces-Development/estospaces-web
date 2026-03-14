@@ -25,12 +25,18 @@ export function getServiceUrl(service: ServiceName): string {
 // ── Auth Header Helper ──────────────────────────────────────────────────────
 
 /** Returns standard auth headers with Bearer token from localStorage. */
-export function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(body?: any): Record<string, string> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : '';
-    return {
-        'Content-Type': 'application/json',
+    const headers: Record<string, string> = {
         'Authorization': `Bearer ${token}`,
     };
+
+    // Only set JSON content type if not uploading files
+    if (!(body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    return headers;
 }
 
 // ── apiFetch — strict fetch that throws on error ────────────────────────────
@@ -52,12 +58,24 @@ export async function apiFetch<T>(
     const method = options.method || 'GET';
 
     if (isDebug) {
-        console.log(`[API Request] ${method} ${url}`, options.body ? JSON.parse(options.body as string) : '');
+        let bodyLog = '';
+        if (options.body) {
+            if (options.body instanceof FormData) {
+                bodyLog = '[FormData]';
+            } else {
+                try {
+                    bodyLog = JSON.parse(options.body as string);
+                } catch {
+                    bodyLog = '[Raw Body]';
+                }
+            }
+        }
+        console.log(`[API Request] ${method} ${url}`, bodyLog);
     }
 
     const response = await fetch(url, {
         ...options,
-        headers: { ...getAuthHeaders(), ...options.headers },
+        headers: { ...getAuthHeaders(options.body), ...options.headers },
     });
 
     if (!response.ok) {

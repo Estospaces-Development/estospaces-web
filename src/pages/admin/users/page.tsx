@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import {
     UserPlus, Clock, CheckCircle, XCircle, Users, Plus,
     Filter, Search, MoreVertical, Eye, Edit, Trash2,
@@ -53,7 +53,8 @@ function UserManagementContent() {
 
     const filteredUsers = users.filter(u => {
         const searchLower = searchQuery.toLowerCase();
-        const matchesSearch = u.email.toLowerCase().includes(searchLower) || u.full_name?.toLowerCase().includes(searchLower);
+        const displayName = u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.full_name || '';
+        const matchesSearch = u.email.toLowerCase().includes(searchLower) || displayName.toLowerCase().includes(searchLower);
         const matchesTab = activeTab === 'all' || u.role === activeTab;
         return matchesSearch && matchesTab;
     });
@@ -141,15 +142,17 @@ function UserManagementContent() {
                                 <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">
-                                            {user.avatar_url ? (
-                                                <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                                            {(user.avatar_url || user.avatar) ? (
+                                                <img src={user.avatar_url || user.avatar} alt="" className="w-12 h-12 rounded-xl object-cover" />
                                             ) : (
                                                 <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center font-black text-lg">
-                                                    {user.full_name?.charAt(0) || user.email.charAt(0)}
+                                                    {user.first_name?.charAt(0) || user.email.charAt(0)}
                                                 </div>
                                             )}
                                             <div>
-                                                <p className="font-black text-gray-900 dark:text-white text-sm">{user.full_name || 'No Name'}</p>
+                                                <p className="font-black text-gray-900 dark:text-white text-sm">
+                                                    {user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.full_name || 'No Name'}
+                                                </p>
                                                 <p className="text-xs text-gray-400 font-bold">{user.email}</p>
                                             </div>
                                         </div>
@@ -159,8 +162,8 @@ function UserManagementContent() {
                                         <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ref: #U-{user.id.substring(0, 6)}</p>
                                     </td>
                                     <td className="px-10 py-6">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.is_verified ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-500'}`}>
-                                            {user.is_verified ? 'Verified' : 'Unverified'}
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.is_active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' : 'bg-red-50 dark:bg-red-900/20 text-red-500'}`}>
+                                            {user.is_active ? 'Active' : 'Deactivated'}
                                         </span>
                                     </td>
                                     <td className="px-10 py-6 text-center">

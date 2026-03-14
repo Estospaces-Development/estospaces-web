@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MessageSquare, Send, Search, Clock, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Search, Loader2 } from 'lucide-react';
 import Avatar from '../../../components/ui/Avatar';
 import Badge from '../../../components/ui/Badge';
-import { messagesService, type Conversation as APIConversation, type Message as APIMessage } from '../../../services/messagesService';
+import { messagesService, type Conversation as APIConversation } from '../../../services/messagesService';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -36,10 +36,14 @@ const AdminChatPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
 
-    const parseMetadata = (metadataStr: string) => {
+    const parseMetadata = (metadata: APIConversation['metadata']) => {
         try {
-            return JSON.parse(metadataStr);
-        } catch (e) {
+            if (!metadata) return {};
+            if (typeof metadata === 'string') {
+                return JSON.parse(metadata);
+            }
+            return metadata;
+        } catch {
             return {};
         }
     };
@@ -51,20 +55,16 @@ const AdminChatPage = () => {
             
             const mappedConvs: Conversation[] = apiConvs.map(c => {
                 const metadata = parseMetadata(c.metadata);
+                const lastMessage = c.last_message?.content || 'No messages';
+                const lastSenderId = c.last_message?.sender_id;
                 return {
                     id: c.id,
-                    userName: metadata.userName || c.title || 'Unknown User',
-                    userRole: metadata.userRole || 'User',
-                    lastMessage: c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1].content : 'No messages',
+                    userName: metadata.userName || metadata.full_name || metadata.email || c.title || 'Unknown User',
+                    userRole: metadata.userRole || metadata.category || (c.type === 'support' ? 'Support Ticket' : 'User'),
+                    lastMessage,
                     lastTime: new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    unread: c.messages?.filter(m => !m.is_read && m.sender_id !== user?.id).length || 0,
-                    messages: (c.messages || []).map(m => ({
-                        id: m.id,
-                        sender: m.sender_id === user?.id ? 'admin' : 'user',
-                        senderName: m.sender_id === user?.id ? 'Admin' : (metadata.userName || 'User'),
-                        content: m.content,
-                        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    }))
+                    unread: c.last_message && !c.last_message.is_read && lastSenderId !== user?.id ? 1 : 0,
+                    messages: [],
                 };
             });
 
@@ -78,11 +78,53 @@ const AdminChatPage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedConvId, toast, user?.id]);
+    }, [toast, user?.id]);
 
     useEffect(() => {
         fetchConversations();
-    }, []);
+    }, [fetchConversations]);
+
+    const fetchMessages = useCallback(async (conversationId: string) => {
+        try {
+            const apiMessages = await messagesService.getMessages(conversationId);
+            const conversation = conversations.find((entry) => entry.id === conversationId);
+
+            const mappedMessages: Message[] = apiMessages.map((message) => ({
+                id: message.id,
+                sender: message.sender_id === user?.id ? 'admin' : 'user',
+                senderName: message.sender_id === user?.id ? 'Admin' : (conversation?.userName || 'User'),
+                content: message.content,
+                time: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }));
+
+            setConversations((prev) => prev.map((entry) =>
+                entry.id === conversationId
+                    ? {
+                        ...entry,
+                        unread: 0,
+                        messages: mappedMessages,
+                        lastMessage: mappedMessages[mappedMessages.length - 1]?.content || entry.lastMessage,
+                    }
+                    : entry,
+            ));
+
+            await messagesService.markAsRead(conversationId);
+        } catch (error) {
+            toast.error('Failed to load messages');
+            console.error('[AdminChatPage] Message Load Error:', error);
+        }
+    }, [conversations, toast, user?.id]);
+
+    useEffect(() => {
+        if (!selectedConvId) return;
+
+        const selectedConversation = conversations.find((conversation) => conversation.id === selectedConvId);
+        if (selectedConversation && selectedConversation.messages.length > 0) {
+            return;
+        }
+
+        fetchMessages(selectedConvId);
+    }, [conversations, fetchMessages, selectedConvId]);
 
     const selectedConv = conversations.find(c => c.id === selectedConvId);
 

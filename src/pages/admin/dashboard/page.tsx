@@ -10,12 +10,8 @@ import {
     Clock,
     TrendingUp,
     MessageSquare,
-    AlertCircle,
-    CheckCircle,
-    Star,
     Zap,
     ArrowRight,
-    Bell,
     Loader2
 } from 'lucide-react';
 import { getPlatformAnalytics, AnalyticsData } from '@/services/analyticsService';
@@ -55,18 +51,19 @@ export default function AdminDashboard() {
         );
     }
 
-    // Map real values from backend
+    // Map values from backend
     const stats = {
         slaCompliance: data?.sla_success_rate || 0,
         avgResponseTime: data?.avg_response_time ? `${Math.floor(data.avg_response_time / 60)}m ${Math.round(data.avg_response_time % 60)}s` : "0m 0s",
-        npsScore: 4.8, // TODO: Implement NPS tracking in core-service
-        activeTransactions: data?.active_leads || 0
+        pendingVerifications: data?.pending_verifications || 0,
+        activeTransactions: data?.leadAnalytics?.totalLeads || data?.active_leads || 0
     };
 
-    const activityFeed = [
-        { id: 1, type: 'status', message: `System health monitored at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, time: 'Live', icon: Activity, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' },
-        { id: 2, type: 'status', message: `Database registry: ${data?.total_users || 0} users, ${data?.total_properties || 0} properties`, time: 'Updated', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-        { id: 3, type: 'users', message: `${data?.total_brokers || 0} verified brokers on platform`, time: 'Active', icon: Users, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+    const platformSnapshot = [
+        { id: 'users', label: 'Total Users', value: data?.total_users || 0, icon: Users, color: 'text-blue-500' },
+        { id: 'properties', label: 'Total Properties', value: data?.total_properties || 0, icon: Building2, color: 'text-emerald-500' },
+        { id: 'brokers', label: 'Verified Brokers', value: data?.total_brokers || 0, icon: Shield, color: 'text-purple-500' },
+        { id: 'pending', label: 'Pending Reviews', value: data?.pending_verifications || 0, icon: Activity, color: 'text-orange-500' },
     ];
 
     return (
@@ -80,7 +77,7 @@ export default function AdminDashboard() {
                             Command Center
                         </span>
                         <span className="text-gray-500 dark:text-gray-400 text-xs font-bold flex items-center gap-1">
-                            <Activity size={12} /> System Operational
+                            <Activity size={12} /> Backend Synced
                         </span>
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight leading-none">
@@ -88,6 +85,12 @@ export default function AdminDashboard() {
                     </h1>
                 </div>
             </header>
+
+            {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                    {error}
+                </div>
+            )}
 
             {/* Core Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -106,9 +109,6 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.slaCompliance.toFixed(1)}%</span>
-                            <span className="text-sm font-bold text-emerald-500 flex items-center">
-                                <TrendingUp size={14} className="mr-1" /> +2.4%
-                            </span>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Responses under 10 mins</p>
 
@@ -138,37 +138,25 @@ export default function AdminDashboard() {
                             <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.avgResponseTime}</span>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Global broker average</p>
-                        <div className="flex items-center gap-1 mt-4 text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-lg w-fit">
-                            TARGET: &lt; 5m 00s
-                        </div>
                     </div>
                 </div>
 
-                {/* NPS Score */}
+                {/* Pending Verifications */}
                 <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
-                        <Star size={100} className="text-gray-900 dark:text-white" />
+                        <Shield size={100} className="text-gray-900 dark:text-white" />
                     </div>
                     <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl text-orange-600 dark:text-orange-400">
-                                <Star size={24} />
+                                <Shield size={24} />
                             </div>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Net Promoter</span>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Pending Verifications</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.npsScore}</span>
-                            <span className="text-lg text-gray-400 dark:text-gray-500">/ 5.0</span>
+                            <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingVerifications}</span>
                         </div>
-                        <div className="flex gap-1 mt-3">
-                            {[1, 2, 3, 4, 5].map(i => (
-                                <Star
-                                    key={i}
-                                    size={16}
-                                    className={`${i <= Math.round(stats.npsScore) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200 dark:text-gray-700'}`}
-                                />
-                            ))}
-                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Awaiting admin review</p>
                     </div>
                 </div>
 
@@ -290,20 +278,14 @@ export default function AdminDashboard() {
                             <div>
                                 <h3 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h3>
                                 <p className="text-gray-400 text-sm max-w-md mb-6">
-                                    The team is on track to hit the Q1 target. 
-                                    Currently {data?.total_properties || 0} / 150 verified properties listed.
-                                    Keep monitoring fast-track transaction speeds.
+                                    Platform status summary:
+                                    {` ${data?.total_properties || 0} `}verified properties,
+                                    {` ${data?.total_brokers || 0} `}brokers, and
+                                    {` ${stats.activeTransactions} `}active lead transactions.
                                 </p>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex -space-x-3">
-                                        {[1, 2, 3, 4].map(i => (
-                                            <div key={i} className={`w-8 h-8 rounded-full border-2 border-gray-900 dark:border-black bg-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-300`}>
-                                                {String.fromCharCode(64 + i)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-500">Team Active</span>
-                                </div>
+                                <span className="inline-flex text-xs font-bold text-gray-500 bg-gray-800 px-3 py-1.5 rounded-lg">
+                                    Live backend metrics
+                                </span>
                             </div>
                             <div className="hidden sm:block">
                                 <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-md border border-white/10">
@@ -314,44 +296,35 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* Live Feed Sidebar */}
+                {/* Platform Snapshot */}
                 <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-gray-800 h-fit">
                     <div className="flex items-center justify-between mb-8">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <Activity className="text-orange-500" size={20} /> Live Feed
+                            <Activity className="text-orange-500" size={20} /> Platform Snapshot
                         </h3>
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Core Service</span>
                     </div>
 
-                    <div className="relative">
-                        {/* Connector Line */}
-                        <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gray-100 dark:bg-gray-800"></div>
-
-                        <div className="space-y-8">
-                            {activityFeed.map((item) => (
-                                <div key={item.id} className="relative flex gap-4">
-                                    <div className={`relative z-10 w-10 h-10 rounded-xl ${item.bg} ${item.color} flex items-center justify-center shrink-0 border-4 border-white dark:border-gray-900 shadow-sm`}>
-                                        <item.icon size={18} />
+                    <div className="space-y-4">
+                        {platformSnapshot.map((item) => (
+                            <div
+                                key={item.id}
+                                className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
+                                        <item.icon size={16} />
                                     </div>
-                                    <div className="pt-1">
-                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug mb-1">
-                                            {item.message}
-                                        </p>
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                                            {item.time}
-                                        </p>
-                                    </div>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
                                 </div>
-                            ))}
-                        </div>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value.toLocaleString()}</p>
+                            </div>
+                        ))}
                     </div>
 
-                    <button className="w-full mt-8 py-3 rounded-lg border-2 border-gray-100 dark:border-gray-800 text-gray-400 dark:text-gray-500 font-bold text-xs uppercase tracking-widest hover:border-orange-100 dark:hover:border-orange-900/30 hover:text-orange-600 dark:hover:text-orange-400 transition-all">
-                        View All Activity
-                    </button>
+                    <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
+                        Snapshot data is loaded from <code>/api/v1/admin/analytics</code>.
+                    </p>
                 </div>
             </div>
         </div>

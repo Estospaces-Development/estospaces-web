@@ -24,10 +24,11 @@ export interface Conversation {
     id: string;
     type: 'direct' | 'support' | 'group';
     title?: string;
-    metadata: string; // JSON string
+    metadata: string | Record<string, unknown>;
     created_at: string;
     updated_at: string;
     messages?: Message[];
+    last_message?: Message | null;
 }
 
 export interface SupportTicket {

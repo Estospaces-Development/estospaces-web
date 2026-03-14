@@ -21,26 +21,17 @@ export interface AgencyResponse {
 
 export const userService = {
     getAgencies: async (limit: number = 5): Promise<AgencyResponse> => {
-        try {
-            const data = await apiFetch<Agency[]>(`${CORE_URL()}/api/v1/users/agencies?limit=${limit}`);
-            return { data, error: null };
-        } catch (error: any) {
-            console.error('[userService] getAgencies error:', error.message);
-            return { data: [], error: error.message };
-        }
+        // TODO: Backend endpoint GET /api/v1/users/agencies does not exist yet
+        // return apiFetch<Agency[]>(`${CORE_URL()}/api/v1/users/agencies?limit=${limit}`);
+        return { data: [], error: null };
     },
 
     getAllUsers: async (page: number = 1, limit: number = 20): Promise<{ data: User[], pagination: any, error: string | null }> => {
         try {
-            const response = await apiFetch<any>(`${CORE_URL()}/api/v1/users?page=${page}&limit=${limit}`);
-            // The apiFetch helper already unwraps json.data ?? json
-            // But for paginated responses, we need to see how it's handled.
-            // If response is { success: true, data: [...], pagination: {...} }
-            // Then apiFetch returns { data: [...], pagination: {...} } because of (json.data ?? json)
-            
+            const data = await apiFetch<User[]>(`${CORE_URL()}/api/v1/users?page=${page}&limit=${limit}`);
             return { 
-                data: response.data || response, 
-                pagination: response.pagination,
+                data, 
+                pagination: null, // apiFetch abstraction strips pagination siblings
                 error: null 
             };
         } catch (error: any) {

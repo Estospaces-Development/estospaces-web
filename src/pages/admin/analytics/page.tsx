@@ -2,20 +2,16 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import {
-    BarChart3, Users, Eye, Globe, RefreshCw,
-    Monitor, Smartphone, Tablet, Activity, Zap, 
-    Globe2, ArrowUpRight, ArrowDownRight, Loader2
+    BarChart3, Users, Eye, RefreshCw,
+    Activity, Zap, Globe2, Loader2
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getPlatformAnalytics, type AnalyticsData } from '../../../services/analyticsService';
 
 function AnalyticsContent() {
-    const { user } = useAuth();
     const toast = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [timeRange, setTimeRange] = useState('7d');
     const [data, setData] = useState<AnalyticsData | null>(null);
 
     const fetchAnalytics = useCallback(async (refresh = false) => {
@@ -35,11 +31,11 @@ function AnalyticsContent() {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [data, toast]);
+    }, [toast]);
 
     useEffect(() => {
         fetchAnalytics();
-    }, []);
+    }, [fetchAnalytics]);
 
     const handleRefresh = () => {
         fetchAnalytics(true);
@@ -48,25 +44,25 @@ function AnalyticsContent() {
     const stats = [
         { 
             label: 'Total Leads', 
-            value: data?.leadAnalytics.totalLeads.toLocaleString() || '0', 
+            value: (data?.leadAnalytics?.totalLeads ?? data?.total_leads ?? 0).toLocaleString(),
             icon: Users, 
             color: 'text-blue-500' 
         },
         { 
             label: 'Total Properties', 
-            value: data?.leadAnalytics.totalProperties.toLocaleString() || '0', 
+            value: (data?.leadAnalytics?.totalProperties ?? data?.total_properties ?? 0).toLocaleString(),
             icon: Activity, 
             color: 'text-purple-500' 
         },
         { 
             label: 'Total Views', 
-            value: data?.leadAnalytics.passed.toLocaleString() || '0', 
+            value: (data?.leadAnalytics?.passed ?? 0).toLocaleString(),
             icon: Eye, 
             color: 'text-green-500' 
         },
         { 
             label: 'Conversion Rate', 
-            value: `${data?.leadAnalytics.conversionRate || 0}%`, 
+            value: `${data?.leadAnalytics?.conversionRate ?? 0}%`,
             icon: Zap, 
             color: 'text-orange-500' 
         },
@@ -99,18 +95,6 @@ function AnalyticsContent() {
                     </h1>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="flex bg-white dark:bg-gray-800 p-1 rounded-2xl border dark:border-gray-700 shadow-sm">
-                        {['24h', '7d', '30d', '12m'].map((range) => (
-                            <button
-                                key={range}
-                                onClick={() => setTimeRange(range)}
-                                className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${timeRange === range ? 'bg-indigo-500 text-white shadow-lg' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
-                            >
-                                {range}
-                            </button>
-                        ))}
-                    </div>
                     <button
                         onClick={handleRefresh}
                         disabled={isRefreshing}
@@ -140,102 +124,6 @@ function AnalyticsContent() {
                     </div>
                 ))}
             </div>
-
-            {/* Hardcoded analytics sections commented out as there are no backend endpoints yet
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <div className="lg:col-span-8 bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border dark:border-gray-700 relative overflow-hidden group">
-                    <div className="flex items-center justify-between mb-12 relative z-10">
-                        <div>
-                            <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Traffic Velocity</h2>
-                            <p className="text-xs text-gray-400 font-bold mt-1 uppercase tracking-widest">Real-time engagement across sessions</p>
-                        </div>
-                        <div className="flex gap-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Engagement</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Baseline</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="h-64 relative flex items-end justify-between px-4 pb-10">
-                        <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-                            <path
-                                d="M0 150 Q 100 80, 200 120 T 400 60 T 600 100 T 800 40 T 1000 80"
-                                fill="none"
-                                stroke="currentColor"
-                                className="text-indigo-500/20"
-                                strokeWidth="4"
-                            />
-                            <path
-                                d="M0 150 Q 80 100, 150 140 T 300 80 T 500 120 T 700 60 T 900 100 T 1100 50"
-                                fill="none"
-                                stroke="currentColor"
-                                className="text-indigo-500"
-                                strokeWidth="4"
-                                strokeDasharray="1000"
-                                strokeDashoffset="1000"
-                            >
-                                <animate attributeName="stroke-dashoffset" from="1000" to="0" dur="3s" fill="freeze" />
-                            </path>
-                        </svg>
-
-                        <div className="absolute top-[40px] right-[10%] w-4 h-4 bg-indigo-500 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)] animate-ping"></div>
-
-                        <div className="absolute bottom-0 left-0 w-full flex justify-between px-4 text-[8px] font-black text-gray-400 uppercase tracking-widest">
-                            <span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-4 space-y-10">
-                    <div className="bg-white dark:bg-gray-800 rounded-[3rem] p-10 shadow-2xl border dark:border-gray-700 overflow-hidden group">
-                        <h3 className="text-xl font-black text-gray-900 dark:text-white mb-8 tracking-tight">Access Points</h3>
-                        <div className="space-y-6">
-                            {[
-                                { label: 'Desktop', percentage: 58, icon: Monitor, color: 'bg-blue-500' },
-                                { label: 'Mobile', percentage: 34, icon: Smartphone, color: 'bg-indigo-500' },
-                                { label: 'Tablet', percentage: 8, icon: Tablet, color: 'bg-purple-500' },
-                            ].map((device) => (
-                                <div key={device.label} className="space-y-3">
-                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                                        <div className="flex items-center gap-3">
-                                            <device.icon size={16} className="text-gray-400" />
-                                            <span className="text-gray-900 dark:text-white">{device.label}</span>
-                                        </div>
-                                        <span className="text-gray-400">{device.percentage}%</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-gray-50 dark:bg-gray-900 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full ${device.color} rounded-full transition-all duration-1000`}
-                                            style={{ width: `${device.percentage}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:rotate-12 transition-transform duration-700">
-                            <Monitor size={100} />
-                        </div>
-                        <div className="relative z-10">
-                            <h4 className="text-lg font-black mb-2">Browser Insights</h4>
-                            <p className="text-indigo-50 text-xs font-medium opacity-90 leading-relaxed mb-6">Chrome remains the dominant choice across 72% of all platform visits.</p>
-                            <div className="flex gap-2">
-                                <span className="px-3 py-1 bg-white/10 rounded-lg text-[8px] font-black uppercase tracking-widest">Chrome</span>
-                                <span className="px-3 py-1 bg-white/10 rounded-lg text-[8px] font-black uppercase tracking-widest">Safari</span>
-                                <span className="px-3 py-1 bg-white/10 rounded-lg text-[8px] font-black uppercase tracking-widest">Edge</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            */}
 
             {/* Pages Table */}
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">

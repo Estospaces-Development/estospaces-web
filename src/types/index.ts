@@ -49,12 +49,16 @@ export interface Booking {
 export interface User {
     id: string;
     email: string;
-    full_name: string;
+    first_name?: string;
+    last_name?: string;
+    full_name?: string; // Calculated or from legacy
     role: 'user' | 'manager' | 'admin';
     phone?: string;
     avatar_url?: string;
+    avatar?: string; // Backend field
     bio?: string;
     is_verified: boolean;
+    is_active: boolean;
     created_at: string;
 }
 

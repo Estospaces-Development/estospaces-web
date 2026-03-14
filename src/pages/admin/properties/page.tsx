@@ -75,11 +75,17 @@ function PropertyManagementContent() {
                         className="group bg-white dark:bg-gray-800 rounded-[3rem] border dark:border-gray-700 shadow-2xl shadow-gray-200/50 dark:shadow-none overflow-hidden hover:-translate-y-2 transition-all duration-500"
                     >
                         <div className="relative h-64">
-                            <img
-                                src={typeof property.images?.[0] === 'string' ? property.images[0] : 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80'}
-                                alt={property.title}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                            />
+                            {typeof property.images?.[0] === 'string' ? (
+                                <img
+                                    src={property.images[0]}
+                                    alt={property.title}
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                                />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center text-gray-400">
+                                    <Home size={44} />
+                                </div>
+                            )}
                             <div className="absolute top-6 right-6">
                                 <span className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest backdrop-blur-md shadow-lg ${property.status === 'online' ? 'bg-green-500/90 text-white' : 'bg-gray-900/90 text-white'
                                     }`}>
@@ -127,10 +133,10 @@ function PropertyManagementContent() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs font-black text-gray-400">
-                                        {(property.agent_name || 'AG').substring(0, 2).toUpperCase()}
+                                        {(property.contactName || 'AG').substring(0, 2).toUpperCase()}
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-gray-900 dark:text-white">{property.agent_name || 'Admin Group'}</p>
+                                        <p className="text-[10px] font-black text-gray-900 dark:text-white">{property.contactName || 'Unknown Owner'}</p>
                                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Listing Owner</p>
                                     </div>
                                 </div>

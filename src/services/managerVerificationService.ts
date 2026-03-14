@@ -1,14 +1,11 @@
 /**
  * Manager Verification Service
- * Manages manager profiles, verification documents, and admin review workflows
- * via core-service backend endpoints.
+ * Handles broker verification data via the core-service backend.
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
-
-// ── Type Definitions ────────────────────────────────────────────────────────
 
 export type ManagerProfileType = 'broker' | 'company';
 
@@ -49,15 +46,12 @@ export interface ManagerProfile {
     company_address?: string;
     authorized_representative_name?: string;
     authorized_representative_email?: string;
-
-    // UK Specific Membership Flags
     has_ombudsman: boolean;
     has_insurance: boolean;
     has_client_money: boolean;
     arla_member: boolean;
     naea_member: boolean;
     rics_member: boolean;
-
     verification_status: VerificationStatus;
     rejection_reason?: string;
     revision_notes?: string;
@@ -110,11 +104,19 @@ export interface ManagerVerificationDetails {
     userInfo: { email?: string; full_name?: string } | null;
 }
 
-// ── Constants ───────────────────────────────────────────────────────────────
-
 const REQUIRED_DOCUMENTS: Record<ManagerProfileType, ManagerDocumentType[]> = {
     broker: ['government_id', 'broker_license'],
     company: ['company_registration', 'business_license', 'tax_certificate', 'representative_id'],
+};
+
+const DOCUMENT_TYPE_NAMES: Record<ManagerDocumentType, string> = {
+    government_id: 'Government ID',
+    broker_license: 'Broker License',
+    company_registration: 'Company Registration',
+    business_license: 'Business License',
+    tax_certificate: 'Tax Certificate',
+    representative_id: 'Representative ID',
+    address_proof: 'Proof of Address',
 };
 
 export const getRequiredDocuments = (type: ManagerProfileType): ManagerDocumentType[] => {
@@ -122,147 +124,204 @@ export const getRequiredDocuments = (type: ManagerProfileType): ManagerDocumentT
 };
 
 export const getManagerDocumentTypeName = (type: ManagerDocumentType): string => {
-    const names: Record<ManagerDocumentType, string> = {
-        government_id: 'Government ID',
-        broker_license: 'Broker License',
-        company_registration: 'Company Registration',
-        business_license: 'Business License',
-        tax_certificate: 'Tax Certificate',
-        representative_id: 'Representative ID',
-        address_proof: 'Proof of Address',
-    };
-    return names[type] || type;
+    return DOCUMENT_TYPE_NAMES[type] || type;
 };
 
-// ── API Functions ───────────────────────────────────────────────────────────
+const normalizeProfileType = (value?: string): ManagerProfileType => {
+    return value === 'company' ? 'company' : 'broker';
+};
 
-/**
- * Get the current manager's broker profile
- * GET /api/v1/brokers/profile (core-service)
- */
-export const getManagerProfile = async (_userId: string): Promise<{ data: ManagerProfile | null; error: string | null }> => {
+const mapVerificationStatus = (backendStatus?: string): VerificationStatus => {
+    const mapping: Record<string, VerificationStatus> = {
+        none: 'incomplete',
+        pending: 'submitted',
+        basic: 'submitted',
+        documents_submitted: 'submitted',
+        under_review: 'under_review',
+        verified: 'approved',
+        fully_verified: 'approved',
+        rejected: 'rejected',
+        verification_required: 'verification_required',
+    };
+
+    return mapping[backendStatus || ''] || 'incomplete';
+};
+
+const mapDocumentStatus = (status?: string): DocumentStatus => {
+    const mapping: Record<string, DocumentStatus> = {
+        pending: 'pending',
+        under_review: 'under_review',
+        approved: 'approved',
+        rejected: 'rejected',
+        reupload_required: 'reupload_required',
+    };
+
+    return mapping[status || ''] || 'pending';
+};
+
+const mapDocumentType = (document: any): ManagerDocumentType => {
+    const rawType = String(document.document_type || document.document_category || '').trim();
+    const mapping: Record<string, ManagerDocumentType> = {
+        identity: 'government_id',
+        government_id: 'government_id',
+        broker_license: 'broker_license',
+        company_registration: 'company_registration',
+        business_license: 'business_license',
+        financial: 'tax_certificate',
+        tax_certificate: 'tax_certificate',
+        representative_id: 'representative_id',
+        address: 'address_proof',
+        address_proof: 'address_proof',
+    };
+
+    return mapping[rawType] || (rawType as ManagerDocumentType) || 'government_id';
+};
+
+const mapDocumentCategory = (documentType: ManagerDocumentType): string => {
+    const mapping: Record<ManagerDocumentType, string> = {
+        government_id: 'identity',
+        broker_license: 'broker_license',
+        company_registration: 'company_registration',
+        business_license: 'business_license',
+        tax_certificate: 'financial',
+        representative_id: 'identity',
+        address_proof: 'address',
+    };
+
+    return mapping[documentType];
+};
+
+const mapUserFullName = (user: any): string | undefined => {
+    const fullName = String(user?.full_name || '').trim();
+    if (fullName) return fullName;
+
+    const combined = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    return combined || undefined;
+};
+
+const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
+    return {
+        id: data.user_id || data.id || '',
+        profile_type: normalizeProfileType(data.profile_type),
+        company_name: data.company_name || undefined,
+        company_description: data.company_description || undefined,
+        license_number: data.company_reg_number || data.license_number || undefined,
+        license_expiry_date: data.license_expiry_date || undefined,
+        association_membership_id: data.association_membership_id || undefined,
+        company_registration_number: data.company_reg_number || data.company_registration_number || undefined,
+        tax_id: data.tax_id || undefined,
+        company_address: data.business_phone || data.company_address || undefined,
+        authorized_representative_name: mapUserFullName(userInfo) || data.authorized_representative_name || undefined,
+        authorized_representative_email: userInfo?.email || data.authorized_representative_email || undefined,
+        has_ombudsman: Boolean(data.has_ombudsman),
+        has_insurance: Boolean(data.has_insurance),
+        has_client_money: Boolean(data.has_client_money),
+        arla_member: Boolean(data.arla_member),
+        naea_member: Boolean(data.naea_member),
+        rics_member: Boolean(data.rics_member),
+        verification_status: mapVerificationStatus(data.verification_status),
+        rejection_reason: data.verification_status === 'rejected' ? data.admin_notes || undefined : undefined,
+        revision_notes: data.admin_notes || undefined,
+        submitted_at: data.created_at || undefined,
+        approved_at: data.verified_at || undefined,
+        approved_by: data.verified_by || undefined,
+        created_at: data.created_at || new Date().toISOString(),
+        updated_at: data.updated_at || data.created_at || new Date().toISOString(),
+    };
+};
+
+const mapManagerDocument = (document: any): ManagerDocument => {
+    return {
+        id: document.id,
+        manager_id: document.user_id || document.manager_id,
+        document_type: mapDocumentType(document),
+        document_url: document.file_url || document.document_url || '',
+        document_name: document.file_name || document.document_name || undefined,
+        document_number: document.document_number || undefined,
+        expiry_date: document.expiry_date || undefined,
+        verification_status: mapDocumentStatus(document.status || document.verification_status),
+        rejection_reason: document.reject_reason || document.rejection_reason || undefined,
+        reviewed_by: document.reviewed_by || undefined,
+        reviewed_at: document.reviewed_at || undefined,
+        submitted_at: document.created_at || document.submitted_at || new Date().toISOString(),
+        updated_at: document.updated_at || document.created_at || new Date().toISOString(),
+        metadata: document.metadata || undefined,
+    };
+};
+
+const getCurrentManagerDocuments = async (): Promise<ManagerDocument[]> => {
+    try {
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`);
+        const documents = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.documents)
+                ? data.documents
+                : [];
+
+        return documents.map(mapManagerDocument);
+    } catch {
+        return [];
+    }
+};
+
+const getUserInfo = async (userId: string): Promise<any | null> => {
+    try {
+        return await apiFetch<any>(`${CORE_URL()}/api/v1/users/${userId}`);
+    } catch {
+        return null;
+    }
+};
+
+export const getManagerProfile = async (userId: string): Promise<{ data: ManagerProfile | null; error: string | null }> => {
     try {
         const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile`);
-        // Map broker profile response to ManagerProfile shape
-        const profile: ManagerProfile = {
-            id: data.user_id || _userId,
-            profile_type: 'broker',
-            company_name: data.company_name,
-            company_description: data.company_description,
-            license_number: data.company_reg_number,
-            verification_status: mapVerificationStatus(data.verification_status),
-            company_registration_number: data.company_reg_number,
-            company_address: data.business_phone,
-            has_ombudsman: data.has_ombudsman || false,
-            has_insurance: data.has_insurance || false,
-            has_client_money: data.has_client_money || false,
-            arla_member: data.arla_member || false,
-            naea_member: data.naea_member || false,
-            rics_member: data.rics_member || false,
-            created_at: data.created_at,
-            updated_at: data.updated_at,
-        };
-        return { data: profile, error: null };
+        return { data: mapManagerProfile(data, { id: userId }), error: null };
     } catch (error: any) {
         console.error('[managerVerificationService] getManagerProfile error:', error.message);
         return { data: null, error: error.message };
     }
 };
 
-/**
- * Get the manager's documents
- * GET /api/v1/documents (core-service)
- */
-const getManagerDocuments = async (): Promise<ManagerDocument[]> => {
-    try {
-        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`);
-        const docsArray = Array.isArray(data) ? data : (data && Array.isArray(data.documents) ? data.documents : []);
-        return docsArray.map((doc: any) => ({
-            id: doc.id,
-            manager_id: doc.user_id,
-            document_type: doc.document_category || doc.document_type,
-            document_url: doc.file_url,
-            document_name: doc.file_name,
-            document_number: doc.document_number,
-            expiry_date: doc.expiry_date,
-            verification_status: doc.status as DocumentStatus,
-            rejection_reason: doc.reject_reason,
-            reviewed_by: doc.reviewed_by,
-            reviewed_at: doc.reviewed_at,
-            submitted_at: doc.created_at,
-            updated_at: doc.updated_at,
-        }));
-    } catch {
-        return [];
-    }
-};
-
-/**
- * Get all managers (brokers) for admin review
- * GET /api/v1/admin/brokers (core-service, admin only)
- */
 export const getManagers = async (status?: string, page = 1, limit = 20): Promise<{ data: ManagerProfile[]; total: number; error: string | null }> => {
     try {
-        const query = new URLSearchParams({ page: page.toString(), limit: limit.toString() });
-        if (status && status !== 'all') query.append('status', status);
+        const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+        if (status && status !== 'all') {
+            query.append('status', status);
+        }
 
-        const response = await apiFetch<{ data: any[]; total: number }>(
-            `${CORE_URL()}/api/v1/admin/brokers?${query.toString()}`
+        const brokers = await apiFetch<any[]>(`${CORE_URL()}/api/v1/brokers?${query.toString()}`);
+        const userInfoEntries = await Promise.all(
+            brokers.map(async (broker) => [broker.user_id, await getUserInfo(broker.user_id)] as const),
         );
+        const userInfoById = new Map(userInfoEntries);
 
-        const profiles: ManagerProfile[] = response.data.map((data: any) => ({
-            id: data.user_id,
-            profile_type: 'broker',
-            company_name: data.company_name,
-            company_description: data.company_description,
-            license_number: data.company_reg_number,
-            verification_status: mapVerificationStatus(data.verification_status),
-            company_registration_number: data.company_reg_number,
-            company_address: data.business_phone,
-            has_ombudsman: data.has_ombudsman || false,
-            has_insurance: data.has_insurance || false,
-            has_client_money: data.has_client_money || false,
-            arla_member: data.arla_member || false,
-            naea_member: data.naea_member || false,
-            rics_member: data.rics_member || false,
-            submitted_at: data.created_at, // Using created_at as proxy for submission
-            created_at: data.created_at,
-            updated_at: data.updated_at,
-            // Add email/name if available in response, otherwise they need to be fetched separately or joined
-            authorized_representative_name: data.user?.full_name || 'Unknown',
-            authorized_representative_email: data.user?.email || 'Unknown', 
-        }));
-
-        return { data: profiles, total: response.total, error: null };
+        const profiles = brokers.map((broker) => mapManagerProfile(broker, userInfoById.get(broker.user_id)));
+        return { data: profiles, total: profiles.length, error: null };
     } catch (error: any) {
         console.error('[managerVerificationService] getManagers error:', error.message);
         return { data: [], total: 0, error: error.message };
     }
 };
 
-/**
- * Get full verification summary (profile + docs + completeness check)
- */
 export const getManagerVerificationSummary = async (userId: string): Promise<{ data: ManagerVerificationSummary | null; error: string | null }> => {
     try {
         const [profileRes, documents] = await Promise.all([
             getManagerProfile(userId),
-            getManagerDocuments(),
+            getCurrentManagerDocuments(),
         ]);
 
         const profile = profileRes.data;
-        const profileType = profile?.profile_type || 'broker';
-        const required = getRequiredDocuments(profileType);
-        const uploadedTypes = documents.map(d => d.document_type);
-        const missing = required.filter(r => !uploadedTypes.includes(r));
+        const required = getRequiredDocuments(profile?.profile_type || 'broker');
+        const uploadedTypes = documents.map((document) => document.document_type);
+        const missingDocuments = required.filter((documentType) => !uploadedTypes.includes(documentType));
 
         return {
             data: {
                 profile,
                 documents,
                 requiredDocuments: required,
-                isComplete: missing.length === 0,
-                missingDocuments: missing,
+                isComplete: profile !== null && missingDocuments.length === 0,
+                missingDocuments,
             },
             error: null,
         };
@@ -271,129 +330,115 @@ export const getManagerVerificationSummary = async (userId: string): Promise<{ d
     }
 };
 
-/**
- * Register or update a broker profile
- * POST /api/v1/brokers/register (core-service)
- */
 export const createOrUpdateManagerProfile = async (_userId: string, data: Partial<ManagerProfile>): Promise<{ data: ManagerProfile | null; error: string | null }> => {
     try {
-        const result = await apiFetch<any>(
-            `${CORE_URL()}/api/v1/brokers/register`,
-            {
-                method: 'POST',
-                body: JSON.stringify({
-                    company_name: data.company_name || '',
-                    company_description: data.company_description || '',
-                    company_reg_number: data.company_registration_number || data.license_number || '',
-                    business_phone: data.company_address || '',
-                    service_areas: '[]',
-                    has_ombudsman: data.has_ombudsman || false,
-                    has_insurance: data.has_insurance || false,
-                    has_client_money: data.has_client_money || false,
-                    arla_member: data.arla_member || false,
-                    naea_member: data.naea_member || false,
-                    rics_member: data.rics_member || false,
-                }),
-            },
-        );
-        return { data: result as ManagerProfile, error: null };
+        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/register`, {
+            method: 'POST',
+            body: JSON.stringify({
+                company_name: data.company_name || '',
+                company_description: data.company_description || '',
+                company_reg_number: data.company_registration_number || data.license_number || '',
+                business_phone: data.company_address || '',
+                service_areas: '[]',
+                has_ombudsman: data.has_ombudsman || false,
+                has_insurance: data.has_insurance || false,
+                has_client_money: data.has_client_money || false,
+                arla_member: data.arla_member || false,
+                naea_member: data.naea_member || false,
+                rics_member: data.rics_member || false,
+            }),
+        });
+
+        return { data: mapManagerProfile(result), error: null };
     } catch (error: any) {
         return { data: null, error: error.message };
     }
 };
 
-/**
- * Upload a manager document
- * POST /api/v1/documents (core-service)
- */
 export const uploadManagerDocument = async (
-    _file: File,
+    file: File,
     managerId: string,
     documentType: ManagerDocumentType,
 ): Promise<{ url: string | null; path: string | null; error: string | null }> => {
     try {
-        const result = await apiFetch<any>(
-            `${CORE_URL()}/api/v1/documents`,
-            {
-                method: 'POST',
-                body: JSON.stringify({
-                    document_type: documentType,
-                    document_category: documentType,
-                    file_name: _file.name,
-                    file_url: `/uploads/${managerId}/${_file.name}`,
-                    file_size: _file.size,
-                    mime_type: _file.type,
-                }),
-            },
-        );
-        return { url: result.file_url, path: result.storage_path || null, error: null };
+        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
+            method: 'POST',
+            body: JSON.stringify({
+                document_type: documentType,
+                document_category: mapDocumentCategory(documentType),
+                file_name: file.name,
+                file_url: `/uploads/${managerId}/${file.name}`,
+                file_size: file.size,
+                mime_type: file.type,
+            }),
+        });
+
+        return { url: result.file_url || null, path: result.file_url || null, error: null };
     } catch (error: any) {
         return { url: null, path: null, error: error.message };
     }
 };
 
-/**
- * Submit a document record
- * POST /api/v1/documents (core-service)
- */
 export const submitManagerDocument = async (data: any): Promise<{ data: ManagerDocument | null; error: string | null }> => {
     try {
-        const result = await apiFetch<any>(
-            `${CORE_URL()}/api/v1/documents`,
-            {
-                method: 'POST',
-                body: JSON.stringify(data),
-            },
-        );
-        return { data: result as ManagerDocument, error: null };
+        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+
+        return { data: mapManagerDocument(result), error: null };
     } catch (error: any) {
         return { data: null, error: error.message };
     }
 };
 
-/**
- * Delete a manager document
- * First finds the document by type, then calls DELETE /api/v1/documents/:id
- */
 export const deleteManagerDocument = async (_managerId: string, documentType: ManagerDocumentType): Promise<{ error: string | null }> => {
     try {
-        // 1. Find the document ID for this type
-        const docs = await getManagerDocuments();
-        const doc = docs.find(d => d.document_type === documentType);
-
-        if (!doc) {
+        const documents = await getCurrentManagerDocuments();
+        const document = documents.find((entry) => entry.document_type === documentType);
+        if (!document) {
             return { error: 'Document not found' };
         }
 
-        // 2. Delete via backend endpoint
-        await apiFetch<any>(
-            `${CORE_URL()}/api/v1/documents/${doc.id}`,
-            {
-                method: 'DELETE',
-            },
-        );
+        await apiFetch(`${CORE_URL()}/api/v1/documents/${document.id}`, {
+            method: 'DELETE',
+        });
+
         return { error: null };
     } catch (error: any) {
         return { error: error.message };
     }
 };
 
-/**
- * Get full verification details (profile + docs + audit log)
- */
 export const getManagerVerificationDetails = async (userId: string): Promise<{ data: ManagerVerificationDetails | null; error: string | null }> => {
     try {
-        const [profileRes, documents] = await Promise.all([
-            getManagerProfile(userId),
-            getManagerDocuments(),
-        ]);
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${userId}`);
+        const profile = data?.profile ? mapManagerProfile(data.profile, data.user_info) : null;
+        const documents = Array.isArray(data?.documents) ? data.documents.map(mapManagerDocument) : [];
+        const auditLog = Array.isArray(data?.audit_log)
+            ? data.audit_log.map((entry: any) => ({
+                id: entry.id,
+                manager_id: userId,
+                action_type: entry.action_type,
+                actor_id: entry.actor_id || '',
+                actor_role: entry.actor_role || '',
+                notes: entry.notes || undefined,
+                created_at: entry.created_at,
+            }))
+            : [];
+        const userInfo = data?.user_info
+            ? {
+                email: data.user_info.email,
+                full_name: mapUserFullName(data.user_info),
+            }
+            : null;
 
         return {
             data: {
-                profile: profileRes.data,
+                profile,
                 documents,
-                auditLog: [], // Audit log comes from leads/:id/audit, not broker-specific
-                userInfo: null, // User info would come from GET /api/v1/users/:id
+                auditLog,
+                userInfo,
             },
             error: null,
         };
@@ -402,160 +447,105 @@ export const getManagerVerificationDetails = async (userId: string): Promise<{ d
     }
 };
 
-// ── Admin Review Functions ──────────────────────────────────────────────────
-
-/**
- * Start reviewing a manager's verification
- * PUT /api/v1/documents/:id/review with status=under_review
- */
 export const startReview = async (managerId: string, _actorId: string): Promise<{ error: string | null }> => {
     try {
-        // Get manager's pending documents and mark them as under review
-        const docs = await getManagerDocuments();
-        const pendingDocs = docs.filter(d => d.verification_status === 'pending');
-        for (const doc of pendingDocs) {
-            await apiFetch<any>(
-                `${CORE_URL()}/api/v1/documents/${doc.id}/review`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify({ status: 'under_review' }),
-                },
-            );
-        }
+        const details = await getManagerVerificationDetails(managerId);
+        const pendingDocuments = details.data?.documents.filter((document) => document.verification_status === 'pending') || [];
+
+        await Promise.all(
+            pendingDocuments.map((document) => apiFetch(`${CORE_URL()}/api/v1/documents/${document.id}/review`, {
+                method: 'PUT',
+                body: JSON.stringify({ status: 'under_review' }),
+            })),
+        );
+
         return { error: null };
     } catch (error: any) {
         return { error: error.message };
     }
 };
 
-/**
- * Approve a manager
- * PUT /api/v1/brokers/:id/verify with status=verified (core-service, admin)
- */
 export const approveManager = async (managerId: string, _actorId: string, notes?: string): Promise<{ error: string | null }> => {
     try {
-        await apiFetch<any>(
-            `${CORE_URL()}/api/v1/brokers/${managerId}/verify`,
-            {
-                method: 'PUT',
-                body: JSON.stringify({
-                    status: 'verified',
-                    admin_notes: notes || '',
-                    fast_track_eligible: true,
-                }),
-            },
-        );
+        await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status: 'verified',
+                admin_notes: notes || '',
+                fast_track_eligible: true,
+            }),
+        });
+
         return { error: null };
     } catch (error: any) {
         return { error: error.message };
     }
 };
 
-/**
- * Reject a manager
- * PUT /api/v1/brokers/:id/verify with status=rejected (core-service, admin)
- */
 export const rejectManager = async (managerId: string, _actorId: string, reason: string): Promise<{ error: string | null }> => {
     try {
-        await apiFetch<any>(
-            `${CORE_URL()}/api/v1/brokers/${managerId}/verify`,
-            {
-                method: 'PUT',
-                body: JSON.stringify({
-                    status: 'rejected',
-                    admin_notes: reason,
-                }),
-            },
-        );
+        await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status: 'rejected',
+                admin_notes: reason,
+                fast_track_eligible: false,
+            }),
+        });
+
         return { error: null };
     } catch (error: any) {
         return { error: error.message };
     }
 };
 
-/**
- * Revoke manager approval
- * PUT /api/v1/brokers/:id/verify with status=rejected (core-service, admin)
- */
 export const revokeManagerApproval = async (managerId: string, _actorId: string, reason: string): Promise<{ data: boolean; error: string | null }> => {
     try {
-        await apiFetch<any>(
-            `${CORE_URL()}/api/v1/brokers/${managerId}/verify`,
-            {
-                method: 'PUT',
-                body: JSON.stringify({
-                    status: 'rejected',
-                    admin_notes: `Approval revoked: ${reason}`,
-                }),
-            },
-        );
+        await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status: 'rejected',
+                admin_notes: `Approval revoked: ${reason}`,
+                fast_track_eligible: false,
+            }),
+        });
+
         return { data: true, error: null };
     } catch (error: any) {
         return { data: false, error: error.message };
     }
 };
 
-/**
- * Request document reupload
- * PUT /api/v1/documents/:id/review with status=rejected + reason
- */
 export const requestDocumentReupload = async (
     _managerId: string,
     _actorId: string,
-    documentType: ManagerDocumentType,
+    documentId: string,
     reason: string,
 ): Promise<{ error: string | null }> => {
     try {
-        // Find the document of this type and reject it with reason
-        const docs = await getManagerDocuments();
-        const doc = docs.find(d => d.document_type === documentType);
-        if (!doc) return { error: 'Document not found' };
+        await apiFetch(`${CORE_URL()}/api/v1/documents/${documentId}/review`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status: 'reupload_required',
+                reject_reason: reason,
+            }),
+        });
 
-        await apiFetch<any>(
-            `${CORE_URL()}/api/v1/documents/${doc.id}/review`,
-            {
-                method: 'PUT',
-                body: JSON.stringify({
-                    status: 'rejected',
-                    reject_reason: reason,
-                }),
-            },
-        );
         return { error: null };
     } catch (error: any) {
         return { error: error.message };
     }
 };
 
-/**
- * Submit manager profile for verification
- * This updates the broker's status by calling the profile update
- */
 export const submitForVerification = async (managerId: string): Promise<{ data: ManagerProfile | null; error: string | null }> => {
     try {
-        // Trigger verification by updating profile status
-        const result = await apiFetch<any>(
-            `${CORE_URL()}/api/v1/brokers/${managerId}/verify`,
-            {
-                method: 'PUT',
-                body: JSON.stringify({ status: 'basic' }),
-            },
-        );
-        return { data: result as ManagerProfile, error: null };
+        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({ status: 'basic' }),
+        });
+
+        return { data: mapManagerProfile(result), error: null };
     } catch (error: any) {
         return { data: null, error: error.message };
     }
 };
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-function mapVerificationStatus(backendStatus: string | undefined): VerificationStatus {
-    const mapping: Record<string, VerificationStatus> = {
-        'none': 'incomplete',
-        'basic': 'submitted',
-        'verified': 'approved',
-        'fully_verified': 'approved',
-        'rejected': 'rejected',
-    };
-    return mapping[backendStatus || ''] || 'incomplete';
-}

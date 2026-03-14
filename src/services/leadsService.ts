@@ -168,7 +168,7 @@ export const createLead = async (propertyId: string): Promise<{ data: Lead | nul
 
 /**
  * Create a generic broker request (user)
- * POST /api/v1/leads/request (core-service)
+ * POST /api/v1/leads/manual (core-service fallback)
  */
 export const createBrokerRequest = async (requestData: {
     requestType: string;
@@ -178,10 +178,16 @@ export const createBrokerRequest = async (requestData: {
 }): Promise<{ success: boolean; error: string | null }> => {
     try {
         await apiFetch<any>(
-            `${CORE_URL()}/api/v1/leads/request`,
+            `${CORE_URL()}/api/v1/leads/manual`,
             {
                 method: 'POST',
-                body: JSON.stringify(requestData),
+                body: JSON.stringify({
+                    property_interested: `${requestData.requestType} in ${requestData.location}`,
+                    budget: requestData.budget,
+                    last_contact: requestData.details,
+                    name: 'Web Request', // Placeholder since lead name is required
+                    email: 'request@estospaces.local'
+                }),
             },
         );
         return { success: true, error: null };
