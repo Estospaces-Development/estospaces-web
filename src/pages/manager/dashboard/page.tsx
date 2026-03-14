@@ -58,7 +58,20 @@ function DashboardContent() {
   };
 
   const handleTabChange = (tab: string) => {
-    // ... (logic same)
+    setActiveTab(tab);
+
+    const tabRoutes: Record<string, string> = {
+      overview: '/manager/dashboard',
+      properties: '/manager/dashboard/properties',
+      leads: '/manager/leads',
+      application: '/manager/applications',
+      analytics: '/manager/analytics',
+    };
+
+    const nextRoute = tabRoutes[tab];
+    if (nextRoute) {
+      navigate(nextRoute);
+    }
   };
 
   const handleEditProperty = (id: string) => {

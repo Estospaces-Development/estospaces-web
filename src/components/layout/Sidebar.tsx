@@ -20,7 +20,6 @@ import {
     Briefcase,
     Zap,
     Calendar,
-    CreditCard,
     BarChart3,
     Activity,
     UserCircle
@@ -73,7 +72,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     const managerMenuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/manager/dashboard' },
         { icon: Zap, label: 'Fast Track 24h', path: '/manager/fast-track' },
-        { icon: Users, label: 'Brokers Community', path: '/manager/community' },
+        // { icon: Users, label: 'Brokers Community', path: '/manager/community' }, // Commented out — empty state, no manager content yet
         { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
         { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
         { icon: FileText, label: 'Applications', path: '/manager/applications' },

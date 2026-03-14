@@ -13,14 +13,12 @@ import {
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
-import { useToast } from '@/contexts/ToastContext';
-import ConfirmModal from '@/components/ui/ConfirmModal';
 
 const PropertyCard = lazy(() => import('@/components/dashboard/PropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
 import {
-    Plus, Edit, Trash2, Filter, Download, Search, Grid, List,
-    ChevronDown, X, ArrowUpDown, Share2
+    Plus, Edit, Trash2, Filter, Download, Search, Grid, List, Map as MapIcon,
+    ChevronDown, X, Settings, ArrowUpDown, Heart, FileText, FileJson, File as FileIcon, Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 type ViewMode = 'grid' | 'list' | 'map';
@@ -29,12 +27,12 @@ type TabType = 'all' | 'favorited' | 'draft';
 // Price range presets
 const priceRanges = [
     { label: 'Any', min: undefined, max: undefined },
-    { label: 'Under £100K', min: 0, max: 100000 },
-    { label: '£100K - £250K', min: 100000, max: 250000 },
-    { label: '£250K - £500K', min: 250000, max: 500000 },
-    { label: '£500K - £1M', min: 500000, max: 1000000 },
-    { label: '£1M - £2M', min: 1000000, max: 2000000 },
-    { label: '£2M+', min: 2000000, max: undefined },
+    { label: 'Under $100K', min: 0, max: 100000 },
+    { label: '$100K - $250K', min: 100000, max: 250000 },
+    { label: '$250K - $500K', min: 250000, max: 500000 },
+    { label: '$500K - $1M', min: 500000, max: 1000000 },
+    { label: '$1M - $2M', min: 1000000, max: 2000000 },
+    { label: '$2M+', min: 2000000, max: undefined },
 ];
 
 // Bedroom options
@@ -70,6 +68,9 @@ const statusOptions: { value: PropertyStatus | string; label: string; color: str
     { value: 'under_contract', label: 'Under Contract', color: 'text-orange-700 dark:text-orange-400', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
     { value: 'off_market', label: 'Off Market', color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30' },
     { value: 'coming_soon', label: 'Coming Soon', color: 'text-indigo-700 dark:text-indigo-400', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
+    { value: 'online', label: 'Online', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
+    { value: 'active', label: 'Active', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
+    { value: 'draft', label: 'Draft', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
 ];
 
 // Sort options
@@ -89,7 +90,6 @@ function PropertiesContent() {
 
     const navigate = useNavigate();
     const { user } = useAuth();
-    const toast = useToast();
     const {
         filteredProperties,
         properties,
@@ -113,14 +113,17 @@ function PropertiesContent() {
         getPropertyStats,
     } = useProperties();
 
+
+
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [activeTab, setActiveTab] = useState<TabType>('all');
     const [showFilters, setShowFilters] = useState(false);
+    const [showExportMenu, setShowExportMenu] = useState(false);
     const [showSortMenu, setShowSortMenu] = useState(false);
+    const [showBulkActions, setShowBulkActions] = useState(false);
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [selectedPropertyForShare, setSelectedPropertyForShare] = useState<Property | null>(null);
-    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [propertyToDelete, setPropertyToDelete] = useState<string | null>(null);
 
     // Stats
     const stats = useMemo(() => getPropertyStats(), [properties, getPropertyStats]);
@@ -173,23 +176,16 @@ function PropertiesContent() {
         return count;
     }, [filters]);
 
-    const handleDeleteClick = (id: string) => {
-        setPropertyToDelete(id);
-        setDeleteModalOpen(true);
+    const handleExport = (format: 'csv' | 'json' | 'pdf') => {
+        const ids = selectedProperties.length > 0 ? selectedProperties : undefined;
+        exportProperties(format, ids);
+        setShowExportMenu(false);
     };
 
-    const confirmDelete = async () => {
-        if (propertyToDelete) {
-            try {
-                await deleteProperty(propertyToDelete);
-                toast.success('Property deleted successfully');
-            } catch (err) {
-                toast.error('Failed to delete property');
-            } finally {
-                setDeleteModalOpen(false);
-                setPropertyToDelete(null);
-            }
-        }
+    const handleBulkStatusChange = async (status: PropertyStatus | string) => {
+        await bulkUpdateStatus(selectedProperties, status as PropertyStatus);
+        clearSelection();
+        setShowBulkActions(false);
     };
 
     // Filter based on tabs
@@ -213,6 +209,7 @@ function PropertiesContent() {
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
+                    {/* Stats Pills */}
                     <div className="hidden xl:flex items-center gap-2 mr-4">
                         <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                             {stats.available} Available
@@ -237,6 +234,7 @@ function PropertiesContent() {
             {/* Toolbar */}
             <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-4 transition-colors">
                 <div className="flex flex-col lg:flex-row gap-4">
+                    {/* Search */}
                     <div className="flex-1 relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
@@ -256,7 +254,9 @@ function PropertiesContent() {
                         )}
                     </div>
 
+                    {/* Filter & Sort Controls */}
                     <div className="flex flex-wrap items-center gap-2">
+                        {/* Filter Button */}
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-all ${showFilters || activeFiltersCount > 0
@@ -273,6 +273,7 @@ function PropertiesContent() {
                             )}
                         </button>
 
+                        {/* Sort Dropdown */}
                         <div className="relative">
                             <button
                                 onClick={() => setShowSortMenu(!showSortMenu)}
@@ -311,6 +312,7 @@ function PropertiesContent() {
                             </AnimatePresence>
                         </div>
 
+                        {/* View Mode Toggle */}
                         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
                             {[
                                 { mode: 'grid' as ViewMode, icon: <Grid className="w-4 h-4" /> },
@@ -331,6 +333,7 @@ function PropertiesContent() {
                     </div>
                 </div>
 
+                {/* Filters Panel */}
                 <AnimatePresence>
                     {showFilters && (
                         <motion.div
@@ -351,6 +354,7 @@ function PropertiesContent() {
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {/* Price Range */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Price Range
@@ -366,6 +370,7 @@ function PropertiesContent() {
                                         </select>
                                     </div>
 
+                                    {/* Bedrooms */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Bedrooms
@@ -386,6 +391,7 @@ function PropertiesContent() {
                                         </div>
                                     </div>
 
+                                    {/* Property Type */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Property Type
@@ -412,6 +418,7 @@ function PropertiesContent() {
                                         </div>
                                     </div>
 
+                                    {/* Status */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Status
@@ -459,6 +466,7 @@ function PropertiesContent() {
                 </AnimatePresence>
             </div>
 
+            {/* Grid/List View */}
             {viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {tabFilteredProperties.map((property) => (
@@ -467,6 +475,7 @@ function PropertiesContent() {
                                 property={property}
                                 onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}
                             />
+                            {/* Quick Actions Overlay (visible on hover) */}
                             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                                 <button
                                     onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
@@ -489,7 +498,9 @@ function PropertiesContent() {
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeleteClick(property.id);
+                                        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
+                                            deleteProperty(property.id);
+                                        }
                                     }}
                                     className="p-2 bg-white dark:bg-gray-800 text-red-600 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                     title="Delete"
@@ -555,7 +566,9 @@ function PropertiesContent() {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDeleteClick(property.id);
+                                                    if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
+                                                        deleteProperty(property.id);
+                                                    }
                                                 }}
                                                 className="text-red-500 hover:text-red-700 transition-colors"
                                                 title="Delete"
@@ -571,6 +584,7 @@ function PropertiesContent() {
                 </div>
             )}
 
+            {/* Empty State */}
             {tabFilteredProperties.length === 0 && (
                 <div className="text-center py-12">
                     <p className="text-gray-500 dark:text-gray-400">No properties found matching your criteria.</p>
@@ -580,16 +594,6 @@ function PropertiesContent() {
                 isOpen={showShareModal}
                 onClose={() => setShowShareModal(false)}
                 property={selectedPropertyForShare}
-            />
-            <ConfirmModal
-                isOpen={deleteModalOpen}
-                onClose={() => setDeleteModalOpen(false)}
-                onConfirm={confirmDelete}
-                title="Delete Property"
-                message="Are you sure you want to delete this property? This action cannot be undone."
-                confirmText="Delete"
-                cancelText="Cancel"
-                variant="danger"
             />
         </div>
     );
@@ -602,3 +606,4 @@ export default function PropertiesPage() {
         </Suspense>
     );
 }
+
