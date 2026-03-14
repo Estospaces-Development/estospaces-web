@@ -59,14 +59,14 @@ export default function AdminDashboard() {
     const stats = {
         slaCompliance: data?.sla_success_rate || 0,
         avgResponseTime: data?.avg_response_time ? `${Math.floor(data.avg_response_time / 60)}m ${Math.round(data.avg_response_time % 60)}s` : "0m 0s",
-        npsScore: 4.8, // Still hardcoded as NPS isn't in backend yet
+        npsScore: 4.8, // TODO: Implement NPS tracking in core-service
         activeTransactions: data?.active_leads || 0
     };
 
     const activityFeed = [
-        { id: 1, type: 'lead', message: 'Platform monitoring active', time: 'Just now', icon: Activity, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' },
-        { id: 2, type: 'status', message: `Managing ${data?.total_properties || 0} total properties`, time: 'Live', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-        { id: 3, type: 'users', message: `${data?.total_users || 0} registered members`, time: 'Updated', icon: Users, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+        { id: 1, type: 'status', message: `System health monitored at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, time: 'Live', icon: Activity, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' },
+        { id: 2, type: 'status', message: `Database registry: ${data?.total_users || 0} users, ${data?.total_properties || 0} properties`, time: 'Updated', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+        { id: 3, type: 'users', message: `${data?.total_brokers || 0} verified brokers on platform`, time: 'Active', icon: Users, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
     ];
 
     return (

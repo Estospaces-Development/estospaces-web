@@ -6,6 +6,7 @@ import Avatar from '../../../components/ui/Avatar';
 import Badge from '../../../components/ui/Badge';
 import { messagesService, type Conversation as APIConversation, type Message as APIMessage } from '../../../services/messagesService';
 import { useToast } from '../../../contexts/ToastContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface Message {
     id: string;
@@ -26,6 +27,7 @@ interface Conversation {
 }
 
 const AdminChatPage = () => {
+    const { user } = useAuth();
     const toast = useToast();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
@@ -53,13 +55,13 @@ const AdminChatPage = () => {
                     id: c.id,
                     userName: metadata.userName || c.title || 'Unknown User',
                     userRole: metadata.userRole || 'User',
-                    lastMessage: c.messages && c.messages.length > 0 ? c.messages[0].content : 'No messages',
+                    lastMessage: c.messages && c.messages.length > 0 ? c.messages[c.messages.length - 1].content : 'No messages',
                     lastTime: new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    unread: 0, // Should come from backend ideally
+                    unread: c.messages?.filter(m => !m.is_read && m.sender_id !== user?.id).length || 0,
                     messages: (c.messages || []).map(m => ({
                         id: m.id,
-                        sender: m.sender_id === 'admin' ? 'admin' : 'user', // Replace with proper check
-                        senderName: m.sender_id === 'admin' ? 'Admin' : (metadata.userName || 'User'),
+                        sender: m.sender_id === user?.id ? 'admin' : 'user',
+                        senderName: m.sender_id === user?.id ? 'Admin' : (metadata.userName || 'User'),
                         content: m.content,
                         time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     }))
@@ -76,7 +78,7 @@ const AdminChatPage = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedConvId, toast]);
+    }, [selectedConvId, toast, user?.id]);
 
     useEffect(() => {
         fetchConversations();
@@ -253,4 +255,3 @@ const AdminChatPage = () => {
 };
 
 export default AdminChatPage;
-

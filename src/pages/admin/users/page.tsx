@@ -53,7 +53,9 @@ function UserManagementContent() {
 
     const filteredUsers = users.filter(u => {
         const searchLower = searchQuery.toLowerCase();
-        return u.email.toLowerCase().includes(searchLower) || u.full_name?.toLowerCase().includes(searchLower);
+        const matchesSearch = u.email.toLowerCase().includes(searchLower) || u.full_name?.toLowerCase().includes(searchLower);
+        const matchesTab = activeTab === 'all' || u.role === activeTab;
+        return matchesSearch && matchesTab;
     });
 
     return (
@@ -105,11 +107,11 @@ function UserManagementContent() {
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
                 <div className="px-10 py-8 border-b dark:border-gray-700 flex items-center justify-between">
                     <div className="flex gap-8">
-                        {['all', 'New Lead', 'In Progress', 'Approved'].map((tab) => (
+                        {['all', 'admin', 'manager', 'user'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === tab ? 'border-emerald-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
+                                className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === tab ? 'border-emerald-50 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
                                     }`}
                             >
                                 {tab}

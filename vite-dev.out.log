@@ -1,0 +1,90 @@
+
+> estospaces-web-temp@0.1.0 dev
+> vite
+
+Port 3000 is in use, trying another one...
+Port 3001 is in use, trying another one...
+
+  [32m[1mVITE[22m v6.4.1[39m  [2mready in [0m[1m532[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3002[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m4:58:16 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/globals.css[22m
+[2m4:58:20 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.tsx, /src/globals.css[22m
+[2m4:58:27 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/WelcomeBanner.tsx, /src/globals.css[22m
+[2m4:58:38 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/ManagerPropertyCard.tsx, /src/globals.css[22m
+[2m4:58:43 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/SharePropertyModal.tsx, /src/globals.css[22m
+[2m4:58:54 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/page.tsx, /src/globals.css[22m
+[2m4:59:06 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/page.tsx, /src/globals.css[22m
+[2m5:00:18 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:00:34 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:00:40 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:22:12 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/globals.css[22m
+[2m5:22:12 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/WelcomeBanner.tsx, /src/globals.css[22m
+[2m5:22:12 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/page.tsx, /src/globals.css[22m
+[2m5:22:12 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/page.tsx, /src/globals.css[22m
+[2m5:24:40 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:24:56 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:25:01 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:30:09 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/page.tsx, /src/globals.css[22m
+[2m5:34:13 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/page.tsx, /src/globals.css[22m
+[2m5:34:13 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m5:34:13 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/ManagerPropertyCard.tsx, /src/globals.css[22m
+[2m5:34:13 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/SharePropertyModal.tsx, /src/globals.css[22m
+[2m5:34:20 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/globals.css[22m
+[2m5:37:47 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/page.tsx, /src/globals.css[22m
+[2m6:38:37 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/globals.css[22m
+[2m6:38:37 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/HorizontalNavigation.tsx, /src/globals.css[22m
+[2m6:38:37 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/NotificationDropdown.tsx, /src/globals.css[22m
+[2m6:39:00 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ProfileCompletionCard.tsx[22m
+[2m6:45:06 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ApplicationTimelineWidget.tsx[22m
+[2m6:45:15 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ApplicationTimelineWidget.tsx[22m
+[2m6:45:22 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ApplicationTimelineWidget.tsx[22m
+[2m6:46:16 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ApplicationTimelineWidget.tsx[22m
+[2m6:46:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/contexts/LocationContext.tsx, /src/globals.css[22m
+[2m6:46:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/contexts/LocationContext.tsx[22m Could not Fast Refresh ("useUserLocation" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m6:46:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/UserLayoutClient.tsx, /src/globals.css[22m
+[2m6:46:36 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/contexts/LocationContext.tsx, /src/globals.css[22m
+[2m6:46:36 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/contexts/LocationContext.tsx[22m Could not Fast Refresh ("useUserLocation" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m6:46:36 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/UserLayoutClient.tsx, /src/globals.css[22m
+[2m6:46:43 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/pages/user/dashboard/DashboardClient.tsx[22m
+[2m7:04:24 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/NearbyPropertiesMap.tsx[22m
+[2m7:07:24 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/fast-track/page.tsx, /src/globals.css[22m
+[2m7:07:33 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/fast-track/page.tsx, /src/globals.css[22m
+[2m7:07:52 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/auth/login/page.tsx, /src/globals.css[22m
+[2m7:08:06 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m7:08:27 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/manager/FastTrack/FastTrackCaseDetail.tsx, /src/globals.css[22m
+[2m7:08:55 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/ui/StreetViewModal.tsx[22m
+[2m7:09:22 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/ui/Tour360Modal.tsx[22m
+[2m7:09:35 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/ui/Tour360Modal.tsx[22m
+[2m7:09:43 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ContractViewer.tsx[22m
+[2m7:10:01 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/LakshmiAssistant.tsx[22m
+[2m7:10:18 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/messaging/PropertyCard.tsx[22m
+[2m7:11:19 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/dashboard/properties/add/page.tsx, /src/globals.css[22m
+[2m7:11:32 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/HorizontalNavigation.tsx, /src/globals.css[22m
+[2m7:11:39 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/Sidebar.tsx, /src/globals.css[22m
+[2m7:11:47 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/globals.css[22m
+[2m7:11:54 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/globals.css[22m
+[2m7:15:30 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/LakshmiAssistant.tsx[22m
+[2m7:23:49 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/auth/login/page.tsx, /src/globals.css[22m
+[2m7:23:57 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/auth/login/page.tsx, /src/globals.css[22m
+[2m7:27:37 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/auth/login/page.tsx, /src/globals.css[22m
+[2m7:31:58 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/globals.css, /src/pages/manager/dashboard/page.tsx, /src/components/dashboard/WelcomeBanner.tsx, /src/components/dashboard/TopProperties.tsx, /src/pages/manager/analytics/page.tsx[22m
+[2m7:32:35 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/services/userService.ts[22m
+[2m7:34:08 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/globals.css, /src/pages/manager/dashboard/page.tsx, /src/components/dashboard/WelcomeBanner.tsx, /src/components/dashboard/TopProperties.tsx, /src/pages/manager/analytics/page.tsx[22m
+[2m7:36:24 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/globals.css, /src/pages/manager/dashboard/page.tsx, /src/components/dashboard/WelcomeBanner.tsx, /src/components/dashboard/TopProperties.tsx, /src/pages/manager/analytics/page.tsx[22m
+[2m7:51:24 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/contexts/ApplicationsContext.tsx, /src/globals.css, /src/contexts/LeadContext.tsx, /src/components/dashboard/BrokerResponseWidget.tsx, /src/components/dashboard/RecentActivity.tsx[22m
+[2m7:51:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/contexts/ApplicationsContext.tsx[22m Could not Fast Refresh ("APPLICATION_STATUS" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m7:51:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/contexts/ApplicationsContext.tsx[22m
+[2m7:51:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [33mhmr invalidate [39m[2m/src/contexts/LeadContext.tsx[22m Could not Fast Refresh ("useLeads" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m7:51:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/ManagerLayoutClient.tsx, /src/globals.css, /src/pages/manager/leads/page.tsx, /src/pages/manager/analytics/page.tsx[22m
+[2m7:51:41 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/VerificationSection.tsx[22m
+[2m7:51:50 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/VerificationSection.tsx[22m
+[2m7:51:57 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/components/dashboard/ContractViewer.tsx[22m
+[2m7:53:16 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/community/page.tsx, /src/globals.css[22m
+[2m7:53:25 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/community/page.tsx, /src/globals.css[22m
+[2m7:53:42 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/TopProperties.tsx, /src/globals.css[22m
+[2m7:53:48 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/dashboard/TopProperties.tsx, /src/globals.css[22m
+[2m7:53:54 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/analytics/page.tsx, /src/globals.css[22m
+[2m7:54:31 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/manager/analytics/page.tsx, /src/globals.css[22m
+[2m7:54:41 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mMIGRATION_PLAN.md[22m
