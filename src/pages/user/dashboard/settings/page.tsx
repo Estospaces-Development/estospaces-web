@@ -14,7 +14,6 @@ import {
     Check,
     Shield,
     Eye,
-    CreditCard as PaymentIcon,
     Globe as LangIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,7 +90,6 @@ export default function SettingsPage() {
     const tabs = [
         { id: 'notifications', label: 'Notifications', icon: Bell },
         { id: 'security', label: 'Security', icon: Lock },
-        { id: 'payments', label: 'Payments', icon: PaymentIcon },
         { id: 'preferences', label: 'Preferences', icon: LangIcon },
     ];
 
@@ -322,21 +320,6 @@ export default function SettingsPage() {
                                         onChange={() => handleToggle('dark_mode')}
                                     />
                                 </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'payments' && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center text-center py-20">
-                                <div className="w-20 h-20 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-6">
-                                    <PaymentIcon size={40} className="text-orange-500" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">No payment methods found</h3>
-                                <p className="text-gray-500 mt-2 max-w-sm mx-auto font-medium">Add a card or bank account to process rent payments and move-in costs.</p>
-                                <button className="mt-8 px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black active:scale-95 transition-all">
-                                    Add New Method
-                                </button>
                             </div>
                         </div>
                     )}

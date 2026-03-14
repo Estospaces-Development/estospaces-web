@@ -25,26 +25,6 @@ export default function AdminSettingsPage() {
             } catch (error: any) {
                 toast.error('Failed to load system settings');
                 console.error('[AdminSettingsPage] Load Error:', error);
-                
-                // Fallback to defaults for demo if backend is not ready
-                setSettings({
-                    platformName: 'EstoSpaces',
-                    supportEmail: 'support@estospaces.com',
-                    defaultCurrency: 'GBP (£)',
-                    twoFactorAuth: true,
-                    sessionTimeout: '1 hour',
-                    notifications: {
-                        registrations: true,
-                        verifications: true,
-                        alerts: true,
-                        reports: true
-                    }
-                });
-                setStats({
-                    storageUsed: 2.4,
-                    storageTotal: 10,
-                    databaseRecords: 12487
-                });
             } finally {
                 setIsLoading(false);
             }

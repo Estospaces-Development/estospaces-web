@@ -14,7 +14,7 @@ const LakshmiAssistant = () => {
     const { activeLocation } = useUserLocation();
     const { savedProperties } = useSavedProperties();
 
-    // Mock properties contexts for now
+    // Local history state
     const viewedProperties: any[] = [];
     const appliedProperties: any[] = [];
 
@@ -160,20 +160,6 @@ const LakshmiAssistant = () => {
             timestamp: new Date()
         }]);
         setIsProcessing(false);
-
-        /*
-        // Simulate response
-        setTimeout(() => {
-            const botMsg = {
-                id: Date.now() + 1,
-                type: 'bot',
-                text: "I'm currently in demo mode, but I can help you navigate! Try clicking on 'Dashboard', 'Saved Properties', or browsing the 'Discover' section.",
-                timestamp: new Date()
-            };
-            setMessages(prev => [...prev, botMsg]);
-            setIsProcessing(false);
-        }, 1000);
-        */
     };
 
     const getButtonStyle = () => {

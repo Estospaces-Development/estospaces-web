@@ -75,7 +75,7 @@ const UserHelp = lazy(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazy(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazy(() => import('./pages/user/dashboard/notifications/page'));
 const UserOverseas = lazy(() => import('./pages/user/dashboard/overseas/page'));
-const UserPayments = lazy(() => import('./pages/user/dashboard/payments/page'));
+// const UserPayments = lazy(() => import('./pages/user/dashboard/payments/page'));
 const UserProfileDash = lazy(() => import('./pages/user/dashboard/profile/page'));
 const UserReviews = lazy(() => import('./pages/user/dashboard/reviews/page'));
 const UserSettingsDash = lazy(() => import('./pages/user/dashboard/settings/page'));
@@ -133,7 +133,7 @@ const App: React.FC = () => {
             <Route path="appointments" element={<ManagerAppointments />} />
             <Route path="contracts" element={<ManagerContracts />} />
             <Route path="billing" element={<Navigate to="/manager/dashboard" replace />} />
-            {/* <Route path="billing" element={<ManagerBilling />} /> */}{/* Commented out — fully mock, no backend API yet */}
+            {/* <Route path="billing" element={<ManagerBilling />} /> */}{/* Commented out — backend API pending */}
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<Navigate to="/manager/dashboard" replace />} />
             <Route path="fast-track" element={<ManagerFastTrack />} />
@@ -155,7 +155,8 @@ const App: React.FC = () => {
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
             <Route path="dashboard/overseas" element={<UserOverseas />} />
-            {/* <Route path="dashboard/payments" element={<UserPayments />} /> */}
+            <Route path="dashboard/payments" element={<Navigate to="/user/dashboard" replace />} />
+            {/* <Route path="dashboard/payments" element={<UserPayments />} /> */}{/* Commented out - backend API pending */}
             <Route path="dashboard/profile" element={<UserProfileDash />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
             <Route path="dashboard/settings" element={<UserSettingsDash />} />

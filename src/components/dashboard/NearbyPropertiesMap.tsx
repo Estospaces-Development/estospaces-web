@@ -60,19 +60,33 @@ const NearbyPropertiesMap = ({
     const navigate = useNavigate();
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
-    const defaultLocation = { lat: 51.5074, lng: -0.1278 }; // London
-
     const [mapCenter, setMapCenter] = useState(() => {
         try {
             if (userLocation && userLocation.latitude && userLocation.longitude) {
                 return { lat: userLocation.latitude, lng: userLocation.longitude };
             }
-            return defaultLocation;
+            const firstPropertyWithCoords = properties.find((property) => property.latitude && property.longitude);
+            if (firstPropertyWithCoords?.latitude && firstPropertyWithCoords?.longitude) {
+                return { lat: firstPropertyWithCoords.latitude, lng: firstPropertyWithCoords.longitude };
+            }
+            return { lat: 0, lng: 0 };
         } catch {
-            return defaultLocation;
+            return { lat: 0, lng: 0 };
         }
     });
     const [zoom, setZoom] = useState(12);
+
+    const formatPropertyPrice = (price?: number) => {
+        if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+            return 'Price unavailable';
+        }
+
+        return new Intl.NumberFormat('en-GB', {
+            style: 'currency',
+            currency: 'GBP',
+            maximumFractionDigits: 0,
+        }).format(price);
+    };
 
     // Calculate distances and categorize properties
     const propertiesWithDistance = useMemo(() => {
@@ -130,6 +144,11 @@ const NearbyPropertiesMap = ({
     // Filter properties with valid coordinates
     const propertiesWithCoords = sortedProperties.filter(
         p => p.latitude && p.longitude
+    );
+
+    const hasMapData = Boolean(
+        (userLocation && userLocation.latitude && userLocation.longitude) ||
+        propertiesWithCoords.length > 0
     );
 
     // Calculate map bounds to fit all properties
@@ -202,6 +221,24 @@ const NearbyPropertiesMap = ({
             top: `${Math.max(5, Math.min(95, top))}%`,
         };
     };
+
+    if (!hasMapData) {
+        return (
+            <div className="relative w-full h-full rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+                <div className="w-full h-full flex items-center justify-center p-8 text-center">
+                    <div className="max-w-sm">
+                        <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                            <Navigation size={24} className="text-gray-400 dark:text-gray-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Map unavailable</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Add a postcode to your profile or search for a location to view nearby properties.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="relative w-full h-full rounded-lg overflow-hidden bg-white dark:bg-gray-800">

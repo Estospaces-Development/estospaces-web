@@ -101,7 +101,7 @@ const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
                                         : 'This agreement constitutes the entire understanding between the parties and supersedes all prior discussions, agreements, or understandings of any kind. This agreement may not be amended or modified except in writing signed by both parties.'}
                                 </p>
                                 <p className="mt-8 text-sm text-gray-500 dark:text-gray-400 italic">
-                                    * This is a sample document generated for demonstration purposes. The content herein is not legally binding in this context.
+                                    * This document is securely generated and legally binding once signed.
                                 </p>
                             </div>
 

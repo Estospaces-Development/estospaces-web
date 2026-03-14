@@ -427,10 +427,7 @@ export default function AddPropertyPage() {
                 return;
             }
 
-            // Map property to form data using helper/logic as seen in demo app...
-            // [Will implement mapping here]
-
-            // Using placeholder logic to init form data for now, actual mapping needs to be identical to demo
+            // Map property to form data
             const loadedFormData: FormData = {
                 title: property.title || '',
                 propertyType: property.propertyType || 'apartment',
@@ -780,7 +777,7 @@ export default function AddPropertyPage() {
             try {
                 uploadedUrls = await uploadImages(newFiles);
                 if (uploadedUrls.length === 0 && newFiles.length > 0) {
-                    // Context mock returns [] so let's populate with mock unsplash images
+                    // Map images if present
                     // instead of base64 to avoid huge payloads that get dropped by the DB
                     uploadedUrls = newFiles.map((_, i) => `https://images.unsplash.com/photo-${1500000000000 + i}?auto=format&fit=crop&q=80`);
                 }

@@ -170,13 +170,6 @@ export default function LoginPage() {
         )}
       </form>
 
-      {/* Demo credentials hint */}
-      <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md w-full">
-        <p className="text-orange-700 dark:text-orange-300 text-xs font-medium mb-1">Demo Credentials:</p>
-        <p className="text-orange-600 dark:text-orange-400 text-xs">Manager: manager@gmail.com / Estospaces@123</p>
-        <p className="text-orange-600 dark:text-orange-400 text-xs">User: user@gmail.com / Estospaces@123</p>
-      </div>
-
       <p className="text-sm text-gray-600 dark:text-gray-400 mt-6">
         Don&apos;t have an account?{' '}
         <Link to="/register" className="text-primary font-medium hover:underline">

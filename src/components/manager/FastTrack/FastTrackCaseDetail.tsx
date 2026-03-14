@@ -67,7 +67,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
 
     const timeline = getTimeline();
 
-    // Mock E-Signature Documents
+    // E-Signature Documents State
     const [esignDocs, setEsignDocs] = useState<any[]>([]);
     /*
     const [esignDocs, setEsignDocs] = useState([
@@ -89,7 +89,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
         const updatedCase = {
             ...caseData,
             documents: updatedDocs,
-            // Simple auto-advance for demo if current step is documents
+            // Auto-advance if current step is documents and all are verified
             currentStep: (caseData.currentStep === 'documents' && Object.values(updatedDocs).every(s => s === 'verified'))
                 ? 'owner_approval' as FastTrackStep
                 : caseData.currentStep

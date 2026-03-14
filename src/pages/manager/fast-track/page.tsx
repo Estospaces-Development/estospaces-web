@@ -62,19 +62,6 @@ const FastTrackDashboard = () => {
         }
     };
 
-    // Temporary helper to seed data if empty (for demo continuity)
-    const handleSeedData = async () => {
-        const seed = {
-            property_id: "prop-seed-" + Date.now(),
-            client_id: "client-seed-" + Date.now(),
-            client_name: "Demo Client",
-            property_title: "Demo Property " + Date.now(),
-            property_type: "rent" as const
-        };
-        await createFastTrackCase(seed);
-        fetchCases();
-    };
-
     const selectedCase = useMemo(() =>
         cases.find(c => c.caseId === selectedCaseId),
         [cases, selectedCaseId]);
@@ -183,13 +170,6 @@ const FastTrackDashboard = () => {
                     ) : cases.length === 0 ? (
                         <div className="text-center py-20 bg-gray-50 dark:bg-black/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
                             <p className="text-gray-500 dark:text-gray-400 mb-4">No active fast track cases.</p>
-                            <button
-                                onClick={handleSeedData}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 flex items-center gap-2 mx-auto"
-                            >
-                                <Zap className="w-4 h-4" />
-                                Generate Demo Case
-                            </button>
                         </div>
                     ) : null}
                 </div>

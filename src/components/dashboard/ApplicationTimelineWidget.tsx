@@ -42,8 +42,8 @@ interface ApplicationItem {
     property: {
         id: string;
         title: string;
-        city: string;
-        price: number;
+        city: string | null;
+        price: number | null;
         image_urls: string[];
     };
     broker?: {
@@ -88,6 +88,18 @@ const SELL_STAGES: Stage[] = [
 const StageIcon: React.FC<{ stage: Stage; size?: number }> = ({ stage, size = 20 }) => {
     const IconComponent = stage.icon || CheckCircle2;
     return <IconComponent size={size} />;
+};
+
+const formatPropertyPrice = (price: number | null | undefined) => {
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+        return 'Price unavailable';
+    }
+
+    return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0,
+    }).format(price);
 };
 
 const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
@@ -159,10 +171,10 @@ const ApplicationTimelineWidget = () => {
                         estimatedCompletion: '1-2 weeks',
                         property: {
                             id: app.property_id,
-                            title: app.propertyInterested || 'Unknown Property',
-                            city: 'Unknown City', // Placeholder
-                            price: 0, // Placeholder
-                            image_urls: ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1073&q=80'] // Placeholder
+                            title: app.propertyInterested || 'Property application',
+                            city: null,
+                            price: null,
+                            image_urls: [],
                         },
                         stages: RENT_STAGES.map((s, i) => ({
                             ...s,
@@ -187,9 +199,11 @@ const ApplicationTimelineWidget = () => {
                         property: {
                             id: prop.id,
                             title: prop.title,
-                            city: prop.city || 'Unknown',
-                            price: prop.price || 0,
-                            image_urls: prop.images && prop.images.length > 0 ? prop.images : ['https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1073&q=80']
+                            city: prop.city || null,
+                            price: typeof prop.price === 'number' ? prop.price : null,
+                            image_urls: Array.isArray(prop.images)
+                                ? prop.images.filter((image: unknown): image is string => typeof image === 'string' && image.trim().length > 0)
+                                : [],
                         },
                         stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
                         stages: SELL_STAGES.map((s, i) => ({
@@ -277,7 +291,13 @@ const ApplicationTimelineWidget = () => {
                             <div className="px-6 py-5 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                                 <div className="flex items-start gap-5">
                                     <div className="relative flex-shrink-0">
-                                        <img src={item.property.image_urls[0]} alt={item.property.title} className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700" />
+                                        {item.property.image_urls[0] ? (
+                                            <img src={item.property.image_urls[0]} alt={item.property.title} className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700" />
+                                        ) : (
+                                            <div className="w-20 h-20 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                                <FileText size={24} />
+                                            </div>
+                                        )}
                                         <span className={`absolute -bottom-1 -left-1 px-2 py-0.5 text-[10px] font-bold rounded-md uppercase shadow-sm ${item.type === 'buy' ? 'bg-blue-500' : item.type === 'rent' ? 'bg-purple-500' : 'bg-green-500'} text-white`}>
                                             {item.type}
                                         </span>
@@ -286,10 +306,10 @@ const ApplicationTimelineWidget = () => {
                                         <div className="flex items-start justify-between mb-2">
                                             <div>
                                                 <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{item.property.title}</h3>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city}</p>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-bold text-xl text-gray-900 dark:text-white">£{item.property.price.toLocaleString()}</p>
+                                                <p className="font-bold text-xl text-gray-900 dark:text-white">{formatPropertyPrice(item.property.price)}</p>
                                                 <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
                                             </div>
                                         </div>

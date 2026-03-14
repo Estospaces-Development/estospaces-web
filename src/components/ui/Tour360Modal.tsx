@@ -4,13 +4,11 @@ import React from 'react';
 import { X, ExternalLink } from 'lucide-react';
 
 interface Tour360ModalProps {
-    tourUrl?: string; // Optional, can fallback to a demo tour
+    tourUrl?: string;
     onClose: () => void;
 }
 
 const Tour360Modal: React.FC<Tour360ModalProps> = ({ tourUrl, onClose }) => {
-    // Default demo tour if none provided
-    const activeUrl = tourUrl || "https://kuula.co/share/collection/7lVLq?logo=1&info=1&fs=1&vr=0&sd=1&thumbs=1";
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
@@ -25,15 +23,17 @@ const Tour360Modal: React.FC<Tour360ModalProps> = ({ tourUrl, onClose }) => {
                         <h3 className="font-bold text-lg">Virtual Property Tour</h3>
                     </div>
                     <div className="flex items-center gap-2">
-                        <a
-                            href={activeUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
-                            title="Open in new tab"
-                        >
-                            <ExternalLink size={20} />
-                        </a>
+                        {tourUrl && (
+                            <a
+                                href={tourUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
+                                title="Open in new tab"
+                            >
+                                <ExternalLink size={20} />
+                            </a>
+                        )}
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-white"
@@ -44,17 +44,23 @@ const Tour360Modal: React.FC<Tour360ModalProps> = ({ tourUrl, onClose }) => {
                 </div>
 
                 {/* Viewer Container */}
-                <div className="flex-1 bg-black relative">
-                    <iframe
-                        width="100%"
-                        height="100%"
-                        style={{ border: 0 }}
-                        src={activeUrl}
-                        allowFullScreen
-                        allow="xr-spatial-tracking; gyroscope; accelerometer"
-                        scrolling="no"
-                        title="360 Tour"
-                    ></iframe>
+                <div className="flex-1 bg-black relative flex flex-col items-center justify-center text-gray-400">
+                    {tourUrl ? (
+                        <iframe
+                            width="100%"
+                            height="100%"
+                            src={tourUrl}
+                            frameBorder="0"
+                            allowFullScreen
+                            allow="xr-spatial-tracking; gyroscope; accelerometer"
+                            title="360 Tour"
+                        ></iframe>
+                    ) : (
+                        <div className="text-center p-8">
+                            <p className="text-xl font-bold text-white mb-2">Tour Not Available</p>
+                            <p>A 360° virtual tour has not been uploaded for this property yet.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
