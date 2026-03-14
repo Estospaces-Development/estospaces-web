@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getUserLocation } from '../services/locationService';
+import { getUserLocation, extractPostcodeFromAddress } from '../services/locationService';
 import { useAuth } from './AuthContext';
 
 interface LocationContextType {
@@ -31,11 +31,11 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Get user profile location (Mock implementation for now)
+    // Get user profile location
     const getUserProfileLocation = useCallback(async () => {
-        if (!user) return null;
-        // In real app, fetch from API
-        return null;
+        if (!user || !user.address) return null;
+        const postcode = extractPostcodeFromAddress(user.address);
+        return postcode ? { postcode } : null;
     }, [user]);
 
     // Detect user location on mount

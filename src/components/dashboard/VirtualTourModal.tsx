@@ -12,8 +12,7 @@ interface VirtualTourModalProps {
 }
 
 const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }) => {
-    // Mock tour URL if none provided
-    const tourUrl = property?.virtual_tour_url || "https://my.matterport.com/show/?m=JGPnGQ6wM5l&play=1";
+    const tourUrl = property?.virtual_tour_url;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
@@ -29,13 +28,15 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
                         <p className="text-sm text-gray-500 dark:text-gray-400">{property?.title}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => window.open(tourUrl, '_blank')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors hidden sm:block"
-                            title="Open in new tab"
-                        >
-                            <Maximize2 size={20} className="text-gray-600 dark:text-gray-300" />
-                        </button>
+                        {tourUrl && (
+                            <button
+                                onClick={() => window.open(tourUrl, '_blank')}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors hidden sm:block"
+                                title="Open in new tab"
+                            >
+                                <Maximize2 size={20} className="text-gray-600 dark:text-gray-300" />
+                            </button>
+                        )}
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
@@ -47,20 +48,30 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
 
                 {/* Content */}
                 <div className="flex-1 bg-gray-100 dark:bg-black relative group">
-                    <iframe
-                        src={tourUrl}
-                        className="w-full h-full border-0"
-                        allow="fullscreen"
-                        title={`Virtual Tour of ${property?.title}`}
-                        loading="lazy"
-                    />
+                    {tourUrl ? (
+                        <>
+                            <iframe
+                                src={tourUrl}
+                                className="w-full h-full border-0"
+                                allow="fullscreen"
+                                title={`Virtual Tour of ${property?.title}`}
+                                loading="lazy"
+                            />
 
-                    {/* Overlay hint */}
-                    <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <p className="text-white text-center text-sm font-medium">
-                            Click and drag to look around • Use arrow keys to move
-                        </p>
-                    </div>
+                            {/* Overlay hint */}
+                            <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                <p className="text-white text-center text-sm font-medium">
+                                    Click and drag to look around • Use arrow keys to move
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-500">
+                            <Maximize2 size={48} className="mb-4 opacity-20" />
+                            <p className="text-xl font-bold">Virtual Tour Coming Soon</p>
+                            <p className="text-sm opacity-70">A 3D walkthrough for this property is currently being processed.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

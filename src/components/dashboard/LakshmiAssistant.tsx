@@ -151,6 +151,17 @@ const LakshmiAssistant = () => {
         setInputValue('');
         setIsProcessing(true);
 
+        // TODO: AI backend not implemented yet
+        // integrate with real AI service when available
+        setMessages(prev => [...prev, {
+            id: Date.now() + 1,
+            type: 'bot',
+            text: "Hello! I'm currently being integrated with our backend systems. Real-time property assistance will be available here soon!",
+            timestamp: new Date()
+        }]);
+        setIsProcessing(false);
+
+        /*
         // Simulate response
         setTimeout(() => {
             const botMsg = {
@@ -162,6 +173,7 @@ const LakshmiAssistant = () => {
             setMessages(prev => [...prev, botMsg]);
             setIsProcessing(false);
         }, 1000);
+        */
     };
 
     const getButtonStyle = () => {
