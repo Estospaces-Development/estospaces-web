@@ -55,17 +55,18 @@ export default function AdminDashboard() {
         );
     }
 
-    // Default values if data is missing
+    // Map real values from backend
     const stats = {
-        slaCompliance: 94.2,
-        avgResponseTime: "4m 12s",
-        npsScore: 4.8,
-        activeTransactions: data?.leadAnalytics.totalLeads || 0
+        slaCompliance: data?.sla_success_rate || 0,
+        avgResponseTime: data?.avg_response_time ? `${Math.floor(data.avg_response_time / 60)}m ${Math.round(data.avg_response_time % 60)}s` : "0m 0s",
+        npsScore: 4.8, // Still hardcoded as NPS isn't in backend yet
+        activeTransactions: data?.active_leads || 0
     };
 
     const activityFeed = [
         { id: 1, type: 'lead', message: 'Platform monitoring active', time: 'Just now', icon: Activity, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20' },
-        { id: 2, type: 'status', message: `Managing ${data?.leadAnalytics.totalProperties || 0} total properties`, time: 'Live', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+        { id: 2, type: 'status', message: `Managing ${data?.total_properties || 0} total properties`, time: 'Live', icon: Building2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+        { id: 3, type: 'users', message: `${data?.total_users || 0} registered members`, time: 'Updated', icon: Users, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
     ];
 
     return (
@@ -218,7 +219,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Verifications</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-orange-600/70 dark:group-hover:text-orange-400/70">12 Pending Reviews</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-orange-600/70 dark:group-hover:text-orange-400/70">{data?.pending_verifications || 0} Pending Reviews</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
@@ -272,7 +273,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors">Support Chat</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600/70 dark:group-hover:text-purple-400/70">3 New Messages</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600/70 dark:group-hover:text-purple-400/70">Monitoring Active</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-purple-500">
@@ -289,7 +290,8 @@ export default function AdminDashboard() {
                             <div>
                                 <h3 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h3>
                                 <p className="text-gray-400 text-sm max-w-md mb-6">
-                                    The team is on track to hit the Q1 target of 150 verified properties.
+                                    The team is on track to hit the Q1 target. 
+                                    Currently {data?.total_properties || 0} / 150 verified properties listed.
                                     Keep monitoring fast-track transaction speeds.
                                 </p>
                                 <div className="flex items-center gap-4">

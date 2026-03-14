@@ -9,24 +9,52 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
+import { userService } from '@/services/userService';
+import { getPlatformAnalytics } from '@/services/analyticsService';
+import { User } from '@/types';
+import { useToast } from '@/contexts/ToastContext';
+
 function UserManagementContent() {
-    const { user } = useAuth();
+    const { user: currentUser } = useAuth();
+    const toast = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('all');
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [statsData, setStatsData] = useState<any>(null);
 
-    const leads = [
-        { id: '1', name: 'James Wilson', email: 'james.w@example.com', property: 'Mayfair Penthouse', status: 'New Lead', score: 92, lastContact: '2h ago' },
-        { id: '2', name: 'Elena Rodriguez', email: 'elena.r@lifestyle.com', property: 'Chelsea Garden Flat', status: 'In Progress', score: 78, lastContact: '5h ago' },
-        { id: '3', name: 'Marcus Thorne', email: 'm.thorne@global.net', property: 'Skyline Suite 402', status: 'Approved', score: 95, lastContact: '1d ago' },
-        { id: '4', name: 'Sarah Jenkins', email: 'sarah.j@outlook.com', property: 'Notting Hill Mews', status: 'Rejected', score: 45, lastContact: '3d ago' },
-    ];
+    const fetchUsers = useCallback(async () => {
+        try {
+            setLoading(true);
+            const [{ data: userData }, { data: analytics }] = await Promise.all([
+                userService.getAllUsers(),
+                getPlatformAnalytics()
+            ]);
+            setUsers(userData || []);
+            setStatsData(analytics);
+        } catch (error) {
+            console.error('[UserManagement] Load Error:', error);
+            toast.error('Failed to load user registry');
+        } finally {
+            setLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
 
     const stats = [
-        { label: 'Network Size', value: '1,280', icon: Users, color: 'text-blue-500' },
-        { label: 'Active Leads', value: '42', icon: TrendingUp, color: 'text-orange-500' },
-        { label: 'Member Growth', value: '+12%', icon: UserCheck, color: 'text-emerald-500' },
-        { label: 'Verified Props', value: '156', icon: Shield, color: 'text-indigo-500' },
+        { label: 'Network Size', value: statsData?.total_users?.toLocaleString() || '0', icon: Users, color: 'text-blue-500' },
+        { label: 'Active Leads', value: statsData?.active_leads?.toLocaleString() || '0', icon: TrendingUp, color: 'text-orange-500' },
+        { label: 'Total Brokers', value: statsData?.total_brokers?.toLocaleString() || '0', icon: UserCheck, color: 'text-emerald-500' },
+        { label: 'Verified Props', value: statsData?.total_properties?.toLocaleString() || '0', icon: Shield, color: 'text-indigo-500' },
     ];
+
+    const filteredUsers = users.filter(u => {
+        const searchLower = searchQuery.toLowerCase();
+        return u.email.toLowerCase().includes(searchLower) || u.full_name?.toLowerCase().includes(searchLower);
+    });
 
     return (
         <div className="space-y-10 animate-in fade-in duration-500">
@@ -107,40 +135,35 @@ function UserManagementContent() {
                             </tr>
                         </thead>
                         <tbody className="divide-y dark:divide-gray-700">
-                            {leads.map((lead) => (
-                                <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
+                            {filteredUsers.map((user) => (
+                                <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center font-black text-lg">
-                                                {lead.name.charAt(0)}
-                                            </div>
+                                            {user.avatar_url ? (
+                                                <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                                            ) : (
+                                                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center font-black text-lg">
+                                                    {user.full_name?.charAt(0) || user.email.charAt(0)}
+                                                </div>
+                                            )}
                                             <div>
-                                                <p className="font-black text-gray-900 dark:text-white text-sm">{lead.name}</p>
-                                                <p className="text-xs text-gray-400 font-bold">{lead.email}</p>
+                                                <p className="font-black text-gray-900 dark:text-white text-sm">{user.full_name || 'No Name'}</p>
+                                                <p className="text-xs text-gray-400 font-bold">{user.email}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-10 py-6">
-                                        <p className="text-sm font-black text-gray-900 dark:text-white">{lead.property}</p>
-                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ref: #EP-{lead.id}024</p>
+                                        <p className="text-sm font-black text-gray-900 dark:text-white capitalize">{user.role}</p>
+                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ref: #U-{user.id.substring(0, 6)}</p>
                                     </td>
                                     <td className="px-10 py-6">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${lead.status === 'New Lead' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-500' :
-                                            lead.status === 'In Progress' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500' :
-                                                lead.status === 'Approved' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' :
-                                                    'bg-red-50 dark:bg-red-900/20 text-red-500'
-                                            }`}>
-                                            {lead.status}
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.is_verified ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-500'}`}>
+                                            {user.is_verified ? 'Verified' : 'Unverified'}
                                         </span>
                                     </td>
                                     <td className="px-10 py-6 text-center">
                                         <div className="flex flex-col items-center">
-                                            <div className="flex items-center gap-1 mb-1">
-                                                {[1, 2, 3, 4, 5].map(s => (
-                                                    <Star key={s} size={10} className={lead.score >= s * 20 ? 'fill-emerald-500 text-emerald-500' : 'text-gray-200'} />
-                                                ))}
-                                            </div>
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Score: {lead.score}</span>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined: {new Date(user.created_at).toLocaleDateString()}</span>
                                         </div>
                                     </td>
                                     <td className="px-10 py-6 text-right">
@@ -158,7 +181,7 @@ function UserManagementContent() {
 
                 {/* Pagination Footer */}
                 <div className="px-10 py-8 border-t dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Showing 1-4 of 1,280 Members</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Showing {filteredUsers.length} of {statsData?.total_users || 0} Members</p>
                     <div className="flex gap-2">
                         <button className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30" disabled>
                             <ArrowRight size={18} className="rotate-180" />

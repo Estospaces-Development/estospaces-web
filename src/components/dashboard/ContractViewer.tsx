@@ -18,12 +18,7 @@ interface ContractViewerProps {
 }
 
 const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 800);
-        return () => clearTimeout(timer);
-    }, []);
+    const [isLoading, setIsLoading] = useState(false);
 
     const currentDate = new Date().toLocaleDateString('en-GB', {
         day: 'numeric',

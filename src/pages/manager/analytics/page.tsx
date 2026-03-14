@@ -50,13 +50,13 @@ const Analytics = () => {
     const approvedApplications = applicationsList.filter(app => app.status === 'approved');
     const pendingApplications = applicationsList.filter(app => app.status === 'submitted');
 
-    const monthlyRevenue = analyticsData?.revenueTrend.map((item) => ({
+    const monthlyRevenue = analyticsData?.revenueTrend?.map((item) => ({
         month: item.label,
         value: item.value * 1000,
         change: 0
     })) || [];
 
-    const propertyPerformance = analyticsData?.propertyPerformance.map((p) => ({
+    const propertyPerformance = analyticsData?.propertyPerformance?.map((p) => ({
         property: p.property,
         views: p.views,
         applications: p.applications,

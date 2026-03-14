@@ -126,9 +126,11 @@ function PropertyManagementContent() {
 
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs font-black text-gray-400">AG</div>
+                                    <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-xs font-black text-gray-400">
+                                        {(property.agent_name || 'AG').substring(0, 2).toUpperCase()}
+                                    </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-gray-900 dark:text-white">Admin Group</p>
+                                        <p className="text-[10px] font-black text-gray-900 dark:text-white">{property.agent_name || 'Admin Group'}</p>
                                         <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Listing Owner</p>
                                     </div>
                                 </div>

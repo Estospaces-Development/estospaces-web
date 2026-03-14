@@ -18,6 +18,7 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
+import { leadsService } from '@/services/leadsService';
 
 interface VerificationSectionProps {
     userId?: string;
@@ -68,8 +69,9 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
         setError(null);
 
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 800));
+            const { success, error: uploadError } = await leadsService.uploadDocument(type, file);
+            
+            if (!success) throw new Error(uploadError || 'Failed to upload document');
 
             setVerificationSteps(prev => ({
                 ...prev,
@@ -85,23 +87,25 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 );
             }
 
-            setSuccess(`Your ${type === 'identity' ? 'identity document' : 'proof of address'} has been verified!`);
+            setSuccess(`Your ${type === 'identity' ? 'identity document' : 'proof of address'} has been uploaded for verification!`);
             setShowUploadModal(null);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Upload error:', err);
-            setError('Failed to upload document. Please try again.');
+            setError(err.message || 'Failed to upload document. Please try again.');
         } finally {
             setUploadingFile(false);
         }
     };
 
     const handleEmailVerification = async () => {
+        if (!currentUser?.email) return;
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 600));
+            const { success, error: resendError } = await leadsService.resendVerification(currentUser.email);
+            if (!success) throw new Error(resendError || 'Failed to send verification email');
             setSuccess('Verification email sent! Please check your inbox.');
-        } catch (err) {
-            setError('Failed to send verification email.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to send verification email.');
         } finally {
             setLoading(false);
         }

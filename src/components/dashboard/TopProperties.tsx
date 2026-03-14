@@ -28,10 +28,10 @@ const TopProperties = () => {
                     const mapped = res.data.propertyPerformance.map(p => ({
                         id: p.property, // Analytics returns property name/id
                         name: p.property,
-                        price: '$0.00', // Analytics doesn't have price, we'd need a join or just show views
+                        price: '', // Hide price if not available in analytics
                         views: p.views,
                         inquiries: p.applications, // Using applications as proxy for inquiries
-                        status: 'Active'
+                        status: 'Online'
                     }));
                     setTopProperties(mapped.slice(0, 3));
                 } else {
@@ -85,7 +85,7 @@ const TopProperties = () => {
                                     {property.status}
                                 </span>
                             </div>
-                            <p className="text-lg font-bold text-gray-800 dark:text-white mb-2">{property.price}</p>
+                            {property.price && <p className="text-lg font-bold text-gray-800 dark:text-white mb-2">{property.price}</p>}
                             <div className="flex items-center gap-4 secondary-label text-gray-600 dark:text-gray-400 text-sm">
                                 <span>{property.views} {property.views === 1 ? 'view' : 'views'}</span>
                                 <span>{property.inquiries} {property.inquiries === 1 ? 'Inquiry' : 'Inquiries'}</span>

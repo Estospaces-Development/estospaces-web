@@ -9,8 +9,10 @@ import CommunityPostCard from '../../../components/community/CommunityPostCard';
 import CreatePostModal from '../../../components/community/CreatePostModal';
 import CommentsModal from '../../../components/community/CommentsModal';
 import { getCommunityPosts, CommunityPost, PostTag, AuthorRole, PostVisibility, PostComment } from '@/services/communityService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BrokersCommunity = () => {
+    const { user } = useAuth();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTag, setSelectedTag] = useState<PostTag | 'all'>('all');
@@ -78,9 +80,9 @@ const BrokersCommunity = () => {
     const handleCreatePost = (content: string, tag: PostTag, visibility: PostVisibility) => {
         const newPost: CommunityPost = {
             postId: `post-${Date.now()}`,
-            authorId: 'current-user',
-            authorName: 'Current Manager',
-            authorRole: 'manager',
+            authorId: user?.id || 'unknown',
+            authorName: user?.name || 'Unknown User',
+            authorRole: (user?.role as AuthorRole) || 'manager',
             category: 'general',
             title: 'New Post',
             content,
@@ -107,9 +109,9 @@ const BrokersCommunity = () => {
         const newComment: PostComment = {
             commentId: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             postId,
-            authorId: 'current-user',
-            authorName: 'Current Manager',
-            authorRole: 'manager',
+            authorId: user?.id || 'unknown',
+            authorName: user?.name || 'Unknown User',
+            authorRole: (user?.role as AuthorRole) || 'manager',
             content,
             createdAt: new Date().toISOString(),
         };

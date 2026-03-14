@@ -328,6 +328,43 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
     }
 };
 
+/**
+ * Upload a document for verification
+ * POST /api/v1/documents (core-service)
+ */
+export const uploadDocument = async (type: string, file: File): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('file', file);
+
+        await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
+            method: 'POST',
+            body: formData,
+            // apiFetch handles Auth headers, but we might need to handle multipart/form-data specifically if apiFetch defaults to JSON
+        });
+        return { success: true, error: null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Resend email verification
+ * POST /api/v1/auth/resend-verification (core-service)
+ */
+export const resendVerification = async (email: string): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        await apiFetch<any>(`${CORE_URL()}/api/v1/auth/resend-verification`, {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        });
+        return { success: true, error: null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 export const leadsService = {
     getUserLeads,
     getBrokerLeads,
@@ -342,4 +379,6 @@ export const leadsService = {
     getLeadAudit,
     getAllLeads,
     reassignLead,
+    uploadDocument,
+    resendVerification,
 };
