@@ -39,7 +39,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
         e.preventDefault();
         if (searchQuery.trim()) {
             // Implement global search or redirect to search page
-            console.log('Searching for:', searchQuery);
+            // removed console.log
         }
     };
 

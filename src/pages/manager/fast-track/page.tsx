@@ -62,19 +62,6 @@ const FastTrackDashboard = () => {
         }
     };
 
-    // Temporary helper to seed data if empty (for demo continuity)
-    const handleSeedData = async () => {
-        const seed = {
-            property_id: "prop-seed-" + Date.now(),
-            client_id: "client-seed-" + Date.now(),
-            client_name: "Demo Client",
-            property_title: "Demo Property " + Date.now(),
-            property_type: "rent" as const
-        };
-        await createFastTrackCase(seed);
-        fetchCases();
-    };
-
     const selectedCase = useMemo(() =>
         cases.find(c => c.caseId === selectedCaseId),
         [cases, selectedCaseId]);
@@ -181,15 +168,14 @@ const FastTrackDashboard = () => {
                             </button>
                         </div>
                     ) : cases.length === 0 ? (
-                        <div className="text-center py-20 bg-gray-50 dark:bg-black/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
-                            <p className="text-gray-500 dark:text-gray-400 mb-4">No active fast track cases.</p>
-                            <button
-                                onClick={handleSeedData}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 flex items-center gap-2 mx-auto"
-                            >
-                                <Zap className="w-4 h-4" />
-                                Generate Demo Case
-                            </button>
+                        <div className="col-span-full py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">
+                                <Zap size={40} className="text-gray-300 dark:text-gray-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No active cases found</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                                There are currently no fast track cases assigned to you. When new cases are created, they will appear here in the priority queue.
+                            </p>
                         </div>
                     ) : null}
                 </div>

@@ -42,8 +42,10 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
 
     const timeStatus = getTimeStatus();
 
-    // Mock timeline generation based on steps
+    // TODO: Timeline and E-Signature APIs not implemented
+    // integrate when backend is implemented
     const getTimeline = () => {
+        /*
         const steps: { step: FastTrackStep; label: string; description: string }[] = [
             { step: 'documents', label: 'Documents Verification', description: 'Identity and income proof checks' },
             { step: 'owner_approval', label: 'Owner Approval', description: 'Property owner confirmation pending' },
@@ -59,16 +61,21 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
             status: index < currentIndex ? 'completed' : index === currentIndex ? 'current' : 'pending',
             date: index <= currentIndex ? new Date(new Date(caseData.submittedAt).getTime() + index * 3600000).toISOString() : null
         }));
+        */
+        return [];
     };
 
     const timeline = getTimeline();
 
-    // Mock E-Signature Documents
+    // E-Signature Documents State
+    const [esignDocs, setEsignDocs] = useState<any[]>([]);
+    /*
     const [esignDocs, setEsignDocs] = useState([
         { id: 1, name: 'Tenancy Agreement', status: 'pending', recipient: caseData.clientName },
         { id: 2, name: 'Direct Debit Mandate', status: 'signed', recipient: caseData.clientName },
         { id: 3, name: 'Inventory Check-in', status: 'pending', recipient: caseData.clientName }
     ]);
+    */
 
     const handleSignRequest = (id: number) => {
         setEsignDocs(prev => prev.map(doc => doc.id === id ? { ...doc, status: 'sent' as string } : doc));
@@ -82,7 +89,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
         const updatedCase = {
             ...caseData,
             documents: updatedDocs,
-            // Simple auto-advance for demo if current step is documents
+            // Auto-advance if current step is documents and all are verified
             currentStep: (caseData.currentStep === 'documents' && Object.values(updatedDocs).every(s => s === 'verified'))
                 ? 'owner_approval' as FastTrackStep
                 : caseData.currentStep

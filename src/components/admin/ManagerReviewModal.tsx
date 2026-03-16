@@ -31,7 +31,6 @@ import {
     ManagerProfile,
     ManagerDocument,
     AuditLogEntry,
-    ManagerDocumentType
 } from '@/services/managerVerificationService';
 
 // ============================================================================
@@ -61,7 +60,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [showRejectForm, setShowRejectForm] = useState(false);
-    const [showReuploadForm, setShowReuploadForm] = useState<ManagerDocumentType | null>(null);
+    const [showReuploadForm, setShowReuploadForm] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [reuploadReason, setReuploadReason] = useState('');
     const [approveNotes, setApproveNotes] = useState('');
@@ -85,15 +84,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 setError(result.error);
             } else if (result.data) {
                 setDetails(result.data);
-
-                // Auto-start review if status is 'submitted'
-                if (result.data.profile?.verification_status === 'submitted' && user?.id) {
-                    await managerVerificationService.startReview(managerId, user.id);
-                    const updatedResult = await managerVerificationService.getManagerVerificationDetails(managerId);
-                    if (updatedResult.data) {
-                        setDetails(updatedResult.data);
-                    }
-                }
             }
         } catch (err) {
             setError((err as Error).message);
@@ -175,12 +165,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         setActionLoading('revoke');
         setError(null);
         try {
-            console.log('Revoking manager approval:', {
-                managerId,
-                adminId: user.id,
-                reasonLength: revokeReason.length,
-                userRole: user.user_metadata?.role || 'unknown'
-            });
+            // removed console.log
 
             const result = await managerVerificationService.revokeManagerApproval(managerId, user.id, revokeReason);
 
@@ -190,7 +175,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 setError(result.error || 'Failed to revoke approval. Please try again.');
                 // Don't close the form on error - let user see the error message
             } else {
-                console.log('Revocation successful:', result.data);
+                // removed console.log
                 // Clear the form
                 setRevokeReason('');
                 setShowRevokeConfirm(false);
@@ -213,15 +198,15 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         }
     };
 
-    const handleRequestReupload = async (documentType: ManagerDocumentType) => {
+    const handleRequestReupload = async (documentId: string) => {
         if (!user?.id || !reuploadReason.trim()) return;
 
-        setActionLoading(`reupload-${documentType}`);
+        setActionLoading(`reupload-${documentId}`);
         try {
             const result = await managerVerificationService.requestDocumentReupload(
                 managerId,
                 user.id,
-                documentType,
+                documentId,
                 reuploadReason
             );
             if (result.error) {
@@ -424,16 +409,16 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 <DocumentCard
                                     key={doc.id}
                                     document={doc}
-                                    onRequestReupload={() => setShowReuploadForm(doc.document_type)}
-                                    showReuploadForm={showReuploadForm === doc.document_type}
+                                    onRequestReupload={() => setShowReuploadForm(doc.id)}
+                                    showReuploadForm={showReuploadForm === doc.id}
                                     reuploadReason={reuploadReason}
                                     setReuploadReason={setReuploadReason}
-                                    onSubmitReupload={() => handleRequestReupload(doc.document_type)}
+                                    onSubmitReupload={() => handleRequestReupload(doc.id)}
                                     onCancelReupload={() => {
                                         setShowReuploadForm(null);
                                         setReuploadReason('');
                                     }}
-                                    actionLoading={actionLoading === `reupload-${doc.document_type}`}
+                                    actionLoading={actionLoading === `reupload-${doc.id}`}
                                     disabled={profile.verification_status === 'approved'}
                                 />
                             ))
@@ -540,7 +525,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    console.log('Revoke button clicked');
                                     setShowRevokeConfirm(true);
                                 }}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"

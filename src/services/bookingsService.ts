@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { Contract, ContractTemplate } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -27,6 +28,7 @@ export interface Viewing {
     id: string;
     property_id: string;
     user_id: string;
+    manager_id: string;
     scheduled_at: string;
     duration_minutes: number;
     viewing_type: 'in_person' | 'virtual';
@@ -48,30 +50,13 @@ export interface Viewing {
     };
 }
 
-export interface Contract {
-    id: string;
+export interface CreateViewingRequest {
     property_id: string;
-    user_id: string;
     manager_id: string;
-    contract_type: 'rental' | 'purchase';
-    start_date: string;
-    end_date?: string;
-    monthly_rent?: number;
-    deposit_amount?: number;
-    contract_pdf_url?: string;
-    status: 'draft' | 'sent' | 'signed' | 'active' | 'expired' | 'terminated';
-    user_signed_at?: string;
-    created_at: string;
-}
-
-export interface ContractTemplate {
-    id: string;
-    name: string;
-    description: string;
-    type: string;
-    date: string;
-    status: string;
-    isMandatory: boolean;
+    requested_date: string; // YYYY-MM-DD
+    requested_time: string; // HH:MM
+    viewing_type?: string;
+    user_notes?: string;
 }
 
 // ── API Functions ───────────────────────────────────────────────────────────
@@ -81,6 +66,16 @@ export interface ContractTemplate {
  */
 export async function getBookings(): Promise<{ data: Booking[] }> {
     return apiFetch<{ data: Booking[] }>(`${BOOKING_URL()}/api/v1/bookings`);
+}
+
+/**
+ * Create a new viewing
+ */
+export async function createViewing(request: CreateViewingRequest): Promise<{ data: Viewing }> {
+    return apiFetch<{ data: Viewing }>(`${BOOKING_URL()}/api/v1/viewings`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+    });
 }
 
 /**
@@ -96,7 +91,7 @@ export async function getViewings(): Promise<{ data: Viewing[] }> {
  * Get contracts for the current user
  */
 export async function getContracts(): Promise<{ data: Contract[] }> {
-    return apiFetch<{ data: Contract[] }>(`${BOOKING_URL()}/api/v1/contracts`);
+    return apiFetch<{ data: Contract[] }>(`${BOOKING_URL()}/api/v1/contracts/mine`);
 }
 
 /**
@@ -118,6 +113,7 @@ export async function getContractTemplates(): Promise<{ data: ContractTemplate[]
 export const bookingsService = {
     getBookings,
     getViewings,
+    createViewing,
     getContracts,
     getContractTemplates,
     cancelViewing,

@@ -1,37 +1,37 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Bell,
     Lock,
-    CreditCard,
-    Globe,
     ArrowLeft,
     Save,
     Loader2,
     Mail,
     Smartphone,
     Moon,
-    Clock,
     Check,
     Shield,
     Eye,
-    CreditCard as PaymentIcon,
     Globe as LangIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getPreferences, updatePreferences, type UserPreferences } from '@/services/authService';
+import { useToast } from '@/contexts/ToastContext';
 import Toggle from '@/components/ui/Toggle';
 
 export default function SettingsPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const toast = useToast();
 
+    const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [activeTab, setActiveTab] = useState('notifications');
 
-    const [preferences, setPreferences] = useState({
+    const [preferences, setPreferences] = useState<UserPreferences>({
         email_enabled: true,
         email_viewing_updates: true,
         email_application_updates: true,
@@ -40,33 +40,66 @@ export default function SettingsPage() {
         push_enabled: true,
         push_viewing_updates: true,
         sms_enabled: false,
-        quiet_hours_enabled: false,
-        quiet_hours_start: '22:00',
-        quiet_hours_end: '08:00',
+        marketing_emails: false,
+        two_factor_auth: false,
         dark_mode: false,
         language: 'English',
         currency: 'GBP',
     });
 
-    const handleToggle = (key: string) => {
-        setPreferences(prev => ({ ...prev, [key]: !(prev as any)[key] }));
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                setIsLoading(true);
+                const { data, error } = await getPreferences();
+                if (error) throw new Error(error);
+                if (data) setPreferences(data);
+            } catch (error: any) {
+                toast.error('Failed to load settings');
+                console.error('[DashboardSettingsPage] Load Error:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchSettings();
+    }, []); // Empty dependency array to prevent loops
+
+    const handleToggle = (key: keyof UserPreferences) => {
+        if (typeof preferences[key] !== 'boolean') return;
+        setPreferences((prev: UserPreferences) => ({ ...prev, [key]: !prev[key] }));
         setSaveSuccess(false);
     };
 
     const handleSave = async () => {
-        setSaving(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setSaving(false);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        try {
+            setSaving(true);
+            const { error } = await updatePreferences(preferences);
+            if (error) throw new Error(error);
+            
+            setSaveSuccess(true);
+            toast.success('Settings updated successfully');
+            setTimeout(() => setSaveSuccess(false), 3000);
+        } catch (error: any) {
+            toast.error('Failed to save settings');
+            console.error('[DashboardSettingsPage] Save Error:', error);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const tabs = [
         { id: 'notifications', label: 'Notifications', icon: Bell },
         { id: 'security', label: 'Security', icon: Lock },
-        { id: 'payments', label: 'Payments', icon: PaymentIcon },
         { id: 'preferences', label: 'Preferences', icon: LangIcon },
     ];
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
@@ -161,7 +194,7 @@ export default function SettingsPage() {
                                             </div>
                                             <Toggle
                                                 checked={(preferences as any)[item.id]}
-                                                onChange={() => handleToggle(item.id)}
+                                                onChange={() => handleToggle(item.id as keyof UserPreferences)}
                                             />
                                         </div>
                                     ))}
@@ -191,7 +224,7 @@ export default function SettingsPage() {
                                             </div>
                                             <Toggle
                                                 checked={(preferences as any)[item.id]}
-                                                onChange={() => handleToggle(item.id)}
+                                                onChange={() => handleToggle(item.id as keyof UserPreferences)}
                                             />
                                         </div>
                                     ))}
@@ -235,26 +268,33 @@ export default function SettingsPage() {
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8">
                                 <div className="flex items-center gap-4 mb-10">
-                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl text-orange-500">
-                                        <Globe size={28} />
-                                    </div>
+                                    <LangIcon size={28} className="text-orange-500" />
                                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Regional Preferences</h2>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-3">
                                         <label className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-1">Language</label>
-                                        <select className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-orange-500 font-bold text-gray-900 dark:text-white appearance-none">
+                                        <select 
+                                            value={preferences.language}
+                                            onChange={(e) => setPreferences({...preferences, language: e.target.value})}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-orange-500 font-bold text-gray-900 dark:text-white appearance-none"
+                                        >
                                             <option>English (UK)</option>
                                             <option>English (US)</option>
                                             <option>Spanish</option>
-                                            <option>Hindi</option>
+                                            <option>French</option>
+                                            <option>German</option>
                                         </select>
                                     </div>
 
                                     <div className="space-y-3">
                                         <label className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-1">Currency</label>
-                                        <select className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-orange-500 font-bold text-gray-900 dark:text-white appearance-none">
+                                        <select 
+                                            value={preferences.currency}
+                                            onChange={(e) => setPreferences({...preferences, currency: e.target.value})}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-orange-500 font-bold text-gray-900 dark:text-white appearance-none"
+                                        >
                                             <option>GBP (£)</option>
                                             <option>USD ($)</option>
                                             <option>EUR (€)</option>
@@ -283,24 +323,8 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     )}
-
-                    {activeTab === 'payments' && (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center text-center py-20">
-                                <div className="w-20 h-20 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-6">
-                                    <PaymentIcon size={40} className="text-orange-500" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">No payment methods found</h3>
-                                <p className="text-gray-500 mt-2 max-w-sm mx-auto font-medium">Add a card or bank account to process rent payments and move-in costs.</p>
-                                <button className="mt-8 px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black active:scale-95 transition-all">
-                                    Add New Method
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
     );
 }
-

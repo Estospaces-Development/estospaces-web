@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Check, RotateCcw } from 'lucide-react';
+import { X, Check, RotateCcw, Loader2 } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
 
 interface Contract {
     id?: string;
@@ -16,6 +17,7 @@ interface SignatureModalProps {
 }
 
 const SignatureModal = ({ contract, onClose, onSign }: SignatureModalProps) => {
+    const { error: showToastError } = useToast();
     const [signature, setSignature] = useState('');
     const [isDrawing, setIsDrawing] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,7 +101,7 @@ const SignatureModal = ({ contract, onClose, onSign }: SignatureModalProps) => {
 
     const handleAcceptAndSign = () => {
         if (!signature) {
-            alert('Please provide your signature');
+            showToastError('Please provide your signature');
             return;
         }
         const signedContracts = JSON.parse(localStorage.getItem('signedContracts') || '[]');

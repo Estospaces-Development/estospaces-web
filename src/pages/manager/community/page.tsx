@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Plus } from 'lucide-react';
 import BackButton from '../../../components/ui/BackButton';
 import CommunityStats from '../../../components/community/CommunityStats';
@@ -8,10 +8,13 @@ import CommunityFilterBar, { SortOption } from '../../../components/community/Co
 import CommunityPostCard from '../../../components/community/CommunityPostCard';
 import CreatePostModal from '../../../components/community/CreatePostModal';
 import CommentsModal from '../../../components/community/CommentsModal';
-import { communityPosts, CommunityPost, PostTag, AuthorRole, PostVisibility, Comment } from '../../../mocks/communityPosts';
+import { getCommunityPosts, CommunityPost, PostTag, AuthorRole, PostVisibility, PostComment } from '@/services/communityService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const BrokersCommunity = () => {
-    const [posts, setPosts] = useState<CommunityPost[]>(communityPosts);
+    const { user } = useAuth();
+    const [posts, setPosts] = useState<CommunityPost[]>([]);
+    const [loading, setLoading] = useState(true);
     const [selectedTag, setSelectedTag] = useState<PostTag | 'all'>('all');
     const [selectedRole, setSelectedRole] = useState<AuthorRole | 'all'>('all');
     const [sortBy, setSortBy] = useState<SortOption>('pinned_first');
@@ -19,10 +22,22 @@ const BrokersCommunity = () => {
     const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
     const [selectedPost, setSelectedPost] = useState<CommunityPost | null>(null);
 
+    useEffect(() => {
+        const fetchPosts = async () => {
+            setLoading(true);
+            const { data } = await getCommunityPosts();
+            if (data && data.length > 0) {
+                setPosts(data);
+            }
+            setLoading(false);
+        };
+        fetchPosts();
+    }, []);
+
     const stats = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const urgentPostsToday = posts.filter(p => p.tag === 'urgent' && p.createdAt >= today).length;
+        const urgentPostsToday = posts.filter(p => p.tag === 'urgent' && new Date(p.createdAt) >= today).length;
         const dealsShared = posts.filter(p => p.tag === 'deal').length;
         const uniqueBrokers = new Set(posts.filter(p => p.authorRole === 'broker').map(p => p.authorName)).size;
         return { totalPosts: posts.length, activeBrokers: uniqueBrokers, urgentPostsToday, dealsShared };
@@ -35,12 +50,12 @@ const BrokersCommunity = () => {
 
         const sorted = [...filtered];
         switch (sortBy) {
-            case 'latest': sorted.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); break;
+            case 'latest': sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
             case 'most_active': sorted.sort((a, b) => (b.likesCount + b.commentsCount) - (a.likesCount + a.commentsCount)); break;
             case 'pinned_first': sorted.sort((a, b) => {
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
-                return b.createdAt.getTime() - a.createdAt.getTime();
+                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             }); break;
         }
         return sorted;
@@ -58,23 +73,28 @@ const BrokersCommunity = () => {
         setPosts(prev => prev.filter(p => p.postId !== postId));
     };
 
-    const handleVisibilityChange = (postId: string, visibility: PostVisibility) => {
+    const handleVisibilityChange = (postId: string, visibility: any) => {
         setPosts(prev => prev.map(p => p.postId === postId ? { ...p, visibility } : p));
     };
 
     const handleCreatePost = (content: string, tag: PostTag, visibility: PostVisibility) => {
         const newPost: CommunityPost = {
             postId: `post-${Date.now()}`,
-            authorName: 'Current Manager',
-            authorRole: 'manager',
+            authorId: user?.id || 'unknown',
+            authorName: user?.name || 'Unknown User',
+            authorRole: (user?.role as AuthorRole) || 'manager',
+            category: 'general',
+            title: 'New Post',
             content,
             tag,
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
             likesCount: 0,
             commentsCount: 0,
             comments: [],
             isPinned: false,
             visibility,
+            isLiked: false,
+            tags: [tag]
         };
         setPosts(prev => [newPost, ...prev]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -86,12 +106,14 @@ const BrokersCommunity = () => {
     };
 
     const handleAddComment = (postId: string, content: string) => {
-        const newComment: Comment = {
+        const newComment: PostComment = {
             commentId: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            authorName: 'Current Manager',
-            authorRole: 'manager',
+            postId,
+            authorId: user?.id || 'unknown',
+            authorName: user?.name || 'Unknown User',
+            authorRole: (user?.role as AuthorRole) || 'manager',
             content,
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
         };
         setPosts(prev => prev.map(p => {
             if (p.postId === postId) {
@@ -149,10 +171,27 @@ const BrokersCommunity = () => {
 
                 <div className="space-y-4">
                     {filteredAndSortedPosts.length === 0 ? (
-                        <div className="bg-white dark:bg-black rounded-xl p-12 text-center border border-gray-200 dark:border-zinc-800">
-                            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No posts found</h3>
-                            <p className="text-gray-500 dark:text-gray-400">Try adjusting your filters or be the first to create a post!</p>
+                        <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">
+                                <Users size={40} className="text-gray-300 dark:text-gray-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No posts found</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                                {selectedTag !== 'all' || selectedRole !== 'all'
+                                    ? "No community posts match your current search or filters. Try adjusting them or clear filters to see more."
+                                    : "The community is currently quiet. Be the first to start a conversation by creating a new post!"}
+                            </p>
+                            {(selectedTag !== 'all' || selectedRole !== 'all') && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedTag('all');
+                                        setSelectedRole('all');
+                                    }}
+                                    className="mt-6 text-primary font-bold hover:underline"
+                                >
+                                    Clear all filters
+                                </button>
+                            )}
                         </div>
                     ) : (
                         filteredAndSortedPosts.map(post => (

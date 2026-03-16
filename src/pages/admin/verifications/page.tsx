@@ -1,12 +1,15 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   Shield, Clock, CheckCircle, XCircle, User, Building2,
   Search, RefreshCw, Eye, AlertCircle, TrendingUp, Sparkles,
-  ArrowRight, Filter, Briefcase, ChevronRight, LayoutGrid, List
+  ArrowRight, Filter, Briefcase, ChevronRight, LayoutGrid, List, Loader2
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
+import { getManagers, ManagerProfile } from '@/services/managerVerificationService';
+import { useToast } from '@/contexts/ToastContext';
+import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'all' | 'pending' | 'review' | 'approved' | 'rejected';
 
@@ -15,31 +18,68 @@ function VerificationsContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [managers, setManagers] = useState<ManagerProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const toast = useToast();
 
-  const stats = [
-    { id: 'pending', label: 'Pending', count: 12, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { id: 'review', label: 'In Review', count: 5, icon: Eye, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 'approved', label: 'Approved', count: 48, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { id: 'rejected', label: 'Rejected', count: 3, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
-  ];
+  const fetchManagers = useCallback(async () => {
+    try {
+      const { data, error } = await getManagers();
+      if (error) throw new Error(error);
+      setManagers(data);
+    } catch (err: any) {
+      console.error('Error fetching managers:', err);
+      toast.error('Failed to load verification queue');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [toast]);
 
-  const managers = [
-    { id: '1', name: 'Skyline Real Estate', type: 'Agency', status: 'pending', email: 'contact@skylinere.com', date: '2h ago' },
-    { id: '2', name: 'Sarah Chen', type: 'Broker', status: 'review', email: 'sarah.c@gmail.com', date: '5h ago' },
-    { id: '3', name: 'Prime Living Ltd', type: 'Agency', status: 'approved', email: 'info@primeliving.uk', date: '1d ago' },
-    { id: '4', name: 'John Doe Properties', type: 'Manager', status: 'pending', email: 'john@doe.com', date: '2d ago' },
-  ];
-
-  const filteredManagers = managers.filter(m => {
-    if (activeTab !== 'all' && m.status !== activeTab) return false;
-    if (searchQuery && !m.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  useEffect(() => {
+    fetchManagers();
+  }, [fetchManagers]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1200);
+    fetchManagers();
   };
+
+  const getStats = () => {
+    const pending = managers.filter(m => m.verification_status === 'submitted').length;
+    const review = managers.filter(m => m.verification_status === 'under_review').length;
+    const approved = managers.filter(m => m.verification_status === 'approved').length;
+    const rejected = managers.filter(m => m.verification_status === 'rejected').length;
+
+    return [
+      { id: 'submitted', label: 'Pending', count: pending, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+      { id: 'under_review', label: 'In Review', count: review, icon: Eye, color: 'text-blue-500', bg: 'bg-blue-50' },
+      { id: 'approved', label: 'Approved', count: approved, icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+      { id: 'rejected', label: 'Rejected', count: rejected, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' },
+    ];
+  };
+
+  const stats = getStats();
+
+  const filteredManagers = managers.filter(m => {
+    // Map internal status to tab types
+    const statusMap: Record<string, string> = {
+        'submitted': 'pending',
+        'under_review': 'review',
+        'approved': 'approved',
+        'rejected': 'rejected'
+    };
+    
+    const mappedStatus = statusMap[m.verification_status] || m.verification_status;
+
+    if (activeTab !== 'all' && mappedStatus !== activeTab) return false;
+    
+    const searchLower = searchQuery.toLowerCase();
+    const nameMatch = (m.company_name || m.authorized_representative_name || '').toLowerCase().includes(searchLower);
+    const emailMatch = (m.authorized_representative_email || '').toLowerCase().includes(searchLower);
+    
+    return !searchQuery || nameMatch || emailMatch;
+  });
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
@@ -79,8 +119,11 @@ function VerificationsContent() {
         {stats.map((stat) => (
           <button
             key={stat.id}
-            onClick={() => setActiveTab(stat.id as TabType)}
-            className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${activeTab === stat.id
+            onClick={() => setActiveTab(stat.id === 'submitted' ? 'pending' : stat.id === 'under_review' ? 'review' : stat.id as TabType)}
+            className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
+              (activeTab === 'pending' && stat.id === 'submitted') || 
+              (activeTab === 'review' && stat.id === 'under_review') ||
+              activeTab === stat.id
               ? 'bg-white dark:bg-gray-800 border-orange-500 shadow-2xl scale-105 z-10'
               : 'bg-gray-50/50 dark:bg-gray-900/50 border-transparent hover:bg-white dark:hover:bg-gray-800 shadow-sm'
               }`}
@@ -90,7 +133,9 @@ function VerificationsContent() {
             </div>
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
             <h3 className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</h3>
-            {activeTab === stat.id && (
+            {((activeTab === 'pending' && stat.id === 'submitted') || 
+              (activeTab === 'review' && stat.id === 'under_review') ||
+              activeTab === stat.id) && (
               <div className="absolute top-4 right-4 text-orange-500">
                 <Sparkles size={16} />
               </div>
@@ -121,7 +166,11 @@ function VerificationsContent() {
 
         {/* Grid/List */}
         <div className="p-4 sm:p-10">
-          {filteredManagers.length > 0 ? (
+          {loading ? (
+             <div className="flex justify-center py-20">
+               <Loader2 className="animate-spin text-orange-500" size={40} />
+             </div>
+          ) : filteredManagers.length > 0 ? (
             <div className="grid grid-cols-1 gap-6">
               {filteredManagers.map((manager) => (
                 <div
@@ -129,20 +178,21 @@ function VerificationsContent() {
                   className="group p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl"
                 >
                   <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl shadow-lg ${manager.type === 'Agency' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
+                    <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl shadow-lg ${manager.profile_type === 'broker' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
                       }`}>
-                      {manager.name.charAt(0)}
+                      {(manager.company_name || manager.authorized_representative_name || '?').charAt(0)}
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{manager.name}</h3>
-                        <div className={`w-2 h-2 rounded-full ${manager.status === 'pending' ? 'bg-amber-500' :
-                          manager.status === 'review' ? 'bg-blue-500' : 'bg-green-500'
+                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{manager.company_name || manager.authorized_representative_name}</h3>
+                        <div className={`w-2 h-2 rounded-full ${manager.verification_status === 'submitted' ? 'bg-amber-500' :
+                          manager.verification_status === 'under_review' ? 'bg-blue-500' : 
+                          manager.verification_status === 'approved' ? 'bg-green-500' : 'bg-red-500'
                           }`}></div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{manager.type}</span>
-                        <span className="text-xs text-gray-500 font-bold">• {manager.email}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{manager.profile_type}</span>
+                        <span className="text-xs text-gray-500 font-bold">• {manager.authorized_representative_email || 'No Email'}</span>
                       </div>
                     </div>
                   </div>
@@ -150,7 +200,9 @@ function VerificationsContent() {
                   <div className="flex items-center gap-8">
                     <div className="text-right hidden sm:block">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">Submitted</p>
-                      <p className="text-sm font-black text-gray-900 dark:text-white">{manager.date}</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white">
+                        {manager.submitted_at ? formatDistanceToNow(new Date(manager.submitted_at), { addSuffix: true }) : 'Unknown'}
+                      </p>
                     </div>
                     <button
                       onClick={() => setSelectedManagerId(manager.id)}
@@ -177,7 +229,10 @@ function VerificationsContent() {
       {selectedManagerId && (
         <ManagerReviewModal
           managerId={selectedManagerId}
-          onClose={() => setSelectedManagerId(null)}
+          onClose={() => {
+              setSelectedManagerId(null);
+              fetchManagers(); // Refresh list on close in case status changed
+          }}
         />
       )}
     </div>

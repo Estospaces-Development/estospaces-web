@@ -130,7 +130,7 @@ const NotificationDropdown = () => {
                 break;
             case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
             case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-                navigate('/user/dashboard/payments');
+                navigate('/user/dashboard/notifications');
                 break;
             case NOTIFICATION_TYPES.CONTRACT_UPDATE:
                 navigate('/user/dashboard/contracts');

@@ -3,7 +3,7 @@
  * Fetches analytics data from core-service backend
  */
 
-import { apiFetch, getServiceUrl, getAuthHeaders } from '@/lib/apiUtils';
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -32,11 +32,28 @@ export interface LeadAnalytics {
 }
 
 export interface AnalyticsData {
-    propertyPerformance: PropertyPerformance[];
-    applicationsByProperty: ApplicationByProperty[];
-    revenueTrend: TrendData[];
-    monthlyApplicationsTrend: TrendData[];
-    leadAnalytics: LeadAnalytics;
+    total_users: number;
+    total_properties: number;
+    total_leads: number;
+    active_leads: number;
+    total_brokers: number;
+    sla_success_rate: number;
+    avg_response_time: number;
+    pending_verifications: number;
+    total_documents: number;
+    total_revenue?: number;
+    revenue_growth?: string;
+    property_growth?: string;
+    total_views?: number;
+    views_growth?: string;
+    conversion_rate?: number;
+    conversion_growth?: string;
+    // Legacy fields for manager dashboard
+    propertyPerformance?: PropertyPerformance[];
+    applicationsByProperty?: ApplicationByProperty[];
+    revenueTrend?: TrendData[];
+    monthlyApplicationsTrend?: TrendData[];
+    leadAnalytics?: LeadAnalytics;
 }
 
 export interface AnalyticsResponse {
@@ -79,9 +96,9 @@ export const getAnalyticsData = getPlatformAnalytics;
  * Fetch analytics data for the current manager
  * GET /api/v1/manager/analytics (requires manager/admin role)
  */
-export const getManagerAnalytics = async (): Promise<ManagerAnalyticsResponse> => {
+export const getManagerAnalytics = async (): Promise<AnalyticsResponse> => {
     try {
-        const data = await apiFetch<ManagerAnalytics>(
+        const data = await apiFetch<AnalyticsData>(
             `${CORE_URL()}/api/v1/manager/analytics`,
         );
         return { data, error: null };
@@ -90,4 +107,3 @@ export const getManagerAnalytics = async (): Promise<ManagerAnalyticsResponse> =
         return { data: null, error: error.message };
     }
 };
-

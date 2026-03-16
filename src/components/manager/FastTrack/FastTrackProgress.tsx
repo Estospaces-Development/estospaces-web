@@ -22,9 +22,9 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) =>
     const currentIndex = getCurrentStepIndex();
 
     return (
-        <div className="w-full relative mt-4 mb-6">
-            <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 dark:bg-zinc-800 -translate-y-1/2 rounded-full -z-10" />
-            <div className="flex justify-between items-center w-full px-2">
+        <div className="w-full relative mt-4 mb-2">
+            <div className="absolute top-4 left-0 w-full h-[2px] bg-gray-100 dark:bg-zinc-800 -z-10" />
+            <div className="flex justify-between items-start w-full px-2">
                 {steps.map((step, index) => {
                     let status: 'completed' | 'current' | 'upcoming' = 'upcoming';
                     if (index < currentIndex) status = 'completed';
@@ -33,7 +33,7 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) =>
                     const Icon = step.icon;
 
                     return (
-                        <div key={step.id} className="flex flex-col items-center">
+                        <div key={step.id} className="flex flex-col items-center relative">
                             <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10
                   ${status === 'completed' ? 'bg-green-500 border-green-500 text-white' : ''}
@@ -44,7 +44,7 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) =>
                                 <Icon className="w-4 h-4" />
                             </div>
                             <span
-                                className={`text-[10px] sm:text-xs mt-2 font-medium tracking-tight transition-colors duration-300 absolute -bottom-6
+                                className={`text-[10px] sm:text-xs mt-2 font-medium tracking-tight transition-colors duration-300
                   ${status === 'current' ? 'text-orange-600 dark:text-orange-400 font-bold' : ''}
                   ${status === 'completed' ? 'text-green-600 dark:text-green-500' : ''}
                   ${status === 'upcoming' ? 'text-gray-300 dark:text-gray-600' : ''}
@@ -56,7 +56,6 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) =>
                     );
                 })}
             </div>
-            <div className="h-6" aria-hidden="true" />
         </div>
     );
 };

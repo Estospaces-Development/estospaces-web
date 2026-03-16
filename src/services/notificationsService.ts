@@ -132,6 +132,17 @@ export async function markAllRead(): Promise<void> {
 }
 
 /**
+ * Delete a notification
+ * DELETE /api/v1/notifications/:id
+ */
+export async function deleteNotification(notificationId: string): Promise<void> {
+    await apiFetch<any>(
+        `${NOTIFICATION_URL()}/api/v1/notifications/${notificationId}`,
+        { method: 'DELETE' },
+    );
+}
+
+/**
  * Create a notification for a user
  * POST /api/v1/notifications
  */
@@ -220,6 +231,7 @@ export const notificationsService = {
     getNotifications,
     markRead,
     markAllRead,
+    deleteNotification,
     createNotification,
     notifyViewingBooked,
     notifyPropertySaved,

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { PostTag, PostVisibility } from '../../mocks/communityPosts';
+import { PostTag, PostVisibility } from '@/services/communityService';
 
 interface CreatePostModalProps {
     isOpen: boolean;

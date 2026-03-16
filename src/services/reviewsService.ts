@@ -36,7 +36,12 @@ export interface ReviewResponse {
  */
 export async function getPropertyReviews(propertyId: string): Promise<ReviewResponse> {
     try {
-        return await apiFetch<ReviewResponse>(`${CORE_URL()}/api/v1/reviews/property/${propertyId}`);
+        const data = await apiFetch<{
+            reviews: Review[];
+            average_rating: number;
+            total_reviews: number;
+        }>(`${CORE_URL()}/api/v1/reviews/property/${propertyId}`);
+        return { success: true, data };
     } catch (error: any) {
         console.error('[reviewsService] Error:', error.message);
         return { success: false, data: null, error: error.message };
@@ -48,7 +53,8 @@ export async function getPropertyReviews(propertyId: string): Promise<ReviewResp
  */
 export async function getUserReviews(): Promise<{ success: boolean; data: Review[] | null; error?: string }> {
     try {
-        return await apiFetch<{ success: boolean; data: Review[] | null }>(`${CORE_URL()}/api/v1/reviews/mine`);
+        const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/reviews/mine`);
+        return { success: true, data };
     } catch (error: any) {
         console.error('[reviewsService] Error:', error.message);
         return { success: false, data: null, error: error.message };
@@ -64,10 +70,11 @@ export async function createReview(reviewData: {
     comment: string;
 }): Promise<{ success: boolean; data: Review | null; error?: string }> {
     try {
-        return await apiFetch<{ success: boolean; data: Review | null }>(`${CORE_URL()}/api/v1/reviews`, {
+        const data = await apiFetch<Review>(`${CORE_URL()}/api/v1/reviews`, {
             method: 'POST',
             body: JSON.stringify(reviewData),
         });
+        return { success: true, data };
     } catch (error: any) {
         console.error('[reviewsService] Error:', error.message);
         return { success: false, data: null, error: error.message };

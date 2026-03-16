@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Building2, Users, Target, DollarSign, Calendar, TrendingDown, AlertCircle, Lightbulb } from 'lucide-react';
+import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Filter, Download } from 'lucide-react';
 import BarChart from '@/components/ui/BarChart';
 import PieChart from '@/components/ui/PieChart';
 import LineChart from '@/components/ui/LineChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useLeads } from '@/contexts/LeadContext';
-import { getAnalyticsData, AnalyticsData } from '@/services/analyticsService';
+import { getManagerAnalytics, AnalyticsData } from '@/services/analyticsService';
 import { getApplications, Application } from '@/services/applicationsService';
 
 const Analytics = () => {
@@ -23,7 +23,7 @@ const Analytics = () => {
         const fetchData = async () => {
             try {
                 const [analyticsResult, applicationsResult] = await Promise.all([
-                    getAnalyticsData(),
+                    getManagerAnalytics(),
                     getApplications()
                 ]);
 
@@ -50,13 +50,13 @@ const Analytics = () => {
     const approvedApplications = applicationsList.filter(app => app.status === 'approved');
     const pendingApplications = applicationsList.filter(app => app.status === 'submitted');
 
-    const monthlyRevenue = analyticsData?.revenueTrend.map((item) => ({
+    const monthlyRevenue = analyticsData?.revenueTrend?.map((item) => ({
         month: item.label,
         value: item.value * 1000,
         change: 0
     })) || [];
 
-    const propertyPerformance = analyticsData?.propertyPerformance.map((p) => ({
+    const propertyPerformance = analyticsData?.propertyPerformance?.map((p) => ({
         property: p.property,
         views: p.views,
         applications: p.applications,
@@ -65,76 +65,101 @@ const Analytics = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[600px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <div className="flex flex-col items-center justify-center min-h-[600px] gap-4">
+                <div className="relative">
+                    <div className="w-16 h-16 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <TrendingUp className="w-6 h-6 text-orange-500 animate-pulse" />
+                    </div>
+                </div>
+                <p className="text-gray-500 font-medium animate-pulse">Gathering insights...</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6 font-sans pb-20 animate-in fade-in duration-500">
+        <div className="space-y-8 font-outfit pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Page Header */}
-            <div>
-                <div className="mb-4">
-                    <BackButton />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div className="mb-4">
+                        <BackButton />
+                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Analytics Overview</h1>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Detailed performance metrics for your properties</p>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">Analytics</h1>
+                <div className="flex items-center gap-3">
+                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                        <button className="px-4 py-2 bg-white dark:bg-gray-700 shadow-sm rounded-lg text-sm font-bold text-gray-900 dark:text-white transition-all">6 Months</button>
+                        <button className="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">Yearly</button>
+                    </div>
+                    <button className="p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                        <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                    </button>
+                </div>
             </div>
 
             {/* Analytics Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-blue-500 rounded-lg">
-                            <Users className="w-6 h-6 text-white" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                    { 
+                        label: 'Total Leads', 
+                        value: analyticsData?.leadAnalytics?.totalLeads || 0, 
+                        icon: Users, 
+                        color: 'blue', 
+                        growth: analyticsData?.leadAnalytics?.passed ? `+${analyticsData.leadAnalytics.passed}%` : '+0%'
+                    },
+                    { 
+                        label: 'Properties', 
+                        value: analyticsData?.leadAnalytics?.totalProperties || properties.length || 0, 
+                        icon: Building2, 
+                        color: 'orange', 
+                        growth: analyticsData?.property_growth || '+0' 
+                    },
+                    { 
+                        label: 'Conv. Rate', 
+                        value: `${analyticsData?.leadAnalytics?.conversionRate || 0}%`, 
+                        icon: Target, 
+                        color: 'green', 
+                        growth: analyticsData?.conversion_growth || '+0%' 
+                    },
+                    { 
+                        label: 'Views', 
+                        value: analyticsData?.total_views || 0, 
+                        icon: TrendingUp, 
+                        color: 'purple', 
+                        growth: analyticsData?.views_growth || '+0%' 
+                    }
+                ].map((metric, i) => (
+                    <div key={i} className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className={`p-3 bg-${metric.color}-500/10 rounded-2xl group-hover:scale-110 transition-transform`}>
+                                <metric.icon className={`w-6 h-6 text-${metric.color}-500`} />
+                            </div>
+                            <div className="flex items-center gap-1 text-green-500 text-xs font-bold bg-green-500/10 px-2 py-1 rounded-lg">
+                                <ArrowUpRight className="w-3 h-3" />
+                                {metric.growth}
+                            </div>
                         </div>
-                        <TrendingUp className="w-5 h-5 text-green-500" />
+                        <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{metric.value}</h3>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{metric.label}</p>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{analyticsData?.leadAnalytics?.totalLeads || 0}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Leads</p>
-                </div>
-
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-primary rounded-lg">
-                            <Building2 className="w-6 h-6 text-white" />
-                        </div>
-                        <TrendingUp className="w-5 h-5 text-green-500" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{analyticsData?.leadAnalytics?.totalProperties || properties.length || 0}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Total Properties</p>
-                </div>
-
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-green-500 rounded-lg">
-                            <Target className="w-6 h-6 text-white" />
-                        </div>
-                        <TrendingUp className="w-5 h-5 text-green-500" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{analyticsData?.leadAnalytics?.conversionRate || 0}%</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Conversion Rate</p>
-                </div>
-
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-purple-500 rounded-lg">
-                            <TrendingUp className="w-6 h-6 text-white" />
-                        </div>
-                        <TrendingUp className="w-5 h-5 text-green-500" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{analyticsData?.leadAnalytics?.passed || 0}%</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Growth Rate</p>
-                </div>
+                ))}
             </div>
 
             {/* Monthly Revenue Trend */}
-            <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Monthly Revenue Trend</h2>
+            <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Revenue Analysis</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Monthly revenue trends and growth projections</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 bg-gray-50 dark:bg-gray-900 px-4 py-2 rounded-xl">
+                        <Calendar className="w-4 h-4" />
+                        <span>Last Updated: Today</span>
+                    </div>
                 </div>
 
-                {/* Summary Cards */}
                 {(() => {
                     const revenueData = monthlyRevenue.length > 0 ? monthlyRevenue : [
                         { month: 'Jan', value: 0 },
@@ -156,543 +181,176 @@ const Analytics = () => {
                         : 0;
 
                     return (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Revenue</p>
-                                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">${(totalRevenue / 1000).toFixed(0)}k</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">6 months</p>
-                                </div>
-                                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Average Monthly</p>
-                                    <p className="text-2xl font-bold text-green-700 dark:text-green-400">${(averageRevenue / 1000).toFixed(0)}k</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Per month</p>
-                                </div>
-                                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Best Month</p>
-                                    <p className="text-2xl font-bold text-orange-700 dark:text-orange-400">{bestMonth.month}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">${(bestMonth.value / 1000).toFixed(0)}k</p>
-                                </div>
-                                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Growth Rate</p>
-                                    <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">+{growthRate.toFixed(1)}%</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Since Jan</p>
-                                </div>
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {[
+                                    { label: 'Total Revenue', value: `$${(totalRevenue / 1000).toFixed(0)}k`, color: 'blue' },
+                                    { label: 'Avg Monthly', value: `$${(averageRevenue / 1000).toFixed(0)}k`, color: 'green' },
+                                    { label: 'Peak Performance', value: bestMonth.month, color: 'orange' },
+                                    { label: 'Projected Growth', value: `+${growthRate.toFixed(1)}%`, color: 'purple' }
+                                ].map((item, i) => (
+                                    <div key={i} className={`p-5 rounded-2xl border border-${item.color}-100 dark:border-${item.color}-900/30 bg-${item.color}-500/5`}>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{item.label}</p>
+                                        <p className={`text-2xl font-black text-${item.color}-600 dark:text-${item.color}-400`}>{item.value}</p>
+                                    </div>
+                                ))}
                             </div>
 
-                            {/* Bar Chart */}
-                            <div className="mb-6">
-                                <div className="flex items-end justify-between gap-4 h-48">
+                            {/* Custom Bar Chart for Revenue */}
+                            <div className="relative pt-10 pb-2">
+                                <div className="flex items-end justify-between gap-4 h-64 border-b border-gray-100 dark:border-gray-800">
                                     {revenueData.map((item, index) => {
-                                        const maxValue = Math.max(...revenueData.map(d => d.value), 1);
+                                        const maxValue = Math.max(...revenueData.map(d => d.value), 100);
                                         const height = (item.value / maxValue) * 100;
-                                        const prevValue = index > 0 ? revenueData[index - 1].value : item.value;
-                                        const change = index > 0 ? ((item.value - prevValue) / prevValue) * 100 : 0;
-
+                                        
                                         return (
-                                            <div key={index} className="flex-1 flex flex-col items-center justify-end h-full group">
-                                                <div className="w-full flex-1 flex flex-col justify-end items-center mb-2 relative">
+                                            <div key={index} className="flex-1 flex flex-col items-center group">
+                                                <div className="w-full relative flex flex-col items-center justify-end h-full mb-4">
                                                     <div
-                                                        className="w-full bg-primary rounded-t-lg transition-all hover:opacity-80 cursor-pointer relative"
+                                                        className="w-12 bg-orange-500 dark:bg-orange-600 rounded-t-xl transition-all duration-500 group-hover:opacity-80 group-hover:w-14 cursor-pointer relative shadow-lg shadow-orange-500/20"
                                                         style={{ height: `${height}%` }}
                                                     >
-                                                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 dark:bg-gray-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                                                        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap z-20 shadow-xl scale-75 group-hover:scale-100">
                                                             ${(item.value / 1000).toFixed(0)}k
-                                                            {index > 0 && (
-                                                                <span className={`ml-1 ${change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                                    ({change >= 0 ? '+' : ''}{change.toFixed(1)}%)
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <p className="text-sm font-medium text-gray-800 dark:text-white mb-1">${(item.value / 1000).toFixed(0)}k</p>
-                                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">{item.month}</p>
-                                                {index > 0 && (
-                                                    <p className={`text-xs mt-1 ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                        {change >= 0 ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
-                                                    </p>
-                                                )}
+                                                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{item.month}</span>
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
-
-                            {/* Monthly Breakdown Table */}
-                            <div className="overflow-x-auto">
-                                <table className="w-full">
-                                    <thead className="bg-gray-50 dark:bg-gray-900">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Month</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Revenue</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Change</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Trend</th>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">vs Average</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
-                                        {revenueData.map((item, index) => {
-                                            const prevValue = index > 0 ? revenueData[index - 1].value : item.value;
-                                            const change = index > 0 ? ((item.value - prevValue) / prevValue) * 100 : 0;
-                                            const vsAverage = ((item.value - averageRevenue) / averageRevenue) * 100;
-
-                                            return (
-                                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                                                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{item.month}</td>
-                                                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">${item.value.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        {index > 0 ? (
-                                                            <span className={`font-medium ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                                {change >= 0 ? '+' : ''}{change.toFixed(1)}%
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-gray-400 dark:text-gray-500">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        {index > 0 && (
-                                                            <span className={`inline-flex items-center ${change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                                {change >= 0 ? '↑' : '↓'} {Math.abs(change).toFixed(1)}%
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm">
-                                                        <span className={`font-medium ${vsAverage >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                            {vsAverage >= 0 ? '+' : ''}{vsAverage.toFixed(1)}%
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Insights */}
-                            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
-                                <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Key Insights</h3>
-                                <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                                    <li>• Revenue has grown by <span className="font-semibold text-green-600 dark:text-green-400">{growthRate.toFixed(1)}%</span> over the past 6 months</li>
-                                    <li>• <span className="font-semibold">{bestMonth.month}</span> was the best performing month with ${(bestMonth.value / 1000).toFixed(0)}k in revenue</li>
-                                    <li>• Average monthly revenue is <span className="font-semibold">${(averageRevenue / 1000).toFixed(0)}k</span>, indicating consistent growth</li>
-                                    <li>• Current trend shows <span className="font-semibold text-green-600 dark:text-green-400">positive momentum</span> with steady month-over-month increases</li>
-                                </ul>
-                            </div>
-                        </>
+                        </div>
                     );
                 })()}
             </div>
 
-            {/* Future Property Analysis */}
-            <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                <div className="flex items-center gap-2 mb-6">
-                    <Lightbulb className="w-6 h-6 text-primary" />
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Future Property Rate Analysis & Predictions</h2>
+            {/* Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Application Distribution */}
+                <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Application Insights</h2>
+                    <div className="flex flex-col items-center">
+                        <PieChart
+                            data={[
+                                { label: 'Approved', value: approvedApplications.length, color: '#10b981' },
+                                { label: 'Pending', value: pendingApplications.length, color: '#f59e0b' },
+                                { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: '#ef4444' },
+                            ].map(d => d.value === 0 ? { ...d, value: 1 } : d)} // Hack for empty pie
+                            size={240}
+                        />
+                        <div className="grid grid-cols-3 gap-8 mt-10 w-full">
+                            {[
+                                { label: 'Approved', value: approvedApplications.length, color: 'bg-green-500' },
+                                { label: 'Pending', value: pendingApplications.length, color: 'bg-orange-500' },
+                                { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: 'bg-red-500' }
+                            ].map((s, i) => (
+                                <div key={i} className="text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-1">
+                                        <div className={`w-3 h-3 rounded-full ${s.color}`}></div>
+                                        <span className="text-sm font-bold text-gray-900 dark:text-white">{s.value}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
-                {(() => {
-                    // Sample property data with predictions
-                    const propertyPredictions = [
-                        {
-                            id: '1',
-                            name: 'Modern Downtown Apartment',
-                            currentRate: 450000,
-                            predictedRate1Month: 465000,
-                            predictedRate2Months: 480000,
-                            trend: 'increasing',
-                            location: 'Downtown',
-                            propertyType: 'Apartment'
-                        },
-                        {
-                            id: '2',
-                            name: 'Luxury Condo with City View',
-                            currentRate: 3500,
-                            predictedRate1Month: 3625,
-                            predictedRate2Months: 3750,
-                            trend: 'increasing',
-                            location: 'City Center',
-                            propertyType: 'Condo'
-                        },
-                        {
-                            id: '3',
-                            name: 'Spacious Penthouse',
-                            currentRate: 6500,
-                            predictedRate1Month: 6300,
-                            predictedRate2Months: 6100,
-                            trend: 'decreasing',
-                            location: 'Uptown',
-                            propertyType: 'Penthouse'
-                        },
-                        {
-                            id: '4',
-                            name: 'Suburban Family Home',
-                            currentRate: 320000,
-                            predictedRate1Month: 332000,
-                            predictedRate2Months: 345000,
-                            trend: 'increasing',
-                            location: 'Suburbs',
-                            propertyType: 'House'
-                        },
-                        {
-                            id: '5',
-                            name: 'Beachfront Villa',
-                            currentRate: 850000,
-                            predictedRate1Month: 880000,
-                            predictedRate2Months: 910000,
-                            trend: 'increasing',
-                            location: 'Coastal',
-                            propertyType: 'Villa'
-                        }
-                    ];
-
-                    // Calculate overall statistics
-                    const totalProperties = propertyPredictions.length;
-                    const increasingProperties = propertyPredictions.filter(p => p.trend === 'increasing').length;
-                    const decreasingProperties = propertyPredictions.filter(p => p.trend === 'decreasing').length;
-                    const avgIncrease1Month = propertyPredictions.reduce((sum, p) => {
-                        const change = ((p.predictedRate1Month - p.currentRate) / p.currentRate) * 100;
-                        return sum + change;
-                    }, 0) / totalProperties;
-                    const avgIncrease2Months = propertyPredictions.reduce((sum, p) => {
-                        const change = ((p.predictedRate2Months - p.currentRate) / p.currentRate) * 100;
-                        return sum + change;
-                    }, 0) / totalProperties;
-
-                    return (
-                        <>
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Properties Increasing</p>
-                                        <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                    </div>
-                                    <p className="text-2xl font-bold text-green-700 dark:text-green-400">{increasingProperties}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">of {totalProperties} properties</p>
+                {/* Lead Status */}
+                <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Lead Conversion Tunnel</h2>
+                    <div className="space-y-6">
+                        {[
+                            { label: 'New Inquiries', value: leads.filter((l) => l.status === 'New Lead').length, total: leads.length, color: 'blue' },
+                            { label: 'Active Negotiations', value: leads.filter((l) => l.status === 'In Progress').length, total: leads.length, color: 'orange' },
+                            { label: 'Closed Deals', value: leads.filter((l) => l.status === 'Approved').length, total: leads.length, color: 'green' }
+                        ].map((item, i) => (
+                            <div key={i} className="space-y-2">
+                                <div className="flex items-center justify-between text-sm font-bold">
+                                    <span className="text-gray-700 dark:text-gray-300">{item.label}</span>
+                                    <span className="text-gray-900 dark:text-white">{item.value}</span>
                                 </div>
-                                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-200 dark:border-red-800">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Properties Decreasing</p>
-                                        <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
-                                    </div>
-                                    <p className="text-2xl font-bold text-red-700 dark:text-red-400">{decreasingProperties}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">of {totalProperties} properties</p>
-                                </div>
-                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Avg. Increase (1 Month)</p>
-                                        <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                    </div>
-                                    <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">+{avgIncrease1Month.toFixed(1)}%</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Next month</p>
-                                </div>
-                                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">Avg. Increase (2 Months)</p>
-                                        <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                    </div>
-                                    <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">+{avgIncrease2Months.toFixed(1)}%</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">In 2 months</p>
+                                <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                    <div 
+                                        className={`h-full bg-${item.color}-500 rounded-full transition-all duration-1000`} 
+                                        style={{ width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%` }}
+                                    ></div>
                                 </div>
                             </div>
-
-                            {/* Prediction Chart */}
-                            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
-                                <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4">Rate Prediction Trend (Next 2 Months)</h3>
-                                <LineChart
-                                    data={[
-                                        { label: 'Current', value: propertyPredictions[0].currentRate / 1000 },
-                                        { label: '+1 Month', value: propertyPredictions[0].predictedRate1Month / 1000 },
-                                        { label: '+2 Months', value: propertyPredictions[0].predictedRate2Months / 1000 },
-                                    ]}
-                                    height={200}
-                                    color="#FF6B35"
-                                />
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 text-center">Sample: {propertyPredictions[0].name}</p>
+                        ))}
+                    </div>
+                    <div className="mt-8 p-6 bg-orange-500/5 rounded-2xl border border-orange-500/10">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 bg-orange-500/20 rounded-lg">
+                                <Target className="w-5 h-5 text-orange-600" />
                             </div>
-
-                            {/* Property Predictions Table */}
-                            <div className="mb-6">
-                                <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-4">Property Rate Predictions</h3>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full">
-                                        <thead className="bg-gray-50 dark:bg-gray-900">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Property</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Current Rate</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">+1 Month</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">+2 Months</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Change</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Trend</th>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Recommendation</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
-                                            {propertyPredictions.map((property) => {
-                                                const change1Month = ((property.predictedRate1Month - property.currentRate) / property.currentRate) * 100;
-                                                const change2Months = ((property.predictedRate2Months - property.currentRate) / property.currentRate) * 100;
-                                                const isRental = property.currentRate < 10000;
-
-                                                return (
-                                                    <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                                                        <td className="px-4 py-3">
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-900 dark:text-white">{property.name}</p>
-                                                                <p className="text-xs text-gray-500 dark:text-gray-400">{property.location} • {property.propertyType}</p>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                                            {isRental ? `$${property.currentRate.toLocaleString()}/mo` : `$${property.currentRate.toLocaleString()}`}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                                            {isRental ? `$${property.predictedRate1Month.toLocaleString()}/mo` : `$${property.predictedRate1Month.toLocaleString()}`}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">
-                                                            {isRental ? `$${property.predictedRate2Months.toLocaleString()}/mo` : `$${property.predictedRate2Months.toLocaleString()}`}
-                                                        </td>
-                                                        <td className="px-4 py-3 text-sm">
-                                                            <div className="space-y-1">
-                                                                <span className={`font-medium ${change1Month >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                                    {change1Month >= 0 ? '+' : ''}{change1Month.toFixed(1)}% (1M)
-                                                                </span>
-                                                                <br />
-                                                                <span className={`font-medium ${change2Months >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                                                    {change2Months >= 0 ? '+' : ''}{change2Months.toFixed(1)}% (2M)
-                                                                </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            {property.trend === 'increasing' ? (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
-                                                                    <TrendingUp className="w-3 h-3" />
-                                                                    Increasing
-                                                                </span>
-                                                            ) : (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-full text-xs font-medium">
-                                                                    <TrendingDown className="w-3 h-3" />
-                                                                    Decreasing
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            {property.trend === 'increasing' ? (
-                                                                <div className="text-xs">
-                                                                    <p className="text-green-600 dark:text-green-400 font-medium">
-                                                                        Increase by {change2Months.toFixed(1)}%
-                                                                    </p>
-                                                                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                                                                        Suggested: {isRental
-                                                                            ? `$${Math.round(property.currentRate * (1 + change2Months / 100)).toLocaleString()}/mo`
-                                                                            : `$${Math.round(property.currentRate * (1 + change2Months / 100)).toLocaleString()}`
-                                                                        }
-                                                                    </p>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="text-xs">
-                                                                    <p className="text-red-600 dark:text-red-400 font-medium">
-                                                                        Consider holding
-                                                                    </p>
-                                                                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                                                                        Market may recover
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">Platform Insight</h4>
+                                <p className="text-xs text-orange-600/80 dark:text-orange-400/60 leading-relaxed mt-1">
+                                    {analyticsData?.leadAnalytics?.conversionRate && analyticsData.leadAnalytics.conversionRate > 20 
+                                        ? "Your conversion rate is above industry average. Keep up the great work!"
+                                        : "Focus on converting your active negotiations to hit your growth targets."}
+                                </p>
                             </div>
-
-                            {/* Agent Recommendations */}
-                            <div className="p-4 bg-gradient-to-r from-primary/10 to-orange-100 dark:from-primary/20 dark:to-orange-900/20 rounded-lg border border-primary/20 dark:border-primary/30">
-                                <div className="flex items-start gap-3">
-                                    <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1">
-                                        <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-2">Recommendations for Estate Agents</h3>
-                                        <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                                            <li className="flex items-start gap-2">
-                                                <span className="text-primary font-bold">•</span>
-                                                <span>
-                                                    <strong>Next 2 Months Strategy:</strong> Based on market predictions, you can increase rates by an average of <strong className="text-green-600 dark:text-green-400">{avgIncrease2Months.toFixed(1)}%</strong> across {increasingProperties} properties.
-                                                </span>
-                                            </li>
-                                            <li className="flex items-start gap-2">
-                                                <span className="text-primary font-bold">•</span>
-                                                <span>
-                                                    <strong>Immediate Action (1 Month):</strong> Consider increasing rates by <strong className="text-blue-600 dark:text-blue-400">{avgIncrease1Month.toFixed(1)}%</strong> for properties showing upward trends to maximize revenue.
-                                                </span>
-                                            </li>
-                                            <li className="flex items-start gap-2">
-                                                <span className="text-primary font-bold">•</span>
-                                                <span>
-                                                    <strong>Properties to Focus On:</strong> {propertyPredictions.filter(p => p.trend === 'increasing').map(p => p.name).join(', ')} show strong growth potential.
-                                                </span>
-                                            </li>
-                                            <li className="flex items-start gap-2">
-                                                <span className="text-primary font-bold">•</span>
-                                                <span>
-                                                    <strong>Market Timing:</strong> The predicted {avgIncrease2Months > 0 ? 'increase' : 'decrease'} suggests this is an {avgIncrease2Months > 0 ? 'optimal' : 'cautious'} time to adjust rates. Monitor market conditions weekly.
-                                                </span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    );
-                })()}
-            </div>
-
-            {/* Charts Row 1: Pie Charts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Application Status Distribution */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Application Status Distribution</h2>
-                    <PieChart
-                        data={[
-                            { label: 'Approved', value: approvedApplications.length, color: '#10b981' },
-                            { label: 'Pending', value: pendingApplications.length, color: '#f59e0b' },
-                            { label: 'Rejected', value: applicationsList.filter((app) => app.status === 'rejected').length, color: '#ef4444' },
-                        ]}
-                        size={200}
-                    />
-                </div>
-
-                {/* Lead Status Distribution */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Lead Status Distribution</h2>
-                    <PieChart
-                        data={[
-                            { label: 'New Leads', value: leads.filter((l) => l.status === 'New Lead').length, color: '#3b82f6' },
-                            { label: 'In Progress', value: leads.filter((l) => l.status === 'In Progress').length, color: '#f59e0b' },
-                            { label: 'Approved', value: leads.filter((l) => l.status === 'Approved').length, color: '#10b981' },
-                        ]}
-                        size={200}
-                    />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Charts Row 2: Bar Charts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Property Performance Bar Chart */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Property Performance Comparison</h2>
-                    <BarChart
-                        data={propertyPerformance.slice(0, 3).map((p) => ({
-                            label: p.property.split(' ').slice(0, 2).join(' '), // Shorten name
-                            value: p.views,
-                            color: '#FF6B35'
-                        }))}
-                        title="Property Views"
-                        height={200}
-                    />
+            {/* Performance Table */}
+            <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden">
+                <div className="p-8 border-b border-gray-50 dark:border-gray-900">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Property Performance Rankings</h2>
                 </div>
-
-                {/* Applications by Property */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Applications by Property</h2>
-                    <BarChart
-                        data={propertyPerformance.slice(0, 3).map((p) => ({
-                            label: p.property.split(' ').slice(0, 2).join(' '), // Shorten name
-                            value: p.views,
-                            color: p.views > 500 ? '#10b981' : p.views > 300 ? '#3b82f6' : '#FF6B35'
-                        }))}
-                        title="Applications Received"
-                        height={200}
-                    />
-                </div>
-            </div>
-
-            {/* Charts Row 3: Line Chart and Property Performance Table */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Revenue Trend Line Chart */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Revenue Trend (Line Chart)</h2>
-                    <LineChart
-                        data={monthlyRevenue.map((item) => ({
-                            label: item.month,
-                            value: item.value
-                        }))}
-                        height={200}
-                        color="#FF6B35"
-                    />
-                </div>
-
-                {/* Property Performance Table */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Property Performance</h2>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Property</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Views</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Applications</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Conversion</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
-                                {propertyPerformance.map((item, index) => (
-                                    <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{item.property}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{item.views}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{item.applications}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                                    <div
-                                                        className="bg-primary h-2 rounded-full"
-                                                        style={{ width: `${item.conversionRate}%` }}
-                                                    ></div>
-                                                </div>
-                                                <span className="text-sm text-gray-900 dark:text-white">{item.conversionRate}%</span>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="bg-gray-50 dark:bg-gray-900/50">
+                                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Property Name</th>
+                                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Total Views</th>
+                                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Applications</th>
+                                <th className="px-8 py-5 text-xs font-bold text-gray-400 uppercase tracking-widest">Conversion</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50 dark:divide-gray-900">
+                            {propertyPerformance.length > 0 ? propertyPerformance.map((item, index) => (
+                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors group">
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center font-bold text-gray-400 group-hover:bg-orange-500/10 group-hover:text-orange-500 transition-colors">
+                                                {index + 1}
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            {/* Charts Row 4: Lead Analytics and Additional Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Lead Analytic */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Lead Analytic</h2>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Total Leads</span>
-                            <span className="text-lg font-semibold text-gray-800 dark:text-white">{analyticsData?.leadAnalytics?.totalLeads || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Total Properties</span>
-                            <span className="text-lg font-semibold text-gray-800 dark:text-white">{analyticsData?.leadAnalytics?.totalProperties || properties.length || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Conversion Rate</span>
-                            <span className="text-lg font-semibold text-gray-800 dark:text-white">{analyticsData?.leadAnalytics?.conversionRate || 0}%</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Passed</span>
-                            <span className="text-lg font-semibold text-gray-800 dark:text-white">{analyticsData?.leadAnalytics?.passed || 0}</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Monthly Applications Trend */}
-                <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Monthly Applications Trend</h2>
-                    <LineChart
-                        data={analyticsData?.monthlyApplicationsTrend || []}
-                        height={200}
-                        color="#3b82f6"
-                    />
+                                            <span className="font-bold text-gray-900 dark:text-white">{item.property}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5 text-gray-600 dark:text-gray-400 font-medium">{item.views.toLocaleString()}</td>
+                                    <td className="px-8 py-5 text-gray-600 dark:text-gray-400 font-medium">{item.applications}</td>
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-1 max-w-[120px] bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-orange-500 rounded-full" 
+                                                    style={{ width: `${item.conversionRate}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm font-bold text-gray-900 dark:text-white">{item.conversionRate}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )) : (
+                                <tr>
+                                    <td colSpan={4} className="px-8 py-20 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <Building2 className="w-12 h-12 text-gray-200 mb-4" />
+                                            <p className="text-gray-400 font-medium">No performance data available yet</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

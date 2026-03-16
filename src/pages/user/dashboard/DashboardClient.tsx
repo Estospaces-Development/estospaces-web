@@ -162,14 +162,7 @@ const DashboardClient = () => {
   }, [searchInput, selectedPropertyType, selectedFilters, navigate, fetchFilteredProperties]);
 
   // Map location
-  const mapLocation = activeLocation || {
-    type: 'default',
-    postcode: 'SW1A 1AA',
-    latitude: 51.5074,
-    longitude: -0.1278,
-    city: 'London',
-    source: 'default',
-  };
+  const mapLocation = activeLocation || null;
 
   // Map properties - pass raw properties with latitude/longitude for NearbyPropertiesMap
   const mapProperties = useMemo(() => {

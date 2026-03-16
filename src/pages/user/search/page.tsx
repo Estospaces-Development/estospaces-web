@@ -1,34 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
 import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion } from '../../../services/searchService';
 
+import { useToast } from '@/contexts/ToastContext';
+
 const PropertySearch = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { error: showToastError } = useToast();
 
-    // Initialize derived state from URL once
-    const initialQuery = searchParams.get('q') || searchParams.get('keyword') || '';
-    const initialLocation = searchParams.get('location') || '';
-    const initialType = searchParams.get('propertyType') || '';
-    const initialMin = searchParams.get('minPrice') || '';
-    const initialMax = searchParams.get('maxPrice') || '';
-    const initialBeds = searchParams.get('beds') || searchParams.get('minBedrooms') || '';
-    const initialListingType = searchParams.get('type') || '';
-    const initialBaths = searchParams.get('baths') || searchParams.get('minBathrooms') || '';
+    // Initialize state directly from URL params
+    const [query, setQuery] = useState(() => searchParams.get('q') || searchParams.get('keyword') || '');
+    const [location, setLocation] = useState(() => searchParams.get('location') || '');
+    const [propertyType, setPropertyType] = useState(() => searchParams.get('propertyType') || '');
+    const [minPrice, setMinPrice] = useState(() => searchParams.get('minPrice') || '');
+    const [maxPrice, setMaxPrice] = useState(() => searchParams.get('maxPrice') || '');
+    const [bedrooms, setBedrooms] = useState(() => searchParams.get('beds') || searchParams.get('minBedrooms') || '');
+    const [listingType, setListingType] = useState(() => searchParams.get('type') || '');
+    const [baths, setBaths] = useState(() => searchParams.get('baths') || searchParams.get('minBathrooms') || '');
 
-    const [query, setQuery] = useState(initialQuery);
-    const [location, setLocation] = useState(initialLocation);
-    const [propertyType, setPropertyType] = useState(initialType);
-    const [minPrice, setMinPrice] = useState(initialMin);
-    const [maxPrice, setMaxPrice] = useState(initialMax);
-    const [bedrooms, setBedrooms] = useState(initialBeds);
-    const [listingType, setListingType] = useState(initialListingType);
-    const [baths, setBaths] = useState(initialBaths);
     const [showFilters, setShowFilters] = useState(false);
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -56,15 +51,7 @@ const PropertySearch = () => {
         loadFilters();
     }, []);
 
-    // Refetch when search dependencies change
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchProperties();
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, page]);
-
-    // Handle forward/back navigation by re-syncing from URL params
+    // Sync URL params to state when searchParams change (navigation)
     useEffect(() => {
         setQuery(searchParams.get('q') || searchParams.get('keyword') || '');
         setLocation(searchParams.get('location') || '');
@@ -74,31 +61,10 @@ const PropertySearch = () => {
         setBedrooms(searchParams.get('beds') || searchParams.get('minBedrooms') || '');
         setListingType(searchParams.get('type') || '');
         setBaths(searchParams.get('baths') || searchParams.get('minBathrooms') || '');
-        setPage(1);
+        setPage(parseInt(searchParams.get('page') || '1'));
     }, [searchParams]);
 
-    // Autocomplete location suggestions
-    useEffect(() => {
-        const fetchSuggestions = async () => {
-            if (query.length >= 2) {
-                try {
-                    const suggestions = await searchService.autocomplete(query);
-                    setLocationSuggestions(suggestions.slice(0, 10));
-                } catch {
-                    setLocationSuggestions([]);
-                }
-            } else {
-                setLocationSuggestions([]);
-            }
-        };
-
-        const timer = setTimeout(() => {
-            fetchSuggestions();
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [query]);
-
-    const fetchProperties = async () => {
+    const fetchProperties = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -132,7 +98,36 @@ const PropertySearch = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, page]);
+
+    // Refetch when search dependencies change (debounced)
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchProperties();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [fetchProperties]);
+
+    // Autocomplete location suggestions
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (query.length >= 2) {
+                try {
+                    const suggestions = await searchService.autocomplete(query);
+                    setLocationSuggestions(suggestions.slice(0, 10));
+                } catch {
+                    setLocationSuggestions([]);
+                }
+            } else {
+                setLocationSuggestions([]);
+            }
+        };
+
+        const timer = setTimeout(() => {
+            fetchSuggestions();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [query]);
 
     const handleSaveSearch = async () => {
         if (!searchName.trim()) return;
@@ -158,10 +153,10 @@ const PropertySearch = () => {
                     setSearchName('');
                 }, 1500);
             } else {
-                alert('Error saving search: ' + (res.error || 'Unknown error'));
+                showToastError('Error saving search: ' + (res.error || 'Unknown error'));
             }
         } catch (error) {
-            alert('Failed to save search');
+            showToastError('Failed to save search');
         } finally {
             setIsSaving(false);
         }

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Send, CheckCircle, AlertCircle, MapPin, Building, Phone } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { createBrokerRequest } from '@/services/leadsService';
 
 const BrokerRequestWidget = () => {
     const { user } = useAuth();
@@ -21,17 +22,23 @@ const BrokerRequestWidget = () => {
         setSuccess(false);
 
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const { success, error } = await createBrokerRequest({
+                requestType,
+                location,
+                budget,
+                details
+            });
 
-            // Verification logic logic (e.g. check if user has verified phone)
-            // For now, just succeed
+            if (!success) {
+                throw new Error(error || 'Failed to submit request');
+            }
+
             setSuccess(true);
             setDetails('');
             setLocation('');
             setBudget('');
         } catch (err: any) {
-            setError('Failed to submit request. Please try again.');
+            setError(err.message || 'Failed to submit request. Please try again.');
         } finally {
             setLoading(false);
         }

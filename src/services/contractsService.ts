@@ -1,25 +1,7 @@
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { Contract } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
-
-export interface Contract {
-    id: string;
-    property_id: string;
-    user_id: string;
-    manager_id: string;
-    contract_type: string;
-    start_date: string;
-    end_date?: string;
-    monthly_rent?: number;
-    deposit_amount?: number;
-    terms_and_conditions?: string;
-    contract_pdf_url?: string;
-    status: 'draft' | 'pending_user_signature' | 'pending_manager_signature' | 'active' | 'terminated';
-    user_signed_at?: string;
-    manager_signed_at?: string;
-    created_at: string;
-    updated_at: string;
-}
 
 export interface CreateContractRequest {
     application_id: string;

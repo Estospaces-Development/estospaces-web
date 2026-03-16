@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useHost } from '@/lib/utils/hostUtils';
 
 interface AdminSidebarProps {
     isOpen?: boolean;
@@ -25,6 +26,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
     const { pathname } = useLocation();
     const { signOut } = useAuth();
     const navigate = useNavigate();
+    const { currentApp } = useHost();
 
     const handleSignOut = async () => {
         signOut();
@@ -34,8 +36,11 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     const getLinkPath = (path: string) => {
         if (!useSubdomain) return path;
-        const newPath = path.replace(/^\/admin/, '');
-        return newPath || '/';
+        
+        if (currentApp === 'admin') {
+            return path.replace(/^\/admin/, '') || '/';
+        }
+        return path;
     };
 
     const isActive = (path: string) => {

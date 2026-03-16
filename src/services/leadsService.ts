@@ -42,6 +42,10 @@ export interface Lead {
         image_urls: string;
         property_type: string;
         agent_name: string;
+        agent_company?: string;
+        agent_email?: string;
+        agent_phone?: string;
+        listing_type?: string;
     };
     // UI-mapped fields
     name?: string;
@@ -163,6 +167,37 @@ export const createLead = async (propertyId: string): Promise<{ data: Lead | nul
     } catch (error: any) {
         console.error('[leadsService] createLead error:', error.message);
         return { data: null, error: error.message };
+    }
+};
+
+/**
+ * Create a generic broker request (user)
+ * POST /api/v1/leads/manual (core-service fallback)
+ */
+export const createBrokerRequest = async (requestData: {
+    requestType: string;
+    location: string;
+    budget: string;
+    details: string;
+}): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        await apiFetch<any>(
+            `${CORE_URL()}/api/v1/leads/manual`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    property_interested: `${requestData.requestType} in ${requestData.location}`,
+                    budget: requestData.budget,
+                    last_contact: requestData.details,
+                    name: 'Web Request', // Placeholder since lead name is required
+                    email: 'request@estospaces.local'
+                }),
+            },
+        );
+        return { success: true, error: null };
+    } catch (error: any) {
+        console.error('[leadsService] createBrokerRequest error:', error.message);
+        return { success: false, error: error.message };
     }
 };
 
@@ -301,4 +336,59 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
     } catch (error: any) {
         return { data: null, error: error.message };
     }
+};
+
+/**
+ * Upload a document for verification
+ * POST /api/v1/documents (core-service)
+ */
+export const uploadDocument = async (type: string, file: File): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('file', file);
+
+        await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
+            method: 'POST',
+            body: formData,
+            // apiFetch handles Auth headers, but we might need to handle multipart/form-data specifically if apiFetch defaults to JSON
+        });
+        return { success: true, error: null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Resend email verification
+ * POST /api/v1/auth/resend-verification (core-service)
+ */
+export const resendVerification = async (email: string): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        await apiFetch<any>(`${CORE_URL()}/api/v1/auth/resend-verification`, {
+            method: 'POST',
+            body: JSON.stringify({ email }),
+        });
+        return { success: true, error: null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+export const leadsService = {
+    getUserLeads,
+    getBrokerLeads,
+    getLeadById,
+    updateLeadStatus,
+    createLead,
+    createBrokerRequest,
+    createManualLead,
+    updateLead,
+    deleteLead,
+    respondToLead,
+    getLeadAudit,
+    getAllLeads,
+    reassignLead,
+    uploadDocument,
+    resendVerification,
 };

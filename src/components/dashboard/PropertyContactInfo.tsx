@@ -1,9 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Phone, Building, MapPin, Calendar, MessageCircle } from 'lucide-react';
+import { Mail, Phone, Building, MapPin, Calendar, MessageCircle, Loader2 } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
 
 interface Property {
+    id: string;
+    agent_id?: string;
     agent_name?: string;
     agent_company?: string;
     agent_phone?: string;
@@ -21,7 +25,9 @@ interface PropertyContactInfoProps {
 }
 
 const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
+    const { success: showToastSuccess, error: showToastError } = useToast();
     const [showContactForm, setShowContactForm] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [contactForm, setContactForm] = useState({
         name: '',
         email: '',
@@ -31,10 +37,36 @@ const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
 
     const handleContactSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Send contact form to agent/backend
-        alert('Contact request sent! The agent will get back to you soon.');
-        setShowContactForm(false);
-        setContactForm({ name: '', email: '', phone: '', message: '' });
+        if (!property?.agent_id && !property?.agent_email) {
+            showToastError('Agent contact information is incomplete.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const messageContent = `
+Inquiry regarding: ${property.address_line_1}, ${property.city}
+From: ${contactForm.name} (${contactForm.email})
+Phone: ${contactForm.phone || 'Not provided'}
+
+Message:
+${contactForm.message}
+            `.trim();
+
+            await messagesService.sendMessage({
+                recipientId: property.agent_id,
+                content: messageContent,
+            });
+
+            showToastSuccess('Your message has been sent to the agent.');
+            setShowContactForm(false);
+            setContactForm({ name: '', email: '', phone: '', message: '' });
+        } catch (err: any) {
+            console.error('Error sending message to agent:', err);
+            showToastError('Failed to send message. Please try again later.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (!property) return null;

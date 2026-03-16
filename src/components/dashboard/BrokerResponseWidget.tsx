@@ -20,7 +20,7 @@ const BrokerResponseWidget: React.FC = () => {
                     id: lead.id,
                     propertyName: lead.property?.title || 'Unknown Property',
                     brokerName: lead.property?.agent_name || 'Assigned Broker',
-                    distance: 'Nearby', // Distance not in lead model yet
+                    distance: lead.property?.city || 'UK',
                     timestamp: new Date(lead.created_at),
                     status: (lead.status as any) || 'pending'
                 }));
@@ -39,8 +39,8 @@ const BrokerResponseWidget: React.FC = () => {
 
     const handleRespond = async (id: string) => {
         try {
-            // Default response for quick tracking
-            const res = await leadsService.respondToLead(id, 'message', 'I am looking into your request.');
+            // Updated to be more generic
+            const res = await leadsService.respondToLead(id, 'message', 'Thank you for your inquiry. Let me assist you with this property.');
             if (res.data) {
                 setRequests(prev => prev.map(req =>
                     req.id === id ? { ...req, status: 'responded' } : req

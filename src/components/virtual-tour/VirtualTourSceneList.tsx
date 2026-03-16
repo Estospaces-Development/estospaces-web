@@ -2,7 +2,7 @@
 "use client";
 
 import React from 'react';
-import { VirtualTourScene } from '../../mocks/virtualTourMock';
+import { VirtualTourScene } from '@/services/virtualTourService';
 
 interface VirtualTourSceneListProps {
     scenes: VirtualTourScene[];

@@ -12,7 +12,6 @@ interface PropertyData {
     propertyAddress?: string;
     propertyPrice?: number;
     propertyImage?: string;
-    // Mock coordinates for demo
     latitude?: number;
     longitude?: number;
     tourUrl?: string;
@@ -42,7 +41,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
         }
     };
 
-    // Default coordinates (London) if not provided
+    // Default coordinates if not provided
     const location = {
         lat: property.latitude || 51.5074,
         lng: property.longitude || -0.1278

@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { MoveRight } from 'lucide-react';
-import { VirtualTourHotspot } from '../../mocks/virtualTourMock';
+import { VirtualTourHotspot } from '@/services/virtualTourService';
 
 interface VirtualTourHotspotsProps {
     hotspots: VirtualTourHotspot[];
@@ -31,7 +31,9 @@ const VirtualTourHotspots: React.FC<VirtualTourHotspotsProps> = ({
                     onMouseLeave={() => setHoveredHotspot(null)}
                     onClick={(e) => {
                         e.stopPropagation();
-                        onHotspotClick(hotspot.targetSceneId);
+                        if (hotspot.targetSceneId) {
+                            onHotspotClick(hotspot.targetSceneId);
+                        }
                     }}
                 >
                     {/* Hotspot Marker */}

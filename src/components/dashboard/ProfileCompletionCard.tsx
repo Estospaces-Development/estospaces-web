@@ -21,10 +21,7 @@ const ProfileCompletionCard = () => {
         return !hasName || !hasPhone;
     }, [user, loading]);
 
-    // DEMO: Force visibility for user review if user is logged in
-    // In production, uncomment checking isProfileIncomplete
-    // if (!isProfileIncomplete || !isVisible) return null;
-    if (!user || !isVisible) return null;
+    if (!isProfileIncomplete || !isVisible) return null;
 
     return (
         <div id="profile-widget" className="animate-slideInRight">

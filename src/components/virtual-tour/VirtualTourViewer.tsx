@@ -3,7 +3,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { VirtualTour } from '../../mocks/virtualTourMock';
+import { VirtualTour, TourScene } from '@/services/virtualTourService';
 import VirtualTourSceneList from './VirtualTourSceneList';
 import VirtualTourControls from './VirtualTourControls';
 import VirtualTourHotspots from './VirtualTourHotspots';

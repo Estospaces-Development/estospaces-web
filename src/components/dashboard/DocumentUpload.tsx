@@ -11,8 +11,10 @@ import {
     Clock,
     Download,
     Trash2,
-    Edit
+    Edit,
+    Loader2
 } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
 
 interface DocumentUploadProps {
     documents: any[];
@@ -29,6 +31,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     onReplace,
     maxSize = 10 * 1024 * 1024
 }) => {
+    const { error: showToastError } = useToast();
     const [dragActive, setDragActive] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,12 +64,12 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
     const handleFiles = (files: File[]) => {
         const validFiles = files.filter((file) => {
             if (file.size > maxSize) {
-                alert(`File ${file.name} is too large. Maximum size is ${(maxSize / (1024 * 1024)).toFixed(0)}MB.`);
+                showToastError(`File ${file.name} is too large. Maximum size is ${(maxSize / (1024 * 1024)).toFixed(0)}MB.`);
                 return false;
             }
             const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
             if (!validTypes.includes(file.type)) {
-                alert(`File ${file.name} has an invalid type. Please upload PDF or image files.`);
+                showToastError(`File ${file.name} has an invalid type. Please upload PDF or image files.`);
                 return false;
             }
             return true;
