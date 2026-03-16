@@ -41,6 +41,13 @@ export interface AnalyticsData {
     avg_response_time: number;
     pending_verifications: number;
     total_documents: number;
+    total_revenue?: number;
+    revenue_growth?: string;
+    property_growth?: string;
+    total_views?: number;
+    views_growth?: string;
+    conversion_rate?: number;
+    conversion_growth?: string;
     // Legacy fields for manager dashboard
     propertyPerformance?: PropertyPerformance[];
     applicationsByProperty?: ApplicationByProperty[];

@@ -23,7 +23,7 @@ const TopProperties = () => {
         const fetchTopProperties = async () => {
             setLoading(true);
             try {
-                const res = await analyticsService.getAnalyticsData();
+                const res = await analyticsService.getManagerAnalytics();
                 if (res.data && res.data.propertyPerformance) {
                     const mapped = res.data.propertyPerformance.map(p => ({
                         id: p.property, // Analytics returns property name/id

@@ -42,6 +42,10 @@ export interface Lead {
         image_urls: string;
         property_type: string;
         agent_name: string;
+        agent_company?: string;
+        agent_email?: string;
+        agent_phone?: string;
+        listing_type?: string;
     };
     // UI-mapped fields
     name?: string;

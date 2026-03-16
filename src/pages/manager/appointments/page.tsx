@@ -126,8 +126,14 @@ export default function ManagerAppointmentsPage() {
                             <p className="text-gray-500 dark:text-gray-400">Loading appointments...</p>
                         </div>
                     ) : appointments.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <p className="text-gray-500 dark:text-gray-400">No appointments scheduled</p>
+                        <div className="py-20 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-20 h-20 bg-gray-50 dark:bg-black rounded-full flex items-center justify-center mb-4 border border-gray-100 dark:border-gray-800">
+                                <CalendarIcon size={40} className="text-gray-300 dark:text-gray-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No appointments found</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                                You don't have any appointments scheduled yet. When clients book viewings or meetings, they will appear here.
+                            </p>
                         </div>
                     ) : (
                         appointments.map((appointment) => (

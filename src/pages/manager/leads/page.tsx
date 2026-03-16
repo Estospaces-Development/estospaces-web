@@ -24,7 +24,9 @@ import {
     Download,
     Share2,
     FileDown,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Calendar,
+    ArrowUpRight
 } from 'lucide-react';
 import { exportToPDF, exportToExcel } from '@/lib/exportUtils';
 import Toast from '@/components/ui/Toast';
@@ -142,7 +144,7 @@ function LeadsContent() {
             try {
                 await navigator.share(shareData);
             } catch (err) {
-                // removed console.log
+                // error handled
             }
         } else {
             // Fallback
@@ -175,287 +177,249 @@ function LeadsContent() {
     const totalClientsCount = approvedCount;
 
     return (
-        <div className="space-y-6 font-sans">
+        <div className="space-y-8 font-outfit pb-20 animate-in fade-in duration-700">
             {/* Page Header */}
-            <div>
-                <div className="mb-4">
-                    <BackButton />
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <div className="mb-4">
+                        <BackButton />
+                    </div>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Leads & Clients</h1>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Manage and nurture your property relationships</p>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">Leads & Clients</h1>
-                <p className="text-gray-600 dark:text-gray-400">Manage your leads and clients relationships</p>
+                <button
+                    onClick={handleAddLead}
+                    className="flex items-center gap-2 px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 active:scale-95"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span>Add New Lead</span>
+                </button>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <StatCard
-                    title="New Leads"
-                    value={newLeadsCount.toString()}
-                    change=""
-                    icon={UserPlus}
-                    iconColor="bg-blue-500"
-                    trendColor="text-blue-500"
-                />
-                <StatCard
-                    title="In Progress"
-                    value={inProgressCount.toString()}
-                    change=""
-                    icon={Clock}
-                    iconColor="bg-yellow-500"
-                    trendColor="text-yellow-500"
-                />
-                <StatCard
-                    title="Approved"
-                    value={approvedCount.toString()}
-                    change=""
-                    icon={CheckCircle}
-                    iconColor="bg-green-500"
-                    trendColor="text-green-500"
-                />
-                <StatCard
-                    title="Rejected"
-                    value={rejectedCount.toString()}
-                    change=""
-                    icon={XCircle}
-                    iconColor="bg-red-500"
-                    trendColor="text-red-500"
-                />
-                <StatCard
-                    title="Total Clients"
-                    value={totalClientsCount.toString()}
-                    change=""
-                    icon={Users}
-                    iconColor="bg-purple-500"
-                    trendColor="text-purple-500"
-                />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                {[
+                    { title: "New Leads", value: newLeadsCount, icon: UserPlus, color: "blue" },
+                    { title: "In Progress", value: inProgressCount, icon: Clock, color: "orange" },
+                    { title: "Approved", value: approvedCount, icon: CheckCircle, color: "green" },
+                    { title: "Rejected", value: rejectedCount, icon: XCircle, color: "red" },
+                    { title: "Total Clients", value: totalClientsCount, icon: Users, color: "purple" }
+                ].map((stat, i) => (
+                    <div key={i} className="bg-white dark:bg-black rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
+                        <div className={`p-2 w-fit rounded-lg bg-${stat.color}-500/10 mb-3`}>
+                            <stat.icon className={`w-5 h-5 text-${stat.color}-500`} />
+                        </div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{stat.title}</p>
+                        <h3 className="text-2xl font-black text-gray-900 dark:text-white">{stat.value}</h3>
+                    </div>
+                ))}
             </div>
 
-            {/* Search and Actions */}
-            <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search Leads"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
-                    </div>
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowFilters(!showFilters)}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            <Filter className="w-4 h-4" />
-                            <span className="text-sm font-medium">More Filters</span>
-                        </button>
-                        {showFilters && (
-                            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-10 min-w-[250px]">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-                                        <select
-                                            value={statusFilter}
-                                            onChange={(e) => setStatusFilter(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
-                                        >
-                                            <option value="all">All Status</option>
-                                            <option value="New Lead">New Lead</option>
-                                            <option value="In Progress">In Progress</option>
-                                            <option value="Approved">Approved</option>
-                                            <option value="Rejected">Rejected</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Score</label>
-                                        <select
-                                            value={scoreFilter}
-                                            onChange={(e) => setScoreFilter(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg text-sm"
-                                        >
-                                            <option value="all">All Scores</option>
-                                            <option value="high">High (90+)</option>
-                                            <option value="medium">Medium (70-89)</option>
-                                            <option value="low">Low (&lt;70)</option>
-                                        </select>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setStatusFilter('all');
-                                            setScoreFilter('all');
-                                            setShowFilters(false);
-                                        }}
-                                        className="w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
-                                    >
-                                        Clear Filters
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowExportMenu(!showExportMenu)}
-                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                        >
-                            <Download className="w-4 h-4" />
-                            <span className="text-sm font-medium">Export</span>
-                            {selectedLeads.length > 0 && (
-                                <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">
-                                    {selectedLeads.length}
-                                </span>
-                            )}
-                        </button>
-                        {showExportMenu && (
-                            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 min-w-[180px]">
+            {/* Search and Table Container */}
+            <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden text-sm">
+                <div className="p-6 border-b border-gray-50 dark:border-gray-900 space-y-4">
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by name, email or property..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none dark:text-white rounded-xl focus:ring-2 focus:ring-orange-500/20 transition-all font-medium"
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                           <div className="relative">
                                 <button
-                                    onClick={() => handleExport('pdf')}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold"
                                 >
-                                    <FileDown className="w-4 h-4" />
-                                    Export as PDF
+                                    <Filter className="w-4 h-4" />
+                                    <span>Filters</span>
                                 </button>
-                                <button
-                                    onClick={() => handleExport('excel')}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                                >
-                                    <FileSpreadsheet className="w-4 h-4" />
-                                    Export as Excel
-                                </button>
+                                {showFilters && (
+                                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-6 z-30 min-w-[280px] animate-in fade-in zoom-in duration-200">
+                                        <div className="space-y-5">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Status</label>
+                                                <select
+                                                    value={statusFilter}
+                                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border-none dark:text-white rounded-xl focus:ring-2 focus:ring-orange-500/20 font-medium cursor-pointer"
+                                                >
+                                                    <option value="all">All Status</option>
+                                                    <option value="New Lead">New Lead</option>
+                                                    <option value="In Progress">In Progress</option>
+                                                    <option value="Approved">Approved</option>
+                                                    <option value="Rejected">Rejected</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Score</label>
+                                                <select
+                                                    value={scoreFilter}
+                                                    onChange={(e) => setScoreFilter(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border-none dark:text-white rounded-xl focus:ring-2 focus:ring-orange-500/20 font-medium cursor-pointer"
+                                                >
+                                                    <option value="all">All Scores</option>
+                                                    <option value="high">High (90+)</option>
+                                                    <option value="medium">Medium (70-89)</option>
+                                                    <option value="low">Low (&lt;70)</option>
+                                                </select>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    setStatusFilter('all');
+                                                    setScoreFilter('all');
+                                                    setShowFilters(false);
+                                                }}
+                                                className="w-full py-2 text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors"
+                                            >
+                                                Reset All Filters
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowExportMenu(!showExportMenu)}
+                                    className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    <span>Export</span>
+                                    {selectedLeads.length > 0 && (
+                                        <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                                            {selectedLeads.length}
+                                        </span>
+                                    )}
+                                </button>
+                                {showExportMenu && (
+                                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl z-30 min-w-[220px] overflow-hidden animate-in fade-in zoom-in duration-200">
+                                        <button
+                                            onClick={() => handleExport('pdf')}
+                                            className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                        >
+                                            <FileDown className="w-5 h-5 text-red-500" />
+                                            Export as PDF
+                                        </button>
+                                        <button
+                                            onClick={() => handleExport('excel')}
+                                            className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-t border-gray-50 dark:border-gray-900"
+                                        >
+                                            <FileSpreadsheet className="w-5 h-5 text-green-500" />
+                                            Export as Excel
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    <button
-                        onClick={handleAddLead}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span className="text-sm font-medium">Add New Lead</span>
-                    </button>
                 </div>
-            </div>
 
-            {/* Leads Overview Table */}
-            <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Leads Overview</h2>
-                    {selectedLeads.length > 0 && (
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {selectedLeads.length} selected
-                        </span>
-                    )}
-                </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-900">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedLeads.length === filteredLeads.length && filteredLeads.length > 0}
-                                        onChange={toggleSelectAll}
-                                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                                    />
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Leads</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Property Interested</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Score</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Budget</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Contact</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
-                            {filteredLeads.map((lead) => (
-                                <tr key={lead.id} className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap">
+                    {filteredLeads.length > 0 ? (
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-gray-50 dark:bg-gray-900/50">
+                                    <th className="px-6 py-4">
                                         <input
                                             type="checkbox"
-                                            checked={selectedLeads.includes(lead.id)}
-                                            onChange={() => toggleSelectLead(lead.id)}
-                                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                                            checked={selectedLeads.length === filteredLeads.length && filteredLeads.length > 0}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer transition-all"
                                         />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div>
-                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{lead.name}</div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">{lead.email}</div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{lead.propertyInterested}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${lead.status === 'New Lead' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400' :
-                                            lead.status === 'In Progress' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400' :
-                                                lead.status === 'Approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' :
-                                                    'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
-                                            }`}>
-                                            {lead.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{lead.score}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{lead.budget}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">{lead.lastContact}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={() => setShowViewModal(lead.id)}
-                                                className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300"
-                                                title="View"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleEditLead(lead)}
-                                                className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300"
-                                                title="Edit"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => { if (typeof window !== 'undefined') window.location.href = `mailto:${lead.email}`; }}
-                                                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                                title="Email"
-                                            >
-                                                <Mail className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => { if (typeof window !== 'undefined' && lead.phone) window.location.href = `tel:${lead.phone}`; }}
-                                                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-                                                title="Call"
-                                            >
-                                                <Phone className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleShare(lead)}
-                                                className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300"
-                                                title="Share"
-                                            >
-                                                <Share2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => setShowDeleteConfirm(lead.id)}
-                                                className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
+                                    </th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Client Name</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Property Interested</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Score</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50 dark:divide-gray-900">
+                                {filteredLeads.map((lead) => (
+                                    <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors group">
+                                        <td className="px-6 py-5">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedLeads.includes(lead.id)}
+                                                onChange={() => toggleSelectLead(lead.id)}
+                                                className="w-4 h-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer transition-all"
+                                            />
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div>
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-orange-500 transition-colors">{lead.name}</div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{lead.email}</div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{lead.propertyInterested}</div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg ${
+                                                lead.status === 'New Lead' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400' :
+                                                lead.status === 'In Progress' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-400' :
+                                                lead.status === 'Approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' :
+                                                'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                                            }`}>
+                                                {lead.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-600 dark:text-gray-400">
+                                                    {lead.score}
+                                                </div>
+                                                <div className="flex-1 max-w-[60px] bg-gray-100 dark:bg-gray-800 rounded-full h-1 overflow-hidden">
+                                                    <div 
+                                                        className={`h-full rounded-full ${lead.score && lead.score > 80 ? 'bg-green-500' : 'bg-orange-500'}`} 
+                                                        style={{ width: `${lead.score}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-1">
+                                                <button onClick={() => setShowViewModal(lead.id)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 rounded-lg transition-all" title="View"><Eye size={18}/></button>
+                                                <button onClick={() => handleEditLead(lead)} className="p-2 text-gray-400 hover:text-green-500 hover:bg-green-500/10 rounded-lg transition-all" title="Edit"><Edit size={18}/></button>
+                                                <button onClick={() => handleShare(lead)} className="p-2 text-gray-400 hover:text-purple-500 hover:bg-purple-500/10 rounded-lg transition-all" title="Share"><Share2 size={18}/></button>
+                                                <button onClick={() => setShowDeleteConfirm(lead.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all" title="Delete"><Trash2 size={18}/></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <div className="py-32 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-24 h-24 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-6 border border-gray-100 dark:border-gray-800">
+                                <Users size={48} className="text-gray-200 dark:text-gray-700" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">No leads found</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm font-medium leading-relaxed">
+                                {searchQuery || statusFilter !== 'all' || scoreFilter !== 'all'
+                                    ? "We couldn't find any leads matching your current search or filters. Try broadening your criteria."
+                                    : "You haven't added any leads yet. Start by creating your first lead to begin tracking property inquiries."}
+                            </p>
+                            {(searchQuery || statusFilter !== 'all' || scoreFilter !== 'all') && (
+                                <button
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setStatusFilter('all');
+                                        setScoreFilter('all');
+                                    }}
+                                    className="mt-8 px-6 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                                >
+                                    Reset all search filters
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
+
             </div>
 
             {/* Add/Edit Lead Modal */}
@@ -474,63 +438,76 @@ function LeadsContent() {
                 const lead = leads.find(l => l.id === showViewModal);
                 if (!lead) return null;
                 return createPortal(
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 border border-gray-200 dark:border-gray-700 shadow-xl">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Lead Details</h3>
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300">
+                        <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-lg w-full p-8 border border-white/20 shadow-2xl animate-in zoom-in-95 duration-300">
+                            <div className="flex items-center justify-between mb-8">
+                                <h3 className="text-2xl font-black text-gray-900 dark:text-white">Lead Details</h3>
                                 <button
                                     onClick={() => setShowViewModal(null)}
-                                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all"
                                 >
-                                    <XCircle className="w-5 h-5" />
+                                    <XCircle className="w-6 h-6" />
                                 </button>
                             </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{lead.name}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{lead.email}</p>
-                                </div>
-                                {lead.phone && (
+                            
+                            <div className="grid grid-cols-2 gap-8">
+                                <div className="space-y-6">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
-                                        <p className="text-sm text-gray-900 dark:text-white">{lead.phone}</p>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Company / Name</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{lead.name}</p>
                                     </div>
-                                )}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Property Interested</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{lead.propertyInterested}</p>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Address</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{lead.email}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone Number</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{lead.phone || "—"}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                                    <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${lead.status === 'New Lead' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400' :
-                                        lead.status === 'In Progress' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400' :
-                                            lead.status === 'Approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' :
-                                                'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
+                                <div className="space-y-6">
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                                        <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg ${
+                                            lead.status === 'New Lead' ? 'bg-blue-100 text-blue-800' :
+                                            lead.status === 'In Progress' ? 'bg-orange-100 text-orange-800' :
+                                            lead.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                            'bg-red-100 text-red-800'
                                         }`}>
-                                        {lead.status}
-                                    </span>
+                                            {lead.status}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Lead Score</p>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-sm font-black text-orange-500">
+                                                {lead.score}
+                                            </div>
+                                            <p className="text-xs font-bold text-gray-500 font-medium">Hot Lead</p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Budget Range</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{lead.budget || "—"}</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Score</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{lead.score}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Budget</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{lead.budget}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Contact</label>
-                                    <p className="text-sm text-gray-900 dark:text-white">{lead.lastContact}</p>
+                                <div className="col-span-2 p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Property Interest</p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-relaxed">{lead.propertyInterested}</p>
                                 </div>
                             </div>
-                            <div className="flex gap-3 justify-end mt-6">
+
+                            <div className="flex gap-4 mt-10">
+                                <button
+                                    onClick={() => { if (typeof window !== 'undefined' && lead.phone) window.location.href = `tel:${lead.phone}`; }}
+                                    className="flex-1 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-500/20"
+                                >
+                                    <Phone size={18} />
+                                    <span>Call Client</span>
+                                </button>
                                 <button
                                     onClick={() => setShowViewModal(null)}
-                                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                    className="px-8 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-bold"
                                 >
                                     Close
                                 </button>
@@ -543,24 +520,27 @@ function LeadsContent() {
 
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && typeof document !== 'undefined' && createPortal(
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 border border-gray-200 dark:border-gray-700 shadow-xl">
-                        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Delete Lead</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            Are you sure you want to delete this lead? This action cannot be undone.
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full p-8 border border-white/20 shadow-2xl text-center">
+                        <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Trash2 size={40} className="text-red-500" />
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-3">Delete Lead?</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium">
+                            This action will permanently remove all client data. This cannot be undone.
                         </p>
-                        <div className="flex gap-3 justify-end">
+                        <div className="flex gap-4">
                             <button
                                 onClick={() => setShowDeleteConfirm(null)}
-                                className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                className="flex-1 py-4 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
                             >
-                                Cancel
+                                Keep Lead
                             </button>
                             <button
                                 onClick={() => handleDeleteLead(showDeleteConfirm)}
-                                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors shadow-lg shadow-red-500/20"
+                                className="flex-1 py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold transition-all shadow-lg shadow-red-500/20"
                             >
-                                Delete
+                                Yes, Delete
                             </button>
                         </div>
                     </div>
@@ -586,4 +566,3 @@ export default function LeadsPage() {
         </Suspense>
     );
 }
-

@@ -171,10 +171,27 @@ const BrokersCommunity = () => {
 
                 <div className="space-y-4">
                     {filteredAndSortedPosts.length === 0 ? (
-                        <div className="bg-white dark:bg-black rounded-xl p-12 text-center border border-gray-200 dark:border-zinc-800">
-                            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No posts found</h3>
-                            <p className="text-gray-500 dark:text-gray-400">Try adjusting your filters or be the first to create a post!</p>
+                        <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center px-6">
+                            <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">
+                                <Users size={40} className="text-gray-300 dark:text-gray-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No posts found</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                                {selectedTag !== 'all' || selectedRole !== 'all'
+                                    ? "No community posts match your current search or filters. Try adjusting them or clear filters to see more."
+                                    : "The community is currently quiet. Be the first to start a conversation by creating a new post!"}
+                            </p>
+                            {(selectedTag !== 'all' || selectedRole !== 'all') && (
+                                <button
+                                    onClick={() => {
+                                        setSelectedTag('all');
+                                        setSelectedRole('all');
+                                    }}
+                                    className="mt-6 text-primary font-bold hover:underline"
+                                >
+                                    Clear all filters
+                                </button>
+                            )}
                         </div>
                     ) : (
                         filteredAndSortedPosts.map(post => (

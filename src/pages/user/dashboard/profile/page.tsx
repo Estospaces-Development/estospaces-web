@@ -25,7 +25,7 @@ import DocumentUpload from '@/components/dashboard/DocumentUpload';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const { user: currentUser, refreshUser } = useAuth();
+    const { user: currentUser, refreshUser, loading: authLoading, isAuthenticated } = useAuth();
     const { savedCount } = useSavedProperties();
     const toast = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +44,6 @@ export default function ProfilePage() {
         viewings: 0
     });
 
-    const [isLoading, setIsLoading] = useState(true);
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
@@ -68,19 +67,25 @@ export default function ProfilePage() {
     }, [savedCount]);
 
     useEffect(() => {
-        if (currentUser) {
-            setFormData({
-                email: currentUser.email || '',
-                fullName: currentUser.name || '',
-                phone: currentUser.phone || '',
-                address: currentUser.address || '',
-                postcode: '', // Extract from address if possible
-            });
-            setProfileImagePreview(currentUser.avatar_url || null);
-            fetchStats();
-            setIsLoading(false);
+        if (authLoading) {
+            return;
         }
-    }, [currentUser, fetchStats]);
+
+        if (!isAuthenticated || !currentUser) {
+            navigate('/login', { replace: true });
+            return;
+        }
+
+        setFormData({
+            email: currentUser.email || '',
+            fullName: currentUser.user_metadata?.full_name || currentUser.name || currentUser.email || '',
+            phone: currentUser.phone || '',
+            address: currentUser.address || '',
+            postcode: '',
+        });
+        setProfileImagePreview(currentUser.avatar_url || null);
+        fetchStats();
+    }, [authLoading, currentUser, fetchStats, isAuthenticated, navigate]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -126,7 +131,7 @@ export default function ProfilePage() {
         }
     };
 
-    if (isLoading && !currentUser) {
+    if (authLoading || (isAuthenticated && !currentUser)) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
                 <Loader2 className="w-10 h-10 animate-spin text-orange-500" />

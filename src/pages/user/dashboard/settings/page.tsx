@@ -62,7 +62,7 @@ export default function SettingsPage() {
             }
         };
         fetchSettings();
-    }, [toast]);
+    }, []); // Empty dependency array to prevent loops
 
     const handleToggle = (key: keyof UserPreferences) => {
         if (typeof preferences[key] !== 'boolean') return;

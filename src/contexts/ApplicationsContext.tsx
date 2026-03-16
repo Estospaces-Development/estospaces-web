@@ -128,15 +128,14 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 propertyImage: lead.property?.image_urls ? (lead.property.image_urls.startsWith('[') ? JSON.parse(lead.property.image_urls)[0] : lead.property.image_urls) : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400',
                 propertyPrice: lead.property?.price || 0,
                 propertyType: lead.property?.property_type || 'apartment',
-                agentName: lead.property?.agent_name || 'Agent',
-                agentAgency: 'Premier Estates',
-                agentEmail: 'agent@example.com',
-                agentPhone: '+44 7700 900000',
-                listingType: lead.property?.property_type === 'rent' ? 'rent' : 'sale',
+                agentName: lead.property?.agent_name || '',
+                agentAgency: lead.property?.agent_company || '',
+                agentEmail: lead.property?.agent_email || '',
+                agentPhone: lead.property?.agent_phone || '',
+                listingType: lead.property?.listing_type || (lead.property?.property_type === 'rent' ? 'rent' : 'sale'),
                 submittedDate: lead.created_at,
                 lastUpdated: lead.updated_at || lead.created_at,
                 requiresAction: lead.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
-                // In a real app, these would come from the lead data or another endpoint
                 hasAppointment: false,
             }));
             setApplications(transformed);

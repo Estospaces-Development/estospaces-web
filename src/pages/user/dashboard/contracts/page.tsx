@@ -15,7 +15,8 @@ import {
     ChevronRight,
     Search
 } from 'lucide-react';
-import { bookingsService, type Contract, type ContractTemplate } from '@/services/bookingsService';
+import { bookingsService } from '@/services/bookingsService';
+import { type Contract, type ContractTemplate } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
 
 export default function ContractsPage() {
@@ -30,12 +31,14 @@ export default function ContractsPage() {
         const fetchData = async () => {
             try {
                 setIsLoading(true);
-                const [contractsResult, templatesResult] = await Promise.all([
+                const [contractsData, templatesData] = await Promise.all([
                     bookingsService.getContracts(),
                     bookingsService.getContractTemplates()
                 ]);
-                setContracts(contractsResult.data || []);
-                setTemplates(templatesResult.data || []);
+                // If apiFetch unwraps data, THESE ARE ALREADY ARRAYS
+                // But we check for both just in case
+                setContracts((contractsData as any).data || (Array.isArray(contractsData) ? contractsData : []));
+                setTemplates((templatesData as any).data || (Array.isArray(templatesData) ? templatesData : []));
             } catch (error: any) {
                 toast.error('Failed to load contract information');
                 console.error('[ContractsPage] Load Error:', error);
@@ -44,7 +47,7 @@ export default function ContractsPage() {
             }
         };
         fetchData();
-    }, [toast]);
+    }, []); // Removed toast to stop infinite loop on error
 
     const getStatusStyles = (status: string) => {
         switch (status.toLowerCase()) {
@@ -111,46 +114,57 @@ export default function ContractsPage() {
                                 </div>
                             </div>
 
-                            {contracts.length > 0 ? (
-                                <div className="space-y-4">
-                                    {contracts.map((contract) => (
-                                        <div key={contract.id} className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-transparent hover:border-orange-500/20 transition-all group">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-orange-500">
-                                                        <FileText size={24} />
+                            {(() => {
+                                const filtered = contracts.filter(c => 
+                                    (c.contract_type?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                                    (c.property?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+                                );
+                                
+                                return filtered.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {filtered.map((contract) => (
+                                            <div key={contract.id} className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-transparent hover:border-orange-500/20 transition-all group">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-orange-500">
+                                                            <FileText size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-900 dark:text-white">
+                                                                {(contract.contract_type || 'Contract').charAt(0).toUpperCase() + (contract.contract_type || 'Contract').slice(1)} Agreement
+                                                            </h4>
+                                                            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1 flex items-center gap-2">
+                                                                <Calendar size={12} />
+                                                                Starts: {contract.start_date ? new Date(contract.start_date).toLocaleDateString() : 'TBD'}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-gray-900 dark:text-white">{contract.contract_type === 'rental' ? 'Rental Agreement' : 'Purchase Agreement'}</h4>
-                                                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1 flex items-center gap-2">
-                                                            <Calendar size={12} />
-                                                            Starts: {new Date(contract.start_date).toLocaleDateString()}
-                                                        </p>
+                                                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyles(contract.status || '')}`}>
+                                                        {contract.status || 'Unknown'}
                                                     </div>
                                                 </div>
-                                                <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusStyles(contract.status)}`}>
-                                                    {contract.status}
+                                                <div className="mt-6 flex items-center gap-3">
+                                                    <button className="flex-1 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                                                        <Eye size={14} /> View Document
+                                                    </button>
+                                                    <button className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors">
+                                                        <Download size={18} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="mt-6 flex items-center gap-3">
-                                                <button className="flex-1 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                                                    <Eye size={14} /> View Document
-                                                </button>
-                                                <button className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors">
-                                                    <Download size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="text-center py-12">
-                                    <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <FileText size={32} className="text-gray-200" />
+                                        ))}
                                     </div>
-                                    <p className="text-gray-500 font-medium italic">No active contracts found matching your search.</p>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="text-center py-12">
+                                        <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <FileText size={32} className="text-gray-200" />
+                                        </div>
+                                        <p className="text-gray-500 font-medium italic">
+                                            {searchQuery ? `No contracts found matching "${searchQuery}"` : 'No active contracts found.'}
+                                        </p>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
 
@@ -165,7 +179,7 @@ export default function ContractsPage() {
                                 {templates.map((template) => (
                                     <div key={template.id} className="flex items-center justify-between p-4 bg-white/10 dark:bg-gray-100 rounded-2xl backdrop-blur-md">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-2 rounded-full ${template.isMandatory ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`}></div>
+                                            <div className={`w-2 h-2 rounded-full ${(template as any).is_mandatory || (template as any).isMandatory ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`}></div>
                                             <span className="text-sm font-bold">{template.name}</span>
                                         </div>
                                         <ChevronRight size={16} className="text-white/40 dark:text-gray-400" />
