@@ -139,7 +139,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {contextLoading ? (
                     Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-[200px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-2xl border border-gray-200 dark:border-gray-700" />
+                        <div key={i} className="h-[200px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-2xl border border-gray-100 dark:border-gray-700" />
                     ))
                 ) : applications.length > 0 ? (
                     applications.map((app) => (

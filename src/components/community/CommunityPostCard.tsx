@@ -51,7 +51,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     const needsReadMore = post.content.length > 200;
 
     return (
-        <div className={`bg-white dark:bg-black rounded-xl p-5 shadow-sm border border-gray-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 ${post.isPinned ? 'ring-2 ring-indigo-500/30' : ''}`}>
+        <div className={`bg-white dark:bg-black rounded-xl p-5 shadow-sm border border-gray-100 dark:border-zinc-800 hover:shadow-md transition-all duration-300 ${post.isPinned ? 'ring-2 ring-indigo-500/30' : ''}`}>
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -83,14 +83,14 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                 <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                             </button>
                             {showActions && (
-                                <div className="absolute right-0 top-8 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-10 w-40">
+                                <div className="absolute right-0 top-8 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-10 w-40">
                                     <button onClick={() => { onPin(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
                                         <Pin className="w-4 h-4" /> {post.isPinned ? 'Unpin' : 'Pin'} Post
                                     </button>
                                     <button onClick={() => { onHide(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
                                         <EyeOff className="w-4 h-4" /> Hide Post
                                     </button>
-                                    <div className="border-t border-gray-200 dark:border-zinc-800 my-1" />
+                                    <div className="border-t border-gray-100 dark:border-zinc-800 my-1" />
                                     <button onClick={() => { onVisibilityChange(post.postId, 'all'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">Visible to All</button>
                                     <button onClick={() => { onVisibilityChange(post.postId, 'managers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">Managers Only</button>
                                     <button onClick={() => { onVisibilityChange(post.postId, 'brokers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">Brokers Only</button>
@@ -114,7 +114,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-4 pt-3 border-t border-gray-200 dark:border-zinc-800">
+            <div className="flex items-center gap-4 pt-3 border-t border-gray-100 dark:border-zinc-800">
                 <button
                     onClick={handleLike}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${isLiked

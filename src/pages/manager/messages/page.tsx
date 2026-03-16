@@ -11,7 +11,7 @@ function MessagesContent() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
 
     return (
-        <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden animate-in fade-in duration-500">
+        <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-500">
             {/* Sidebar: Conversation List */}
             <div className="w-full md:w-96 border-r dark:border-gray-700 flex flex-col h-full bg-white dark:bg-gray-800">
                 <div className="p-4 border-b dark:border-gray-700">

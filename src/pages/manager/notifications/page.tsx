@@ -133,7 +133,7 @@ export default function ManagerNotificationsPage() {
             case 'application_update': case 'viewing_booked': return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
             case 'ticket_response': return 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800';
             case 'property_saved': return 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800';
-            default: return 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600';
+            default: return 'bg-gray-50 dark:bg-gray-700/50 border-gray-100 dark:border-gray-600';
         }
     };
 
@@ -177,7 +177,7 @@ export default function ManagerNotificationsPage() {
     return (
         <div className="min-h-full bg-gray-50 dark:bg-gray-900">
             {/* Header */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <div className="max-w-4xl mx-auto px-4 lg:px-6 py-6">
                     <button onClick={() => navigate('/manager/dashboard')} className="mb-4 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors">
                         <ArrowLeft size={20} /><span>Back to Dashboard</span>
@@ -213,7 +213,7 @@ export default function ManagerNotificationsPage() {
                     <div className="flex flex-col sm:flex-row gap-3">
                         <div className="relative flex-1">
                             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input type="text" placeholder="Search notifications…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                            <input type="text" placeholder="Search notifications…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
                             {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={16} /></button>}
                         </div>
                         <div className="flex gap-2">
@@ -244,7 +244,7 @@ export default function ManagerNotificationsPage() {
             {/* Notification List */}
             <div className="max-w-4xl mx-auto px-4 lg:px-6 pb-8">
                 {filteredNotifications.length === 0 ? (
-                    <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
                         <Inbox size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No notifications</h3>
                         <p className="text-gray-500 dark:text-gray-400">You&apos;re all caught up!</p>
@@ -255,7 +255,7 @@ export default function ManagerNotificationsPage() {
                             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">{group}</h3>
                             <div className="space-y-2">
                                 {grouped[group].map(n => (
-                                    <div key={n.id} onClick={() => { if (!n.is_read) markAsRead(n.id); }} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${!n.is_read ? getColor(n.type) : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-75'}`}>
+                                    <div key={n.id} onClick={() => { if (!n.is_read) markAsRead(n.id); }} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${!n.is_read ? getColor(n.type) : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 opacity-75'}`}>
                                         <input type="checkbox" checked={selectedNotifications.includes(n.id)} onChange={(e) => { e.stopPropagation(); if (selectedNotifications.includes(n.id)) setSelectedNotifications(s => s.filter(i => i !== n.id)); else setSelectedNotifications(s => [...s, n.id]); }} className="mt-1 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
                                         <div className="flex-shrink-0 mt-0.5">{getIcon(n.type)}</div>
                                         <div className="flex-1 min-w-0">

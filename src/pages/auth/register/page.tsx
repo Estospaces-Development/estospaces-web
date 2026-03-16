@@ -181,7 +181,7 @@ export default function RegisterPage() {
                             onClick={() => setRole('user')}
                             className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'user'
                                 ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                                 }`}
                         >
                             <User size={24} className={role === 'user' ? 'text-primary' : 'text-gray-400'} />
@@ -193,7 +193,7 @@ export default function RegisterPage() {
                             onClick={() => setRole('manager')}
                             className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'manager'
                                 ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                                 }`}
                         >
                             <Briefcase size={24} className={role === 'manager' ? 'text-primary' : 'text-gray-400'} />

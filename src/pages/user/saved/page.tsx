@@ -65,7 +65,7 @@ export default function SavedPage() {
                         </p>
                     </div>
 
-                    <div className="flex bg-white dark:bg-zinc-800 p-1 rounded-xl border border-gray-200 dark:border-zinc-700 shadow-sm">
+                    <div className="flex bg-white dark:bg-zinc-800 p-1 rounded-xl border border-gray-100 dark:border-zinc-700 shadow-sm">
                         <button
                             onClick={() => setActiveTab('properties')}
                             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
@@ -273,7 +273,7 @@ function SavedSearchesTab() {
     return (
         <div className="space-y-4 animate-in fade-in duration-500">
             {searches.map((search) => (
-                <div key={search.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow">
+                <div key={search.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow">
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white">{search.name}</h3>
@@ -317,7 +317,7 @@ function SavedSearchesTab() {
                             className={`p-3 rounded-xl border transition-all ${
                                 search.alert_enabled
                                     ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-800/50 text-green-600 dark:text-green-400'
-                                    : 'bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 text-gray-400'
+                                    : 'bg-gray-50 dark:bg-zinc-800 border-gray-100 dark:border-zinc-700 text-gray-400'
                             }`}
                             title={search.alert_enabled ? 'Disable email alerts' : 'Enable email alerts'}
                         >

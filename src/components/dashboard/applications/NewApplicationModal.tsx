@@ -371,7 +371,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 style={{ animation: 'scaleIn 0.2s ease-out' }}
             >
                 {/* Header */}
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gradient-to-r from-orange-500 to-orange-600">
+                <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gradient-to-r from-orange-500 to-orange-600">
                     <div>
                         <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                             <Sparkles size={20} />
@@ -390,7 +390,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 </div>
 
                 {/* Progress Steps */}
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                         {[1, 2, 3].map((s) => (
                             <React.Fragment key={s}>
@@ -450,7 +450,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 placeholder="Search by name, city, or postcode..."
-                                                className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                                                className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                                             />
                                             {loadingProperties && (
                                                 <Loader2 size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500 animate-spin" />
@@ -460,7 +460,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                                     {/* Search Results */}
                                     {searchQuery && properties.length > 0 && (
-                                        <div className="border-2 border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+                                        <div className="border-2 border-gray-100 dark:border-gray-600 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
                                             {properties.map((property) => (
                                                 <button
                                                     key={property.id}
@@ -592,7 +592,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         <button
                                                             key={property.id}
                                                             onClick={() => handlePropertySelect(property)}
-                                                            className="group text-left p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-700 transition-all"
+                                                            className="group text-left p-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-700 transition-all"
                                                         >
                                                             <div className="w-full h-20 rounded-lg overflow-hidden bg-gray-100 mb-2">
                                                                 <img
@@ -645,7 +645,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.fullName}
                                                     onChange={handleInputChange}
                                                     onKeyDown={handleKeyDown}
-                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.fullName ? 'border-red-500' : 'border-gray-200 dark:border-gray-600 focus:border-orange-500'
+                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.fullName ? 'border-red-500' : 'border-gray-100 dark:border-gray-600 focus:border-orange-500'
                                                         }`}
                                                     placeholder="John Smith"
                                                 />
@@ -665,7 +665,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.email}
                                                     onChange={handleInputChange}
                                                     onKeyDown={handleKeyDown}
-                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-600 focus:border-orange-500'
+                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.email ? 'border-red-500' : 'border-gray-100 dark:border-gray-600 focus:border-orange-500'
                                                         }`}
                                                     placeholder="Enter your email address"
                                                 />
@@ -685,7 +685,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.phone}
                                                     onChange={handleInputChange}
                                                     onKeyDown={handleKeyDown}
-                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     placeholder="+44 7XXX XXXXXX"
                                                 />
                                             </div>
@@ -703,13 +703,13 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.moveInDate}
                                                     onChange={handleInputChange}
                                                     min={new Date().toISOString().split('T')[0]}
-                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-5">
+                                    <div className="border-t border-gray-100 dark:border-gray-700 pt-5">
                                         <h4 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                             <Briefcase size={18} className="text-orange-500" />
                                             Employment Information
@@ -723,7 +723,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     name="employmentStatus"
                                                     value={formData.employmentStatus}
                                                     onChange={handleInputChange}
-                                                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                    className="w-full px-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                 >
                                                     <option value="employed">Employed</option>
                                                     <option value="self-employed">Self-employed</option>
@@ -746,7 +746,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         onChange={handleInputChange}
                                                         onKeyDown={handleKeyDown}
                                                         placeholder="e.g. 45000"
-                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     />
                                                 </div>
                                             </div>
@@ -764,7 +764,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         onChange={handleInputChange}
                                                         onKeyDown={handleKeyDown}
                                                         placeholder="Company name"
-                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     />
                                                 </div>
                                             </div>
@@ -782,7 +782,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         onChange={handleInputChange}
                                                         onKeyDown={handleKeyDown}
                                                         placeholder="Your role"
-                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     />
                                                 </div>
                                             </div>
@@ -799,7 +799,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                             onChange={handleInputChange}
                                             rows={3}
                                             placeholder="Any additional information you'd like to share with the agent..."
-                                            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:border-orange-500"
+                                            className="w-full px-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:border-orange-500"
                                         />
                                     </div>
                                 </div>
@@ -926,7 +926,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                 {/* Footer */}
                 {!submitSuccess && (
-                    <div className="p-5 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+                    <div className="p-5 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
                         {step > 1 ? (
                             <button
                                 onClick={handlePrevStep}

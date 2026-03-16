@@ -129,7 +129,7 @@ export default function HelpPage() {
                                             setSubmitted(false);
                                             setFormData({ category: 'General Inquiry', subject: '', message: '' });
                                         }}
-                                        className="w-full py-4 bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-black border border-white/20 dark:border-gray-200 transition-all active:scale-95"
+                                        className="w-full py-4 bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-black border border-white/20 dark:border-gray-100 transition-all active:scale-95"
                                     >
                                         Send Another
                                     </button>

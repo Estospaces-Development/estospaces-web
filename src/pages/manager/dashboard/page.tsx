@@ -157,11 +157,11 @@ function DashboardContent() {
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white font-outfit">Your Properties</h3>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-sm font-semibold">
+                  <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-sm font-semibold">
                     <Filter className="w-4 h-4" />
                     <span>Filters</span>
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-sm font-semibold">
+                  <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-sm font-semibold">
                     <Download className="w-4 h-4" />
                     <span>Export</span>
                   </button>
@@ -190,7 +190,7 @@ function DashboardContent() {
                     />
                   ))
                 ) : (
-                  <div className="col-span-full py-20 text-center flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                  <div className="col-span-full py-20 text-center flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-100 dark:border-gray-700">
                     <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
                       <Home className="w-8 h-8 text-gray-400" />
                     </div>

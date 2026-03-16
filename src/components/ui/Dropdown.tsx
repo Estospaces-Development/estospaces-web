@@ -69,7 +69,7 @@ const Dropdown: React.FC<DropdownProps> = ({
             {/* Menu */}
             {isOpen && (
                 <div
-                    className={`absolute z-50 mt-1 min-w-[180px] bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150 ${align === 'right' ? 'right-0' : 'left-0'
+                    className={`absolute z-50 mt-1 min-w-[180px] bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-xl shadow-lg py-1 animate-in fade-in slide-in-from-top-2 duration-150 ${align === 'right' ? 'right-0' : 'left-0'
                         }`}
                 >
                     {items.map((item) => (

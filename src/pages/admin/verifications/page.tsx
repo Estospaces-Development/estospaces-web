@@ -175,7 +175,7 @@ function VerificationsContent() {
               {filteredManagers.map((manager) => (
                 <div
                   key={manager.id}
-                  className="group p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl"
+                  className="group p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-100 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl"
                 >
                   <div className="flex items-center gap-6">
                     <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl shadow-lg ${manager.profile_type === 'broker' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'

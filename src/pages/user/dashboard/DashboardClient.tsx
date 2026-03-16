@@ -351,7 +351,7 @@ const DashboardClient = () => {
               ))}
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-700">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Home size={32} className="text-gray-400" />
               </div>
@@ -398,7 +398,7 @@ const DashboardClient = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
           <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg">
             <AlertCircle className="text-red-600 dark:text-red-400" size={18} />
           </div>
@@ -414,7 +414,7 @@ const DashboardClient = () => {
 
       {/* Location Message (Info/Warning) */}
       {locationMessage && !error && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
           <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
             <AlertCircle className="text-amber-600 dark:text-amber-400" size={18} />
           </div>
@@ -451,7 +451,7 @@ const DashboardClient = () => {
           </div>
 
           {locationLoading ? (
-            <div className="bg-white dark:bg-white rounded-lg shadow-sm border border-gray-200 dark:border-gray-300 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="h-[600px] lg:h-[700px] flex items-center justify-center">
                 <div className="text-center">
                   <Loader2 className="animate-spin mx-auto mb-4 text-orange-500" size={48} />

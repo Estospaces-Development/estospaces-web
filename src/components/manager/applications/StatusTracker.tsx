@@ -114,7 +114,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
             case APPLICATION_STATUS.REJECTED:
                 return 'text-red-600 bg-red-100 border-red-200';
             case APPLICATION_STATUS.WITHDRAWN:
-                return 'text-gray-600 bg-gray-100 border-gray-200';
+                return 'text-gray-600 bg-gray-100 border-gray-100';
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED:
                 return 'text-orange-600 bg-orange-100 border-orange-200';
             default:
@@ -145,7 +145,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
 
     if (status === APPLICATION_STATUS.WITHDRAWN) {
         return (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-6">
                 <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                         <XCircle className="w-7 h-7 text-gray-500" />
@@ -164,7 +164,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
     }
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
             {/* Header with current status */}
             <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-5">
                 <div className="flex items-center justify-between font-outfit">
@@ -209,7 +209,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                                         ? 'bg-orange-500 border-orange-500 text-white animate-pulse'
                                         : isRejected
                                             ? 'bg-red-500 border-red-500 text-white'
-                                            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400'
+                                            : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'
                                     }`}>
                                     {isCompleted ? (
                                         <CheckCircle className="w-6 h-6" />
@@ -264,7 +264,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
 
             {/* Estimated Timeline */}
             {status !== APPLICATION_STATUS.APPROVED && status !== APPLICATION_STATUS.REJECTED && (
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 font-outfit">
+                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 font-outfit">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                         <Clock size={16} />
                         <span>Estimated processing time: <strong>3-5 business days</strong></span>

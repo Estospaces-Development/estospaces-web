@@ -218,11 +218,11 @@ function DiscoverContent() {
                                         if (locationSuggestions.length > 0) setShowSuggestions(true);
                                     }}
                                     onBlur={() => setShowSuggestions(false)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
                                 />
                                 {showSuggestions && locationSuggestions.length > 0 && (
                                     <div
-                                        className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-auto"
+                                        className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-auto"
                                         onMouseDown={(e) => e.preventDefault()}
                                     >
                                         {locationSuggestions.map((suggestion, index) => (
@@ -263,7 +263,7 @@ function DiscoverContent() {
                                         setLocationQuery(e.target.value);
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
                                 />
                             </div>
                         </div>
@@ -281,7 +281,7 @@ function DiscoverContent() {
                                         setPriceRange({ ...priceRange, min: e.target.value });
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
@@ -294,7 +294,7 @@ function DiscoverContent() {
                                         setPriceRange({ ...priceRange, max: e.target.value });
                                         setCurrentPage(1);
                                     }}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                 />
                             </div>
                         </div>
@@ -307,7 +307,7 @@ function DiscoverContent() {
                                     setPropertyType(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="all">Any Type</option>
                                 {(filterOptions?.property_types || []).map((t: string) => (
@@ -324,7 +324,7 @@ function DiscoverContent() {
                                     setBeds(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="">Any Beds</option>
                                 <option value="1">1+ Bed</option>
@@ -342,7 +342,7 @@ function DiscoverContent() {
                                     setBaths(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="">Any Baths</option>
                                 <option value="1">1+ Bath</option>

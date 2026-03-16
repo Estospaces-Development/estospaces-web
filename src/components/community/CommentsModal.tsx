@@ -33,9 +33,9 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-zinc-800">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-zinc-800">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Comments</h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -48,7 +48,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                 </div>
 
                 {/* Original Post */}
-                <div className="p-6 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
+                <div className="p-6 border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
                     <div className="flex items-start gap-3 mb-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-semibold text-sm">{post.authorName.charAt(0)}</span>
@@ -98,7 +98,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                 </div>
 
                 {/* Add Comment Form */}
-                <div className="p-6 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
+                <div className="p-6 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
                     <form onSubmit={handleSubmit} className="flex gap-3">
                         <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-semibold text-xs">M</span>

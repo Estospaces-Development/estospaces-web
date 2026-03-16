@@ -54,7 +54,7 @@ const BrokerResponseWidget: React.FC = () => {
     const pendingCount = requests.filter(r => r.status === 'pending').length;
 
     return (
-        <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 ring-2 ring-blue-500/10">
+        <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 ring-2 ring-blue-500/10">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg animate-pulse">

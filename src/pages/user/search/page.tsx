@@ -234,7 +234,7 @@ const PropertySearch = () => {
                     />
                     {showSuggestions && locationSuggestions.length > 0 && (
                         <div
-                            className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-60 overflow-auto"
+                            className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-xl shadow-lg max-h-60 overflow-auto"
                         >
                             {locationSuggestions.map((suggestion, index) => (
                                 <button
@@ -272,7 +272,7 @@ const PropertySearch = () => {
 
             {/* Filters Panel */}
             {showFilters && (
-                <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-5 animate-in slide-in-from-top-2 duration-200">
+                <div className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-5 animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <Select
                             label="Listing Type"
@@ -387,7 +387,7 @@ const PropertySearch = () => {
                     <p className="text-sm">{error}</p>
                 </div>
             ) : properties.length === 0 ? (
-                <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-12 text-center">
+                <div className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-12 text-center">
                     <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No properties found</h3>
                     <p className="text-gray-500 dark:text-gray-400">Try adjusting your search criteria</p>
@@ -397,7 +397,7 @@ const PropertySearch = () => {
                     {properties.map(p => {
                         const coverImg = getCoverImage(p);
                         return (
-                            <div key={p.id} className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
+                            <div key={p.id} className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
                                 <div className="bg-gray-100 dark:bg-zinc-800 rounded-lg h-40 mb-3 flex items-center justify-center overflow-hidden" onClick={() => navigate(`/user/properties/${p.id}`)}>
                                     {coverImg ? (
                                         <img src={coverImg} alt={p.title} className="w-full h-full object-cover cursor-pointer" />
@@ -471,7 +471,7 @@ const PropertySearch = () => {
                                 value={searchName}
                                 onChange={(e) => setSearchName(e.target.value)}
                                 placeholder="e.g. 2 Bed Flats in London"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/50 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                         </div>
                         <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl flex gap-3">

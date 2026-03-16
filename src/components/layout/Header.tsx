@@ -86,7 +86,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 );
             default:
                 return (
-                    <Link to="/manager/verification" className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <Link to="/manager/verification" className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full border border-gray-100 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <Shield size={12} />
                         <span>Verify Profile</span>
                     </Link>
@@ -95,7 +95,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     return (
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
             <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
 
                 {/* Left: Mobile Menu & Search */}

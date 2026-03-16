@@ -93,7 +93,7 @@ const Analytics = () => {
                         <button className="px-4 py-2 bg-white dark:bg-gray-700 shadow-sm rounded-lg text-sm font-bold text-gray-900 dark:text-white transition-all">6 Months</button>
                         <button className="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">Yearly</button>
                     </div>
-                    <button className="p-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                    <button className="p-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
                         <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     </button>
                 </div>

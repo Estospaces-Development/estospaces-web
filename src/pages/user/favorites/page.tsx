@@ -31,7 +31,7 @@ const FavoritesPage = () => {
                     <button onClick={refreshSavedProperties} className="px-4 py-2 bg-indigo-600 text-white rounded-lg">Retry</button>
                 </div>
             ) : savedProperties.length === 0 ? (
-                <div className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-12 text-center">
+                <div className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-12 text-center">
                     <Heart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No saved properties</h3>
                     <p className="text-gray-500 dark:text-gray-400 mb-4">Start exploring and save properties you like!</p>

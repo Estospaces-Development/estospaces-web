@@ -148,7 +148,7 @@ export default function ManagerHelpPage() {
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {summaryCards.map((c) => (
-                    <div key={c.title} className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 transition-colors">
+                    <div key={c.title} className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 transition-colors">
                         <div className="flex items-center justify-between mb-4"><div className={`p-3 ${c.color} rounded-lg shadow-lg ${c.shadow}`}><c.icon className="w-6 h-6 text-white" /></div></div>
                         <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{c.value}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{c.title}</p>
@@ -157,7 +157,7 @@ export default function ManagerHelpPage() {
             </div>
 
             {/* Navigation Tabs */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4 transition-colors">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-4 transition-colors">
                 <div className="flex flex-wrap gap-2">
                     {(['search', 'contact', 'tickets', 'notifications'] as ViewType[]).map((v) => (
                         <button key={v} onClick={() => setCurrentView(v)} className={`px-4 py-2 rounded-lg transition-colors ${currentView === v ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
@@ -169,7 +169,7 @@ export default function ManagerHelpPage() {
 
             {/* Search View */}
             {currentView === 'search' && (
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 space-y-6 transition-colors">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-6 transition-colors">
                     <div>
                         <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">How can we help you?</h2>
                         <div className="relative">
@@ -193,7 +193,7 @@ export default function ManagerHelpPage() {
 
             {/* Contact View */}
             {currentView === 'contact' && (
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6">
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-6">Send us a Message</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         {(['name', 'email', 'subject'] as const).map((f) => (
@@ -215,7 +215,7 @@ export default function ManagerHelpPage() {
 
             {/* Tickets View */}
             {currentView === 'tickets' && (
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Support Tickets</h2>
                         <button onClick={() => setShowNewTicketModal(true)} className="flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
@@ -234,7 +234,7 @@ export default function ManagerHelpPage() {
                     ) : (
                         <div className="space-y-4">
                             {tickets.map((t) => (
-                                <div key={t.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                <div key={t.id} className="p-4 border border-gray-100 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                     <div className="flex items-center justify-between">
                                         <div className="flex-1">
                                             <h3 className="text-sm font-semibold text-gray-800 dark:text-white mb-1">{t.title}</h3>
@@ -254,7 +254,7 @@ export default function ManagerHelpPage() {
             {/* New Ticket Modal */}
             {showNewTicketModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-800 shadow-2xl">
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800 shadow-2xl">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Create New Ticket</h3>
                             <button onClick={() => { setShowNewTicketModal(false); setNewTicket({ title: '', description: '', priority: 'medium', category: 'general' }); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"><X className="w-5 h-5" /></button>
@@ -275,7 +275,7 @@ export default function ManagerHelpPage() {
 
             {/* Notifications View */}
             {currentView === 'notifications' && (
-                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 space-y-6 transition-colors">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 space-y-6 transition-colors">
                     <div>
                         <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Notifications</h2>
                         {notifications.length === 0 ? (
@@ -286,7 +286,7 @@ export default function ManagerHelpPage() {
                         ) : (
                             <div className="space-y-4">
                                 {notifications.map((n: any) => (
-                                    <div key={n.id} className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${n.read ? 'border-gray-200 dark:border-gray-800' : 'border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-900/10'}`}>
+                                    <div key={n.id} className={`p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${n.read ? 'border-gray-100 dark:border-gray-800' : 'border-orange-200 dark:border-orange-800 bg-orange-50/30 dark:bg-orange-900/10'}`}>
                                         <div className="flex items-start gap-3">
                                             <div className="p-2 bg-orange-500/10 rounded-lg"><Bell className="w-5 h-5 text-orange-500" /></div>
                                             <div className="flex-1">

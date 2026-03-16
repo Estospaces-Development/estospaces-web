@@ -98,7 +98,7 @@ function AnalyticsContent() {
                     <button
                         onClick={handleRefresh}
                         disabled={isRefreshing}
-                        className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all disabled:opacity-50"
+                        className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-105 transition-all disabled:opacity-50"
                     >
                         <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
                     </button>
@@ -108,7 +108,7 @@ function AnalyticsContent() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 {stats.map((stat) => (
-                    <div key={stat.label} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] border dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-none relative overflow-hidden group">
+                    <div key={stat.label} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-none relative overflow-hidden group">
                         <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-125 transition-transform duration-700">
                             <stat.icon size={120} />
                         </div>
@@ -126,8 +126,8 @@ function AnalyticsContent() {
             </div>
 
             {/* Pages Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
-                <div className="px-10 py-8 border-b dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
+            <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div className="px-10 py-8 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
                     <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                         <BarChart3 className="text-indigo-500" /> Top Performing Paths
                     </h2>
@@ -136,14 +136,14 @@ function AnalyticsContent() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="border-b dark:border-gray-700">
+                            <tr className="border-b border-gray-100 dark:border-gray-700">
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Path</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Views</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Applications</th>
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Conv. Rate</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y dark:divide-gray-700">
+                        <tbody className="divide-y border-gray-100 dark:divide-gray-700">
                             {(data?.propertyPerformance || []).map((page, i) => (
                                 <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
                                     <td className="px-10 py-6 font-black text-gray-900 dark:text-white text-sm">{page.property}</td>

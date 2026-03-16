@@ -117,7 +117,7 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({
                             </button>
                             <button
                                 onClick={handleMessage}
-                                className="flex-1 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 py-2.5 rounded-lg font-medium transition-colors"
+                                className="flex-1 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-200 py-2.5 rounded-lg font-medium transition-colors"
                             >
                                 Message
                             </button>

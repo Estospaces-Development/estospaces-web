@@ -238,7 +238,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
     return (
         <div className="min-h-full bg-gray-50 dark:bg-gray-900">
             {/* Header */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+            <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <button
@@ -266,7 +266,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
                 {/* Property Header Card */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden mb-6">
                     <div className="flex flex-col lg:flex-row">
                         {/* Property Image */}
                         <div className="lg:w-80 h-48 lg:h-auto flex-shrink-0">
@@ -323,7 +323,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                             </div>
 
                             {/* Quick Info */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Submitted</p>
                                     <p className="font-semibold text-gray-900 dark:text-white">
@@ -359,8 +359,8 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                 </div>
 
                 {/* Tabs */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="border-b border-gray-200 dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <div className="border-b border-gray-100 dark:border-gray-700">
                         <div className="flex overflow-x-auto">
                             {tabs.map((tab) => {
                                 const Icon = tab.icon;
@@ -435,19 +435,19 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         Application Summary
                                     </h3>
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                                             <span className="text-gray-500 dark:text-gray-400">Application ID</span>
                                             <span className="font-medium text-gray-900 dark:text-white">
                                                 {application.referenceId}
                                             </span>
                                         </div>
-                                        <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                                             <span className="text-gray-500 dark:text-gray-400">Type</span>
                                             <span className="font-medium text-gray-900 dark:text-white capitalize">
                                                 {application.listingType === 'rent' ? 'Rental Application' : 'Purchase Application'}
                                             </span>
                                         </div>
-                                        <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                                             <span className="text-gray-500 dark:text-gray-400">Property Value</span>
                                             <span className="font-medium text-gray-900 dark:text-white">
                                                 {formatPrice(application.propertyPrice)}
@@ -628,7 +628,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                     </h3>
                                     <div className="space-y-4">
                                         {['ID Proof', 'Proof of Address', 'Employment Letter', 'Bank Statements'].map((doc, index) => (
-                                            <div key={index} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                            <div key={index} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${index < 2 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'
                                                         }`}>

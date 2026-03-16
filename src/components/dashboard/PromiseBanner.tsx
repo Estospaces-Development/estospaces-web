@@ -37,7 +37,7 @@ const PromiseBanner = () => {
             </div>
 
             {showTooltip && (
-                <div className="absolute right-4 top-16 w-64 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg shadow-xl p-4 z-50 border border-gray-200 dark:border-gray-700">
+                <div className="absolute right-4 top-16 w-64 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg shadow-xl p-4 z-50 border border-gray-100 dark:border-gray-700">
                     <h4 className="font-semibold text-sm mb-2">Conditions Apply:</h4>
                     <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
                         <li>Complete application submitted with all required documents</li>

@@ -112,11 +112,11 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'
+            className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'
                 }`}
         >
             {/* Logo Section */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
                 <div className={`flex items-center gap-3 overflow-hidden ${!isOpen && 'justify-center w-full'}`}>
                     <div className="relative w-8 h-8 flex-shrink-0">
                         <img
@@ -146,13 +146,13 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
             {/* Toggle Button (Desktop) */}
             <button
                 onClick={onToggle}
-                className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1.5 text-gray-500 hover:text-orange-500 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+                className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full p-1.5 text-gray-500 hover:text-orange-500 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
             >
                 {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
             </button>
 
             {/* User Info (Collapsed/Expanded) */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-800">
                 <div className={`flex items-center gap-3 ${!isOpen && 'justify-center'}`}>
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
                         {getDisplayName().charAt(0).toUpperCase()}
@@ -212,7 +212,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
 
             {/* Footer Menu Items — Verification, Profile, Help & Support for manager */}
             {role === 'manager' && (
-                <div className="p-4 border-t border-gray-200 dark:border-gray-800 transition-colors duration-300">
+                <div className="p-4 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300">
                     <ul className="space-y-2">
                         {managerFooterItems.map((item) => {
                             const active = isActive(item.path);
@@ -244,7 +244,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
             )}
 
             {/* Sign Out */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800 transition-colors duration-300">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800 transition-colors duration-300">
                 <button
                     onClick={handleSignOut}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300 group hover:scale-[1.02] hover:shadow-sm ${!isOpen && 'justify-center'}`}

@@ -96,7 +96,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
                     step={step}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className={`w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600 ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 dark:border-gray-700'
+                    className={`w-full px-4 py-3 pr-12 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600 ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-100 dark:border-gray-700'
                         } ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-900' : ''} ${className}`}
                 />
                 <div className="absolute right-1 flex flex-col h-full justify-center py-1 gap-px">

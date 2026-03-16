@@ -61,7 +61,7 @@ export default function FAQPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+            <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
                 <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
                     <button
                         onClick={handleBack}
@@ -107,7 +107,7 @@ export default function FAQPage() {
                             onClick={() => setActiveCategory(cat.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${activeCategory === cat.id
                                     ? 'bg-orange-500 text-white shadow-sm'
-                                    : 'bg-white text-gray-600 border border-gray-200 hover:border-orange-300'
+                                    : 'bg-white text-gray-600 border border-gray-100 hover:border-orange-300'
                                 }`}
                         >
                             <cat.icon size={16} />
@@ -119,7 +119,7 @@ export default function FAQPage() {
                 {/* FAQ List */}
                 <div className="space-y-3">
                     {filteredFaqs.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+                        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
                             <HelpCircle size={48} className="mx-auto text-gray-300 mb-4" />
                             <h3 className="text-lg font-medium text-gray-900 mb-2">No results found</h3>
                             <p className="text-gray-500">Try adjusting your search or category filter</p>
@@ -128,7 +128,7 @@ export default function FAQPage() {
                         filteredFaqs.map(faq => (
                             <div
                                 key={faq.id}
-                                className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-sm transition-shadow"
+                                className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-sm transition-shadow"
                             >
                                 <button
                                     onClick={() => toggleItem(faq.id)}

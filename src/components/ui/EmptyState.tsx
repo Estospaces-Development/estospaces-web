@@ -63,7 +63,7 @@ const EmptyState = ({
                 <Icon size={36} className={displayIconColor} strokeWidth={1.5} />
                 {/* Decorative ring */}
                 <div
-                    className="absolute inset-0 rounded-full border-2 border-dashed border-gray-200 dark:border-gray-700"
+                    className="absolute inset-0 rounded-full border-2 border-dashed border-gray-100 dark:border-gray-700"
                     style={{ transform: 'scale(1.2)' }}
                 />
             </div>

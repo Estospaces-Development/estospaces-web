@@ -120,15 +120,15 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
             <div
                 onClick={() => setIsModalOpen(true)}
                 className={`p-4 rounded-lg border transition-all duration-300 cursor-pointer ${currentStatus === 'expired'
-                    ? 'bg-gray-50 border-gray-200 dark:bg-gray-900/50 dark:border-gray-800 opacity-75'
-                    : 'bg-white border-gray-200 dark:bg-black dark:border-gray-800 hover:shadow-md hover:scale-[1.01]'
+                    ? 'bg-gray-50 border-gray-100 dark:bg-gray-900/50 dark:border-gray-800 opacity-75'
+                    : 'bg-white border-gray-100 dark:bg-black dark:border-gray-800 hover:shadow-md hover:scale-[1.01]'
                     }`}
             >
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             {request.brokerAvatar ? (
-                                <img src={request.brokerAvatar} alt={request.brokerName} className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
+                                <img src={request.brokerAvatar} alt={request.brokerName} className="w-10 h-10 rounded-full object-cover border border-gray-100 dark:border-gray-700" />
                             ) : (
                                 <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-600">
                                     <User className="w-5 h-5" />
@@ -186,7 +186,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                             </button>
                             <button
                                 onClick={handleViewProperty}
-                                className="px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-200 dark:border-gray-700 relative z-10"
+                                className="px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-100 dark:border-gray-700 relative z-10"
                             >
                                 View Properties
                             </button>

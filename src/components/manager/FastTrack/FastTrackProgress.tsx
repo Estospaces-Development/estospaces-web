@@ -38,7 +38,7 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) =>
                                 className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10
                   ${status === 'completed' ? 'bg-green-500 border-green-500 text-white' : ''}
                   ${status === 'current' ? 'bg-orange-500 border-orange-500 text-white scale-110 shadow-lg ring-4 ring-orange-100 dark:ring-orange-900/30' : ''}
-                  ${status === 'upcoming' ? 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600' : ''}
+                  ${status === 'upcoming' ? 'bg-white dark:bg-zinc-900 border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600' : ''}
                 `}
                             >
                                 <Icon className="w-4 h-4" />

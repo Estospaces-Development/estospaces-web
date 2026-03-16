@@ -530,7 +530,7 @@ const AddressSection = ({
     return (
         <div className="space-y-6">
             {/* Section Header */}
-            <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-2 pb-2 border-b border-gray-100 dark:border-gray-700">
                 <MapPin className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                     Address Details

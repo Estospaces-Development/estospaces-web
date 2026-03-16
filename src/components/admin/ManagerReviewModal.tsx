@@ -400,7 +400,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     </h3>
                     <div className="space-y-3">
                         {documents.length === 0 ? (
-                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100">
                                 <Sparkles className="mx-auto text-gray-300 mb-2" size={32} />
                                 <p className="text-sm text-gray-500">No documents uploaded yet</p>
                             </div>
@@ -485,7 +485,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                         setError(null); // Clear error when user types
                                     }}
                                     placeholder="Explain why this approval is being revoked..."
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                                    className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
                                     rows={3}
                                     autoFocus
                                 />
@@ -546,7 +546,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                                 placeholder="Explain why this verification is being rejected..."
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
                                 rows={3}
                             />
                         </div>
@@ -577,7 +577,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 value={approveNotes}
                                 onChange={(e) => setApproveNotes(e.target.value)}
                                 placeholder="Add any notes for this approval..."
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                                 rows={2}
                             />
                         </div>
@@ -709,7 +709,7 @@ const DocumentCard: React.FC<{
         const docStatusConfig = getDocStatusConfig(document.verification_status);
 
         return (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-300 transition-colors">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
                         <div className={`p-2.5 rounded-xl ${docStatusConfig.bgColor}`}>
@@ -748,7 +748,7 @@ const DocumentCard: React.FC<{
                             value={reuploadReason}
                             onChange={(e) => setReuploadReason(e.target.value)}
                             placeholder="Explain what's wrong with this document..."
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none transition-all"
+                            className="w-full px-3 py-2 text-sm border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none transition-all"
                             rows={2}
                         />
                         <div className="flex gap-2">

@@ -113,7 +113,7 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
 
             {/* Filter Panel */}
             {showFilters && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Status Filter */}
                         <div>

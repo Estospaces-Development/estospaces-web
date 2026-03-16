@@ -193,7 +193,7 @@ const LakshmiAssistant = () => {
             )}
 
             {isOpen && (
-                <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl flex flex-col z-50 border border-gray-200 dark:border-gray-700 font-sans">
+                <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl flex flex-col z-50 border border-gray-100 dark:border-gray-700 font-sans">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4 rounded-t-lg flex items-center justify-between">
                         <div className="flex items-center gap-3">

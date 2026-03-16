@@ -53,7 +53,7 @@ export default function ContactPage() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
             {/* Header */}
-            <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+            <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-10">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
                     <button
                         onClick={handleBack}
@@ -78,7 +78,7 @@ export default function ContactPage() {
                 <div className="grid lg:grid-cols-3 gap-8">
                     {/* Contact Info Cards */}
                     <div className="lg:col-span-1 space-y-4">
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
+                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-start gap-4">
                                 <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
                                     <Mail className="text-orange-500" size={24} />
@@ -93,7 +93,7 @@ export default function ContactPage() {
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
+                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-start gap-4">
                                 <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
                                     <Phone className="text-green-500" size={24} />
@@ -108,7 +108,7 @@ export default function ContactPage() {
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
+                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-start gap-4">
                                 <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                                     <MapPin className="text-blue-500" size={24} />
@@ -125,7 +125,7 @@ export default function ContactPage() {
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
+                        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 hover:shadow-md transition-shadow">
                             <div className="flex items-start gap-4">
                                 <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                                     <Clock className="text-purple-500" size={24} />
@@ -143,7 +143,7 @@ export default function ContactPage() {
 
                     {/* Contact Form */}
                     <div className="lg:col-span-2">
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8">
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-8">
                             {isSubmitted ? (
                                 <div className="text-center py-12 animate-in fade-in zoom-in duration-300">
                                     <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">

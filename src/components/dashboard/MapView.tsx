@@ -85,9 +85,9 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [] }) => {
     const defaultCenter: [number, number] = [51.5074, -0.1278];
 
     return (
-        <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+        <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
             {/* View Toggle Control */}
-            <div className="absolute top-4 right-4 z-[1000] flex bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-1">
+            <div className="absolute top-4 right-4 z-[1000] flex bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-100 dark:border-gray-700 p-1">
                 <button
                     onClick={() => setMapStyle('standard')}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${mapStyle === 'standard'
@@ -173,7 +173,7 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [] }) => {
             </MapContainer>
 
             {/* Legend */}
-            <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-gray-200 dark:border-gray-700 z-[1000]">
+            <div className="absolute bottom-4 left-4 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border border-gray-100 dark:border-gray-700 z-[1000]">
                 <div className="flex flex-col gap-2 text-sm">
                     <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-red-500 rounded-full shadow-sm"></div>

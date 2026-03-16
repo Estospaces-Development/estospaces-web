@@ -40,7 +40,7 @@ const NearestBrokerWidget = () => {
     };
 
     return (
-        <div className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+        <div className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
             <div className="flex items-start justify-between mb-4">
                 <div>
                     <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1 text-sm">Nearest Broker</h3>
@@ -120,7 +120,7 @@ const NearestBrokerWidget = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => showToastSuccess(`Calling ${broker.name}...`)}
-                                className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 text-gray-700 dark:text-gray-200 rounded-xl font-medium text-xs transition-colors"
+                                className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 text-gray-700 dark:text-gray-200 rounded-xl font-medium text-xs transition-colors"
                             >
                                 Call
                             </button>

@@ -14,8 +14,7 @@ import {
     Calendar,
     Home,
     Building2,
-    TrendingUp,
-    LucideIcon
+    TrendingUp
 } from 'lucide-react';
 import { APPLICATION_STATUS, Application } from '../../../contexts/ApplicationsContext';
 import { useNavigate } from 'react-router-dom';
@@ -183,7 +182,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         navigate('/manager/messages');
     };
 
-    // Get progress percentage based on status
     const getProgressPercentage = () => {
         switch (application.status) {
             case APPLICATION_STATUS.DRAFT: return 10;
@@ -217,24 +215,15 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         return `${formattedDate}${time ? ` at ${time}` : ''}`;
     };
 
-    const getPropertyTypeIcon = () => {
-        const type = application.propertyType?.toLowerCase();
-        if (type === 'apartment' || type === 'flat') return Building2;
-        return Home;
-    };
-
-    const PropertyTypeIcon = getPropertyTypeIcon();
-
     return (
         <div
             onClick={onClick}
             className={`group bg-white dark:bg-gray-800 rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-lg ${application.requiresAction
                     ? 'border-orange-200 dark:border-orange-800 ring-1 ring-orange-100 dark:ring-orange-900/30'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800'
+                    : 'border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800'
                 }`}
         >
             <div className="flex font-outfit">
-                {/* Property Image */}
                 <div className="relative flex-shrink-0 w-32 sm:w-40 lg:w-48">
                     <img
                         src={application.propertyImage}
@@ -244,14 +233,12 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                     (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                 }}
                     />
-                    {/* Status Badge Overlay */}
                     <div className="absolute top-3 left-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color} backdrop-blur-sm`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`}></span>
                             {statusConfig.label}
                         </span>
                     </div>
-                    {/* Action Required Badge */}
                     {application.requiresAction && (
                         <div className="absolute top-3 right-3">
                             <span className="flex items-center gap-1 px-2 py-1 bg-orange-500 text-white text-xs font-medium rounded-full shadow-sm">
@@ -262,11 +249,8 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     )}
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 p-4 lg:p-5 flex flex-col justify-between min-w-0">
-                    {/* Top Section */}
                     <div>
-                        {/* Header */}
                         <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="min-w-0">
                                 <h3 className="font-semibold text-gray-900 dark:text-white text-base lg:text-lg truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
@@ -280,7 +264,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             <ChevronRight size={20} className="text-gray-300 dark:text-gray-600 group-hover:text-orange-400 transition-colors flex-shrink-0 mt-1" />
                         </div>
 
-                        {/* Info Grid */}
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-3 text-sm">
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <User size={14} className="flex-shrink-0 text-gray-400" />
@@ -296,7 +279,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </div>
                         </div>
 
-                        {/* Appointment Info */}
                         {application.hasAppointment && formatAppointment() && (
                             <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg">
                                 <Calendar size={14} className="text-purple-600 dark:text-purple-400" />
@@ -306,7 +288,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </div>
                         )}
 
-                        {/* Progress Bar */}
                         {application.status !== APPLICATION_STATUS.REJECTED &&
                             application.status !== APPLICATION_STATUS.WITHDRAWN && (
                                 <div className="mt-3">
@@ -328,7 +309,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 </div>
                             )}
 
-                        {/* Deadline Warning */}
                         {isDeadlineWarning() && (
                             <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
                                 <Clock size={13} className="text-red-500" />
@@ -339,9 +319,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         )}
                     </div>
 
-                    {/* Bottom Section - Actions */}
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        {/* Price */}
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 dark:border-gray-700">
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
                                 £{application.propertyPrice?.toLocaleString()}
@@ -351,7 +329,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </span>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleMessageAgent}

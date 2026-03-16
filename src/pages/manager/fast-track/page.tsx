@@ -108,7 +108,7 @@ const FastTrackDashboard = () => {
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                    <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                         <div>
                             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Cases</p>
                             <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.active}</p>
@@ -118,7 +118,7 @@ const FastTrackDashboard = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                    <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                         <div>
                             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed Today</p>
                             <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.completedToday}</p>
@@ -128,7 +128,7 @@ const FastTrackDashboard = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                    <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                         <div>
                             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expired / Delayed</p>
                             <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.expired}</p>

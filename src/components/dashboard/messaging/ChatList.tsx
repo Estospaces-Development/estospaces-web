@@ -21,9 +21,9 @@ interface ChatListProps {
 
 const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) => {
     return (
-        <div className="w-full md:w-80 border-r border-gray-200 bg-white flex flex-col h-full">
+        <div className="w-full md:w-80 border-r border-gray-100 bg-white flex flex-col h-full">
             {/* Header */}
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-4 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
             </div>
 
@@ -35,7 +35,7 @@ const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) =>
                         <p className="text-sm">No conversations yet</p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200">
+                    <div className="divide-y divide-gray-100">
                         {brokers.map((broker) => (
                             <button
                                 key={broker.id}

@@ -114,9 +114,9 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                     className="fixed inset-0 z-40"
                                     onClick={() => setUserMenuOpen(false)}
                                 />
-                                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
                                     {/* User Info */}
-                                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                                         <div className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</div>
                                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{userEmail}</div>
                                     </div>
@@ -146,7 +146,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                     </div>
 
                                     {/* Sign Out */}
-                                    <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+                                    <div className="border-t border-gray-100 dark:border-gray-700 p-2">
                                         <button
                                             onClick={handleSignOut}
                                             disabled={isSigningOut}

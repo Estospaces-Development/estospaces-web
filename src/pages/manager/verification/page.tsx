@@ -128,7 +128,7 @@ export default function VerificationPage() {
                         className={`p-8 rounded-3xl border-2 transition-all text-left group relative overflow-hidden ${
                             selectedRoleForProfile === 'broker' 
                             ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-500/5 shadow-xl shadow-orange-500/10' 
-                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/50 hover:border-gray-200 dark:hover:border-gray-700'
+                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/50 hover:border-gray-100 dark:hover:border-gray-700'
                         }`}
                     >
                         {selectedRoleForProfile === 'broker' && (
@@ -152,7 +152,7 @@ export default function VerificationPage() {
                         className={`p-8 rounded-3xl border-2 transition-all text-left group relative overflow-hidden ${
                             selectedRoleForProfile === 'company' 
                             ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-500/5 shadow-xl shadow-orange-500/10' 
-                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/50 hover:border-gray-200 dark:hover:border-gray-700'
+                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900/50 hover:border-gray-100 dark:hover:border-gray-700'
                         }`}
                     >
                         {selectedRoleForProfile === 'company' && (
@@ -245,7 +245,7 @@ export default function VerificationPage() {
                                         <AlertCircle className="w-5 h-5" />
                                     </div>
                                 ) : (
-                                    <div className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-black">
+                                    <div className="w-8 h-8 rounded-full border-2 border-gray-100 dark:border-gray-700 flex items-center justify-center text-xs text-gray-400 dark:text-gray-500 font-black">
                                         0{index + 1}
                                     </div>
                                 )}

@@ -153,7 +153,7 @@ export default function UserSettingsPage() {
             )}
 
             <div className="space-y-6">
-                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-2">
                         <Bell size={20} className="text-orange-500" />
                         <h2 className="font-semibold text-gray-900 dark:text-gray-100">Alerts</h2>
@@ -187,7 +187,7 @@ export default function UserSettingsPage() {
                     </div>
                 </section>
 
-                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-2">
                         <Search size={20} className="text-blue-500" />
                         <h2 className="font-semibold text-gray-900 dark:text-gray-100">Search Defaults</h2>
@@ -294,7 +294,7 @@ export default function UserSettingsPage() {
                     </div>
                 </section>
 
-                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <section className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div className="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-2">
                         <ShieldAlert size={20} className="text-purple-500" />
                         <h2 className="font-semibold text-gray-900 dark:text-gray-100">Account State</h2>

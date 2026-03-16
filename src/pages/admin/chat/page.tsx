@@ -180,10 +180,10 @@ const AdminChatPage = () => {
     }
 
     return (
-        <div className="flex h-[calc(100vh-100px)] bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden animate-in fade-in duration-500">
+        <div className="flex h-[calc(100vh-100px)] bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 overflow-hidden animate-in fade-in duration-500">
             {/* Conversation List */}
-            <div className="w-80 border-r border-gray-200 dark:border-zinc-800 flex flex-col">
-                <div className="p-4 border-b border-gray-200 dark:border-zinc-800">
+            <div className="w-80 border-r border-gray-100 dark:border-zinc-800 flex flex-col">
+                <div className="p-4 border-b border-gray-100 dark:border-zinc-800">
                     <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Support Chat</h2>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -232,7 +232,7 @@ const AdminChatPage = () => {
             {selectedConv ? (
                 <div className="flex-1 flex flex-col">
                     {/* Chat Header */}
-                    <div className="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-zinc-800">
                         <Avatar name={selectedConv.userName} size="sm" status="online" />
                         <div>
                             <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConv.userName}</h3>
@@ -264,7 +264,7 @@ const AdminChatPage = () => {
                     </div>
 
                     {/* Input */}
-                    <form onSubmit={handleSend} className="p-4 border-t border-gray-200 dark:border-zinc-800">
+                    <form onSubmit={handleSend} className="p-4 border-t border-gray-100 dark:border-zinc-800">
                         <div className="flex gap-2">
                             <input
                                 type="text"

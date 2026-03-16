@@ -113,7 +113,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
     };
 
     return (
-        <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col h-full animate-in slide-in-from-right duration-300">
+        <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col h-full animate-in slide-in-from-right duration-300">
             {/* Header */}
             <div className="p-6 border-b border-gray-100 dark:border-zinc-800 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-10 rounded-t-2xl">
                 <div className="flex flex-col gap-4">
@@ -214,7 +214,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
                                                 {/* Status Dot */}
                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 z-10 bg-white dark:bg-black transition-all duration-500 ${step.status === 'completed' ? 'border-green-500 text-green-500' :
                                                     step.status === 'current' ? 'border-indigo-500 text-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.2)]' :
-                                                        'border-gray-200 dark:border-zinc-700 text-gray-300 dark:text-zinc-600'
+                                                        'border-gray-100 dark:border-zinc-700 text-gray-300 dark:text-zinc-600'
                                                     }`}>
                                                     {step.status === 'completed' ? <CheckCircle2 size={20} /> :
                                                         step.status === 'current' ? <div className="w-3 h-3 bg-indigo-500 rounded-full animate-ping" /> :
@@ -258,7 +258,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
                             </div>
 
                             {/* Client Info */}
-                            <div className="bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-2xl p-6">
+                            <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-2xl p-6">
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                     <User className="text-blue-500" size={20} />
                                     Client Details
@@ -292,7 +292,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
 
                     {/* Documents Tab Content */}
                     {activeTab === 'documents' && (
-                        <div className="bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-2xl p-6">
+                        <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-2xl p-6">
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                 <Shield className="text-orange-500" size={20} />
                                 Required Documents
@@ -334,7 +334,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
 
                     {/* E-Signature Tab Content */}
                     {activeTab === 'esignature' && (
-                        <div className="bg-white dark:bg-black border border-gray-200 dark:border-zinc-800 rounded-2xl p-6">
+                        <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                                     <FileSignature className="text-purple-500" size={20} />
@@ -394,7 +394,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
             {/* Create Envelope Modal */}
             {showEnvelopeModal && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-zinc-800 p-6 animate-in zoom-in-95 duration-200">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 dark:border-zinc-800 p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <FileSignature className="text-purple-500" size={24} />
@@ -418,7 +418,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
                                     value={newEnvelope.name}
                                     onChange={(e) => setNewEnvelope({ ...newEnvelope, name: e.target.value })}
                                     placeholder="e.g. Lease Renewal Agreement"
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 />
                             </div>
 
@@ -426,7 +426,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                     Recipient
                                 </label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-200 dark:border-zinc-700">
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-700">
                                     <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center text-purple-700 dark:text-purple-400 font-bold text-sm">
                                         {caseData.clientName.charAt(0)}
                                     </div>
@@ -440,7 +440,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onC
                                     Document Type
                                 </label>
                                 <select
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     value={newEnvelope.type}
                                     onChange={(e) => setNewEnvelope({ ...newEnvelope, type: e.target.value })}
                                 >

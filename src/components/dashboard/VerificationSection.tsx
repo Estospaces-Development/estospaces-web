@@ -351,7 +351,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         </div>
 
                         <div className="p-8">
-                            <label className="block border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-3xl p-10 text-center hover:border-orange-500 dark:hover:border-orange-500 transition-all cursor-pointer group">
+                            <label className="block border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-3xl p-10 text-center hover:border-orange-500 dark:hover:border-orange-500 transition-all cursor-pointer group">
                                 <input
                                     type="file"
                                     className="hidden"

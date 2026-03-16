@@ -42,7 +42,7 @@ const CommunityFilterBar: React.FC<CommunityFilterBarProps> = ({
     ];
 
     return (
-        <div className="bg-white dark:bg-black rounded-xl p-4 shadow-sm border border-gray-200 dark:border-zinc-800">
+        <div className="bg-white dark:bg-black rounded-xl p-4 shadow-sm border border-gray-100 dark:border-zinc-800">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
                 {/* Tag Filter */}
                 <div className="flex items-center gap-3 flex-wrap">

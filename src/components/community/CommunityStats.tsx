@@ -28,7 +28,7 @@ const CommunityStats: React.FC<CommunityStatsProps> = ({
                 return (
                     <div
                         key={index}
-                        className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300"
+                        className="bg-white dark:bg-black rounded-xl p-6 shadow-sm border border-gray-100 dark:border-zinc-800 hover:shadow-md transition-all duration-300"
                     >
                         <div className="flex items-center gap-4">
                             <div className={`p-3 ${stat.bgColor} rounded-lg`}>

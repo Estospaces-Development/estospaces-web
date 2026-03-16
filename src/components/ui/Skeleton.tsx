@@ -49,7 +49,7 @@ export const SkeletonText: React.FC<{ lines?: number; className?: string }> = ({
 
 export const SkeletonCard: React.FC<{ className?: string }> = ({ className = '' }) => {
     return (
-        <div className={`bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 p-5 ${className}`} aria-hidden="true">
+        <div className={`bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-zinc-800 p-5 ${className}`} aria-hidden="true">
             <Skeleton height="160px" rounded="lg" className="mb-4" />
             <Skeleton height="1.25rem" width="75%" className="mb-2" />
             <Skeleton height="0.875rem" width="50%" className="mb-4" />

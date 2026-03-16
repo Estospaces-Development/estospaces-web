@@ -222,7 +222,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 <div className="bg-white dark:bg-gray-900 p-6 rounded-b-xl rounded-tr-xl shadow-2xl grid grid-cols-1 md:grid-cols-4 gap-4 border border-gray-100 dark:border-gray-700">
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Keyword</label>
-                        <div className="flex items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <Search size={18} className="text-primary mr-2" />
                             <input type="text" value={filters.keyword} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Enter Keyword..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
                         </div>
@@ -230,12 +230,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Location</label>
-                        <div className="flex items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <MapPin size={18} className="text-primary mr-2" />
                             <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City, Postcode..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
                         </div>
                         {showSuggestions && locationSuggestions.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
+                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
                                 {locationSuggestions.map((suggestion, index) => (
                                     <button
                                         key={index}
@@ -264,7 +264,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Type</label>
-                        <div className="flex items-center border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <Home size={18} className="text-primary mr-2" />
                             <select value={filters.propertyType} onChange={(e) => handleInputChange('propertyType', e.target.value)} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent cursor-pointer">
                                 <option value="">All Types</option>
@@ -279,7 +279,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
                     <div className="flex items-end gap-2">
                         {showAdvanced && (
-                            <button type="button" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className="p-3 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors" title="Advanced Search">
+                            <button type="button" onClick={() => setShowAdvancedFilters(!showAdvancedFilters)} className="p-3 border border-gray-100 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors" title="Advanced Search">
                                 <SlidersHorizontal size={20} />
                             </button>
                         )}
@@ -294,21 +294,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <div className="bg-white dark:bg-gray-900 p-4 rounded-b-xl shadow-lg border border-t-0 border-gray-100 dark:border-gray-700 grid grid-cols-1 md:grid-cols-4 gap-4 mt-[-1px]">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Min Price</label>
-                            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-3 py-2">
+                            <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
                                 <DollarSign size={16} className="text-gray-400 mr-2" />
                                 <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Max Price</label>
-                            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-3 py-2">
+                            <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
                                 <DollarSign size={16} className="text-gray-400 mr-2" />
                                 <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Bedrooms</label>
-                            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-3 py-2">
+                            <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
                                 <Bed size={16} className="text-gray-400 mr-2" />
                                 <select value={filters.minBedrooms || ''} onChange={(e) => handleInputChange('minBedrooms', e.target.value ? parseInt(e.target.value) : null)} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent cursor-pointer">
                                     <option value="">Any</option>
@@ -322,7 +322,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Bathrooms</label>
-                            <div className="flex items-center border border-gray-200 dark:border-gray-700 rounded px-3 py-2">
+                            <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
                                 <Bath size={16} className="text-gray-400 mr-2" />
                                 <select value={filters.minBathrooms || ''} onChange={(e) => handleInputChange('minBathrooms', e.target.value ? parseInt(e.target.value) : null)} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent cursor-pointer">
                                     <option value="">Any</option>
@@ -355,7 +355,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                             }
                         }}
                         placeholder="Search properties..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                     />
                 </div>
                 <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
@@ -367,10 +367,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
     // Full variant
     return (
-        <form onSubmit={handleSearch} className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 lg:p-6 ${className}`}>
+        <form onSubmit={handleSearch} className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 lg:p-6 ${className}`}>
             <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input type="text" value={filters.keyword} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Search by postcode, street, address, keyword, or property title..." className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                <input type="text" value={filters.keyword} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Search by postcode, street, address, keyword, or property title..." className="w-full pl-10 pr-4 py-3 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 {filters.keyword && (
                     <button type="button" onClick={() => handleInputChange('keyword', '')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <X size={18} />
@@ -383,9 +383,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
                     <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                        <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City or Postcode" className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City or Postcode" className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         {showSuggestions && locationSuggestions.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
+                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
                                 {locationSuggestions.map((suggestion, index) => (
                                     <button
                                         key={index}
@@ -416,7 +416,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Listing Type</label>
                     <div className="relative">
                         <Home className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                        <select value={filters.listingType} onChange={(e) => handleInputChange('listingType', e.target.value as 'all' | 'rent' | 'sale')} className="w-full pl-10 pr-8 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer">
+                        <select value={filters.listingType} onChange={(e) => handleInputChange('listingType', e.target.value as 'all' | 'rent' | 'sale')} className="w-full pl-10 pr-8 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer">
                             <option value="all">All Listings</option>
                             <option value="rent">For Rent</option>
                             <option value="sale">For Sale</option>
@@ -429,11 +429,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price Range</label>
                     <div className="flex items-center gap-2">
                         <div className="relative flex-1">
-                            <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Min £" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                            <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Min £" className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         </div>
                         <span className="text-gray-400">-</span>
                         <div className="relative flex-1">
-                            <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Max £" className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                            <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Max £" className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         </div>
                     </div>
                 </div>
@@ -443,7 +443,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Beds</label>
                         <div className="relative">
                             <Bed className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                            <select value={filters.minBedrooms || ''} onChange={(e) => handleInputChange('minBedrooms', e.target.value ? parseInt(e.target.value) : null)} className="w-full pl-8 pr-2 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer">
+                            <select value={filters.minBedrooms || ''} onChange={(e) => handleInputChange('minBedrooms', e.target.value ? parseInt(e.target.value) : null)} className="w-full pl-8 pr-2 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer">
                                 <option value="">Any</option>
                                 <option value="1">1+</option>
                                 <option value="2">2+</option>
@@ -457,7 +457,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Baths</label>
                         <div className="relative">
                             <Bath className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                            <select value={filters.minBathrooms || ''} onChange={(e) => handleInputChange('minBathrooms', e.target.value ? parseInt(e.target.value) : null)} className="w-full pl-8 pr-2 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer">
+                            <select value={filters.minBathrooms || ''} onChange={(e) => handleInputChange('minBathrooms', e.target.value ? parseInt(e.target.value) : null)} className="w-full pl-8 pr-2 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer">
                                 <option value="">Any</option>
                                 <option value="1">1+</option>
                                 <option value="2">2+</option>

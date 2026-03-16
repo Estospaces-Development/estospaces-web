@@ -96,7 +96,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
                 {/* SLA Compliance */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Clock size={100} className="text-gray-900 dark:text-white" />
                     </div>
@@ -123,7 +123,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Avg Response Time */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Zap size={100} className="text-gray-900 dark:text-white" />
                     </div>
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Pending Verifications */}
-                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
+                <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 relative overflow-hidden group hover:shadow-md transition-all">
                     <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform">
                         <Shield size={100} className="text-gray-900 dark:text-white" />
                     </div>
@@ -192,7 +192,7 @@ export default function AdminDashboard() {
                 <div className="lg:col-span-2 space-y-8">
 
                     {/* Quick Actions Rail */}
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-gray-800">
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                             <Zap className="text-orange-500" size={20} /> Quick Actions
                         </h3>
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Banner */}
-                    <div className="rounded-2xl bg-gray-900 dark:bg-black p-8 text-white relative overflow-hidden border border-gray-800">
+                    <div className="rounded-2xl bg-gray-900 dark:bg-black p-8 text-white relative overflow-hidden border border-white/10 dark:border-gray-800">
                         <div className="absolute right-0 top-0 w-64 h-64 bg-orange-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
                         <div className="relative z-10 flex items-start justify-between">
                             <div>
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Platform Snapshot */}
-                <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-gray-800 h-fit">
+                <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit">
                     <div className="flex items-center justify-between mb-8">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <Activity className="text-orange-500" size={20} /> Platform Snapshot

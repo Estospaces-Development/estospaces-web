@@ -97,7 +97,7 @@ export default function ManagerAppointmentsPage() {
                     { title: 'Completed', value: appointments.filter(a => a.status === 'Completed').length, icon: CalendarCheck, iconColor: 'bg-purple-500', shadowColor: 'shadow-purple-500/20' },
                     { title: 'Cancelled', value: appointments.filter(a => a.status === 'Cancelled').length, icon: XCircle, iconColor: 'bg-red-500', shadowColor: 'shadow-red-500/20' },
                 ].map((card) => (
-                    <div key={card.title} className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 transition-colors">
+                    <div key={card.title} className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 transition-colors">
                         <div className="flex items-center justify-between mb-4">
                             <div className={`p-3 ${card.iconColor} rounded-lg shadow-lg ${card.shadowColor}`}>
                                 <card.icon className="w-6 h-6 text-white" />
@@ -110,11 +110,11 @@ export default function ManagerAppointmentsPage() {
             </div>
 
             {/* Appointments List View */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800">
                     <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Appointments ({appointments.length})</h2>
                 </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {error && !loading && (
                         <div className="p-4 text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
                             {error}
@@ -200,7 +200,7 @@ export default function ManagerAppointmentsPage() {
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-gray-800 shadow-2xl">
+                    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full border border-gray-100 dark:border-gray-800 shadow-2xl">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Cancel Appointment</h3>
                         <p className="text-gray-600 dark:text-gray-400 mb-6">
                             Are you sure you want to cancel this appointment?

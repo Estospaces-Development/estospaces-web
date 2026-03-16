@@ -137,7 +137,7 @@ const SignatureModal = ({ contract, onClose, onSign }: SignatureModalProps) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
                     <div>
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Sign Contract</h2>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{contract?.name || contract?.property}</p>
@@ -175,7 +175,7 @@ const SignatureModal = ({ contract, onClose, onSign }: SignatureModalProps) => {
                                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
                                     <canvas
                                         ref={canvasRef}
-                                        className="w-full h-48 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 cursor-crosshair touch-none"
+                                        className="w-full h-48 bg-white dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-700 cursor-crosshair touch-none"
                                         onMouseDown={handleStartDrawing}
                                         onMouseMove={handleDraw}
                                         onMouseUp={handleStopDrawing}
@@ -203,7 +203,7 @@ const SignatureModal = ({ contract, onClose, onSign }: SignatureModalProps) => {
                 </div>
 
                 {!hasSigned && (
-                    <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex gap-3">
+                    <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex gap-3">
                         <button onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors">
                             Cancel
                         </button>

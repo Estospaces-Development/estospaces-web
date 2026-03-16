@@ -1029,7 +1029,7 @@ export default function AddPropertyPage() {
     if (loadingProperty) {
         return (
             <div className="max-w-6xl mx-auto font-sans pb-8">
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-12">
+                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12">
                     <div className="flex flex-col items-center justify-center gap-4">
                         <Loader2 className="w-12 h-12 text-primary animate-spin" />
                         <p className="text-lg text-gray-600 dark:text-gray-400">Loading property details...</p>
@@ -1042,7 +1042,7 @@ export default function AddPropertyPage() {
     if (propertyNotFound && isEditMode) {
         return (
             <div className="max-w-6xl mx-auto font-sans pb-8">
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-12">
+                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12">
                     <div className="flex flex-col items-center justify-center gap-4">
                         <AlertCircle className="w-12 h-12 text-red-500" />
                         <p className="text-lg text-gray-800 dark:text-white font-medium">Property Not Found</p>
@@ -1070,7 +1070,7 @@ export default function AddPropertyPage() {
     return (
         <div className="max-w-6xl mx-auto font-sans pb-8">
             {/* Header */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 mb-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                         <div className="mb-4">
@@ -1183,7 +1183,7 @@ export default function AddPropertyPage() {
             </div>
 
             {/* Form Content */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
 
                 {/* Step 1: Basic Info */}
                 {currentStep === 1 && (
@@ -1203,7 +1203,7 @@ export default function AddPropertyPage() {
                                     type="text"
                                     value={formData.title}
                                     onChange={(e) => handleInputChange('title', e.target.value)}
-                                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white placeholder-gray-500 ${errors.title ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                                    className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white placeholder-gray-500 ${errors.title ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'
                                         }`}
                                     placeholder="e.g., Luxurious 3BR Apartment with Ocean View"
                                 />
@@ -1223,7 +1223,7 @@ export default function AddPropertyPage() {
                                             onClick={() => handleInputChange('propertyType', type.value)}
                                             className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${formData.propertyType === type.value
                                                 ? 'border-primary bg-primary/10 text-primary'
-                                                : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                                                : 'border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                 }`}
                                         >
                                             {type.icon}
@@ -1247,7 +1247,7 @@ export default function AddPropertyPage() {
                                                 onClick={() => handleInputChange('listingType', type.value)}
                                                 className={`px-4 py-2 rounded-lg border transition-all ${formData.listingType === type.value
                                                     ? 'border-primary bg-primary text-white'
-                                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                                                    : 'border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
                                                     }`}
                                             >
                                                 {type.label}
@@ -1263,7 +1263,7 @@ export default function AddPropertyPage() {
                                     <select
                                         value={formData.status}
                                         onChange={(e) => handleInputChange('status', e.target.value as PropertyStatus)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                     >
                                         {statusOptions.map((status) => (
                                             <option key={status.value} value={status.value}>
@@ -1290,7 +1290,7 @@ export default function AddPropertyPage() {
                                     <select
                                         value={formData.countryCode}
                                         onChange={(e) => handleCountryChange(e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                     >
                                         {countries.map((country) => (
                                             <option key={country.code} value={country.code}>
@@ -1312,7 +1312,7 @@ export default function AddPropertyPage() {
                                             type="number"
                                             value={formData.priceAmount || ''}
                                             onChange={(e) => handleInputChange('priceAmount', parseFloat(e.target.value) || 0)}
-                                            className={`w-full pl-16 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600 ${errors.priceAmount ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                                            className={`w-full pl-16 pr-10 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600 ${errors.priceAmount ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'
                                                 }`}
                                             placeholder="0"
                                         />
@@ -1431,7 +1431,7 @@ export default function AddPropertyPage() {
                                         type="number"
                                         value={formData.totalArea || ''}
                                         onChange={(e) => handleInputChange('totalArea', parseFloat(e.target.value) || 0)}
-                                        className={`w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600 ${errors.totalArea ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                                        className={`w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600 ${errors.totalArea ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'
                                             }`}
                                         placeholder="0"
                                     />
@@ -1446,7 +1446,7 @@ export default function AddPropertyPage() {
                                         type="number"
                                         value={formData.carpetArea || ''}
                                         onChange={(e) => handleInputChange('carpetArea', parseFloat(e.target.value) || 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                         placeholder="0"
                                     />
                                 </div>
@@ -1458,7 +1458,7 @@ export default function AddPropertyPage() {
                                     <select
                                         value={formData.areaUnit}
                                         onChange={(e) => handleInputChange('areaUnit', e.target.value as AreaUnit)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                     >
                                         {areaUnits.map((unit) => (
                                             <option key={unit.value} value={unit.value}>
@@ -1478,7 +1478,7 @@ export default function AddPropertyPage() {
                                         max={new Date().getFullYear()}
                                         value={formData.yearBuilt || ''}
                                         onChange={(e) => handleInputChange('yearBuilt', parseInt(e.target.value) || 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
                             </div>
@@ -1501,7 +1501,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={getNumericDisplayValue(formData.bedrooms)}
                                         onChange={(e) => handleNumericChange('bedrooms', e.target.value, 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
 
@@ -1514,7 +1514,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={getNumericDisplayValue(formData.bathrooms)}
                                         onChange={(e) => handleNumericChange('bathrooms', e.target.value, 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
 
@@ -1527,7 +1527,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={getNumericDisplayValue(formData.balconies)}
                                         onChange={(e) => handleNumericChange('balconies', e.target.value, 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
 
@@ -1540,7 +1540,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={getNumericDisplayValue(formData.parkingSpaces)}
                                         onChange={(e) => handleNumericChange('parkingSpaces', e.target.value, 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
                             </div>
@@ -1556,7 +1556,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={getNumericDisplayValue(formData.floorNumber)}
                                         onChange={(e) => handleNumericChange('floorNumber', e.target.value, 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
 
@@ -1569,7 +1569,7 @@ export default function AddPropertyPage() {
                                         min="1"
                                         value={getNumericDisplayValue(formData.totalFloors)}
                                         onChange={(e) => handleNumericChange('totalFloors', e.target.value, 1)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                     />
                                 </div>
 
@@ -1580,7 +1580,7 @@ export default function AddPropertyPage() {
                                     <select
                                         value={formData.facing}
                                         onChange={(e) => handleInputChange('facing', e.target.value as FacingDirection)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                     >
                                         {facingOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -1612,7 +1612,7 @@ export default function AddPropertyPage() {
                                                 onClick={() => handleInputChange('furnishing', option.value)}
                                                 className={`px-4 py-2 rounded-lg border transition-all ${formData.furnishing === option.value
                                                     ? 'border-primary bg-primary text-white'
-                                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                                                    : 'border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                                                     }`}
                                             >
                                                 {option.label}
@@ -1628,7 +1628,7 @@ export default function AddPropertyPage() {
                                     <select
                                         value={formData.condition}
                                         onChange={(e) => handleInputChange('condition', e.target.value as PropertyCondition)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                     >
                                         {conditionOptions.map((option) => (
                                             <option key={option.value} value={option.value}>
@@ -1656,7 +1656,7 @@ export default function AddPropertyPage() {
                                         type="text"
                                         value={formData.shortDescription}
                                         onChange={(e) => handleInputChange('shortDescription', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         placeholder="A brief summary of the property (max 150 chars)"
                                         maxLength={150}
                                     />
@@ -1666,8 +1666,8 @@ export default function AddPropertyPage() {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                         Full Description
                                     </label>
-                                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                        <div className="border-b border-gray-200 dark:border-gray-700 p-2 flex gap-2 flex-wrap bg-gray-50 dark:bg-gray-800">
+                                    <div className="border border-gray-100 dark:border-gray-700 rounded-lg overflow-hidden">
+                                        <div className="border-b border-gray-100 dark:border-gray-700 p-2 flex gap-2 flex-wrap bg-gray-50 dark:bg-gray-800">
                                             <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded">
                                                 <Bold className="w-4 h-4" />
                                             </button>
@@ -1799,7 +1799,7 @@ export default function AddPropertyPage() {
                                 type="url"
                                 value={formData.virtualTourUrl}
                                 onChange={(e) => handleInputChange('virtualTourUrl', e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                 placeholder="https://your-virtual-tour-url.com"
                             />
                         </div>
@@ -1824,7 +1824,7 @@ export default function AddPropertyPage() {
                                                 onClick={() => toggleAmenity(category as keyof typeof amenitiesGroups, amenity.id)}
                                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${formData.amenities[category as keyof typeof amenitiesGroups]?.includes(amenity.id)
                                                     ? 'border-primary bg-primary text-white'
-                                                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                                                    : 'border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                                                     }`}
                                             >
                                                 {amenity.icon}
@@ -1857,7 +1857,7 @@ export default function AddPropertyPage() {
                                         type="text"
                                         value={formData.contactName}
                                         onChange={(e) => handleInputChange('contactName', e.target.value)}
-                                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white ${errors.contactName ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white ${errors.contactName ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'
                                             }`}
                                         placeholder="Enter contact name"
                                     />
@@ -1872,7 +1872,7 @@ export default function AddPropertyPage() {
                                         type="email"
                                         value={formData.contactEmail}
                                         onChange={(e) => handleInputChange('contactEmail', e.target.value)}
-                                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white ${errors.contactEmail ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white ${errors.contactEmail ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'
                                             }`}
                                         placeholder="Enter email address"
                                     />
@@ -1887,7 +1887,7 @@ export default function AddPropertyPage() {
                                         type="tel"
                                         value={formData.contactPhone}
                                         onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-                                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white ${errors.contactPhone ? 'border-red-500' : 'border-gray-200 dark:border-gray-700'
+                                        className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white ${errors.contactPhone ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'
                                             }`}
                                         placeholder="+1 (555) 000-0000"
                                     />
@@ -1902,7 +1902,7 @@ export default function AddPropertyPage() {
                                         type="tel"
                                         value={formData.alternatePhone}
                                         onChange={(e) => handleInputChange('alternatePhone', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         placeholder="+1 (555) 000-0000 (optional)"
                                     />
                                 </div>
@@ -1915,7 +1915,7 @@ export default function AddPropertyPage() {
                                         type="text"
                                         value={formData.company}
                                         onChange={(e) => handleInputChange('company', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         placeholder="Real estate agency (optional)"
                                     />
                                 </div>
@@ -1928,7 +1928,7 @@ export default function AddPropertyPage() {
                                         type="text"
                                         value={formData.licenseNumber}
                                         onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         placeholder="Agent license number (optional)"
                                     />
                                 </div>
@@ -1951,7 +1951,7 @@ export default function AddPropertyPage() {
                                         type="date"
                                         value={formData.availableFrom}
                                         onChange={(e) => handleInputChange('availableFrom', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                     />
                                 </div>
 
@@ -1965,7 +1965,7 @@ export default function AddPropertyPage() {
                                             min="1"
                                             value={formData.minimumLease}
                                             onChange={(e) => handleInputChange('minimumLease', parseInt(e.target.value) || 1)}
-                                            className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                            className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                         />
                                     </div>
                                 )}
@@ -1979,7 +1979,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={formData.deposit || ''}
                                         onChange={(e) => handleInputChange('deposit', parseFloat(e.target.value) || 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                         placeholder="0"
                                     />
                                 </div>
@@ -1993,7 +1993,7 @@ export default function AddPropertyPage() {
                                         min="0"
                                         value={formData.maintenanceCharges || ''}
                                         onChange={(e) => handleInputChange('maintenanceCharges', parseFloat(e.target.value) || 0)}
-                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
+                                        className="w-full px-4 py-3 pr-10 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white transition-all hover:border-gray-300 dark:hover:border-gray-600"
                                         placeholder="0"
                                     />
                                 </div>
@@ -2006,7 +2006,7 @@ export default function AddPropertyPage() {
                                         type="text"
                                         value={formData.inclusions}
                                         onChange={(e) => handleInputChange('inclusions', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         placeholder="e.g., Appliances, furniture, utilities"
                                     />
                                 </div>
@@ -2019,7 +2019,7 @@ export default function AddPropertyPage() {
                                         type="text"
                                         value={formData.exclusions}
                                         onChange={(e) => handleInputChange('exclusions', e.target.value)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         placeholder="e.g., Parking fees, utility bills"
                                     />
                                 </div>
@@ -2049,7 +2049,7 @@ export default function AddPropertyPage() {
                 )}
 
                 {/* Navigation Buttons */}
-                <div className="flex flex-col sm:flex-row justify-between gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col sm:flex-row justify-between gap-3 mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
                     <button
                         type="button"
                         onClick={handlePrevious}

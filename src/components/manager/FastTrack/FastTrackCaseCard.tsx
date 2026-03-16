@@ -79,7 +79,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({ caseData, onUpdat
 
     return (
         <div className={`bg-white dark:bg-black border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-5 flex flex-col h-full
-        ${isExpired ? 'border-red-200 dark:border-red-900/50 opacity-90' : 'border-gray-200 dark:border-zinc-800'}
+        ${isExpired ? 'border-red-200 dark:border-red-900/50 opacity-90' : 'border-gray-100 dark:border-zinc-800'}
     `}>
             {/* Header */}
             <div className="flex justify-between items-start mb-3">

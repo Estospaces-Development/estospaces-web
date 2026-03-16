@@ -62,11 +62,11 @@ function Table<T extends Record<string, unknown>>({
         a === 'center' ? 'text-center' : a === 'right' ? 'text-right' : 'text-left';
 
     return (
-        <div className={`bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden ${className}`}>
+        <div className={`bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 overflow-hidden ${className}`}>
             <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                     <thead>
-                        <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
+                        <tr className="border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
                             {columns.map((col) => (
                                 <th
                                     key={col.key}
@@ -114,7 +114,7 @@ function Table<T extends Record<string, unknown>>({
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
                     <span className="text-xs text-gray-600 dark:text-gray-400">
                         Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, sortedData.length)} of {sortedData.length}
                     </span>

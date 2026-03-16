@@ -105,7 +105,7 @@ const BrokerRequestWidget = () => {
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
                                 placeholder="e.g. Downtown, West End"
-                                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
                                 required
                             />
                         </div>
@@ -122,7 +122,7 @@ const BrokerRequestWidget = () => {
                                 value={budget}
                                 onChange={(e) => setBudget(e.target.value)}
                                 placeholder="e.g. 500k - 600k"
-                                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
                                 required
                             />
                         </div>
@@ -137,7 +137,7 @@ const BrokerRequestWidget = () => {
                             onChange={(e) => setDetails(e.target.value)}
                             placeholder="e.g. 2 bedrooms, balcony, pet friendly..."
                             rows={3}
-                            className="w-full p-3 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
+                            className="w-full p-3 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
                             required
                         />
                     </div>

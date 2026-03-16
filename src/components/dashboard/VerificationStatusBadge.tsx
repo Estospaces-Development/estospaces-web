@@ -42,7 +42,7 @@ const getStatusConfig = (status: VerificationStatus): StatusConfig => {
             return { label: 'Verification Required', icon: AlertCircle, bgColor: 'bg-orange-50 dark:bg-orange-900/20', textColor: 'text-orange-700 dark:text-orange-400', borderColor: 'border-orange-200 dark:border-orange-800' };
         case 'incomplete':
         default:
-            return { label: 'Not Verified', icon: Shield, bgColor: 'bg-gray-50 dark:bg-gray-800', textColor: 'text-gray-600 dark:text-gray-400', borderColor: 'border-gray-200 dark:border-gray-700' };
+            return { label: 'Not Verified', icon: Shield, bgColor: 'bg-gray-50 dark:bg-gray-800', textColor: 'text-gray-600 dark:text-gray-400', borderColor: 'border-gray-100 dark:border-gray-700' };
     }
 };
 

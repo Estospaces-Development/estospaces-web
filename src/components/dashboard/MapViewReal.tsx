@@ -47,7 +47,7 @@ const MapViewReal = ({ houses = [], agencies = [] }: MapViewRealProps) => {
 
     if (!MAPBOX_TOKEN) {
         return (
-            <div className="w-full h-full rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+            <div className="w-full h-full rounded-lg bg-gray-100 flex items-center justify-center border border-gray-100">
                 <div className="text-center p-4">
                     <p className="text-gray-600 mb-2">Mapbox token required</p>
                     <p className="text-sm text-gray-500">
@@ -60,7 +60,7 @@ const MapViewReal = ({ houses = [], agencies = [] }: MapViewRealProps) => {
 
     // Placeholder until Mapbox is installed
     return (
-        <div className="w-full h-full rounded-lg bg-gray-100 flex items-center justify-center border border-gray-200">
+        <div className="w-full h-full rounded-lg bg-gray-100 flex items-center justify-center border border-gray-100">
             <div className="text-center p-4">
                 <p className="text-gray-600 mb-2">Install react-map-gl to enable map</p>
                 <p className="text-sm text-gray-500">npm install react-map-gl mapbox-gl</p>

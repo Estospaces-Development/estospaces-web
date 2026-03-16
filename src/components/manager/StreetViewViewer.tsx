@@ -17,7 +17,7 @@ const StreetViewViewer = ({ streetViewUrl, address, latitude, longitude }: Stree
 
     if (!streetViewUrl) {
         return (
-            <div className="relative w-full aspect-video bg-gray-100 dark:bg-zinc-900 rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-800">
+            <div className="relative w-full aspect-video bg-gray-100 dark:bg-zinc-900 rounded-xl overflow-hidden border border-gray-100 dark:border-zinc-800">
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 p-6">
                     <div className="w-16 h-16 bg-gray-200 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                         <AlertCircle className="w-8 h-8" />
@@ -36,7 +36,7 @@ const StreetViewViewer = ({ streetViewUrl, address, latitude, longitude }: Stree
     }
 
     return (
-        <div className="relative w-full aspect-video bg-gray-100 dark:bg-zinc-900 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-zinc-800">
+        <div className="relative w-full aspect-video bg-gray-100 dark:bg-zinc-900 rounded-xl overflow-hidden shadow-lg border border-gray-100 dark:border-zinc-800">
             {isLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-zinc-900 z-10">
                     <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-3" />

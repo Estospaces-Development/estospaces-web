@@ -199,7 +199,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {/* Header */}
-                                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+                                <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                                             <Share2 className="w-5 h-5 text-primary" />
@@ -218,7 +218,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
                                 </div>
 
                                 {/* Property Preview */}
-                                <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+                                <div className="p-6 border-b border-gray-100 dark:border-gray-800">
                                     <div className="flex gap-4">
                                         {propertyImage && (
                                             <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
@@ -261,7 +261,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
                                                     onClick={(e) => handleShare(platform.id, e)}
                                                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${isCopied
                                                         ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                                                        : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 active:scale-95'
+                                                        : 'border-gray-100 dark:border-gray-700 hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 active:scale-95'
                                                         }`}
                                                 >
                                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${platform.color} transition-colors`}>
@@ -289,7 +289,7 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
                                                 type="text"
                                                 value={url}
                                                 readOnly
-                                                className="flex-1 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300"
+                                                className="flex-1 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300"
                                             />
                                             <button
                                                 type="button"

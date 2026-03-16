@@ -208,7 +208,7 @@ export default function ManagerContractsPage() {
             {viewContract && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => setViewContract(null)}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <FileText className="text-orange-500" /> Contract Details
                             </h2>
@@ -254,13 +254,13 @@ export default function ManagerContractsPage() {
 
                             {/* Signatures */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className={`rounded-xl p-4 border ${viewContract.user_signed_at ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                                <div className={`rounded-xl p-4 border ${viewContract.user_signed_at ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20' : 'border-gray-100 dark:border-gray-700'}`}>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Tenant Signature</p>
                                     <p className={`font-semibold text-sm ${viewContract.user_signed_at ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}`}>
                                         {viewContract.user_signed_at ? `Signed ${formatDate(viewContract.user_signed_at)}` : 'Pending'}
                                     </p>
                                 </div>
-                                <div className={`rounded-xl p-4 border ${viewContract.manager_signed_at ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20' : 'border-gray-200 dark:border-gray-700'}`}>
+                                <div className={`rounded-xl p-4 border ${viewContract.manager_signed_at ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20' : 'border-gray-100 dark:border-gray-700'}`}>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Your Signature</p>
                                     <p className={`font-semibold text-sm ${viewContract.manager_signed_at ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}`}>
                                         {viewContract.manager_signed_at ? `Signed ${formatDate(viewContract.manager_signed_at)}` : 'Pending'}
@@ -270,7 +270,7 @@ export default function ManagerContractsPage() {
                         </div>
 
                         {/* Footer with Countersign button if needed */}
-                        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
+                        <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
                             <button
                                 onClick={() => setViewContract(null)}
                                 className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

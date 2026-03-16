@@ -233,13 +233,13 @@ function LeadsContent() {
                            <div className="relative">
                                 <button
                                     onClick={() => setShowFilters(!showFilters)}
-                                    className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold"
+                                    className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold"
                                 >
                                     <Filter className="w-4 h-4" />
                                     <span>Filters</span>
                                 </button>
                                 {showFilters && (
-                                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-6 z-30 min-w-[280px] animate-in fade-in zoom-in duration-200">
+                                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl p-6 z-30 min-w-[280px] animate-in fade-in zoom-in duration-200">
                                         <div className="space-y-5">
                                             <div>
                                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Status</label>
@@ -285,7 +285,7 @@ function LeadsContent() {
                             <div className="relative">
                                 <button
                                     onClick={() => setShowExportMenu(!showExportMenu)}
-                                    className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold"
+                                    className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all font-bold"
                                 >
                                     <Download className="w-4 h-4" />
                                     <span>Export</span>
@@ -296,7 +296,7 @@ function LeadsContent() {
                                     )}
                                 </button>
                                 {showExportMenu && (
-                                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl z-30 min-w-[220px] overflow-hidden animate-in fade-in zoom-in duration-200">
+                                    <div className="absolute top-full right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-xl z-30 min-w-[220px] overflow-hidden animate-in fade-in zoom-in duration-200">
                                         <button
                                             onClick={() => handleExport('pdf')}
                                             className="w-full flex items-center gap-3 px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"

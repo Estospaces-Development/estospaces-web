@@ -109,7 +109,7 @@ const BarChart = ({ data, title, height = 200, showValues = true, formatValue, s
                     {[0, 25, 50, 75, 100].map((percent) => (
                         <div
                             key={percent}
-                            className="absolute left-0 right-0 border-t border-gray-200 dark:border-gray-700"
+                            className="absolute left-0 right-0 border-t border-gray-100 dark:border-gray-700"
                             style={{ bottom: `${percent}%` }}
                         ></div>
                     ))}
