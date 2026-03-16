@@ -74,7 +74,7 @@ const UserDiscover = lazy(() => import('./pages/user/dashboard/discover/page'));
 const UserHelp = lazy(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazy(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazy(() => import('./pages/user/dashboard/notifications/page'));
-const UserOverseas = lazy(() => import('./pages/user/dashboard/overseas/page'));
+// const UserOverseas = lazy(() => import('./pages/user/dashboard/overseas/page'));
 // const UserPayments = lazy(() => import('./pages/user/dashboard/payments/page'));
 const UserProfileDash = lazy(() => import('./pages/user/dashboard/profile/page'));
 const UserReviews = lazy(() => import('./pages/user/dashboard/reviews/page'));
@@ -154,7 +154,8 @@ const App: React.FC = () => {
             <Route path="dashboard/help" element={<UserHelp />} />
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
-            <Route path="dashboard/overseas" element={<UserOverseas />} />
+            <Route path="dashboard/overseas" element={<Navigate to="/user/dashboard" replace />} />
+            {/* <Route path="dashboard/overseas" element={<UserOverseas />} /> */}{/* Commented out - overseas dashboard is out of scope for the current phase */}
             <Route path="dashboard/payments" element={<Navigate to="/user/dashboard" replace />} />
             {/* <Route path="dashboard/payments" element={<UserPayments />} /> */}{/* Commented out - backend API pending */}
             <Route path="dashboard/profile" element={<UserProfileDash />} />
