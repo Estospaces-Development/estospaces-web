@@ -25,6 +25,8 @@ export interface Conversation {
     type: 'direct' | 'support' | 'group';
     title?: string;
     metadata: string | Record<string, unknown>;
+    is_archived?: boolean;
+    is_muted?: boolean;
     created_at: string;
     updated_at: string;
     messages?: Message[];
@@ -97,6 +99,16 @@ export async function markAsRead(conversationId: string): Promise<void> {
     });
 }
 
+export async function updateConversationPreferences(
+    conversationId: string,
+    preferences: { is_archived?: boolean; is_muted?: boolean },
+): Promise<void> {
+    await apiFetch(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/preferences`, {
+        method: 'PUT',
+        body: JSON.stringify(preferences),
+    });
+}
+
 /**
  * Create a support ticket
  */
@@ -128,6 +140,7 @@ export const messagesService = {
     getMessages,
     sendMessage,
     markAsRead,
+    updateConversationPreferences,
     createTicket,
     getTickets,
     getTicket,

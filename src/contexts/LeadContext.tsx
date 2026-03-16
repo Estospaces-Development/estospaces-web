@@ -48,11 +48,21 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
 
     const addLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {
         try {
+            if (!leadData.name?.trim()) {
+                throw new Error('Lead name is required');
+            }
+            if (!leadData.email?.trim()) {
+                throw new Error('Lead email is required');
+            }
+            if (!leadData.propertyInterested?.trim()) {
+                throw new Error('Property interest is required');
+            }
+
             const req: CreateManualLeadRequest = {
-                name: leadData.name || 'Unknown',
-                email: leadData.email || 'no-email@example.com',
+                name: leadData.name,
+                email: leadData.email,
                 phone: leadData.phone,
-                property_interested: leadData.propertyInterested || 'General Inquiry',
+                property_interested: leadData.propertyInterested,
                 status: leadData.status,
                 score: leadData.score,
                 budget: leadData.budget,

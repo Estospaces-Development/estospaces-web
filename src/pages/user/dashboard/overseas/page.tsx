@@ -74,7 +74,7 @@ export default function OverseasPage() {
 
                 {/* Hero Search Section */}
                 <div className="relative rounded-[3rem] overflow-hidden bg-gray-900 dark:bg-white mb-16 shadow-2xl group">
-                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2600&auto=format&fit=crop')] bg-cover bg-center opacity-40 dark:opacity-10 group-hover:scale-105 transition-transform duration-1000"></div>
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.35),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_40%),linear-gradient(135deg,_rgba(17,24,39,0.96),_rgba(55,65,81,0.92))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),_transparent_40%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(243,244,246,0.92))] opacity-100 group-hover:scale-105 transition-transform duration-1000"></div>
                     <div className="relative z-10 px-10 py-20 text-center max-w-3xl mx-auto">
                         <h2 className="text-4xl md:text-5xl font-black text-white dark:text-gray-900 mb-6 tracking-tight">
                             Find Your Dream <span className="text-orange-500">Global</span> Sanctuary

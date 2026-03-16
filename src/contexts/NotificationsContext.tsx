@@ -86,7 +86,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                     type,
                     title,
                     message,
-                    data: JSON.stringify(data),
+                    data,
                     is_read: false,
                     channel: 'in_app',
                     created_at: new Date().toISOString(),

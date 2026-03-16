@@ -10,6 +10,7 @@ import {
 import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as propertyService from '@/services/propertyService';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface Property {
     id: string;
@@ -156,7 +157,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 });
 
                 if (!error && data) {
-                    console.log('[NewApplication] Search results:', data.length);
                     const mappedData = data.map(p => ({
                         ...p,
                         contact_name: p.agent_name,
@@ -333,7 +333,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
     };
 
     const getPropertyImage = (property: Property | null) => {
-        const fallbackImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+        const fallbackImage = PROPERTY_PLACEHOLDER_IMAGE;
 
         if (!property) return fallbackImage;
 
@@ -473,7 +473,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                             alt={property.title || 'Property'}
                                                             className="w-full h-full object-cover"
                                                             onError={(e) => {
-                                                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                             }}
                                                         />
                                                     </div>
@@ -538,7 +538,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         alt={selectedProperty.title || 'Property'}
                                                         className="w-full h-full object-cover"
                                                         onError={(e) => {
-                                                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                         }}
                                                     />
                                                 </div>
@@ -600,7 +600,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                                     alt={property.title || 'Property'}
                                                                     className="w-full h-full object-cover"
                                                                     onError={(e) => {
-                                                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                                     }}
                                                                 />
                                                             </div>
@@ -667,7 +667,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     onKeyDown={handleKeyDown}
                                                     className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-600 focus:border-orange-500'
                                                         }`}
-                                                    placeholder="john@example.com"
+                                                    placeholder="Enter your email address"
                                                 />
                                             </div>
                                             {formErrors.email && <p className="text-xs text-red-500 mt-1">{formErrors.email}</p>}
@@ -826,7 +826,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     alt={selectedProperty?.title || 'Property'}
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                     }}
                                                 />
                                             </div>

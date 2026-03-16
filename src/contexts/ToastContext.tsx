@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from '@/components/ui/Toast';
 
@@ -24,10 +24,8 @@ interface ToastOptions {
     position?: ToastPosition;
 }
 
-interface ToastContextType {
-    toasts: ToastMessage[];
+interface ToastActionsContextType {
     showToast: (message: string, options?: ToastOptions) => string;
-    removeToast: (id: string) => void;
     success: (message: string, options?: Omit<ToastOptions, 'type'>) => string;
     error: (message: string, options?: Omit<ToastOptions, 'type'>) => string;
     warning: (message: string, options?: Omit<ToastOptions, 'type'>) => string;
@@ -35,7 +33,13 @@ interface ToastContextType {
     clearAll: () => void;
 }
 
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
+interface ToastStateContextType {
+    toasts: ToastMessage[];
+    removeToast: (id: string) => void;
+}
+
+const ToastActionsContext = createContext<ToastActionsContextType | undefined>(undefined);
+const ToastStateContext = createContext<ToastStateContextType | undefined>(undefined);
 
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -87,40 +91,59 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         setToasts([]);
     }, []);
 
+    const actionsValue = useMemo(
+        () => ({
+            showToast,
+            success,
+            error,
+            warning,
+            info,
+            clearAll,
+        }),
+        [showToast, success, error, warning, info, clearAll],
+    );
+
+    const stateValue = useMemo(
+        () => ({
+            toasts,
+            removeToast,
+        }),
+        [toasts, removeToast],
+    );
+
     return (
-        <ToastContext.Provider
-            value={{
-                toasts,
-                showToast,
-                removeToast,
-                success,
-                error,
-                warning,
-                info,
-                clearAll,
-            }}
-        >
-            {children}
-            <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
-                {toasts.map((toast) => (
-                    <div key={toast.id} className="pointer-events-auto">
-                        <Toast
-                            {...toast}
-                            onClose={() => removeToast(toast.id)}
-                        />
-                    </div>
-                ))}
-            </div>
-        </ToastContext.Provider>
+        <ToastActionsContext.Provider value={actionsValue}>
+            <ToastStateContext.Provider value={stateValue}>
+                {children}
+                <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none">
+                    {toasts.map((toast) => (
+                        <div key={toast.id} className="pointer-events-auto">
+                            <Toast
+                                {...toast}
+                                onClose={() => removeToast(toast.id)}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </ToastStateContext.Provider>
+        </ToastActionsContext.Provider>
     );
 };
 
 export const useToast = () => {
-    const context = useContext(ToastContext);
+    const context = useContext(ToastActionsContext);
     if (!context) {
         throw new Error('useToast must be used within a ToastProvider');
     }
     return context;
 };
 
-export default ToastContext;
+export const useToastState = () => {
+    const context = useContext(ToastStateContext);
+    if (!context) {
+        throw new Error('useToastState must be used within a ToastProvider');
+    }
+    return context;
+};
+
+export default ToastActionsContext;

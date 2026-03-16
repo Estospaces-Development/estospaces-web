@@ -11,8 +11,8 @@ const SERVICE_URLS = {
     notification: import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
     payment: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
     search: import.meta.env.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
-    messaging: import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8085',
-    media: import.meta.env.VITE_MEDIA_SERVICE_URL || 'http://localhost:8086',
+    media: import.meta.env.VITE_MEDIA_SERVICE_URL || 'http://localhost:8085',
+    messaging: import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8086',
 } as const;
 
 export type ServiceName = keyof typeof SERVICE_URLS;
@@ -54,7 +54,7 @@ export async function apiFetch<T>(
     url: string,
     options: RequestInit = {},
 ): Promise<T> {
-    const isDebug = import.meta.env.DEV;
+    const isDebug = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
     const method = options.method || 'GET';
 
     if (isDebug) {

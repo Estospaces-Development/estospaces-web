@@ -5,6 +5,7 @@ import { MapPin, Star, ChevronRight, Building, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { userService, Agency } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
+import { AGENCY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 const NearbyAgenciesList = () => {
     const [agencies, setAgencies] = useState<Agency[]>([]);
@@ -63,11 +64,11 @@ const NearbyAgenciesList = () => {
                     {agencies.map((agency) => (
                         <div key={agency.id} className="flex items-center gap-4 group cursor-pointer">
                             <img
-                                src={agency.image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80'}
+                                src={agency.image || AGENCY_PLACEHOLDER_IMAGE}
                                 alt={agency.name}
                                 className="w-12 h-12 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
                                 onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80';
+                                    (e.target as HTMLImageElement).src = AGENCY_PLACEHOLDER_IMAGE;
                                 }}
                             />
                             <div className="flex-1 min-w-0">
@@ -90,7 +91,7 @@ const NearbyAgenciesList = () => {
                                     <span className="text-gray-300 dark:text-gray-600 text-xs">•</span>
                                     <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                                         <MapPin size={10} className="mr-0.5" />
-                                        {agency.distance || 'Unknown distance'}
+                                        {agency.distance || 'Service area not listed'}
                                     </div>
                                 </div>
                             </div>

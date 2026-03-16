@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     User,
@@ -15,21 +15,18 @@ import {
     Save
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile, type UserProfile } from '@/services/authService';
+import { updateProfile } from '@/services/authService';
 import { leadsService } from '@/services/leadsService';
 import { bookingsService } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
-import DocumentUpload from '@/components/dashboard/DocumentUpload';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
     const { user: currentUser, refreshUser, loading: authLoading, isAuthenticated } = useAuth();
     const { savedCount } = useSavedProperties();
     const toast = useToast();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -81,9 +78,9 @@ export default function ProfilePage() {
             fullName: currentUser.user_metadata?.full_name || currentUser.name || currentUser.email || '',
             phone: currentUser.phone || '',
             address: currentUser.address || '',
-            postcode: '',
+            postcode: currentUser.postcode || '',
         });
-        setProfileImagePreview(currentUser.avatar_url || null);
+        setProfileImagePreview(currentUser.avatar_url || currentUser.avatar || null);
         fetchStats();
     }, [authLoading, currentUser, fetchStats, isAuthenticated, navigate]);
 
@@ -114,7 +111,8 @@ export default function ProfilePage() {
                 last_name: formData.fullName.split(' ').slice(1).join(' '),
                 phone: formData.phone,
                 address: formData.address,
-                avatar_url: profileImagePreview || undefined
+                postcode: formData.postcode,
+                avatar: profileImagePreview || undefined,
             });
 
             if (error) throw new Error(error);
@@ -349,25 +347,6 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-none overflow-hidden">
-                            <div className="px-8 py-6 border-b dark:border-gray-800 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                                        <User size={20} className="text-orange-500" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Profile Documents</h3>
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Identity & Residency</span>
-                            </div>
-                            <div className="p-8">
-                                <DocumentUpload
-                                    documents={[]}
-                                    onUpload={() => { }}
-                                    onDelete={() => { }}
-                                    onReplace={() => { }}
-                                />
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>

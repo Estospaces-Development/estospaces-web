@@ -1,51 +1,48 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Bell,
-    Lock,
     ArrowLeft,
     Save,
     Loader2,
-    Mail,
-    Smartphone,
-    Moon,
     Check,
-    Shield,
-    Eye,
-    Globe as LangIcon,
+    Search,
+    SlidersHorizontal,
+    ShieldAlert,
+    MapPin,
+    PoundSterling,
+    BedDouble,
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import { getPreferences, updatePreferences, type UserPreferences } from '@/services/authService';
 import { useToast } from '@/contexts/ToastContext';
 import Toggle from '@/components/ui/Toggle';
 
+const defaultPreferences: UserPreferences = {
+    preferred_city: '',
+    preferred_type: '',
+    min_budget: null,
+    max_budget: null,
+    min_bedrooms: null,
+    max_bedrooms: null,
+    notifications_enabled: true,
+    email_alerts: true,
+    search_radius_km: null,
+    onboarding_done: false,
+};
+
+type TabId = 'alerts' | 'search' | 'account';
+
 export default function SettingsPage() {
     const navigate = useNavigate();
-    const { user } = useAuth();
     const toast = useToast();
 
     const [isLoading, setIsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [activeTab, setActiveTab] = useState('notifications');
-
-    const [preferences, setPreferences] = useState<UserPreferences>({
-        email_enabled: true,
-        email_viewing_updates: true,
-        email_application_updates: true,
-        email_message_notifications: true,
-        email_price_alerts: true,
-        push_enabled: true,
-        push_viewing_updates: true,
-        sms_enabled: false,
-        marketing_emails: false,
-        two_factor_auth: false,
-        dark_mode: false,
-        language: 'English',
-        currency: 'GBP',
-    });
+    const [activeTab, setActiveTab] = useState<TabId>('alerts');
+    const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -53,7 +50,12 @@ export default function SettingsPage() {
                 setIsLoading(true);
                 const { data, error } = await getPreferences();
                 if (error) throw new Error(error);
-                if (data) setPreferences(data);
+                if (data) {
+                    setPreferences({
+                        ...defaultPreferences,
+                        ...data,
+                    });
+                }
             } catch (error: any) {
                 toast.error('Failed to load settings');
                 console.error('[DashboardSettingsPage] Load Error:', error);
@@ -61,12 +63,28 @@ export default function SettingsPage() {
                 setIsLoading(false);
             }
         };
-        fetchSettings();
-    }, []); // Empty dependency array to prevent loops
 
-    const handleToggle = (key: keyof UserPreferences) => {
-        if (typeof preferences[key] !== 'boolean') return;
-        setPreferences((prev: UserPreferences) => ({ ...prev, [key]: !prev[key] }));
+        fetchSettings();
+    }, [toast]);
+
+    const handleToggle = (key: 'notifications_enabled' | 'email_alerts' | 'onboarding_done') => {
+        setPreferences((prev) => ({ ...prev, [key]: !prev[key] }));
+        setSaveSuccess(false);
+    };
+
+    const handleTextChange = (key: 'preferred_city' | 'preferred_type', value: string) => {
+        setPreferences((prev) => ({ ...prev, [key]: value }));
+        setSaveSuccess(false);
+    };
+
+    const handleNumberChange = (
+        key: 'min_budget' | 'max_budget' | 'min_bedrooms' | 'max_bedrooms' | 'search_radius_km',
+        value: string,
+    ) => {
+        setPreferences((prev) => ({
+            ...prev,
+            [key]: value === '' ? null : Number(value),
+        }));
         setSaveSuccess(false);
     };
 
@@ -75,7 +93,7 @@ export default function SettingsPage() {
             setSaving(true);
             const { error } = await updatePreferences(preferences);
             if (error) throw new Error(error);
-            
+
             setSaveSuccess(true);
             toast.success('Settings updated successfully');
             setTimeout(() => setSaveSuccess(false), 3000);
@@ -88,9 +106,9 @@ export default function SettingsPage() {
     };
 
     const tabs = [
-        { id: 'notifications', label: 'Notifications', icon: Bell },
-        { id: 'security', label: 'Security', icon: Lock },
-        { id: 'preferences', label: 'Preferences', icon: LangIcon },
+        { id: 'alerts' as TabId, label: 'Alerts', icon: Bell },
+        { id: 'search' as TabId, label: 'Search', icon: Search },
+        { id: 'account' as TabId, label: 'Account', icon: ShieldAlert },
     ];
 
     if (isLoading) {
@@ -104,7 +122,6 @@ export default function SettingsPage() {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Header */}
                 <div className="mb-10">
                     <button
                         onClick={() => navigate('/user/dashboard')}
@@ -118,11 +135,9 @@ export default function SettingsPage() {
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
-                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                                Settings
-                            </h1>
+                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Settings</h1>
                             <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                                Personalize your experience and security preferences
+                                Manage the preferences backed by the current user settings API
                             </p>
                         </div>
 
@@ -147,10 +162,11 @@ export default function SettingsPage() {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-bold text-sm whitespace-nowrap transition-all ${activeTab === tab.id
-                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl'
-                                    : 'bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                                    }`}
+                                className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-bold text-sm whitespace-nowrap transition-all ${
+                                    activeTab === tab.id
+                                        ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl'
+                                        : 'bg-white dark:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                                }`}
                             >
                                 <tab.icon size={18} className={activeTab === tab.id ? 'text-orange-500' : ''} />
                                 {tab.label}
@@ -159,167 +175,194 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                {/* Content Area */}
-                <div className="max-w-4xl">
-                    {activeTab === 'notifications' && (
+                <div className="max-w-4xl space-y-8">
+                    {activeTab === 'alerts' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-none p-8">
                                 <div className="flex items-center gap-4 mb-8">
                                     <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl text-orange-500">
-                                        <Mail size={28} />
+                                        <Bell size={28} />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Email Communications</h2>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Control the updates we send to your inbox</p>
-                                    </div>
-                                    <div className="ml-auto">
-                                        <Toggle
-                                            checked={preferences.email_enabled}
-                                            onChange={() => handleToggle('email_enabled')}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className={`space-y-1 ${!preferences.email_enabled ? 'opacity-40 grayscale pointer-events-none' : ''}`}>
-                                    {[
-                                        { id: 'email_viewing_updates', title: 'Viewing Requests', desc: 'Alerts about confirmed dates and scheduling changes' },
-                                        { id: 'email_application_updates', title: 'Application Status', desc: 'Instant updates on your rental applications' },
-                                        { id: 'email_message_notifications', title: 'New Messages', desc: 'Notifications for direct messages from agents' },
-                                        { id: 'email_price_alerts', title: 'Price Alerts', desc: 'When your saved properties drop in price' }
-                                    ].map((item, idx) => (
-                                        <div key={item.id} className={`flex items-center justify-between py-5 ${idx !== 0 ? 'border-t dark:border-gray-800' : ''}`}>
-                                            <div className="pr-4">
-                                                <p className="font-bold text-gray-900 dark:text-white">{item.title}</p>
-                                                <p className="text-sm text-gray-500 font-medium mt-0.5">{item.desc}</p>
-                                            </div>
-                                            <Toggle
-                                                checked={(preferences as any)[item.id]}
-                                                onChange={() => handleToggle(item.id as keyof UserPreferences)}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-none p-8">
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl text-orange-500">
-                                        <Smartphone size={28} />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">SMS & Push Settings</h2>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Manage instant mobile alerts</p>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Alert Preferences</h2>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                                            These switches map directly to `/api/v1/users/preferences`
+                                        </p>
                                     </div>
                                 </div>
 
                                 <div className="space-y-1">
-                                    {[
-                                        { id: 'push_enabled', title: 'Push Notifications', desc: 'In-app alerts for real-time activities' },
-                                        { id: 'sms_enabled', title: 'SMS Updates', desc: 'Urgent text messages for viewing reminders' }
-                                    ].map((item, idx) => (
-                                        <div key={item.id} className={`flex items-center justify-between py-5 ${idx !== 0 ? 'border-t dark:border-gray-800' : ''}`}>
-                                            <div className="pr-4">
-                                                <p className="font-bold text-gray-900 dark:text-white">{item.title}</p>
-                                                <p className="text-sm text-gray-500 font-medium mt-0.5">{item.desc}</p>
-                                            </div>
-                                            <Toggle
-                                                checked={(preferences as any)[item.id]}
-                                                onChange={() => handleToggle(item.id as keyof UserPreferences)}
-                                            />
+                                    <div className="flex items-center justify-between py-5">
+                                        <div className="pr-4">
+                                            <p className="font-bold text-gray-900 dark:text-white">In-App Notifications</p>
+                                            <p className="text-sm text-gray-500 font-medium mt-0.5">Enable dashboard notifications and alerts.</p>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'security' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8">
-                                <div className="flex items-center gap-4 mb-10">
-                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl text-red-500">
-                                        <Shield size={28} />
+                                        <Toggle
+                                            checked={preferences.notifications_enabled}
+                                            onChange={() => handleToggle('notifications_enabled')}
+                                        />
                                     </div>
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Account Security</h2>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {[
-                                        { title: 'Change Password', desc: 'Update your secret phrase', icon: Lock },
-                                        { title: 'Privacy Settings', desc: 'Control your visibility', icon: Eye },
-                                        { title: 'Login Sessions', desc: 'Manage your active devices', icon: Smartphone }
-                                    ].map((item) => (
-                                        <button key={item.title} className="flex items-start gap-4 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-900 transition-all text-left group">
-                                            <div className="p-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 group-hover:text-orange-500 transition-colors">
-                                                <item.icon size={20} />
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-gray-900 dark:text-white leading-tight">{item.title}</p>
-                                                <p className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-widest">{item.desc}</p>
-                                            </div>
-                                        </button>
-                                    ))}
+                                    <div className="flex items-center justify-between py-5 border-t dark:border-gray-800">
+                                        <div className="pr-4">
+                                            <p className="font-bold text-gray-900 dark:text-white">Email Alerts</p>
+                                            <p className="text-sm text-gray-500 font-medium mt-0.5">Receive email updates for saved searches and activity.</p>
+                                        </div>
+                                        <Toggle
+                                            checked={preferences.email_alerts}
+                                            onChange={() => handleToggle('email_alerts')}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {activeTab === 'preferences' && (
+                    {activeTab === 'search' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8">
                                 <div className="flex items-center gap-4 mb-10">
-                                    <LangIcon size={28} className="text-orange-500" />
-                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Regional Preferences</h2>
+                                    <SlidersHorizontal size={28} className="text-orange-500" />
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Search Defaults</h2>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Set the default filters stored in your profile.</p>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-1">Language</label>
-                                        <select 
-                                            value={preferences.language}
-                                            onChange={(e) => setPreferences({...preferences, language: e.target.value})}
-                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-orange-500 font-bold text-gray-900 dark:text-white appearance-none"
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Preferred City</label>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <input
+                                                type="text"
+                                                value={preferences.preferred_city}
+                                                onChange={(e) => handleTextChange('preferred_city', e.target.value)}
+                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                                placeholder="London"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Preferred Listing Type</label>
+                                        <select
+                                            value={preferences.preferred_type}
+                                            onChange={(e) => handleTextChange('preferred_type', e.target.value)}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                         >
-                                            <option>English (UK)</option>
-                                            <option>English (US)</option>
-                                            <option>Spanish</option>
-                                            <option>French</option>
-                                            <option>German</option>
+                                            <option value="">No default</option>
+                                            <option value="rent">Rent</option>
+                                            <option value="sale">Sale</option>
                                         </select>
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] uppercase font-black tracking-widest text-gray-400 px-1">Currency</label>
-                                        <select 
-                                            value={preferences.currency}
-                                            onChange={(e) => setPreferences({...preferences, currency: e.target.value})}
-                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-4 outline-none focus:ring-2 focus:ring-orange-500 font-bold text-gray-900 dark:text-white appearance-none"
-                                        >
-                                            <option>GBP (£)</option>
-                                            <option>USD ($)</option>
-                                            <option>EUR (€)</option>
-                                            <option>INR (₹)</option>
-                                        </select>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Budget</label>
+                                        <div className="relative">
+                                            <PoundSterling className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={preferences.min_budget ?? ''}
+                                                onChange={(e) => handleNumberChange('min_budget', e.target.value)}
+                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Budget</label>
+                                        <div className="relative">
+                                            <PoundSterling className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={preferences.max_budget ?? ''}
+                                                onChange={(e) => handleNumberChange('max_budget', e.target.value)}
+                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Bedrooms</label>
+                                        <div className="relative">
+                                            <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={preferences.min_bedrooms ?? ''}
+                                                onChange={(e) => handleNumberChange('min_bedrooms', e.target.value)}
+                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Bedrooms</label>
+                                        <div className="relative">
+                                            <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={preferences.max_bedrooms ?? ''}
+                                                onChange={(e) => handleNumberChange('max_bedrooms', e.target.value)}
+                                                className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Search Radius (km)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={preferences.search_radius_km ?? ''}
+                                            onChange={(e) => handleNumberChange('search_radius_km', e.target.value)}
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                            placeholder="25"
+                                        />
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    )}
 
+                    {activeTab === 'account' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl text-orange-500">
-                                            <Moon size={28} />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-900 dark:text-white">Appearance Mode</p>
-                                            <p className="text-sm text-gray-500 font-medium">Switch between light and dark themes</p>
-                                        </div>
+                                <div className="flex items-center gap-4 mb-8">
+                                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-2xl text-orange-500">
+                                        <ShieldAlert size={28} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Account Flags</h2>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Only the onboarding flag is currently persisted by the backend.</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between py-5">
+                                    <div className="pr-4">
+                                        <p className="font-bold text-gray-900 dark:text-white">Onboarding Complete</p>
+                                        <p className="text-sm text-gray-500 font-medium mt-0.5">Marks whether your guided setup flow is complete.</p>
                                     </div>
                                     <Toggle
-                                        checked={preferences.dark_mode}
-                                        onChange={() => handleToggle('dark_mode')}
+                                        checked={preferences.onboarding_done}
+                                        onChange={() => handleToggle('onboarding_done')}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-3xl p-8">
+                                <h3 className="text-lg font-bold text-amber-900 dark:text-amber-200">Not Wired Yet</h3>
+                                <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                                    Push notifications, SMS alerts, language, currency, theme mode, and security toggles are not backed by the current preferences API on `develop`, so they are intentionally hidden here instead of pretending to save.
+                                </p>
                             </div>
                         </div>
                     )}

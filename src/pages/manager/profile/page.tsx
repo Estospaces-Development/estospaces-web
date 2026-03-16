@@ -63,9 +63,9 @@ export default function ManagerProfilePage() {
             await apiFetch(`${CORE_URL()}/api/v1/users/profile`, {
                 method: 'PUT',
                 body: JSON.stringify({
-                    name: `${formData.firstName} ${formData.lastName}`.trim(),
-                    email: formData.email,
-                    phone: formData.phone,
+                    first_name: formData.firstName || undefined,
+                    last_name: formData.lastName || undefined,
+                    phone: formData.phone || undefined,
                 }),
             });
             setIsSaved(true);
@@ -170,9 +170,10 @@ export default function ManagerProfilePage() {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
                                     <div className="relative">
                                         <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="email" name="email" value={formData.email} onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        <input type="email" name="email" value={formData.email} disabled
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
+                                    <p className="text-xs text-gray-500 mt-1">Email updates are not supported by the current profile API.</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone</label>
@@ -193,17 +194,20 @@ export default function ManagerProfilePage() {
                                 <Building size={18} className="text-blue-500" />
                                 Professional Details
                             </h3>
+                            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
+                                Broker/company profile editing is not exposed by the current backend yet, so these fields are shown read-only on `develop`.
+                            </div>
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Company Name</label>
-                                        <input type="text" name="companyName" value={formData.companyName} onChange={handleChange}
-                                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        <input type="text" name="companyName" value={formData.companyName} disabled
+                                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License Number</label>
-                                        <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
-                                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        <input type="text" name="licenseNumber" value={formData.licenseNumber} disabled
+                                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
                                 </div>
 
@@ -211,8 +215,8 @@ export default function ManagerProfilePage() {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Website</label>
                                     <div className="relative">
                                         <Globe size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="url" name="website" value={formData.website} onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        <input type="url" name="website" value={formData.website} disabled
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
                                 </div>
 
@@ -220,16 +224,16 @@ export default function ManagerProfilePage() {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office Address</label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
-                                        <textarea name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                        <textarea name="companyAddress" value={formData.companyAddress} disabled rows={2}
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 resize-none cursor-not-allowed" />
                                     </div>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Bio</label>
-                                    <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4}
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
-                                    <p className="text-xs text-gray-500 mt-1">This will be displayed on your property listings.</p>
+                                    <textarea name="bio" value={formData.bio} disabled rows={4}
+                                        className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 resize-none cursor-not-allowed" />
+                                    <p className="text-xs text-gray-500 mt-1">This section becomes editable once a broker profile update API is available.</p>
                                 </div>
                             </div>
                         </div>

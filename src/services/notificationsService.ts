@@ -65,7 +65,7 @@ export interface Notification {
     type: string;
     title: string;
     message: string;
-    data: string;
+    data: NotificationData | null;
     is_read: boolean;
     read_at?: string;
     channel: string;
@@ -95,6 +95,37 @@ export interface CreateNotificationParams {
     channel?: string;
 }
 
+const parseNotificationData = (value: unknown): NotificationData | null => {
+    if (!value) return null;
+
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as NotificationData;
+        } catch {
+            return null;
+        }
+    }
+
+    if (typeof value === 'object') {
+        return value as NotificationData;
+    }
+
+    return null;
+};
+
+const normalizeNotification = (notification: any): Notification => ({
+    id: notification.id,
+    user_id: notification.user_id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    data: parseNotificationData(notification.data),
+    is_read: Boolean(notification.is_read),
+    read_at: notification.read_at,
+    channel: notification.channel,
+    created_at: notification.created_at,
+});
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -106,7 +137,11 @@ export async function getNotifications(unreadOnly: boolean = false): Promise<{
     unread_count: number;
 }> {
     const url = `${NOTIFICATION_URL()}/api/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`;
-    return apiFetch<{ notifications: Notification[]; unread_count: number }>(url);
+    const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url);
+    return {
+        notifications: (data.notifications || []).map(normalizeNotification),
+        unread_count: data.unread_count || 0,
+    };
 }
 
 /**
@@ -132,14 +167,11 @@ export async function markAllRead(): Promise<void> {
 }
 
 /**
- * Delete a notification
- * DELETE /api/v1/notifications/:id
+ * Dismiss a notification in the UI.
+ * The current notification-service only supports read-state mutation, not hard delete.
  */
 export async function deleteNotification(notificationId: string): Promise<void> {
-    await apiFetch<any>(
-        `${NOTIFICATION_URL()}/api/v1/notifications/${notificationId}`,
-        { method: 'DELETE' },
-    );
+    await markRead(notificationId);
 }
 
 /**

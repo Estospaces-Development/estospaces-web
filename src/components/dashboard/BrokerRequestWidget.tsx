@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Send, CheckCircle, AlertCircle, MapPin, Building, Phone } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Send, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
 import { createBrokerRequest } from '@/services/leadsService';
 
 const BrokerRequestWidget = () => {
-    const { user } = useAuth();
     const [requestType, setRequestType] = useState('buy'); // buy, rent, sell, let
     const [details, setDetails] = useState('');
     const [location, setLocation] = useState('');

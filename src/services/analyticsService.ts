@@ -73,15 +73,27 @@ export interface ManagerAnalyticsResponse {
     error: string | null;
 }
 
+// Basic in-memory cache to prevent pounding the API
+const CACHE_TTL = 30000; // 30 seconds
+const analyticsCache: Record<string, { data: any; timestamp: number }> = {};
+
 /**
  * Fetch analytics data from the core-service backend (Admin Platform Stats)
  * GET /api/v1/admin/analytics (requires admin role)
  */
-export const getPlatformAnalytics = async (): Promise<AnalyticsResponse> => {
+export const getPlatformAnalytics = async (forceRefresh = false): Promise<AnalyticsResponse> => {
+    const cacheKey = 'platform_analytics';
+    const now = Date.now();
+
+    if (!forceRefresh && analyticsCache[cacheKey] && (now - analyticsCache[cacheKey].timestamp < CACHE_TTL)) {
+        return { data: analyticsCache[cacheKey].data, error: null };
+    }
+
     try {
         const data = await apiFetch<AnalyticsData>(
             `${CORE_URL()}/api/v1/admin/analytics`,
         );
+        analyticsCache[cacheKey] = { data, timestamp: now };
         return { data, error: null };
     } catch (error: any) {
         console.error('[analyticsService] Error:', error.message);
@@ -96,11 +108,19 @@ export const getAnalyticsData = getPlatformAnalytics;
  * Fetch analytics data for the current manager
  * GET /api/v1/manager/analytics (requires manager/admin role)
  */
-export const getManagerAnalytics = async (): Promise<AnalyticsResponse> => {
+export const getManagerAnalytics = async (forceRefresh = false): Promise<AnalyticsResponse> => {
+    const cacheKey = 'manager_analytics';
+    const now = Date.now();
+
+    if (!forceRefresh && analyticsCache[cacheKey] && (now - analyticsCache[cacheKey].timestamp < CACHE_TTL)) {
+        return { data: analyticsCache[cacheKey].data, error: null };
+    }
+
     try {
         const data = await apiFetch<AnalyticsData>(
             `${CORE_URL()}/api/v1/manager/analytics`,
         );
+        analyticsCache[cacheKey] = { data, timestamp: now };
         return { data, error: null };
     } catch (error: any) {
         console.error('[analyticsService] Error:', error.message);

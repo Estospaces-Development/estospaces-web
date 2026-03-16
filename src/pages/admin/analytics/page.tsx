@@ -19,7 +19,7 @@ function AnalyticsContent() {
             if (refresh) setIsRefreshing(true);
             else setIsLoading(true);
 
-            const response = await getPlatformAnalytics();
+            const response = await getPlatformAnalytics(refresh);
             if (response.error) {
                 throw new Error(response.error);
             }

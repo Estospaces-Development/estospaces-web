@@ -50,10 +50,10 @@ interface MessagesContextType {
     createConversation: (agentData: any, propertyData: any) => Promise<string>;
     sendMessage: (conversationId: string, text: string, attachments?: any[]) => Promise<void>;
     markAsRead: (conversationId: string) => Promise<void>;
-    archiveConversation: (conversationId: string) => void;
-    unarchiveConversation: (conversationId: string) => void;
-    muteConversation: (conversationId: string) => void;
-    unmuteConversation: (conversationId: string) => void;
+    archiveConversation: (conversationId: string) => Promise<void>;
+    unarchiveConversation: (conversationId: string) => Promise<void>;
+    muteConversation: (conversationId: string) => Promise<void>;
+    unmuteConversation: (conversationId: string) => Promise<void>;
     deleteConversation: (conversationId: string) => void;
     getConversation: (conversationId: string) => Conversation | undefined;
     quickReplyTemplates: string[];
@@ -129,6 +129,8 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         return {
             id: conv.id,
             ...metadata,
+            isArchived: conv.is_archived ?? metadata.isArchived,
+            isMuted: conv.is_muted ?? metadata.isMuted,
             lastActivity: conv.updated_at,
             unreadCount: unreadCount,
             messages
@@ -256,48 +258,48 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         }
     }, []);
 
-    const archiveConversation = useCallback((conversationId: string) => {
-        // TODO: Backend API for Archive not implemented
-        // integrate when backend is implemented
-        console.warn('Archive not implemented on backend');
-        /*
-        setConversations((prev) =>
-            prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: true } : conv)
-        );
-        */
+    const archiveConversation = useCallback(async (conversationId: string) => {
+        try {
+            await messagesService.updateConversationPreferences(conversationId, { is_archived: true });
+            setConversations((prev) =>
+                prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: true } : conv)
+            );
+        } catch (error) {
+            console.error('Failed to archive conversation', error);
+        }
     }, []);
 
-    const unarchiveConversation = useCallback((conversationId: string) => {
-        // TODO: Backend API for Unarchive not implemented
-        // integrate when backend is implemented
-        console.warn('Unarchive not implemented on backend');
-        /*
-        setConversations((prev) =>
-            prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: false } : conv)
-        );
-        */
+    const unarchiveConversation = useCallback(async (conversationId: string) => {
+        try {
+            await messagesService.updateConversationPreferences(conversationId, { is_archived: false });
+            setConversations((prev) =>
+                prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: false } : conv)
+            );
+        } catch (error) {
+            console.error('Failed to unarchive conversation', error);
+        }
     }, []);
 
-    const muteConversation = useCallback((conversationId: string) => {
-        // TODO: Backend API for Mute not implemented
-        // integrate when backend is implemented
-        console.warn('Mute not implemented on backend');
-        /*
-        setConversations((prev) =>
-            prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: true } : conv)
-        );
-        */
+    const muteConversation = useCallback(async (conversationId: string) => {
+        try {
+            await messagesService.updateConversationPreferences(conversationId, { is_muted: true });
+            setConversations((prev) =>
+                prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: true } : conv)
+            );
+        } catch (error) {
+            console.error('Failed to mute conversation', error);
+        }
     }, []);
 
-    const unmuteConversation = useCallback((conversationId: string) => {
-        // TODO: Backend API for Unmute not implemented
-        // integrate when backend is implemented
-        console.warn('Unmute not implemented on backend');
-        /*
-        setConversations((prev) =>
-            prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: false } : conv)
-        );
-        */
+    const unmuteConversation = useCallback(async (conversationId: string) => {
+        try {
+            await messagesService.updateConversationPreferences(conversationId, { is_muted: false });
+            setConversations((prev) =>
+                prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: false } : conv)
+            );
+        } catch (error) {
+            console.error('Failed to unmute conversation', error);
+        }
     }, []);
 
     const deleteConversation = useCallback((conversationId: string) => {

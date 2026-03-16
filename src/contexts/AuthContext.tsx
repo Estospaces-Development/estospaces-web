@@ -9,8 +9,10 @@ interface User {
     role: string;
     isAuthenticated: boolean;
     avatar_url?: string;
+    avatar?: string;
     phone?: string;
     address?: string;
+    postcode?: string;
     user_metadata?: {
         full_name?: string;
         [key: string]: any;
@@ -61,9 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : userData.name || userData.email.split('@')[0],
                 role: userData.role || 'user',
                 isAuthenticated: true,
-                avatar_url: userData.avatar_url,
+                avatar_url: userData.avatar_url || userData.avatar,
+                avatar: userData.avatar || userData.avatar_url,
                 phone: userData.phone,
-                address: userData.address
+                address: userData.address,
+                postcode: userData.postcode,
             };
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);

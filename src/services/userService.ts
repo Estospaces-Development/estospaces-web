@@ -21,9 +21,13 @@ export interface AgencyResponse {
 
 export const userService = {
     getAgencies: async (limit: number = 5): Promise<AgencyResponse> => {
-        // TODO: Backend endpoint GET /api/v1/users/agencies does not exist yet
-        // return apiFetch<Agency[]>(`${CORE_URL()}/api/v1/users/agencies?limit=${limit}`);
-        return { data: [], error: null };
+        try {
+            const data = await apiFetch<Agency[]>(`${CORE_URL()}/api/v1/users/agencies?limit=${limit}`);
+            return { data, error: null };
+        } catch (error: any) {
+            console.error('[userService] getAgencies error:', error.message);
+            return { data: [], error: error.message };
+        }
     },
 
     getAllUsers: async (page: number = 1, limit: number = 20): Promise<{ data: User[], pagination: any, error: string | null }> => {

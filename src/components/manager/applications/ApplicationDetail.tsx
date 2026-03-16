@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApplications, APPLICATION_STATUS, Application, ApplicationStatus } from '../../../contexts/ApplicationsContext';
 import StatusTracker from './StatusTracker';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface ApplicationDetailProps {
     applicationId: string;
@@ -251,7 +252,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                 alt={application.propertyTitle}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                 }}
                             />
                         </div>

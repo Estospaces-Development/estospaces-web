@@ -1,11 +1,10 @@
 /**
  * Contact Service
- * Handles public contact form submissions.
+ * The develop stack does not expose a public contact endpoint, so we fall back
+ * to a mailto draft instead of posting to a dead API route.
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
-
-const CORE_URL = () => getServiceUrl('core');
+const CONTACT_EMAIL = 'hello@estospaces.com';
 
 export interface ContactSubmission {
     name: string;
@@ -14,14 +13,37 @@ export interface ContactSubmission {
     message: string;
 }
 
+export interface ContactSubmissionResult {
+    delivery: 'mailto';
+    mailtoUrl: string;
+}
+
+export function buildContactMailtoUrl(data: ContactSubmission): string {
+    const normalizedSubject = data.subject.trim() || 'General enquiry';
+    const body = [
+        `Name: ${data.name.trim()}`,
+        `Email: ${data.email.trim()}`,
+        '',
+        data.message.trim(),
+    ].join('\n');
+
+    return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(`[Estospaces] ${normalizedSubject}`)}&body=${encodeURIComponent(body)}`;
+}
+
 /**
- * Submit a public contact form
+ * Submit a public contact form by opening an email draft.
  */
-export async function submitContactForm(data: ContactSubmission): Promise<void> {
-    await apiFetch(`${CORE_URL()}/api/v1/public/contact`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+export async function submitContactForm(data: ContactSubmission): Promise<ContactSubmissionResult> {
+    const mailtoUrl = buildContactMailtoUrl(data);
+
+    if (typeof window !== 'undefined') {
+        window.location.href = mailtoUrl;
+    }
+
+    return {
+        delivery: 'mailto',
+        mailtoUrl,
+    };
 }
 
 export const contactService = {

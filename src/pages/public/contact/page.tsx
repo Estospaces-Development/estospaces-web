@@ -34,7 +34,7 @@ export default function ContactPage() {
             await contactService.submitContactForm(formData);
             setIsSubmitted(true);
             setFormData({ name: '', email: '', subject: '', message: '' });
-            toast.success('Your message has been sent!');
+            toast.success('Your email draft is ready.');
         } catch (error: any) {
             toast.error(error.message || 'Failed to send message');
             console.error('[ContactPage] Submit Error:', error);
@@ -149,9 +149,9 @@ export default function ContactPage() {
                                     <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
                                         <CheckCircle className="text-green-500" size={32} />
                                     </div>
-                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Message Sent!</h3>
+                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Email Draft Ready</h3>
                                     <p className="text-gray-600 dark:text-gray-400 mb-6">
-                                        Thank you for contacting us. We&apos;ll get back to you within 24 hours.
+                                        Your email client should open with the message pre-filled so you can send it directly to our team.
                                     </p>
                                     <button
                                         onClick={() => setIsSubmitted(false)}
@@ -196,7 +196,7 @@ export default function ContactPage() {
                                                     onChange={handleChange}
                                                     required
                                                     className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                                                    placeholder="john@example.com"
+                                                    placeholder="Enter your email address"
                                                 />
                                             </div>
                                         </div>

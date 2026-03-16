@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { APPLICATION_STATUS, Application } from '../../../contexts/ApplicationsContext';
 import { useNavigate } from 'react-router-dom';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface ApplicationCardProps {
     application: Application;
@@ -240,8 +241,8 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         alt={application.propertyTitle}
                         className="w-full h-full object-cover min-h-[160px]"
                         onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=200';
-                        }}
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
+                                }}
                     />
                     {/* Status Badge Overlay */}
                     <div className="absolute top-3 left-3">

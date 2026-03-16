@@ -14,6 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
@@ -37,7 +38,7 @@ export default function ViewingsPage() {
                     ...viewing,
                     date: viewing.scheduled_at?.split('T')[0] || viewing.scheduled_at,
                     time: viewing.scheduled_at?.split('T')[1]?.substring(0, 5) || '',
-                    propertyImage: viewing.property?.image_urls?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
+                    propertyImage: viewing.property?.image_urls?.[0] || PROPERTY_PLACEHOLDER_IMAGE,
                     propertyTitle: viewing.property?.title || 'Property',
                     propertyAddress: viewing.property?.address_line_1 || 'Address not available',
                     propertyPrice: viewing.property?.price || 0,

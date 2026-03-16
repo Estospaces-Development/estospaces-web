@@ -10,9 +10,25 @@ interface ClientProfileModalProps {
     clientName: string;
     avatar?: string;
     clientId?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    memberSince?: string;
+    interestedIn?: string;
 }
 
-const ClientProfileModal: React.FC<ClientProfileModalProps> = ({ isOpen, onClose, clientName, avatar, clientId = '1' }) => {
+const ClientProfileModal: React.FC<ClientProfileModalProps> = ({
+    isOpen,
+    onClose,
+    clientName,
+    avatar,
+    clientId = '1',
+    email,
+    phone,
+    location,
+    memberSince,
+    interestedIn,
+}) => {
     const navigate = useNavigate();
 
     if (!isOpen) return null;
@@ -56,7 +72,7 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({ isOpen, onClose
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{clientName}</h2>
                         <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400 mb-6">
                             <MapPin className="w-4 h-4" />
-                            <span>Mumbai, India</span>
+                            <span>{location || 'Location not available'}</span>
                         </div>
 
                         {/* Info Grid */}
@@ -66,28 +82,28 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({ isOpen, onClose
                                     <Phone className="w-3 h-3" />
                                     <span>Phone</span>
                                 </div>
-                                <p className="font-medium text-sm text-gray-900 dark:text-white">+91 98765 43210</p>
+                                <p className="font-medium text-sm text-gray-900 dark:text-white">{phone || 'Not available'}</p>
                             </div>
                             <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
                                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
                                     <Mail className="w-3 h-3" />
                                     <span>Email</span>
                                 </div>
-                                <p className="font-medium text-sm text-gray-900 dark:text-white truncate">client@example.com</p>
+                                <p className="font-medium text-sm text-gray-900 dark:text-white truncate">{email || 'Not available'}</p>
                             </div>
                             <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
                                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
                                     <Calendar className="w-3 h-3" />
                                     <span>Member Since</span>
                                 </div>
-                                <p className="font-medium text-sm text-gray-900 dark:text-white">Jan 2024</p>
+                                <p className="font-medium text-sm text-gray-900 dark:text-white">{memberSince || 'Not available'}</p>
                             </div>
                             <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-100 dark:border-gray-700">
                                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-1">
                                     <Home className="w-3 h-3" />
                                     <span>Interested In</span>
                                 </div>
-                                <p className="font-medium text-sm text-gray-900 dark:text-white">Rent, Buy</p>
+                                <p className="font-medium text-sm text-gray-900 dark:text-white">{interestedIn || 'Not available in this view'}</p>
                             </div>
                         </div>
 

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import * as propertyService from '../services/propertyService';
+import { uploadMediaFile } from '@/services/mediaService';
 
 // Type definitions
 export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'INR' | 'AED' | 'CAD' | 'AUD' | 'JPY' | 'CNY' | 'SGD';
@@ -26,6 +27,8 @@ export type ListingType = 'sale' | 'rent' | 'lease' | 'short_term' | 'vacation';
 export type FurnishingStatus = 'furnished' | 'semi_furnished' | 'unfurnished';
 export type PropertyCondition = 'new' | 'excellent' | 'good' | 'fair' | 'needs_renovation';
 export type FacingDirection = 'north' | 'south' | 'east' | 'west' | 'northeast' | 'northwest' | 'southeast' | 'southwest';
+
+const PROPERTY_CONDITIONS: PropertyCondition[] = ['new', 'excellent', 'good', 'fair', 'needs_renovation'];
 
 export interface PriceInfo {
     amount: number;
@@ -91,7 +94,7 @@ export interface Property {
     // Features
     yearBuilt?: number;
     furnishing: FurnishingStatus;
-    condition: PropertyCondition;
+    condition?: PropertyCondition;
     facing?: FacingDirection;
     amenities: {
         interior: string[];
@@ -209,8 +212,8 @@ interface PropertyContextType {
     deleteProperties: (ids: string[]) => Promise<void>;
     duplicateProperty: (id: string) => Promise<Property | null>;
     getProperty: (id: string) => Property | undefined;
-    uploadImages: (files: File[]) => Promise<string[]>;
-    uploadVideos: (files: File[]) => Promise<string[]>;
+    uploadImages: (entityId: string, files: File[]) => Promise<string[]>;
+    uploadVideos: (entityId: string, files: File[]) => Promise<string[]>;
 
     selectProperty: (id: string) => void;
     deselectProperty: (id: string) => void;
@@ -275,6 +278,9 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         const videoList = parseStringArray(p.video_urls);
         const amenitiesList = parseStringArray(p.amenities);
         const featuresList = parseStringArray(p.features);
+        const condition = typeof p.condition === 'string' && PROPERTY_CONDITIONS.includes(p.condition as PropertyCondition)
+            ? (p.condition as PropertyCondition)
+            : undefined;
         
         // Define amenity categories to parse back from flat array
         const categories = {
@@ -333,7 +339,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             amenities: parsedAmenities,
             features: featuresList,
             furnishing: p.furnished ? 'furnished' : 'unfurnished',
-            condition: 'excellent', // TODO: Backend should provide condition
+            condition,
             yearBuilt: p.year_built,
             analytics: {
                 views: p.views || 0,
@@ -413,6 +419,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         if (p.dimensions?.totalArea !== undefined) serviceProps.property_size_sqft = p.dimensions.totalArea;
         if (p.yearBuilt !== undefined) serviceProps.year_built = p.yearBuilt;
         if (p.furnishing !== undefined) serviceProps.furnished = p.furnishing === 'furnished';
+        if (p.condition !== undefined) serviceProps.condition = p.condition;
         if (p.rooms?.parkingSpaces !== undefined) serviceProps.parking_spaces = p.rooms.parkingSpaces;
         if (p.featured !== undefined) serviceProps.featured = p.featured;
 
@@ -480,6 +487,16 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
 
     const filteredProperties = properties;
     // Placeholder for actual filtering logic
+
+    const uploadPropertyMedia = async (entityId: string, files: File[]): Promise<string[]> => {
+        const uploads = await Promise.all(
+            files.map(async (file) => {
+                const mediaFile = await uploadMediaFile(file, 'property', entityId, file.name);
+                return mediaFile.file_url;
+            }),
+        );
+        return uploads;
+    };
 
     return (
         <PropertyContext.Provider value={{
@@ -589,8 +606,12 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 }
             },
             getProperty: (id) => properties.find(p => p.id === id),
-            uploadImages: async () => [],
-            uploadVideos: async () => [],
+            uploadImages: async (entityId, files) => {
+                return uploadPropertyMedia(entityId, files);
+            },
+            uploadVideos: async (entityId, files) => {
+                return uploadPropertyMedia(entityId, files);
+            },
             selectProperty: (id) => setSelectedProperties(prev => [...prev, id]),
             deselectProperty: (id) => setSelectedProperties(prev => prev.filter(pId => pId !== id)),
             selectAllProperties: () => setSelectedProperties(properties.map(p => p.id)),

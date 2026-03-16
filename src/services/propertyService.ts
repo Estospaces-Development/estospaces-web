@@ -23,6 +23,7 @@ export interface Property {
     property_size_sqft?: number;
     year_built?: number;
     furnished?: boolean;
+    condition?: string;
     parking_spaces?: number;
     featured?: boolean;
     address_line_1: string;
@@ -203,12 +204,12 @@ export const unsaveProperty = async (id: string): Promise<{ error: string | null
 
 /**
  * Get user's saved properties
- * GET /api/v1/properties/saved/list (core-service)
+ * GET /api/v1/properties/saved (core-service)
  */
 export const getSavedProperties = async (): Promise<{ data: Property[] | null; error: string | null }> => {
     try {
         const data = await apiFetch<Property[]>(
-            `${CORE_URL()}/api/v1/properties/saved/list`,
+            `${CORE_URL()}/api/v1/properties/saved`,
         );
         return { data, error: null };
     } catch (error: any) {

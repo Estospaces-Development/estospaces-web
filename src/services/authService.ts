@@ -9,27 +9,27 @@ export interface UserProfile {
     last_name: string;
     phone?: string;
     address?: string;
+    postcode?: string;
     bio?: string;
     role: string;
+    avatar?: string;
     avatar_url?: string;
 }
 
 export interface UserPreferences {
     id?: string;
     user_id?: string;
-    email_enabled: boolean;
-    email_viewing_updates: boolean;
-    email_application_updates: boolean;
-    email_message_notifications: boolean;
-    email_price_alerts: boolean;
-    push_enabled: boolean;
-    push_viewing_updates: boolean;
-    sms_enabled: boolean;
-    marketing_emails: boolean;
-    two_factor_auth: boolean;
-    dark_mode: boolean;
-    language: string;
-    currency: string;
+    preferred_city: string;
+    preferred_type: string;
+    min_budget: number | null;
+    max_budget: number | null;
+    min_bedrooms: number | null;
+    max_bedrooms: number | null;
+    notifications_enabled: boolean;
+    email_alerts: boolean;
+    search_radius_km: number | null;
+    onboarding_done: boolean;
+    created_at?: string;
     updated_at?: string;
 }
 
@@ -45,9 +45,17 @@ export const getProfile = async () => {
 
 export const updateProfile = async (profileData: Partial<UserProfile>) => {
     try {
+        const payload = {
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+            phone: profileData.phone,
+            address: profileData.address,
+            postcode: profileData.postcode,
+            avatar: profileData.avatar ?? profileData.avatar_url,
+        };
         const data = await apiFetch<UserProfile>(`${CORE_URL()}/api/v1/users/profile`, {
             method: 'PUT',
-            body: JSON.stringify(profileData)
+            body: JSON.stringify(payload)
         });
         return { data, error: null };
     } catch (error: any) {

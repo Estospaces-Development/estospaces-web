@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, TrendingUp, Star, Clock, Zap, Eye } from 'lucide-react';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface PropertyDiscoverySectionProps {
     title: string;
@@ -77,8 +78,8 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                 { icon: 'bath', label: `${property.bathrooms || 0} Baths` },
                 { icon: 'maximize', label: `${property.property_size_sqft || 0} sqft` },
             ],
-            image: validImages[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
-            images: validImages.length > 0 ? validImages : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+            image: validImages[0] || PROPERTY_PLACEHOLDER_IMAGE,
+            images: validImages.length > 0 ? validImages : [PROPERTY_PLACEHOLDER_IMAGE],
             type: property.listing_type || 'rent',
             category: property.property_type || 'house',
             status: property.status || 'available',

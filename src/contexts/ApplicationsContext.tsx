@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { getUserLeads, Lead as BackendLead, createLead, updateLeadStatus as updateBackendLeadStatus } from '../services/leadsService';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -125,7 +126,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 updatedAt: lead.updated_at,
                 propertyTitle: lead.property?.title || 'Property',
                 propertyAddress: lead.property?.address_line_1 || 'UK',
-                propertyImage: lead.property?.image_urls ? (lead.property.image_urls.startsWith('[') ? JSON.parse(lead.property.image_urls)[0] : lead.property.image_urls) : 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400',
+                propertyImage: lead.property?.image_urls ? (lead.property.image_urls.startsWith('[') ? JSON.parse(lead.property.image_urls)[0] : lead.property.image_urls) : PROPERTY_PLACEHOLDER_IMAGE,
                 propertyPrice: lead.property?.price || 0,
                 propertyType: lead.property?.property_type || 'apartment',
                 agentName: lead.property?.agent_name || '',

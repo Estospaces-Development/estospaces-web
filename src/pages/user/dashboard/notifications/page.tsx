@@ -46,8 +46,8 @@ export default function NotificationsPage() {
     const filteredNotifications = useMemo(() => {
         return notifications.filter((notification: any) => {
             // Read/unread filter
-            if (filter === 'unread' && notification.read) return false;
-            if (filter === 'read' && !notification.read) return false;
+            if (filter === 'unread' && notification.is_read) return false;
+            if (filter === 'read' && !notification.is_read) return false;
 
             // Category filter
             if (category !== 'all') {
@@ -144,7 +144,7 @@ export default function NotificationsPage() {
     };
 
     const handleNotificationClick = (notification: any) => {
-        if (!notification.read) {
+        if (!notification.is_read) {
             markAsRead(notification.id);
         }
 
@@ -368,7 +368,7 @@ export default function NotificationsPage() {
 
                                                 <div className="flex-1 min-w-0" onClick={() => handleNotificationClick(notification)}>
                                                     <div className="flex items-center justify-between gap-4">
-                                                        <h4 className={`font-bold text-gray-900 dark:text-white truncate ${!notification.read ? 'pr-6' : ''}`}>
+                                                        <h4 className={`font-bold text-gray-900 dark:text-white truncate ${!notification.is_read ? 'pr-6' : ''}`}>
                                                             {notification.title}
                                                         </h4>
                                                         <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
@@ -376,7 +376,7 @@ export default function NotificationsPage() {
                                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notification.message}</p>
                                                 </div>
 
-                                                {!notification.read && (
+                                                {!notification.is_read && (
                                                     <div className="absolute top-4 right-4 w-2 h-2 bg-orange-500 rounded-full shadow-sm shadow-orange-500/50" />
                                                 )}
 

@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -80,6 +81,34 @@ export interface UpdateLeadRequest {
     budget?: string;
     last_contact?: string;
 }
+
+export interface UserDocument {
+    id: string;
+    user_id: string;
+    document_type: string;
+    document_category: string;
+    file_name: string;
+    file_url: string;
+    file_size: number;
+    mime_type: string;
+    status: string;
+    reject_reason?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+const DOCUMENT_UPLOAD_TYPES: Record<string, { document_type: string; document_category: string }> = {
+    identity: {
+        document_type: 'government_id',
+        document_category: 'identity',
+    },
+    address: {
+        document_type: 'address_proof',
+        document_category: 'address',
+    },
+};
 
 /**
  * Fetch leads for the logged-in user
@@ -171,8 +200,8 @@ export const createLead = async (propertyId: string): Promise<{ data: Lead | nul
 };
 
 /**
- * Create a generic broker request (user)
- * POST /api/v1/leads/manual (core-service fallback)
+ * Create a broker request for agent matching
+ * POST /api/v1/leads/broker-request (core-service)
  */
 export const createBrokerRequest = async (requestData: {
     requestType: string;
@@ -182,15 +211,14 @@ export const createBrokerRequest = async (requestData: {
 }): Promise<{ success: boolean; error: string | null }> => {
     try {
         await apiFetch<any>(
-            `${CORE_URL()}/api/v1/leads/manual`,
+            `${CORE_URL()}/api/v1/leads/broker-request`,
             {
                 method: 'POST',
                 body: JSON.stringify({
-                    property_interested: `${requestData.requestType} in ${requestData.location}`,
+                    request_type: requestData.requestType,
+                    location: requestData.location,
                     budget: requestData.budget,
-                    last_contact: requestData.details,
-                    name: 'Web Request', // Placeholder since lead name is required
-                    email: 'request@estospaces.local'
+                    details: requestData.details,
                 }),
             },
         );
@@ -342,20 +370,56 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
  * Upload a document for verification
  * POST /api/v1/documents (core-service)
  */
-export const uploadDocument = async (type: string, file: File): Promise<{ success: boolean; error: string | null }> => {
+export const uploadDocument = async (
+    type: string,
+    file: File,
+): Promise<{ success: boolean; data: UserDocument | null; error: string | null }> => {
     try {
-        const formData = new FormData();
-        formData.append('type', type);
-        formData.append('file', file);
+        const mapping = DOCUMENT_UPLOAD_TYPES[type];
+        if (!mapping) {
+            throw new Error(`Document upload type "${type}" is not supported on develop`);
+        }
 
-        await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
+        const uploadedFile = await uploadMediaFile(file, 'document', crypto.randomUUID(), file.name);
+
+        const data = await apiFetch<UserDocument>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
-            body: formData,
-            // apiFetch handles Auth headers, but we might need to handle multipart/form-data specifically if apiFetch defaults to JSON
+            body: JSON.stringify({
+                document_type: mapping.document_type,
+                document_category: mapping.document_category,
+                file_name: file.name,
+                file_url: uploadedFile.file_url,
+                file_size: file.size,
+                mime_type: file.type,
+            }),
         });
-        return { success: true, error: null };
+        return { success: true, data, error: null };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        return { success: false, data: null, error: error.message };
+    }
+};
+
+export const getUserDocuments = async (): Promise<{
+    data: UserDocument[];
+    verificationLevel: string | null;
+    error: string | null;
+}> => {
+    try {
+        const response = await apiFetch<{ documents?: UserDocument[]; verification_level?: string }>(
+            `${CORE_URL()}/api/v1/documents`,
+        );
+
+        return {
+            data: response.documents || [],
+            verificationLevel: response.verification_level || null,
+            error: null,
+        };
+    } catch (error: any) {
+        return {
+            data: [],
+            verificationLevel: null,
+            error: error.message,
+        };
     }
 };
 
@@ -390,5 +454,6 @@ export const leadsService = {
     getAllLeads,
     reassignLead,
     uploadDocument,
+    getUserDocuments,
     resendVerification,
 };

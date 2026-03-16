@@ -55,6 +55,7 @@ import {
 } from 'lucide-react';
 import AddressSection, { AddressFormData } from '@/components/ui/AddressSection';
 import Toast from '@/components/ui/Toast';
+import { reassignMediaEntity } from '@/services/mediaService';
 
 // Mode type for clear distinction
 type FormMode = 'create' | 'edit';
@@ -337,6 +338,7 @@ export default function AddPropertyPage() {
     const { id } = useParams<{ id: string }>();
     const idValue = id;
     const { addProperty, updateProperty, getProperty, formatPrice, formatArea, uploadImages, uploadVideos, fetchProperties, loading: contextLoading } = useProperties();
+    const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
 
     // Determine mode based on presence of ID
     const mode: FormMode = idValue ? 'edit' : 'create';
@@ -763,6 +765,7 @@ export default function AddPropertyPage() {
     const processImages = async (files: (File | string)[]): Promise<string[]> => {
         const existingUrls: string[] = [];
         const newFiles: File[] = [];
+        const mediaEntityId = idValue || draftMediaEntityIdRef.current;
 
         for (const file of files) {
             if (typeof file === 'string') {
@@ -775,16 +778,13 @@ export default function AddPropertyPage() {
         let uploadedUrls: string[] = [];
         if (newFiles.length > 0) {
             try {
-                uploadedUrls = await uploadImages(newFiles);
-                if (uploadedUrls.length === 0 && newFiles.length > 0) {
-                    // Map images if present
-                    // instead of base64 to avoid huge payloads that get dropped by the DB
-                    uploadedUrls = newFiles.map((_, i) => `https://images.unsplash.com/photo-${1500000000000 + i}?auto=format&fit=crop&q=80`);
+                uploadedUrls = await uploadImages(mediaEntityId, newFiles);
+                if (uploadedUrls.length !== newFiles.length) {
+                    throw new Error('Image upload did not complete for every selected file.');
                 }
             } catch (err) {
                 console.error('Failed to upload images:', err);
-                // Fallback to mock unsplash images if upload fails entirely
-                uploadedUrls = newFiles.map((_, i) => `https://images.unsplash.com/photo-${1500000000000 + i}?auto=format&fit=crop&q=80`);
+                throw err;
             }
         }
 
@@ -794,6 +794,7 @@ export default function AddPropertyPage() {
     const processVideos = async (files: (File | string)[]): Promise<string[]> => {
         const existingUrls: string[] = [];
         const newFiles: File[] = [];
+        const mediaEntityId = idValue || draftMediaEntityIdRef.current;
 
         for (const file of files) {
             if (typeof file === 'string') {
@@ -806,13 +807,13 @@ export default function AddPropertyPage() {
         let uploadedUrls: string[] = [];
         if (newFiles.length > 0) {
             try {
-                uploadedUrls = await uploadVideos(newFiles);
-                if (uploadedUrls.length === 0 && newFiles.length > 0) {
-                    uploadedUrls = newFiles.map((_, i) => `https://example.com/video-${1500000000000 + i}.mp4`);
+                uploadedUrls = await uploadVideos(mediaEntityId, newFiles);
+                if (uploadedUrls.length !== newFiles.length) {
+                    throw new Error('Video upload did not complete for every selected file.');
                 }
             } catch (err: any) {
                 console.error('Failed to upload videos:', err);
-                uploadedUrls = newFiles.map((_, i) => `https://example.com/video-${1500000000000 + i}.mp4`);
+                throw err;
             }
         }
 
@@ -942,6 +943,17 @@ export default function AddPropertyPage() {
         };
     };
 
+    const finalizeMediaEntity = async (propertyId: string) => {
+        if (idValue) {
+            return;
+        }
+        const draftEntityId = draftMediaEntityIdRef.current;
+        if (draftEntityId === propertyId) {
+            return;
+        }
+        await reassignMediaEntity('property', draftEntityId, 'property', propertyId);
+    };
+
     const handleSaveDraft = async () => {
         if (!formData.title?.trim()) {
             setErrors({ title: 'Property title is required to save draft' });
@@ -960,6 +972,7 @@ export default function AddPropertyPage() {
             } else {
                 const result = await addProperty({ ...propertyData, draft: true, published: false });
                 if (!result) throw new Error('Failed to save property');
+                await finalizeMediaEntity(result.id);
             }
             setIsDirty(false);
             showToast('Property saved as draft successfully!', 'success');
@@ -999,6 +1012,7 @@ export default function AddPropertyPage() {
             } else {
                 const result = await addProperty({ ...propertyData, published: true, draft: false });
                 if (!result) throw new Error('Failed to publish property');
+                await finalizeMediaEntity(result.id);
                 setIsDirty(false);
                 showToast('Property published successfully!', 'success');
             }

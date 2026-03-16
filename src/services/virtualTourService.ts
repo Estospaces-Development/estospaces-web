@@ -36,12 +36,12 @@ export interface VirtualTour {
 }
 
 export const getVirtualTourByPropertyId = async (propertyId: string) => {
-    try {
-        const url = `${CORE_URL()}/api/v1/tours/property/${propertyId}`;
-        const data = await apiFetch<VirtualTour>(url);
-        return { data, error: null };
-    } catch (error: any) {
-        console.error('[virtualTourService] getVirtualTourByPropertyId error:', error.message);
-        return { data: null, error: error.message };
-    }
+    console.warn(
+        '[virtualTourService] Detailed virtual tour API is not available on develop. Use property.virtual_tour_url instead.',
+        { propertyId },
+    );
+    return {
+        data: null,
+        error: 'Detailed virtual tour API is not available on develop. Use the property virtual tour URL instead.',
+    };
 };
