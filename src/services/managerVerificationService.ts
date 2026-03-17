@@ -258,7 +258,9 @@ const mapManagerDocument = (document: any): ManagerDocument => {
 
 const getCurrentManagerDocuments = async (): Promise<ManagerDocument[]> => {
     try {
-        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`);
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
+            suppressErrorToast: true,
+        });
         const documents = Array.isArray(data)
             ? data
             : Array.isArray(data?.documents)

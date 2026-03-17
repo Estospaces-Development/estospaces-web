@@ -65,7 +65,9 @@ export interface CreateTicketParams {
  * Get all conversations for the current user
  */
 export async function getConversations(): Promise<Conversation[]> {
-    return apiFetch<Conversation[]>(`${MESSAGING_URL()}/api/v1/conversations`);
+    return apiFetch<Conversation[]>(`${MESSAGING_URL()}/api/v1/conversations`, {
+        suppressErrorToast: true,
+    });
 }
 
 /**

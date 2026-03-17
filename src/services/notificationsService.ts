@@ -137,7 +137,9 @@ export async function getNotifications(unreadOnly: boolean = false): Promise<{
     unread_count: number;
 }> {
     const url = `${NOTIFICATION_URL()}/api/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`;
-    const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url);
+    const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url, {
+        suppressErrorToast: true,
+    });
     return {
         notifications: (data.notifications || []).map(normalizeNotification),
         unread_count: data.unread_count || 0,

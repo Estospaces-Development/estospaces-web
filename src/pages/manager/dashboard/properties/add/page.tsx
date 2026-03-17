@@ -122,6 +122,20 @@ const areaUnits: { value: AreaUnit; label: string }[] = [
     { value: 'hectares', label: 'Hectares' },
 ];
 
+const ALLOWED_IMAGE_TYPES = new Set([
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+]);
+
+const ALLOWED_VIDEO_TYPES = new Set([
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+]);
+
 // Amenities grouped by category
 const amenitiesGroups = {
     interior: [
@@ -691,6 +705,11 @@ export default function AddPropertyPage() {
         const files = Array.from(e.target.files || []);
 
         files.forEach((file) => {
+            if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+                showToast(`${file.name} has an unsupported format. Use JPEG, PNG, WebP, or GIF.`, 'error');
+                return;
+            }
+
             if (file.size > 10 * 1024 * 1024) {
                 showToast(`${file.name} is too large. Maximum size is 10MB.`, 'error');
                 return;
@@ -715,6 +734,11 @@ export default function AddPropertyPage() {
         const files = Array.from(e.target.files || []);
 
         files.forEach((file) => {
+            if (!ALLOWED_VIDEO_TYPES.has(file.type)) {
+                showToast(`${file.name} has an unsupported format. Use MP4, WebM, or MOV.`, 'error');
+                return;
+            }
+
             if (file.size > 50 * 1024 * 1024) {
                 showToast(`${file.name} is too large. Maximum size is 50MB.`, 'error');
                 return;
