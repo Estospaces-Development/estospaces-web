@@ -27,6 +27,12 @@ function PropertyManagementContent() {
     const [filteringType, setFilteringType] = useState('all');
     const [updatingPropertyId, setUpdatingPropertyId] = useState<string | null>(null);
 
+    const resolvePropertyId = (property: any): string | null => {
+        const candidates = [property?.id, property?.propertyId, property?.property_id];
+        const id = candidates.find((candidate) => typeof candidate === 'string' && candidate.trim().length > 0);
+        return id ? id.trim() : null;
+    };
+
     const filteredProperties = properties.filter((property) => {
         const normalizedQuery = searchQuery.trim().toLowerCase();
         const matchesSearch = normalizedQuery === ''
@@ -52,7 +58,12 @@ function PropertyManagementContent() {
         }
     });
 
-    const handleStatusChange = async (propertyId: string, nextStatus: 'published' | 'rejected' | 'suspended') => {
+    const handleStatusChange = async (propertyId: string | null, nextStatus: 'published' | 'rejected' | 'suspended') => {
+        if (!propertyId) {
+            showErrorToast('Property ID missing. Please refresh and try again.');
+            return;
+        }
+
         let reason: string | undefined;
         if (nextStatus === 'rejected') {
             const promptValue = window.prompt('Enter a rejection reason for the manager:');
@@ -89,7 +100,12 @@ function PropertyManagementContent() {
         }
     };
 
-    const handleDelete = async (propertyId: string) => {
+    const handleDelete = async (propertyId: string | null) => {
+        if (!propertyId) {
+            showErrorToast('Property ID missing. Please refresh and try again.');
+            return;
+        }
+
         if (!window.confirm('Delete this property from the registry?')) {
             return;
         }
@@ -110,17 +126,18 @@ function PropertyManagementContent() {
     };
 
     const renderWorkflowActions = (property: typeof properties[number]) => {
-        const isBusy = updatingPropertyId === property.id;
+        const propertyId = resolvePropertyId(property);
+        const isBusy = propertyId !== null && updatingPropertyId === propertyId;
 
         if (property.status === 'pending_approval') {
             return (
                 <>
                     <button
                         type="button"
-                        disabled={isBusy}
+                        disabled={isBusy || !propertyId}
                         onClick={(event) => {
                             event.stopPropagation();
-                            handleStatusChange(property.id, 'published');
+                            handleStatusChange(propertyId, 'published');
                         }}
                         className="flex-1 rounded-xl bg-emerald-500 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -128,10 +145,10 @@ function PropertyManagementContent() {
                     </button>
                     <button
                         type="button"
-                        disabled={isBusy}
+                        disabled={isBusy || !propertyId}
                         onClick={(event) => {
                             event.stopPropagation();
-                            handleStatusChange(property.id, 'rejected');
+                            handleStatusChange(propertyId, 'rejected');
                         }}
                         className="flex-1 rounded-xl bg-red-500 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -145,10 +162,10 @@ function PropertyManagementContent() {
             return (
                 <button
                     type="button"
-                    disabled={isBusy}
+                    disabled={isBusy || !propertyId}
                     onClick={(event) => {
                         event.stopPropagation();
-                        handleStatusChange(property.id, 'suspended');
+                        handleStatusChange(propertyId, 'suspended');
                     }}
                     className="flex-1 rounded-xl bg-amber-500 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -161,10 +178,10 @@ function PropertyManagementContent() {
             return (
                 <button
                     type="button"
-                    disabled={isBusy}
+                    disabled={isBusy || !propertyId}
                     onClick={(event) => {
                         event.stopPropagation();
-                        handleStatusChange(property.id, 'published');
+                        handleStatusChange(propertyId, 'published');
                     }}
                     className="flex-1 rounded-xl bg-blue-500 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -254,20 +271,31 @@ function PropertyManagementContent() {
                 </div>
             ) : filteredProperties.length > 0 ? (
                 <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredProperties.map((property) => {
+                    {filteredProperties.map((property, index) => {
                         const statusBadge = getManagerPropertyStatusBadge(property.status);
-                        const isBusy = updatingPropertyId === property.id;
+                        const propertyId = resolvePropertyId(property);
+                        const isBusy = propertyId !== null && updatingPropertyId === propertyId;
 
                         return (
                             <div
-                                key={property.id}
+                                key={propertyId || `property-card-${index}`}
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => navigate(`/admin/properties/${property.id}`)}
+                                onClick={() => {
+                                    if (!propertyId) {
+                                        showErrorToast('Property ID missing. Please refresh and try again.');
+                                        return;
+                                    }
+                                    navigate(`/admin/properties/${propertyId}`);
+                                }}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' || event.key === ' ') {
                                         event.preventDefault();
-                                        navigate(`/admin/properties/${property.id}`);
+                                        if (!propertyId) {
+                                            showErrorToast('Property ID missing. Please refresh and try again.');
+                                            return;
+                                        }
+                                        navigate(`/admin/properties/${propertyId}`);
                                     }
                                 }}
                                 className="group cursor-pointer overflow-hidden rounded-[3rem] border bg-white shadow-2xl shadow-gray-200/50 transition-all duration-500 hover:-translate-y-2 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none"
@@ -358,8 +386,13 @@ function PropertyManagementContent() {
                                             type="button"
                                             onClick={(event) => {
                                                 event.stopPropagation();
-                                                navigate(`/admin/properties/${property.id}`);
+                                                if (!propertyId) {
+                                                    showErrorToast('Property ID missing. Please refresh and try again.');
+                                                    return;
+                                                }
+                                                navigate(`/admin/properties/${propertyId}`);
                                             }}
+                                            disabled={!propertyId}
                                             className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-600 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/40"
                                         >
                                             View
@@ -374,7 +407,7 @@ function PropertyManagementContent() {
                                             disabled={isBusy}
                                             onClick={(event) => {
                                                 event.stopPropagation();
-                                                handleDelete(property.id);
+                                                handleDelete(propertyId);
                                             }}
                                             className="rounded-xl bg-gray-900 px-4 py-3 text-white shadow-xl transition-all hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
                                             title="Delete Property"

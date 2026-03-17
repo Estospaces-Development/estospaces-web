@@ -120,6 +120,7 @@ export default function AdminPropertyDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { success: showSuccessToast, error: showErrorToast, warning: showWarningToast } = useToast();
+    const propertyId = id && id !== 'undefined' && id !== 'null' ? id.trim() : '';
 
     const [property, setProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(true);
@@ -133,13 +134,13 @@ export default function AdminPropertyDetailPage() {
 
     useEffect(() => {
         const loadProperty = async () => {
-            if (!id) {
+            if (!propertyId) {
                 setLoading(false);
                 return;
             }
 
             setLoading(true);
-            const { data, error } = await getAdminPropertyById(id);
+            const { data, error } = await getAdminPropertyById(propertyId);
             if (error || !data) {
                 showErrorToast(error || 'Failed to load property.');
                 setProperty(null);
@@ -152,14 +153,14 @@ export default function AdminPropertyDetailPage() {
         };
 
         loadProperty();
-    }, [id, showErrorToast]);
+    }, [propertyId, showErrorToast]);
 
     const refreshProperty = async () => {
-        if (!id) {
+        if (!propertyId) {
             return;
         }
 
-        const { data, error } = await getAdminPropertyById(id);
+        const { data, error } = await getAdminPropertyById(propertyId);
         if (error || !data) {
             throw new Error(error || 'Failed to refresh property.');
         }
@@ -167,7 +168,7 @@ export default function AdminPropertyDetailPage() {
     };
 
     const handleStatusChange = async (nextStatus: 'published' | 'rejected' | 'suspended') => {
-        if (!id) {
+        if (!propertyId) {
             return;
         }
 
@@ -186,7 +187,7 @@ export default function AdminPropertyDetailPage() {
 
         setActionLoading(true);
         try {
-            const { error } = await adminUpdatePropertyStatus(id, nextStatus, reason);
+            const { error } = await adminUpdatePropertyStatus(propertyId, nextStatus, reason);
             if (error) {
                 throw new Error(error);
             }
@@ -208,7 +209,7 @@ export default function AdminPropertyDetailPage() {
     };
 
     const handleDelete = async () => {
-        if (!id) {
+        if (!propertyId) {
             return;
         }
 
@@ -218,7 +219,7 @@ export default function AdminPropertyDetailPage() {
 
         setActionLoading(true);
         try {
-            const { error } = await deletePropertyRequest(id);
+            const { error } = await deletePropertyRequest(propertyId);
             if (error) {
                 throw new Error(error);
             }

@@ -203,6 +203,9 @@ export const getAdminPropertyById = async (id: string): Promise<{ data: Property
     try {
         const data = await apiFetch<Property>(
             `${CORE_URL()}/api/v1/admin/properties/${id}`,
+            {
+                suppressErrorToast: true,
+            },
         );
         return { data, error: null };
     } catch (error: any) {
@@ -266,6 +269,7 @@ export const adminUpdatePropertyStatus = async (
                     status,
                     reason,
                 }),
+                suppressErrorToast: true,
             },
         );
         return { data, error: null };
@@ -282,7 +286,10 @@ export const deleteProperty = async (id: string): Promise<{ error: string | null
     try {
         await apiFetch<any>(
             `${CORE_URL()}/api/v1/properties/${id}`,
-            { method: 'DELETE' },
+            {
+                method: 'DELETE',
+                suppressErrorToast: true,
+            },
         );
         return { error: null };
     } catch (error: any) {

@@ -297,6 +297,12 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
         const videoList = parseStringArray(p.video_urls);
         const amenitiesList = parseStringArray(p.amenities);
         const featuresList = parseStringArray(p.features);
+        const resolvedId = (
+            p.id ||
+            (p as any).property_id ||
+            (p as any).propertyId ||
+            ''
+        ).toString().trim();
         const condition = typeof p.condition === 'string' && PROPERTY_CONDITIONS.includes(p.condition as PropertyCondition)
             ? (p.condition as PropertyCondition)
             : undefined;
@@ -319,7 +325,7 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
         };
 
         return {
-            id: p.id,
+            id: resolvedId,
             title: p.title,
             description: p.description,
             price: p.price ? {
@@ -366,9 +372,10 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
                 favorites: p.favorites || 0,
                 shares: 0,
             },
+            propertyId: resolvedId,
             media: {
-                images: imageList.map((url, i) => ({ id: `${p.id}-img-${i}`, url: url as string, type: 'image', uploadedAt: new Date().toISOString() })),
-                videos: videoList.map((url, i) => ({ id: `${p.id}-vid-${i}`, url: url as string, type: 'video', uploadedAt: new Date().toISOString() })),
+                images: imageList.map((url, i) => ({ id: `${resolvedId || 'property'}-img-${i}`, url: url as string, type: 'image', uploadedAt: new Date().toISOString() })),
+                videos: videoList.map((url, i) => ({ id: `${resolvedId || 'property'}-vid-${i}`, url: url as string, type: 'video', uploadedAt: new Date().toISOString() })),
                 floorPlans: [],
                 virtualTourUrl: p.virtual_tour_url,
             },
