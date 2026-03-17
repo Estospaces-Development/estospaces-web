@@ -37,7 +37,6 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
                     setLeads(result.data);
                 }
             } catch (error) {
-                console.error('Error fetching leads:', error);
             } finally {
                 setIsInitialized(true);
             }
@@ -77,7 +76,6 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
                 throw new Error(result.error || 'Failed to create lead');
             }
         } catch (error) {
-            console.error('Error adding lead:', error);
             throw error;
         }
     };
@@ -103,10 +101,8 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
                     )
                 );
             } else {
-                console.error('Failed to update lead:', result.error);
             }
         } catch (error) {
-            console.error('Error updating lead:', error);
         }
     };
 
@@ -116,10 +112,8 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
             if (result.success) {
                 setLeads((prev) => prev.filter((lead) => lead.id !== id));
             } else {
-                console.error('Failed to delete lead:', result.error);
             }
         } catch (error) {
-            console.error('Error deleting lead:', error);
         }
     };
 

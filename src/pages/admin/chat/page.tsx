@@ -74,7 +74,6 @@ const AdminChatPage = () => {
             }
         } catch (error: any) {
             toast.error('Failed to load conversations');
-            console.error('[AdminChatPage] Load Error:', error);
         } finally {
             setIsLoading(false);
         }
@@ -111,7 +110,6 @@ const AdminChatPage = () => {
             await messagesService.markAsRead(conversationId);
         } catch (error) {
             toast.error('Failed to load messages');
-            console.error('[AdminChatPage] Message Load Error:', error);
         }
     }, [conversations, toast, user?.id]);
 
@@ -162,7 +160,6 @@ const AdminChatPage = () => {
             setNewMessage('');
         } catch (error: any) {
             toast.error('Failed to send message');
-            console.error('[AdminChatPage] Send Error:', error);
         } finally {
             setIsSending(false);
         }

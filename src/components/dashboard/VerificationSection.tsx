@@ -77,7 +77,6 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
 
             const { data, error: documentsError } = await leadsService.getUserDocuments();
             if (documentsError) {
-                console.error('Failed to load verification documents:', documentsError);
                 return;
             }
 
@@ -122,7 +121,6 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
             setSuccess(`Your ${step === 'identity' ? 'identity document' : 'proof of address'} has been submitted for review.`);
             setShowUploadModal(null);
         } catch (err: any) {
-            console.error('Upload error:', err);
             setError(err.message || 'Failed to upload document. Please try again.');
         } finally {
             setUploadingFile(false);

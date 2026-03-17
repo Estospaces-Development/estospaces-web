@@ -20,6 +20,52 @@ import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import MapView from '@/components/dashboard/MapView';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
 
+const ITEMS_PER_PAGE = 12;
+
+const parsePositivePage = (value: string | null, fallback = 1) => {
+    const parsed = Number.parseInt(value || `${fallback}`, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const mapListingTypeParamToTab = (value: string | null): 'all' | 'buy' | 'rent' => {
+    if (value === 'rent') return 'rent';
+    if (value === 'buy' || value === 'sale') return 'buy';
+    return 'all';
+};
+
+const getPrimaryDashboardFilter = (filterParam: string) => {
+    return filterParam
+        .split(',')
+        .map((part) => part.trim())
+        .find((part) => part.length > 0) || '';
+};
+
+const mapDashboardFilterToSearchSort = (filterParam: string) => {
+    const primary = getPrimaryDashboardFilter(filterParam);
+    if (primary === 'budget_friendly') return 'price_asc';
+    if (primary === 'recently_added') return 'newest';
+    return undefined;
+};
+
+const applyDashboardFilterOrdering = (results: SearchResult[], filterParam: string) => {
+    const primary = getPrimaryDashboardFilter(filterParam);
+    const ordered = [...results];
+
+    if (primary === 'budget_friendly') {
+        ordered.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (primary === 'most_viewed' || primary === 'high_demand') {
+        ordered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+    } else if (primary === 'recently_added') {
+        ordered.sort((a, b) => {
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTime - aTime;
+        });
+    }
+
+    return ordered;
+};
+
 function DiscoverContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -30,15 +76,18 @@ function DiscoverContent() {
     const [error, setError] = useState<string | null>(null);
     const [properties, setProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [locationQuery, setLocationQuery] = useState('');
-    const [propertyType, setPropertyType] = useState('all');
-    const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-    const [beds, setBeds] = useState('');
-    const [baths, setBaths] = useState('');
+    const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || searchParams.get('keyword') || '');
+    const [locationQuery, setLocationQuery] = useState(() => searchParams.get('location') || '');
+    const [propertyType, setPropertyType] = useState(() => searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
+    const [priceRange, setPriceRange] = useState(() => ({
+        min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
+        max: searchParams.get('maxPrice') || searchParams.get('max_price') || '',
+    }));
+    const [beds, setBeds] = useState(() => searchParams.get('beds') || searchParams.get('minBedrooms') || '');
+    const [baths, setBaths] = useState(() => searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+    const [dashboardFilter, setDashboardFilter] = useState(() => searchParams.get('filter') || '');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 12;
+    const [currentPage, setCurrentPage] = useState(() => parsePositivePage(searchParams.get('page')));
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
@@ -46,10 +95,27 @@ function DiscoverContent() {
 
     // Initialize filters from URL/Context
     useEffect(() => {
-        const type = searchParams.get('type');
-        if (type === 'rent') setActiveTab('rent');
-        else if (type === 'buy') setActiveTab('buy');
+        const listingParam = searchParams.get('type') || searchParams.get('tab');
+        const nextTab = mapListingTypeParamToTab(listingParam);
+        if (nextTab === 'rent') setActiveTab('rent');
+        else if (nextTab === 'buy') setActiveTab('buy');
+        else setActiveTab('all');
     }, [searchParams, setActiveTab]);
+
+    // Keep page filters synchronized with URL query parameters
+    useEffect(() => {
+        setSearchQuery(searchParams.get('q') || searchParams.get('keyword') || '');
+        setLocationQuery(searchParams.get('location') || '');
+        setPropertyType(searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
+        setPriceRange({
+            min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
+            max: searchParams.get('maxPrice') || searchParams.get('max_price') || '',
+        });
+        setBeds(searchParams.get('beds') || searchParams.get('minBedrooms') || '');
+        setBaths(searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+        setDashboardFilter(searchParams.get('filter') || '');
+        setCurrentPage(parsePositivePage(searchParams.get('page')));
+    }, [searchParams]);
 
     // Initial load for filters
     useEffect(() => {
@@ -74,13 +140,14 @@ function DiscoverContent() {
                     minBathrooms: baths ? parseInt(baths) : undefined,
                     listingType: activeTab === 'buy' ? 'sale' : activeTab === 'rent' ? 'rent' : 'all',
                     location: locationQuery.trim() ? locationQuery.trim() : undefined,
+                    sortBy: mapDashboardFilterToSearchSort(dashboardFilter),
                     page: currentPage,
-                    limit: itemsPerPage
+                    limit: ITEMS_PER_PAGE
                 }
             );
 
             if (result.success) {
-                setProperties(result.data || []);
+                setProperties(applyDashboardFilterOrdering(result.data || [], dashboardFilter));
                 setTotal(result.pagination?.total || 0);
             } else {
                 setProperties([]);
@@ -102,7 +169,7 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter]);
 
     // Autocomplete location suggestions
     useEffect(() => {
@@ -128,15 +195,17 @@ function DiscoverContent() {
     // The backend now handles all filtering and pagination natively.
     const filteredProperties = properties;
 
-    const totalPages = Math.ceil(total / itemsPerPage);
+    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setLocationQuery('');
+        setPropertyType('all');
         setPriceRange({ min: '', max: '' });
         setBeds('');
         setBaths('');
+        setDashboardFilter('');
         setCurrentPage(1);
     };
 

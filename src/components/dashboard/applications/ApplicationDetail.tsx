@@ -314,7 +314,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                 </div>
 
                                 <button
-                                    onClick={() => navigate(`/user/dashboard/property/${application.propertyId}`)}
+                                    onClick={() => navigate(`/user/properties/${application.propertyId}`)}
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
                                 >
                                     <span>View Property</span>

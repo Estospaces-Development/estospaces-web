@@ -24,7 +24,6 @@ export default function AdminSettingsPage() {
                 setStats(statsData);
             } catch (error: any) {
                 toast.error('Failed to load system settings');
-                console.error('[AdminSettingsPage] Load Error:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -42,7 +41,6 @@ export default function AdminSettingsPage() {
             toast.success('Settings updated successfully');
         } catch (error: any) {
             toast.error('Failed to update settings');
-            console.error('[AdminSettingsPage] Save Error:', error);
         } finally {
             setIsSaving(false);
         }

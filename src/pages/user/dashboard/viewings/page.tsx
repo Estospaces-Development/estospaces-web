@@ -49,7 +49,6 @@ export default function ViewingsPage() {
                 setViewings(mappedViewings);
             }
         } catch (err: any) {
-            console.error('[Viewings] Error fetching viewings:', err);
             toast.error('Failed to load viewings');
         } finally {
             setLoading(false);
@@ -103,7 +102,6 @@ export default function ViewingsPage() {
             }
             toast.success('Viewing appointment cancelled successfully.');
         } catch (err) {
-            console.error('Error cancelling viewing:', err);
             toast.error('Failed to cancel viewing. Please try again.');
         } finally {
             setCancelModalOpen(false);

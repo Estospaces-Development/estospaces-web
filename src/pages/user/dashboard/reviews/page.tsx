@@ -21,7 +21,6 @@ export default function ReviewsPage() {
                 if (result.data) setReviews(result.data);
             } catch (error: any) {
                 toast.error('Failed to load reviews');
-                console.error('[ReviewsPage] Load Error:', error);
             } finally {
                 setIsLoading(false);
             }

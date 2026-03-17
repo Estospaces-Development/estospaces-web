@@ -3,7 +3,7 @@
  * Fetches and manages property reviews from the core-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -43,8 +43,7 @@ export async function getPropertyReviews(propertyId: string): Promise<ReviewResp
         }>(`${CORE_URL()}/api/v1/reviews/property/${propertyId}`);
         return { success: true, data };
     } catch (error: any) {
-        console.error('[reviewsService] Error:', error.message);
-        return { success: false, data: null, error: error.message };
+        return { success: false, data: null, error: getErrorMessage(error) };
     }
 }
 
@@ -56,8 +55,7 @@ export async function getUserReviews(): Promise<{ success: boolean; data: Review
         const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/reviews/mine`);
         return { success: true, data };
     } catch (error: any) {
-        console.error('[reviewsService] Error:', error.message);
-        return { success: false, data: null, error: error.message };
+        return { success: false, data: null, error: getErrorMessage(error) };
     }
 }
 
@@ -76,8 +74,7 @@ export async function createReview(reviewData: {
         });
         return { success: true, data };
     } catch (error: any) {
-        console.error('[reviewsService] Error:', error.message);
-        return { success: false, data: null, error: error.message };
+        return { success: false, data: null, error: getErrorMessage(error) };
     }
 }
 

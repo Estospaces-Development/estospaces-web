@@ -3,7 +3,7 @@
  * Fetches rental/sale application data from the booking-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -58,8 +58,7 @@ export const getApplications = async (): Promise<ApplicationsResponse> => {
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -74,8 +73,7 @@ export const getApplicationById = async (applicationId: string): Promise<Applica
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -103,8 +101,7 @@ export const createApplication = async (applicationData: {
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -127,7 +124,6 @@ export const reviewApplication = async (
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

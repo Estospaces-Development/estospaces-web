@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Home, ArrowRight, MapPin, AlertCircle, TrendingUp, Star,
   Loader2, X, Clock, Eye, DollarSign, Sparkles,
-  Building2, Key, Bookmark, Map as MapIcon
+  Building2, Key, Bookmark, Map as MapIcon, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // Contexts
@@ -28,9 +28,27 @@ import SearchBar from '../../../components/ui/SearchBar';
 // Services
 import * as propertyService from '@/services/propertyService';
 
+const FILTERED_RESULTS_PAGE_SIZE = 12;
+
+const buildDashboardSortFilters = (filters: string[]) => {
+  if (filters.includes('budget_friendly')) {
+    return { sort_by: 'price', sort_order: 'asc' };
+  }
+
+  if (filters.includes('most_viewed') || filters.includes('high_demand')) {
+    return { sort_by: 'views', sort_order: 'desc' };
+  }
+
+  if (filters.includes('recently_added')) {
+    return { sort_by: 'created_at', sort_order: 'desc' };
+  }
+
+  return {};
+};
+
 const DashboardClient = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { activeLocation, loading: locationLoading } = useUserLocation();
   const { setActiveTab } = usePropertyFilter();
@@ -66,6 +84,11 @@ const DashboardClient = () => {
   const [filteredProperties, setFilteredProperties] = useState<any[]>([]);
   const [showFilteredResults, setShowFilteredResults] = useState(false);
   const [filteredCount, setFilteredCount] = useState(0);
+  const [filteredTotalPages, setFilteredTotalPages] = useState(0);
+  const [currentFilteredPage, setCurrentFilteredPage] = useState(() => {
+    const page = Number.parseInt(searchParams.get('page') || '1', 10);
+    return Number.isFinite(page) && page > 0 ? page : 1;
+  });
 
   // Sync selectedPropertyType with URL params
   useEffect(() => {
@@ -85,6 +108,12 @@ const DashboardClient = () => {
     } else {
       setSelectedFilters([]);
     }
+  }, [searchParams]);
+
+  // Sync filtered results page with URL params
+  useEffect(() => {
+    const page = Number.parseInt(searchParams.get('page') || '1', 10);
+    setCurrentFilteredPage(Number.isFinite(page) && page > 0 ? page : 1);
   }, [searchParams]);
 
   // Get time-based greeting
@@ -109,14 +138,22 @@ const DashboardClient = () => {
     setShowFilteredResults(true);
 
     try {
-      const filters: any = {
-        search: searchInput.trim(),
-        listingType: selectedPropertyType === 'rent' ? ['rent'] : ['sale'],
+      const filters: Record<string, any> = {
+        page: currentFilteredPage,
+        limit: FILTERED_RESULTS_PAGE_SIZE,
+        listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
       };
 
-      if (selectedPropertyType === 'sold') {
-        filters.status = ['sold'];
+      const normalizedSearchInput = searchInput.trim();
+      if (normalizedSearchInput) {
+        filters.search = normalizedSearchInput;
       }
+
+      if (selectedPropertyType === 'sold') {
+        filters.status = 'sold';
+      }
+
+      Object.assign(filters, buildDashboardSortFilters(selectedFilters));
 
       const result = await propertyService.getProperties(filters);
 
@@ -124,20 +161,41 @@ const DashboardClient = () => {
         setError(result.error);
         setFilteredProperties([]);
         setFilteredCount(0);
+        setFilteredTotalPages(0);
       } else if (result.data) {
-        setFilteredProperties(result.data);
-        setFilteredCount(result.data.length);
-        if (result.data.length === 0) {
+        const nextProperties = Array.isArray(result.data) ? result.data : [];
+        const total = result.pagination?.total ?? nextProperties.length;
+        const totalPages = result.pagination?.totalPages ??
+          (total > 0 ? Math.ceil(total / FILTERED_RESULTS_PAGE_SIZE) : 0);
+
+        setFilteredProperties(nextProperties);
+        setFilteredCount(total);
+        setFilteredTotalPages(totalPages);
+
+        if (nextProperties.length === 0) {
           setLocationMessage('No properties found matching your search. Try adjusting your criteria.');
+        } else {
+          setLocationMessage(null);
         }
       }
     } catch (err: any) {
-      console.error('[Dashboard] Error filtering properties:', err);
       setError(err.message);
+      setFilteredProperties([]);
+      setFilteredCount(0);
+      setFilteredTotalPages(0);
     } finally {
       setSearchLoading(false);
     }
-  }, [selectedPropertyType, selectedFilters, searchInput]);
+  }, [currentFilteredPage, selectedPropertyType, selectedFilters, searchInput]);
+
+  // Auto-load filtered results when query/filter/page params are present
+  useEffect(() => {
+    if (selectedFilters.length === 0 && !searchInput.trim()) {
+      return;
+    }
+
+    fetchFilteredProperties();
+  }, [fetchFilteredProperties, selectedFilters, searchInput]);
 
   // Handle location search
   const handleLocationSearch = useCallback((e?: React.FormEvent) => {
@@ -146,20 +204,24 @@ const DashboardClient = () => {
     setLocationMessage(null);
 
     if (selectedFilters.length > 0 || searchInput.trim()) {
+      if (currentFilteredPage !== 1) {
+        setCurrentFilteredPage(1);
+        return;
+      }
       fetchFilteredProperties();
     } else {
       const params = new URLSearchParams();
       if (selectedPropertyType === 'buy') {
-        params.set('tab', 'buy');
+        params.set('type', 'buy');
       } else if (selectedPropertyType === 'rent') {
-        params.set('tab', 'rent');
+        params.set('type', 'rent');
       } else if (selectedPropertyType === 'sold') {
-        params.set('tab', 'buy');
+        params.set('type', 'buy');
         params.set('status', 'sold');
       }
       navigate(`/user/dashboard/discover?${params.toString()}`);
     }
-  }, [searchInput, selectedPropertyType, selectedFilters, navigate, fetchFilteredProperties]);
+  }, [currentFilteredPage, searchInput, selectedPropertyType, selectedFilters, navigate, fetchFilteredProperties]);
 
   // Map location
   const mapLocation = activeLocation || null;
@@ -250,7 +312,7 @@ const DashboardClient = () => {
             <button
               onClick={() => {
                 setActiveTab('buy');
-                navigate('/user/dashboard/discover?tab=buy');
+                navigate('/user/dashboard/discover?type=buy');
               }}
               className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
             >
@@ -267,7 +329,7 @@ const DashboardClient = () => {
             <button
               onClick={() => {
                 setActiveTab('rent');
-                navigate('/user/dashboard/discover?tab=rent');
+                navigate('/user/dashboard/discover?type=rent');
               }}
               className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
             >
@@ -324,8 +386,11 @@ const DashboardClient = () => {
               onClick={() => {
                 setShowFilteredResults(false);
                 setFilteredProperties([]);
+                setFilteredCount(0);
+                setFilteredTotalPages(0);
                 setSelectedFilters([]);
                 setSearchInput('');
+                setCurrentFilteredPage(1);
               }}
               className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
             >
@@ -346,7 +411,7 @@ const DashboardClient = () => {
                 <PropertyCard
                   key={property.id}
                   property={property}
-                  onViewDetails={(p: any) => navigate(`/user/dashboard/property/${p.id}`)}
+                  onViewDetails={(p: any) => navigate(`/user/properties/${p.id}`)}
                 />
               ))}
             </div>
@@ -371,13 +436,38 @@ const DashboardClient = () => {
             </div>
           )}
 
+          {filteredTotalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-4">
+              <button
+                disabled={currentFilteredPage === 1}
+                onClick={() => setCurrentFilteredPage((prev) => Math.max(prev - 1, 1))}
+                className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Page <span className="font-semibold text-gray-900 dark:text-white">{currentFilteredPage}</span> of {filteredTotalPages}
+              </span>
+              <button
+                disabled={currentFilteredPage >= filteredTotalPages}
+                onClick={() => setCurrentFilteredPage((prev) => prev + 1)}
+                className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          )}
+
           {/* View More Button */}
-          {filteredProperties.length > 0 && filteredCount > 12 && (
+          {filteredProperties.length > 0 && filteredCount > FILTERED_RESULTS_PAGE_SIZE && (
             <div className="text-center mt-6">
               <button
                 onClick={() => {
                   const params = new URLSearchParams();
-                  params.set('tab', selectedPropertyType === 'rent' ? 'rent' : 'buy');
+                  params.set('type', selectedPropertyType === 'rent' ? 'rent' : 'buy');
+                  if (selectedPropertyType === 'sold') {
+                    params.set('status', 'sold');
+                  }
                   if (selectedFilters.length > 0) {
                     params.set('filter', selectedFilters.join(','));
                   }
@@ -465,7 +555,7 @@ const DashboardClient = () => {
                 <NearbyPropertiesMap
                   properties={mapProperties}
                   userLocation={mapLocation}
-                  onPropertyClick={(p: any) => navigate(`/user/dashboard/property/${p.id}`)}
+                  onPropertyClick={(p: any) => navigate(`/user/properties/${p.id}`)}
                 />
               </div>
             </div>

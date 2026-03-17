@@ -31,7 +31,6 @@ export default function ManagerNotificationsPage() {
                 setNotifications(res.notifications);
             }
         } catch (err: any) {
-            console.error('Error fetching notifications:', err);
             setError(err.message || 'Failed to sync alerts');
         } finally {
             setIsLoading(false);
@@ -60,7 +59,6 @@ export default function ManagerNotificationsPage() {
             await notificationsService.markRead(id);
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
         } catch (err: any) {
-            console.error('Error marking as read:', err);
             showToastError(err.message || 'Failed to update alert status');
         }
     };
@@ -70,7 +68,6 @@ export default function ManagerNotificationsPage() {
             await notificationsService.markAllRead();
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
         } catch (err: any) {
-            console.error('Error marking all as read:', err);
             showToastError(err.message || 'Failed to clear all alerts');
         }
     };
@@ -80,7 +77,6 @@ export default function ManagerNotificationsPage() {
             await notificationsService.deleteNotification(id);
             setNotifications(prev => prev.filter(n => n.id !== id));
         } catch (err: any) {
-            console.error('Error deleting notification:', err);
             showToastError(err.message || 'Failed to remove alert');
         }
     };

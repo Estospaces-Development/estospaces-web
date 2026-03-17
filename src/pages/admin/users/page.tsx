@@ -7,38 +7,41 @@ import {
     Mail, Phone, Download, Share2, FileDown, FileSpreadsheet,
     Star, Shield, ArrowRight, TrendingUp, UserCheck
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 
 import { userService } from '@/services/userService';
 import { getPlatformAnalytics } from '@/services/analyticsService';
 import { User } from '@/types';
-import { useToast } from '@/contexts/ToastContext';
 
 function UserManagementContent() {
-    const { user: currentUser } = useAuth();
-    const toast = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState<any>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     const fetchUsers = useCallback(async () => {
         try {
             setLoading(true);
-            const [{ data: userData }, { data: analytics }] = await Promise.all([
+            const [{ data: userData, error: userError }, { data: analytics, error: analyticsError }] = await Promise.all([
                 userService.getAllUsers(),
                 getPlatformAnalytics()
             ]);
+            if (userError) {
+                throw new Error(userError);
+            }
+            if (analyticsError) {
+                throw new Error(analyticsError);
+            }
             setUsers(userData || []);
             setStatsData(analytics);
-        } catch (error) {
-            console.error('[UserManagement] Load Error:', error);
-            toast.error('Failed to load user registry');
+            setLoadError(null);
+        } catch (error: any) {
+            setLoadError(error.message || 'User registry is not available right now.');
         } finally {
             setLoading(false);
         }
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         fetchUsers();
@@ -48,7 +51,7 @@ function UserManagementContent() {
         { label: 'Network Size', value: statsData?.total_users?.toLocaleString() || '0', icon: Users, color: 'text-blue-500' },
         { label: 'Active Leads', value: statsData?.active_leads?.toLocaleString() || '0', icon: TrendingUp, color: 'text-orange-500' },
         { label: 'Total Brokers', value: statsData?.total_brokers?.toLocaleString() || '0', icon: UserCheck, color: 'text-emerald-500' },
-        { label: 'Verified Props', value: statsData?.total_properties?.toLocaleString() || '0', icon: Shield, color: 'text-indigo-500' },
+        { label: 'Total Properties', value: statsData?.total_properties?.toLocaleString() || '0', icon: Shield, color: 'text-indigo-500' },
     ];
 
     const filteredUsers = users.filter(u => {
@@ -103,6 +106,12 @@ function UserManagementContent() {
                     </div>
                 ))}
             </div>
+
+            {loadError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                    {loadError}
+                </div>
+            )}
 
             {/* Main Registry Table */}
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">

@@ -72,9 +72,16 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         ? managerVerificationService.getRequiredDocuments(managerProfile.profile_type)
         : [];
 
-    const uploadedManagerDocumentTypes = documents.map(d => d.document_type);
     const missingDocuments = requiredDocuments.filter(
-        d => !uploadedManagerDocumentTypes.includes(d)
+        (type) => {
+            const latestDocument = documents.find((document) => document.document_type === type);
+            if (!latestDocument) {
+                return true;
+            }
+
+            return latestDocument.verification_status === 'rejected' ||
+                latestDocument.verification_status === 'reupload_required';
+        },
     );
 
     const isComplete = missingDocuments.length === 0 && managerProfile !== null;
@@ -140,7 +147,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         profileType: ManagerProfileType
     ): Promise<{ error: string | null }> => {
         if (!user?.id) return { error: 'Not authenticated' };
-        const result = await managerVerificationService.createOrUpdateManagerProfile(user.id, {
+        const result = await managerVerificationService.createManagerProfile(user.id, {
             profile_type: profileType,
             verification_status: 'incomplete',
         });
@@ -153,7 +160,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         data: Partial<ManagerProfile>
     ): Promise<{ error: string | null }> => {
         if (!user?.id) return { error: 'Not authenticated' };
-        const result = await managerVerificationService.createOrUpdateManagerProfile(user.id, data);
+        const result = await managerVerificationService.updateManagerProfile(user.id, data);
         if (result.error) return { error: result.error };
         if (result.data && mountedRef.current) setManagerProfile(result.data);
         return { error: null };

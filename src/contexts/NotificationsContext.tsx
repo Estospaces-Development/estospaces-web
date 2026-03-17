@@ -39,7 +39,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             setNotifications(result.notifications || []);
             setUnreadCount(result.unread_count || 0);
         } catch (err) {
-            console.error('Error fetching notifications:', err);
             // Gracefully degrade — keep existing state
         } finally {
             setLoading(false);
@@ -54,7 +53,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             );
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (err) {
-            console.error('Error marking notification as read:', err);
         }
     }, []);
 
@@ -64,7 +62,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
             setUnreadCount(0);
         } catch (err) {
-            console.error('Error marking all as read:', err);
         }
     }, []);
 
@@ -97,7 +94,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
             }
             return null;
         } catch (err) {
-            console.error('Error creating notification:', err);
             return null;
         }
     }, [user?.id]);

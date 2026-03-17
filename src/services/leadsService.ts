@@ -3,7 +3,7 @@
  * Fetches lead data from core-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
@@ -121,8 +121,7 @@ export const getUserLeads = async (): Promise<{ data: Lead[] | null; error: stri
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] getUserLeads error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -138,8 +137,7 @@ export const getBrokerLeads = async (status?: string): Promise<{ data: Lead[] | 
         const data = await apiFetch<Lead[]>(url.toString());
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] getBrokerLeads error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -154,8 +152,7 @@ export const getLeadById = async (leadId: string): Promise<{ data: Lead | null; 
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] getLeadById error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -174,8 +171,7 @@ export const updateLeadStatus = async (leadId: string, status: string): Promise<
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] updateLeadStatus error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -194,8 +190,7 @@ export const createLead = async (propertyId: string): Promise<{ data: Lead | nul
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] createLead error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -224,8 +219,7 @@ export const createBrokerRequest = async (requestData: {
         );
         return { success: true, error: null };
     } catch (error: any) {
-        console.error('[leadsService] createBrokerRequest error:', error.message);
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 };
 
@@ -244,8 +238,7 @@ export const createManualLead = async (leadData: CreateManualLeadRequest): Promi
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] createManualLead error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -264,8 +257,7 @@ export const updateLead = async (leadId: string, leadData: UpdateLeadRequest): P
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] updateLead error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -283,8 +275,7 @@ export const deleteLead = async (leadId: string): Promise<{ success: boolean; er
         );
         return { success: true, error: null };
     } catch (error: any) {
-        console.error('[leadsService] deleteLead error:', error.message);
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 };
 
@@ -312,8 +303,7 @@ export const respondToLead = async (
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[leadsService] respondToLead error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -328,7 +318,7 @@ export const getLeadAudit = async (leadId: string): Promise<{ data: any[] | null
         );
         return { data, error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -336,14 +326,18 @@ export const getLeadAudit = async (leadId: string): Promise<{ data: any[] | null
  * Get all leads (admin)
  * GET /api/v1/leads (core-service, admin)
  */
-export const getAllLeads = async (page: number = 1, limit: number = 20): Promise<{ data: Lead[] | null; error: string | null }> => {
+export const getAllLeads = async (page: number = 1, limit: number = 20): Promise<{
+    data: Lead[] | null;
+    pagination?: { total?: number; page?: number; limit?: number } | null;
+    error: string | null;
+}> => {
     try {
-        const data = await apiFetch<Lead[]>(
+        const response = await apiFetchEnvelope<Lead[]>(
             `${CORE_URL()}/api/v1/leads?page=${page}&limit=${limit}`,
         );
-        return { data, error: null };
+        return { data: response.data || [], pagination: response.pagination || null, error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, pagination: null, error: getErrorMessage(error) };
     }
 };
 
@@ -362,7 +356,7 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
         );
         return { data, error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -395,7 +389,7 @@ export const uploadDocument = async (
         });
         return { success: true, data, error: null };
     } catch (error: any) {
-        return { success: false, data: null, error: error.message };
+        return { success: false, data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -418,7 +412,7 @@ export const getUserDocuments = async (): Promise<{
         return {
             data: [],
             verificationLevel: null,
-            error: error.message,
+            error: getErrorMessage(error),
         };
     }
 };
@@ -435,7 +429,7 @@ export const resendVerification = async (email: string): Promise<{ success: bool
         });
         return { success: true, error: null };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        return { success: false, error: getErrorMessage(error) };
     }
 };
 

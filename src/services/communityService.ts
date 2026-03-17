@@ -1,4 +1,4 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -41,8 +41,7 @@ export const getCommunityPosts = async (category?: string) => {
         const data = await apiFetch<CommunityPost[]>(url);
         return { data: data || [], error: null };
     } catch (error: any) {
-        console.error('[communityService] getCommunityPosts error:', error.message);
-        return { data: [], error: error.message };
+        return { data: [], error: getErrorMessage(error) };
     }
 };
 
@@ -54,7 +53,6 @@ export const addComment = async (postId: string, content: string) => {
         });
         return { data, error: null };
     } catch (error: any) {
-        console.error('[communityService] addComment error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

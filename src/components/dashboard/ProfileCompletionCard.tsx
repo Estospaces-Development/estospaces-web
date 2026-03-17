@@ -16,7 +16,7 @@ const ProfileCompletionCard = () => {
 
         // Check for missing essential fields
         const hasName = user?.name || user?.user_metadata?.full_name;
-        const hasPhone = user?.user_metadata?.phone;
+        const hasPhone = user?.phone || user?.user_metadata?.phone;
 
         return !hasName || !hasPhone;
     }, [user, loading]);

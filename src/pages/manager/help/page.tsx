@@ -57,7 +57,6 @@ export default function ManagerHelpPage() {
                 created_at: t.created_at,
             })));
         } catch (err) {
-            console.error('Failed to fetch tickets:', err);
         } finally {
             setTicketsLoading(false);
         }
@@ -82,7 +81,6 @@ export default function ManagerHelpPage() {
             setFormData(prev => ({ ...prev, subject: '', message: '' }));
             showToastSuccess('Message sent successfully!');
         } catch (err) {
-            console.error('Failed to send message:', err);
             showToastError('Failed to send message. Please try again.');
         } finally {
             setContactLoading(false);
@@ -103,7 +101,6 @@ export default function ManagerHelpPage() {
             await fetchTickets();
             showToastSuccess('Ticket created successfully!');
         } catch (err) {
-            console.error('Failed to create ticket:', err);
             showToastError('Failed to create ticket. Please try again.');
         }
     };

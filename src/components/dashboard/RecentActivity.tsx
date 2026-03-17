@@ -3,7 +3,7 @@
 import { Zap } from 'lucide-react';
 import { useState, useEffect, Suspense, lazy } from 'react';
 import * as leadsService from '@/services/leadsService';
-import * as applicationsService from '@/services/applicationsService';
+import { getUserProperties } from '@/services/userPropertiesService';
 
 const SatelliteMap = lazy(() => import('./SatelliteMap'));
 
@@ -24,9 +24,9 @@ const RecentActivity = () => {
         const fetchActivities = async () => {
             setLoading(true);
             try {
-                const [leadsRes, appsRes] = await Promise.all([
-                    leadsService.getUserLeads(),
-                    applicationsService.getApplications()
+                const [leadsRes, propertiesRes] = await Promise.all([
+                    leadsService.getBrokerLeads(),
+                    getUserProperties({ limit: 5 })
                 ]);
 
                 const integratedActivities: Activity[] = [];
@@ -37,22 +37,22 @@ const RecentActivity = () => {
                             id: `lead-${lead.id}`,
                             type: 'New Lead',
                             name: lead.name || 'Interested User',
-                            property: lead.property?.title || 'General Interest',
+                            property: lead.property?.title || lead.propertyInterested || 'General Interest',
                             date: new Date(lead.created_at).toLocaleDateString(),
                             timestamp: new Date(lead.created_at)
                         });
                     });
                 }
 
-                if (appsRes.data) {
-                    appsRes.data.forEach(app => {
+                if (propertiesRes.data) {
+                    propertiesRes.data.forEach((property: any) => {
                         integratedActivities.push({
-                            id: `app-${app.id}`,
-                            type: 'Application Submitted',
-                            name: app.name || 'Anonymous Applicant',
-                            property: app.propertyInterested || 'Property Application',
-                            date: new Date(app.created_at).toLocaleDateString(),
-                            timestamp: new Date(app.created_at)
+                            id: `property-${property.id}`,
+                            type: property.status === 'published' || property.status === 'online' ? 'Listing Published' : 'Property Updated',
+                            name: property.agent_name || 'Your Portfolio',
+                            property: property.title || 'Property Listing',
+                            date: new Date(property.updated_at || property.created_at).toLocaleDateString(),
+                            timestamp: new Date(property.updated_at || property.created_at)
                         });
                     });
                 }
@@ -61,9 +61,6 @@ const RecentActivity = () => {
                 integratedActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
                 setActivities(integratedActivities.slice(0, 5));
-            } catch (error) {
-                console.error('Error fetching activities:', error);
-                setActivities([]);
             } finally {
                 setLoading(false);
             }

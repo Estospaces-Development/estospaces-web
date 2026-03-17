@@ -38,7 +38,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
     const handleViewDetails = () => {
         if (property.propertyId) {
-            navigate(`/user/dashboard/property/${property.propertyId}`);
+            navigate(`/user/properties/${property.propertyId}`);
         }
     };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiFetch, getErrorMessage } from '@/lib/apiUtils';
 
 interface User {
     id: string;
@@ -35,8 +36,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-import { apiFetch } from '@/lib/apiUtils';
-
 const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -68,11 +67,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 phone: userData.phone,
                 address: userData.address,
                 postcode: userData.postcode,
+                user_metadata: {
+                    full_name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : userData.name,
+                    phone: userData.phone,
+                },
             };
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
         } catch (err) {
-            console.error('Failed to refresh user:', err);
             // If token is invalid, sign out
             localStorage.removeItem('esto_token');
             localStorage.removeItem('esto_user');
@@ -112,6 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: userData.name || userData.full_name || email.split('@')[0],
                 role: userData.role || 'user',
                 isAuthenticated: true,
+                user_metadata: {
+                    full_name: userData.full_name || userData.name,
+                    phone: userData.phone,
+                },
             };
 
             localStorage.setItem('esto_token', token);
@@ -120,8 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             return { success: true, role: userObj.role };
         } catch (err: any) {
-            console.error('Login error:', err);
-            const errMsg = err.message || 'Login failed. Please check your credentials.';
+            const errMsg = getErrorMessage(err, 'Login failed. Please check your credentials.');
             setError(errMsg);
             return { success: false, error: errMsg };
         }
@@ -157,6 +162,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 name: userData.name || name,
                 role: userData.role || role,
                 isAuthenticated: true,
+                user_metadata: {
+                    full_name: userData.full_name || userData.name || name,
+                    phone: userData.phone,
+                },
             };
 
             if (token) {
@@ -167,9 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             return { success: true };
         } catch (err: any) {
-            console.error('Registration error:', err);
-            setError(err.message || 'Registration failed');
-            return { success: false, error: err.message || 'Registration failed' };
+            const errorMessage = getErrorMessage(err, 'Registration failed');
+            setError(errorMessage);
+            return { success: false, error: errorMessage };
         }
     }, []);
 

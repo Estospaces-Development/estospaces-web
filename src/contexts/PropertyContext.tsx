@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import * as propertyService from '../services/propertyService';
+import { getUserProperties } from '@/services/userPropertiesService';
 import { uploadMediaFile } from '@/services/mediaService';
 
 // Type definitions
@@ -18,6 +19,9 @@ export type PropertyStatus =
     | 'active'
     | 'available'
     | 'pending'
+    | 'pending_approval'
+    | 'rejected'
+    | 'suspended'
     | 'rented'
     | 'under_contract'
     | 'off_market'
@@ -183,6 +187,16 @@ export interface PropertyFilters {
 export type SortField = 'createdAt' | 'updatedAt' | 'price' | 'area' | 'bedrooms' | 'views' | 'title';
 export type SortOrder = 'asc' | 'desc';
 
+const SORT_FIELD_MAP: Record<SortField, string> = {
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    price: 'price',
+    area: 'property_size_sqft',
+    bedrooms: 'bedrooms',
+    views: 'views',
+    title: 'title',
+};
+
 export interface SortOption {
     field: SortField;
     order: SortOrder;
@@ -248,12 +262,17 @@ export const useProperties = () => {
 
 // Provider Implementation
 
-export const PropertyProvider = ({ children }: { children: ReactNode }) => {
+export const PropertyProvider = ({ children, scope = 'public' }: { children: ReactNode; scope?: 'public' | 'manager' | 'admin' }) => {
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
     const [filters, setFiltersState] = useState<PropertyFilters>({});
-    const [sort, setSort] = useState<SortOption>({ field: 'createdAt', order: 'desc' });
-    const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 12, total: 0, totalPages: 1 });
+    const [sort, setSortState] = useState<SortOption>({ field: 'createdAt', order: 'desc' });
+    const [pagination, setPagination] = useState<Pagination>({
+        page: 1,
+        limit: scope === 'admin' ? 100 : 12,
+        total: 0,
+        totalPages: 1,
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -372,7 +391,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
             createdAt: p.created_at || new Date().toISOString(),
             updatedAt: p.updated_at || new Date().toISOString(),
             availableFrom: p.available_from || p.created_at || new Date().toISOString(),
-            published: p.status === 'published' || p.status === 'available' || p.status === 'online',
+            published: p.status === 'published' || p.status === 'available' || p.status === 'online' || p.status === 'active',
             draft: p.status === 'draft',
             featured: p.featured,
             verified: p.is_verified,
@@ -460,18 +479,60 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         return serviceProps;
     };
 
+    const buildPropertyQuery = useCallback(() => ({
+        ...filters,
+        page: pagination.page,
+        limit: pagination.limit,
+        sort_by: SORT_FIELD_MAP[sort.field],
+        sort_order: sort.order,
+    }), [filters, pagination.limit, pagination.page, sort.field, sort.order]);
 
-    const fetchProperties = async () => {
+    const fetchProperties = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const result = await propertyService.getProperties(filters);
-            if (result.error) {
-                setError(result.error);
+            const query = buildPropertyQuery();
+            let data: any[] | null = null;
+            let paginationData: any = null;
+            let errorMsg: string | null = null;
+
+            if (scope === 'manager') {
+                const res = await getUserProperties(query);
+                data = res.data;
+                paginationData = res.pagination;
+                errorMsg = res.error?.message || null;
+            } else if (scope === 'admin') {
+                const result = await propertyService.getAdminProperties(query);
+                data = result.data;
+                paginationData = result.pagination;
+                errorMsg = result.error;
+            } else {
+                const result = await propertyService.getProperties(query);
+                data = result.data;
+                paginationData = result.pagination;
+                errorMsg = result.error;
+            }
+
+            if (errorMsg) {
+                setError(errorMsg);
                 setProperties([]);
-            } else if (result.data) {
-                setProperties(result.data.map(mapServiceToContextProperty));
-                setPagination(prev => ({ ...prev, total: result.data?.length || 0 }));
+                setPagination(prev => ({ ...prev, total: 0, totalPages: 1 }));
+            } else if (data) {
+                setProperties(data.map(mapServiceToContextProperty));
+                const nextPage = paginationData?.page ?? pagination.page;
+                const nextLimit = paginationData?.limit ?? pagination.limit;
+                const nextTotal = paginationData?.total ?? paginationData?.totalCount ?? data.length;
+                const nextTotalPages = paginationData?.totalPages
+                    ?? paginationData?.total_pages
+                    ?? Math.max(1, Math.ceil(nextTotal / Math.max(nextLimit, 1)));
+
+                setPagination(prev => ({
+                    ...prev,
+                    page: nextPage,
+                    limit: nextLimit,
+                    total: nextTotal,
+                    totalPages: nextTotalPages,
+                }));
             }
         } catch (err: any) {
             console.error('[PropertyContext] fetchProperties error:', err);
@@ -479,14 +540,37 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [buildPropertyQuery, pagination.limit, pagination.page, scope]);
 
     useEffect(() => {
         fetchProperties();
-    }, [filters]);
+    }, [fetchProperties]);
 
     const filteredProperties = properties;
     // Placeholder for actual filtering logic
+
+    const updateFilters = useCallback((nextFilters: PropertyFilters) => {
+        setPagination(prev => ({ ...prev, page: 1 }));
+        setFiltersState(nextFilters);
+    }, []);
+
+    const clearAllFilters = useCallback(() => {
+        setPagination(prev => ({ ...prev, page: 1 }));
+        setFiltersState({});
+    }, []);
+
+    const updateSort = useCallback((nextSort: SortOption) => {
+        setPagination(prev => ({ ...prev, page: 1 }));
+        setSortState(nextSort);
+    }, []);
+
+    const updatePage = useCallback((page: number) => {
+        setPagination(prev => ({ ...prev, page }));
+    }, []);
+
+    const updateLimit = useCallback((limit: number) => {
+        setPagination(prev => ({ ...prev, page: 1, limit }));
+    }, []);
 
     const uploadPropertyMedia = async (entityId: string, files: File[]): Promise<string[]> => {
         const uploads = await Promise.all(
@@ -628,11 +712,11 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                     setLoading(false);
                 }
             },
-            setFilters: setFiltersState,
-            clearFilters: () => setFiltersState({}),
-            setSort,
-            setPage: (page) => setPagination(prev => ({ ...prev, page })),
-            setLimit: (limit) => setPagination(prev => ({ ...prev, limit })),
+            setFilters: updateFilters,
+            clearFilters: clearAllFilters,
+            setSort: updateSort,
+            setPage: updatePage,
+            setLimit: updateLimit,
             incrementViews: async (id) => {
                 // Currently just optimistic update, backend should handle real views
                 setProperties(prev => prev.map(p => p.id === id ? { ...p, analytics: { ...p.analytics, views: (p.analytics?.views || 0) + 1 } } : p));
@@ -651,7 +735,7 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
                 available: properties.filter(p => p.status === 'available' || p.status === 'active').length,
                 sold: properties.filter(p => p.status === 'sold').length,
                 rented: properties.filter(p => p.status === 'rented' || p.status === 'let').length,
-                pending: properties.filter(p => p.status === 'pending' || p.status === 'under_offer').length
+                pending: properties.filter(p => p.status === 'pending' || p.status === 'pending_approval' || p.status === 'under_offer').length
             })
         }
         } >

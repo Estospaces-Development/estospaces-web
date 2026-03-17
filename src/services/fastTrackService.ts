@@ -1,4 +1,4 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -86,8 +86,7 @@ export const getFastTrackCases = async () => {
         }
         return { data: [], error: null };
     } catch (error: any) {
-        console.error('Error fetching fast track cases:', error);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -99,8 +98,7 @@ export const getFastTrackCaseById = async (id: string) => {
         }
         return { data: null, error: 'Case not found' };
     } catch (error: any) {
-        console.error('Error fetching fast track case:', error);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -115,8 +113,7 @@ export const createFastTrackCase = async (req: CreateFastTrackRequest) => {
         }
         return { data: null, error: 'Failed to create case' };
     } catch (error: any) {
-        console.error('Error creating fast track case:', error);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -132,7 +129,6 @@ export const updateFastTrackCase = async (id: string, req: UpdateFastTrackReques
         }
         return { data: null, error: 'Failed to update case' };
     } catch (error: any) {
-        console.error('Error updating fast track case:', error);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

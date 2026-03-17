@@ -58,7 +58,6 @@ export default function SettingsPage() {
                 }
             } catch (error: any) {
                 toast.error('Failed to load settings');
-                console.error('[DashboardSettingsPage] Load Error:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -99,7 +98,6 @@ export default function SettingsPage() {
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error: any) {
             toast.error('Failed to save settings');
-            console.error('[DashboardSettingsPage] Save Error:', error);
         } finally {
             setSaving(false);
         }

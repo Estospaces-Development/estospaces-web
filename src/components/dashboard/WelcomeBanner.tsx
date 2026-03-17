@@ -25,16 +25,20 @@ const WelcomeBanner = () => {
             if (!user) return;
             setLoading(true);
             try {
-                const res = await analyticsService.getAnalyticsData();
+                const res = await analyticsService.getManagerAnalytics();
                 if (res.data) {
                     setStats({
-                        activeProperties: res.data.leadAnalytics?.totalProperties || 0,
-                        activeLeads: res.data.leadAnalytics?.totalLeads || 0,
+                        activeProperties: res.data.total_properties || 0,
+                        activeLeads: res.data.active_leads || 0,
                         totalApplications: res.data.propertyPerformance?.reduce((acc, p) => acc + p.applications, 0) || 0
                     });
+                } else {
+                    setStats({
+                        activeProperties: 0,
+                        activeLeads: 0,
+                        totalApplications: 0,
+                    });
                 }
-            } catch (error) {
-                console.error('Error fetching dashboard stats:', error);
             } finally {
                 setLoading(false);
             }

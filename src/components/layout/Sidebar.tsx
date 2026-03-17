@@ -45,7 +45,6 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
             await signOut();
             navigate('/login');
         } catch (error) {
-            console.error('Error signing out:', error);
         }
     };
 

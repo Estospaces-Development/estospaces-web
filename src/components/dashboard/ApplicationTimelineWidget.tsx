@@ -215,7 +215,6 @@ const ApplicationTimelineWidget = () => {
                 }
 
             } catch (error) {
-                console.error("Failed to fetch timeline data", error);
             } finally {
                 setLoading(false);
             }
@@ -367,7 +366,7 @@ const ApplicationTimelineWidget = () => {
                                     )}
 
                                     <div className="flex gap-3">
-                                        <button onClick={() => navigate(`/user/dashboard/property/${item.property.id}`)} className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2">View Property <ExternalLink size={14} /></button>
+                                        <button onClick={() => navigate(`/user/properties/${item.property.id}`)} className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2">View Property <ExternalLink size={14} /></button>
                                         <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
                                     </div>
                                 </div>

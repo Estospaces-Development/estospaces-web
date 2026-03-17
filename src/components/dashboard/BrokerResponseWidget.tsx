@@ -27,7 +27,6 @@ const BrokerResponseWidget: React.FC = () => {
                 setRequests(mapped.slice(0, 4));
             }
         } catch (error) {
-            console.error('Error fetching broker leads:', error);
         } finally {
             setLoading(false);
         }
@@ -47,7 +46,6 @@ const BrokerResponseWidget: React.FC = () => {
                 ));
             }
         } catch (error) {
-            console.error('Error responding to lead:', error);
         }
     };
 

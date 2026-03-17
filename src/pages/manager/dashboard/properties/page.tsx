@@ -13,12 +13,13 @@ import {
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
+import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 const PropertyCard = lazy(() => import('@/components/dashboard/PropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
 import {
     Plus, Edit, Trash2, Filter, Download, Search, Grid, List, Map as MapIcon,
-    ChevronDown, X, Settings, ArrowUpDown, Heart, FileText, FileJson, File as FileIcon, Share2
+    ChevronDown, ChevronLeft, ChevronRight, X, Settings, ArrowUpDown, Heart, FileText, FileJson, File as FileIcon, Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 type ViewMode = 'grid' | 'list' | 'map';
@@ -109,6 +110,7 @@ function PropertiesContent() {
         setFilters,
         clearFilters,
         setSort,
+        setPage,
         exportProperties,
         getPropertyStats,
     } = useProperties();
@@ -141,7 +143,7 @@ function PropertiesContent() {
             setFilters({ ...filters, search: searchQuery || undefined });
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, setFilters, filters]);
+    }, [searchQuery, setFilters]);
 
     const handleApplyFilters = () => {
         const priceRange = priceRanges[selectedPriceRange];
@@ -186,6 +188,17 @@ function PropertiesContent() {
         await bulkUpdateStatus(selectedProperties, status as PropertyStatus);
         clearSelection();
         setShowBulkActions(false);
+    };
+
+    const handlePageChange = (nextPage: number) => {
+        if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) {
+            return;
+        }
+
+        setPage(nextPage);
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     // Filter based on tabs
@@ -474,6 +487,7 @@ function PropertiesContent() {
                             <PropertyCard
                                 property={property}
                                 onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}
+                                showStatusBadge
                             />
                             {/* Quick Actions Overlay (visible on hover) */}
                             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
@@ -524,63 +538,97 @@ function PropertiesContent() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {tabFilteredProperties.map((property) => (
-                                <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}>
-                                    <td className="px-6 py-4">
-                                        <div>
-                                            <div className="font-medium text-gray-900 dark:text-white">{property.title}</div>
-                                            <div className="text-sm text-gray-500">{property.address || property.location?.city}</div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                        {property.priceString}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                            {property.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">
-                                        {property.propertyType}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-medium">
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
-                                                className="text-primary hover:text-primary-dark transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedPropertyForShare(property);
-                                                    setShowShareModal(true);
-                                                }}
-                                                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                                                title="Share"
-                                            >
-                                                <Share2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
-                                                        deleteProperty(property.id);
-                                                    }
-                                                }}
-                                                className="text-red-500 hover:text-red-700 transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                            {tabFilteredProperties.map((property) => {
+                                const statusBadge = getManagerPropertyStatusBadge(property.status);
+
+                                return (
+                                    <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}>
+                                        <td className="px-6 py-4">
+                                            <div>
+                                                <div className="font-medium text-gray-900 dark:text-white">{property.title}</div>
+                                                <div className="text-sm text-gray-500">{property.address || property.location?.city}</div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                                            {property.priceString}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statusBadge.badgeClassName}`}>
+                                                <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
+                                                <span>{statusBadge.label}</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">
+                                            {property.propertyType}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium">
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
+                                                    className="text-primary hover:text-primary-dark transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPropertyForShare(property);
+                                                        setShowShareModal(true);
+                                                    }}
+                                                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                                    title="Share"
+                                                >
+                                                    <Share2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
+                                                            deleteProperty(property.id);
+                                                        }
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
+                </div>
+            )}
+
+            {tabFilteredProperties.length > 0 && pagination.totalPages > 1 && (
+                <div className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} properties
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => handlePageChange(pagination.page - 1)}
+                            disabled={loading || pagination.page <= 1}
+                            className="flex items-center gap-1 rounded-lg border border-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                        </button>
+                        <span className="px-2 text-sm text-gray-600 dark:text-gray-400">
+                            Page {pagination.page} of {pagination.totalPages}
+                        </span>
+                        <button
+                            onClick={() => handlePageChange(pagination.page + 1)}
+                            disabled={loading || pagination.page >= pagination.totalPages}
+                            className="flex items-center gap-1 rounded-lg border border-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
             )}
 

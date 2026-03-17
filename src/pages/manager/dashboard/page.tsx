@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as propertyService from '@/services/propertyService';
 import * as analyticsService from '@/services/analyticsService';
+import { getUserProperties } from '@/services/userPropertiesService';
 import { DollarSign, Building2, Eye, UserCheck, Plus, Filter, Download, Home, Bot } from 'lucide-react';
 
 // Components
@@ -28,7 +28,7 @@ function DashboardContent() {
       try {
         const [analyticsRes, propsRes] = await Promise.all([
           analyticsService.getManagerAnalytics(),
-          propertyService.getProperties({ limit: 3 })
+          getUserProperties({ limit: 3 })
         ]);
 
         if (analyticsRes.data) {
@@ -37,8 +37,6 @@ function DashboardContent() {
         if (propsRes.data) {
           setProperties(propsRes.data);
         }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -49,12 +47,12 @@ function DashboardContent() {
   const stats = {
     monthlyRevenue: analytics?.total_revenue?.toLocaleString() || '0.00',
     monthlyRevenueChange: analytics?.revenue_growth || '0%',
-    activeProperties: analytics?.total_properties?.toString() || analytics?.leadAnalytics?.totalProperties?.toString() || '0',
-    activeListingsChange: analytics?.property_growth || '+0',
-    totalViews: analytics?.total_views?.toString() || analytics?.propertyPerformance?.reduce((acc, p) => acc + (p.views || 0), 0) || '0',
+    activeProperties: analytics?.total_properties?.toString() || properties.length.toString(),
+    activeListingsChange: analytics?.property_growth || '0%',
+    totalViews: analytics?.total_views?.toString() || String(analytics?.propertyPerformance?.reduce((acc, p) => acc + (p.views || 0), 0) || 0),
     totalViewsChange: analytics?.views_growth || '0%',
-    conversionRate: (analytics?.leadAnalytics?.conversionRate ? analytics.leadAnalytics.conversionRate.toFixed(1) : (analytics?.conversion_rate || 0).toFixed(1)) + '%',
-    conversionRateChange: analytics?.conversion_growth || '+0%',
+    conversionRate: `${(analytics?.conversion_rate || analytics?.leadAnalytics?.conversionRate || 0).toFixed(1)}%`,
+    conversionRateChange: analytics?.conversion_growth || '0%',
   };
 
   const handleTabChange = (tab: string) => {

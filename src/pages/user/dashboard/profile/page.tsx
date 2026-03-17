@@ -59,7 +59,6 @@ export default function ProfilePage() {
                 viewings: viewingsData.data?.length || 0
             });
         } catch (error) {
-            console.error('[ProfilePage] Stats Error:', error);
         }
     }, [savedCount]);
 
@@ -123,7 +122,6 @@ export default function ProfilePage() {
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error: any) {
             toast.error(error.message || 'Failed to update profile');
-            console.error('[ProfilePage] Save Error:', error);
         } finally {
             setSavingProfile(false);
         }

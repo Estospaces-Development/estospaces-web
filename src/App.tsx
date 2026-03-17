@@ -32,6 +32,7 @@ const AdminAnalytics = lazy(() => import('./pages/admin/analytics/page'));
 const AdminChat = lazy(() => import('./pages/admin/chat/page'));
 const AdminFastTrack = lazy(() => import('./pages/admin/fast-track/page'));
 const AdminProperties = lazy(() => import('./pages/admin/properties/page'));
+const AdminPropertyDetail = lazy(() => import('./pages/admin/properties/[id]/page'));
 const AdminSettings = lazy(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazy(() => import('./pages/admin/users/page'));
 const AdminVerifications = lazy(() => import('./pages/admin/verifications/page'));
@@ -115,6 +116,7 @@ const App: React.FC = () => {
             <Route path="chat" element={<AdminChat />} />
             <Route path="fast-track" element={<AdminFastTrack />} />
             <Route path="properties" element={<AdminProperties />} />
+            <Route path="properties/:id" element={<AdminPropertyDetail />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="verifications" element={<AdminVerifications />} />
@@ -168,6 +170,8 @@ const App: React.FC = () => {
             <Route path="profile" element={<UserProfileDash />} />
             <Route path="saved" element={<UserSaved />} />
             <Route path="search" element={<UserSearch />} />
+            <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />
+            <Route path="dashboard/properties/:id" element={<UserPropertyDetail />} />
             <Route path="properties/:id" element={<UserPropertyDetail />} />
             <Route path="settings" element={<UserSettingsDash />} />
           </Route>

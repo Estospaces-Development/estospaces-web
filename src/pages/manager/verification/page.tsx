@@ -2,7 +2,7 @@
 
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2 } from 'lucide-react';
+import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import type { ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
@@ -13,6 +13,8 @@ export default function VerificationPage() {
         managerProfile, 
         verificationStatus, 
         isLoading, 
+        error,
+        refetch,
         submitForVerification, 
         requiredDocuments,
         documents,
@@ -25,12 +27,14 @@ export default function VerificationPage() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedRoleForProfile, setSelectedRoleForProfile] = useState<ManagerProfileType>('broker');
+    const [actionError, setActionError] = useState<string | null>(null);
 
     // Restore missing functions
     const handleInitialRegistration = async () => {
         setIsSubmitting(true);
         try {
-            await createProfile(selectedRoleForProfile);
+            const result = await createProfile(selectedRoleForProfile);
+            setActionError(result.error);
         } finally {
             setIsSubmitting(false);
         }
@@ -39,7 +43,8 @@ export default function VerificationPage() {
     const handleSubmitForReview = async () => {
         setIsSubmitting(true);
         try {
-            await submitForVerification();
+            const result = await submitForVerification();
+            setActionError(result.error);
         } finally {
             setIsSubmitting(false);
         }
@@ -70,6 +75,31 @@ export default function VerificationPage() {
         });
     }, [requiredDocuments, getDocumentStatus]);
 
+    const missingProfileFields = useMemo(() => {
+        if (!managerProfile) {
+            return [];
+        }
+
+        const missing: string[] = [];
+        const companyName = (managerProfile.company_name || '').trim().toLowerCase();
+        const licenseNumber = (managerProfile.company_registration_number || managerProfile.license_number || '').trim();
+
+        if (!companyName || companyName === 'pending broker profile' || companyName === 'pending company profile') {
+            missing.push('company name');
+        }
+        if (!(managerProfile.business_phone || '').trim()) {
+            missing.push('business phone');
+        }
+        if (!(managerProfile.company_address || '').trim()) {
+            missing.push('company address');
+        }
+        if (!licenseNumber) {
+            missing.push(managerProfile.profile_type === 'company' ? 'company registration number' : 'broker license number');
+        }
+
+        return missing;
+    }, [managerProfile]);
+
     const getStatusColor = (status: string | null) => {
         if (!status) return 'bg-gray-400';
         switch (status) {
@@ -96,7 +126,8 @@ export default function VerificationPage() {
     const handleDocumentUpload = async (docType: ManagerDocumentType, file: File) => {
         setIsSubmitting(true);
         try {
-            await uploadDocument(file, docType);
+            const result = await uploadDocument(file, docType);
+            setActionError(result.error);
         } finally {
             setIsSubmitting(false);
         }
@@ -112,6 +143,25 @@ export default function VerificationPage() {
     }
 
     if (!managerProfile) {
+        if (error) {
+            return (
+                <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500">
+                    <div className="rounded-[2rem] border border-red-200 bg-red-50/80 p-8 text-center shadow-sm dark:border-red-900/30 dark:bg-red-900/10">
+                        <AlertCircle className="mx-auto mb-4 h-10 w-10 text-red-500" />
+                        <h1 className="text-2xl font-black text-gray-900 dark:text-white">Verification could not be loaded</h1>
+                        <p className="mt-3 text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
+                        <button
+                            onClick={() => void refetch()}
+                            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-6 py-3 text-sm font-bold text-white transition-all hover:scale-105 dark:bg-orange-500"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="text-center">
@@ -121,6 +171,12 @@ export default function VerificationPage() {
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Manager Verification</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">Choose your profile type to begin the verification process</p>
                 </div>
+
+                {actionError && (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                        {actionError}
+                    </div>
+                )}
 
                 <div className="grid md:grid-cols-2 gap-6">
                     <button
@@ -201,6 +257,18 @@ export default function VerificationPage() {
                     <span>{getStatusText(verificationStatus)}</span>
                 </div>
             </div>
+
+            {actionError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                    {actionError}
+                </div>
+            )}
+
+            {missingProfileFields.length > 0 && (
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-semibold text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/10 dark:text-blue-300">
+                    Complete your professional profile before final review. Missing: {missingProfileFields.join(', ')}. You can update these details on the manager profile page.
+                </div>
+            )}
 
             {/* Main Verification Card */}
             <div className="bg-white dark:bg-[#0c0c0c] rounded-[2.5rem] p-8 lg:p-12 border border-gray-100 dark:border-gray-800 shadow-2xl relative overflow-hidden">
@@ -289,11 +357,15 @@ export default function VerificationPage() {
                     {!isVerified && (verificationStatus === 'incomplete' || verificationStatus === 'rejected') ? (
                         <button
                             onClick={handleSubmitForReview}
-                            disabled={isSubmitting || missingDocuments.length > 0}
+                            disabled={isSubmitting || missingDocuments.length > 0 || missingProfileFields.length > 0}
                             className="w-full sm:w-auto bg-gray-900 dark:bg-orange-500 hover:scale-105 active:scale-95 text-white px-10 py-4 rounded-2xl font-bold shadow-2xl transition-all disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center gap-2.5 group"
                         >
                             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />}
-                            {missingDocuments.length > 0 ? `Upload ${missingDocuments.length} more` : 'Submit for Final Review'}
+                            {missingProfileFields.length > 0
+                                ? 'Complete profile details'
+                                : missingDocuments.length > 0
+                                    ? `Upload ${missingDocuments.length} more`
+                                    : 'Submit for Final Review'}
                         </button>
                     ) : (
                         <div className="flex items-center gap-3 px-6 py-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">

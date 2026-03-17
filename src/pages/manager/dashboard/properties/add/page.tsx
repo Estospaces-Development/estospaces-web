@@ -56,6 +56,7 @@ import {
 import AddressSection, { AddressFormData } from '@/components/ui/AddressSection';
 import Toast from '@/components/ui/Toast';
 import { reassignMediaEntity } from '@/services/mediaService';
+import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 // Mode type for clear distinction
 type FormMode = 'create' | 'edit';
@@ -87,16 +88,6 @@ const listingTypes: { value: ListingType; label: string }[] = [
     { value: 'lease', label: 'For Lease' },
     { value: 'short_term', label: 'Short Term Rental' },
     { value: 'vacation', label: 'Vacation Rental' },
-];
-
-const statusOptions: { value: PropertyStatus; label: string; color: string }[] = [
-    { value: 'available', label: 'Available', color: 'bg-green-100 text-green-700' },
-    { value: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-700' },
-    { value: 'sold', label: 'Sold', color: 'bg-blue-100 text-blue-700' },
-    { value: 'rented', label: 'Rented', color: 'bg-purple-100 text-purple-700' },
-    { value: 'under_contract', label: 'Under Contract', color: 'bg-orange-100 text-orange-700' },
-    { value: 'off_market', label: 'Off Market', color: 'bg-gray-100 text-gray-700' },
-    { value: 'coming_soon', label: 'Coming Soon', color: 'bg-indigo-100 text-indigo-700' },
 ];
 
 const furnishingOptions: { value: FurnishingStatus; label: string }[] = [
@@ -263,7 +254,7 @@ const initialFormData: FormData = {
     title: '',
     propertyType: 'apartment',
     listingType: 'sale',
-    status: 'online' as PropertyStatus,
+    status: 'draft' as PropertyStatus,
 
     priceAmount: 0,
     currency: 'USD',
@@ -434,7 +425,7 @@ export default function AddPropertyPage() {
                 title: property.title || '',
                 propertyType: property.propertyType || 'apartment',
                 listingType: property.listingType || 'sale',
-                status: (property.status || 'online') as PropertyStatus,
+                status: (property.status || 'draft') as PropertyStatus,
 
                 priceAmount: property.price?.amount || 0,
                 currency: property.price?.currency || 'USD',
@@ -783,7 +774,6 @@ export default function AddPropertyPage() {
                     throw new Error('Image upload did not complete for every selected file.');
                 }
             } catch (err) {
-                console.error('Failed to upload images:', err);
                 throw err;
             }
         }
@@ -812,7 +802,6 @@ export default function AddPropertyPage() {
                     throw new Error('Video upload did not complete for every selected file.');
                 }
             } catch (err: any) {
-                console.error('Failed to upload videos:', err);
                 throw err;
             }
         }
@@ -828,7 +817,6 @@ export default function AddPropertyPage() {
             title: formData.title,
             propertyType: formData.propertyType,
             listingType: formData.listingType,
-            status: formData.status,
             description: formData.description,
             shortDescription: formData.shortDescription,
 
@@ -943,15 +931,21 @@ export default function AddPropertyPage() {
         };
     };
 
-    const finalizeMediaEntity = async (propertyId: string) => {
+    const finalizeMediaEntity = async (propertyId: string): Promise<string | null> => {
         if (idValue) {
-            return;
+            return null;
         }
         const draftEntityId = draftMediaEntityIdRef.current;
         if (draftEntityId === propertyId) {
-            return;
+            return null;
         }
-        await reassignMediaEntity('property', draftEntityId, 'property', propertyId);
+        try {
+            await reassignMediaEntity('property', draftEntityId, 'property', propertyId);
+            draftMediaEntityIdRef.current = propertyId;
+            return null;
+        } catch (error: any) {
+            return error?.message || 'Uploaded media could not be linked to this property.';
+        }
     };
 
     const handleSaveDraft = async () => {
@@ -967,18 +961,23 @@ export default function AddPropertyPage() {
             const propertyData = await buildPropertyData();
 
             if (mode === 'edit' && idValue) {
-                const result = await updateProperty(idValue, { ...propertyData, draft: true, published: false });
+                const result = await updateProperty(idValue, { ...propertyData, status: 'draft', draft: true, published: false });
                 if (!result) throw new Error('Failed to save property');
             } else {
-                const result = await addProperty({ ...propertyData, draft: true, published: false });
+                const result = await addProperty({ ...propertyData, status: 'draft', draft: true, published: false });
                 if (!result) throw new Error('Failed to save property');
-                await finalizeMediaEntity(result.id);
+                const mediaFinalizeError = await finalizeMediaEntity(result.id);
+                setIsDirty(false);
+                if (mediaFinalizeError) {
+                    showToast(`Draft saved, but media still needs to be attached: ${mediaFinalizeError}`, 'warning');
+                    setTimeout(() => navigate(`/manager/dashboard/properties/edit/${result.id}`), 1500);
+                    return;
+                }
             }
             setIsDirty(false);
             showToast('Property saved as draft successfully!', 'success');
             setTimeout(() => navigate('/manager/dashboard/properties'), 1500);
         } catch (error: any) {
-            console.error('Error saving draft:', error);
             showToast(`Failed to save draft: ${error?.message || 'Unknown error'}`, 'error');
         } finally {
             setSaving(false);
@@ -987,15 +986,18 @@ export default function AddPropertyPage() {
 
     const handleSaveOrPublish = async () => {
         const allErrors = validateAllFields();
+        const isEditSubmission = mode === 'edit' && (formData.status === 'draft' || formData.status === 'rejected');
 
         if (Object.keys(allErrors).length > 0) {
             setErrors(allErrors);
             const firstErrorStep = getFirstErrorStep(allErrors);
             setCurrentStep(firstErrorStep);
 
-            const errorMessage = mode === 'edit'
+            const errorMessage = isEditSubmission || mode === 'create'
+                ? 'Please fill in all required fields before submitting for admin approval.'
+                : mode === 'edit'
                 ? 'Please fill in all required fields before saving.'
-                : 'Please fill in all required fields before publishing.';
+                : 'Please fill in all required fields before submitting for admin approval.';
             showToast(errorMessage, 'error');
             return;
         }
@@ -1005,21 +1007,32 @@ export default function AddPropertyPage() {
             const propertyData = await buildPropertyData();
 
             if (mode === 'edit' && idValue) {
-                const result = await updateProperty(idValue, { ...propertyData, published: true, draft: false });
+                const nextStatus = isEditSubmission ? 'pending_approval' : formData.status;
+                const result = await updateProperty(idValue, { ...propertyData, status: nextStatus });
                 if (!result) throw new Error('Failed to save property');
+                setFormData(prev => ({ ...prev, status: result.status }));
                 setIsDirty(false);
-                showToast('Property saved successfully!', 'success');
+                showToast(
+                    nextStatus === 'pending_approval'
+                        ? 'Property submitted for admin approval successfully!'
+                        : 'Property saved successfully!',
+                    'success',
+                );
             } else {
-                const result = await addProperty({ ...propertyData, published: true, draft: false });
-                if (!result) throw new Error('Failed to publish property');
-                await finalizeMediaEntity(result.id);
+                const result = await addProperty({ ...propertyData, status: 'pending_approval', draft: false, published: false });
+                if (!result) throw new Error('Failed to submit property for admin approval');
+                const mediaFinalizeError = await finalizeMediaEntity(result.id);
                 setIsDirty(false);
-                showToast('Property published successfully!', 'success');
+                if (mediaFinalizeError) {
+                    showToast(`Property submitted for admin approval, but media still needs to be attached: ${mediaFinalizeError}`, 'warning');
+                    setTimeout(() => navigate(`/manager/dashboard/properties/edit/${result.id}`), 1500);
+                    return;
+                }
+                showToast('Property submitted for admin approval successfully!', 'success');
             }
             setTimeout(() => navigate('/manager/dashboard/properties'), 1500);
         } catch (error: any) {
-            console.error('Error saving/publishing property:', error);
-            const actionWord = mode === 'edit' ? 'save' : 'publish';
+            const actionWord = isEditSubmission || mode === 'create' ? 'submit' : 'save';
             showToast(`Failed to ${actionWord} property: ${error?.message || 'Unknown error'}`, 'error');
         } finally {
             setSaving(false);
@@ -1061,11 +1074,15 @@ export default function AddPropertyPage() {
         );
     }
 
+    const isEditSubmission = mode === 'edit' && (formData.status === 'draft' || formData.status === 'rejected');
     const primaryButtonLabel = mode === 'edit'
-        ? (saving ? 'Saving...' : 'Save Property')
-        : (saving ? 'Publishing...' : 'Publish Property');
+        ? isEditSubmission
+            ? (saving ? 'Submitting...' : formData.status === 'rejected' ? 'Resubmit for Approval' : 'Submit for Approval')
+            : (saving ? 'Saving...' : 'Save Property')
+        : (saving ? 'Submitting...' : 'Submit for Approval');
 
     const primaryButtonIcon = mode === 'edit' ? <Save className="w-4 h-4" /> : null;
+    const reviewStatusBadge = getManagerPropertyStatusBadge(formData.status);
 
     return (
         <div className="max-w-6xl mx-auto font-sans pb-8">
@@ -1233,7 +1250,7 @@ export default function AddPropertyPage() {
                                 </div>
                             </div>
 
-                            {/* Listing Type & Status */}
+                            {/* Listing Type & Review Status */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1258,19 +1275,23 @@ export default function AddPropertyPage() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Status *
+                                        Admin Review Status
                                     </label>
-                                    <select
-                                        value={formData.status}
-                                        onChange={(e) => handleInputChange('status', e.target.value as PropertyStatus)}
-                                        className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
-                                    >
-                                        {statusOptions.map((status) => (
-                                            <option key={status.value} value={status.value}>
-                                                {status.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${reviewStatusBadge.badgeClassName}`}>
+                                            <span className={`h-1.5 w-1.5 rounded-full ${reviewStatusBadge.dotClassName}`} />
+                                            <span>{reviewStatusBadge.label}</span>
+                                        </span>
+                                        <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                                            {mode === 'edit'
+                                                ? formData.status === 'draft'
+                                                    ? 'This listing is still a draft. Save changes or submit it for admin approval when it is ready.'
+                                                    : formData.status === 'rejected'
+                                                        ? 'This listing was rejected. Update the details and resubmit it for admin approval when it is ready.'
+                                                        : 'Managers can update property details here. Only admins can publish, reject, or suspend a listing.'
+                                                : 'New listings stay in draft until you submit them. After submission they appear in your dashboard as Admin Approval Pending until an admin publishes them.'}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2034,12 +2055,18 @@ export default function AddPropertyPage() {
                                 </div>
                                 <div>
                                     <p className="text-green-800 dark:text-green-200 font-medium text-lg">
-                                        {mode === 'edit' ? 'Ready to Save!' : 'Ready to Publish!'}
+                                        {mode === 'edit'
+                                            ? isEditSubmission
+                                                ? 'Ready to Submit!'
+                                                : 'Ready to Save!'
+                                            : 'Ready to Submit!'}
                                     </p>
                                     <p className="text-green-700 dark:text-green-300 text-sm mt-1">
                                         {mode === 'edit'
-                                            ? 'Review your changes and click "Save Property" to update the listing. You can also save as draft if the listing is not ready.'
-                                            : 'Your property listing is complete. Review the details and publish when ready. You can also save as draft and publish later.'
+                                            ? isEditSubmission
+                                                ? 'Review your changes and submit the listing for admin approval when ready. You can still save it as draft if more work is needed.'
+                                                : 'Review your changes and click "Save Property" to update the listing. You can also save as draft if the listing is not ready.'
+                                            : 'Your property listing is complete. Review the details and submit it for admin approval when ready. Once approved, the listing will show as published on the manager dashboard.'
                                         }
                                     </p>
                                 </div>

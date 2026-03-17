@@ -3,6 +3,7 @@
 import React from 'react';
 import { Star, Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye, Filter } from 'lucide-react';
 ;
+import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 interface ManagerPropertyCardProps {
     property: {
@@ -47,29 +48,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     };
     const imageUrl = getImage();
 
-    // Status Colors
-    const getStatusColor = (status: string) => {
-        const s = status?.toLowerCase() || 'draft';
-        switch (s) {
-            case 'online':
-            case 'active':
-            case 'published':
-                return { bg: 'bg-emerald-500/10', text: 'text-emerald-600', dot: 'bg-emerald-500' };
-            case 'draft':
-                return { bg: 'bg-gray-500/10', text: 'text-gray-600', dot: 'bg-gray-500' };
-            case 'under_offer':
-                return { bg: 'bg-orange-500/10', text: 'text-orange-600', dot: 'bg-orange-500' };
-            case 'sold':
-                return { bg: 'bg-blue-500/10', text: 'text-blue-600', dot: 'bg-blue-500' };
-            case 'let':
-                return { bg: 'bg-purple-500/10', text: 'text-purple-600', dot: 'bg-purple-500' };
-            default:
-                return { bg: 'bg-gray-500/10', text: 'text-gray-600', dot: 'bg-gray-500' };
-        }
-    };
-
-    const statusConfig = getStatusColor(property.status);
-    const statusLabel = property.status?.replace(/_/g, ' ') || 'Draft';
+    const statusConfig = getManagerPropertyStatusBadge(property.status);
 
     return (
         <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
@@ -89,9 +68,9 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
 
                 {/* Status Badge */}
                 <div className="absolute top-3 left-3">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/90 backdrop-blur-sm shadow-sm ${statusConfig.text}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
-                        <span className="capitalize">{statusLabel}</span>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm ring-1 ring-inset backdrop-blur-sm ${statusConfig.badgeClassName}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotClassName}`} />
+                        <span>{statusConfig.label}</span>
                     </span>
                 </div>
 

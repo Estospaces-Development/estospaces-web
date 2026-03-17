@@ -169,7 +169,6 @@ const SharePropertyModal = ({ isOpen, onClose, property, onShare }: SharePropert
                 }
             }
         } catch (error: any) {
-            console.error('Error sharing:', error);
             showToast('Failed to share', 'error');
         }
     };

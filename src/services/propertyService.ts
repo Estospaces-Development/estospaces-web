@@ -3,7 +3,7 @@
  * Fetches property data from core-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -15,6 +15,7 @@ export interface Property {
     property_type: string; // house, apartment, etc.
     listing_type: 'rent' | 'sale' | 'lease' | 'short_term';
     status: string;
+    rejection_reason?: string;
     price: number;
     currency: string;
     deposit_amount?: number;
@@ -72,29 +73,111 @@ export interface PropertyFilters {
     is_verified?: boolean;
 }
 
+export type AdminPropertyStatus = 'published' | 'rejected' | 'suspended';
+
+interface PropertyPagination {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+}
+
+interface PropertyListPayload {
+    data: Property[];
+    pagination: PropertyPagination;
+}
+
+const FILTER_PARAM_MAP: Record<string, string> = {
+    country: 'country',
+    city: 'city',
+    type: 'type',
+    propertyType: 'type',
+    listingType: 'listing_type',
+    listing_type: 'listing_type',
+    status: 'status',
+    search: 'search',
+    manager_id: 'manager_id',
+    managerId: 'manager_id',
+    sort_by: 'sort_by',
+    sort_order: 'sort_order',
+    page: 'page',
+    limit: 'limit',
+    min_price: 'min_price',
+    priceMin: 'min_price',
+    max_price: 'max_price',
+    priceMax: 'max_price',
+    min_bedrooms: 'min_bedrooms',
+    bedroomsMin: 'min_bedrooms',
+    max_bedrooms: 'max_bedrooms',
+    bedroomsMax: 'max_bedrooms',
+    featured: 'featured',
+    is_verified: 'is_verified',
+    verified: 'is_verified',
+};
+
+const normalizeFilterValue = (value: unknown) => {
+    if (Array.isArray(value)) {
+        return value.length > 0 ? value[0] : '';
+    }
+
+    return value;
+};
+
+const fetchPropertyList = async (
+    endpoint: string,
+    filters: Record<string, any> = {},
+): Promise<{
+    data: Property[] | null;
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    } | null;
+    error: string | null;
+}> => {
+    try {
+        const url = new URL(`${CORE_URL()}${endpoint}`);
+        Object.keys(filters).forEach(key => {
+            const param = FILTER_PARAM_MAP[key] || key;
+            const value = normalizeFilterValue(filters[key]);
+            if (value !== undefined && value !== null && value !== '') {
+                url.searchParams.append(param, String(value));
+            }
+        });
+
+        const response = await apiFetchEnvelope<PropertyListPayload>(url.toString());
+        const payload = response.data;
+        const properties = Array.isArray(payload?.data) ? payload.data : [];
+        const pagination = payload?.pagination
+            ? {
+                page: payload.pagination.page,
+                limit: payload.pagination.limit,
+                total: payload.pagination.total,
+                totalPages: payload.pagination.total_pages,
+            }
+            : null;
+
+        return { data: properties, pagination, error: null };
+    } catch (error: any) {
+        return { data: null, pagination: null, error: getErrorMessage(error) };
+    }
+};
+
 /**
  * Fetch properties with optional filters
  * GET /api/v1/properties (core-service)
  */
-export const getProperties = async (filters: Record<string, any> = {}): Promise<{ data: Property[] | null; error: string | null }> => {
-    try {
-        const url = new URL(`${CORE_URL()}/api/v1/properties`);
-        Object.keys(filters).forEach(key => {
-            if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
-                url.searchParams.append(key, String(filters[key]));
-            }
-        });
+export const getProperties = async (filters: Record<string, any> = {}) => {
+    return fetchPropertyList('/api/v1/properties', filters);
+};
 
-        const data = await apiFetch<any>(url.toString());
-        // Backend returns { success: true, data: { data: [...], pagination: {...} } }
-        // apiFetch returns the 'data' part: { data: [...], pagination: {...} }
-        const propertiesData = data.data || data.properties || data;
-        const properties = Array.isArray(propertiesData) ? propertiesData : (Array.isArray(data) ? data : []);
-        return { data: properties as Property[], error: null };
-    } catch (error: any) {
-        console.error('[propertyService] getProperties error:', error.message);
-        return { data: null, error: error.message };
-    }
+/**
+ * Fetch all properties for admin review
+ * GET /api/v1/admin/properties (core-service, admin only)
+ */
+export const getAdminProperties = async (filters: Record<string, any> = {}) => {
+    return fetchPropertyList('/api/v1/admin/properties', filters);
 };
 
 /**
@@ -108,8 +191,22 @@ export const getPropertyById = async (id: string): Promise<{ data: Property | nu
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[propertyService] getPropertyById error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+/**
+ * Fetch a single property by ID for admin review
+ * GET /api/v1/admin/properties/:id (core-service, admin only)
+ */
+export const getAdminPropertyById = async (id: string): Promise<{ data: Property | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Property>(
+            `${CORE_URL()}/api/v1/admin/properties/${id}`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -128,8 +225,7 @@ export const createProperty = async (propertyData: Partial<Property>): Promise<{
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[propertyService] createProperty error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -148,8 +244,33 @@ export const updateProperty = async (id: string, propertyData: Partial<Property>
         );
         return { data, error: null };
     } catch (error: any) {
-        console.error('[propertyService] updateProperty error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+/**
+ * Update property lifecycle status as an admin
+ * PUT /api/v1/admin/properties/:id/status (core-service, admin)
+ */
+export const adminUpdatePropertyStatus = async (
+    id: string,
+    status: AdminPropertyStatus,
+    reason?: string,
+): Promise<{ data: Property | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<Property>(
+            `${CORE_URL()}/api/v1/admin/properties/${id}/status`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({
+                    status,
+                    reason,
+                }),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -165,8 +286,7 @@ export const deleteProperty = async (id: string): Promise<{ error: string | null
         );
         return { error: null };
     } catch (error: any) {
-        console.error('[propertyService] deleteProperty error:', error.message);
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -182,7 +302,7 @@ export const saveProperty = async (id: string): Promise<{ error: string | null }
         );
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -198,7 +318,7 @@ export const unsaveProperty = async (id: string): Promise<{ error: string | null
         );
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -213,7 +333,7 @@ export const getSavedProperties = async (): Promise<{ data: Property[] | null; e
         );
         return { data, error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -228,6 +348,6 @@ export const getPropertySections = async (country: string = 'UK'): Promise<{ dat
         );
         return { data, error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

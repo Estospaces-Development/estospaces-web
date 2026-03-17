@@ -23,14 +23,16 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 interface PropertyCardProps {
     property: any;
     onViewDetails?: (property: any) => void;
     onClick?: () => void;
+    showStatusBadge?: boolean;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, onClick }) => {
+const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, onClick, showStatusBadge = false }) => {
     const navigate = useNavigate();
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showVirtualTour, setShowVirtualTour] = useState(false);
@@ -49,6 +51,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
     const isApplied = !!existingApplication || property.is_applied || false;
     const applicationStatus = existingApplication?.status || property.application_status || null;
     const viewCount = property.view_count || 0;
+    const statusBadge = getManagerPropertyStatusBadge(property.status);
 
     const handleViewDetails = (e: React.MouseEvent) => {
         e?.stopPropagation();
@@ -59,7 +62,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
         } else if (onViewDetails) {
             onViewDetails(property);
         } else {
-            navigate(`/user/dashboard/property/${property.id}`);
+            navigate(`/user/properties/${property.id}`);
         }
     };
 
@@ -274,17 +277,24 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                         </div>
                     )}
 
-                    {/* Property Type Badge */}
-                    {property.type && (
-                        <div className="absolute top-3 left-3">
-                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold font-manager shadow-sm ${property.type?.toLowerCase() === 'rent'
-                                ? 'bg-blue-500 text-white'
-                                : property.type?.toLowerCase() === 'sale'
-                                    ? 'bg-emerald-500 text-white'
-                                    : 'bg-white/95 backdrop-blur-sm text-gray-800'
-                                }`}>
-                                {property.type === 'Sale' ? 'For Sale' : property.type === 'Rent' ? 'For Rent' : property.type}
-                            </span>
+                    {(property.type || showStatusBadge) && (
+                        <div className="absolute top-3 left-3 right-16 flex flex-col items-start gap-2">
+                            {property.type && (
+                                <span className={`px-3 py-1.5 rounded-lg text-xs font-bold font-manager shadow-sm ${property.type?.toLowerCase() === 'rent'
+                                    ? 'bg-blue-500 text-white'
+                                    : property.type?.toLowerCase() === 'sale'
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-white/95 backdrop-blur-sm text-gray-800'
+                                    }`}>
+                                    {property.type === 'Sale' ? 'For Sale' : property.type === 'Rent' ? 'For Rent' : property.type}
+                                </span>
+                            )}
+                            {showStatusBadge && (
+                                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset backdrop-blur-sm ${statusBadge.badgeClassName}`}>
+                                    <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
+                                    <span>{statusBadge.label}</span>
+                                </span>
+                            )}
                         </div>
                     )}
 

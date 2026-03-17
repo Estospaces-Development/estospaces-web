@@ -3,7 +3,7 @@
  * Fetches and creates notifications via the notification-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const NOTIFICATION_URL = () => getServiceUrl('notification');
 
@@ -203,7 +203,7 @@ export async function createNotification({
         );
         return true;
     } catch (error: any) {
-        console.error('[notificationsService] createNotification error:', error.message);
+        void getErrorMessage(error);
         return false;
     }
 }

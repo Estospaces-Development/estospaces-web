@@ -126,11 +126,9 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                     }));
                     setRecentProperties(mappedData);
                 } else {
-                    console.error('[NewApplication] Failed to fetch properties:', error);
                     setRecentProperties([]);
                 }
             } catch (err) {
-                console.error('[NewApplication] Error fetching recent properties:', err);
                 setRecentProperties([]);
             } finally {
                 setLoadingRecent(false);
@@ -166,11 +164,9 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                     }));
                     setProperties(mappedData);
                 } else {
-                    console.error('[NewApplication] Search failed:', error);
                     setProperties([]);
                 }
             } catch (err) {
-                console.error('[NewApplication] Error searching properties:', err);
                 setProperties([]);
             } finally {
                 setLoadingProperties(false);
@@ -325,7 +321,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 onClose();
             }, 2500);
         } catch (err: unknown) {
-            console.error('Error submitting application:', err);
             setSubmitError((err as Error).message || 'Failed to submit application');
         } finally {
             setIsSubmitting(false);
@@ -355,7 +350,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
             const validImage = images.filter(img => img && typeof img === 'string')[0];
             return validImage || fallbackImage;
         } catch (e) {
-            console.error('[NewApplication] Error getting property image:', e);
             return fallbackImage;
         }
     };

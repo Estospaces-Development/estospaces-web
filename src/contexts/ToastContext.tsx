@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from '@/components/ui/Toast';
+import { registerErrorToastHandler } from '@/lib/apiToastBus';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -110,6 +111,8 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
         }),
         [toasts, removeToast],
     );
+
+    useEffect(() => registerErrorToastHandler(error), [error]);
 
     return (
         <ToastActionsContext.Provider value={actionsValue}>

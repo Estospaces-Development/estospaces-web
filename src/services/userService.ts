@@ -1,4 +1,4 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { User } from '@/types';
 
 const CORE_URL = () => getServiceUrl('core');
@@ -25,22 +25,20 @@ export const userService = {
             const data = await apiFetch<Agency[]>(`${CORE_URL()}/api/v1/users/agencies?limit=${limit}`);
             return { data, error: null };
         } catch (error: any) {
-            console.error('[userService] getAgencies error:', error.message);
-            return { data: [], error: error.message };
+            return { data: [], error: getErrorMessage(error) };
         }
     },
 
     getAllUsers: async (page: number = 1, limit: number = 20): Promise<{ data: User[], pagination: any, error: string | null }> => {
         try {
-            const data = await apiFetch<User[]>(`${CORE_URL()}/api/v1/users?page=${page}&limit=${limit}`);
-            return { 
-                data, 
-                pagination: null, // apiFetch abstraction strips pagination siblings
-                error: null 
+            const response = await apiFetchEnvelope<User[]>(`${CORE_URL()}/api/v1/users?page=${page}&limit=${limit}`);
+            return {
+                data: response.data || [],
+                pagination: response.pagination || null,
+                error: null
             };
         } catch (error: any) {
-            console.error('[userService] getAllUsers error:', error.message);
-            return { data: [], pagination: null, error: error.message };
+            return { data: [], pagination: null, error: getErrorMessage(error) };
         }
     }
 };

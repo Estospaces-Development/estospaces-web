@@ -34,8 +34,6 @@ const Analytics = () => {
                 if (applicationsResult.data) {
                     setApplications(applicationsResult.data);
                 }
-            } catch (error) {
-                console.error('Error fetching analytics:', error);
             } finally {
                 setLoading(false);
             }
@@ -104,31 +102,31 @@ const Analytics = () => {
                 {[
                     { 
                         label: 'Total Leads', 
-                        value: analyticsData?.leadAnalytics?.totalLeads || 0, 
+                        value: analyticsData?.total_leads || analyticsData?.leadAnalytics?.totalLeads || 0, 
                         icon: Users, 
                         color: 'blue', 
-                        growth: analyticsData?.leadAnalytics?.passed ? `+${analyticsData.leadAnalytics.passed}%` : '+0%'
+                        growth: analyticsData?.conversion_growth || '0%'
                     },
                     { 
                         label: 'Properties', 
-                        value: analyticsData?.leadAnalytics?.totalProperties || properties.length || 0, 
+                        value: analyticsData?.total_properties || analyticsData?.leadAnalytics?.totalProperties || properties.length || 0, 
                         icon: Building2, 
                         color: 'orange', 
-                        growth: analyticsData?.property_growth || '+0' 
+                        growth: analyticsData?.property_growth || '0%' 
                     },
                     { 
                         label: 'Conv. Rate', 
-                        value: `${analyticsData?.leadAnalytics?.conversionRate || 0}%`, 
+                        value: `${analyticsData?.conversion_rate || analyticsData?.leadAnalytics?.conversionRate || 0}%`, 
                         icon: Target, 
                         color: 'green', 
-                        growth: analyticsData?.conversion_growth || '+0%' 
+                        growth: analyticsData?.conversion_growth || '0%' 
                     },
                     { 
                         label: 'Views', 
                         value: analyticsData?.total_views || 0, 
                         icon: TrendingUp, 
                         color: 'purple', 
-                        growth: analyticsData?.views_growth || '+0%' 
+                        growth: analyticsData?.views_growth || '0%' 
                     }
                 ].map((metric, i) => (
                     <div key={i} className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
@@ -289,7 +287,7 @@ const Analytics = () => {
                             <div>
                                 <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">Platform Insight</h4>
                                 <p className="text-xs text-orange-600/80 dark:text-orange-400/60 leading-relaxed mt-1">
-                                    {analyticsData?.leadAnalytics?.conversionRate && analyticsData.leadAnalytics.conversionRate > 20 
+                                    {((analyticsData?.conversion_rate || analyticsData?.leadAnalytics?.conversionRate || 0) > 20)
                                         ? "Your conversion rate is above industry average. Keep up the great work!"
                                         : "Focus on converting your active negotiations to hit your growth targets."}
                                 </p>

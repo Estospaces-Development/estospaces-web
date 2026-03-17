@@ -31,7 +31,6 @@ export default function HelpPage() {
             toast.success('Support ticket created successfully');
         } catch (error: any) {
             toast.error(error.message || 'Failed to submit ticket');
-            console.error('[HelpPage] Submit Error:', error);
         } finally {
             setSubmitting(false);
         }

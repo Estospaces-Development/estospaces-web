@@ -240,7 +240,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
                             <PropertyCard
                                 key={property.id}
                                 property={property}
-                                onViewDetails={(prop: any) => navigate(`/user/dashboard/property/${prop.id}`)}
+                                onViewDetails={(prop: any) => navigate(`/user/properties/${prop.id}`)}
                             />
                         ))}
                     </div>

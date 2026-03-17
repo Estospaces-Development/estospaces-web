@@ -37,7 +37,6 @@ export default function ContactPage() {
             toast.success('Your email draft is ready.');
         } catch (error: any) {
             toast.error(error.message || 'Failed to send message');
-            console.error('[ContactPage] Submit Error:', error);
         } finally {
             setIsSubmitting(false);
         }

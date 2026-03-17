@@ -63,7 +63,7 @@ export default function AdminDashboard() {
         { id: 'users', label: 'Total Users', value: data?.total_users || 0, icon: Users, color: 'text-blue-500' },
         { id: 'properties', label: 'Total Properties', value: data?.total_properties || 0, icon: Building2, color: 'text-emerald-500' },
         { id: 'brokers', label: 'Verified Brokers', value: data?.total_brokers || 0, icon: Shield, color: 'text-purple-500' },
-        { id: 'pending', label: 'Pending Reviews', value: data?.pending_verifications || 0, icon: Activity, color: 'text-orange-500' },
+        { id: 'pending', label: 'Pending Verifications', value: data?.pending_verifications || 0, icon: Activity, color: 'text-orange-500' },
     ];
 
     return (

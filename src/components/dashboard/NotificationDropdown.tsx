@@ -42,7 +42,6 @@ const NotificationDropdown = () => {
             const result = await getNotifications();
             setNotifications((result.notifications || []).map(mapNotification));
         } catch (error) {
-            console.error('[NotificationDropdown] Error fetching:', error);
         } finally {
             setLoading(false);
         }
@@ -123,7 +122,7 @@ const NotificationDropdown = () => {
             case NOTIFICATION_TYPES.PRICE_DROP:
             case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
                 if (notification.data?.propertyId) {
-                    navigate(`/user/dashboard/property/${notification.data.propertyId}`);
+                    navigate(`/user/properties/${notification.data.propertyId}`);
                 } else {
                     navigate('/user/dashboard/saved');
                 }

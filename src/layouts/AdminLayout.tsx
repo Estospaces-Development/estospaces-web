@@ -8,7 +8,7 @@ export default function AdminLayout() {
   const isSubdomain = domain.startsWith('admin.');
 
   return (
-    <PropertyProvider>
+    <PropertyProvider scope="admin">
       <AdminLayoutClient isSubdomain={isSubdomain}>
         <Outlet />
       </AdminLayoutClient>

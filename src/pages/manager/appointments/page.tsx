@@ -43,7 +43,6 @@ export default function ManagerAppointmentsPage() {
                 setAppointments(mapped);
             }
         } catch (err: any) {
-            console.error('Error fetching appointments:', err);
             setError(err.message || 'Failed to load appointments');
         } finally {
             setLoading(false);
@@ -61,7 +60,6 @@ export default function ManagerAppointmentsPage() {
             setShowDeleteConfirm(null);
             toast.success('Appointment cancelled successfully');
         } catch (err: any) {
-            console.error('Error cancelling appointment:', err);
             toast.error(`Failed to cancel appointment: ${err.message || 'Unknown error'}`);
         }
     };

@@ -20,7 +20,6 @@ export default function BookingsPage() {
                 setBookings(result.data || []);
             } catch (error: any) {
                 toast.error('Failed to load bookings');
-                console.error('[BookingsPage] Load Error:', error);
             } finally {
                 setIsLoading(false);
             }

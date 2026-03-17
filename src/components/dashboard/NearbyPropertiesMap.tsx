@@ -185,7 +185,7 @@ const NearbyPropertiesMap = ({
     };
 
     const handleViewDetails = (property: Property) => {
-        navigate(`/user/dashboard/property/${property.id}`);
+        navigate(`/user/properties/${property.id}`);
     };
 
     // Get marker color based on distance category

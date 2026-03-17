@@ -158,7 +158,6 @@ export default function PropertyDetailPage() {
                 });
             }
         } catch (error: any) {
-            console.error('Error publishing property:', error);
             setToast({
                 message: `Failed to publish property: ${error?.message || 'Unknown error'}`,
                 type: 'error',
@@ -196,7 +195,6 @@ export default function PropertyDetailPage() {
                 });
             }
         } catch (err) {
-            console.error('Error toggling favorite:', err);
             setToast({
                 message: 'An error occurred. Please try again.',
                 type: 'error',

@@ -10,9 +10,10 @@ const CORE_URL = () => getServiceUrl('core');
 
 export default function ManagerProfilePage() {
     const { user } = useAuth();
-    const { managerProfile, verificationStatus, isVerified } = useManagerVerification();
+    const { managerProfile, verificationStatus, isVerified, updateProfile } = useManagerVerification();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [saveError, setSaveError] = useState('');
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -20,11 +21,14 @@ export default function ManagerProfilePage() {
         email: '',
         phone: '',
         companyName: '',
+        businessPhone: '',
         companyAddress: '',
         website: '',
         bio: '',
         licenseNumber: '',
     });
+
+    const canEditProfessionalDetails = Boolean(managerProfile);
 
     // Populate form from auth user + broker profile
     useEffect(() => {
@@ -35,12 +39,15 @@ export default function ManagerProfilePage() {
                 firstName: nameParts[0] || '',
                 lastName: nameParts.slice(1).join(' ') || '',
                 email: user.email || '',
+                phone: user.phone || prev.phone,
+                businessPhone: prev.businessPhone || user.phone || '',
             }));
         }
         if (managerProfile) {
             setFormData(prev => ({
                 ...prev,
                 companyName: managerProfile.company_name || '',
+                businessPhone: managerProfile.business_phone || prev.businessPhone || prev.phone,
                 companyAddress: managerProfile.company_address || '',
                 licenseNumber: managerProfile.company_registration_number || managerProfile.license_number || '',
                 bio: managerProfile.company_description || prev.bio,
@@ -54,11 +61,13 @@ export default function ManagerProfilePage() {
             [e.target.name]: e.target.value
         }));
         setIsSaved(false);
+        setSaveError('');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setSaveError('');
         try {
             await apiFetch(`${CORE_URL()}/api/v1/users/profile`, {
                 method: 'PUT',
@@ -68,10 +77,25 @@ export default function ManagerProfilePage() {
                     phone: formData.phone || undefined,
                 }),
             });
+
+            if (managerProfile) {
+                const result = await updateProfile({
+                    company_name: formData.companyName.trim() || '',
+                    business_phone: formData.businessPhone.trim() || '',
+                    company_address: formData.companyAddress.trim() || '',
+                    company_description: formData.bio.trim() || '',
+                    company_registration_number: formData.licenseNumber.trim() || '',
+                    license_number: formData.licenseNumber.trim() || '',
+                });
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+            }
+
             setIsSaved(true);
             setTimeout(() => setIsSaved(false), 3000);
         } catch (err) {
-            console.error('Failed to update profile:', err);
+            setSaveError((err as Error).message || 'Failed to update your profile.');
         } finally {
             setIsLoading(false);
         }
@@ -195,19 +219,38 @@ export default function ManagerProfilePage() {
                                 Professional Details
                             </h3>
                             <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-300">
-                                Broker/company profile editing is not exposed by the current backend yet, so these fields are shown read-only on `develop`.
+                                {canEditProfessionalDetails
+                                    ? 'These professional details are reviewed with your broker verification documents.'
+                                    : 'Start manager verification first to create your broker/company profile, then return here to complete these details.'}
                             </div>
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Company Name</label>
-                                        <input type="text" name="companyName" value={formData.companyName} disabled
-                                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                        <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} disabled={!canEditProfessionalDetails}
+                                            className={`w-full px-4 py-2 border rounded-lg ${canEditProfessionalDetails
+                                                ? 'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                                                : 'bg-gray-100 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                                }`} />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License Number</label>
-                                        <input type="text" name="licenseNumber" value={formData.licenseNumber} disabled
-                                            className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                        <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange} disabled={!canEditProfessionalDetails}
+                                            className={`w-full px-4 py-2 border rounded-lg ${canEditProfessionalDetails
+                                                ? 'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                                                : 'bg-gray-100 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                                }`} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Phone</label>
+                                        <div className="relative">
+                                            <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <input type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange} disabled={!canEditProfessionalDetails}
+                                                className={`w-full pl-10 pr-4 py-2 border rounded-lg ${canEditProfessionalDetails
+                                                    ? 'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                                                    : 'bg-gray-100 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                                    }`} />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -224,19 +267,31 @@ export default function ManagerProfilePage() {
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office Address</label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
-                                        <textarea name="companyAddress" value={formData.companyAddress} disabled rows={2}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 resize-none cursor-not-allowed" />
+                                        <textarea name="companyAddress" value={formData.companyAddress} onChange={handleChange} disabled={!canEditProfessionalDetails} rows={2}
+                                            className={`w-full pl-10 pr-4 py-2 border rounded-lg resize-none ${canEditProfessionalDetails
+                                                ? 'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                                                : 'bg-gray-100 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                                }`} />
                                     </div>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Bio</label>
-                                    <textarea name="bio" value={formData.bio} disabled rows={4}
-                                        className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 resize-none cursor-not-allowed" />
-                                    <p className="text-xs text-gray-500 mt-1">This section becomes editable once a broker profile update API is available.</p>
+                                    <textarea name="bio" value={formData.bio} onChange={handleChange} disabled={!canEditProfessionalDetails} rows={4}
+                                        className={`w-full px-4 py-2 border rounded-lg resize-none ${canEditProfessionalDetails
+                                            ? 'bg-gray-50 dark:bg-gray-700/50 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500'
+                                            : 'bg-gray-100 dark:bg-gray-700/30 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                            }`} />
+                                    <p className="text-xs text-gray-500 mt-1">Keep this aligned with the business details you submit for verification.</p>
                                 </div>
                             </div>
                         </div>
+
+                        {saveError && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                                {saveError}
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                             {isSaved && (

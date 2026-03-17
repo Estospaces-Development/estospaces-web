@@ -41,7 +41,6 @@ export default function ContractsPage() {
                 setTemplates((templatesData as any).data || (Array.isArray(templatesData) ? templatesData : []));
             } catch (error: any) {
                 toast.error('Failed to load contract information');
-                console.error('[ContractsPage] Load Error:', error);
             } finally {
                 setIsLoading(false);
             }

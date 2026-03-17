@@ -49,7 +49,6 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
             setSavedProperties(data || []);
             setError(null);
         } catch (err: any) {
-            console.error('[SavedProperties] Error:', err.message);
             setSavedProperties([]);
             setError(err.message);
         } finally {

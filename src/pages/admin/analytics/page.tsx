@@ -5,14 +5,13 @@ import {
     BarChart3, Users, Eye, RefreshCw,
     Activity, Zap, Globe2, Loader2
 } from 'lucide-react';
-import { useToast } from '@/contexts/ToastContext';
 import { getPlatformAnalytics, type AnalyticsData } from '../../../services/analyticsService';
 
 function AnalyticsContent() {
-    const toast = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [data, setData] = useState<AnalyticsData | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchAnalytics = useCallback(async (refresh = false) => {
         try {
@@ -24,14 +23,14 @@ function AnalyticsContent() {
                 throw new Error(response.error);
             }
             setData(response.data);
+            setError(null);
         } catch (error: any) {
-            toast.error('Failed to load analytics data');
-            console.error('[AdminAnalyticsPage] Error:', error);
+            setError(error.message || 'Analytics data is not available right now.');
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         fetchAnalytics();
@@ -44,25 +43,25 @@ function AnalyticsContent() {
     const stats = [
         { 
             label: 'Total Leads', 
-            value: (data?.leadAnalytics?.totalLeads ?? data?.total_leads ?? 0).toLocaleString(),
+            value: (data?.total_leads ?? 0).toLocaleString(),
             icon: Users, 
             color: 'text-blue-500' 
         },
         { 
             label: 'Total Properties', 
-            value: (data?.leadAnalytics?.totalProperties ?? data?.total_properties ?? 0).toLocaleString(),
+            value: (data?.total_properties ?? 0).toLocaleString(),
             icon: Activity, 
             color: 'text-purple-500' 
         },
         { 
             label: 'Total Views', 
-            value: (data?.leadAnalytics?.passed ?? 0).toLocaleString(),
+            value: (data?.total_views ?? 0).toLocaleString(),
             icon: Eye, 
             color: 'text-green-500' 
         },
         { 
             label: 'Conversion Rate', 
-            value: `${data?.leadAnalytics?.conversionRate ?? 0}%`,
+            value: `${data?.conversion_rate ?? 0}%`,
             icon: Zap, 
             color: 'text-orange-500' 
         },
@@ -80,7 +79,7 @@ function AnalyticsContent() {
     }
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-500 pb-12">
+            <div className="space-y-10 animate-in fade-in duration-500 pb-12">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
@@ -124,6 +123,12 @@ function AnalyticsContent() {
                     </div>
                 ))}
             </div>
+
+            {error && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                    {error}
+                </div>
+            )}
 
             {/* Pages Table */}
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">

@@ -2,7 +2,6 @@
 
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import * as analyticsService from '@/services/analyticsService';
 
 interface TopProperty {
@@ -15,7 +14,6 @@ interface TopProperty {
 }
 
 const TopProperties = () => {
-    const { user } = useAuth();
     const [topProperties, setTopProperties] = useState<TopProperty[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -37,16 +35,13 @@ const TopProperties = () => {
                 } else {
                     setTopProperties([]);
                 }
-            } catch (error) {
-                console.error('Error fetching top properties:', error);
-                setTopProperties([]);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchTopProperties();
-    }, [user]);
+    }, []);
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6">

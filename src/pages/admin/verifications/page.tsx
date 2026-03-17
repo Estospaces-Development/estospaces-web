@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import { getManagers, ManagerProfile } from '@/services/managerVerificationService';
-import { useToast } from '@/contexts/ToastContext';
 import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'all' | 'pending' | 'review' | 'approved' | 'rejected';
@@ -20,21 +19,21 @@ function VerificationsContent() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [managers, setManagers] = useState<ManagerProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const toast = useToast();
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const fetchManagers = useCallback(async () => {
     try {
       const { data, error } = await getManagers();
       if (error) throw new Error(error);
       setManagers(data);
+      setLoadError(null);
     } catch (err: any) {
-      console.error('Error fetching managers:', err);
-      toast.error('Failed to load verification queue');
+      setLoadError(err.message || 'Verification queue is not available right now.');
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchManagers();
@@ -143,6 +142,12 @@ function VerificationsContent() {
           </button>
         ))}
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {/* List Container */}
       <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden relative">

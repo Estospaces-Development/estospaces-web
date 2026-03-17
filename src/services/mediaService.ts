@@ -25,13 +25,14 @@ export const uploadMediaFile = async (
     entityType: string,
     entityId: string,
     altText = '',
+    isPublic = true,
 ): Promise<MediaFile> => {
     const body = new FormData();
     body.append('file', file);
     body.append('entity_type', entityType);
     body.append('entity_id', entityId);
     body.append('alt_text', altText);
-    body.append('is_public', 'true');
+    body.append('is_public', String(isPublic));
 
     return apiFetch<MediaFile>(`${MEDIA_URL()}/api/v1/media`, {
         method: 'POST',

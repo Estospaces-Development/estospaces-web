@@ -44,7 +44,6 @@ function MessagesContent() {
             setError(null);
         } catch (err) {
             setError('Failed to send message. Please try again.');
-            console.error('Error sending message:', err);
         }
     };
 

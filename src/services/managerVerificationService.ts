@@ -3,7 +3,7 @@
  * Handles broker verification data via the core-service backend.
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -38,6 +38,7 @@ export interface ManagerProfile {
     profile_type: ManagerProfileType;
     company_name?: string;
     company_description?: string;
+    business_phone?: string;
     license_number?: string;
     license_expiry_date?: string;
     association_membership_id?: string;
@@ -131,6 +132,11 @@ const normalizeProfileType = (value?: string): ManagerProfileType => {
     return value === 'company' ? 'company' : 'broker';
 };
 
+const isProfileNotFoundError = (error: string | null | undefined): boolean => {
+    const normalized = String(error || '').toLowerCase();
+    return normalized.includes('broker profile not found');
+};
+
 const mapVerificationStatus = (backendStatus?: string): VerificationStatus => {
     const mapping: Record<string, VerificationStatus> = {
         none: 'incomplete',
@@ -205,12 +211,13 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         profile_type: normalizeProfileType(data.profile_type),
         company_name: data.company_name || undefined,
         company_description: data.company_description || undefined,
+        business_phone: data.business_phone || undefined,
         license_number: data.company_reg_number || data.license_number || undefined,
         license_expiry_date: data.license_expiry_date || undefined,
         association_membership_id: data.association_membership_id || undefined,
         company_registration_number: data.company_reg_number || data.company_registration_number || undefined,
         tax_id: data.tax_id || undefined,
-        company_address: data.business_phone || data.company_address || undefined,
+        company_address: data.company_address || undefined,
         authorized_representative_name: mapUserFullName(userInfo) || data.authorized_representative_name || undefined,
         authorized_representative_email: userInfo?.email || data.authorized_representative_email || undefined,
         has_ombudsman: Boolean(data.has_ombudsman),
@@ -266,7 +273,9 @@ const getCurrentManagerDocuments = async (): Promise<ManagerDocument[]> => {
 
 const getUserInfo = async (userId: string): Promise<any | null> => {
     try {
-        return await apiFetch<any>(`${CORE_URL()}/api/v1/users/${userId}`);
+        return await apiFetch<any>(`${CORE_URL()}/api/v1/users/${userId}`, {
+            suppressErrorToast: true,
+        });
     } catch {
         return null;
     }
@@ -274,11 +283,12 @@ const getUserInfo = async (userId: string): Promise<any | null> => {
 
 export const getManagerProfile = async (userId: string): Promise<{ data: ManagerProfile | null; error: string | null }> => {
     try {
-        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile`);
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile`, {
+            suppressErrorToast: true,
+        });
         return { data: mapManagerProfile(data, { id: userId }), error: null };
     } catch (error: any) {
-        console.error('[managerVerificationService] getManagerProfile error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -289,17 +299,17 @@ export const getManagers = async (status?: string, page = 1, limit = 20): Promis
             query.append('status', status);
         }
 
-        const brokers = await apiFetch<any[]>(`${CORE_URL()}/api/v1/brokers?${query.toString()}`);
+        const response = await apiFetchEnvelope<any[]>(`${CORE_URL()}/api/v1/brokers?${query.toString()}`);
+        const brokers = response.data || [];
         const userInfoEntries = await Promise.all(
             brokers.map(async (broker) => [broker.user_id, await getUserInfo(broker.user_id)] as const),
         );
         const userInfoById = new Map(userInfoEntries);
 
         const profiles = brokers.map((broker) => mapManagerProfile(broker, userInfoById.get(broker.user_id)));
-        return { data: profiles, total: profiles.length, error: null };
+        return { data: profiles, total: response.pagination?.total || profiles.length, error: null };
     } catch (error: any) {
-        console.error('[managerVerificationService] getManagers error:', error.message);
-        return { data: [], total: 0, error: error.message };
+        return { data: [], total: 0, error: getErrorMessage(error) };
     }
 };
 
@@ -309,6 +319,10 @@ export const getManagerVerificationSummary = async (userId: string): Promise<{ d
             getManagerProfile(userId),
             getCurrentManagerDocuments(),
         ]);
+
+        if (profileRes.error && !isProfileNotFoundError(profileRes.error)) {
+            return { data: null, error: profileRes.error };
+        }
 
         const profile = profileRes.data;
         const required = getRequiredDocuments(profile?.profile_type || 'broker');
@@ -330,28 +344,76 @@ export const getManagerVerificationSummary = async (userId: string): Promise<{ d
     }
 };
 
-export const createOrUpdateManagerProfile = async (_userId: string, data: Partial<ManagerProfile>): Promise<{ data: ManagerProfile | null; error: string | null }> => {
+const buildCreateManagerProfilePayload = (data: Partial<ManagerProfile>) => ({
+    company_name: data.company_name || (data.profile_type === 'company' ? 'Pending Company Profile' : 'Pending Broker Profile'),
+    company_description: data.company_description || '',
+    company_reg_number: data.company_registration_number || data.license_number || '',
+    business_phone: data.business_phone || '',
+    company_address: data.company_address || '',
+    license_expiry_date: data.license_expiry_date || '',
+    association_membership_id: data.association_membership_id || '',
+    tax_id: data.tax_id || '',
+    authorized_representative_name: data.authorized_representative_name || '',
+    authorized_representative_email: data.authorized_representative_email || '',
+    service_areas: '[]',
+    profile_type: data.profile_type || 'broker',
+    has_ombudsman: data.has_ombudsman || false,
+    has_insurance: data.has_insurance || false,
+    has_client_money: data.has_client_money || false,
+    arla_member: data.arla_member || false,
+    naea_member: data.naea_member || false,
+    rics_member: data.rics_member || false,
+});
+
+const buildUpdateManagerProfilePayload = (data: Partial<ManagerProfile>) => {
+    const payload: Record<string, unknown> = {};
+
+    if (data.profile_type !== undefined) payload.profile_type = data.profile_type;
+    if (data.company_name !== undefined) payload.company_name = data.company_name;
+    if (data.company_description !== undefined) payload.company_description = data.company_description;
+    if (data.business_phone !== undefined) payload.business_phone = data.business_phone;
+    if (data.company_registration_number !== undefined || data.license_number !== undefined) {
+        payload.company_reg_number = data.company_registration_number || data.license_number || '';
+    }
+    if (data.company_address !== undefined) payload.company_address = data.company_address;
+    if (data.license_expiry_date !== undefined) payload.license_expiry_date = data.license_expiry_date;
+    if (data.association_membership_id !== undefined) payload.association_membership_id = data.association_membership_id;
+    if (data.tax_id !== undefined) payload.tax_id = data.tax_id;
+    if (data.authorized_representative_name !== undefined) payload.authorized_representative_name = data.authorized_representative_name;
+    if (data.authorized_representative_email !== undefined) payload.authorized_representative_email = data.authorized_representative_email;
+    if (data.has_ombudsman !== undefined) payload.has_ombudsman = data.has_ombudsman;
+    if (data.has_insurance !== undefined) payload.has_insurance = data.has_insurance;
+    if (data.has_client_money !== undefined) payload.has_client_money = data.has_client_money;
+    if (data.arla_member !== undefined) payload.arla_member = data.arla_member;
+    if (data.naea_member !== undefined) payload.naea_member = data.naea_member;
+    if (data.rics_member !== undefined) payload.rics_member = data.rics_member;
+
+    return payload;
+};
+
+export const createManagerProfile = async (_userId: string, data: Partial<ManagerProfile>): Promise<{ data: ManagerProfile | null; error: string | null }> => {
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/register`, {
             method: 'POST',
-            body: JSON.stringify({
-                company_name: data.company_name || '',
-                company_description: data.company_description || '',
-                company_reg_number: data.company_registration_number || data.license_number || '',
-                business_phone: data.company_address || '',
-                service_areas: '[]',
-                has_ombudsman: data.has_ombudsman || false,
-                has_insurance: data.has_insurance || false,
-                has_client_money: data.has_client_money || false,
-                arla_member: data.arla_member || false,
-                naea_member: data.naea_member || false,
-                rics_member: data.rics_member || false,
-            }),
+            body: JSON.stringify(buildCreateManagerProfilePayload(data)),
         });
 
         return { data: mapManagerProfile(result), error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const updateManagerProfile = async (_userId: string, data: Partial<ManagerProfile>): Promise<{ data: ManagerProfile | null; error: string | null }> => {
+    try {
+        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile`, {
+            method: 'PUT',
+            body: JSON.stringify(buildUpdateManagerProfilePayload(data)),
+        });
+
+        return { data: mapManagerProfile(result), error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -375,7 +437,7 @@ export const uploadManagerDocument = async (
 
         return { url: result.file_url || null, path: result.file_url || null, error: null };
     } catch (error: any) {
-        return { url: null, path: null, error: error.message };
+        return { url: null, path: null, error: getErrorMessage(error) };
     }
 };
 
@@ -388,7 +450,7 @@ export const submitManagerDocument = async (data: any): Promise<{ data: ManagerD
 
         return { data: mapManagerDocument(result), error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -406,7 +468,7 @@ export const deleteManagerDocument = async (_managerId: string, documentType: Ma
 
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -443,7 +505,7 @@ export const getManagerVerificationDetails = async (userId: string): Promise<{ d
             error: null,
         };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -461,7 +523,7 @@ export const startReview = async (managerId: string, _actorId: string): Promise<
 
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -478,7 +540,7 @@ export const approveManager = async (managerId: string, _actorId: string, notes?
 
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -495,7 +557,7 @@ export const rejectManager = async (managerId: string, _actorId: string, reason:
 
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
@@ -512,7 +574,7 @@ export const revokeManagerApproval = async (managerId: string, _actorId: string,
 
         return { data: true, error: null };
     } catch (error: any) {
-        return { data: false, error: error.message };
+        return { data: false, error: getErrorMessage(error) };
     }
 };
 
@@ -533,19 +595,18 @@ export const requestDocumentReupload = async (
 
         return { error: null };
     } catch (error: any) {
-        return { error: error.message };
+        return { error: getErrorMessage(error) };
     }
 };
 
-export const submitForVerification = async (managerId: string): Promise<{ data: ManagerProfile | null; error: string | null }> => {
+export const submitForVerification = async (_managerId: string): Promise<{ data: ManagerProfile | null; error: string | null }> => {
     try {
-        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
-            method: 'PUT',
-            body: JSON.stringify({ status: 'basic' }),
+        const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile/submit`, {
+            method: 'POST',
         });
 
         return { data: mapManagerProfile(result), error: null };
     } catch (error: any) {
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

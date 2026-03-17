@@ -110,7 +110,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 metadata = { ...metadata, ...parsed };
             }
         } catch (e) {
-            console.error('Failed to parse conversation metadata', e);
         }
 
         const messages: Message[] = (conv.messages || []).map(msg => ({
@@ -143,7 +142,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             const backendConvs = await messagesService.getConversations();
             setConversations(backendConvs.map(mapBackendConversation));
         } catch (error) {
-            console.error('Failed to fetch conversations', error);
         } finally {
             setIsLoading(false);
         }
@@ -225,7 +223,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             setSelectedConversationId(msg.conversation_id);
             return msg.conversation_id;
         } catch (error) {
-            console.error('Failed to create conversation', error);
             return '';
         } finally {
             setIsLoading(false);
@@ -243,7 +240,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             });
             await refreshConversations();
         } catch (error) {
-            console.error('Failed to send message', error);
         }
     }, [refreshConversations]);
 
@@ -254,7 +250,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 conv.id === conversationId ? { ...conv, unreadCount: 0, messages: conv.messages.map(m => ({ ...m, read: true })) } : conv
             ));
         } catch (error) {
-            console.error('Failed to mark as read', error);
         }
     }, []);
 
@@ -265,7 +260,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: true } : conv)
             );
         } catch (error) {
-            console.error('Failed to archive conversation', error);
         }
     }, []);
 
@@ -276,7 +270,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: false } : conv)
             );
         } catch (error) {
-            console.error('Failed to unarchive conversation', error);
         }
     }, []);
 
@@ -287,7 +280,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: true } : conv)
             );
         } catch (error) {
-            console.error('Failed to mute conversation', error);
         }
     }, []);
 
@@ -298,7 +290,6 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: false } : conv)
             );
         } catch (error) {
-            console.error('Failed to unmute conversation', error);
         }
     }, []);
 

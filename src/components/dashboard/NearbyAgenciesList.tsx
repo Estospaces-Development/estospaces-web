@@ -4,13 +4,12 @@ import React, { useEffect, useState } from 'react';
 import { MapPin, Star, ChevronRight, Building, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { userService, Agency } from '@/services/userService';
-import { useToast } from '@/contexts/ToastContext';
 import { AGENCY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 const NearbyAgenciesList = () => {
     const [agencies, setAgencies] = useState<Agency[]>([]);
     const [loading, setLoading] = useState(true);
-    const toast = useToast();
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchAgencies = async () => {
@@ -20,16 +19,16 @@ const NearbyAgenciesList = () => {
                     throw new Error(error);
                 }
                 setAgencies(data || []);
+                setLoadError(null);
             } catch (err: any) {
-                console.error('Failed to fetch agencies:', err);
-                toast.error('Failed to load nearby agencies');
+                setLoadError(err.message || 'Nearby agencies are not available right now.');
             } finally {
                 setLoading(false);
             }
         };
 
         fetchAgencies();
-    }, [toast]);
+    }, []);
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
@@ -54,6 +53,10 @@ const NearbyAgenciesList = () => {
             {loading ? (
                 <div className="flex justify-center py-8">
                     <Loader2 className="animate-spin text-gray-400" size={24} />
+                </div>
+            ) : loadError ? (
+                <div className="text-center py-8 text-sm text-gray-500">
+                    {loadError}
                 </div>
             ) : agencies.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">

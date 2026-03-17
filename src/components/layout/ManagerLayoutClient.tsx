@@ -23,7 +23,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
         <ThemeProvider>
             <NotificationsProvider>
                 <ManagerVerificationProvider>
-                    <PropertyProvider>
+                    <PropertyProvider scope="manager">
                         <LeadProvider>
                             <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
                                 <NotificationContainer />

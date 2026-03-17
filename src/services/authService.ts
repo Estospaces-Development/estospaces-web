@@ -1,4 +1,4 @@
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -38,8 +38,7 @@ export const getProfile = async () => {
         const data = await apiFetch<UserProfile>(`${CORE_URL()}/api/v1/auth/me`);
         return { data, error: null };
     } catch (error: any) {
-        console.error('[authService] getProfile error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -59,8 +58,7 @@ export const updateProfile = async (profileData: Partial<UserProfile>) => {
         });
         return { data, error: null };
     } catch (error: any) {
-        console.error('[authService] updateProfile error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -69,8 +67,7 @@ export const getPreferences = async () => {
         const data = await apiFetch<UserPreferences>(`${CORE_URL()}/api/v1/users/preferences`);
         return { data, error: null };
     } catch (error: any) {
-        console.error('[authService] getPreferences error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -82,7 +79,6 @@ export const updatePreferences = async (preferences: Partial<UserPreferences>) =
         });
         return { data, error: null };
     } catch (error: any) {
-        console.error('[authService] updatePreferences error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

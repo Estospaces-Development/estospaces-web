@@ -54,7 +54,6 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
                 setUserLocation(location);
             } catch (err: any) {
-                console.error('Error detecting location:', err);
                 setError(err.message);
                 setUserLocation(null);
             } finally {
@@ -80,7 +79,6 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
             setSearchLocation(location);
             return location;
         } catch (err: any) {
-            console.error('Error updating location from search:', err);
             setError(err.message);
             return null;
         } finally {

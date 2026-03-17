@@ -31,7 +31,6 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
             await signOut();
             navigate('/login');
         } catch (error) {
-            console.error('Error signing out:', error);
             setIsSigningOut(false);
         }
     };

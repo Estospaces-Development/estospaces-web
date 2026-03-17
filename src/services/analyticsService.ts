@@ -3,7 +3,7 @@
  * Fetches analytics data from core-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -96,8 +96,7 @@ export const getPlatformAnalytics = async (forceRefresh = false): Promise<Analyt
         analyticsCache[cacheKey] = { data, timestamp: now };
         return { data, error: null };
     } catch (error: any) {
-        console.error('[analyticsService] Error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -123,7 +122,6 @@ export const getManagerAnalytics = async (forceRefresh = false): Promise<Analyti
         analyticsCache[cacheKey] = { data, timestamp: now };
         return { data, error: null };
     } catch (error: any) {
-        console.error('[analyticsService] Error:', error.message);
-        return { data: null, error: error.message };
+        return { data: null, error: getErrorMessage(error) };
     }
 };

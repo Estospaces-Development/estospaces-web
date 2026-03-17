@@ -153,7 +153,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         const userRole = getRole ? getRole() : user?.role; // Adapt for web context
         if (userRole !== 'admin') {
             setError(`Permission denied. Admin role required. Current role: ${userRole || 'none'}`);
-            console.error('Revocation attempted by non-admin user:', { userId: user.id, role: userRole });
             return;
         }
 
@@ -170,7 +169,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
             const result = await managerVerificationService.revokeManagerApproval(managerId, user.id, revokeReason);
 
             if (result.error) {
-                console.error('Revocation error:', result.error);
                 // Keep the form open so user can see the error and try again
                 setError(result.error || 'Failed to revoke approval. Please try again.');
                 // Don't close the form on error - let user see the error message
@@ -185,7 +183,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 onClose();
             }
         } catch (err) {
-            console.error('Revocation exception:', err);
             const errorMessage = err instanceof Error
                 ? err.message
                 : typeof err === 'string'

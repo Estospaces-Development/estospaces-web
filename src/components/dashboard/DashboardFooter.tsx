@@ -31,27 +31,27 @@ const DashboardFooter = () => {
                         <h3 className="text-sm font-bold uppercase mb-4" style={{ color: '#1e3a5f' }}>Search</h3>
                         <ul className="space-y-2 text-sm">
                             <li>
-                                <Link to="/user/dashboard/discover?tab=buy&type=residential" className="text-gray-700 hover:text-orange-600 transition-colors">
+                                <Link to="/user/dashboard/discover?type=buy" className="text-gray-700 hover:text-orange-600 transition-colors">
                                     Search homes for sale
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/user/dashboard/discover?tab=rent&type=residential" className="text-gray-700 hover:text-orange-600 transition-colors">
+                                <Link to="/user/dashboard/discover?type=rent" className="text-gray-700 hover:text-orange-600 transition-colors">
                                     Search homes for rent
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/user/dashboard/discover?tab=buy&type=commercial" className="text-gray-700 hover:text-orange-600 transition-colors">
+                                <Link to="/user/dashboard/discover?type=buy&propertyType=commercial" className="text-gray-700 hover:text-orange-600 transition-colors">
                                     Commercial for sale
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/user/dashboard/discover?tab=rent&type=commercial" className="text-gray-700 hover:text-orange-600 transition-colors">
+                                <Link to="/user/dashboard/discover?type=rent&propertyType=commercial" className="text-gray-700 hover:text-orange-600 transition-colors">
                                     Commercial to rent
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/user/dashboard/discover?new=true&tab=buy" className="text-gray-700 hover:text-orange-600 transition-colors">
+                                <Link to="/user/dashboard/discover?type=buy&filter=recently_added" className="text-gray-700 hover:text-orange-600 transition-colors">
                                     New homes
                                 </Link>
                             </li>

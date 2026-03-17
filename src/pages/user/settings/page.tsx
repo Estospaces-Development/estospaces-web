@@ -50,7 +50,6 @@ export default function UserSettingsPage() {
                 }
             } catch (error: any) {
                 toast.error('Failed to load settings');
-                console.error('[UserSettingsPage] Load Error:', error);
             } finally {
                 setIsLoading(false);
             }
@@ -97,7 +96,6 @@ export default function UserSettingsPage() {
             setTimeout(() => setIsSaved(false), 3000);
         } catch (error: any) {
             toast.error('Failed to save settings');
-            console.error('[UserSettingsPage] Save Error:', error);
         } finally {
             setIsSaving(false);
         }

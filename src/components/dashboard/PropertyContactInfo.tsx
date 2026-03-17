@@ -62,7 +62,6 @@ ${contactForm.message}
             setShowContactForm(false);
             setContactForm({ name: '', email: '', phone: '', message: '' });
         } catch (err: any) {
-            console.error('Error sending message to agent:', err);
             showToastError('Failed to send message. Please try again later.');
         } finally {
             setIsSubmitting(false);

@@ -22,7 +22,6 @@ const ClientsPage = () => {
             if (err) throw new Error(err);
             if (data) setLeads(data);
         } catch (err: any) {
-            console.error('Error fetching clients:', err);
             setError(err.message || 'Failed to load clients');
         } finally {
             setLoading(false);
