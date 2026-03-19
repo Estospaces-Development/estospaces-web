@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateProfile, getProfile } from '@/services/authService';
+import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
 
 export default function UserProfilePage() {
-    const { user } = useAuth();
-    const { error: showToastError } = useToast();
+    const { user, refreshUser } = useAuth();
+    const { error: showToastError, success: showToastSuccess } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
@@ -19,34 +19,24 @@ export default function UserProfilePage() {
         email: '',
         phone: '',
         address: '',
+        postcode: '',
         bio: '',
     });
 
     useEffect(() => {
-        const fetchProfile = async () => {
-            setIsInitialLoading(true);
-            const { data } = await getProfile();
-            if (data) {
-                setFormData({
-                    firstName: data.first_name || '',
-                    lastName: data.last_name || '',
-                    email: data.email || '',
-                    phone: data.phone || '',
-                    address: data.address || '',
-                    bio: data.bio || '',
-                });
-            } else if (user) {
-                // Fallback to auth context data
-                setFormData(prev => ({
-                    ...prev,
-                    firstName: user.name?.split(' ')[0] || '',
-                    lastName: user.name?.split(' ').slice(1).join(' ') || '',
-                    email: user.email || '',
-                }));
-            }
+        if (user) {
+            const nameParts = (user.name || '').split(' ');
+            setFormData({
+                firstName: nameParts[0] || '',
+                lastName: nameParts.slice(1).join(' ') || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                address: user.address || '',
+                postcode: user.postcode || '',
+                bio: user.user_metadata?.bio || '',
+            });
             setIsInitialLoading(false);
-        };
-        fetchProfile();
+        }
     }, [user]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -60,22 +50,33 @@ export default function UserProfilePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        const { data, error } = await updateProfile({
+        
+        const payload = {
             first_name: formData.firstName,
             last_name: formData.lastName,
-            email: formData.email,
             phone: formData.phone,
             address: formData.address,
-            bio: formData.bio,
-        });
+            postcode: formData.postcode,
+            metadata: {
+                bio: formData.bio,
+                profile_type: 'individual'
+            }
+        };
+
+        const { data, error } = await userService.updateProfile(payload);
         
-        setIsLoading(false);
         if (data) {
+            // Short delay to ensure DB persistence before refresh
+            await new Promise(resolve => setTimeout(resolve, 800));
+            await refreshUser();
+            
             setIsSaved(true);
+            showToastSuccess('Profile updated successfully');
             setTimeout(() => setIsSaved(false), 3000);
         } else {
             showToastError('Failed to update profile: ' + (error || 'Unknown error'));
         }
+        setIsLoading(false);
     };
 
     if (isInitialLoading) {
@@ -85,6 +86,9 @@ export default function UserProfilePage() {
             </div>
         );
     }
+
+    const inputClass = "w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
+    const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -111,7 +115,13 @@ export default function UserProfilePage() {
                             </div>
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{formData.firstName} {formData.lastName}</h2>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{formData.email}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">{formData.email}</p>
+                        
+                        {formData.address && (
+                            <p className="text-gray-400 dark:text-gray-500 text-xs flex items-center gap-1 justify-center mb-4">
+                                <MapPin size={12} /> {formData.address}{formData.postcode ? `, ${formData.postcode}` : ''}
+                            </p>
+                        )}
 
                         <div className="w-full pt-4 border-t border-gray-100 dark:border-gray-700">
                             <div className="flex items-center justify-between text-sm mb-2">
@@ -143,7 +153,7 @@ export default function UserProfilePage() {
                                         name="firstName"
                                         value={formData.firstName}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
+                                        className={inputClass}
                                     />
                                 </div>
                                 <div>
@@ -154,7 +164,7 @@ export default function UserProfilePage() {
                                         name="lastName"
                                         value={formData.lastName}
                                         onChange={handleChange}
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
+                                        className={inputClass}
                                     />
                                 </div>
                             </div>
@@ -169,10 +179,11 @@ export default function UserProfilePage() {
                                             id="email"
                                             name="email"
                                             value={formData.email}
-                                            onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
+                                            disabled
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed"
                                         />
                                     </div>
+                                    <p className="text-[10px] text-gray-500 mt-1">Email cannot be changed directly.</p>
                                 </div>
                                 <div>
                                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
@@ -184,24 +195,43 @@ export default function UserProfilePage() {
                                             name="phone"
                                             value={formData.phone}
                                             onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
+                                            placeholder="+44 7700 000000"
+                                            className={iconInputClass}
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <div>
-                                <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Current Address</label>
-                                <div className="relative">
-                                    <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        id="address"
-                                        name="address"
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
-                                    />
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="md:col-span-2">
+                                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Home Address</label>
+                                    <div className="relative">
+                                        <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            id="address"
+                                            name="address"
+                                            value={formData.address}
+                                            onChange={handleChange}
+                                            placeholder="123 Street Name, City"
+                                            className={iconInputClass}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label htmlFor="postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postcode</label>
+                                    <div className="relative">
+                                        <Hash size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            id="postcode"
+                                            name="postcode"
+                                            value={formData.postcode}
+                                            onChange={handleChange}
+                                            placeholder="SW1A 1AA"
+                                            className={iconInputClass}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
@@ -213,9 +243,9 @@ export default function UserProfilePage() {
                                     value={formData.bio}
                                     onChange={handleChange}
                                     rows={4}
+                                    placeholder="Tell potential landlords a bit about yourself..."
                                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none"
                                 ></textarea>
-                                <p className="text-xs text-gray-500 mt-1">Brief description for landlords to get to know you better.</p>
                             </div>
 
                             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">

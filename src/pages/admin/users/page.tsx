@@ -1,24 +1,29 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     UserPlus, Clock, CheckCircle, XCircle, Users, Plus,
     Filter, Search, MoreVertical, Eye, Edit, Trash2,
     Mail, Phone, Download, Share2, FileDown, FileSpreadsheet,
-    Star, Shield, ArrowRight, TrendingUp, UserCheck
+    Star, Shield, ArrowRight, TrendingUp, UserCheck, Loader2, Power
 } from 'lucide-react';
 
 import { userService } from '@/services/userService';
 import { getPlatformAnalytics } from '@/services/analyticsService';
 import { User } from '@/types';
+import { useToast } from '@/contexts/ToastContext';
 
 function UserManagementContent() {
+    const navigate = useNavigate();
+    const { success: showToastSuccess, error: showToastError } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('all');
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [statsData, setStatsData] = useState<any>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [actionUserId, setActionUserId] = useState<string | null>(null);
 
     const fetchUsers = useCallback(async () => {
         try {
@@ -46,6 +51,39 @@ function UserManagementContent() {
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
+
+    const handleReviewVerification = (user: User) => {
+        if (user.role === 'admin') {
+            showToastError('Admin accounts do not have a verification review screen.');
+            return;
+        }
+
+        const params = new URLSearchParams({
+            entity: user.role === 'manager' ? 'manager' : 'user',
+        });
+
+        if (user.role === 'manager') {
+            params.set('managerId', user.id);
+        } else {
+            params.set('userId', user.id);
+        }
+
+        navigate(`/admin/verifications?${params.toString()}`);
+    };
+
+    const handleToggleUserState = async (user: User) => {
+        setActionUserId(user.id);
+        const { error } = await userService.setUserActiveState(user.id, !user.is_active);
+        setActionUserId(null);
+
+        if (error) {
+            showToastError(`Failed to ${user.is_active ? 'deactivate' : 'activate'} user: ${error}`);
+            return;
+        }
+
+        showToastSuccess(`User ${user.is_active ? 'deactivated' : 'activated'} successfully.`);
+        fetchUsers();
+    };
 
     const stats = [
         { label: 'Network Size', value: statsData?.total_users?.toLocaleString() || '0', icon: Users, color: 'text-blue-500' },
@@ -181,10 +219,27 @@ function UserManagementContent() {
                                         </div>
                                     </td>
                                     <td className="px-10 py-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 hover:text-emerald-500 transition-all"><Eye size={18} /></button>
-                                            <button className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 hover:text-blue-500 transition-all"><Edit size={18} /></button>
-                                            <button className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 hover:text-red-500 transition-all"><Trash2 size={18} /></button>
+                                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => handleReviewVerification(user)}
+                                                disabled={user.role === 'admin'}
+                                                className="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-300 hover:text-emerald-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+                                            >
+                                                <Eye size={16} />
+                                                Review
+                                            </button>
+                                            <button
+                                                onClick={() => handleToggleUserState(user)}
+                                                disabled={actionUserId === user.id}
+                                                className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest ${
+                                                    user.is_active
+                                                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                                } disabled:opacity-60`}
+                                            >
+                                                {actionUserId === user.id ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+                                                {user.is_active ? 'Deactivate' : 'Activate'}
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>

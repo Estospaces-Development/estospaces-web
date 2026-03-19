@@ -56,6 +56,7 @@ const ManagerLeads = lazy(() => import('./pages/manager/leads/page'));
 const ManagerMessages = lazy(() => import('./pages/manager/messages/page'));
 const ManagerNotifications = lazy(() => import('./pages/manager/notifications/page'));
 const ManagerProfile = lazy(() => import('./pages/manager/profile/page'));
+const ManagerUserVerifications = lazy(() => import('./pages/manager/user-verifications/page'));
 const ManagerVerification = lazy(() => import('./pages/manager/verification/page'));
 
 // Lazy loaded pages - User
@@ -144,6 +145,7 @@ const App: React.FC = () => {
             <Route path="messages" element={<ManagerMessages />} />
             <Route path="notifications" element={<ManagerNotifications />} />
             <Route path="profile" element={<ManagerProfile />} />
+            <Route path="user-verifications" element={<ManagerUserVerifications />} />
             <Route path="verification" element={<ManagerVerification />} />
           </Route>
 

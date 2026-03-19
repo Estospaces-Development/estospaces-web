@@ -1,18 +1,22 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Shield, Clock, CheckCircle, XCircle, User, Building2,
   Search, RefreshCw, Eye, AlertCircle, TrendingUp, Sparkles,
   ArrowRight, Filter, Briefcase, ChevronRight, LayoutGrid, List, Loader2
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
+import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
 import { getManagers, ManagerProfile } from '@/services/managerVerificationService';
 import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'all' | 'pending' | 'review' | 'approved' | 'rejected';
 
 function VerificationsContent() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [entityTab, setEntityTab] = useState<'user' | 'manager'>('user');
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
@@ -39,16 +43,55 @@ function VerificationsContent() {
     fetchManagers();
   }, [fetchManagers]);
 
+  useEffect(() => {
+    const entity = searchParams.get('entity');
+    if (entity === 'user' || entity === 'manager') {
+      setEntityTab(entity);
+    }
+
+    const managerId = searchParams.get('managerId');
+    if (entity === 'manager' && managerId) {
+      setSelectedManagerId(managerId);
+    }
+  }, [searchParams]);
+
+  const updateSearchParam = useCallback((key: string, value?: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  const handleEntityTabChange = (tab: 'user' | 'manager') => {
+    setEntityTab(tab);
+    const next = new URLSearchParams(searchParams);
+    next.set('entity', tab);
+    if (tab === 'user') {
+      next.delete('managerId');
+    } else {
+      next.delete('userId');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   const handleRefresh = () => {
     setIsRefreshing(true);
     fetchManagers();
   };
 
+  const isPending = (s: string) => ['submitted', 'pending', 'documents_submitted', 'verification_required', 'basic', 'incomplete'].includes(s);
+  const isReview = (s: string) => s === 'under_review';
+  const isApproved = (s: string) => ['approved', 'verified', 'fully_verified'].includes(s);
+  const isRejected = (s: string) => s === 'rejected';
+
   const getStats = () => {
-    const pending = managers.filter(m => m.verification_status === 'submitted').length;
-    const review = managers.filter(m => m.verification_status === 'under_review').length;
-    const approved = managers.filter(m => m.verification_status === 'approved').length;
-    const rejected = managers.filter(m => m.verification_status === 'rejected').length;
+    const pending = managers.filter(m => isPending(m.verification_status)).length;
+    const review = managers.filter(m => isReview(m.verification_status)).length;
+    const approved = managers.filter(m => isApproved(m.verification_status)).length;
+    const rejected = managers.filter(m => isRejected(m.verification_status)).length;
 
     return [
       { id: 'submitted', label: 'Pending', count: pending, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
@@ -61,17 +104,22 @@ function VerificationsContent() {
   const stats = getStats();
 
   const filteredManagers = managers.filter(m => {
-    // Map internal status to tab types
-    const statusMap: Record<string, string> = {
-        'submitted': 'pending',
-        'under_review': 'review',
-        'approved': 'approved',
-        'rejected': 'rejected'
-    };
-    
-    const mappedStatus = statusMap[m.verification_status] || m.verification_status;
+    // Map internal status to tab types for filtering
+    let mappedStatus = 'other';
+    if (isPending(m.verification_status)) mappedStatus = 'pending';
+    else if (isReview(m.verification_status)) mappedStatus = 'review';
+    else if (isApproved(m.verification_status)) mappedStatus = 'approved';
+    else if (isRejected(m.verification_status)) mappedStatus = 'rejected';
 
-    if (activeTab !== 'all' && mappedStatus !== activeTab) return false;
+    if (activeTab !== 'all') {
+        const tabToStatusMap: Record<string, string> = {
+            'pending': 'pending',
+            'review': 'review',
+            'approved': 'approved',
+            'rejected': 'rejected'
+        };
+        if (mappedStatus !== tabToStatusMap[activeTab]) return false;
+    }
     
     const searchLower = searchQuery.toLowerCase();
     const nameMatch = (m.company_name || m.authorized_representative_name || '').toLowerCase().includes(searchLower);
@@ -82,72 +130,95 @@ function VerificationsContent() {
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="px-3 py-1 bg-orange-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20">Security Hub</span>
-            <span className="text-gray-400 text-xs font-bold">Manager Verification Queue</span>
-          </div>
-          <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
-            Review Portfolios
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
-            <input
-              type="text"
-              placeholder="Search managers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-orange-500/10 font-bold text-sm w-64 shadow-sm transition-all"
-            />
-          </div>
-          <button
-            onClick={handleRefresh}
-            className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
-          >
-            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-          </button>
-        </div>
+      <div className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <button
+          onClick={() => handleEntityTabChange('user')}
+          className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${entityTab === 'user' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+        >
+          User
+        </button>
+        <button
+          onClick={() => handleEntityTabChange('manager')}
+          className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${entityTab === 'manager' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
+        >
+          Manager
+        </button>
       </div>
 
-      {/* Stats Quick Filter */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <button
-            key={stat.id}
-            onClick={() => setActiveTab(stat.id === 'submitted' ? 'pending' : stat.id === 'under_review' ? 'review' : stat.id as TabType)}
-            className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
-              (activeTab === 'pending' && stat.id === 'submitted') || 
-              (activeTab === 'review' && stat.id === 'under_review') ||
-              activeTab === stat.id
-              ? 'bg-white dark:bg-gray-800 border-orange-500 shadow-2xl scale-105 z-10'
-              : 'bg-gray-50/50 dark:bg-gray-900/50 border-transparent hover:bg-white dark:hover:bg-gray-800 shadow-sm'
-              }`}
-          >
-            <div className={`p-4 rounded-2xl ${stat.bg} dark:bg-gray-700 ${stat.color} w-fit mb-6 transition-transform group-hover:scale-110`}>
-              <stat.icon size={28} />
-            </div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
-            <h3 className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</h3>
-            {((activeTab === 'pending' && stat.id === 'submitted') || 
-              (activeTab === 'review' && stat.id === 'under_review') ||
-              activeTab === stat.id) && (
-              <div className="absolute top-4 right-4 text-orange-500">
-                <Sparkles size={16} />
+      {entityTab === 'user' ? (
+        <UserVerificationQueue
+          scope="admin"
+          initialSelectedUserId={entityTab === 'user' ? searchParams.get('userId') : null}
+          onSelectionCleared={() => updateSearchParam('userId', null)}
+        />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-3 py-1 bg-orange-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-500/20">Security Hub</span>
+                <span className="text-gray-400 text-xs font-bold">Manager Verification Queue</span>
               </div>
-            )}
-          </button>
-        ))}
-      </div>
+              <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
+                Review Portfolios
+              </h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search managers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-orange-500/10 font-bold text-sm w-64 shadow-sm transition-all"
+                />
+              </div>
+              <button
+                onClick={handleRefresh}
+                className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
+              >
+                <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
 
-      {loadError && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
-          {loadError}
-        </div>
-      )}
+          {/* Stats Quick Filter */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {stats.map((stat) => (
+              <button
+                key={stat.id}
+                onClick={() => setActiveTab(stat.id === 'submitted' ? 'pending' : stat.id === 'under_review' ? 'review' : stat.id as TabType)}
+                className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
+                  (activeTab === 'pending' && stat.id === 'submitted') || 
+                  (activeTab === 'review' && stat.id === 'under_review') ||
+                  activeTab === stat.id
+                  ? 'bg-white dark:bg-gray-800 border-orange-500 shadow-2xl scale-105 z-10'
+                  : 'bg-gray-50/50 dark:bg-gray-900/50 border-transparent hover:bg-white dark:hover:bg-gray-800 shadow-sm'
+                  }`}
+              >
+                <div className={`p-4 rounded-2xl ${stat.bg} dark:bg-gray-700 ${stat.color} w-fit mb-6 transition-transform group-hover:scale-110`}>
+              <stat.icon size={28} />
+                </div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
+                <h3 className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</h3>
+                {((activeTab === 'pending' && stat.id === 'submitted') || 
+                  (activeTab === 'review' && stat.id === 'under_review') ||
+                  activeTab === stat.id) && (
+                  <div className="absolute top-4 right-4 text-orange-500">
+                    <Sparkles size={16} />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {loadError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+              {loadError}
+            </div>
+          )}
 
       {/* List Container */}
       <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden relative">
@@ -190,14 +261,21 @@ function VerificationsContent() {
                     <div>
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{manager.company_name || manager.authorized_representative_name}</h3>
-                        <div className={`w-2 h-2 rounded-full ${manager.verification_status === 'submitted' ? 'bg-amber-500' :
-                          manager.verification_status === 'under_review' ? 'bg-blue-500' : 
-                          manager.verification_status === 'approved' ? 'bg-green-500' : 'bg-red-500'
+                        <div className={`w-2 h-2 rounded-full ${isPending(manager.verification_status) ? 'bg-amber-500' :
+                          isReview(manager.verification_status) ? 'bg-blue-500' : 
+                          isApproved(manager.verification_status) ? 'bg-green-500' : 'bg-red-500'
                           }`}></div>
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{manager.profile_type}</span>
                         <span className="text-xs text-gray-500 font-bold">• {manager.authorized_representative_email || 'No Email'}</span>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          isPending(manager.verification_status) ? 'bg-amber-100 text-amber-600' :
+                          isReview(manager.verification_status) ? 'bg-blue-100 text-blue-600' :
+                          isApproved(manager.verification_status) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {manager.verification_status.replace('_', ' ')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -210,7 +288,14 @@ function VerificationsContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setSelectedManagerId(manager.id)}
+                      onClick={() => {
+                        setSelectedManagerId(manager.id);
+                        const next = new URLSearchParams(searchParams);
+                        next.set('entity', 'manager');
+                        next.set('managerId', manager.id);
+                        next.delete('userId');
+                        setSearchParams(next, { replace: true });
+                      }}
                       className="px-10 py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2 group-hover:bg-orange-500 group-hover:text-white"
                     >
                       Review Profile <ArrowRight size={16} />
@@ -231,14 +316,17 @@ function VerificationsContent() {
       </div>
 
       {/* Review Modal */}
-      {selectedManagerId && (
-        <ManagerReviewModal
-          managerId={selectedManagerId}
-          onClose={() => {
-              setSelectedManagerId(null);
-              fetchManagers(); // Refresh list on close in case status changed
-          }}
-        />
+          {selectedManagerId && (
+            <ManagerReviewModal
+              managerId={selectedManagerId}
+              onClose={() => {
+                  setSelectedManagerId(null);
+                  updateSearchParam('managerId', null);
+                  fetchManagers();
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

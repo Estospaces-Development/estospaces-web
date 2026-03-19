@@ -40,5 +40,38 @@ export const userService = {
         } catch (error: any) {
             return { data: [], pagination: null, error: getErrorMessage(error) };
         }
+    },
+
+    getUserById: async (userId: string): Promise<{ data: User | null; error: string | null }> => {
+        try {
+            const data = await apiFetch<User>(`${CORE_URL()}/api/v1/users/${userId}`);
+            return { data, error: null };
+        } catch (error: any) {
+            return { data: null, error: getErrorMessage(error) };
+        }
+    },
+
+    setUserActiveState: async (userId: string, isActive: boolean): Promise<{ error: string | null }> => {
+        try {
+            await apiFetch(`${CORE_URL()}/api/v1/users/${userId}/${isActive ? 'activate' : 'deactivate'}`, {
+                method: 'PUT',
+            });
+            return { error: null };
+        } catch (error: any) {
+            return { error: getErrorMessage(error) };
+        }
+    },
+
+    updateProfile: async (profileData: any): Promise<{ data: any, error: string | null }> => {
+        try {
+            const data = await apiFetch<any>(`${CORE_URL()}/api/v1/users/profile`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(profileData)
+            });
+            return { data, error: null };
+        } catch (error: any) {
+            return { data: null, error: getErrorMessage(error) };
+        }
     }
 };

@@ -806,6 +806,8 @@ const DocumentCard: React.FC<{
 const getStatusConfig = (status: string): { label: string; icon: LucideIcon; bgColor: string; textColor: string; dotColor: string } => {
     switch (status) {
         case 'approved':
+        case 'verified':
+        case 'fully_verified':
             return {
                 label: 'Approved',
                 icon: CheckCircle,
@@ -830,12 +832,23 @@ const getStatusConfig = (status: string): { label: string; icon: LucideIcon; bgC
                 dotColor: 'bg-blue-500',
             };
         case 'submitted':
+        case 'pending':
+        case 'documents_submitted':
+        case 'basic':
             return {
-                label: 'Pending',
+                label: 'Pending Review',
                 icon: Clock,
                 bgColor: 'bg-amber-100',
                 textColor: 'text-amber-700',
                 dotColor: 'bg-amber-500',
+            };
+        case 'verification_required':
+            return {
+                label: 'Re-verification Req.',
+                icon: RefreshCw,
+                bgColor: 'bg-orange-100',
+                textColor: 'text-orange-700',
+                dotColor: 'bg-orange-500',
             };
         default:
             return {

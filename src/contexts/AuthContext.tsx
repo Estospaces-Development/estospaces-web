@@ -54,8 +54,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            const data = await apiFetch<any>(`${CORE_SERVICE_URL}/api/v1/auth/me`);
+            const data = await apiFetch<any>(`${CORE_SERVICE_URL}/api/v1/auth/me`, { suppressErrorToast: true });
             const userData = data.user || data.data || data;
+
+            let metadata = {};
+            if (userData.metadata) {
+                try {
+                    metadata = typeof userData.metadata === 'string' ? JSON.parse(userData.metadata) : userData.metadata;
+                } catch (e) {
+                    console.error('Failed to parse user metadata:', e);
+                }
+            }
+
             const userObj: User = {
                 id: userData.id,
                 email: userData.email,
@@ -70,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 user_metadata: {
                     full_name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : userData.name,
                     phone: userData.phone,
+                    ...metadata
                 },
             };
             localStorage.setItem('esto_user', JSON.stringify(userObj));
@@ -98,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),
+                    suppressErrorToast: true,
                 }
             );
 
@@ -108,15 +120,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email };
 
+            // Build name from first_name + last_name (backend field names)
+            const firstName = userData.first_name || '';
+            const lastName = userData.last_name || '';
+            const fullName = `${firstName} ${lastName}`.trim() || userData.name || email.split('@')[0];
+
+            let metadata = {};
+            if (userData.metadata) {
+                try {
+                    metadata = typeof userData.metadata === 'string' ? JSON.parse(userData.metadata) : userData.metadata;
+                } catch (e) { /* ignore */ }
+            }
+
             const userObj: User = {
                 id: userData.id || '',
                 email: userData.email || email,
-                name: userData.name || userData.full_name || email.split('@')[0],
+                name: fullName,
                 role: userData.role || 'user',
                 isAuthenticated: true,
+                avatar_url: userData.avatar_url || userData.avatar,
+                avatar: userData.avatar || userData.avatar_url,
+                phone: userData.phone,
+                address: userData.address,
+                postcode: userData.postcode,
                 user_metadata: {
-                    full_name: userData.full_name || userData.name,
+                    full_name: fullName,
                     phone: userData.phone,
+                    ...metadata,
                 },
             };
 
@@ -124,13 +154,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
 
+            // Refresh from /auth/me to get complete user data
+            setTimeout(() => refreshUser(), 100);
+
             return { success: true, role: userObj.role };
         } catch (err: any) {
             const errMsg = getErrorMessage(err, 'Login failed. Please check your credentials.');
             setError(errMsg);
             return { success: false, error: errMsg };
         }
-    }, []);
+    }, [refreshUser]);
 
     const register = useCallback(async (name: string, email: string, password: string, role: string) => {
         setError(null);
@@ -145,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ first_name, last_name, email, password, role }),
+                    suppressErrorToast: true,
                 }
             );
 
@@ -156,14 +190,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email, name, role };
 
+            const regFirstName = userData.first_name || first_name;
+            const regLastName = userData.last_name || last_name;
+            const fullName = `${regFirstName} ${regLastName}`.trim() || name;
+
             const userObj: User = {
                 id: userData.id || '',
                 email: userData.email || email,
-                name: userData.name || name,
+                name: fullName,
                 role: userData.role || role,
                 isAuthenticated: true,
+                phone: userData.phone,
+                address: userData.address,
+                postcode: userData.postcode,
                 user_metadata: {
-                    full_name: userData.full_name || userData.name || name,
+                    full_name: fullName,
                     phone: userData.phone,
                 },
             };

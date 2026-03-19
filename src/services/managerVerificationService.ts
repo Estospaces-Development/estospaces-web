@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -146,8 +147,10 @@ const mapVerificationStatus = (backendStatus?: string): VerificationStatus => {
         under_review: 'under_review',
         verified: 'approved',
         fully_verified: 'approved',
+        approved: 'approved',
         rejected: 'rejected',
         verification_required: 'verification_required',
+        incomplete: 'incomplete',
     };
 
     return mapping[backendStatus || ''] || 'incomplete';
@@ -425,13 +428,15 @@ export const uploadManagerDocument = async (
     documentType: ManagerDocumentType,
 ): Promise<{ url: string | null; path: string | null; error: string | null }> => {
     try {
+        const uploadedFile = await uploadMediaFile(file, 'document', managerId, file.name);
+
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
             body: JSON.stringify({
                 document_type: documentType,
                 document_category: mapDocumentCategory(documentType),
                 file_name: file.name,
-                file_url: `/uploads/${managerId}/${file.name}`,
+                file_url: uploadedFile.file_url,
                 file_size: file.size,
                 mime_type: file.type,
             }),
@@ -610,5 +615,121 @@ export const submitForVerification = async (_managerId: string): Promise<{ data:
         return { data: mapManagerProfile(result), error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+// ============================================================================
+// Manager User Verification (For Tenants/Users)
+// ============================================================================
+
+export type UserVerificationLevel = 'basic' | 'verified' | 'fully_verified';
+
+export interface UserVerificationInfo {
+    user_id: string;
+    email: string;
+    full_name: string;
+    phone?: string;
+    avatar?: string;
+    address?: string;
+    postcode?: string;
+    verification_level: UserVerificationLevel;
+    has_identity_doc: boolean;
+    has_address_doc: boolean;
+    has_financial_doc: boolean;
+    documents_verified: boolean;
+    lead_count: number;
+    pending_leads: number;
+    created_at: string;
+    last_active: string;
+}
+
+export interface UserDocument {
+    id: string;
+    user_id: string;
+    document_type: string;
+    document_category: string;
+    file_name: string;
+    file_url: string;
+    status: 'pending' | 'approved' | 'rejected' | 'reupload_required' | 'under_review';
+    reject_reason?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface UserVerificationDetails {
+    user: UserVerificationInfo;
+    documents: UserDocument[];
+    recent_leads: any[];
+}
+
+export const getManagerPendingUserVerifications = async (): Promise<{ data: UserVerificationInfo[]; error: string | null }> => {
+    try {
+        const response = await apiFetchEnvelope<UserVerificationInfo[]>(`${CORE_URL()}/api/v1/manager/users/pending-verification`);
+        return { data: response.data || [], error: null };
+    } catch (error: any) {
+        return { data: [], error: getErrorMessage(error) };
+    }
+};
+
+export const getManagerUserVerificationDetails = async (userId: string): Promise<{ data: UserVerificationDetails | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<UserVerificationDetails>(`${CORE_URL()}/api/v1/manager/users/${userId}/verification`);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const verifyUserByManager = async (userId: string, status: string, notes?: string): Promise<{ error: string | null }> => {
+    try {
+        await apiFetch(`${CORE_URL()}/api/v1/manager/users/${userId}/verify`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status,
+                notes: notes || '',
+            }),
+        });
+        return { error: null };
+    } catch (error: any) {
+        return { error: getErrorMessage(error) };
+    }
+};
+
+export const reviewUserDocumentByManager = async (documentId: string, status: string, rejectReason?: string): Promise<{ error: string | null }> => {
+    try {
+        await apiFetch(`${CORE_URL()}/api/v1/manager/documents/${documentId}/review`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                status,
+                reject_reason: rejectReason || '',
+            }),
+        });
+        return { error: null };
+    } catch (error: any) {
+        return { error: getErrorMessage(error) };
+    }
+};
+
+export const getVerificationLevelLabel = (level: UserVerificationLevel): string => {
+    switch (level) {
+        case 'fully_verified':
+            return 'Fully Verified';
+        case 'verified':
+            return 'Verified';
+        default:
+            return 'Basic';
+    }
+};
+
+export const getVerificationLevelColor = (level: UserVerificationLevel): { bg: string; text: string } => {
+    switch (level) {
+        case 'fully_verified':
+            return { bg: 'bg-emerald-100', text: 'text-emerald-700' };
+        case 'verified':
+            return { bg: 'bg-blue-100', text: 'text-blue-700' };
+        default:
+            return { bg: 'bg-amber-100', text: 'text-amber-700' };
     }
 };
