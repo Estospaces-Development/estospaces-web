@@ -113,6 +113,8 @@ export default function ManagerNotificationsPage() {
             case 'appointment_approved': return <CheckCircle size={20} className="text-green-500" />;
             case 'appointment_rejected': return <AlertCircle size={20} className="text-red-500" />;
             case 'application_update': return <FileText size={20} className="text-blue-500" />;
+            case notificationsService.NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case notificationsService.NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
             case 'profile_verified': case 'document_verified': return <Shield size={20} className="text-green-500" />;
             case 'ticket_response': return <MessageCircle size={20} className="text-purple-500" />;
             case 'property_saved': return <Home size={20} className="text-orange-500" />;
@@ -124,6 +126,8 @@ export default function ManagerNotificationsPage() {
 
     const getColor = (type: string) => {
         switch (type) {
+            case notificationsService.NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case notificationsService.NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
             case 'appointment_approved': case 'profile_verified': case 'document_verified': case 'price_drop': return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
             case 'appointment_rejected': return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
             case 'application_update': case 'viewing_booked': return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
@@ -140,6 +144,17 @@ export default function ManagerNotificationsPage() {
         if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
         if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
         return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    };
+
+    const handleNotificationClick = (notification: AppNotification) => {
+        if (!notification.is_read) {
+            void markAsRead(notification.id);
+        }
+
+        const targetPath = notificationsService.getNotificationNavigationPath(notification, 'manager');
+        if (targetPath) {
+            navigate(targetPath);
+        }
     };
 
     const handleSelectAll = () => {
@@ -251,7 +266,7 @@ export default function ManagerNotificationsPage() {
                             <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-1">{group}</h3>
                             <div className="space-y-2">
                                 {grouped[group].map(n => (
-                                    <div key={n.id} onClick={() => { if (!n.is_read) markAsRead(n.id); }} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${!n.is_read ? getColor(n.type) : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 opacity-75'}`}>
+                                    <div key={n.id} onClick={() => handleNotificationClick(n)} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all hover:shadow-sm ${!n.is_read ? getColor(n.type) : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 opacity-75'}`}>
                                         <input type="checkbox" checked={selectedNotifications.includes(n.id)} onChange={(e) => { e.stopPropagation(); if (selectedNotifications.includes(n.id)) setSelectedNotifications(s => s.filter(i => i !== n.id)); else setSelectedNotifications(s => [...s, n.id]); }} className="mt-1 rounded border-gray-300 text-orange-500 focus:ring-orange-500" />
                                         <div className="flex-shrink-0 mt-0.5">{getIcon(n.type)}</div>
                                         <div className="flex-1 min-w-0">

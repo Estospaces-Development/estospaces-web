@@ -28,6 +28,22 @@ export default function VerificationPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedRoleForProfile, setSelectedRoleForProfile] = useState<ManagerProfileType>('broker');
     const [actionError, setActionError] = useState<string | null>(null);
+    const needsReverification = verificationStatus === 'rejected' || verificationStatus === 'verification_required';
+    const canRequestReview = verificationStatus === 'incomplete'
+        || verificationStatus === 'rejected'
+        || verificationStatus === 'verification_required';
+
+    const canUploadDocument = (status: string) => {
+        if (isSubmitting) {
+            return false;
+        }
+
+        if (needsReverification) {
+            return true;
+        }
+
+        return status === 'not_uploaded' || status === 'rejected' || status === 'reupload_required';
+    };
 
     // Restore missing functions
     const handleInitialRegistration = async () => {
@@ -105,6 +121,7 @@ export default function VerificationPage() {
         switch (status) {
             case 'approved': return 'bg-green-500';
             case 'rejected': return 'bg-red-500';
+            case 'verification_required': return 'bg-amber-500';
             case 'submitted':
             case 'under_review': return 'bg-orange-500';
             default: return 'bg-gray-400';
@@ -116,6 +133,7 @@ export default function VerificationPage() {
         switch (status) {
             case 'approved': return 'Verified & Approved';
             case 'rejected': return 'Verification Failed';
+            case 'verification_required': return 'Re-verification Required';
             case 'submitted':
             case 'under_review': return 'Under Review';
             case 'incomplete': return 'In-Progress';
@@ -125,6 +143,7 @@ export default function VerificationPage() {
 
     const handleDocumentUpload = async (docType: ManagerDocumentType, file: File) => {
         setIsSubmitting(true);
+        setActionError(null);
         try {
             const result = await uploadDocument(file, docType);
             setActionError(result.error);
@@ -276,27 +295,36 @@ export default function VerificationPage() {
                 <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-blue-500/5 to-indigo-500/5 rounded-full blur-[80px] -ml-40 -mb-40 pointer-events-none"></div>
 
                 <div className="relative z-10 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-                    {steps.length > 0 ? steps.map((step, index) => (
+                    {steps.length > 0 ? steps.map((step, index) => {
+                        const isUploadEnabled = canUploadDocument(step.status);
+                        const showReplacementHint = needsReverification
+                            && step.status !== 'rejected'
+                            && step.status !== 'reupload_required'
+                            && isUploadEnabled;
+
+                        return (
                         <div
                             key={step.id}
                             className={`relative p-8 rounded-3xl border transition-all duration-500 group overflow-hidden ${
                                 step.status === 'approved' 
                                 ? 'bg-green-50/30 dark:bg-green-500/5 border-green-100 dark:border-green-900/30 shadow-sm' 
-                                : step.status === 'rejected'
+                                : step.status === 'rejected' || step.status === 'reupload_required'
                                 ? 'bg-red-50/30 dark:bg-red-500/5 border-red-100 dark:border-red-900/30 shadow-sm'
-                                : 'bg-gray-50/50 dark:bg-gray-900/40 border-gray-100 dark:border-gray-800/50 hover:border-orange-500/30 hover:shadow-xl cursor-pointer'
-                            }`}
+                                : 'bg-gray-50/50 dark:bg-gray-900/40 border-gray-100 dark:border-gray-800/50'
+                            } ${isUploadEnabled ? 'cursor-pointer hover:border-orange-500/30 hover:shadow-xl' : ''}`}
                             onClick={() => {
-                                if (step.status !== 'approved' && step.status !== 'pending' && !isSubmitting) {
-                                    const input = document.createElement('input');
-                                    input.type = 'file';
-                                    input.accept = 'image/*,.pdf';
-                                    input.onchange = (e) => {
-                                        const file = (e.target as HTMLInputElement).files?.[0];
-                                        if (file) handleDocumentUpload(step.id, file);
-                                    };
-                                    input.click();
+                                if (!isUploadEnabled) {
+                                    return;
                                 }
+
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*,.pdf';
+                                input.onchange = (e) => {
+                                    const file = (e.target as HTMLInputElement).files?.[0];
+                                    if (file) handleDocumentUpload(step.id, file);
+                                };
+                                input.click();
                             }}
                         >
                             <div className="absolute top-6 right-6">
@@ -334,6 +362,12 @@ export default function VerificationPage() {
                                 </p>
                             )}
 
+                            {showReplacementHint && (
+                                <p className="mt-4 text-xs text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-900/20 p-2.5 rounded-xl">
+                                    You can replace this document before resubmitting for review.
+                                </p>
+                            )}
+
                             {step.status === 'not_uploaded' && (
                                 <div className="mt-4 flex items-center gap-2 text-orange-500 text-xs font-bold uppercase tracking-wider">
                                     <Upload className="w-3 h-3" />
@@ -341,7 +375,7 @@ export default function VerificationPage() {
                                 </div>
                             )}
                         </div>
-                    )) : (
+                    )}) : (
                         <div className="col-span-full py-12 text-center">
                             <p className="text-gray-500 font-medium">No verification documents required for this profile type.</p>
                         </div>
@@ -354,7 +388,7 @@ export default function VerificationPage() {
                         <span>Last updated: {new Date(managerProfile.updated_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </div>
 
-                    {!isVerified && (verificationStatus === 'incomplete' || verificationStatus === 'rejected') ? (
+                    {!isVerified && canRequestReview ? (
                         <button
                             onClick={handleSubmitForReview}
                             disabled={isSubmitting || missingDocuments.length > 0 || missingProfileFields.length > 0}
@@ -365,7 +399,9 @@ export default function VerificationPage() {
                                 ? 'Complete profile details'
                                 : missingDocuments.length > 0
                                     ? `Upload ${missingDocuments.length} more`
-                                    : 'Submit for Final Review'}
+                                    : needsReverification
+                                        ? 'Resubmit for Review'
+                                        : 'Submit for Final Review'}
                         </button>
                     ) : (
                         <div className="flex items-center gap-3 px-6 py-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">

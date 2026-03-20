@@ -29,6 +29,10 @@ export const NOTIFICATION_TYPES = {
     // Verification
     DOCUMENT_VERIFIED: 'document_verified',
     PROFILE_VERIFIED: 'profile_verified',
+    USER_VERIFICATION_SUBMITTED: 'user_verification_submitted',
+    MANAGER_VERIFICATION_SUBMITTED: 'manager_verification_submitted',
+    USER_VERIFICATION_REUPLOAD_REQUESTED: 'user_verification_reupload_requested',
+    MANAGER_VERIFICATION_REUPLOAD_REQUESTED: 'manager_verification_reupload_requested',
 
     // Messages
     MESSAGE_RECEIVED: 'message_received',
@@ -83,6 +87,13 @@ export interface NotificationData {
     amount?: number;
     date?: string;
     time?: string;
+    target_path?: string;
+    targetPath?: string;
+    entity?: string;
+    subject_user_id?: string;
+    subject_role?: string;
+    document_category?: string;
+    profile_type?: string;
     [key: string]: any;
 }
 
@@ -210,6 +221,64 @@ export async function createNotification({
     }
 }
 
+export function getNotificationNavigationPath(
+    notification: Pick<Notification, 'type' | 'data'> | { type: string; data?: NotificationData | Record<string, any> | null },
+    role: string = 'user',
+): string | null {
+    const data = notification.data as NotificationData | undefined;
+    const targetPath = typeof data?.target_path === 'string'
+        ? data.target_path
+        : typeof data?.targetPath === 'string'
+            ? data.targetPath
+            : '';
+
+    if (targetPath.trim()) {
+        return targetPath;
+    }
+
+    switch (notification.type) {
+        case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
+            return '/admin/verifications';
+        case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            return '/user/dashboard/profile';
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            return '/manager/verification';
+        case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
+        case NOTIFICATION_TYPES.VIEWING_BOOKED:
+        case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
+            return '/user/dashboard/viewings';
+        case NOTIFICATION_TYPES.APPLICATION_UPDATE:
+        case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
+        case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+            return '/user/dashboard/applications';
+        case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
+            return '/user/dashboard/messages';
+        case NOTIFICATION_TYPES.PROPERTY_SAVED:
+        case NOTIFICATION_TYPES.PRICE_DROP:
+        case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
+            return data?.propertyId ? `/user/properties/${data.propertyId}` : '/user/dashboard/saved';
+        case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
+        case NOTIFICATION_TYPES.PAYMENT_REMINDER:
+            return '/user/dashboard/notifications';
+        case NOTIFICATION_TYPES.CONTRACT_UPDATE:
+            return '/user/dashboard/contracts';
+        default:
+            return role === 'admin' ? '/admin/notifications' : null;
+    }
+}
+
+export function getNotificationsPagePath(role: string = 'user'): string {
+    switch (role) {
+        case 'manager':
+            return '/manager/notifications';
+        case 'admin':
+            return '/admin/notifications';
+        default:
+            return '/user/dashboard/notifications';
+    }
+}
+
 // ── Convenience Wrappers ────────────────────────────────────────────────────
 
 export async function notifyViewingBooked(
@@ -270,5 +339,7 @@ export const notificationsService = {
     notifyViewingBooked,
     notifyPropertySaved,
     notifyViewingCancelled,
+    getNotificationNavigationPath,
+    getNotificationsPagePath,
     NOTIFICATION_TYPES,
 };

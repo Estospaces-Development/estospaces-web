@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRedirectPath } from '@/lib/authUtils';
@@ -17,17 +17,6 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
-
-  // Redirect if already authenticated, UNLESS they specifically want to logout/switch
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isSwitching = params.get('switch') === 'true';
-    
-    if (isAuthenticated && !authLoading && !isSwitching) {
-      const role = getRole();
-      navigate(getRedirectPath(role));
-    }
-  }, [isAuthenticated, authLoading, getRole, navigate]);
 
   const validateEmail = (value: string) => {
     if (!value) return 'Email is required';

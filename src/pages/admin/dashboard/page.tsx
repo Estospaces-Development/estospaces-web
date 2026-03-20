@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Activity,
+    Bell,
     Shield,
     Users,
     Building2,
@@ -12,15 +13,60 @@ import {
     MessageSquare,
     Zap,
     ArrowRight,
-    Loader2
+    Loader2,
+    FileText,
+    Info
 } from 'lucide-react';
 import { getPlatformAnalytics, AnalyticsData } from '@/services/analyticsService';
+import { useNotifications } from '@/contexts/NotificationsContext';
+import {
+    getNotificationNavigationPath,
+    NOTIFICATION_TYPES,
+    type Notification,
+} from '@/services/notificationsService';
+
+const formatNotificationTime = (isoString: string) => {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+};
+
+const getNotificationIcon = (type: string) => {
+    switch (type) {
+        case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
+        case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
+        case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+            return <Shield size={16} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
+        case NOTIFICATION_TYPES.APPLICATION_UPDATE:
+        case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+        case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            return <FileText size={16} className="text-purple-500" />;
+        default:
+            return <Info size={16} className="text-gray-500" />;
+    }
+};
 
 export default function AdminDashboard() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const {
+        notifications,
+        loading: notificationsLoading,
+        markAsRead,
+    } = useNotifications();
 
     useEffect(() => {
         const fetchAnalytics = async () => {
@@ -65,6 +111,19 @@ export default function AdminDashboard() {
         { id: 'brokers', label: 'Verified Brokers', value: data?.total_brokers || 0, icon: Shield, color: 'text-purple-500' },
         { id: 'pending', label: 'Pending Verifications', value: data?.pending_verifications || 0, icon: Activity, color: 'text-orange-500' },
     ];
+
+    const recentNotifications = [...notifications]
+        .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+        .slice(0, 5);
+
+    const handleRecentNotificationClick = async (notification: Notification) => {
+        if (!notification.is_read) {
+            await markAsRead(notification.id);
+        }
+
+        const targetPath = getNotificationNavigationPath(notification, 'admin') || '/admin/verifications';
+        navigate(targetPath);
+    };
 
     return (
         <div className="min-h-screen p-6 lg:p-10 space-y-8 animate-in fade-in duration-500">
@@ -296,35 +355,117 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* Platform Snapshot */}
-                <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit">
-                    <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <Activity className="text-orange-500" size={20} /> Platform Snapshot
-                        </h3>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Core Service</span>
-                    </div>
+                <div className="space-y-8">
+                    {/* Platform Snapshot */}
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit">
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Activity className="text-orange-500" size={20} /> Platform Snapshot
+                            </h3>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Core Service</span>
+                        </div>
 
-                    <div className="space-y-4">
-                        {platformSnapshot.map((item) => (
-                            <div
-                                key={item.id}
-                                className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
-                                        <item.icon size={16} />
+                        <div className="space-y-4">
+                            {platformSnapshot.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
+                                            <item.icon size={16} />
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
                                     </div>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
+                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value.toLocaleString()}</p>
                                 </div>
-                                <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value.toLocaleString()}</p>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+
+                        <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
+                            Snapshot data is loaded from <code>/api/v1/admin/analytics</code>.
+                        </p>
                     </div>
 
-                    <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
-                        Snapshot data is loaded from <code>/api/v1/admin/analytics</code>.
-                    </p>
+                    <div
+                        id="recent-notifications"
+                        className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit"
+                    >
+                        <div className="flex items-center justify-between mb-6 gap-3">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                    <Bell className="text-orange-500" size={20} /> Recent Notifications
+                                </h3>
+                                <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    New verification submissions and platform alerts land here first.
+                                </p>
+                            </div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                {recentNotifications.length} Recent
+                            </span>
+                        </div>
+
+                        {notificationsLoading && recentNotifications.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
+                                <Loader2 size={20} className="mx-auto mb-3 animate-spin text-orange-500" />
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Loading recent notifications...
+                                </p>
+                            </div>
+                        ) : recentNotifications.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
+                                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+                                    <Bell size={18} />
+                                </div>
+                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    No recent notifications
+                                </p>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    New user and manager verification submissions will appear here.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {recentNotifications.map((notification) => (
+                                    <button
+                                        key={notification.id}
+                                        onClick={() => handleRecentNotificationClick(notification)}
+                                        className={`w-full rounded-xl border px-4 py-4 text-left transition-all hover:shadow-sm ${
+                                            notification.is_read
+                                                ? 'border-gray-100 bg-gray-50/70 hover:border-gray-200 dark:border-gray-800 dark:bg-gray-800/30 dark:hover:border-gray-700'
+                                                : 'border-orange-100 bg-orange-50/60 hover:border-orange-200 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:border-orange-800/60'
+                                        }`}
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-900">
+                                                {getNotificationIcon(notification.type)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                                                                {notification.title}
+                                                            </p>
+                                                            {!notification.is_read && (
+                                                                <span className="h-2 w-2 rounded-full bg-orange-500" />
+                                                            )}
+                                                        </div>
+                                                        <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                                                            {notification.message}
+                                                        </p>
+                                                    </div>
+                                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                                        {formatNotificationTime(notification.created_at)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

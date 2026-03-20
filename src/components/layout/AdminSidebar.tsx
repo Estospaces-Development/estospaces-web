@@ -6,6 +6,7 @@ import {
     Users,
     Settings,
     Shield,
+    Bell,
     LogOut,
     ChevronLeft,
     ChevronRight,
@@ -50,6 +51,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Overview', path: '/admin/dashboard' },
+        { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
         { icon: Building2, label: 'Properties', path: '/admin/properties' },

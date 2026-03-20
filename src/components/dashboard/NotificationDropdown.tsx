@@ -1,9 +1,17 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info } from 'lucide-react';
+import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, markRead, markAllRead, NOTIFICATION_TYPES, type Notification } from '@/services/notificationsService';
+import {
+    getNotifications,
+    markRead,
+    markAllRead,
+    getNotificationNavigationPath,
+    getNotificationsPagePath,
+    NOTIFICATION_TYPES,
+    type Notification,
+} from '@/services/notificationsService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DisplayNotification {
@@ -103,40 +111,9 @@ const NotificationDropdown = () => {
 
         setIsOpen(false);
 
-        // Navigate based on type
-        switch (notification.type) {
-            case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
-            case NOTIFICATION_TYPES.VIEWING_BOOKED:
-            case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-                navigate('/user/dashboard/viewings');
-                break;
-            case NOTIFICATION_TYPES.APPLICATION_UPDATE:
-            case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
-            case NOTIFICATION_TYPES.APPLICATION_APPROVED:
-                navigate('/user/dashboard/applications');
-                break;
-            case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
-                navigate('/user/dashboard/messages');
-                break;
-            case NOTIFICATION_TYPES.PROPERTY_SAVED:
-            case NOTIFICATION_TYPES.PRICE_DROP:
-            case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
-                if (notification.data?.propertyId) {
-                    navigate(`/user/properties/${notification.data.propertyId}`);
-                } else {
-                    navigate('/user/dashboard/saved');
-                }
-                break;
-            case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
-            case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-                navigate('/user/dashboard/notifications');
-                break;
-            case NOTIFICATION_TYPES.CONTRACT_UPDATE:
-                navigate('/user/dashboard/contracts');
-                break;
-            default:
-                // Stay on dashboard
-                break;
+        const targetPath = getNotificationNavigationPath(notification, user?.role || 'user');
+        if (targetPath) {
+            navigate(targetPath);
         }
     };
 
@@ -151,6 +128,13 @@ const NotificationDropdown = () => {
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
                 return <FileText size={18} className="text-purple-500" />;
+            case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
+            case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+                return <Shield size={18} className="text-orange-500" />;
             case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
                 return <MessageSquare size={18} className="text-green-500" />;
             case NOTIFICATION_TYPES.PROPERTY_SAVED:
@@ -276,7 +260,10 @@ const NotificationDropdown = () => {
 
                     <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
                         <button
-                            onClick={() => { setIsOpen(false); navigate('/user/dashboard/notifications'); }}
+                            onClick={() => {
+                                setIsOpen(false);
+                                navigate(getNotificationsPagePath(user?.role || 'user'));
+                            }}
                             className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                         >
                             View All Notifications

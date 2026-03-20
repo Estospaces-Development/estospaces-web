@@ -27,7 +27,13 @@ interface AuthContextType {
     loading: boolean;
     error: string | null;
     login: (email: string, password: string) => Promise<{ success: boolean; role?: string; error?: string }>;
-    register: (name: string, email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
+    register: (
+        name: string,
+        email: string,
+        password: string,
+        role: string,
+        termsAcceptance: { acceptedAt: string; version: string },
+    ) => Promise<{ success: boolean; error?: string }>;
     signOut: () => void;
     refreshUser: () => Promise<void>;
     getRole: () => string;
@@ -165,7 +171,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [refreshUser]);
 
-    const register = useCallback(async (name: string, email: string, password: string, role: string) => {
+    const register = useCallback(async (
+        name: string,
+        email: string,
+        password: string,
+        role: string,
+        termsAcceptance: { acceptedAt: string; version: string },
+    ) => {
         setError(null);
         try {
             const nameParts = name.trim().split(' ');
@@ -177,7 +189,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ first_name, last_name, email, password, role }),
+                    body: JSON.stringify({
+                        first_name,
+                        last_name,
+                        email,
+                        password,
+                        role,
+                        accepted_terms: true,
+                        accepted_terms_version: termsAcceptance.version,
+                        accepted_terms_at: termsAcceptance.acceptedAt,
+                    }),
                     suppressErrorToast: true,
                 }
             );

@@ -22,6 +22,7 @@ import {
     Settings
 } from 'lucide-react';
 import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
+import { getNotificationNavigationPath } from '@/services/notificationsService';
 
 type FilterType = 'all' | 'unread' | 'read';
 type CategoryType = 'all' | 'appointments' | 'applications' | 'messages' | 'system';
@@ -61,6 +62,8 @@ export default function NotificationsPage() {
                     system: [
                         NOTIFICATION_TYPES.DOCUMENT_VERIFIED,
                         NOTIFICATION_TYPES.PROFILE_VERIFIED,
+                        NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED,
+                        NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED,
                         NOTIFICATION_TYPES.SYSTEM,
                     ],
                     all: [],
@@ -91,6 +94,8 @@ export default function NotificationsPage() {
                 return <FileText size={20} className="text-blue-500" />;
             case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
             case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+            case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
                 return <Shield size={20} className="text-green-500" />;
             case NOTIFICATION_TYPES.TICKET_RESPONSE:
                 return <MessageCircle size={20} className="text-purple-500" />;
@@ -110,6 +115,8 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.APPOINTMENT_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
             case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+            case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
             case 'price_drop':
                 return 'bg-green-50 dark:bg-green-900/20';
             case NOTIFICATION_TYPES.APPOINTMENT_REJECTED:
@@ -148,7 +155,10 @@ export default function NotificationsPage() {
             markAsRead(notification.id);
         }
 
-        if (notification.data?.propertyId) {
+        const targetPath = getNotificationNavigationPath(notification, 'user');
+        if (targetPath) {
+            navigate(targetPath);
+        } else if (notification.data?.propertyId) {
             navigate(`/user/properties/${notification.data.propertyId}`);
         } else if (notification.data?.applicationId) {
             navigate('/user/dashboard/applications');

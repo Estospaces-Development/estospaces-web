@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search, Menu, Globe } from 'lucide-react';
+import { Search, Menu, Globe } from 'lucide-react';
 import { useLocation, Link } from 'react-router-dom';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
+import NotificationDropdown from '../dashboard/NotificationDropdown';
 
 interface AdminHeaderProps {
     onMenuToggle?: () => void;
@@ -57,10 +58,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
                     <ThemeSwitcher />
 
-                    <button className="p-2 relative text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400 transition-colors">
-                        <Bell size={20} />
-                        <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                    </button>
+                    <NotificationDropdown />
 
                     <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-700 dark:text-orange-400 font-bold border border-orange-200 dark:border-orange-800">
                         A
