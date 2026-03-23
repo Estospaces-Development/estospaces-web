@@ -264,6 +264,8 @@ export function getNotificationNavigationPath(
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             return '/user/dashboard/applications';
+        case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            return role === 'manager' ? '/manager/leads' : '/user/dashboard/profile';
         case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             if (role === 'manager') {
                 return conversationID ? `/manager/messages?conversation=${conversationID}` : '/manager/messages';
