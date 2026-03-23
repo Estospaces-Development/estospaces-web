@@ -57,8 +57,16 @@ export default function NotificationsPage() {
                         NOTIFICATION_TYPES.APPOINTMENT_APPROVED,
                         NOTIFICATION_TYPES.APPOINTMENT_REJECTED,
                     ],
-                    applications: [NOTIFICATION_TYPES.APPLICATION_UPDATE],
-                    messages: [NOTIFICATION_TYPES.TICKET_RESPONSE],
+                    applications: [
+                        NOTIFICATION_TYPES.APPLICATION_UPDATE,
+                        NOTIFICATION_TYPES.APPLICATION_SUBMITTED,
+                        NOTIFICATION_TYPES.APPLICATION_APPROVED,
+                        NOTIFICATION_TYPES.DOCUMENTS_REQUESTED,
+                    ],
+                    messages: [
+                        NOTIFICATION_TYPES.MESSAGE_RECEIVED,
+                        NOTIFICATION_TYPES.TICKET_RESPONSE,
+                    ],
                     system: [
                         NOTIFICATION_TYPES.DOCUMENT_VERIFIED,
                         NOTIFICATION_TYPES.PROFILE_VERIFIED,
@@ -97,8 +105,13 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
             case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
                 return <Shield size={20} className="text-green-500" />;
+            case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             case NOTIFICATION_TYPES.TICKET_RESPONSE:
                 return <MessageCircle size={20} className="text-purple-500" />;
+            case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+            case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+                return <FileText size={20} className="text-blue-500" />;
             case 'property_saved':
                 return <Home size={20} className="text-orange-500" />;
             case 'price_drop':
@@ -122,8 +135,12 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.APPOINTMENT_REJECTED:
                 return 'bg-red-50 dark:bg-red-900/20';
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
+            case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+            case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
             case 'viewing_booked':
                 return 'bg-blue-50 dark:bg-blue-900/20';
+            case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             case NOTIFICATION_TYPES.TICKET_RESPONSE:
                 return 'bg-purple-50 dark:bg-purple-900/20';
             case 'property_saved':

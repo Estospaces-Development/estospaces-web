@@ -1,7 +1,7 @@
 "use client";
 
 import { Zap } from 'lucide-react';
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import * as leadsService from '@/services/leadsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 
@@ -20,9 +20,11 @@ const RecentActivity = () => {
     const [activities, setActivities] = useState<Activity[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchActivities = async () => {
+    const fetchActivities = useCallback(async (silent: boolean = false) => {
+        if (!silent) {
             setLoading(true);
+        }
+
             try {
                 const [leadsRes, propertiesRes] = await Promise.all([
                     leadsService.getBrokerLeads(),
@@ -62,12 +64,23 @@ const RecentActivity = () => {
 
                 setActivities(integratedActivities.slice(0, 5));
             } finally {
-                setLoading(false);
+                if (!silent) {
+                    setLoading(false);
+                }
             }
-        };
-
-        fetchActivities();
     }, []);
+
+    useEffect(() => {
+        void fetchActivities();
+    }, [fetchActivities]);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            void fetchActivities(true);
+        }, 10000);
+
+        return () => window.clearInterval(interval);
+    }, [fetchActivities]);
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6 relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:brightness-105 dark:hover:brightness-110">

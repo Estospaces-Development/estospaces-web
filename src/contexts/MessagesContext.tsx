@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as messagesService from '@/services/messagesService';
 import { useAuth } from './AuthContext';
 
@@ -10,6 +10,7 @@ interface Message {
     senderType: string;
     text: string;
     timestamp: string;
+    time: string;
     read: boolean;
     delivered: boolean;
     attachments: any[];
@@ -19,6 +20,7 @@ interface Conversation {
     id: string;
     agentId: string;
     agentName: string;
+    contactName: string;
     agentAgency: string;
     agentAvatar: string | null;
     agentEmail: string;
@@ -32,6 +34,8 @@ interface Conversation {
     isArchived: boolean;
     isMuted: boolean;
     lastActivity: string;
+    lastMessage: string;
+    lastMessageTime: string;
     unreadCount: number;
     messages: Message[];
 }
@@ -78,6 +82,70 @@ const quickReplyTemplates = [
     "I'm interested in this property.",
 ];
 
+const CONVERSATION_POLL_INTERVAL_MS = 5000;
+const MESSAGE_POLL_INTERVAL_MS = 3000;
+
+const parseMetadata = (metadata: messagesService.Conversation['metadata']) => {
+    if (!metadata) {
+        return {} as Record<string, any>;
+    }
+
+    if (typeof metadata === 'string') {
+        try {
+            return JSON.parse(metadata) as Record<string, any>;
+        } catch {
+            return {};
+        }
+    }
+
+    return metadata as Record<string, any>;
+};
+
+const formatMessageTime = (timestamp?: string) => {
+    if (!timestamp) {
+        return '';
+    }
+
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) {
+        return '';
+    }
+
+    return parsed.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
+const resolveCurrentUserName = (user: any) => {
+    return user?.user_metadata?.full_name || user?.name || user?.email || 'You';
+};
+
+const resolveCurrentUserPhone = (user: any) => {
+    return user?.phone || user?.user_metadata?.phone || '';
+};
+
+const buildConversationContext = (
+    user: any,
+    agentData: any,
+    propertyData: any,
+): messagesService.ConversationContext => ({
+    propertyId: propertyData?.id || null,
+    propertyTitle: propertyData?.title || null,
+    propertyAddress: propertyData?.address || propertyData?.address_line_1 || null,
+    propertyImage: propertyData?.image || propertyData?.image_urls?.[0] || null,
+    listingType: propertyData?.listingType || propertyData?.listing_type || null,
+    propertyPrice: propertyData?.price || null,
+    senderName: resolveCurrentUserName(user),
+    senderEmail: user?.email || '',
+    senderPhone: resolveCurrentUserPhone(user),
+    senderAgency: user?.user_metadata?.agency || '',
+    recipientName: agentData?.name || agentData?.agent_name || '',
+    recipientEmail: agentData?.email || agentData?.agent_email || '',
+    recipientPhone: agentData?.phone || agentData?.agent_phone || '',
+    recipientAgency: agentData?.agency || agentData?.agent_company || '',
+});
+
 export const MessagesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -86,223 +154,379 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const mapBackendConversation = useCallback((conv: messagesService.Conversation): Conversation => {
-        let metadata = {
-            agentId: '',
-            agentName: 'Estate Agent',
-            agentAgency: '',
-            agentAvatar: null,
-            agentEmail: '',
-            agentPhone: '',
-            isOnline: false,
-            propertyId: null,
-            propertyTitle: null,
-            propertyAddress: null,
-            propertyImage: null,
-            propertyPrice: null,
-            isArchived: false,
-            isMuted: false,
-        };
-
-        try {
-            if (conv.metadata) {
-                const parsed = JSON.parse(conv.metadata);
-                metadata = { ...metadata, ...parsed };
-            }
-        } catch (e) {
-        }
-
-        const messages: Message[] = (conv.messages || []).map(msg => ({
-            id: msg.id,
-            senderId: msg.sender_id,
-            senderType: msg.sender_id === user?.id ? 'user' : 'agent',
-            text: msg.content,
-            timestamp: msg.created_at,
-            read: msg.is_read,
-            delivered: true,
-            attachments: [] // Attachments logic can be added later
-        }));
-
-        const unreadCount = messages.filter(m => !m.read && m.senderId !== user?.id).length;
-
+    const mapBackendMessage = useCallback((message: messagesService.Message): Message => {
+        const isMine = message.sender_id === user?.id;
         return {
-            id: conv.id,
-            ...metadata,
-            isArchived: conv.is_archived ?? metadata.isArchived,
-            isMuted: conv.is_muted ?? metadata.isMuted,
-            lastActivity: conv.updated_at,
-            unreadCount: unreadCount,
-            messages
-        } as Conversation;
+            id: message.id,
+            senderId: isMine ? 'me' : message.sender_id,
+            senderType: isMine ? 'user' : 'agent',
+            text: message.content,
+            timestamp: message.created_at,
+            time: formatMessageTime(message.created_at),
+            read: message.is_read,
+            delivered: true,
+            attachments: [],
+        };
     }, [user?.id]);
 
-    const refreshConversations = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const backendConvs = await messagesService.getConversations();
-            setConversations(backendConvs.map(mapBackendConversation));
-        } catch (error) {
-        } finally {
-            setIsLoading(false);
+    const mapBackendConversation = useCallback((
+        backendConversation: messagesService.Conversation,
+        existingConversation?: Conversation,
+    ): Conversation => {
+        const metadata = parseMetadata(backendConversation.metadata);
+        const lastMessage = backendConversation.last_message
+            ? mapBackendMessage(backendConversation.last_message)
+            : existingConversation?.messages[existingConversation.messages.length - 1];
+        const contactName =
+            backendConversation.counterpart_name ||
+            metadata?.recipient_name ||
+            metadata?.recipientName ||
+            metadata?.agentName ||
+            'Estate Agent';
+
+        return {
+            id: backendConversation.id,
+            agentId: backendConversation.counterpart_id || metadata?.agentId || '',
+            agentName: contactName,
+            contactName,
+            agentAgency: backendConversation.counterpart_agency || metadata?.recipient_agency || metadata?.recipientAgency || metadata?.agentAgency || '',
+            agentAvatar: null,
+            agentEmail: backendConversation.counterpart_email || metadata?.recipient_email || metadata?.recipientEmail || metadata?.agentEmail || '',
+            agentPhone: backendConversation.counterpart_phone || metadata?.recipient_phone || metadata?.recipientPhone || metadata?.agentPhone || '',
+            isOnline: false,
+            propertyId: backendConversation.property_id || metadata?.property_id || metadata?.propertyId || null,
+            propertyTitle: backendConversation.property_title || metadata?.property_title || metadata?.propertyTitle || null,
+            propertyAddress: backendConversation.property_address || metadata?.property_address || metadata?.propertyAddress || null,
+            propertyImage: backendConversation.property_image || metadata?.property_image || metadata?.propertyImage || null,
+            propertyPrice: backendConversation.property_price ?? metadata?.property_price ?? metadata?.propertyPrice ?? null,
+            isArchived: backendConversation.is_archived ?? existingConversation?.isArchived ?? false,
+            isMuted: backendConversation.is_muted ?? existingConversation?.isMuted ?? false,
+            lastActivity: backendConversation.updated_at,
+            lastMessage: lastMessage?.text || '',
+            lastMessageTime: formatMessageTime(lastMessage?.timestamp || backendConversation.updated_at),
+            unreadCount: Number(backendConversation.unread_count ?? existingConversation?.unreadCount ?? 0),
+            messages: existingConversation?.messages || [],
+        };
+    }, [mapBackendMessage]);
+
+    const loadConversations = useCallback(async (silent: boolean) => {
+        if (!user) {
+            setConversations([]);
+            setSelectedConversationId(null);
+            return;
         }
-    }, [mapBackendConversation]);
+
+        if (!silent) {
+            setIsLoading(true);
+        }
+
+        try {
+            const backendConversations = await messagesService.getConversations();
+            setConversations((previous) =>
+                backendConversations.map((conversation) =>
+                    mapBackendConversation(
+                        conversation,
+                        previous.find((existingConversation) => existingConversation.id === conversation.id),
+                    ),
+                ),
+            );
+        } catch {
+            // Keep the current state if a polling request fails.
+        } finally {
+            if (!silent) {
+                setIsLoading(false);
+            }
+        }
+    }, [mapBackendConversation, user]);
+
+    const refreshConversations = useCallback(async () => {
+        await loadConversations(false);
+    }, [loadConversations]);
+
+    const loadConversationMessages = useCallback(async (conversationId: string) => {
+        try {
+            const backendMessages = await messagesService.getMessages(conversationId);
+            const mappedMessages = backendMessages.map(mapBackendMessage);
+
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId
+                        ? {
+                            ...conversation,
+                            messages: mappedMessages,
+                            lastMessage: mappedMessages[mappedMessages.length - 1]?.text || conversation.lastMessage,
+                            lastMessageTime: mappedMessages.length > 0
+                                ? mappedMessages[mappedMessages.length - 1].time
+                                : conversation.lastMessageTime,
+                        }
+                        : conversation,
+                ),
+            );
+        } catch {
+            // Keep the existing local state if message fetch fails.
+        }
+    }, [mapBackendMessage]);
 
     useEffect(() => {
         if (user) {
-            refreshConversations();
+            void loadConversations(false);
+            return;
         }
-    }, [user, refreshConversations]);
 
-    const totalUnreadCount = conversations.reduce((sum, conv) => {
-        return sum + (conv.isArchived ? 0 : conv.unreadCount);
+        setConversations([]);
+        setSelectedConversationId(null);
+    }, [loadConversations, user]);
+
+    useEffect(() => {
+        if (!user) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            void loadConversations(true);
+        }, CONVERSATION_POLL_INTERVAL_MS);
+
+        return () => window.clearInterval(interval);
+    }, [loadConversations, user]);
+
+    useEffect(() => {
+        if (!selectedConversationId) {
+            return;
+        }
+
+        loadConversationMessages(selectedConversationId);
+        messagesService.markAsRead(selectedConversationId).catch(() => undefined);
+        setConversations((previous) =>
+            previous.map((conversation) =>
+                conversation.id === selectedConversationId
+                    ? {
+                        ...conversation,
+                        unreadCount: 0,
+                        messages: conversation.messages.map((message) => ({ ...message, read: true })),
+                    }
+                    : conversation,
+            ),
+        );
+    }, [loadConversationMessages, selectedConversationId]);
+
+    useEffect(() => {
+        if (!selectedConversationId) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            void Promise.all([
+                loadConversations(true),
+                loadConversationMessages(selectedConversationId),
+            ]);
+        }, MESSAGE_POLL_INTERVAL_MS);
+
+        return () => window.clearInterval(interval);
+    }, [loadConversations, loadConversationMessages, selectedConversationId]);
+
+    useEffect(() => {
+        if (!selectedConversationId) {
+            return;
+        }
+
+        const hasConversation = conversations.some((conversation) => conversation.id === selectedConversationId);
+        if (conversations.length === 0) {
+            return;
+        }
+        if (!hasConversation) {
+            setSelectedConversationId(null);
+        }
+    }, [conversations, selectedConversationId]);
+
+    useEffect(() => {
+        if (!selectedConversationId) {
+            return;
+        }
+
+        const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId);
+        if (selectedConversation && selectedConversation.messages.length === 0) {
+            void loadConversationMessages(selectedConversationId);
+        }
+    }, [conversations, loadConversationMessages, selectedConversationId]);
+
+    const totalUnreadCount = conversations.reduce((sum, conversation) => {
+        return sum + (conversation.isArchived ? 0 : conversation.unreadCount);
     }, 0);
 
     const getFilteredConversations = useCallback(() => {
         let filtered = [...conversations];
 
-        switch (filter) {
-            case 'unread':
-                filtered = filtered.filter((conv) => !conv.isArchived && conv.unreadCount > 0);
-                break;
-            case 'archived':
-                filtered = filtered.filter((conv) => conv.isArchived);
-                break;
-            case 'all':
-            default:
-                filtered = filtered.filter((conv) => !conv.isArchived);
-                break;
+        if (filter === 'unread') {
+            filtered = filtered.filter((conversation) => !conversation.isArchived && conversation.unreadCount > 0);
+        } else if (filter === 'archived') {
+            filtered = filtered.filter((conversation) => conversation.isArchived);
+        } else {
+            filtered = filtered.filter((conversation) => !conversation.isArchived);
         }
 
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
-            filtered = filtered.filter((conv) => {
-                const matchesAgent = conv.agentName.toLowerCase().includes(query);
-                const matchesAgency = conv.agentAgency.toLowerCase().includes(query);
-                const matchesProperty =
-                    conv.propertyTitle?.toLowerCase().includes(query) ||
-                    conv.propertyAddress?.toLowerCase().includes(query);
-                const matchesMessage = conv.messages.some((msg) =>
-                    msg.text.toLowerCase().includes(query)
+            filtered = filtered.filter((conversation) => {
+                return (
+                    conversation.contactName.toLowerCase().includes(query) ||
+                    conversation.agentAgency.toLowerCase().includes(query) ||
+                    conversation.propertyTitle?.toLowerCase().includes(query) ||
+                    conversation.propertyAddress?.toLowerCase().includes(query) ||
+                    conversation.messages.some((message) => message.text.toLowerCase().includes(query))
                 );
-                return matchesAgent || matchesAgency || matchesProperty || matchesMessage;
             });
         }
 
-        return filtered.sort((a, b) => {
-            return new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime();
-        });
+        return filtered.sort(
+            (a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime(),
+        );
     }, [conversations, filter, searchQuery]);
 
     const createConversation = useCallback(async (agentData: any, propertyData: any) => {
+        if (!agentData?.id) {
+            return '';
+        }
+
         setIsLoading(true);
         try {
-            const metadata = {
-                agentId: agentData.id,
-                agentName: agentData.name,
-                agentAgency: agentData.agency || '',
-                agentAvatar: agentData.avatar || null,
-                agentEmail: agentData.email || '',
-                agentPhone: agentData.phone || '',
-                isOnline: agentData.isOnline || false,
-                propertyId: propertyData?.id || null,
-                propertyTitle: propertyData?.title || null,
-                propertyAddress: propertyData?.address || null,
-                propertyImage: propertyData?.image || null,
-                propertyPrice: propertyData?.price || null,
-                isArchived: false,
-                isMuted: false,
-            };
+            const context = buildConversationContext(user, agentData, propertyData);
+            const conversation = await messagesService.upsertDirectConversation(agentData.id, context);
+            const introduction = `Hi, I'm interested in "${propertyData?.title || 'this property'}".`;
 
-            // This is a simplified call - in reality, we might need to check if one exists
-            const msg = await messagesService.sendMessage({
-                recipientId: agentData.id,
-                content: `Hi, I'm interested in learning more about "${propertyData?.title || 'this property'}".`
+            await messagesService.sendMessage({
+                conversationId: conversation.id,
+                content: introduction,
+                context,
             });
 
             await refreshConversations();
-            setSelectedConversationId(msg.conversation_id);
-            return msg.conversation_id;
-        } catch (error) {
+            await loadConversationMessages(conversation.id);
+            setSelectedConversationId(conversation.id);
+            return conversation.id;
+        } catch {
             return '';
         } finally {
             setIsLoading(false);
         }
-    }, [refreshConversations]);
+    }, [loadConversationMessages, refreshConversations, user]);
 
     const sendMessage = useCallback(async (conversationId: string, text: string, attachments: any[] = []) => {
-        if (!text.trim() && attachments.length === 0) return;
+        if (!text.trim() && attachments.length === 0) {
+            return;
+        }
 
         try {
-            await messagesService.sendMessage({
+            const sentMessage = await messagesService.sendMessage({
                 conversationId,
                 content: text.trim(),
-                type: 'text'
+                type: 'text',
             });
-            await refreshConversations();
-        } catch (error) {
+
+            const mappedMessage = mapBackendMessage(sentMessage);
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId
+                        ? {
+                            ...conversation,
+                            lastActivity: sentMessage.created_at,
+                            lastMessage: mappedMessage.text,
+                            lastMessageTime: mappedMessage.time,
+                            messages: [...conversation.messages, mappedMessage],
+                        }
+                        : conversation,
+                ),
+            );
+
+            await Promise.all([
+                loadConversations(true),
+                loadConversationMessages(conversationId),
+            ]);
+        } catch {
+            // Surface the error at the caller level.
+            throw new Error('Failed to send message');
         }
-    }, [refreshConversations]);
+    }, [loadConversationMessages, loadConversations, mapBackendMessage]);
 
     const markAsRead = useCallback(async (conversationId: string) => {
         try {
             await messagesService.markAsRead(conversationId);
-            setConversations(prev => prev.map(conv =>
-                conv.id === conversationId ? { ...conv, unreadCount: 0, messages: conv.messages.map(m => ({ ...m, read: true })) } : conv
-            ));
-        } catch (error) {
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId
+                        ? {
+                            ...conversation,
+                            unreadCount: 0,
+                            messages: conversation.messages.map((message) => ({ ...message, read: true })),
+                        }
+                        : conversation,
+                ),
+            );
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
     const archiveConversation = useCallback(async (conversationId: string) => {
         try {
             await messagesService.updateConversationPreferences(conversationId, { is_archived: true });
-            setConversations((prev) =>
-                prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: true } : conv)
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId ? { ...conversation, isArchived: true } : conversation,
+                ),
             );
-        } catch (error) {
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
     const unarchiveConversation = useCallback(async (conversationId: string) => {
         try {
             await messagesService.updateConversationPreferences(conversationId, { is_archived: false });
-            setConversations((prev) =>
-                prev.map((conv) => conv.id === conversationId ? { ...conv, isArchived: false } : conv)
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId ? { ...conversation, isArchived: false } : conversation,
+                ),
             );
-        } catch (error) {
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
     const muteConversation = useCallback(async (conversationId: string) => {
         try {
             await messagesService.updateConversationPreferences(conversationId, { is_muted: true });
-            setConversations((prev) =>
-                prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: true } : conv)
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId ? { ...conversation, isMuted: true } : conversation,
+                ),
             );
-        } catch (error) {
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
     const unmuteConversation = useCallback(async (conversationId: string) => {
         try {
             await messagesService.updateConversationPreferences(conversationId, { is_muted: false });
-            setConversations((prev) =>
-                prev.map((conv) => conv.id === conversationId ? { ...conv, isMuted: false } : conv)
+            setConversations((previous) =>
+                previous.map((conversation) =>
+                    conversation.id === conversationId ? { ...conversation, isMuted: false } : conversation,
+                ),
             );
-        } catch (error) {
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
     const deleteConversation = useCallback((conversationId: string) => {
-        // Soft delete locally, could be backend if supported
-        setConversations((prev) => prev.filter((conv) => conv.id !== conversationId));
+        setConversations((previous) => previous.filter((conversation) => conversation.id !== conversationId));
         if (selectedConversationId === conversationId) {
             setSelectedConversationId(null);
         }
     }, [selectedConversationId]);
 
     const getConversation = useCallback((conversationId: string) => {
-        return conversations.find((conv) => conv.id === conversationId);
+        return conversations.find((conversation) => conversation.id === conversationId);
     }, [conversations]);
 
     const value = {
@@ -326,7 +550,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         deleteConversation,
         getConversation,
         quickReplyTemplates,
-        refreshConversations
+        refreshConversations,
     };
 
     return <MessagesContext.Provider value={value}>{children}</MessagesContext.Provider>;

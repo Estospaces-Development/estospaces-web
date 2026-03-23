@@ -15,6 +15,8 @@ import { notifyViewingCancelled } from '@/services/notificationsService';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { getPropertyById } from '@/services/propertyService';
+import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
@@ -32,22 +34,40 @@ export default function ViewingsPage() {
     const fetchViewings = useCallback(async () => {
         setLoading(true);
         try {
-            const result = await bookingsService.getViewings();
-            if (result.data) {
-                const mappedViewings = result.data.map((viewing: any) => ({
-                    ...viewing,
-                    date: viewing.scheduled_at?.split('T')[0] || viewing.scheduled_at,
-                    time: viewing.scheduled_at?.split('T')[1]?.substring(0, 5) || '',
-                    propertyImage: viewing.property?.image_urls?.[0] || PROPERTY_PLACEHOLDER_IMAGE,
-                    propertyTitle: viewing.property?.title || 'Property',
-                    propertyAddress: viewing.property?.address_line_1 || 'Address not available',
-                    propertyPrice: viewing.property?.price || 0,
-                    listingType: viewing.property?.listing_type || 'sale',
-                    agentName: viewing.agent?.name || 'Agent',
-                    agentPhone: viewing.agent?.phone || ''
-                }));
-                setViewings(mappedViewings);
-            }
+            const data = await bookingsService.getViewings();
+            const propertyIDsNeedingImages = Array.from(
+                new Set(
+                    data
+                        .filter((viewing: any) => !viewing.property_image && typeof viewing.property_id === 'string' && viewing.property_id.trim().length > 0)
+                        .map((viewing: any) => viewing.property_id),
+                ),
+            );
+
+            const propertyImageEntries = await Promise.all(
+                propertyIDsNeedingImages.map(async (propertyID) => {
+                    try {
+                        const { data: property } = await getPropertyById(propertyID);
+                        return [propertyID, getPrimaryPropertyImage(property)] as const;
+                    } catch {
+                        return [propertyID, null] as const;
+                    }
+                }),
+            );
+
+            const propertyImageMap = new Map(propertyImageEntries);
+            const mappedViewings = data.map((viewing: any) => ({
+                ...viewing,
+                date: viewing.scheduled_at,
+                time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
+                propertyImage: viewing.property_image || propertyImageMap.get(viewing.property_id) || PROPERTY_PLACEHOLDER_IMAGE,
+                propertyTitle: viewing.property_title || 'Property',
+                propertyAddress: viewing.property_address || 'Address not available',
+                propertyPrice: viewing.property_price || 0,
+                listingType: viewing.listing_type || 'sale',
+                agentName: viewing.agent_name || 'Agent',
+                agentPhone: viewing.agent_phone || '',
+            }));
+            setViewings(mappedViewings);
         } catch (err: any) {
             toast.error('Failed to load viewings');
         } finally {
@@ -84,7 +104,7 @@ export default function ViewingsPage() {
         }
 
         try {
-            await bookingsService.cancelViewing(viewingId);
+            await bookingsService.cancelViewing(viewingId, 'Cancelled by user');
 
             setViewings(prev => prev.map(v =>
                 v.id === viewingId ? { ...v, status: 'cancelled' } : v
@@ -206,6 +226,9 @@ export default function ViewingsPage() {
                                             src={viewing.propertyImage}
                                             alt={viewing.propertyTitle}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            onError={(event) => {
+                                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                            }}
                                         />
                                         <div className="absolute top-4 left-4">
                                             {getStatusBadge(viewing.status)}

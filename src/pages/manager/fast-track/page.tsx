@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { FastTrackCase, getFastTrackCases, updateFastTrackCase, createFastTrackCase } from '../../../services/fastTrackService';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { FastTrackCase, getFastTrackCases, updateFastTrackCase } from '../../../services/fastTrackService';
 import FastTrackCaseCard from '../../../components/manager/FastTrack/FastTrackCaseCard';
 import FastTrackCaseDetail from '../../../components/manager/FastTrack/FastTrackCaseDetail';
 import { Zap, Clock, CheckCircle2, AlertOctagon, RefreshCw } from 'lucide-react';
@@ -20,11 +20,16 @@ const FastTrackDashboard = () => {
         visible: false
     });
 
-    const fetchCases = async () => {
-        setLoading(true);
+    const fetchCases = useCallback(async (silent: boolean = false) => {
+        if (!silent) {
+            setLoading(true);
+            setError(null);
+        }
+
         const { data, error } = await getFastTrackCases();
         if (data) {
             setCases(data);
+            setError(null);
             // If selected case exists, update it
             if (selectedCaseId) {
                 const updatedSelected = data.find(c => c.caseId === selectedCaseId);
@@ -33,15 +38,25 @@ const FastTrackDashboard = () => {
                     setSelectedCaseId(null);
                 }
             }
-        } else {
+        } else if (!silent) {
             setError(error || 'Failed to fetch cases');
         }
-        setLoading(false);
-    };
+        if (!silent) {
+            setLoading(false);
+        }
+    }, [selectedCaseId]);
 
     useEffect(() => {
-        fetchCases();
-    }, []);
+        void fetchCases();
+    }, [fetchCases]);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            void fetchCases(true);
+        }, 5000);
+
+        return () => window.clearInterval(interval);
+    }, [fetchCases]);
 
     const handleUpdateCase = async (updatedCase: FastTrackCase) => {
         // Optimistic update
@@ -56,7 +71,7 @@ const FastTrackDashboard = () => {
         if (error) {
             setToast({ message: 'Failed to update case', type: 'error', visible: true });
             // Revert or fetch again
-            fetchCases();
+            void fetchCases();
         } else {
             setToast({ message: 'Case updated successfully', type: 'success', visible: true });
         }
@@ -76,13 +91,26 @@ const FastTrackDashboard = () => {
 
     if (selectedCase) {
         return (
-            <div className="h-[calc(100vh-100px)] animate-in slide-in-from-right duration-300">
-                <FastTrackCaseDetail
-                    caseData={selectedCase}
-                    onClose={() => setSelectedCaseId(null)}
-                    onUpdate={handleUpdateCase}
-                />
-            </div>
+            <>
+                <div className="h-[calc(100vh-100px)] animate-in slide-in-from-right duration-300">
+                    <FastTrackCaseDetail
+                        caseData={selectedCase}
+                        onClose={() => setSelectedCaseId(null)}
+                        onUpdate={handleUpdateCase}
+                    />
+                </div>
+                {toast.visible && (
+                    <div className="fixed top-4 right-4 z-50">
+                        <Toast
+                            id="fast-track-toast"
+                            message={toast.message}
+                            type={toast.type}
+                            isVisible={toast.visible}
+                            onClose={() => setToast((previous) => ({ ...previous, visible: false }))}
+                        />
+                    </div>
+                )}
+            </>
         );
     }
 
@@ -163,7 +191,7 @@ const FastTrackDashboard = () => {
                     ) : error ? (
                         <div className="text-center py-20 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
                             <p className="text-red-500 dark:text-red-400">{error}</p>
-                            <button onClick={fetchCases} className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/70 transition-colors">
+                            <button onClick={() => void fetchCases()} className="mt-4 px-4 py-2 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/70 transition-colors">
                                 Retry
                             </button>
                         </div>
@@ -180,6 +208,17 @@ const FastTrackDashboard = () => {
                     ) : null}
                 </div>
             </div>
+            {toast.visible && (
+                <div className="fixed top-4 right-4 z-50">
+                    <Toast
+                        id="fast-track-toast"
+                        message={toast.message}
+                        type={toast.type}
+                        isVisible={toast.visible}
+                        onClose={() => setToast((previous) => ({ ...previous, visible: false }))}
+                    />
+                </div>
+            )}
         </div>
     );
 };

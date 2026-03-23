@@ -1,14 +1,14 @@
-"use client";
-
+import { useNavigate } from 'react-router-dom';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import type { ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
 
 export default function VerificationPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const { 
         managerProfile, 
         verificationStatus, 
@@ -21,6 +21,7 @@ export default function VerificationPage() {
         missingDocuments,
         isVerified,
         createProfile,
+        getDocumentByType,
         getDocumentStatus,
         uploadDocument
     } = useManagerVerification();
@@ -146,7 +147,12 @@ export default function VerificationPage() {
         setActionError(null);
         try {
             const result = await uploadDocument(file, docType);
-            setActionError(result.error);
+            if (result && result.error) {
+                setActionError(result.error);
+            } else {
+                // Refresh to show the new document
+                await refetch();
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -278,8 +284,33 @@ export default function VerificationPage() {
             </div>
 
             {actionError && (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
-                    {actionError}
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {actionError}
+                    </div>
+                </div>
+            )}
+
+            {verificationStatus === 'rejected' && managerProfile.rejection_reason && (
+                <div className="rounded-[2rem] border-2 border-red-200 bg-white dark:bg-red-900/5 p-8 shadow-xl shadow-red-500/5 animate-in fade-in slide-in-from-top-4">
+                    <div className="flex items-start gap-5">
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Verification Rejected</h3>
+                            <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
+                                Your application was not approved for the following reason:
+                            </p>
+                            <div className="mt-4 p-5 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-800/30 text-red-700 dark:text-red-300 font-bold italic">
+                                "{managerProfile.rejection_reason}"
+                            </div>
+                            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                                Please address the issues above and update the required documents before resubmitting.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -302,32 +333,24 @@ export default function VerificationPage() {
                             && step.status !== 'reupload_required'
                             && isUploadEnabled;
 
+                        const doc = getDocumentByType(step.id);
+                        const hasDocument = !!doc;
+                        const isRejected = step.status === 'rejected' || step.status === 'reupload_required';
+                        const isImage = doc?.mime_type?.startsWith('image/') || 
+                                       doc?.document_url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
+
                         return (
                         <div
-                            key={step.id}
-                            className={`relative p-8 rounded-3xl border transition-all duration-500 group overflow-hidden ${
+                            key={`${step.id}-${doc?.id || 'empty'}`}
+                            className={`relative p-8 rounded-3xl border transition-all duration-500 group overflow-hidden flex flex-col ${
                                 step.status === 'approved' 
                                 ? 'bg-green-50/30 dark:bg-green-500/5 border-green-100 dark:border-green-900/30 shadow-sm' 
-                                : step.status === 'rejected' || step.status === 'reupload_required'
+                                : isRejected
                                 ? 'bg-red-50/30 dark:bg-red-500/5 border-red-100 dark:border-red-900/30 shadow-sm'
                                 : 'bg-gray-50/50 dark:bg-gray-900/40 border-gray-100 dark:border-gray-800/50'
-                            } ${isUploadEnabled ? 'cursor-pointer hover:border-orange-500/30 hover:shadow-xl' : ''}`}
-                            onClick={() => {
-                                if (!isUploadEnabled) {
-                                    return;
-                                }
-
-                                const input = document.createElement('input');
-                                input.type = 'file';
-                                input.accept = 'image/*,.pdf';
-                                input.onchange = (e) => {
-                                    const file = (e.target as HTMLInputElement).files?.[0];
-                                    if (file) handleDocumentUpload(step.id, file);
-                                };
-                                input.click();
-                            }}
+                            } ${isUploadEnabled ? 'hover:border-orange-500/30 hover:shadow-xl' : ''}`}
                         >
-                            <div className="absolute top-6 right-6">
+                            <div className="absolute top-6 right-6 z-20">
                                 {step.status === 'approved' ? (
                                     <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
                                         <CheckCircle className="w-5 h-5" />
@@ -336,7 +359,7 @@ export default function VerificationPage() {
                                     <div className="w-8 h-8 bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-full flex items-center justify-center animate-pulse">
                                         <Clock className="w-5 h-5" />
                                     </div>
-                                ) : step.status === 'rejected' || step.status === 'reupload_required' ? (
+                                ) : isRejected ? (
                                     <div className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-red-500/20">
                                         <AlertCircle className="w-5 h-5" />
                                     </div>
@@ -347,32 +370,93 @@ export default function VerificationPage() {
                                 )}
                             </div>
 
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110 shadow-sm ${
-                                step.status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-900 dark:bg-gray-800 text-white dark:text-orange-500'
-                            }`}>
-                                {isSubmitting ? <Loader2 className="w-7 h-7 animate-spin" /> : <step.icon className="w-7 h-7" />}
+                            {/* Document Preview / Icon */}
+                            <div className="relative mb-6">
+                                {hasDocument && isImage ? (
+                                    <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white dark:border-gray-800 shadow-md group-hover:scale-110 transition-transform duration-300">
+                                        <img 
+                                            src={doc.document_url} 
+                                            alt={step.title} 
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                // If image fails to load, fallback to icon
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                (e.target as HTMLImageElement).parentElement?.classList.add('flex', 'items-center', 'justify-center', 'bg-gray-100');
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-sm ${
+                                        step.status === 'approved' ? 'bg-green-500 text-white' : 'bg-gray-900 dark:bg-gray-800 text-white dark:text-orange-500'
+                                    }`}>
+                                        {isSubmitting ? <Loader2 className="w-7 h-7 animate-spin" /> : <step.icon className="w-7 h-7" />}
+                                    </div>
+                                )}
                             </div>
 
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{step.title}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">{step.description}</p>
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{step.title}</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium mb-2">{step.description}</p>
                             
-                            {(step.status === 'rejected' || step.status === 'reupload_required') && (
-                                <p className="mt-4 text-xs text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-900/20 p-2.5 rounded-xl">
-                                    Needs Attention: Please click to re-upload.
-                                </p>
+                            {hasDocument && (
+                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 dark:text-gray-500 bg-gray-100/50 dark:bg-gray-800/50 px-2 py-1 rounded-lg w-fit">
+                                    <FileText className="w-3 h-3" />
+                                    <span className="truncate max-w-[150px]">{doc.file_name || 'Document uploaded'}</span>
+                                </div>
                             )}
+
+                            <div className="mt-auto"></div>
+                            
+                            {isRejected && doc?.rejection_reason && (
+                                <div className="mt-4 p-3 bg-red-100/50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 rounded-xl">
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-red-600 dark:text-red-400 mb-1">Reason for Rejection:</p>
+                                    <p className="text-xs text-red-700 dark:text-red-300 font-bold italic">"{doc.rejection_reason}"</p>
+                                </div>
+                            )}
+
+                            <div className="mt-6 flex flex-wrap gap-2">
+                                {isUploadEnabled && (
+                                    <button
+                                        disabled={isSubmitting}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'image/*,.pdf';
+                                            input.onchange = (e) => {
+                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                if (file) handleDocumentUpload(step.id, file);
+                                            };
+                                            input.click();
+                                        }}
+                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                            isRejected 
+                                            ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-500/20' 
+                                            : 'bg-gray-900 dark:bg-orange-500 text-white hover:scale-105'
+                                        }`}
+                                    >
+                                        <Upload className="w-3.5 h-3.5" />
+                                        {hasDocument ? 'Replace File' : 'Upload File'}
+                                    </button>
+                                )}
+
+                                {hasDocument && doc.document_url && (
+                                    <a
+                                        href={`${doc.document_url}${doc.document_url.includes('?') ? '&' : '?'}t=${new Date(doc.updated_at).getTime()}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        View Current
+                                    </a>
+                                )}
+                            </div>
 
                             {showReplacementHint && (
-                                <p className="mt-4 text-xs text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-900/20 p-2.5 rounded-xl">
-                                    You can replace this document before resubmitting for review.
+                                <p className="mt-4 text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
+                                    You can update this even if it's already uploaded.
                                 </p>
-                            )}
-
-                            {step.status === 'not_uploaded' && (
-                                <div className="mt-4 flex items-center gap-2 text-orange-500 text-xs font-bold uppercase tracking-wider">
-                                    <Upload className="w-3 h-3" />
-                                    Click to Upload
-                                </div>
                             )}
                         </div>
                     )}) : (
@@ -390,11 +474,22 @@ export default function VerificationPage() {
 
                     {!isVerified && canRequestReview ? (
                         <button
-                            onClick={handleSubmitForReview}
-                            disabled={isSubmitting || missingDocuments.length > 0 || missingProfileFields.length > 0}
-                            className="w-full sm:w-auto bg-gray-900 dark:bg-orange-500 hover:scale-105 active:scale-95 text-white px-10 py-4 rounded-2xl font-bold shadow-2xl transition-all disabled:opacity-30 disabled:hover:scale-100 flex items-center justify-center gap-2.5 group"
+                            onClick={missingProfileFields.length > 0 ? () => navigate('/manager/profile') : handleSubmitForReview}
+                            disabled={isSubmitting || (missingDocuments.length > 0 && missingProfileFields.length === 0)}
+                            className={`w-full sm:w-auto px-10 py-4 rounded-2xl font-bold shadow-2xl transition-all flex items-center justify-center gap-2.5 group ${
+                                missingProfileFields.length > 0
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white hover:scale-105 active:scale-95'
+                                : 'bg-gray-900 dark:bg-orange-500 hover:scale-105 active:scale-95 text-white disabled:opacity-30 disabled:hover:scale-100'
+                            }`}
                         >
-                            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />}
+                            {isSubmitting ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : missingProfileFields.length > 0 ? (
+                                <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            ) : (
+                                <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                            )}
+                            
                             {missingProfileFields.length > 0
                                 ? 'Complete profile details'
                                 : missingDocuments.length > 0
@@ -402,6 +497,10 @@ export default function VerificationPage() {
                                     : needsReverification
                                         ? 'Resubmit for Review'
                                         : 'Submit for Final Review'}
+                            
+                            {missingProfileFields.length > 0 && (
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                            )}
                         </button>
                     ) : (
                         <div className="flex items-center gap-3 px-6 py-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
@@ -443,44 +542,3 @@ export default function VerificationPage() {
         </div>
     );
 }
-
-// Icons
-function TrendingUp(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-            <polyline points="16 7 22 7 22 13" />
-        </svg>
-    );
-}
-
-function Zap(props: any) {
-    return (
-        <svg
-            {...props}
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-        </svg>
-    );
-}
-

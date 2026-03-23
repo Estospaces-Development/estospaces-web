@@ -1,4 +1,28 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, Component, ErrorInfo, ReactNode } from 'react';
+
+// Minimal error boundary for page-level crashes
+class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+    state = { hasError: false, error: '' };
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error: error.message };
+    }
+    componentDidCatch(error: Error, info: ErrorInfo) {
+        console.error('[PageErrorBoundary]', error, info.componentStack);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="flex flex-col items-center justify-center py-20 min-h-[400px] text-center">
+                    <p className="text-gray-400 text-4xl mb-4">⚠️</p>
+                    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Page failed to load</h2>
+                    <p className="text-sm text-gray-500 mt-2 max-w-sm">{this.state.error}</p>
+                    <button onClick={() => this.setState({ hasError: false, error: '' })} className="mt-4 text-orange-500 underline text-sm">Try again</button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 // Layouts
@@ -145,7 +169,7 @@ const App: React.FC = () => {
             <Route path="help" element={<ManagerHelp />} />
             <Route path="leads" element={<ManagerLeads />} />
             <Route path="messages" element={<ManagerMessages />} />
-            <Route path="notifications" element={<ManagerNotifications />} />
+            <Route path="notifications" element={<PageErrorBoundary><ManagerNotifications /></PageErrorBoundary>} />
             <Route path="profile" element={<ManagerProfile />} />
             <Route path="user-verifications" element={<ManagerUserVerifications />} />
             <Route path="verification" element={<ManagerVerification />} />
@@ -169,7 +193,7 @@ const App: React.FC = () => {
             <Route path="dashboard/settings" element={<UserSettingsDash />} />
             <Route path="dashboard/viewings" element={<UserViewings />} />
             <Route path="applications" element={<UserApplications />} />
-            <Route path="bookings" element={<UserViewings />} />
+            <Route path="bookings" element={<UserBookings />} />
             <Route path="favorites" element={<UserSaved />} />
             <Route path="profile" element={<UserProfileDash />} />
             <Route path="saved" element={<UserSaved />} />

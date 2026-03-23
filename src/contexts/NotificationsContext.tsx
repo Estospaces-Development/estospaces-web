@@ -1,9 +1,22 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    useCallback,
+    ReactNode,
+    useRef,
+} from 'react';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import * as notificationsService from '../services/notificationsService';
-import type { Notification } from '../services/notificationsService';
+import {
+    getNotificationNavigationPath,
+    NOTIFICATION_TYPES as NOTIFICATION_TYPE_VALUES,
+    type Notification,
+} from '../services/notificationsService';
 
 interface NotificationsContextType {
     notifications: Notification[];
@@ -20,48 +33,152 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 
 export { NOTIFICATION_TYPES } from '../services/notificationsService';
 
+const HIGH_PRIORITY_NOTIFICATION_TYPES = new Set([
+    NOTIFICATION_TYPE_VALUES.VIEWING_BOOKED,
+    NOTIFICATION_TYPE_VALUES.VIEWING_CONFIRMED,
+    NOTIFICATION_TYPE_VALUES.VIEWING_COMPLETED,
+    NOTIFICATION_TYPE_VALUES.VIEWING_RESCHEDULED,
+    NOTIFICATION_TYPE_VALUES.VIEWING_CANCELLED,
+    NOTIFICATION_TYPE_VALUES.APPOINTMENT_REMINDER,
+    NOTIFICATION_TYPE_VALUES.MESSAGE_RECEIVED,
+    NOTIFICATION_TYPE_VALUES.DOCUMENTS_REQUESTED,
+    NOTIFICATION_TYPE_VALUES.SYSTEM,
+]);
+
+const BROWSER_NOTIFICATION_ICON = '/images/logo-icon.png';
+
+const supportsBrowserNotifications = () =>
+    typeof window !== 'undefined' && 'Notification' in window;
+
+const showBrowserNotification = (notification: Notification, role: string) => {
+    if (!supportsBrowserNotifications() || window.Notification.permission !== 'granted') {
+        return;
+    }
+
+    const browserNotification = new window.Notification(notification.title || 'New notification', {
+        body: notification.message,
+        icon: BROWSER_NOTIFICATION_ICON,
+        badge: BROWSER_NOTIFICATION_ICON,
+        tag: `estospaces-${notification.id}`,
+        requireInteraction: HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type),
+    });
+
+    browserNotification.onclick = () => {
+        window.focus();
+        const targetPath = getNotificationNavigationPath(notification, role);
+        if (targetPath) {
+            window.location.href = targetPath;
+        }
+        browserNotification.close();
+    };
+
+    if (!HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type)) {
+        window.setTimeout(() => browserNotification.close(), 10000);
+    }
+};
+
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
+    const toast = useToast();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const hasHydratedRef = useRef(false);
+    const previousUnreadIDsRef = useRef<Set<string>>(new Set());
 
-    const fetchNotifications = useCallback(async () => {
+    const loadNotifications = useCallback(async (silent: boolean) => {
         if (!user) {
             setNotifications([]);
             setUnreadCount(0);
+            previousUnreadIDsRef.current = new Set();
+            hasHydratedRef.current = false;
             return;
         }
 
-        setLoading(true);
+        if (!silent) {
+            setLoading(true);
+        }
+
         try {
             const result = await notificationsService.getNotifications();
-            setNotifications(result.notifications || []);
+            const nextNotifications = result.notifications || [];
+            const nextUnreadIDs = new Set(
+                nextNotifications
+                    .filter((notification) => !notification.is_read)
+                    .map((notification) => notification.id),
+            );
+            const isDocumentHidden =
+                typeof document !== 'undefined' && document.visibilityState === 'hidden';
+
+            if (hasHydratedRef.current) {
+                const freshNotifications = nextNotifications
+                    .filter((notification) => !notification.is_read && !previousUnreadIDsRef.current.has(notification.id))
+                    .slice(0, 3);
+
+                freshNotifications.forEach((notification) => {
+                    const isHighPriority = HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type);
+                    if (!isDocumentHidden) {
+                        const toastMethod = isHighPriority ? toast.warning : toast.info;
+
+                        toastMethod(notification.message, {
+                            title: notification.title || 'New notification',
+                            duration: isHighPriority ? 9000 : 5000,
+                            position: 'top-right',
+                        });
+                    }
+
+                    showBrowserNotification(notification, user?.role || 'user');
+                });
+            }
+
+            previousUnreadIDsRef.current = nextUnreadIDs;
+            hasHydratedRef.current = true;
+            setNotifications(nextNotifications);
             setUnreadCount(result.unread_count || 0);
-        } catch (err) {
-            // Gracefully degrade — keep existing state
+        } catch {
+            // Keep the current state if polling fails.
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    }, [user]);
+    }, [toast, user]);
+
+    const fetchNotifications = useCallback(async () => {
+        await loadNotifications(false);
+    }, [loadNotifications]);
 
     const markAsRead = useCallback(async (notificationId: string) => {
         try {
             await notificationsService.markRead(notificationId);
-            setNotifications(prev =>
-                prev.map(n => n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n)
+            setNotifications((previous) =>
+                previous.map((notification) =>
+                    notification.id === notificationId
+                        ? { ...notification, is_read: true, read_at: new Date().toISOString() }
+                        : notification,
+                ),
             );
-            setUnreadCount(prev => Math.max(0, prev - 1));
-        } catch (err) {
+            previousUnreadIDsRef.current.delete(notificationId);
+            setUnreadCount((previous) => Math.max(0, previous - 1));
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
     const markAllAsRead = useCallback(async () => {
         try {
             await notificationsService.markAllRead();
-            setNotifications(prev => prev.map(n => ({ ...n, is_read: true, read_at: new Date().toISOString() })));
+            setNotifications((previous) =>
+                previous.map((notification) => ({
+                    ...notification,
+                    is_read: true,
+                    read_at: new Date().toISOString(),
+                })),
+            );
+            previousUnreadIDsRef.current = new Set();
             setUnreadCount(0);
-        } catch (err) {
+        } catch {
+            // Leave the current state unchanged if the API call fails.
         }
     }, []);
 
@@ -76,7 +193,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                 data,
             });
             if (success) {
-                // Optimistically add to local state
                 const newNotification: Notification = {
                     id: `local-${Date.now()}`,
                     user_id: user.id,
@@ -88,35 +204,69 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                     channel: 'in_app',
                     created_at: new Date().toISOString(),
                 };
-                setNotifications(prev => [newNotification, ...prev]);
-                setUnreadCount(prev => prev + 1);
+                setNotifications((previous) => [newNotification, ...previous]);
+                previousUnreadIDsRef.current.add(newNotification.id);
+                setUnreadCount((previous) => previous + 1);
                 return newNotification;
             }
             return null;
-        } catch (err) {
+        } catch {
             return null;
         }
     }, [user?.id]);
 
     const deleteNotification = useCallback((notificationId: string) => {
-        const notification = notifications.find(n => n.id === notificationId);
-        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        const notification = notifications.find((entry) => entry.id === notificationId);
+        setNotifications((previous) => previous.filter((entry) => entry.id !== notificationId));
+        previousUnreadIDsRef.current.delete(notificationId);
         if (notification && !notification.is_read) {
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            setUnreadCount((previous) => Math.max(0, previous - 1));
         }
     }, [notifications]);
 
-    // Fetch on mount and when user changes
     useEffect(() => {
-        fetchNotifications();
+        void fetchNotifications();
     }, [fetchNotifications]);
 
-    // Poll every 30 seconds for new notifications
     useEffect(() => {
         if (!user) return;
-        const interval = setInterval(fetchNotifications, 30000);
-        return () => clearInterval(interval);
-    }, [user, fetchNotifications]);
+        const refreshNotifications = () => {
+            void loadNotifications(true);
+        };
+
+        const interval = setInterval(refreshNotifications, 5000);
+        window.addEventListener('focus', refreshNotifications);
+        document.addEventListener('visibilitychange', refreshNotifications);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('focus', refreshNotifications);
+            document.removeEventListener('visibilitychange', refreshNotifications);
+        };
+    }, [loadNotifications, user]);
+
+    useEffect(() => {
+        if (!user || !supportsBrowserNotifications() || window.Notification.permission !== 'default') {
+            return;
+        }
+
+        const requestPermission = () => {
+            void window.Notification.requestPermission();
+            window.removeEventListener('click', requestPermission);
+            window.removeEventListener('keydown', requestPermission);
+            window.removeEventListener('touchstart', requestPermission);
+        };
+
+        window.addEventListener('click', requestPermission, { once: true, passive: true });
+        window.addEventListener('keydown', requestPermission, { once: true });
+        window.addEventListener('touchstart', requestPermission, { once: true, passive: true });
+
+        return () => {
+            window.removeEventListener('click', requestPermission);
+            window.removeEventListener('keydown', requestPermission);
+            window.removeEventListener('touchstart', requestPermission);
+        };
+    }, [user]);
 
     return (
         <NotificationsContext.Provider

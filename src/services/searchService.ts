@@ -226,6 +226,28 @@ const buildFallbackFilters = (properties: SearchResult[]): FilterOptions => {
     };
 };
 
+const looksLikePlaceholderSearchResults = (results: SearchResult[]) => {
+    return results.length > 0 && results.every((property) =>
+        /^Dummy Property \d+$/i.test(property.title || '') &&
+        (!property.listing_type || property.listing_type.trim() === '') &&
+        (!property.property_type || property.property_type.trim() === '') &&
+        Number(property.price || 0) === 0 &&
+        /^Dummy /i.test(property.location || property.city || ''),
+    );
+};
+
+const looksLikePlaceholderFilters = (filters: FilterOptions | null) => {
+    if (!filters) {
+        return false;
+    }
+
+    return filters.locations.length > 0 && filters.locations.every((location) => /^Dummy City/i.test(location));
+};
+
+const looksLikePlaceholderSuggestions = (suggestions: AutocompleteSuggestion[]) => {
+    return suggestions.length > 0 && suggestions.every((suggestion) => /^Dummy /i.test(suggestion.text || ''));
+};
+
 export interface SearchFilters {
     keyword?: string;
     location?: string;
@@ -370,6 +392,10 @@ export const searchService = {
                 { suppressErrorToast: true },
             );
 
+            if (looksLikePlaceholderSearchResults(response.data || [])) {
+                return await coreSearchFallback(query, filters);
+            }
+
             return {
                 success: true,
                 data: response.data || [],
@@ -406,7 +432,11 @@ export const searchService = {
                 `${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`,
                 { suppressErrorToast: true },
             );
-            return data?.suggestions || [];
+            const suggestions = data?.suggestions || [];
+            if (looksLikePlaceholderSuggestions(suggestions)) {
+                throw new Error('placeholder search suggestions');
+            }
+            return suggestions;
         } catch {
             try {
                 const fallback = await coreSearchFallback(query, { page: 1, limit: 10 });
@@ -476,6 +506,9 @@ export const searchService = {
                 `${API_URL}/api/v1/search/filters`,
                 { suppressErrorToast: true },
             );
+            if (looksLikePlaceholderFilters(data || null)) {
+                throw new Error('placeholder search filters');
+            }
             return data || null;
         } catch {
             try {

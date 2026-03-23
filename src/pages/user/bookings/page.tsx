@@ -17,7 +17,7 @@ export default function BookingsPage() {
             try {
                 setIsLoading(true);
                 const result = await bookingsService.getBookings();
-                setBookings(result.data || []);
+                setBookings(result || []);
             } catch (error: any) {
                 toast.error('Failed to load bookings');
             } finally {

@@ -26,12 +26,12 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Initialize seconds remaining based on 10 minutes minus time elapsed since timestamp
+    // Initialize seconds remaining based on the 5-minute broker SLA.
     const [secondsRemaining, setSecondsRemaining] = useState(() => {
         if (request.status !== 'pending') return 0;
         const now = new Date();
         const elapsed = Math.floor((now.getTime() - request.timestamp.getTime()) / 1000);
-        const remaining = 600 - elapsed;
+        const remaining = 300 - elapsed;
         return remaining > 0 ? remaining : 0;
     });
 
@@ -68,7 +68,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
         e.stopPropagation();
         setCurrentStatus('responded');
         onRespond(request.id);
-        navigate('/manager/messages'); // Redirect to messages
+        navigate('/manager/leads');
     };
 
     const handleViewProperty = (e: React.MouseEvent) => {
@@ -85,7 +85,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
 
     const getProgressColor = () => {
         if (secondsRemaining < 60) return 'bg-red-500';
-        if (secondsRemaining < 300) return 'bg-yellow-500';
+        if (secondsRemaining < 180) return 'bg-yellow-500';
         return 'bg-green-500';
     };
 
@@ -172,7 +172,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                         <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                             <div
                                 className={`h-full transition-all duration-1000 ease-linear ${getProgressColor()}`}
-                                style={{ width: `${(secondsRemaining / 600) * 100}%` }}
+                                style={{ width: `${(secondsRemaining / 300) * 100}%` }}
                             ></div>
                         </div>
 

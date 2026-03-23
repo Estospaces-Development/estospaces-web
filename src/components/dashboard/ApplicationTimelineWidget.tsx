@@ -161,7 +161,7 @@ const ApplicationTimelineWidget = () => {
                 if (appsRes.data) {
                     const mappedApps: ApplicationItem[] = appsRes.data.map((app: any) => ({
                         id: app.id,
-                        type: 'rent', //Defaulting to rent as most applications are for rentals
+                        type: app.listing_type === 'sale' ? 'buy' : 'rent',
                         currentStage: app.status === 'approved' ? 'Tenancy Agreement' : app.status === 'rejected' ? 'Application Rejected' : 'Documents Submitted',
                         currentStageNumber: app.status === 'approved' ? 4 : 2,
                         totalStages: 4,
@@ -171,10 +171,10 @@ const ApplicationTimelineWidget = () => {
                         estimatedCompletion: '1-2 weeks',
                         property: {
                             id: app.property_id,
-                            title: app.propertyInterested || 'Property application',
-                            city: null,
-                            price: null,
-                            image_urls: [],
+                            title: app.property_title || 'Property application',
+                            city: app.property_address || null,
+                            price: typeof app.property_price === 'number' ? app.property_price : null,
+                            image_urls: app.property_image ? [app.property_image] : [],
                         },
                         stages: RENT_STAGES.map((s, i) => ({
                             ...s,
@@ -190,10 +190,10 @@ const ApplicationTimelineWidget = () => {
                     const mappedProps: ApplicationItem[] = propsRes.data.map((prop: any) => ({
                         id: prop.id,
                         type: prop.status === 'sold' ? 'sell' : 'rent', // Infer type
-                        currentStage: prop.status === 'available' ? 'Published & Live' : prop.status === 'sold' ? 'Sale Completed' : 'Property Listed',
-                        currentStageNumber: prop.status === 'available' ? 3 : prop.status === 'sold' ? 5 : 1,
+                        currentStage: ['published', 'active', 'online'].includes(prop.status) ? 'Published & Live' : prop.status === 'sold' ? 'Sale Completed' : 'Property Listed',
+                        currentStageNumber: ['published', 'active', 'online'].includes(prop.status) ? 3 : prop.status === 'sold' ? 5 : 1,
                         totalStages: 5,
-                        progress: prop.status === 'available' ? 60 : prop.status === 'sold' ? 100 : 20,
+                        progress: ['published', 'active', 'online'].includes(prop.status) ? 60 : prop.status === 'sold' ? 100 : 20,
                         lastUpdated: new Date(prop.updated_at),
                         nextAction: 'Manage listing',
                         property: {
@@ -208,7 +208,13 @@ const ApplicationTimelineWidget = () => {
                         stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
                         stages: SELL_STAGES.map((s, i) => ({
                             ...s,
-                            status: (prop.status === 'sold') ? 'completed' : (prop.status === 'available' && i < 3) ? 'completed' : (prop.status === 'available' && i === 2) ? 'current' : 'upcoming'
+                            status: prop.status === 'sold'
+                                ? 'completed'
+                                : (['published', 'active', 'online'].includes(prop.status) && i < 3)
+                                    ? 'completed'
+                                    : (['published', 'active', 'online'].includes(prop.status) && i === 2)
+                                        ? 'current'
+                                        : 'upcoming'
                         }))
                     }));
                     setListings(mappedProps);

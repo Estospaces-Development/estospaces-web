@@ -14,6 +14,7 @@ import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface Property {
     id: string;
+    manager_id?: string;
     title?: string;
     address_line_1?: string;
     city?: string;
@@ -109,7 +110,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
             setLoadingRecent(true);
             try {
                 const { data, error } = await propertyService.getProperties({
-                    status: 'online',
                     sort_by: 'created_at',
                     sort_order: 'desc',
                     limit: 6
@@ -149,7 +149,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
             setLoadingProperties(true);
             try {
                 const { data, error } = await propertyService.getProperties({
-                    status: 'online',
                     search: searchQuery,
                     limit: 6
                 });
@@ -226,6 +225,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         if (!formData.fullName.trim()) errors.fullName = 'Name is required';
         if (!formData.email.trim()) errors.email = 'Email is required';
         else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Invalid email format';
+        if (!formData.moveInDate.trim()) errors.moveInDate = 'Move-in date is required';
 
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
@@ -284,6 +284,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             const applicationData = {
                 property_id: selectedProperty.id,
+                manager_id: selectedProperty.manager_id,
                 property_title: selectedProperty.title,
                 property_address: selectedProperty.address_line_1 || `${selectedProperty.city || ''} ${selectedProperty.postcode || ''}`.trim(),
                 property_price: selectedProperty.price,
@@ -293,20 +294,15 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 agent_name: selectedProperty.contact_name,
                 agent_email: selectedProperty.contact_email,
                 agent_phone: selectedProperty.contact_phone,
-                agent_company: selectedProperty.company,
-                personal_info: {
-                    full_name: formData.fullName,
-                    email: formData.email,
-                    phone: formData.phone,
-                },
-                financial_info: {
-                    employment_status: formData.employmentStatus,
-                    employer: formData.employer,
-                    job_title: formData.jobTitle,
-                    annual_income: formData.annualIncome ? parseFloat(formData.annualIncome) : null,
-                },
-                move_in_date: formData.moveInDate || null,
-                notes: formData.notes,
+                agent_agency: selectedProperty.company,
+                applicant_name: formData.fullName,
+                applicant_email: formData.email,
+                applicant_phone: formData.phone,
+                employment_status: formData.employmentStatus,
+                employer_name: formData.employer,
+                annual_income: formData.annualIncome ? parseFloat(formData.annualIncome) : undefined,
+                move_in_date: formData.moveInDate,
+                message: formData.notes,
             };
 
             const result = await createApplication(applicationData);

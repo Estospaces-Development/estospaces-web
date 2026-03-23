@@ -35,10 +35,8 @@ export default function ContractsPage() {
                     bookingsService.getContracts(),
                     bookingsService.getContractTemplates()
                 ]);
-                // If apiFetch unwraps data, THESE ARE ALREADY ARRAYS
-                // But we check for both just in case
-                setContracts((contractsData as any).data || (Array.isArray(contractsData) ? contractsData : []));
-                setTemplates((templatesData as any).data || (Array.isArray(templatesData) ? templatesData : []));
+                setContracts(Array.isArray(contractsData) ? contractsData : []);
+                setTemplates(Array.isArray(templatesData) ? templatesData : []);
             } catch (error: any) {
                 toast.error('Failed to load contract information');
             } finally {

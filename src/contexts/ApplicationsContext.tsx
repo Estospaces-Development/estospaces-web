@@ -1,8 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
-import { getUserLeads, Lead as BackendLead, createLead, updateLeadStatus as updateBackendLeadStatus } from '../services/leadsService';
+import {
+    Application as BackendApplication,
+    createApplication as createBackendApplication,
+    getApplications as getBackendApplications,
+    updateApplicationStatus as updateBackendApplicationStatus,
+    withdrawApplication as withdrawBackendApplication,
+} from '@/services/applicationsService';
+import { getViewings, type Viewing } from '@/services/bookingsService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 export const APPLICATION_STATUS = {
@@ -23,7 +30,7 @@ export const APPLICATION_STATUS = {
 
 export type ApplicationStatus = typeof APPLICATION_STATUS[keyof typeof APPLICATION_STATUS];
 
-export const STATUS_CONFIG: Record<string, { label: string, color: string, bgColor: string, textColor: string }> = {
+export const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; textColor: string }> = {
     draft: { label: 'Draft', color: 'gray', bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
     pending: { label: 'Pending Review', color: 'yellow', bgColor: 'bg-yellow-100', textColor: 'text-yellow-700' },
     submitted: { label: 'Submitted', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
@@ -90,131 +97,268 @@ interface ApplicationsContextType {
 
 const ApplicationsContext = createContext<ApplicationsContextType | undefined>(undefined);
 
+const buildReferenceId = (id: string) => `APP-${id.slice(0, 8).toUpperCase()}`;
+
+const toImageUrl = (value?: string | null) => {
+    if (!value) {
+        return PROPERTY_PLACEHOLDER_IMAGE;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed) && typeof parsed[0] === 'string' && parsed[0]) {
+            return parsed[0];
+        }
+    } catch {
+        // The backend may already return a plain URL.
+    }
+
+    return value;
+};
+
+const deriveAppointment = (viewing?: Viewing) => {
+    if (!viewing?.scheduled_at) {
+        return undefined;
+    }
+
+    const scheduledAt = new Date(viewing.scheduled_at);
+    if (Number.isNaN(scheduledAt.getTime())) {
+        return undefined;
+    }
+
+    return {
+        date: scheduledAt.toISOString(),
+        time: scheduledAt.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+        }),
+    };
+};
+
+const deriveStatusFromViewing = (application: BackendApplication, viewing?: Viewing): ApplicationStatus => {
+    if (application.status === APPLICATION_STATUS.APPROVED) return APPLICATION_STATUS.APPROVED;
+    if (application.status === APPLICATION_STATUS.REJECTED) return APPLICATION_STATUS.REJECTED;
+    if (application.status === APPLICATION_STATUS.WITHDRAWN) return APPLICATION_STATUS.WITHDRAWN;
+    if (application.status === APPLICATION_STATUS.COMPLETED) return APPLICATION_STATUS.COMPLETED;
+    if (application.status === APPLICATION_STATUS.VIEWING_SCHEDULED) return APPLICATION_STATUS.VIEWING_SCHEDULED;
+    if (application.status === APPLICATION_STATUS.VIEWING_COMPLETED) return APPLICATION_STATUS.VIEWING_COMPLETED;
+    if (application.status === APPLICATION_STATUS.APPOINTMENT_BOOKED) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
+    if (application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED) return APPLICATION_STATUS.DOCUMENTS_REQUESTED;
+    if (application.status === APPLICATION_STATUS.UNDER_REVIEW) return APPLICATION_STATUS.UNDER_REVIEW;
+    if (application.status === APPLICATION_STATUS.VERIFICATION_IN_PROGRESS) return APPLICATION_STATUS.VERIFICATION_IN_PROGRESS;
+    if (application.status === APPLICATION_STATUS.DRAFT) return APPLICATION_STATUS.DRAFT;
+    if (application.status === APPLICATION_STATUS.PENDING) return APPLICATION_STATUS.PENDING;
+
+    if (viewing) {
+        if (viewing.status === 'completed') {
+            return APPLICATION_STATUS.VIEWING_COMPLETED;
+        }
+        if (viewing.status === 'pending' || viewing.status === 'confirmed' || viewing.status === 'rescheduled') {
+            return APPLICATION_STATUS.VIEWING_SCHEDULED;
+        }
+    }
+
+    return APPLICATION_STATUS.SUBMITTED;
+};
+
+const mapBackendApplication = (application: BackendApplication, relatedViewing?: Viewing): Application => ({
+    id: application.id,
+    referenceId: buildReferenceId(application.id),
+    propertyId: application.property_id,
+    userId: application.user_id,
+    status: deriveStatusFromViewing(application, relatedViewing),
+    createdAt: application.created_at,
+    updatedAt: application.updated_at,
+    propertyTitle: application.property_title || 'Property',
+    propertyAddress: application.property_address || 'Address unavailable',
+    propertyImage: toImageUrl(application.property_image),
+    propertyPrice: application.property_price,
+    propertyType: application.property_type || 'property',
+    agentName: application.agent_name || '',
+    agentAgency: application.agent_agency || '',
+    agentEmail: application.agent_email || '',
+    agentPhone: application.agent_phone || '',
+    listingType: application.listing_type || 'sale',
+    submittedDate: application.created_at,
+    lastUpdated: application.updated_at || application.created_at,
+    requiresAction: application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
+    hasAppointment: !!relatedViewing && relatedViewing.status !== 'cancelled',
+    appointment: deriveAppointment(relatedViewing),
+});
+
 export const ApplicationsProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    // Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
     const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
 
     const fetchApplications = async () => {
-        if (!user) return;
-        setIsLoading(true);
-        setError(null);
-
-        const { data, error: fetchError } = await getUserLeads();
-
-        if (fetchError) {
-            setError(fetchError);
+        if (!user) {
+            setApplications([]);
             setIsLoading(false);
             return;
         }
 
-        if (data) {
-            const transformed = data.map((lead: BackendLead) => ({
-                id: lead.id,
-                referenceId: lead.lead_number,
-                propertyId: lead.property_id,
-                userId: lead.user_id,
-                status: lead.status as ApplicationStatus,
-                createdAt: lead.created_at,
-                updatedAt: lead.updated_at,
-                propertyTitle: lead.property?.title || 'Property',
-                propertyAddress: lead.property?.address_line_1 || 'UK',
-                propertyImage: lead.property?.image_urls ? (lead.property.image_urls.startsWith('[') ? JSON.parse(lead.property.image_urls)[0] : lead.property.image_urls) : PROPERTY_PLACEHOLDER_IMAGE,
-                propertyPrice: lead.property?.price || 0,
-                propertyType: lead.property?.property_type || 'apartment',
-                agentName: lead.property?.agent_name || '',
-                agentAgency: lead.property?.agent_company || '',
-                agentEmail: lead.property?.agent_email || '',
-                agentPhone: lead.property?.agent_phone || '',
-                listingType: lead.property?.listing_type || (lead.property?.property_type === 'rent' ? 'rent' : 'sale'),
-                submittedDate: lead.created_at,
-                lastUpdated: lead.updated_at || lead.created_at,
-                requiresAction: lead.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
-                hasAppointment: false,
-            }));
-            setApplications(transformed);
+        setIsLoading(true);
+        setError(null);
+
+        const [applicationsResult, viewingsResult] = await Promise.all([
+            getBackendApplications(),
+            getViewings().catch(() => [] as Viewing[]),
+        ]);
+
+        if (applicationsResult.error) {
+            setError(applicationsResult.error);
+            setApplications([]);
+            setIsLoading(false);
+            return;
         }
+
+        const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
+        const mappedApplications = (applicationsResult.data || []).map((application) => {
+            const matchingViewing = relatedViewings
+                .filter((viewing) =>
+                    viewing.property_id === application.property_id &&
+                    viewing.user_id === application.user_id &&
+                    viewing.status !== 'cancelled',
+                )
+                .sort((left, right) => (
+                    new Date(right.scheduled_at).getTime() - new Date(left.scheduled_at).getTime()
+                ))[0];
+
+            return mapBackendApplication(application, matchingViewing);
+        });
+
+        setApplications(mappedApplications);
         setIsLoading(false);
     };
 
     useEffect(() => {
         if (user) {
             fetchApplications();
+            return;
         }
+
+        setApplications([]);
+        setIsLoading(false);
     }, [user]);
 
     const createApplication = async (data: any) => {
-        const { property_id } = data;
-        if (!property_id) return { success: false, error: 'Property ID is required' };
+        const propertyId = data.property_id || data.propertyId;
+        const managerId = data.manager_id || data.managerId;
+        const moveInDate = data.move_in_date || data.moveInDate;
 
-        const { data: lead, error: createError } = await createLead(property_id);
-
-        if (createError) {
-            return { success: false, error: createError };
+        if (!propertyId) {
+            return { success: false, error: 'Property ID is required' };
+        }
+        if (!managerId) {
+            return { success: false, error: 'Manager ID is required' };
+        }
+        if (!moveInDate) {
+            return { success: false, error: 'Move-in date is required' };
         }
 
-        // Refresh applications list
+        const { data: application, error: createError } = await createBackendApplication({
+            property_id: propertyId,
+            manager_id: managerId,
+            applicant_name: data.applicant_name || data.personal_info?.full_name || data.fullName,
+            applicant_email: data.applicant_email || data.personal_info?.email || data.email,
+            applicant_phone: data.applicant_phone || data.personal_info?.phone || data.phone,
+            property_title: data.property_title,
+            property_address: data.property_address,
+            property_image: data.property_image,
+            property_type: data.property_type,
+            listing_type: data.listing_type,
+            property_price: data.property_price,
+            agent_name: data.agent_name,
+            agent_email: data.agent_email,
+            agent_phone: data.agent_phone,
+            agent_agency: data.agent_agency,
+            conversation_id: data.conversation_id,
+            move_in_date: moveInDate,
+            lease_duration_months: data.lease_duration_months,
+            employment_status: data.employment_status || data.financial_info?.employment_status,
+            employer_name: data.employer_name || data.financial_info?.employer,
+            annual_income: data.annual_income || data.financial_info?.annual_income,
+            current_address: data.current_address || data.personal_info?.address,
+            message: data.message || data.notes,
+        });
+
+        if (createError || !application) {
+            return { success: false, error: createError || 'Failed to submit application' };
+        }
+
         await fetchApplications();
         return { success: true };
     };
 
-    const withdrawApplication = async (id: string, reason?: string) => {
-        const { error: updateError } = await updateBackendLeadStatus(id, APPLICATION_STATUS.WITHDRAWN);
+    const withdrawApplication = async (id: string) => {
+        const { data, error: updateError } = await withdrawBackendApplication(id);
 
-        if (updateError) {
-            return { success: false, error: updateError };
+        if (updateError || !data) {
+            return { success: false, error: updateError || 'Failed to withdraw application' };
         }
 
-        // Update local state to reflect withdrawal for UI responsiveness
-        setApplications(prev => prev.map(app =>
-            app.id === id ? { ...app, status: APPLICATION_STATUS.WITHDRAWN } : app
-        ));
+        await fetchApplications();
         return { success: true };
     };
 
     const updateApplicationStatus = async (id: string, status: string) => {
-        const { error: updateError } = await updateBackendLeadStatus(id, status);
-
-        if (updateError) {
-            return { success: false, error: updateError };
+        if (status === APPLICATION_STATUS.WITHDRAWN) {
+            return withdrawApplication(id);
         }
 
-        setApplications(prev => prev.map(app =>
-            app.id === id ? { ...app, status: status as ApplicationStatus } : app
-        ));
+        const { data, error: updateError } = await updateBackendApplicationStatus(id, status);
+
+        if (updateError || !data) {
+            return { success: false, error: updateError || 'Failed to update application status' };
+        }
+
+        await fetchApplications();
         return { success: true };
     };
 
-    // Filter logic
-    const filteredApplications = React.useMemo(() => {
+    const filteredApplications = useMemo(() => {
         let filtered = [...applications];
 
         if (statusFilter !== 'all') {
-            filtered = filtered.filter((app) => app.status === statusFilter);
+            filtered = filtered.filter((application) => application.status === statusFilter);
         }
 
         if (propertyTypeFilter !== 'all') {
-            filtered = filtered.filter((app) => app.propertyType === propertyTypeFilter);
+            filtered = filtered.filter((application) => application.propertyType === propertyTypeFilter);
+        }
+
+        if (dateRangeFilter.start) {
+            const start = new Date(dateRangeFilter.start);
+            filtered = filtered.filter((application) => new Date(application.createdAt) >= start);
+        }
+
+        if (dateRangeFilter.end) {
+            const end = new Date(dateRangeFilter.end);
+            end.setHours(23, 59, 59, 999);
+            filtered = filtered.filter((application) => new Date(application.createdAt) <= end);
         }
 
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
-            filtered = filtered.filter((app) =>
-                app.propertyTitle?.toLowerCase().includes(query) ||
-                app.propertyAddress?.toLowerCase().includes(query) ||
-                app.referenceId?.toLowerCase().includes(query)
+            filtered = filtered.filter((application) =>
+                application.propertyTitle?.toLowerCase().includes(query) ||
+                application.propertyAddress?.toLowerCase().includes(query) ||
+                application.referenceId?.toLowerCase().includes(query),
             );
         }
 
-        return filtered.sort((a, b) => new Date(b.lastUpdated || b.createdAt).getTime() - new Date(a.lastUpdated || a.createdAt).getTime());
-    }, [applications, statusFilter, propertyTypeFilter, searchQuery]);
+        return filtered.sort(
+            (left, right) =>
+                new Date(right.lastUpdated || right.createdAt).getTime() -
+                new Date(left.lastUpdated || left.createdAt).getTime(),
+        );
+    }, [applications, dateRangeFilter.end, dateRangeFilter.start, propertyTypeFilter, searchQuery, statusFilter]);
 
     return (
         <ApplicationsContext.Provider value={{
@@ -233,7 +377,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             setDateRangeFilter,
             fetchApplications,
             withdrawApplication,
-            updateApplicationStatus
+            updateApplicationStatus,
         }}>
             {children}
         </ApplicationsContext.Provider>

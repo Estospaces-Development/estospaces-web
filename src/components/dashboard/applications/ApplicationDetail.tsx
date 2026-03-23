@@ -106,7 +106,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         );
     }
 
-    const canWithdraw = !([APPLICATION_STATUS.WITHDRAWN, APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.REJECTED] as string[]).includes(application.status);
+    const canWithdraw = !([APPLICATION_STATUS.WITHDRAWN, APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.REJECTED, APPLICATION_STATUS.COMPLETED] as string[]).includes(application.status);
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';

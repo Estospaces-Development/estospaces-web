@@ -56,7 +56,7 @@ export default function ProfilePage() {
             setStats({
                 saved: savedCount,
                 leads: leadsData.data?.length || 0,
-                viewings: viewingsData.data?.length || 0
+                viewings: Array.isArray(viewingsData) ? viewingsData.length : 0
             });
         } catch (error) {
         }

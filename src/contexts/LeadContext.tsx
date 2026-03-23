@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getUserLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
+import { getUserLeads, getBrokerLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
+import { useAuth } from './AuthContext';
 
 // Re-export Lead type
 export type { Lead } from '../services/leadsService';
@@ -25,6 +26,7 @@ export const useLeads = () => {
 };
 
 export const LeadProvider = ({ children }: { children: ReactNode }) => {
+    const { user } = useAuth();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
 
@@ -32,9 +34,15 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const fetchLeads = async () => {
             try {
-                const result = await getUserLeads();
+                const result = user?.role === 'manager' || user?.role === 'admin'
+                    ? await getBrokerLeads()
+                    : await getUserLeads();
                 if (result.data) {
-                    setLeads(result.data);
+                    setLeads(result.data.map((lead) => ({
+                        ...lead,
+                        name: lead.name || lead.email || 'Property enquiry',
+                        propertyInterested: lead.propertyInterested || lead.property_name || lead.property?.title || 'Property enquiry',
+                    })));
                 }
             } catch (error) {
             } finally {
@@ -43,7 +51,7 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
         };
 
         fetchLeads();
-    }, []);
+    }, [user?.role]);
 
     const addLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {
         try {

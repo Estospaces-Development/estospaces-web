@@ -8,6 +8,7 @@ import { PropertyProvider } from '../../contexts/PropertyContext';
 import { PropertyFilterProvider } from '../../contexts/PropertyFilterContext';
 import { MessagesProvider } from '../../contexts/MessagesContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
+import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
 
@@ -35,6 +36,7 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
                                                 {children}
                                             </Suspense>
                                         </main>
+                                        <MessageInboxFab />
                                         {/* Lakshmi AI Assistant - Could be added here globally or per page */}
                                     </div>
                                 </MessagesProvider>

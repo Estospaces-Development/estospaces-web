@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Timer, ArrowRight, MoreHorizontal, Info, BellRing } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
@@ -11,30 +11,43 @@ const BrokerResponseWidget: React.FC = () => {
     const [requests, setRequests] = useState<BrokerRequest[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchRequests = async () => {
-        setLoading(true);
+    const fetchRequests = useCallback(async (silent: boolean = false) => {
+        if (!silent) {
+            setLoading(true);
+        }
+
         try {
-            const res = await leadsService.getBrokerLeads('pending');
+            const res = await leadsService.getBrokerLeads('pending_broker_response');
             if (res.data) {
                 const mapped = res.data.map(lead => ({
                     id: lead.id,
-                    propertyName: lead.property?.title || 'Unknown Property',
+                    propertyName: lead.property?.title || lead.propertyInterested || lead.property_name || 'Unknown Property',
                     brokerName: lead.property?.agent_name || 'Assigned Broker',
                     distance: lead.property?.city || 'UK',
                     timestamp: new Date(lead.created_at),
-                    status: (lead.status as any) || 'pending'
+                    status: lead.status === 'pending_broker_response' ? 'pending' : ((lead.status as any) || 'pending')
                 }));
                 setRequests(mapped.slice(0, 4));
             }
         } catch (error) {
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchRequests();
-    }, []);
+        void fetchRequests();
+    }, [fetchRequests]);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            void fetchRequests(true);
+        }, 5000);
+
+        return () => window.clearInterval(interval);
+    }, [fetchRequests]);
 
     const handleRespond = async (id: string) => {
         try {
@@ -94,10 +107,10 @@ const BrokerResponseWidget: React.FC = () => {
             <div className="mt-6 flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 dark:border-gray-800 pt-4">
                 <div className="flex items-center gap-1">
                     <Info className="w-4 h-4" />
-                    <span>USP: Guaranteed 10-minute response time active.</span>
+                    <span>USP: Guaranteed 5-minute broker response SLA active.</span>
                 </div>
                 <button
-                    onClick={() => navigate('/manager/messages')}
+                    onClick={() => navigate('/manager/leads')}
                     className="flex items-center gap-1 text-orange-500 hover:text-orange-600 font-medium group"
                 >
                     View All Requests

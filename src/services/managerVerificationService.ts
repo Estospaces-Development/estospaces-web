@@ -78,6 +78,8 @@ export interface ManagerDocument {
     reviewed_at?: string;
     submitted_at: string;
     updated_at: string;
+    mime_type?: string;
+    file_name?: string;
     metadata?: Record<string, unknown>;
 }
 
@@ -253,8 +255,10 @@ const mapManagerDocument = (document: any): ManagerDocument => {
         rejection_reason: document.reject_reason || document.rejection_reason || undefined,
         reviewed_by: document.reviewed_by || undefined,
         reviewed_at: document.reviewed_at || undefined,
-        submitted_at: document.created_at || document.submitted_at || new Date().toISOString(),
+        submitted_at: document.submitted_at || document.created_at || new Date().toISOString(),
         updated_at: document.updated_at || document.created_at || new Date().toISOString(),
+        mime_type: document.mime_type || undefined,
+        file_name: document.file_name || document.document_name || undefined,
         metadata: document.metadata || undefined,
     };
 };
@@ -539,7 +543,7 @@ export const approveManager = async (managerId: string, _actorId: string, notes?
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
             body: JSON.stringify({
-                status: 'verified',
+                status: 'approved',
                 admin_notes: notes || '',
                 fast_track_eligible: true,
             }),

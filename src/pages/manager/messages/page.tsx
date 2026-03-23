@@ -1,14 +1,27 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
-import { MessagesProvider } from '@/contexts/MessagesContext';
+import { Suspense, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useMessages } from '@/contexts/MessagesContext';
 import ConversationList from '@/components/dashboard/messaging/ConversationList';
 import ConversationThread from '@/components/dashboard/messaging/ConversationThread';
 import MessageInput from '@/components/dashboard/messaging/MessageInput';
-import { Search, Loader2 } from 'lucide-react';
 
 function MessagesContent() {
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [searchParams] = useSearchParams();
+    const { conversations, selectedConversationId, setSelectedConversationId } = useMessages();
+
+    useEffect(() => {
+        const conversationId = searchParams.get('conversation');
+        if (conversationId) {
+            setSelectedConversationId(conversationId);
+            return;
+        }
+
+        if (!selectedConversationId && conversations.length > 0) {
+            setSelectedConversationId(conversations[0].id);
+        }
+    }, [conversations, searchParams, selectedConversationId, setSelectedConversationId]);
 
     return (
         <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-500">
@@ -19,21 +32,21 @@ function MessagesContent() {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     <ConversationList
-                        onSelectConversation={setSelectedId}
-                        selectedConversationId={selectedId}
+                        onSelectConversation={setSelectedConversationId}
+                        selectedConversationId={selectedConversationId}
                     />
                 </div>
             </div>
 
             {/* Main: Message Thread */}
             <div className="hidden md:flex flex-1 flex-col h-full bg-white dark:bg-gray-800">
-                {selectedId ? (
+                {selectedConversationId ? (
                     <>
                         <div className="flex-1 overflow-y-auto">
-                            <ConversationThread conversationId={selectedId} />
+                            <ConversationThread conversationId={selectedConversationId} />
                         </div>
                         <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
-                            <MessageInput conversationId={selectedId} />
+                            <MessageInput conversationId={selectedConversationId} />
                         </div>
                     </>
                 ) : (
@@ -74,10 +87,8 @@ function MessagesContent() {
 
 export default function ManagerMessagesPage() {
     return (
-        <MessagesProvider>
-            <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Messages...</div>}>
-                <MessagesContent />
-            </Suspense>
-        </MessagesProvider>
+        <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Messages...</div>}>
+            <MessagesContent />
+        </Suspense>
     );
 }

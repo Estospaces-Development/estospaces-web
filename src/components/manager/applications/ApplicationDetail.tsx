@@ -72,7 +72,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
         );
     }
 
-    const canWithdraw = ![APPLICATION_STATUS.WITHDRAWN as ApplicationStatus, APPLICATION_STATUS.APPROVED as ApplicationStatus, APPLICATION_STATUS.REJECTED as ApplicationStatus].includes(application.status);
+    const canWithdraw = ![
+        APPLICATION_STATUS.WITHDRAWN as ApplicationStatus,
+        APPLICATION_STATUS.APPROVED as ApplicationStatus,
+        APPLICATION_STATUS.REJECTED as ApplicationStatus,
+        APPLICATION_STATUS.COMPLETED as ApplicationStatus,
+    ].includes(application.status);
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';

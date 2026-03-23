@@ -21,7 +21,6 @@ import BrokerRequestWidget from '@/components/dashboard/BrokerRequestWidget';
 import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
-import DashboardFooter from '@/components/dashboard/DashboardFooter';
 import ProfileCompletionCard from '@/components/dashboard/ProfileCompletionCard';
 import SearchBar from '../../../components/ui/SearchBar';
 
@@ -60,7 +59,7 @@ const DashboardClient = () => {
     if (urlType === 'buy' || urlType === 'rent' || urlType === 'sold') {
       return urlType;
     }
-    return 'sold';
+    return 'buy';
   });
 
   // State for selected filter options (array for multiple selections)
@@ -96,7 +95,7 @@ const DashboardClient = () => {
     if (urlType === 'buy' || urlType === 'rent' || urlType === 'sold') {
       setSelectedPropertyType(urlType);
     } else if (!urlType) {
-      setSelectedPropertyType('sold');
+      setSelectedPropertyType('buy');
     }
   }, [searchParams]);
 
@@ -562,9 +561,6 @@ const DashboardClient = () => {
           )}
         </div>
       )}
-
-      {/* Footer Section */}
-      <DashboardFooter />
     </div>
   );
 };

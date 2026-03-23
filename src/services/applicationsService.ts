@@ -11,30 +11,34 @@ export interface Application {
     id: string;
     property_id: string;
     user_id: string;
+    manager_id?: string | null;
+    applicant_name?: string;
+    applicant_email?: string;
+    applicant_phone?: string;
+    property_title?: string;
+    property_address?: string;
+    property_image?: string;
+    property_type?: string;
+    listing_type?: string;
+    property_price?: number;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_agency?: string;
+    conversation_id?: string | null;
     move_in_date: string;
     lease_duration_months?: number;
     employment_status?: string;
     employer_name?: string;
     annual_income?: number;
     current_address?: string;
-    reason_for_moving?: string;
-    references?: string;
-    document_urls?: string;
-    status: 'submitted' | 'approved' | 'rejected' | 'withdrawn';
+    message?: string;
+    status: string;
     reviewed_by?: string;
     reviewed_at?: string;
     review_notes?: string;
     created_at: string;
     updated_at: string;
-    // UI-mapped fields (populated from join or client-side)
-    name?: string;
-    email?: string;
-    phone?: string;
-    propertyInterested?: string;
-    score?: number;
-    budget?: string;
-    submittedDate?: string;
-    lastContact?: string;
 }
 
 export interface ApplicationsResponse {
@@ -83,13 +87,28 @@ export const getApplicationById = async (applicationId: string): Promise<Applica
  */
 export const createApplication = async (applicationData: {
     property_id: string;
+    manager_id: string;
+    applicant_name?: string;
+    applicant_email?: string;
+    applicant_phone?: string;
+    property_title?: string;
+    property_address?: string;
+    property_image?: string;
+    property_type?: string;
+    listing_type?: string;
+    property_price?: number;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_agency?: string;
+    conversation_id?: string;
     move_in_date: string;
     lease_duration_months?: number;
     employment_status?: string;
     employer_name?: string;
     annual_income?: number;
     current_address?: string;
-    reason_for_moving?: string;
+    message?: string;
 }): Promise<ApplicationResponse> => {
     try {
         const data = await apiFetch<Application>(
@@ -97,6 +116,39 @@ export const createApplication = async (applicationData: {
             {
                 method: 'POST',
                 body: JSON.stringify(applicationData),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const updateApplicationStatus = async (
+    applicationId: string,
+    status: string,
+    reviewNotes?: string,
+): Promise<ApplicationResponse> => {
+    try {
+        const data = await apiFetch<Application>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/status`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({ status, review_notes: reviewNotes }),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const withdrawApplication = async (applicationId: string): Promise<ApplicationResponse> => {
+    try {
+        const data = await apiFetch<Application>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/withdraw`,
+            {
+                method: 'PUT',
             },
         );
         return { data, error: null };
@@ -126,4 +178,13 @@ export const reviewApplication = async (
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
+};
+
+export const applicationsService = {
+    getApplications,
+    getApplicationById,
+    createApplication,
+    reviewApplication,
+    updateApplicationStatus,
+    withdrawApplication,
 };

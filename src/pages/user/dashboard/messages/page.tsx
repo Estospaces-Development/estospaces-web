@@ -25,9 +25,16 @@ function MessagesContent() {
 
     // Handle new conversation from query params
     useEffect(() => {
+        const conversationId = searchParams.get('conversation');
+        if (conversationId) {
+            setSelectedConversationId(conversationId);
+            return;
+        }
+
         const newContactName = searchParams.get('newConversationWith');
         if (newContactName) {
             const existing = conversations.find((c: any) =>
+                c.contactName === newContactName ||
                 c.agentName === newContactName ||
                 c.participants?.some((p: any) => p.name === newContactName)
             );

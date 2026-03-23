@@ -31,6 +31,18 @@ export interface Conversation {
     updated_at: string;
     messages?: Message[];
     last_message?: Message | null;
+    unread_count?: number;
+    counterpart_id?: string;
+    counterpart_name?: string;
+    counterpart_email?: string;
+    counterpart_phone?: string;
+    counterpart_agency?: string;
+    property_id?: string;
+    property_title?: string;
+    property_address?: string;
+    property_image?: string;
+    listing_type?: string;
+    property_price?: number;
 }
 
 export interface SupportTicket {
@@ -50,6 +62,7 @@ export interface SendMessageParams {
     recipientId?: string;
     content: string;
     type?: 'text' | 'image' | 'file';
+    context?: ConversationContext;
 }
 
 export interface CreateTicketParams {
@@ -57,6 +70,23 @@ export interface CreateTicketParams {
     message: string;
     category?: string;
     priority?: string;
+}
+
+export interface ConversationContext {
+    propertyId?: string;
+    propertyTitle?: string;
+    propertyAddress?: string;
+    propertyImage?: string;
+    listingType?: string;
+    propertyPrice?: number;
+    senderName?: string;
+    senderEmail?: string;
+    senderPhone?: string;
+    senderAgency?: string;
+    recipientName?: string;
+    recipientEmail?: string;
+    recipientPhone?: string;
+    recipientAgency?: string;
 }
 
 // ── API Functions ───────────────────────────────────────────────────────────
@@ -88,6 +118,54 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
             recipient_id: params.recipientId,
             content: params.content,
             type: params.type || 'text',
+            context: params.context
+                ? {
+                    property_id: params.context.propertyId,
+                    property_title: params.context.propertyTitle,
+                    property_address: params.context.propertyAddress,
+                    property_image: params.context.propertyImage,
+                    listing_type: params.context.listingType,
+                    property_price: params.context.propertyPrice,
+                    sender_name: params.context.senderName,
+                    sender_email: params.context.senderEmail,
+                    sender_phone: params.context.senderPhone,
+                    sender_agency: params.context.senderAgency,
+                    recipient_name: params.context.recipientName,
+                    recipient_email: params.context.recipientEmail,
+                    recipient_phone: params.context.recipientPhone,
+                    recipient_agency: params.context.recipientAgency,
+                }
+                : undefined,
+        }),
+    });
+}
+
+export async function upsertDirectConversation(
+    recipientId: string,
+    context?: ConversationContext,
+): Promise<Conversation> {
+    return apiFetch<Conversation>(`${MESSAGING_URL()}/api/v1/conversations/direct`, {
+        method: 'POST',
+        body: JSON.stringify({
+            recipient_id: recipientId,
+            context: context
+                ? {
+                    property_id: context.propertyId,
+                    property_title: context.propertyTitle,
+                    property_address: context.propertyAddress,
+                    property_image: context.propertyImage,
+                    listing_type: context.listingType,
+                    property_price: context.propertyPrice,
+                    sender_name: context.senderName,
+                    sender_email: context.senderEmail,
+                    sender_phone: context.senderPhone,
+                    sender_agency: context.senderAgency,
+                    recipient_name: context.recipientName,
+                    recipient_email: context.recipientEmail,
+                    recipient_phone: context.recipientPhone,
+                    recipient_agency: context.recipientAgency,
+                }
+                : undefined,
         }),
     });
 }
@@ -141,6 +219,7 @@ export const messagesService = {
     getConversations,
     getMessages,
     sendMessage,
+    upsertDirectConversation,
     markAsRead,
     updateConversationPreferences,
     createTicket,

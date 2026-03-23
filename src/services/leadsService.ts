@@ -19,6 +19,7 @@ export interface Lead {
     sla_deadline?: string;
     sla_status?: string;
     sla_duration_seconds?: number;
+    sla_remaining_seconds?: number;
     first_response_at?: string;
     response_time_seconds?: number;
     response_type?: string;
@@ -52,6 +53,7 @@ export interface Lead {
     name?: string;
     email?: string;
     phone?: string;
+    property_name?: string;
     propertyInterested?: string;
     score?: number;
     budget?: string;

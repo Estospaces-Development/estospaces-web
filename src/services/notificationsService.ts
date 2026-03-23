@@ -16,6 +16,7 @@ export const NOTIFICATION_TYPES = {
     APPOINTMENT_REMINDER: 'appointment_reminder',
     VIEWING_BOOKED: 'viewing_booked',
     VIEWING_CONFIRMED: 'viewing_confirmed',
+    VIEWING_COMPLETED: 'viewing_completed',
     VIEWING_CANCELLED: 'viewing_cancelled',
     VIEWING_RESCHEDULED: 'viewing_rescheduled',
 
@@ -84,6 +85,8 @@ export interface NotificationData {
     applicationId?: string;
     viewingId?: string;
     messageId?: string;
+    conversation_id?: string;
+    conversationId?: string;
     amount?: number;
     date?: string;
     time?: string;
@@ -236,6 +239,12 @@ export function getNotificationNavigationPath(
         return targetPath;
     }
 
+    const conversationID = typeof data?.conversation_id === 'string'
+        ? data.conversation_id
+        : typeof data?.conversationId === 'string'
+            ? data.conversationId
+            : '';
+
     switch (notification.type) {
         case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
@@ -245,15 +254,24 @@ export function getNotificationNavigationPath(
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
             return '/manager/verification';
         case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
+        case NOTIFICATION_TYPES.VIEWING_COMPLETED:
         case NOTIFICATION_TYPES.VIEWING_BOOKED:
+        case NOTIFICATION_TYPES.VIEWING_CANCELLED:
+        case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
         case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-            return '/user/dashboard/viewings';
+            return role === 'manager' ? '/manager/appointments' : '/user/dashboard/viewings';
         case NOTIFICATION_TYPES.APPLICATION_UPDATE:
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             return '/user/dashboard/applications';
         case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
-            return '/user/dashboard/messages';
+            if (role === 'manager') {
+                return conversationID ? `/manager/messages?conversation=${conversationID}` : '/manager/messages';
+            }
+            if (role === 'admin') {
+                return '/admin/chat';
+            }
+            return conversationID ? `/user/dashboard/messages?conversation=${conversationID}` : '/user/dashboard/messages';
         case NOTIFICATION_TYPES.PROPERTY_SAVED:
         case NOTIFICATION_TYPES.PRICE_DROP:
         case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
@@ -263,6 +281,11 @@ export function getNotificationNavigationPath(
             return '/user/dashboard/notifications';
         case NOTIFICATION_TYPES.CONTRACT_UPDATE:
             return '/user/dashboard/contracts';
+        case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
+        case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+            return role === 'manager' ? '/manager/verification' : '/user/dashboard/profile';
+        case NOTIFICATION_TYPES.APPLICATION_REJECTED:
+            return role === 'manager' ? '/manager/verification' : '/user/dashboard/profile';
         default:
             return role === 'admin' ? '/admin/notifications' : null;
     }
