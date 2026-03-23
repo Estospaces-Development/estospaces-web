@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, MessageSquare, ArrowLeft, Loader2, Calendar } from 'lucide-react';
+import { Star, MessageSquare, ArrowLeft, Loader2, Calendar, Trash2, Plus, X } from 'lucide-react';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -11,36 +11,76 @@ export default function ReviewsPage() {
     const toast = useToast();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [showWriteForm, setShowWriteForm] = useState(false);
+    const [writeForm, setWriteForm] = useState({ property_id: '', rating: 5, comment: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const fetchReviews = async () => {
+        try {
+            setIsLoading(true);
+            const result = await reviewsService.getUserReviews();
+            if (result.error) throw new Error(result.error);
+            if (result.data) setReviews(result.data);
+        } catch (error: any) {
+            toast.error('Failed to load reviews');
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchReviews = async () => {
-            try {
-                setIsLoading(true);
-                const result = await reviewsService.getUserReviews();
-                if (result.error) throw new Error(result.error);
-                if (result.data) setReviews(result.data);
-            } catch (error: any) {
-                toast.error('Failed to load reviews');
-            } finally {
-                setIsLoading(false);
-            }
-        };
         fetchReviews();
-    }, [toast]);
+    }, []);
 
-    const renderStars = (rating: number) => {
-        return (
-            <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                        key={star}
-                        size={16}
-                        className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`}
-                    />
-                ))}
-            </div>
-        );
+    const handleDelete = async (id: string) => {
+        setDeletingId(id);
+        const result = await reviewsService.deleteReview(id);
+        if (result.success) {
+            setReviews((prev) => prev.filter((r) => r.id !== id));
+            toast.success('Review deleted');
+        } else {
+            toast.error(result.error || 'Failed to delete review');
+        }
+        setDeletingId(null);
     };
+
+    const handleSubmitReview = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!writeForm.property_id.trim()) {
+            toast.error('Please enter a property ID');
+            return;
+        }
+        setIsSubmitting(true);
+        const result = await reviewsService.createReview(writeForm);
+        if (result.success) {
+            toast.success('Review submitted — pending moderation');
+            setShowWriteForm(false);
+            setWriteForm({ property_id: '', rating: 5, comment: '' });
+            fetchReviews();
+        } else {
+            toast.error(result.error || 'Failed to submit review');
+        }
+        setIsSubmitting(false);
+    };
+
+    const renderStars = (rating: number, interactive = false, onChange?: (r: number) => void) => (
+        <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                    key={star}
+                    type={interactive ? 'button' : undefined}
+                    onClick={interactive && onChange ? () => onChange(star) : undefined}
+                    className={interactive ? 'cursor-pointer' : 'cursor-default'}
+                >
+                    <Star
+                        size={interactive ? 24 : 16}
+                        className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} ${interactive ? 'hover:text-yellow-400' : ''}`}
+                    />
+                </button>
+            ))}
+        </div>
+    );
 
     if (isLoading) {
         return (
@@ -65,13 +105,72 @@ export default function ReviewsPage() {
                         <span className="font-bold text-sm">Dashboard</span>
                     </button>
 
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-3">
-                        My Reviews
-                    </h1>
-                    <p className="text-gray-500 dark:text-gray-400 font-medium">
-                        View and manage your property ratings and feedback
-                    </p>
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-3">
+                                My Reviews
+                            </h1>
+                            <p className="text-gray-500 dark:text-gray-400 font-medium">
+                                View and manage your property ratings and feedback
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowWriteForm(true)}
+                            className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/25 transition-all active:scale-95"
+                        >
+                            <Plus size={18} />
+                            Write a Review
+                        </button>
+                    </div>
                 </div>
+
+                {/* Write Review Form */}
+                {showWriteForm && (
+                    <div className="mb-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 border border-orange-200 dark:border-orange-800/40 animate-in fade-in slide-in-from-top-4 duration-300">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-black text-gray-900 dark:text-white">Leave a Review</h2>
+                            <button onClick={() => setShowWriteForm(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                                <X size={18} className="text-gray-500" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSubmitReview} className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Property ID</label>
+                                <input
+                                    type="text"
+                                    value={writeForm.property_id}
+                                    onChange={(e) => setWriteForm((prev) => ({ ...prev, property_id: e.target.value }))}
+                                    placeholder="Paste the property ID from the listing"
+                                    className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Rating</label>
+                                {renderStars(writeForm.rating, true, (r) => setWriteForm((prev) => ({ ...prev, rating: r })))}
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Comment</label>
+                                <textarea
+                                    rows={4}
+                                    value={writeForm.comment}
+                                    onChange={(e) => setWriteForm((prev) => ({ ...prev, comment: e.target.value }))}
+                                    placeholder="Share your experience with this property..."
+                                    className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white resize-none"
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                            >
+                                {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Star size={18} />}
+                                {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                            </button>
+                        </form>
+                    </div>
+                )}
 
                 {reviews.length > 0 ? (
                     <div className="space-y-6">
@@ -93,11 +192,21 @@ export default function ReviewsPage() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                        review.status === 'approved' ? 'bg-green-50 text-green-600' :
-                                        review.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'
-                                    }`}>
-                                        {review.status}
+                                    <div className="flex items-center gap-3">
+                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                            review.status === 'approved' ? 'bg-green-50 text-green-600' :
+                                            review.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'
+                                        }`}>
+                                            {review.status}
+                                        </div>
+                                        <button
+                                            onClick={() => handleDelete(review.id)}
+                                            disabled={deletingId === review.id}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all disabled:opacity-40"
+                                            title="Delete review"
+                                        >
+                                            {deletingId === review.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                                        </button>
                                     </div>
                                 </div>
                                 <p className="text-gray-600 dark:text-gray-300 font-medium leading-relaxed italic">
@@ -116,10 +225,10 @@ export default function ReviewsPage() {
                             You haven't reviewed any properties yet. Your feedback helps others find their dream homes.
                         </p>
                         <button
-                            onClick={() => navigate('/user/dashboard/discover')}
-                            className="px-10 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black active:scale-95 transition-all"
+                            onClick={() => setShowWriteForm(true)}
+                            className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all shadow-lg shadow-orange-500/25"
                         >
-                            Explore Properties
+                            Write a Review
                         </button>
                     </div>
                 )}

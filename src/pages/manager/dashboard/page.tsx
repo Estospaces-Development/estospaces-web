@@ -4,7 +4,8 @@ import { Suspense, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
-import { DollarSign, Building2, Eye, UserCheck, Plus, Filter, Download, Home, Bot } from 'lucide-react';
+import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
+import { DollarSign, Building2, Eye, UserCheck, Plus, Filter, Download, Home, Zap, ArrowRight } from 'lucide-react';
 
 // Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
@@ -20,15 +21,17 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState('overview');
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [analyticsRes, propsRes] = await Promise.all([
+        const [analyticsRes, propsRes, fastTrackRes] = await Promise.all([
           analyticsService.getManagerAnalytics(),
-          getUserProperties({ limit: 3 })
+          getUserProperties({ limit: 3 }),
+          getFastTrackCases(),
         ]);
 
         if (analyticsRes.data) {
@@ -37,12 +40,43 @@ function DashboardContent() {
         if (propsRes.data) {
           setProperties(propsRes.data);
         }
+        if (fastTrackRes.data) {
+          setFastTrackCases(fastTrackRes.data);
+        }
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
   }, []);
+
+  const fastTrackQueueItems = fastTrackCases
+    .filter((caseItem) => caseItem.finalStatus === 'in_progress')
+    .map((caseItem) => {
+      const summary = {
+        documents: 'Waiting for admin verification before the next handoff',
+        owner_approval: 'Owner approval is the current blocker for this case',
+        legal_check: 'Legal checks are in progress',
+        payment_ready: 'Ready for the final operational handoff',
+        completed: 'Completed',
+      }[caseItem.currentStep];
+
+      return {
+        ...caseItem,
+        summary,
+        statusLabel: caseItem.hoursRemaining <= 6 ? 'Closing soon' : 'In progress',
+        statusTone: caseItem.hoursRemaining <= 6
+          ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+          : 'bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300',
+      };
+    })
+    .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime())
+    .slice(0, 3);
+  const activeFastTrackCount = fastTrackCases.filter((caseItem) => caseItem.finalStatus === 'in_progress').length;
+  const closingSoonFastTrackCount = fastTrackCases.filter((caseItem) => (
+    caseItem.finalStatus === 'in_progress' && caseItem.hoursRemaining <= 6
+  )).length;
+  const completedFastTrackCount = fastTrackCases.filter((caseItem) => caseItem.finalStatus === 'completed').length;
 
   const stats = {
     monthlyRevenue: analytics?.total_revenue?.toLocaleString() || '0.00',
@@ -130,6 +164,78 @@ function DashboardContent() {
           {/* Broker Response Widget (USP) */}
           <BrokerResponseWidget />
 
+          <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-500/10 rounded-xl">
+                    <Zap className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white font-outfit">Fast-track lane</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Live cases surface here automatically while user verification stays with admins.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/manager/fast-track')}
+                className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 shadow-lg shadow-orange-500/20 transition-all"
+              >
+                Open fast-track queue
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Active cases</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                  {activeFastTrackCount}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Closing soon</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{closingSoonFastTrackCount}</p>
+              </div>
+              <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Completed</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{completedFastTrackCount}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              {fastTrackQueueItems.length > 0 ? fastTrackQueueItems.map((item) => (
+                <button
+                  key={item.caseId}
+                  onClick={() => navigate(`/manager/fast-track?case=${item.caseId}`)}
+                  className="w-full rounded-2xl border border-gray-100 dark:border-gray-800 px-5 py-4 text-left hover:border-orange-200 hover:bg-orange-50/60 dark:hover:bg-gray-900/60 transition-all"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{item.propertyTitle}</p>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.clientName}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${item.statusTone}`}>
+                        {item.statusLabel}
+                      </span>
+                      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                        {item.summary}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  Active fast-track cases will appear here automatically.
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Activity */}
             <div className="lg:col-span-2">
@@ -207,16 +313,6 @@ function DashboardContent() {
           </div>
         </div>
       )}
-
-      {/* Chatbot Floating Button (Visual Only for now) */}
-      <button className="fixed bottom-8 right-8 bg-orange-600 hover:bg-orange-700 text-white rounded-full shadow-2xl flex items-center gap-3 px-5 py-4 z-50 transition-all duration-300 hover:scale-105 group active:scale-95">
-        <div className="relative">
-            <Bot className="w-6 h-6 group-hover:rotate-12 transition-transform" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-orange-600"></span>
-        </div>
-        <span className="font-bold tracking-tight">Ask Lakshmi</span>
-      </button>
-
     </div>
   );
 }

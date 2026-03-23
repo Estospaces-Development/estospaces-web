@@ -61,6 +61,7 @@ const AdminPropertyDetail = lazy(() => import('./pages/admin/properties/[id]/pag
 const AdminSettings = lazy(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazy(() => import('./pages/admin/users/page'));
 const AdminVerifications = lazy(() => import('./pages/admin/verifications/page'));
+const AdminReviews = lazy(() => import('./pages/admin/reviews/page'));
 
 // Lazy loaded pages - Manager
 const ManagerDashboard = lazy(() => import('./pages/manager/dashboard/page'));
@@ -81,7 +82,6 @@ const ManagerLeads = lazy(() => import('./pages/manager/leads/page'));
 const ManagerMessages = lazy(() => import('./pages/manager/messages/page'));
 const ManagerNotifications = lazy(() => import('./pages/manager/notifications/page'));
 const ManagerProfile = lazy(() => import('./pages/manager/profile/page'));
-const ManagerUserVerifications = lazy(() => import('./pages/manager/user-verifications/page'));
 const ManagerVerification = lazy(() => import('./pages/manager/verification/page'));
 
 // Lazy loaded pages - User
@@ -98,11 +98,12 @@ const UserSettings = lazy(() => import('./pages/user/settings/page'));
 // Nested User Dashboard pages
 const UserContracts = lazy(() => import('./pages/user/dashboard/contracts/page'));
 const UserDiscover = lazy(() => import('./pages/user/dashboard/discover/page'));
+const UserFastTrack = lazy(() => import('./pages/user/dashboard/fast-track/page'));
 const UserHelp = lazy(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazy(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazy(() => import('./pages/user/dashboard/notifications/page'));
 // const UserOverseas = lazy(() => import('./pages/user/dashboard/overseas/page'));
-// const UserPayments = lazy(() => import('./pages/user/dashboard/payments/page'));
+const UserPayments = lazy(() => import('./pages/user/dashboard/payments/page'));
 const UserProfileDash = lazy(() => import('./pages/user/dashboard/profile/page'));
 const UserReviews = lazy(() => import('./pages/user/dashboard/reviews/page'));
 const UserSettingsDash = lazy(() => import('./pages/user/dashboard/settings/page'));
@@ -147,6 +148,7 @@ const App: React.FC = () => {
             <Route path="settings" element={<AdminSettings />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="verifications" element={<AdminVerifications />} />
+            <Route path="reviews" element={<AdminReviews />} />
           </Route>
 
           {/* Manager Routes */}
@@ -171,7 +173,7 @@ const App: React.FC = () => {
             <Route path="messages" element={<ManagerMessages />} />
             <Route path="notifications" element={<PageErrorBoundary><ManagerNotifications /></PageErrorBoundary>} />
             <Route path="profile" element={<ManagerProfile />} />
-            <Route path="user-verifications" element={<ManagerUserVerifications />} />
+            <Route path="user-verifications" element={<Navigate to="/manager/dashboard" replace />} />
             <Route path="verification" element={<ManagerVerification />} />
           </Route>
 
@@ -181,12 +183,13 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<UserDashboard />} />
             <Route path="dashboard/contracts" element={<UserContracts />} />
             <Route path="dashboard/discover" element={<UserDiscover />} />
+            <Route path="dashboard/fast-track" element={<UserFastTrack />} />
             <Route path="dashboard/help" element={<UserHelp />} />
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
             <Route path="dashboard/overseas" element={<Navigate to="/user/dashboard" replace />} />
             {/* <Route path="dashboard/overseas" element={<UserOverseas />} /> */}{/* Commented out - overseas dashboard is out of scope for the current phase */}
-            <Route path="dashboard/payments" element={<Navigate to="/user/dashboard" replace />} />
+            <Route path="dashboard/payments" element={<UserPayments />} />
             {/* <Route path="dashboard/payments" element={<UserPayments />} /> */}{/* Commented out - backend API pending */}
             <Route path="dashboard/profile" element={<UserProfileDash />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />

@@ -13,6 +13,7 @@ import {
     Home,
     Heart,
     Settings,
+    CreditCard,
 } from 'lucide-react';
 import { useMessages } from '../../contexts/MessagesContext';
 import { usePropertyFilter } from '../../contexts/PropertyFilterContext';
@@ -49,7 +50,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
         { icon: FileText, label: 'My Applications', path: '/user/applications' },
         { icon: Calendar, label: 'Viewings', path: '/user/dashboard/viewings' },
         { icon: MessageSquare, label: 'Messages', path: '/user/dashboard/messages', showBadge: true, badgeCount: totalUnreadCount },
-        // { icon: CreditCard, label: 'Payments', path: '/user/dashboard/payments' }, // Commented out - backend API pending
+        { icon: CreditCard, label: 'Payments', path: '/user/dashboard/payments' },
         { icon: FileText, label: 'Contracts', path: '/user/dashboard/contracts' },
         // { icon: Globe, label: 'Overseas', path: '/user/dashboard/overseas' }, // Commented out - overseas dashboard is out of scope for the current phase
         { icon: User, label: 'Profile', path: '/user/dashboard/profile' },

@@ -91,25 +91,16 @@ export interface ConversationContext {
 
 // ── API Functions ───────────────────────────────────────────────────────────
 
-/**
- * Get all conversations for the current user
- */
 export async function getConversations(): Promise<Conversation[]> {
     return apiFetch<Conversation[]>(`${MESSAGING_URL()}/api/v1/conversations`, {
         suppressErrorToast: true,
     });
 }
 
-/**
- * Get messages for a specific conversation
- */
 export async function getMessages(conversationId: string, page = 1, limit = 50): Promise<Message[]> {
     return apiFetch<Message[]>(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/messages?page=${page}&limit=${limit}`);
 }
 
-/**
- * Send a message
- */
 export async function sendMessage(params: SendMessageParams): Promise<Message> {
     return apiFetch<Message>(`${MESSAGING_URL()}/api/v1/messages`, {
         method: 'POST',
@@ -170,9 +161,6 @@ export async function upsertDirectConversation(
     });
 }
 
-/**
- * Mark a conversation's messages as read
- */
 export async function markAsRead(conversationId: string): Promise<void> {
     await apiFetch(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/read`, {
         method: 'PUT',
@@ -189,9 +177,6 @@ export async function updateConversationPreferences(
     });
 }
 
-/**
- * Create a support ticket
- */
 export async function createTicket(params: CreateTicketParams): Promise<SupportTicket> {
     return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets`, {
         method: 'POST',
@@ -199,18 +184,25 @@ export async function createTicket(params: CreateTicketParams): Promise<SupportT
     });
 }
 
-/**
- * Get all tickets for the current user
- */
 export async function getTickets(): Promise<SupportTicket[]> {
     return apiFetch<SupportTicket[]>(`${MESSAGING_URL()}/api/v1/tickets`);
 }
 
-/**
- * Get a specific ticket by ID
- */
 export async function getTicket(ticketId: string): Promise<SupportTicket> {
     return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`);
+}
+
+/**
+ * Update the status of a support ticket (admin)
+ */
+export async function updateTicketStatus(
+    ticketId: string,
+    status: SupportTicket['status'],
+): Promise<SupportTicket> {
+    return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+    });
 }
 
 // ── Default Export ──────────────────────────────────────────────────────────
@@ -225,4 +217,5 @@ export const messagesService = {
     createTicket,
     getTickets,
     getTicket,
+    updateTicketStatus,
 };

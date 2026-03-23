@@ -10,8 +10,8 @@ const steps: { id: FastTrackStep; label: string; icon: React.ElementType }[] = [
     { id: 'documents', label: 'Docs', icon: FileText },
     { id: 'owner_approval', label: 'Owner', icon: Home },
     { id: 'legal_check', label: 'Legal', icon: Scale },
-    { id: 'payment_ready', label: 'Pay', icon: CreditCard },
-    { id: 'completed', label: 'Ready', icon: CheckCircle2 },
+    { id: 'payment_ready', label: 'Ready', icon: CreditCard },
+    { id: 'completed', label: 'Done', icon: CheckCircle2 },
 ];
 
 const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) => {

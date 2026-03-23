@@ -42,6 +42,9 @@ const HIGH_PRIORITY_NOTIFICATION_TYPES = new Set([
     NOTIFICATION_TYPE_VALUES.APPOINTMENT_REMINDER,
     NOTIFICATION_TYPE_VALUES.MESSAGE_RECEIVED,
     NOTIFICATION_TYPE_VALUES.DOCUMENTS_REQUESTED,
+    NOTIFICATION_TYPE_VALUES.FAST_TRACK_STARTED,
+    NOTIFICATION_TYPE_VALUES.FAST_TRACK_UPDATED,
+    NOTIFICATION_TYPE_VALUES.FAST_TRACK_COMPLETED,
     NOTIFICATION_TYPE_VALUES.SYSTEM,
 ]);
 
@@ -60,7 +63,7 @@ const showBrowserNotification = (notification: Notification, role: string) => {
         icon: BROWSER_NOTIFICATION_ICON,
         badge: BROWSER_NOTIFICATION_ICON,
         tag: `estospaces-${notification.id}`,
-        requireInteraction: HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type),
+        requireInteraction: HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any),
     });
 
     browserNotification.onclick = () => {
@@ -72,7 +75,7 @@ const showBrowserNotification = (notification: Notification, role: string) => {
         browserNotification.close();
     };
 
-    if (!HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type)) {
+    if (!HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any)) {
         window.setTimeout(() => browserNotification.close(), 10000);
     }
 };
@@ -116,7 +119,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                     .slice(0, 3);
 
                 freshNotifications.forEach((notification) => {
-                    const isHighPriority = HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type);
+                    const isHighPriority = HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any);
                     if (!isDocumentHidden) {
                         const toastMethod = isHighPriority ? toast.warning : toast.info;
 

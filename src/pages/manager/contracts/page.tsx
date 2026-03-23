@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw } from 'lucide-react';
-import { getUserContracts, getContract, signContract, Contract } from '@/services/contractsService';
+import { getUserContracts, getContract, signContract } from '@/services/contractsService';
+import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
 
 type Tab = 'all' | 'draft' | 'pending' | 'active' | 'terminated';

@@ -99,9 +99,9 @@ export default function TermsDocument({ compact = false }: TermsDocumentProps) {
                             <p key={paragraph}>{paragraph}</p>
                         ))}
                     </div>
-                    {section.bullets && (
+                    {(section as any).bullets && (
                         <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4 mt-4">
-                            {section.bullets.map((bullet) => (
+                        {(section as any).bullets.map((bullet: string) => (
                                 <li key={bullet}>{bullet}</li>
                             ))}
                         </ul>

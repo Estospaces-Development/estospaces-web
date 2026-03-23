@@ -26,6 +26,9 @@ export const NOTIFICATION_TYPES = {
     APPLICATION_APPROVED: 'application_approved',
     APPLICATION_REJECTED: 'application_rejected',
     DOCUMENTS_REQUESTED: 'documents_requested',
+    FAST_TRACK_STARTED: 'fast_track_started',
+    FAST_TRACK_UPDATED: 'fast_track_updated',
+    FAST_TRACK_COMPLETED: 'fast_track_completed',
 
     // Verification
     DOCUMENT_VERIFIED: 'document_verified',
@@ -83,6 +86,8 @@ export interface NotificationData {
     propertyAddress?: string;
     propertyImage?: string;
     applicationId?: string;
+    fast_track_id?: string;
+    fastTrackId?: string;
     viewingId?: string;
     messageId?: string;
     conversation_id?: string;
@@ -264,6 +269,12 @@ export function getNotificationNavigationPath(
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             return '/user/dashboard/applications';
+        case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+        case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+        case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+            return data?.fast_track_id || data?.fastTrackId
+                ? `/user/dashboard/fast-track?case=${data.fast_track_id || data.fastTrackId}`
+                : '/user/dashboard/fast-track';
         case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
             return role === 'manager' ? '/manager/leads' : '/user/dashboard/profile';
         case NOTIFICATION_TYPES.MESSAGE_RECEIVED:

@@ -19,7 +19,8 @@ import {
     X,
     Inbox,
     ArrowLeft,
-    Settings
+    Settings,
+    Zap
 } from 'lucide-react';
 import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
 import { getNotificationNavigationPath } from '@/services/notificationsService';
@@ -62,6 +63,9 @@ export default function NotificationsPage() {
                         NOTIFICATION_TYPES.APPLICATION_SUBMITTED,
                         NOTIFICATION_TYPES.APPLICATION_APPROVED,
                         NOTIFICATION_TYPES.DOCUMENTS_REQUESTED,
+                        NOTIFICATION_TYPES.FAST_TRACK_STARTED,
+                        NOTIFICATION_TYPES.FAST_TRACK_UPDATED,
+                        NOTIFICATION_TYPES.FAST_TRACK_COMPLETED,
                     ],
                     messages: [
                         NOTIFICATION_TYPES.MESSAGE_RECEIVED,
@@ -112,6 +116,10 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
                 return <FileText size={20} className="text-blue-500" />;
+            case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+            case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+                return <Zap size={20} className="text-orange-500" />;
             case 'property_saved':
                 return <Home size={20} className="text-orange-500" />;
             case 'price_drop':
@@ -138,6 +146,9 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+            case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
             case 'viewing_booked':
                 return 'bg-blue-50 dark:bg-blue-900/20';
             case NOTIFICATION_TYPES.MESSAGE_RECEIVED:

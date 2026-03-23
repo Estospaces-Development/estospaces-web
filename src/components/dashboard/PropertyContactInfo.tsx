@@ -91,9 +91,12 @@ ${contactForm.message}
     if (!property) return null;
 
     return (
-        <div className="rounded-[2rem] border border-stone-200/80 bg-white/92 p-6 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92">
-            <div className="flex items-start justify-between gap-4">
-                <div>
+        <div className="flex h-full flex-col rounded-[2rem] border border-stone-200/80 bg-white/92 p-6 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92">
+            <div className="flex items-start gap-4">
+                <div className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/20">
+                    <MessageCircle size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Direct contact</p>
                     <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
                         Contact agent
@@ -102,17 +105,16 @@ ${contactForm.message}
                         Need clarification before booking? Send a direct note and keep the conversation attached to this property.
                     </p>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/20">
-                    <MessageCircle size={20} />
-                </div>
             </div>
 
             {property.agent_name && (
                 <div className="mt-6 space-y-3">
-                    <div className="rounded-[1.45rem] border border-stone-200/80 bg-stone-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
+                    <div className="min-h-[5.5rem] rounded-[1.45rem] border border-stone-200/80 bg-stone-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
                         <div className="flex items-start gap-3">
-                            <Building className="mt-1 text-orange-500" size={18} />
-                            <div>
+                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
+                                <Building size={18} />
+                            </div>
+                            <div className="min-w-0">
                                 <p className="font-medium text-gray-900 dark:text-gray-100">
                                     {property.agent_company || 'Real Estate Agent'}
                                 </p>
@@ -124,9 +126,11 @@ ${contactForm.message}
                     {property.agent_phone && (
                         <a
                             href={`tel:${property.agent_phone}`}
-                            className="flex items-center gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-zinc-950"
+                            className="flex min-h-[4.5rem] items-center gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-zinc-950"
                         >
-                            <Phone className="text-orange-500" size={18} />
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
+                                <Phone size={18} />
+                            </div>
                             <span>{property.agent_phone}</span>
                         </a>
                     )}
@@ -134,17 +138,21 @@ ${contactForm.message}
                     {property.agent_email && (
                         <a
                             href={`mailto:${property.agent_email}`}
-                            className="flex items-center gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-zinc-950"
+                            className="flex min-h-[4.5rem] items-center gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-zinc-950"
                         >
-                            <Mail className="text-orange-500" size={18} />
-                            <span className="truncate">{property.agent_email}</span>
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
+                                <Mail size={18} />
+                            </div>
+                            <span className="min-w-0 flex-1 truncate">{property.agent_email}</span>
                         </a>
                     )}
 
                     {property.address_line_1 && (
-                        <div className="flex items-start gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300">
-                            <MapPin className="mt-1 text-orange-500" size={18} />
-                            <div className="text-sm leading-6">
+                        <div className="flex min-h-[5.5rem] items-start gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300">
+                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
+                                <MapPin size={18} />
+                            </div>
+                            <div className="min-w-0 text-sm leading-6">
                                 <p>{property.address_line_1}</p>
                                 {property.address_line_2 && <p>{property.address_line_2}</p>}
                                 <p>{property.city}, {property.postcode}</p>
@@ -221,7 +229,7 @@ ${contactForm.message}
                                 rows={4}
                                 value={contactForm.message}
                                 onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
-                                placeholder="I’d like to know more about this property..."
+                                placeholder="I'd like to know more about this property..."
                                 className="w-full rounded-[1rem] border border-stone-200 bg-stone-50 px-4 py-3 text-gray-900 outline-none transition focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-gray-100"
                             />
                         </div>

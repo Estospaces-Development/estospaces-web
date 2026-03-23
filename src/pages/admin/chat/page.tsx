@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MessageSquare, Send, Search, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Search, Loader2, ChevronDown } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import Avatar from '../../../components/ui/Avatar';
 import Badge from '../../../components/ui/Badge';
-import { messagesService, type Conversation as APIConversation } from '../../../services/messagesService';
+import { messagesService, type Conversation as APIConversation, type SupportTicket } from '../../../services/messagesService';
 import { useToast } from '../../../contexts/ToastContext';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -24,54 +25,93 @@ interface Conversation {
     lastTime: string;
     unread: number;
     messages: Message[];
+    type: 'direct' | 'support' | 'group';
 }
+
+const TICKET_STATUSES: SupportTicket['status'][] = ['open', 'in_progress', 'resolved', 'closed'];
 
 const AdminChatPage = () => {
     const { user } = useAuth();
     const toast = useToast();
+    const [searchParams] = useSearchParams();
+    const requestedConversationId = searchParams.get('conversation');
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
+    const [updatingTicket, setUpdatingTicket] = useState(false);
+    const [ticketStatus, setTicketStatus] = useState<SupportTicket['status'] | null>(null);
 
     const parseMetadata = (metadata: APIConversation['metadata']) => {
         try {
             if (!metadata) return {};
-            if (typeof metadata === 'string') {
-                return JSON.parse(metadata);
-            }
+            if (typeof metadata === 'string') return JSON.parse(metadata);
             return metadata;
         } catch {
             return {};
         }
     };
 
+    const getConversationName = (conversation: APIConversation, metadata: Record<string, any>) => {
+        const participantDetails = metadata.participant_details && typeof metadata.participant_details === 'object'
+            ? Object.values(metadata.participant_details as Record<string, unknown>)
+            : [];
+        const firstParticipant = participantDetails.find((value): value is Record<string, any> =>
+            Boolean(value) && typeof value === 'object',
+        );
+
+        return (
+            conversation.counterpart_name ||
+            conversation.counterpart_email ||
+            firstParticipant?.name ||
+            firstParticipant?.email ||
+            metadata.userName ||
+            metadata.full_name ||
+            metadata.email ||
+            conversation.title ||
+            'Unknown User'
+        );
+    };
+
+    const getConversationRole = (conversation: APIConversation, metadata: Record<string, any>) => {
+        if (conversation.type === 'support') {
+            return metadata.category || 'Support Ticket';
+        }
+
+        const participantDetails = metadata.participant_details && typeof metadata.participant_details === 'object'
+            ? Object.values(metadata.participant_details as Record<string, unknown>)
+            : [];
+        const firstParticipant = participantDetails.find((value): value is Record<string, any> =>
+            Boolean(value) && typeof value === 'object',
+        );
+
+        return conversation.counterpart_agency || firstParticipant?.agency || metadata.userRole || 'Direct Message';
+    };
+
     const fetchConversations = useCallback(async () => {
         try {
             setIsLoading(true);
             const apiConvs = await messagesService.getConversations();
-            
+
             const mappedConvs: Conversation[] = apiConvs.map(c => {
                 const metadata = parseMetadata(c.metadata);
                 const lastMessage = c.last_message?.content || 'No messages';
                 const lastSenderId = c.last_message?.sender_id;
                 return {
                     id: c.id,
-                    userName: metadata.userName || metadata.full_name || metadata.email || c.title || 'Unknown User',
-                    userRole: metadata.userRole || metadata.category || (c.type === 'support' ? 'Support Ticket' : 'User'),
+                    userName: getConversationName(c, metadata),
+                    userRole: getConversationRole(c, metadata),
                     lastMessage,
                     lastTime: new Date(c.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    unread: c.last_message && !c.last_message.is_read && lastSenderId !== user?.id ? 1 : 0,
+                    unread: Number(c.unread_count ?? (c.last_message && !c.last_message.is_read && lastSenderId !== user?.id ? 1 : 0)),
                     messages: [],
+                    type: c.type,
                 };
             });
 
             setConversations(mappedConvs);
-            if (mappedConvs.length > 0 && !selectedConvId) {
-                setSelectedConvId(mappedConvs[0].id);
-            }
         } catch (error: any) {
             toast.error('Failed to load conversations');
         } finally {
@@ -80,8 +120,25 @@ const AdminChatPage = () => {
     }, [toast, user?.id]);
 
     useEffect(() => {
-        fetchConversations();
-    }, [fetchConversations]);
+        void fetchConversations();
+    }, [fetchConversations, requestedConversationId]);
+
+    useEffect(() => {
+        if (requestedConversationId && conversations.some((conversation) => conversation.id === requestedConversationId)) {
+            if (selectedConvId !== requestedConversationId) {
+                setSelectedConvId(requestedConversationId);
+            }
+            return;
+        }
+
+        if (selectedConvId && conversations.some((conversation) => conversation.id === selectedConvId)) {
+            return;
+        }
+
+        if (conversations.length > 0) {
+            setSelectedConvId(conversations[0].id);
+        }
+    }, [conversations, requestedConversationId, selectedConvId]);
 
     const fetchMessages = useCallback(async (conversationId: string) => {
         try {
@@ -142,7 +199,6 @@ const AdminChatPage = () => {
                 type: 'text'
             });
 
-            // Update local state
             const mappedMsg: Message = {
                 id: sentMsg.id,
                 sender: 'admin',
@@ -151,17 +207,31 @@ const AdminChatPage = () => {
                 time: new Date(sentMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
 
-            setConversations(prev => prev.map(c => 
-                c.id === selectedConvId 
+            setConversations(prev => prev.map(c =>
+                c.id === selectedConvId
                     ? { ...c, messages: [...c.messages, mappedMsg], lastMessage: mappedMsg.content, lastTime: mappedMsg.time }
                     : c
             ));
-            
+
             setNewMessage('');
         } catch (error: any) {
             toast.error('Failed to send message');
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleTicketStatusUpdate = async (status: SupportTicket['status']) => {
+        if (!selectedConvId) return;
+        setUpdatingTicket(true);
+        try {
+            await messagesService.updateTicketStatus(selectedConvId, status);
+            setTicketStatus(status);
+            toast.success(`Ticket marked as ${status.replace('_', ' ')}`);
+        } catch {
+            toast.error('Failed to update ticket status');
+        } finally {
+            setUpdatingTicket(false);
         }
     };
 
@@ -198,7 +268,7 @@ const AdminChatPage = () => {
                         filteredConvs.map(conv => (
                             <button
                                 key={conv.id}
-                                onClick={() => setSelectedConvId(conv.id)}
+                                onClick={() => { setSelectedConvId(conv.id); setTicketStatus(null); }}
                                 className={`w-full flex items-start gap-3 p-4 text-left border-b border-gray-100 dark:border-zinc-900 transition-colors ${selectedConvId === conv.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-gray-50 dark:hover:bg-zinc-950'
                                     }`}
                             >
@@ -209,6 +279,9 @@ const AdminChatPage = () => {
                                         <span className="text-[10px] text-gray-500 flex-shrink-0">{conv.lastTime}</span>
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{conv.lastMessage}</p>
+                                    {conv.type === 'support' && (
+                                        <span className="text-[9px] font-bold text-indigo-500 uppercase tracking-wide">Support</span>
+                                    )}
                                 </div>
                                 {conv.unread > 0 && (
                                     <span className="flex-shrink-0 w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -229,12 +302,36 @@ const AdminChatPage = () => {
             {selectedConv ? (
                 <div className="flex-1 flex flex-col">
                     {/* Chat Header */}
-                    <div className="flex items-center gap-3 p-4 border-b border-gray-100 dark:border-zinc-800">
-                        <Avatar name={selectedConv.userName} size="sm" status="online" />
-                        <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConv.userName}</h3>
-                            <Badge variant="info" size="sm">{selectedConv.userRole}</Badge>
+                    <div className="flex items-center justify-between gap-3 p-4 border-b border-gray-100 dark:border-zinc-800">
+                        <div className="flex items-center gap-3">
+                            <Avatar name={selectedConv.userName} size="sm" status="online" />
+                            <div>
+                                <h3 className="font-semibold text-gray-900 dark:text-white">{selectedConv.userName}</h3>
+                                <Badge variant="info" size="sm">{selectedConv.userRole}</Badge>
+                            </div>
                         </div>
+
+                        {/* Ticket status dropdown — only for support conversations */}
+                        {selectedConv.type === 'support' && (
+                            <div className="relative flex items-center gap-2">
+                                <span className="text-xs text-gray-400 font-medium">Status:</span>
+                                <div className="relative">
+                                    <select
+                                        value={ticketStatus || ''}
+                                        onChange={(e) => handleTicketStatusUpdate(e.target.value as SupportTicket['status'])}
+                                        disabled={updatingTicket}
+                                        className="appearance-none pl-3 pr-8 py-1.5 text-xs font-bold rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
+                                    >
+                                        <option value="" disabled>Set status…</option>
+                                        {TICKET_STATUSES.map((s) => (
+                                            <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500 pointer-events-none" />
+                                </div>
+                                {updatingTicket && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+                            </div>
+                        )}
                     </div>
 
                     {/* Messages */}

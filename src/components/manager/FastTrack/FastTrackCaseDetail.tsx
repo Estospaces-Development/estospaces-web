@@ -1,487 +1,362 @@
 "use client";
 
-import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
+    AlertTriangle,
     ArrowLeft,
-    Clock,
     CheckCircle2,
+    Clock,
     FileText,
-    User,
-    Shield,
-    Activity,
+    Home,
     MessageSquare,
-    Phone,
-    Mail,
-    Send,
-    PenTool,
-    FileSignature,
-    Eye
+    Shield,
+    TimerReset,
+    User,
 } from 'lucide-react';
-import { FastTrackCase, FastTrackStep } from '../../../services/fastTrackService';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
+import { FastTrackCase, FastTrackStep } from '@/services/fastTrackService';
+import FastTrackActions from './FastTrackActions';
+import FastTrackDocuments from './FastTrackDocuments';
+import FastTrackProgress from './FastTrackProgress';
 
 interface FastTrackCaseDetailProps {
     caseData: FastTrackCase;
     onClose: () => void;
     onUpdate: (updatedCase: FastTrackCase) => void;
+    verificationSummary?: string;
+    leadStatusLabel?: string;
+    onOpenVerificationReview?: () => void;
+    isDocumentsVerifiedOverride?: boolean;
 }
 
-const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({ caseData, onClose, onUpdate }) => {
-    const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'esignature'>('overview');
+const stepCopy: Record<FastTrackStep, { label: string; description: string }> = {
+    documents: {
+        label: 'Document review',
+        description: 'Identity, income, and supporting documents are being checked.',
+    },
+    owner_approval: {
+        label: 'Owner approval',
+        description: 'The case is ready for owner confirmation before legal work finishes.',
+    },
+    legal_check: {
+        label: 'Legal check',
+        description: 'Terms and compliance items are being reviewed for a clean handoff.',
+    },
+    payment_ready: {
+        label: 'Final readiness',
+        description: 'The case is cleared for the final operational handoff stage.',
+    },
+    completed: {
+        label: 'Completed',
+        description: 'The fast-track workflow is complete and ready for next-step execution.',
+    },
+};
 
-    // Create Envelope Modal State
-    const [showEnvelopeModal, setShowEnvelopeModal] = useState(false);
-    const [newEnvelope, setNewEnvelope] = useState({ name: '', recipient: caseData.clientName, type: 'agreement' });
+const statusCopy: Record<FastTrackCase['finalStatus'], { label: string; tone: string; note: string }> = {
+    in_progress: {
+        label: 'In progress',
+        tone: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800',
+        note: 'This case is still inside the 24-hour response window.',
+    },
+    completed: {
+        label: 'Completed',
+        tone: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:border-green-800',
+        note: 'The fast-track workflow has been completed successfully.',
+    },
+    expired: {
+        label: 'Expired',
+        tone: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800',
+        note: 'The 24-hour window has elapsed, so the case needs manual follow-up.',
+    },
+    rejected: {
+        label: 'Rejected',
+        tone: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800',
+        note: 'The case was actively rejected and should not continue automatically.',
+    },
+};
 
-    // Helper to calculate time elapsed/remaining
-    const getTimeStatus = () => {
-        if (caseData.finalStatus === 'expired') return 'expired';
-        if (caseData.finalStatus === 'completed') return 'completed';
-        return caseData.hoursRemaining > 0 ? 'active' : 'expired';
-    };
+const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
+    caseData,
+    onClose,
+    onUpdate,
+    verificationSummary,
+    leadStatusLabel,
+    onOpenVerificationReview,
+    isDocumentsVerifiedOverride,
+}) => {
+    const navigate = useNavigate();
+    const toast = useToast();
+    const { user } = useAuth();
+    const [isOpeningConversation, setIsOpeningConversation] = useState(false);
 
-    const timeStatus = getTimeStatus();
-
-    // TODO: Timeline and E-Signature APIs not implemented
-    // integrate when backend is implemented
-    const getTimeline = () => {
-        /*
-        const steps: { step: FastTrackStep; label: string; description: string }[] = [
-            { step: 'documents', label: 'Documents Verification', description: 'Identity and income proof checks' },
-            { step: 'owner_approval', label: 'Owner Approval', description: 'Property owner confirmation pending' },
-            { step: 'legal_check', label: 'Legal Check', description: 'Contract and compliance verification' },
-            { step: 'payment_ready', label: 'Payment Processing', description: 'Initial deposit and fee handling' },
-            { step: 'completed', label: 'Ready for Handover', description: 'Process completed successfully' }
-        ];
-
-        const currentIndex = steps.findIndex(s => s.step === caseData.currentStep);
-
-        return steps.map((s, index) => ({
-            ...s,
-            status: index < currentIndex ? 'completed' : index === currentIndex ? 'current' : 'pending',
-            date: index <= currentIndex ? new Date(new Date(caseData.submittedAt).getTime() + index * 3600000).toISOString() : null
-        }));
-        */
-        return [];
-    };
-
-    const timeline = getTimeline();
-
-    // E-Signature Documents State
-    const [esignDocs, setEsignDocs] = useState<any[]>([]);
-    /*
-    const [esignDocs, setEsignDocs] = useState([
-        { id: 1, name: 'Tenancy Agreement', status: 'pending', recipient: caseData.clientName },
-        { id: 2, name: 'Direct Debit Mandate', status: 'signed', recipient: caseData.clientName },
-        { id: 3, name: 'Inventory Check-in', status: 'pending', recipient: caseData.clientName }
-    ]);
-    */
-
-    const handleSignRequest = (id: number) => {
-        setEsignDocs(prev => prev.map(doc => doc.id === id ? { ...doc, status: 'sent' as string } : doc));
-    };
-
-    // Handle Document Verification
-    const toggleDocument = (docType: keyof typeof caseData.documents) => {
-        const newStatus = caseData.documents[docType] === 'verified' ? 'pending' : 'verified';
-        const updatedDocs = { ...caseData.documents, [docType]: newStatus };
-
-        const updatedCase = {
-            ...caseData,
-            documents: updatedDocs,
-            // Auto-advance if current step is documents and all are verified
-            currentStep: (caseData.currentStep === 'documents' && Object.values(updatedDocs).every(s => s === 'verified'))
-                ? 'owner_approval' as FastTrackStep
-                : caseData.currentStep
-        };
-
-        onUpdate(updatedCase);
-    };
+    const stepMeta = stepCopy[caseData.currentStep];
+    const statusMeta = statusCopy[caseData.finalStatus];
+    const verifiedCount = useMemo(
+        () => Object.values(caseData.documents).filter((status) => status === 'verified').length,
+        [caseData.documents],
+    );
+    const totalDocuments = useMemo(() => Object.keys(caseData.documents).length, [caseData.documents]);
+    const isClosed = caseData.finalStatus === 'completed' || caseData.finalStatus === 'expired' || caseData.finalStatus === 'rejected';
+    const submittedLabel = new Date(caseData.submittedAt).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+    const propertyPath = caseData.propertyId
+        ? user?.role === 'admin'
+            ? `/admin/properties/${caseData.propertyId}`
+            : `/manager/dashboard/properties/${caseData.propertyId}`
+        : '';
+    const senderName = user?.name || user?.user_metadata?.full_name || user?.email || 'Estospaces team';
+    const senderEmail = user?.email || '';
+    const senderPhone = user?.phone || user?.user_metadata?.phone || '';
+    const senderAgency = user?.user_metadata?.agency || (user?.role === 'admin' ? 'Estospaces' : '');
+    const isDocumentsVerified = typeof isDocumentsVerifiedOverride === 'boolean'
+        ? isDocumentsVerifiedOverride
+        : Object.values(caseData.documents).every((status) => status === 'verified');
 
     const advanceStep = () => {
+        if (isClosed) {
+            return;
+        }
+
         const steps: FastTrackStep[] = ['documents', 'owner_approval', 'legal_check', 'payment_ready', 'completed'];
         const currentIndex = steps.indexOf(caseData.currentStep);
-        if (currentIndex < steps.length - 1) {
-            const nextStep = steps[currentIndex + 1];
-            const updatedCase = {
-                ...caseData,
-                currentStep: nextStep,
-                finalStatus: nextStep === 'completed' ? 'completed' : caseData.finalStatus
-            } as FastTrackCase; // Type assertion needed here
-            onUpdate(updatedCase);
+        if (currentIndex < 0 || currentIndex >= steps.length - 1) {
+            return;
+        }
+
+        const nextStep = steps[currentIndex + 1];
+        onUpdate({
+            ...caseData,
+            currentStep: nextStep,
+            finalStatus: nextStep === 'completed' ? 'completed' : caseData.finalStatus,
+        });
+    };
+
+    const handleOpenConversation = async () => {
+        if (!caseData.clientId) {
+            toast.error('This case does not have a linked client conversation yet.');
+            return;
+        }
+
+        setIsOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(caseData.clientId, {
+                propertyId: caseData.propertyId,
+                propertyTitle: caseData.propertyTitle,
+                senderName,
+                senderEmail,
+                senderPhone,
+                senderAgency,
+                recipientName: caseData.clientName,
+            });
+
+            const basePath = user?.role === 'admin' ? '/admin/chat' : '/manager/messages';
+            navigate(`${basePath}?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the client thread right now.');
+        } finally {
+            setIsOpeningConversation(false);
         }
     };
 
     return (
         <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col h-full animate-in slide-in-from-right duration-300">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-100 dark:border-zinc-800 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-10 rounded-t-2xl">
+            <div className="p-6 border-b border-gray-100 dark:border-zinc-800 sticky top-0 bg-white/90 dark:bg-black/90 backdrop-blur-md z-10 rounded-t-2xl">
                 <div className="flex flex-col gap-4">
-                    {/* Top Row */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex items-start gap-4">
                             <button
                                 onClick={onClose}
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                                aria-label="Close fast-track case detail"
                             >
                                 <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                             </button>
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    {caseData.propertyTitle}
-                                    <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium border ${caseData.propertyType === 'rent' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' :
-                                        caseData.propertyType === 'buy' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800' :
-                                            'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
-                                        }`}>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{caseData.propertyTitle}</h2>
+                                    <span className="px-2.5 py-0.5 text-xs rounded-full font-medium border bg-gray-50 text-gray-700 border-gray-200 dark:bg-zinc-900 dark:border-zinc-700 dark:text-gray-200">
                                         {caseData.propertyType.toUpperCase()}
                                     </span>
-                                </h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                    ID: {caseData.caseId} • Submitted {new Date(caseData.submittedAt).toLocaleDateString()}
+                                </div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                    Case {caseData.caseId} · Submitted {submittedLabel}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${timeStatus === 'expired' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800' :
-                                timeStatus === 'completed' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:border-green-800' :
-                                    'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
-                                }`}>
-                                {timeStatus === 'completed' ? <CheckCircle2 size={18} /> : <Clock size={18} className={timeStatus === 'active' ? 'animate-pulse' : ''} />}
-                                <span className="font-bold">
-                                    {timeStatus === 'completed' ? 'Completed' :
-                                        timeStatus === 'expired' ? 'Expired' :
-                                            `${caseData.hoursRemaining}h remaining`}
-                                </span>
-                            </div>
+                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold ${statusMeta.tone}`}>
+                            {caseData.finalStatus === 'completed' ? (
+                                <CheckCircle2 size={18} />
+                            ) : caseData.finalStatus === 'expired' || caseData.finalStatus === 'rejected' ? (
+                                <AlertTriangle size={18} />
+                            ) : (
+                                <Clock size={18} className="animate-pulse" />
+                            )}
+                            <span>
+                                {caseData.finalStatus === 'in_progress' ? `${caseData.hoursRemaining}h remaining` : statusMeta.label}
+                            </span>
                         </div>
                     </div>
 
-                    {/* Navigation Tabs */}
-                    <div className="flex gap-2 border-b border-gray-100 dark:border-zinc-800 pb-1">
-                        <button
-                            onClick={() => setActiveTab('overview')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'overview' ? 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
-                            <Activity size={16} />
-                            Overview & Tracking
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('documents')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'documents' ? 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
-                            <Shield size={16} />
-                            Documents
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('esignature')}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${activeTab === 'esignature' ? 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                        >
-                            <PenTool size={16} />
-                            E-Signature
-                        </button>
+                    <div className="rounded-2xl border border-gray-100 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/40 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                        {statusMeta.note}
                     </div>
                 </div>
             </div>
 
-            <div className="flex flex-1 overflow-hidden">
-                {/* Main Content Scrollable */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+                    <div className="space-y-6">
+                        <section className="bg-gray-50 dark:bg-zinc-900/40 rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                                <TimerReset className="text-orange-500" size={20} />
+                                <h3 className="text-lg font-semibold">Live workflow status</h3>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                The manager and admin views now follow the real backend stages only.
+                            </p>
 
-                    {/* Overview Tab Content */}
-                    {activeTab === 'overview' && (
-                        <div className="space-y-6">
-                            {/* Status Tracker (Timeline) */}
-                            <div className="bg-gray-50 dark:bg-zinc-900/50 rounded-2xl p-6 border border-gray-100 dark:border-zinc-800">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                        <Activity className="text-indigo-500" size={20} />
-                                        Application Tracking
-                                    </h3>
-                                    <span className="text-xs font-medium px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-green-600 rounded-full animate-pulse" />
-                                        Live Updates
-                                    </span>
+                            <FastTrackProgress currentStep={caseData.currentStep} />
+
+                            <div className="mt-5 grid gap-4 md:grid-cols-3">
+                                <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
+                                    <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{stepMeta.label}</p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{stepMeta.description}</p>
                                 </div>
-
-                                <div className="relative pl-4">
-                                    {/* Vertical Line */}
-                                    <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gray-200 dark:bg-zinc-800" />
-
-                                    <div className="space-y-8 relative">
-                                        {timeline.map((step, idx) => (
-                                            <div key={idx} className="flex gap-4 relative">
-                                                {/* Status Dot */}
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 z-10 bg-white dark:bg-black transition-all duration-500 ${step.status === 'completed' ? 'border-green-500 text-green-500' :
-                                                    step.status === 'current' ? 'border-indigo-500 text-indigo-500 shadow-[0_0_0_4px_rgba(99,102,241,0.2)]' :
-                                                        'border-gray-100 dark:border-zinc-700 text-gray-300 dark:text-zinc-600'
-                                                    }`}>
-                                                    {step.status === 'completed' ? <CheckCircle2 size={20} /> :
-                                                        step.status === 'current' ? <div className="w-3 h-3 bg-indigo-500 rounded-full animate-ping" /> :
-                                                            <div className="w-3 h-3 bg-gray-200 dark:bg-zinc-700 rounded-full" />
-                                                    }
-                                                </div>
-
-                                                {/* Content */}
-                                                <div className={`flex-1 pt-1 ${step.status === 'pending' ? 'opacity-50' : ''}`}>
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <h4 className={`font-semibold text-base ${step.status === 'current' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-900 dark:text-white'}`}>
-                                                                {step.label}
-                                                            </h4>
-                                                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{step.description}</p>
-                                                        </div>
-                                                        {step.date && (
-                                                            <span className="text-xs font-medium text-gray-400 bg-gray-100 dark:bg-zinc-800 px-2 py-1 rounded-md">
-                                                                {new Date(step.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Action Button for Current Step */}
-                                                    {step.status === 'current' && (
-                                                        <div className="mt-3">
-                                                            <button
-                                                                onClick={advanceStep}
-                                                                className="text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                                                            >
-                                                                Mark as Complete
-                                                                <ArrowLeft className="w-4 h-4 rotate-180" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Documents</p>
+                                    <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                        {verifiedCount} / {totalDocuments} verified
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        Keep the checklist current so downstream steps reflect the real case state.
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Window</p>
+                                    <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                        {caseData.finalStatus === 'in_progress' ? `${caseData.hoursRemaining} hours left` : statusMeta.label}
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        SLA visibility stays tied to the actual 24-hour countdown from submission time.
+                                    </p>
                                 </div>
                             </div>
+                        </section>
 
-                            {/* Client Info */}
-                            <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-2xl p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                                    <User className="text-blue-500" size={20} />
-                                    Client Details
-                                </h3>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-gray-200 dark:bg-zinc-800 rounded-full flex items-center justify-center text-xl font-bold text-gray-600 dark:text-gray-400">
-                                        {caseData.clientName.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-gray-900 dark:text-white text-lg">{caseData.clientName}</p>
-                                        <p className="text-sm text-gray-500">Premium Client</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2 mt-4">
-                                    <button className="flex-1 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
-                                        <Phone size={16} />
-                                        Call
-                                    </button>
-                                    <button className="flex-1 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
-                                        <MessageSquare size={16} />
-                                        Chat
-                                    </button>
-                                    <button className="flex-1 py-2 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
-                                        <Mail size={16} />
-                                        Email
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Documents Tab Content */}
-                    {activeTab === 'documents' && (
-                        <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-2xl p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                                 <Shield className="text-orange-500" size={20} />
-                                Required Documents
-                            </h3>
-                            <div className="space-y-3">
-                                {Object.entries(caseData.documents).map(([key, status]) => (
-                                    <div key={key} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-100 dark:border-zinc-800">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg ${status === 'verified' ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-200 dark:bg-zinc-700 text-gray-500'
-                                                }`}>
-                                                <FileText size={18} />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-gray-900 dark:text-white capitalize">
-                                                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                                                </p>
-                                                <p className="text-xs text-gray-500">{status}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button className="p-2 text-gray-500 hover:bg-gray-200 dark:hover:bg-zinc-700 rounded-lg transition-colors">
-                                                <Eye size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => toggleDocument(key as keyof typeof caseData.documents)}
-                                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${status === 'verified'
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400'
-                                                    : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400'
-                                                    }`}
-                                            >
-                                                {status === 'verified' ? 'Verified' : 'Verify'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                <h3 className="text-lg font-semibold">Document checklist</h3>
                             </div>
-                        </div>
-                    )}
-
-                    {/* E-Signature Tab Content */}
-                    {activeTab === 'esignature' && (
-                        <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-2xl p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <FileSignature className="text-purple-500" size={20} />
-                                    Digital Signatures
-                                </h3>
-                                <button
-                                    onClick={() => setShowEnvelopeModal(true)}
-                                    className="text-sm bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors font-medium shadow-md shadow-purple-500/20 flex items-center gap-2"
-                                >
-                                    <PenTool size={16} />
-                                    Create New Envelope
-                                </button>
-                            </div>
-
-                            <div className="space-y-4">
-                                {esignDocs.map(doc => (
-                                    <div key={doc.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-zinc-900/50 rounded-xl border border-gray-100 dark:border-zinc-800">
-                                        <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-purple-100 dark:bg-purple-900/30 text-purple-600 rounded-xl">
-                                                <FileText size={20} />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-semibold text-gray-900 dark:text-white">{doc.name}</h4>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                                    Recipient: {doc.recipient}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${doc.status === 'signed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                doc.status === 'sent' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                                    'bg-gray-200 text-gray-600 dark:bg-zinc-800 dark:text-gray-400'
-                                                }`}>
-                                                {doc.status.toUpperCase()}
-                                            </span>
-
-                                            {doc.status === 'pending' && (
-                                                <button
-                                                    onClick={() => handleSignRequest(doc.id)}
-                                                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 dark:bg-zinc-800 dark:border-zinc-700 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-zinc-700 transition-colors"
-                                                >
-                                                    <Send size={14} />
-                                                    Send
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                </div>
-            </div>
-
-            {/* Create Envelope Modal */}
-            {showEnvelopeModal && createPortal(
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100 dark:border-zinc-800 p-6 animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <FileSignature className="text-purple-500" size={24} />
-                                New Envelope
-                            </h3>
-                            <button
-                                onClick={() => setShowEnvelopeModal(false)}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
-                            >
-                                <ArrowLeft className="w-5 h-5 rotate-180 text-gray-500" />
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Document Name
-                                </label>
-                                <input
-                                    type="text"
-                                    value={newEnvelope.name}
-                                    onChange={(e) => setNewEnvelope({ ...newEnvelope, name: e.target.value })}
-                                    placeholder="e.g. Lease Renewal Agreement"
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Uploaded files are reviewed from the real verification workspace. This panel mirrors the live checklist only.
+                            </p>
+                            <div className="mt-4">
+                                <FastTrackDocuments
+                                    documents={caseData.documents}
                                 />
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Recipient
-                                </label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-xl border border-gray-100 dark:border-zinc-700">
-                                    <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center text-purple-700 dark:text-purple-400 font-bold text-sm">
-                                        {caseData.clientName.charAt(0)}
-                                    </div>
-                                    <span className="text-gray-900 dark:text-white font-medium">{caseData.clientName}</span>
-                                    <span className="ml-auto text-xs text-gray-500">(Client)</span>
+                            <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                <div className="rounded-2xl bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Verification status</p>
+                                    <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                        {verificationSummary || 'Awaiting user uploads'}
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        {leadStatusLabel || 'The lead timeline stays aligned with the latest user verification activity.'}
+                                    </p>
                                 </div>
+                                {onOpenVerificationReview ? (
+                                    <button
+                                        type="button"
+                                        onClick={onOpenVerificationReview}
+                                        className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-left transition hover:border-orange-300 hover:bg-orange-100 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:bg-orange-900/20"
+                                    >
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Action</p>
+                                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Review uploaded documents</p>
+                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                            Open the tenant verification workspace, approve files, or request replacements without leaving the fast-track flow.
+                                        </p>
+                                    </button>
+                                ) : (
+                                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Admin verification</p>
+                                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">User verification is admin-only</p>
+                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                            Managers can monitor status here, but document approval happens from the admin verification queue.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                    Document Type
-                                </label>
-                                <select
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-100 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    value={newEnvelope.type}
-                                    onChange={(e) => setNewEnvelope({ ...newEnvelope, type: e.target.value })}
-                                >
-                                    <option value="agreement">Tenancy Agreement</option>
-                                    <option value="addendum">Addendum</option>
-                                    <option value="inventory">Inventory Report</option>
-                                    <option value="invoice">Invoice / Receipt</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-8">
-                            <button
-                                onClick={() => setShowEnvelopeModal(false)}
-                                className="flex-1 py-2.5 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (!newEnvelope.name) return;
-                                    setEsignDocs([...esignDocs, {
-                                        id: Date.now(),
-                                        name: newEnvelope.name,
-                                        status: 'pending',
-                                        recipient: newEnvelope.recipient
-                                    }]);
-                                    setShowEnvelopeModal(false);
-                                    setNewEnvelope({ name: '', recipient: caseData.clientName, type: 'agreement' });
-                                }}
-                                disabled={!newEnvelope.name}
-                                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors shadow-lg shadow-purple-500/20"
-                            >
-                                Create & Send
-                            </button>
-                        </div>
+                        </section>
                     </div>
-                </div>,
-                document.body
-            )}
+
+                    <div className="space-y-6">
+                        <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                                <User className="text-blue-500" size={20} />
+                                <h3 className="text-lg font-semibold">Client handoff</h3>
+                            </div>
+                            <div className="mt-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Client</p>
+                                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{caseData.clientName}</p>
+                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                    Use the real message thread instead of the old placeholder actions, so all follow-up stays traceable.
+                                </p>
+                            </div>
+
+                            <div className="mt-4 space-y-3">
+                                <button
+                                    onClick={() => void handleOpenConversation()}
+                                    disabled={isOpeningConversation}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-3 transition-colors"
+                                >
+                                    <MessageSquare size={18} />
+                                    {isOpeningConversation ? 'Opening thread...' : 'Open message thread'}
+                                </button>
+
+                                {propertyPath && (
+                                    <button
+                                        onClick={() => navigate(propertyPath)}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                    >
+                                        <Home size={18} />
+                                        View property
+                                    </button>
+                                )}
+                            </div>
+                        </section>
+
+                        <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                                <FileText className="text-indigo-500" size={20} />
+                                <h3 className="text-lg font-semibold">Workflow actions</h3>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Move the case only when the checklist and decision state match the real record.
+                            </p>
+                            <div className="mt-4">
+                                <FastTrackActions
+                                    currentStep={caseData.currentStep}
+                                    onAdvance={advanceStep}
+                                    isDocumentsVerified={isDocumentsVerified}
+                                    isReadOnly={isClosed}
+                                />
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

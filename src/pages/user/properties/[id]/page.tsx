@@ -17,15 +17,24 @@ import {
     MessageCircle,
     Clock,
     Sparkles,
+    CheckCircle2,
+    Upload,
+    X,
 } from 'lucide-react';
 import { getPropertyById, Property } from '../../../../services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { createLead } from '@/services/leadsService';
-import { createFastTrackCase } from '@/services/fastTrackService';
+import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
+import { createFastTrackCase, FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import PropertyContactInfo from '@/components/dashboard/PropertyContactInfo';
+import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
+import {
+    getFastTrackStartAction,
+    isLeadActive,
+    normalizeWorkspaceDocuments,
+} from '@/lib/fastTrackWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages } from '@/lib/propertyImages';
 
@@ -161,6 +170,13 @@ const UserPropertyDetail = () => {
     const [isCreatingConversation, setIsCreatingConversation] = useState(false);
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [isFastTrackModalOpen, setIsFastTrackModalOpen] = useState(false);
+    const [isFastTrackPanelLoading, setIsFastTrackPanelLoading] = useState(false);
+    const [activeLead, setActiveLead] = useState<Lead | null>(null);
+    const [activeFastTrackCase, setActiveFastTrackCase] = useState<FastTrackCase | null>(null);
+    const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
+    const [uploadingFastTrackDocumentType, setUploadingFastTrackDocumentType] = useState<'identity' | 'address' | null>(null);
     const [calendarMonth, setCalendarMonth] = useState(() => {
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -206,6 +222,7 @@ const UserPropertyDetail = () => {
     const propertyAddress = property?.address_line_1
         ? [property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ')
         : [property?.city, property?.postcode].filter(Boolean).join(', ');
+    const locationLabel = [property?.city, property?.country].filter(Boolean).join(', ') || 'Prime location';
     const minimumViewingDate = useMemo(() => toDateValue(new Date()), []);
     const selectedDatePreview = useMemo(() => formatPreviewDate(viewingForm.requested_date), [viewingForm.requested_date]);
     const selectedTimePreview = useMemo(() => formatPreviewTime(viewingForm.requested_time), [viewingForm.requested_time]);
@@ -238,10 +255,30 @@ const UserPropertyDetail = () => {
         return Array.from(new Set(merged)).slice(0, 8);
     }, [property?.amenities, property?.features]);
     const heroStats = useMemo(() => [
-        { label: 'Bedrooms', value: `${property?.bedrooms || 0}` },
-        { label: 'Bathrooms', value: `${property?.bathrooms || 0}` },
-        { label: 'Interior', value: `${property?.property_size_sqft || 0} sq ft` },
-        { label: 'Property type', value: propertyTypeLabel },
+        {
+            label: 'Bedrooms',
+            value: `${property?.bedrooms || 0}`,
+            icon: Bed,
+            accentClass: 'bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-200',
+        },
+        {
+            label: 'Bathrooms',
+            value: `${property?.bathrooms || 0}`,
+            icon: Bath,
+            accentClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200',
+        },
+        {
+            label: 'Interior',
+            value: `${property?.property_size_sqft || 0} sq ft`,
+            icon: Maximize,
+            accentClass: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-200',
+        },
+        {
+            label: 'Property type',
+            value: propertyTypeLabel,
+            icon: Home,
+            accentClass: 'bg-stone-100 text-stone-700 dark:bg-zinc-800 dark:text-zinc-100',
+        },
     ], [property?.bathrooms, property?.bedrooms, property?.property_size_sqft, propertyTypeLabel]);
     const snapshotDetails = useMemo(() => [
         { label: 'Market', value: listingLabel },
@@ -249,6 +286,50 @@ const UserPropertyDetail = () => {
         { label: 'Availability', value: availableFromLabel },
         { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? `${property.currency || 'GBP'} ${property.deposit_amount.toLocaleString()}` : 'On request' },
     ], [availableFromLabel, conditionLabel, listingLabel, property?.currency, property?.deposit_amount]);
+    const heroMetaItems = [
+        { label: 'Condition', value: conditionLabel, icon: Sparkles },
+        { label: 'Availability', value: availableFromLabel, icon: Clock },
+        { label: 'Gallery', value: `${images.length} photo${images.length === 1 ? '' : 's'}`, icon: ImageIcon },
+    ];
+    const conciergeHighlights = [
+        { label: 'Response window', value: 'Under 5 minutes', icon: Clock },
+        { label: 'Private access', value: 'Message the broker directly', icon: MessageCircle },
+        { label: 'Tour booking', value: 'Reserve a slot in minutes', icon: CalendarDays },
+    ];
+    const detailHighlights = useMemo(() => [
+        { label: 'Listing status', value: property?.status ? formatDetailLabel(property.status) : 'Available' },
+        {
+            label: 'Furnishing',
+            value: typeof property?.furnished === 'boolean'
+                ? (property.furnished ? 'Furnished' : 'Unfurnished')
+                : 'Ask for details',
+        },
+        {
+            label: 'Parking',
+            value: typeof property?.parking_spaces === 'number'
+                ? `${property.parking_spaces} space${property.parking_spaces === 1 ? '' : 's'}`
+                : 'On request',
+        },
+        { label: 'Year built', value: property?.year_built ? `${property.year_built}` : 'Not listed' },
+        {
+            label: 'Maintenance',
+            value: typeof property?.maintenance_charges === 'number' && property.maintenance_charges > 0
+                ? `${property.currency || 'GBP'} ${property.maintenance_charges.toLocaleString()}`
+                : 'On request',
+        },
+        { label: 'Address', value: propertyAddress || locationLabel },
+    ], [
+        locationLabel,
+        property?.currency,
+        property?.furnished,
+        property?.maintenance_charges,
+        property?.parking_spaces,
+        property?.status,
+        property?.year_built,
+        propertyAddress,
+    ]);
+    const addressDetail = detailHighlights.find((item) => item.label === 'Address');
+    const primaryDetailHighlights = detailHighlights.filter((item) => item.label !== 'Address');
     const currentMonthStart = useMemo(() => {
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -258,10 +339,157 @@ const UserPropertyDetail = () => {
         [calendarMonth, minimumViewingDate],
     );
     const canGoToPreviousMonth = calendarMonth.getTime() > currentMonthStart.getTime();
+    const showPreviousImage = () => {
+        setSelectedImageIndex((previous) => (previous === 0 ? images.length - 1 : previous - 1));
+    };
+    const showNextImage = () => {
+        setSelectedImageIndex((previous) => (previous === images.length - 1 ? 0 : previous + 1));
+    };
+    const openGallery = (index = selectedImageIndex) => {
+        setSelectedImageIndex(index);
+        setIsGalleryOpen(true);
+    };
+    const reconcileFastTrackCaseContext = async (
+        fastTrackCase: FastTrackCase | null,
+        lead: Lead | null,
+    ): Promise<FastTrackCase | null> => {
+        if (!fastTrackCase || !lead) {
+            return fastTrackCase;
+        }
+
+        const nextLeadId = fastTrackCase.leadId || lead.id;
+        const nextManagerId = fastTrackCase.managerId || lead.broker_id || property?.manager_id;
+        const needsSync = nextLeadId !== fastTrackCase.leadId || nextManagerId !== fastTrackCase.managerId;
+
+        if (!needsSync) {
+            return fastTrackCase;
+        }
+
+        const { data, error: syncError } = await updateFastTrackCase(fastTrackCase.id, {
+            lead_id: nextLeadId,
+            manager_id: nextManagerId,
+        });
+
+        if (syncError || !data) {
+            return fastTrackCase;
+        }
+
+        return data;
+    };
+    const loadFastTrackWorkspace = async () => {
+        if (!property || !user) {
+            return {
+                lead: null,
+                fastTrackCase: null,
+                documents: [] as UserDocument[],
+            };
+        }
+
+        setIsFastTrackPanelLoading(true);
+        try {
+            const [leadsResult, casesResult, documentsResult] = await Promise.all([
+                getUserLeads(),
+                getFastTrackCases(),
+                getUserDocuments(),
+            ]);
+
+            if (leadsResult.error) {
+                throw new Error(leadsResult.error);
+            }
+
+            if (casesResult.error) {
+                throw new Error(casesResult.error);
+            }
+
+            const propertyLeads = (leadsResult.data || [])
+                .filter((lead) => lead.property_id === property.id)
+                .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
+            const propertyCases = (casesResult.data || [])
+                .filter((fastTrackCase) => fastTrackCase.propertyId === property.id)
+                .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
+            const workspaceDocuments = normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error);
+
+            const matchingLead = propertyLeads.find((lead) => isLeadActive(lead)) || propertyLeads[0] || null;
+            const matchingCase = propertyCases.find((fastTrackCase) => fastTrackCase.finalStatus === 'in_progress') || propertyCases[0] || null;
+            const reconciledCase = await reconcileFastTrackCaseContext(matchingCase, matchingLead);
+
+            setActiveLead(matchingLead);
+            setActiveFastTrackCase(reconciledCase);
+            setUserDocuments(workspaceDocuments);
+
+            return {
+                lead: matchingLead,
+                fastTrackCase: reconciledCase,
+                documents: workspaceDocuments,
+            };
+        } finally {
+            setIsFastTrackPanelLoading(false);
+        }
+    };
 
     useEffect(() => {
         setSelectedImageIndex(0);
     }, [images.length]);
+
+    useEffect(() => {
+        if (!isGalleryOpen && !isFastTrackModalOpen) {
+            return;
+        }
+
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = originalOverflow;
+        };
+    }, [isFastTrackModalOpen, isGalleryOpen]);
+
+    useEffect(() => {
+        if (!isGalleryOpen) {
+            return;
+        }
+
+        const handleGalleryKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsGalleryOpen(false);
+                return;
+            }
+
+            if (event.key === 'ArrowLeft' && images.length > 1) {
+                event.preventDefault();
+                showPreviousImage();
+            }
+
+            if (event.key === 'ArrowRight' && images.length > 1) {
+                event.preventDefault();
+                showNextImage();
+            }
+        };
+
+        window.addEventListener('keydown', handleGalleryKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', handleGalleryKeyDown);
+        };
+    }, [images.length, isGalleryOpen]);
+
+    useEffect(() => {
+        if (!isFastTrackModalOpen) {
+            return;
+        }
+
+        const handleFastTrackKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setIsFastTrackModalOpen(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleFastTrackKeyDown);
+
+        return () => {
+            window.removeEventListener('keydown', handleFastTrackKeyDown);
+        };
+    }, [isFastTrackModalOpen]);
 
     useEffect(() => {
         if (!viewingForm.requested_date) {
@@ -302,6 +530,38 @@ const UserPropertyDetail = () => {
         return false;
     };
 
+    const openFastTrackDashboard = () => {
+        if (activeFastTrackCase?.caseId) {
+            navigate(`/user/dashboard/fast-track?case=${activeFastTrackCase.caseId}`);
+            return;
+        }
+
+        navigate('/user/dashboard/fast-track');
+    };
+
+    const handleUploadFastTrackDocument = async (type: 'identity' | 'address', file: File) => {
+        if (!ensureAuthenticated()) {
+            return;
+        }
+
+        setUploadingFastTrackDocumentType(type);
+        try {
+            const result = await uploadDocument(type, file, {
+                leadId: activeLead?.id,
+            });
+            if (!result.success || result.error) {
+                throw new Error(result.error || 'Unable to upload the supporting file.');
+            }
+
+            toast.success(`${type === 'identity' ? 'Identity proof' : 'Address proof'} uploaded successfully.`);
+            await loadFastTrackWorkspace();
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to upload the supporting file.');
+        } finally {
+            setUploadingFastTrackDocumentType(null);
+        }
+    };
+
     const handleStartFastTrack = async () => {
         if (!property || !ensureAuthenticated()) {
             return;
@@ -309,13 +569,29 @@ const UserPropertyDetail = () => {
 
         setIsStartingFastTrack(true);
         try {
-            const leadResult = await createLead(property.id);
-            if (leadResult.error || !leadResult.data) {
-                throw new Error(leadResult.error || 'Unable to create the fast-track lead.');
+            const currentWorkspace = await loadFastTrackWorkspace();
+            const startAction = getFastTrackStartAction(currentWorkspace.lead, currentWorkspace.fastTrackCase);
+
+            if (startAction === 'resume_existing_case') {
+                setIsFastTrackModalOpen(true);
+                return;
+            }
+            let leadToUse = currentWorkspace.lead;
+            if (startAction === 'create_lead_and_case') {
+                const leadResult = await createLead(property.id);
+                if (leadResult.error || !leadResult.data) {
+                    throw new Error(leadResult.error || 'Unable to create the fast-track lead.');
+                }
+                leadToUse = leadResult.data;
+            }
+            if (!leadToUse) {
+                throw new Error('Unable to prepare the fast-track lead.');
             }
 
             const fastTrackResult = await createFastTrackCase({
                 property_id: property.id,
+                lead_id: leadToUse.id,
+                manager_id: leadToUse.broker_id,
                 client_id: user!.id,
                 client_name: displayName,
                 property_title: property.title,
@@ -325,9 +601,20 @@ const UserPropertyDetail = () => {
                 throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
             }
 
-            toast.success('Fast-track started. A broker will respond within 5 minutes.');
+            await loadFastTrackWorkspace();
+            setIsFastTrackModalOpen(true);
+            toast.success('Fast-track started. You can track the roadmap and upload supporting files here.');
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to start fast-track right now.');
+            const message = actionError?.message || 'Unable to start fast-track right now.';
+            const normalizedMessage = message.toLowerCase();
+
+            if (normalizedMessage.includes('active lead') || normalizedMessage.includes('active fast-track case')) {
+                await loadFastTrackWorkspace();
+                setIsFastTrackModalOpen(true);
+                toast.success('Your live fast-track journey is already active for this property.');
+            } else {
+                toast.error(message);
+            }
         } finally {
             setIsStartingFastTrack(false);
         }
@@ -436,11 +723,11 @@ const UserPropertyDetail = () => {
 
     return (
         <div className="relative mx-auto max-w-[1480px] px-4 py-8 pb-20">
-            <div className="pointer-events-none absolute inset-x-10 top-14 -z-10 h-72 rounded-full bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.18),transparent_62%)] blur-3xl" />
-            <div className="pointer-events-none absolute right-0 top-80 -z-10 h-64 w-64 rounded-full bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.08),transparent_68%)] blur-3xl" />
+            <div className="pointer-events-none absolute inset-x-10 top-12 -z-10 h-64 rounded-[3rem] bg-orange-50/90 blur-3xl dark:bg-orange-950/20" />
+            <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
             <button
                 onClick={() => navigate(-1)}
-                className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 mb-8 transition-colors group"
+                className="mb-8 flex items-center gap-2 text-gray-600 transition-colors group hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300"
             >
                 <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                 <span>Back</span>
@@ -448,18 +735,31 @@ const UserPropertyDetail = () => {
 
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.36fr)_minmax(420px,0.92fr)] xl:items-start">
                 <div className="min-w-0 space-y-8">
-                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_168px]">
-                        <div className="relative overflow-hidden rounded-[2.4rem] border border-stone-200/80 bg-white shadow-[0_32px_80px_-42px_rgba(15,23,42,0.32)] dark:border-zinc-800 dark:bg-zinc-900">
-                            <div className="aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-zinc-800 md:aspect-[16/10]">
+                    <div className="overflow-hidden rounded-[2.4rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-900">
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => openGallery()}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    openGallery();
+                                }
+                            }}
+                            className="relative cursor-zoom-in focus:outline-none"
+                            aria-label={`Open image gallery for ${property.title}`}
+                        >
+                            <div className="aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-zinc-800 md:aspect-[16/9]">
                                 <img
                                     src={coverImage}
                                     alt={property.title}
-                                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                                    className="h-full w-full object-cover transition-transform duration-700 hover:scale-[1.02]"
                                     onError={(event) => {
                                         event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                     }}
                                 />
                             </div>
+                            <div className="pointer-events-none absolute inset-0 bg-black/10" />
                             <div className="absolute left-5 top-5 flex flex-wrap gap-2">
                                 <span className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] shadow-lg ${
                                     property.listing_type === 'rent'
@@ -469,122 +769,200 @@ const UserPropertyDetail = () => {
                                     {listingLabel}
                                 </span>
                                 {property.is_verified && (
-                                    <span className="rounded-full border border-white/30 bg-white/20 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white backdrop-blur">
+                                    <span className="rounded-full border border-white/80 bg-white/88 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-gray-900 shadow-sm backdrop-blur">
                                         Verified listing
                                     </span>
                                 )}
+                            </div>
+                            <div className="absolute right-5 top-5 flex items-center gap-2">
+                                <div className="rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg backdrop-blur">
+                                    {selectedImageIndex + 1} / {images.length}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        openGallery();
+                                    }}
+                                    className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white"
+                                >
+                                    <ImageIcon size={15} className="text-orange-500" />
+                                    <span>Open gallery</span>
+                                </button>
                             </div>
                             {images.length > 1 && (
                                 <>
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedImageIndex((previous) => (previous === 0 ? images.length - 1 : previous - 1))}
-                                        className="absolute left-5 top-1/2 -translate-y-1/2 rounded-full bg-black/45 p-3 text-white transition hover:bg-black/60"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            showPreviousImage();
+                                        }}
+                                        className="absolute left-5 top-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-white/88 p-3 text-gray-900 shadow-lg transition hover:bg-white"
                                         aria-label="Show previous property image"
                                     >
                                         <ChevronLeft size={18} />
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedImageIndex((previous) => (previous === images.length - 1 ? 0 : previous + 1))}
-                                        className="absolute right-5 top-1/2 -translate-y-1/2 rounded-full bg-black/45 p-3 text-white transition hover:bg-black/60"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            showNextImage();
+                                        }}
+                                        className="absolute right-5 top-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-white/88 p-3 text-gray-900 shadow-lg transition hover:bg-white"
                                         aria-label="Show next property image"
                                     >
                                         <ChevronRight size={18} />
                                     </button>
                                 </>
                             )}
-                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 via-black/26 to-transparent px-6 pb-5 pt-24">
-                                <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-medium text-white/80">
-                                    <div className="flex flex-wrap gap-2">
-                                        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
-                                            {conditionLabel}
-                                        </span>
-                                        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
-                                            {availableFromLabel}
-                                        </span>
-                                    </div>
-                                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 backdrop-blur">
-                                        {images.length} photo{images.length === 1 ? '' : 's'}
-                                    </span>
-                                </div>
+                            <div className="absolute bottom-5 left-5 rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-medium text-gray-900 shadow-lg backdrop-blur">
+                                Tap the image for the immersive viewer
                             </div>
-                            <div className="border-t border-stone-200/80 bg-white px-6 py-5 dark:border-zinc-800 dark:bg-zinc-900">
-                                <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">Property gallery</p>
-                                        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white md:text-[2.35rem]">
-                                            {property.title}
-                                        </h1>
-                                        <div className="mt-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                                            <MapPin size={16} className="text-orange-500" />
-                                            <span className="truncate">{propertyAddress}</span>
-                                        </div>
+                        </div>
+                        <div className="border-t border-stone-200/80 bg-white px-6 py-6 dark:border-zinc-800 dark:bg-zinc-900">
+                            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
+                                <div className="min-w-0">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400">Property gallery</p>
+                                    <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight text-gray-900 md:text-[2.45rem] dark:text-white">
+                                        {property.title}
+                                    </h1>
+                                    <div className="mt-3 flex items-start gap-2 text-sm text-gray-500 dark:text-gray-400">
+                                        <MapPin size={16} className="mt-0.5 shrink-0 text-orange-500" />
+                                        <span>{propertyAddress || locationLabel}</span>
                                     </div>
-                                    <div className="rounded-[1.6rem] border border-stone-200 bg-stone-50 px-5 py-4 text-gray-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white">
+                                    <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
+                                        The image stays fully visible now, while the photo controls, title, and gallery details sit cleanly underneath for a calmer and more premium browsing flow.
+                                    </p>
+
+                                    {images.length > 1 ? (
+                                        <div className="mt-6">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Switch photos directly</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openGallery(selectedImageIndex)}
+                                                    className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                                                >
+                                                    <ImageIcon size={15} className="text-orange-500" />
+                                                    <span>View Full Gallery</span>
+                                                </button>
+                                            </div>
+                                            <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+                                                {images.map((image, index) => (
+                                                    <button
+                                                        key={`${image}-${index}`}
+                                                        type="button"
+                                                        onClick={() => setSelectedImageIndex(index)}
+                                                        className={`group relative h-28 w-32 shrink-0 overflow-hidden rounded-[1.45rem] border bg-white shadow-sm transition ${
+                                                            index === selectedImageIndex
+                                                                ? 'border-orange-400 ring-2 ring-orange-200 dark:ring-orange-900/40'
+                                                                : 'border-stone-200/70 hover:border-orange-300 dark:border-zinc-800'
+                                                        }`}
+                                                        aria-label={`Show property image ${index + 1}`}
+                                                    >
+                                                        <img
+                                                            src={image}
+                                                            alt={`${property.title} thumbnail ${index + 1}`}
+                                                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                                                            onError={(event) => {
+                                                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                            }}
+                                                        />
+                                                        <div className="absolute inset-x-0 bottom-0 bg-black/45 px-3 py-2 text-left text-xs font-semibold text-white">
+                                                            Photo {index + 1}
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200">
+                                            <ImageIcon size={15} className="text-orange-500" />
+                                            <span>1 curated photo available</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="rounded-[1.8rem] border border-stone-200/80 bg-[#faf7f2] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                                         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-400">Guide price</p>
-                                        <p className="mt-2 text-2xl font-semibold tracking-tight">
+                                        <p className="mt-3 text-[2rem] font-semibold tracking-tight text-gray-900 dark:text-white">
                                             {priceLabel}
                                             {property.listing_type === 'rent' && typeof property.price === 'number' && (
                                                 <span className="ml-1 text-sm font-medium text-gray-500 dark:text-gray-400">/month</span>
                                             )}
                                         </p>
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => openGallery(selectedImageIndex)}
+                                                className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+                                            >
+                                                <ImageIcon size={16} />
+                                                <span>Open immersive view</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleStartFastTrack}
+                                                disabled={isStartingFastTrack}
+                                                className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+                                            >
+                                                {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
+                                                <span>{isStartingFastTrack ? 'Checking status...' : '24-hour fast track'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                                        {heroMetaItems.map((item) => {
+                                            const Icon = item.icon;
+
+                                            return (
+                                                <div key={item.label} className="rounded-[1.35rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                                        <Icon size={13} className="text-orange-500" />
+                                                        <span>{item.label}</span>
+                                                    </div>
+                                                    <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
+                                        Tap the main photo to enter the full-screen gallery, use the thumbnails to switch instantly here on the page, and keep the decision cards below the image so the visual stays unobstructed.
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        {images.length > 1 && (
-                            <div className="grid grid-cols-3 gap-3 xl:grid-cols-1">
-                                {images.slice(0, 4).map((image, index) => (
-                                    <button
-                                        key={`${image}-${index}`}
-                                        type="button"
-                                        onClick={() => setSelectedImageIndex(index)}
-                                        className={`group relative overflow-hidden rounded-[1.6rem] border bg-white shadow-sm transition ${
-                                            index === selectedImageIndex
-                                                ? 'border-orange-400 ring-2 ring-orange-200 dark:ring-orange-900/40'
-                                                : 'border-stone-200/70 hover:border-orange-300 dark:border-zinc-800'
-                                        }`}
-                                        aria-label={`Show property image ${index + 1}`}
-                                    >
-                                        <img
-                                            src={image}
-                                            alt={`${property.title} thumbnail ${index + 1}`}
-                                            className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-[1.03] xl:h-[8.2rem]"
-                                            onError={(event) => {
-                                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                            }}
-                                        />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                        {heroStats.map((item, index) => (
-                            <div
-                                key={item.label}
-                                className={`rounded-[1.75rem] border border-stone-200/80 bg-white/90 px-5 py-5 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 ${
-                                    index === 3 ? 'xl:bg-stone-950 xl:text-white xl:border-stone-950 dark:xl:bg-white dark:xl:text-gray-900 dark:xl:border-white' : ''
-                                }`}
-                            >
-                                <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${
-                                    index === 3 ? 'text-white/60 dark:text-gray-500' : 'text-gray-400'
-                                }`}>
-                                    {item.label}
-                                </p>
-                                <p className={`mt-3 text-xl font-semibold tracking-tight ${
-                                    index === 3 ? 'text-white dark:text-gray-900' : 'text-gray-900 dark:text-white'
-                                }`}>
-                                    {item.value}
-                                </p>
-                            </div>
-                        ))}
+                        {heroStats.map((item) => {
+                            const Icon = item.icon;
+
+                            return (
+                                <div
+                                    key={item.label}
+                                    className="rounded-[1.8rem] border border-stone-200/80 bg-white/95 px-5 py-5 shadow-sm backdrop-blur transition-transform hover:-translate-y-0.5 dark:border-zinc-800 dark:bg-zinc-900/90"
+                                >
+                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${item.accentClass}`}>
+                                        <Icon size={18} />
+                                    </div>
+                                    <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
+                                        {item.label}
+                                    </p>
+                                    <p className="mt-2 text-xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                                        {item.value}
+                                    </p>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.06fr)_minmax(280px,0.94fr)]">
-                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-white/90 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 md:p-7">
+                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 md:p-7">
                             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Property overview</p>
@@ -592,8 +970,8 @@ const UserPropertyDetail = () => {
                                         Thoughtfully presented for faster decisions
                                     </h2>
                                 </div>
-                                <div className="rounded-[1.4rem] bg-orange-50 px-4 py-3 text-sm font-medium text-orange-700 dark:bg-orange-950/30 dark:text-orange-200">
-                                    {property.city}, {property.country}
+                                <div className="rounded-[1.4rem] border border-orange-100 bg-orange-50 px-4 py-3 text-sm font-medium text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-200">
+                                    {locationLabel}
                                 </div>
                             </div>
                             <p className="mt-5 text-[15px] leading-7 text-gray-600 dark:text-gray-300">
@@ -613,44 +991,104 @@ const UserPropertyDetail = () => {
                             )}
                         </section>
 
-                        <section className="rounded-[2.1rem] bg-[linear-gradient(180deg,#171717_0%,#0f0f0f_100%)] p-6 text-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.75)] dark:border dark:border-zinc-800 md:p-7">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/50">Viewing snapshot</p>
-                            <h3 className="mt-3 text-2xl font-semibold tracking-tight">
-                                Everything important is surfaced before you book.
+                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-[#f6f1e8] p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:p-7">
+                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing snapshot</p>
+                            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                                Everything important is visible at a glance.
                             </h3>
-                            <div className="mt-6 grid gap-3">
+                            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                Pricing, condition, availability, and booking readiness are grouped together so users can move from interest to action without friction.
+                            </p>
+                            <div className="mt-6 grid gap-3 sm:grid-cols-2">
                                 {snapshotDetails.map((item) => (
                                     <div
                                         key={item.label}
-                                        className="rounded-[1.35rem] border border-white/10 bg-white/5 px-4 py-3.5 backdrop-blur"
+                                        className="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
                                     >
-                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">{item.label}</p>
-                                        <p className="mt-2 text-sm font-medium text-white">{item.value}</p>
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">{item.label}</p>
+                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{item.value}</p>
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/5 p-4 text-sm leading-6 text-white/70 backdrop-blur">
-                                The layout is tuned for quick comparison: gallery first, decision data second, and booking actions kept in a dedicated rail.
+                            <div className="mt-6 rounded-[1.5rem] border border-orange-100 bg-white p-4 text-sm leading-6 text-gray-600 shadow-sm dark:border-orange-900/30 dark:bg-zinc-950 dark:text-gray-300">
+                                The page keeps the gallery, decision data, and booking actions in a natural reading flow, which helps users stay engaged longer and act sooner.
                             </div>
                         </section>
+                    </div>
+
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)] lg:items-start">
+                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-[#fcfaf6] p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:p-7">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Property details</p>
+                                    <h3 className="mt-3 max-w-[28rem] text-[1.9rem] font-semibold leading-tight tracking-tight text-gray-900 dark:text-white">
+                                        Practical facts before you enquire
+                                    </h3>
+                                </div>
+                                <div className="w-fit rounded-[1.4rem] border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200">
+                                    {property.agent_company || 'Managed listing'}
+                                </div>
+                            </div>
+                            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                {primaryDetailHighlights.map((item) => (
+                                    <div
+                                        key={item.label}
+                                        className="flex min-h-[8.5rem] flex-col justify-between rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+                                    >
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">{item.label}</p>
+                                        <p className="mt-4 text-base font-semibold leading-7 text-gray-900 dark:text-white">{item.value}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            {addressDetail && (
+                                <div className="mt-3 rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">{addressDetail.label}</p>
+                                    <p className="mt-3 max-w-[36rem] text-base font-semibold leading-8 text-gray-900 dark:text-white">
+                                        {addressDetail.value}
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+
+                        <PropertyContactInfo property={property as any} />
                     </div>
                 </div>
 
                 <div className="min-w-0 space-y-6 xl:sticky xl:top-8">
-                    <div className="overflow-hidden rounded-[2.2rem] border border-stone-200/80 bg-white/92 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.38)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92 md:p-7">
-                        <div className="rounded-[1.8rem] bg-[linear-gradient(135deg,#111827_0%,#1f2937_48%,#fb923c_180%)] p-5 text-white">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/55">Viewing concierge</p>
-                            <h3 className="mt-3 text-2xl font-semibold tracking-tight">Interested in this property?</h3>
-                            <p className="mt-2 text-sm leading-6 text-white/75">
+                    <div className="overflow-hidden rounded-[2.2rem] border border-stone-200/80 bg-white/95 p-6 shadow-[0_24px_70px_-40px_rgba(15,23,42,0.32)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/92 md:p-7">
+                        <div className="rounded-[1.8rem] border border-stone-200/80 bg-[#f8f3eb] p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Viewing concierge</p>
+                            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Interested in this property?</h3>
+                            <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
                                 Start fast-track, open a direct chat, or send a polished viewing request without leaving the page.
                             </p>
+                            <div className="mt-5 grid gap-2.5">
+                                {conciergeHighlights.map((item) => {
+                                    const Icon = item.icon;
+
+                                    return (
+                                        <div
+                                            key={item.label}
+                                            className="flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                                        >
+                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-200">
+                                                <Icon size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">{item.label}</p>
+                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         <div className="mt-5 grid gap-3">
                             <button
                                 onClick={handleStartFastTrack}
                                 disabled={isStartingFastTrack}
-                                className="w-full rounded-[1.35rem] bg-gray-950 py-4 text-white font-semibold transition hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                                className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isStartingFastTrack ? 'Starting Fast-Track...' : 'Start 24-Hour Fast Track'}
                             </button>
@@ -663,8 +1101,11 @@ const UserPropertyDetail = () => {
                                 {isCreatingConversation ? 'Opening Messages...' : 'Open Message Thread'}
                             </button>
                         </div>
+                        <div className="mt-4 rounded-[1.35rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
+                            Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
+                        </div>
 
-                        <form onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,#fffdf9_0%,#fff9f1_100%)] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.32)] dark:border-zinc-800 dark:bg-[linear-gradient(180deg,#151515_0%,#0b0b0b_100%)]">
+                        <form onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
                             <div className="border-b border-stone-200/80 px-5 py-5 dark:border-zinc-800 md:px-6 md:py-6">
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
@@ -820,7 +1261,7 @@ const UserPropertyDetail = () => {
                                     <button
                                         type="submit"
                                         disabled={isSchedulingViewing}
-                                        className="flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-gray-950 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                                        className="flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-orange-500 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {isSchedulingViewing && <Loader2 size={15} className="animate-spin" />}
                                         {isSchedulingViewing ? 'Scheduling...' : 'Request Viewing Appointment'}
@@ -830,8 +1271,8 @@ const UserPropertyDetail = () => {
                         </form>
 
                         <div className="mt-8 border-t border-stone-200/80 pt-7 dark:border-zinc-800">
-                            <div className="flex items-center gap-4 rounded-[1.4rem] border border-stone-200/80 bg-stone-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-200 text-gray-500 font-bold dark:bg-zinc-800 dark:text-gray-300">
+                            <div className="flex items-center gap-4 rounded-[1.4rem] border border-stone-200/80 bg-stone-50 px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 font-bold text-orange-700 dark:bg-orange-950/40 dark:text-orange-200">
                                     {property.agent_name?.charAt(0) || 'B'}
                                 </div>
                                 <div>
@@ -848,9 +1289,120 @@ const UserPropertyDetail = () => {
                         </div>
                     </div>
 
-                    <PropertyContactInfo property={property as any} />
                 </div>
             </div>
+
+            <PropertyFastTrackModal
+                open={isFastTrackModalOpen}
+                propertyTitle={property.title}
+                propertyAddress={propertyAddress || locationLabel}
+                lead={activeLead}
+                fastTrackCase={activeFastTrackCase}
+                userDocuments={userDocuments}
+                isRefreshing={isFastTrackPanelLoading}
+                uploadingType={uploadingFastTrackDocumentType}
+                onClose={() => setIsFastTrackModalOpen(false)}
+                onUploadDocument={handleUploadFastTrackDocument}
+                onOpenDashboard={openFastTrackDashboard}
+                onOpenMessages={handleOpenConversation}
+            />
+
+            {isGalleryOpen && (
+                <div
+                    className="fixed inset-0 z-[140] bg-[rgba(15,23,42,0.96)] px-4 py-5 backdrop-blur-md sm:px-6"
+                    onClick={() => setIsGalleryOpen(false)}
+                >
+                    <div
+                        className="mx-auto flex h-full max-w-[1400px] flex-col"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/5 px-5 py-4 text-white backdrop-blur">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Property gallery</p>
+                                <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[2rem]">{property.title}</h2>
+                                <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
+                                    <MapPin size={15} className="text-orange-400" />
+                                    <span className="truncate">{propertyAddress || locationLabel}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/85">
+                                    {selectedImageIndex + 1} / {images.length}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsGalleryOpen(false)}
+                                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/15"
+                                    aria-label="Close property gallery"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 bg-black/30 px-4 py-6">
+                            {images.length > 1 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={showPreviousImage}
+                                        className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15"
+                                        aria-label="Show previous property image"
+                                    >
+                                        <ChevronLeft size={18} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={showNextImage}
+                                        className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15"
+                                        aria-label="Show next property image"
+                                    >
+                                        <ChevronRight size={18} />
+                                    </button>
+                                </>
+                            )}
+
+                            <img
+                                src={coverImage}
+                                alt={`${property.title} full view ${selectedImageIndex + 1}`}
+                                className="max-h-full w-full rounded-[1.5rem] object-contain"
+                                onError={(event) => {
+                                    event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                }}
+                            />
+                        </div>
+
+                        {images.length > 1 && (
+                            <div className="mt-4 overflow-x-auto rounded-[1.5rem] border border-white/10 bg-white/5 p-3 backdrop-blur">
+                                <div className="flex gap-3">
+                                    {images.map((image, index) => (
+                                        <button
+                                            key={`${image}-${index}-fullscreen`}
+                                            type="button"
+                                            onClick={() => setSelectedImageIndex(index)}
+                                            className={`group relative h-24 w-28 shrink-0 overflow-hidden rounded-[1.1rem] border transition ${
+                                                index === selectedImageIndex
+                                                    ? 'border-orange-400 ring-2 ring-orange-300/40'
+                                                    : 'border-white/10 hover:border-white/30'
+                                            }`}
+                                            aria-label={`Show fullscreen image ${index + 1}`}
+                                        >
+                                            <img
+                                                src={image}
+                                                alt={`${property.title} fullscreen thumbnail ${index + 1}`}
+                                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                                onError={(event) => {
+                                                    event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                }}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

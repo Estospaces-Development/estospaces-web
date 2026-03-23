@@ -369,6 +369,7 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
 export const uploadDocument = async (
     type: string,
     file: File,
+    options: { leadId?: string } = {},
 ): Promise<{ success: boolean; data: UserDocument | null; error: string | null }> => {
     try {
         const mapping = DOCUMENT_UPLOAD_TYPES[type];
@@ -387,6 +388,7 @@ export const uploadDocument = async (
                 file_url: uploadedFile.file_url,
                 file_size: file.size,
                 mime_type: file.type,
+                lead_id: options.leadId || '',
             }),
         });
         return { success: true, data, error: null };

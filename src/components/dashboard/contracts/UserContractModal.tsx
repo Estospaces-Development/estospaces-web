@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle, PenTool, Download } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
-import { Contract, signContract } from '@/services/contractsService';
+import { signContract } from '@/services/contractsService';
+import { type Contract } from '@/types/booking';
 
 interface UserContractModalProps {
     contract: Contract;

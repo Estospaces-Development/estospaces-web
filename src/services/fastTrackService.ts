@@ -14,15 +14,16 @@ export type PropertyType = 'rent' | 'lease' | 'buy';
 export type DocStatus = 'pending' | 'verified';
 
 export interface FastTrackDocuments {
-    idProof: DocStatus;
-    incomeProof: DocStatus;
-    propertyDocs: DocStatus;
+    identityProof: DocStatus;
+    addressProof: DocStatus;
 }
 
 // Backend Model structure
 interface BackendFastTrackCase {
     id: string;
     property_id: string;
+    lead_id?: string;
+    manager_id?: string;
     client_id: string;
     client_name: string;
     property_title: string;
@@ -41,31 +42,57 @@ export interface FastTrackCase {
     propertyTitle: string;
     propertyType: PropertyType;
     clientName: string;
+    clientId: string;
+    propertyId: string;
+    leadId?: string;
+    managerId?: string;
     submittedAt: string;
     hoursRemaining: number;
     currentStep: FastTrackStep;
     documents: FastTrackDocuments;
-    finalStatus: 'in_progress' | 'completed' | 'expired';
+    finalStatus: 'in_progress' | 'completed' | 'expired' | 'rejected';
     // extra fields to preserve ID
     id: string;
 }
+
+const normalizeDocStatus = (value: unknown): DocStatus => {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'verified' || normalized === 'approved') {
+            return 'verified';
+        }
+    }
+
+    return 'pending';
+};
+
+const normalizeDocuments = (documents: FastTrackDocuments | Record<string, unknown> | null | undefined): FastTrackDocuments => ({
+    identityProof: normalizeDocStatus((documents as any)?.identityProof ?? (documents as any)?.idProof),
+    addressProof: normalizeDocStatus((documents as any)?.addressProof ?? (documents as any)?.propertyDocs),
+});
 
 // Mapper function
 const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => ({
     caseId: apiCase.id,
     id: apiCase.id,
+    propertyId: apiCase.property_id,
+    leadId: apiCase.lead_id,
+    managerId: apiCase.manager_id,
+    clientId: apiCase.client_id,
     propertyTitle: apiCase.property_title,
     propertyType: apiCase.property_type,
     clientName: apiCase.client_name,
     submittedAt: apiCase.submitted_at,
     hoursRemaining: apiCase.hours_remaining,
     currentStep: apiCase.current_step,
-    documents: apiCase.documents,
-    finalStatus: apiCase.final_status === 'rejected' ? 'expired' : apiCase.final_status // mapping rejected to expired if UI doesn't support rejected yet
+    documents: normalizeDocuments(apiCase.documents),
+    finalStatus: apiCase.final_status,
 });
 
 export interface CreateFastTrackRequest {
     property_id: string;
+    lead_id?: string;
+    manager_id?: string;
     client_id: string;
     client_name: string;
     property_title: string;
@@ -75,6 +102,8 @@ export interface CreateFastTrackRequest {
 export interface UpdateFastTrackRequest {
     current_step?: string;
     final_status?: string;
+    lead_id?: string;
+    manager_id?: string;
     documents?: FastTrackDocuments;
 }
 

@@ -26,7 +26,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApplications, APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
 import StatusTracker from './StatusTracker';
 import UserContractModal from '@/components/dashboard/contracts/UserContractModal';
-import { getUserContracts, Contract } from '@/services/contractsService';
+import { getUserContracts } from '@/services/contractsService';
+import { type Contract } from '@/types/booking';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface ActivityItem {

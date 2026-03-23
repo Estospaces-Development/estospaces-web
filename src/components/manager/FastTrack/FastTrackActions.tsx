@@ -46,13 +46,13 @@ const FastTrackActions: React.FC<FastTrackActionsProps> = ({ currentStep, onAdva
                 };
             case 'legal_check':
                 return {
-                    label: 'Confirm Payment Ready',
+                    label: 'Confirm Final Readiness',
                     icon: CreditCard,
                     disabled: false
                 };
             case 'payment_ready':
                 return {
-                    label: 'Mark Deal Ready',
+                    label: 'Mark Case Complete',
                     icon: CheckCircle,
                     disabled: false
                 };

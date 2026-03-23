@@ -11,7 +11,8 @@ import {
     ChevronLeft,
     ChevronRight,
     MessageSquare,
-    Activity
+    Activity,
+    Star
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -56,6 +57,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
         { icon: Building2, label: 'Properties', path: '/admin/properties' },
         { icon: MessageSquare, label: 'Support Chat', path: '/admin/chat' },
+        { icon: Star, label: 'Reviews', path: '/admin/reviews' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 

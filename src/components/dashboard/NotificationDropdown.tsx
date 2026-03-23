@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info, Shield } from 'lucide-react';
+import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info, Shield, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
@@ -71,6 +71,10 @@ const NotificationDropdown = () => {
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
                 return <FileText size={18} className="text-purple-500" />;
+            case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+            case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+                return <Zap size={18} className="text-orange-500" />;
             case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
             case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
             case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:

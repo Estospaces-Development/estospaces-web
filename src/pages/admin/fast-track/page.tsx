@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
 import FastTrackCaseCard from '@/components/manager/FastTrack/FastTrackCaseCard';
 import FastTrackCaseDetail from '@/components/manager/FastTrack/FastTrackCaseDetail';
@@ -19,26 +19,50 @@ const AdminFastTrackDashboard = () => {
         visible: false
     });
 
-    const fetchCases = async () => {
-        setLoading(true);
+    const fetchCases = useCallback(async (silent: boolean = false) => {
+        if (!silent) {
+            setLoading(true);
+            setError(null);
+        }
+
         const { data, error } = await getFastTrackCases();
         if (data) {
             setCases(data);
+            setError(null);
             if (selectedCaseId) {
                 const updatedSelected = data.find(c => c.caseId === selectedCaseId);
                 if (!updatedSelected && selectedCaseId) {
                     setSelectedCaseId(null);
                 }
             }
-        } else {
+        } else if (!silent) {
             setError(error || 'Failed to fetch cases');
         }
-        setLoading(false);
-    };
+
+        if (!silent) {
+            setLoading(false);
+        }
+    }, [selectedCaseId]);
 
     useEffect(() => {
-        fetchCases();
-    }, []);
+        void fetchCases();
+    }, [fetchCases]);
+
+    useEffect(() => {
+        const refreshCases = () => {
+            void fetchCases(true);
+        };
+
+        const interval = window.setInterval(refreshCases, 5000);
+        window.addEventListener('focus', refreshCases);
+        document.addEventListener('visibilitychange', refreshCases);
+
+        return () => {
+            window.clearInterval(interval);
+            window.removeEventListener('focus', refreshCases);
+            document.removeEventListener('visibilitychange', refreshCases);
+        };
+    }, [fetchCases]);
 
     const handleUpdateCase = async (updatedCase: FastTrackCase) => {
         setCases(prev => prev.map(c => c.caseId === updatedCase.caseId ? updatedCase : c));
@@ -51,7 +75,7 @@ const AdminFastTrackDashboard = () => {
 
         if (error) {
             setToast({ message: 'Failed to update case', type: 'error', visible: true });
-            fetchCases();
+            void fetchCases();
         } else {
             setToast({ message: 'Case updated successfully', type: 'success', visible: true });
         }
@@ -65,7 +89,7 @@ const AdminFastTrackDashboard = () => {
         return {
             active: cases.filter(c => c.finalStatus === 'in_progress').length,
             completedToday: cases.filter(c => c.finalStatus === 'completed').length,
-            expired: cases.filter(c => c.finalStatus === 'expired').length
+            attention: cases.filter(c => c.finalStatus === 'expired' || c.finalStatus === 'rejected').length
         };
     }, [cases]);
 
@@ -125,8 +149,8 @@ const AdminFastTrackDashboard = () => {
 
                     <div className="bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                         <div>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expired / Delayed</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.expired}</p>
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Needs Attention</p>
+                            <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{stats.attention}</p>
                         </div>
                         <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                             <AlertOctagon className="w-6 h-6 text-red-600 dark:text-red-400" />

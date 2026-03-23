@@ -74,7 +74,6 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
         // { icon: Users, label: 'Brokers Community', path: '/manager/community' }, // Commented out — empty state, no manager content yet
         { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
         { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
-        { icon: Shield, label: 'User Verification', path: '/manager/user-verifications' },
         { icon: FileText, label: 'Applications', path: '/manager/applications' },
         { icon: FileText, label: 'Contracts', path: '/manager/contracts' },
         { icon: Calendar, label: 'Appointments', path: '/manager/appointments' },
