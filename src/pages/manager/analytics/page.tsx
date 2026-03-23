@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Filter, Download } from 'lucide-react';
+import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Filter, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 import BarChart from '@/components/ui/BarChart';
 import PieChart from '@/components/ui/PieChart';
 import LineChart from '@/components/ui/LineChart';
@@ -143,6 +143,93 @@ const Analytics = () => {
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{metric.label}</p>
                     </div>
                 ))}
+            </div>
+
+            {/* SLA & Response Performance */}
+            <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">SLA & Response Performance</h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">10-minute broker response compliance</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+                        <Zap size={14} className="text-orange-500" />
+                        Live Metrics
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* SLA Compliance */}
+                    <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-100 dark:border-emerald-800/40 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl">
+                                <CheckCircle2 size={20} className="text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">SLA Compliance</span>
+                        </div>
+                        <p className="text-4xl font-black text-emerald-700 dark:text-emerald-400">
+                            {(analyticsData?.sla_success_rate ?? 0).toFixed(1)}%
+                        </p>
+                        <div className="mt-4 h-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
+                                style={{ width: `${Math.min(analyticsData?.sla_success_rate ?? 0, 100)}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-2">Responses within 10 mins</p>
+                    </div>
+                    {/* Avg Response Time */}
+                    <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-sky-50 dark:from-blue-900/20 dark:to-sky-900/20 border border-blue-100 dark:border-blue-800/40 p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2.5 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl">
+                                <Clock size={20} className="text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Avg Response</span>
+                        </div>
+                        <p className="text-4xl font-black text-blue-700 dark:text-blue-400">
+                            {analyticsData?.avg_response_time
+                                ? `${Math.floor(analyticsData.avg_response_time / 60)}m ${Math.round(analyticsData.avg_response_time % 60)}s`
+                                : '—'}
+                        </p>
+                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-6">Average across all leads</p>
+                    </div>
+                    {/* SLA Status */}
+                    <div className={`rounded-2xl border p-6 ${
+                        (analyticsData?.sla_success_rate ?? 0) >= 80
+                            ? 'bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-orange-100 dark:border-orange-800/40'
+                            : 'bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 border-red-100 dark:border-red-800/40'
+                    }`}>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className={`p-2.5 rounded-xl ${
+                                (analyticsData?.sla_success_rate ?? 0) >= 80
+                                    ? 'bg-orange-500/10 dark:bg-orange-500/20'
+                                    : 'bg-red-500/10 dark:bg-red-500/20'
+                            }`}>
+                                {(analyticsData?.sla_success_rate ?? 0) >= 80
+                                    ? <Zap size={20} className="text-orange-600 dark:text-orange-400" />
+                                    : <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />}
+                            </div>
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Status</span>
+                        </div>
+                        <p className={`text-2xl font-black ${
+                            (analyticsData?.sla_success_rate ?? 0) >= 80
+                                ? 'text-orange-700 dark:text-orange-400'
+                                : 'text-red-700 dark:text-red-400'
+                        }`}>
+                            {!analyticsData ? 'Loading...'
+                                : (analyticsData.sla_success_rate ?? 0) >= 80 ? 'On Track'
+                                : 'Needs Attention'}
+                        </p>
+                        <p className={`text-xs font-medium mt-6 ${
+                            (analyticsData?.sla_success_rate ?? 0) >= 80
+                                ? 'text-orange-600 dark:text-orange-400'
+                                : 'text-red-600 dark:text-red-400'
+                        }`}>
+                            {(analyticsData?.sla_success_rate ?? 0) >= 80
+                                ? 'Above 80% compliance target'
+                                : 'Below 80% — respond faster to leads'}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             {/* Monthly Revenue Trend */}
