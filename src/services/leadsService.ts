@@ -4,9 +4,11 @@
  */
 
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 export interface LeadBrokerSummary {
     id: string;
@@ -302,18 +304,23 @@ export const createBrokerRequest = async (requestData: {
     }
 };
 
-export const getUserBrokerRequests = async (): Promise<{ data: BrokerRequestRecord[] | null; error: string | null }> => {
+export const getUserBrokerRequests = async (
+    options: ServiceRequestOptions = {},
+): Promise<{ data: BrokerRequestRecord[] | null; error: string | null }> => {
     try {
-        const data = await apiFetch<BrokerRequestRecord[]>(`${CORE_URL()}/api/v1/leads/broker-request/mine`);
+        const data = await apiFetch<BrokerRequestRecord[]>(`${CORE_URL()}/api/v1/leads/broker-request/mine`, options);
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
 };
 
-export const getBrokerRequestById = async (requestId: string): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
+export const getBrokerRequestById = async (
+    requestId: string,
+    options: ServiceRequestOptions = {},
+): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
     try {
-        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}`);
+        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}`, options);
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
@@ -374,7 +381,7 @@ export const getNearbyAvailableBrokers = async (params: {
     longitude?: number | null;
     fastTrack?: boolean;
     limit?: number;
-}): Promise<{ data: LeadBrokerSummary[] | null; error: string | null }> => {
+}, options: ServiceRequestOptions = {}): Promise<{ data: LeadBrokerSummary[] | null; error: string | null }> => {
     try {
         const url = new URL(`${CORE_URL()}/api/v1/leads/nearby-brokers`);
         if (params.postcode) url.searchParams.set('postcode', params.postcode);
@@ -383,7 +390,7 @@ export const getNearbyAvailableBrokers = async (params: {
         if (typeof params.fastTrack === 'boolean') url.searchParams.set('fast_track', String(params.fastTrack));
         if (typeof params.limit === 'number') url.searchParams.set('limit', String(params.limit));
 
-        const data = await apiFetch<LeadBrokerSummary[]>(url.toString());
+        const data = await apiFetch<LeadBrokerSummary[]>(url.toString(), options);
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };

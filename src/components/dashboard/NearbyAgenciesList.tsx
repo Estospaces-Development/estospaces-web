@@ -16,7 +16,7 @@ const NearbyAgenciesList = () => {
         let cancelled = false;
 
         const loadActiveRequest = async () => {
-            const { data } = await getUserBrokerRequests();
+            const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
             if (cancelled || !data) {
                 return;
             }
@@ -44,7 +44,7 @@ const NearbyAgenciesList = () => {
                     postcode: activeRequest?.location_postcode,
                     fastTrack: true,
                     limit: 5,
-                });
+                }, { suppressErrorToast: true });
 
                 if (error) {
                     throw new Error(error);

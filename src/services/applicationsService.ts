@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -53,14 +54,17 @@ export interface ApplicationResponse {
     error: string | null;
 }
 
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
+
 /**
  * Fetch applications for the logged-in user
  * GET /api/v1/applications (booking-service)
  */
-export const getApplications = async (): Promise<ApplicationsResponse> => {
+export const getApplications = async (options: ServiceRequestOptions = {}): Promise<ApplicationsResponse> => {
     try {
         const data = await apiFetch<Application[]>(
             `${BOOKING_URL()}/api/v1/applications`,
+            options,
         );
         return { data, error: null };
     } catch (error: any) {

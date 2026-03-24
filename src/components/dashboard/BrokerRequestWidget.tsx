@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
     ArrowRight,
@@ -32,12 +32,12 @@ import {
 } from '@/lib/brokerDispatchPresentation';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 
-const secondsUntilDeadline = (deadline?: string) => {
+const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
     if (!deadline) {
         return 0;
     }
 
-    return Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 1000));
+    return Math.max(0, Math.ceil((new Date(deadline).getTime() - now) / 1000));
 };
 
 const formatCountdown = (seconds: number) => {
@@ -63,8 +63,11 @@ const formatAcceptedAt = (value?: string) => {
     });
 };
 
+const TOTAL_DISPATCH_SECONDS = 10 * 60;
+
 const BrokerRequestWidget = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [requestType, setRequestType] = useState('buy');
     const [details, setDetails] = useState('');
     const [location, setLocation] = useState('');
@@ -76,12 +79,56 @@ const BrokerRequestWidget = () => {
     const [nearbyBrokers, setNearbyBrokers] = useState<LeadBrokerSummary[]>([]);
     const [isRankingLoading, setIsRankingLoading] = useState(false);
     const [activeRequest, setActiveRequest] = useState<BrokerRequestRecord | null>(null);
+    const [clockNow, setClockNow] = useState(() => Date.now());
+    const [workspacePulse, setWorkspacePulse] = useState(false);
+    const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
+    const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
+        ? searchParams.get('request')?.trim() || null
+        : null;
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setClockNow(Date.now());
+        }, 1000);
+
+        return () => window.clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        if (!workspacePulse) {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setWorkspacePulse(false);
+        }, 1400);
+
+        return () => window.clearTimeout(timeout);
+    }, [workspacePulse]);
 
     useEffect(() => {
         let cancelled = false;
 
         const loadActiveRequest = async () => {
-            const { data } = await getUserBrokerRequests();
+            if (requestedWorkspaceRequestId) {
+                const { data } = await getBrokerRequestById(requestedWorkspaceRequestId, { suppressErrorToast: true });
+                if (cancelled) {
+                    return;
+                }
+
+                if (data) {
+                    setActiveRequest(data);
+                    setRequestType(data.request_type || 'buy');
+                    setLocationPostcode(data.location_postcode || '');
+                    setLocation(data.location || '');
+                    setBudget(data.budget || '');
+                    setDetails(data.details || '');
+                    setFastTrackEnabled(data.fast_track_enabled !== false);
+                    return;
+                }
+            }
+
+            const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
             if (cancelled || !data || data.length === 0) {
                 return;
             }
@@ -101,7 +148,7 @@ const BrokerRequestWidget = () => {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [requestedWorkspaceRequestId]);
 
     useEffect(() => {
         const trimmedPostcode = locationPostcode.trim();
@@ -118,10 +165,14 @@ const BrokerRequestWidget = () => {
                     postcode: trimmedPostcode,
                     fastTrack: fastTrackEnabled,
                     limit: 5,
-                });
+                }, { suppressErrorToast: true });
 
                 if (!cancelled) {
                     setNearbyBrokers(data || []);
+                }
+            } catch {
+                if (!cancelled) {
+                    setNearbyBrokers([]);
                 }
             } finally {
                 if (!cancelled) {
@@ -147,7 +198,7 @@ const BrokerRequestWidget = () => {
         }
 
         const interval = window.setInterval(async () => {
-            const { data } = await getBrokerRequestById(activeRequest.id);
+            const { data } = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
             if (data) {
                 setActiveRequest(data);
             }
@@ -161,27 +212,31 @@ const BrokerRequestWidget = () => {
             return;
         }
 
-        const { data } = await getBrokerRequestById(activeRequest.id);
+        const { data } = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
         if (data) {
             setActiveRequest(data);
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        const requestIsActive = Boolean(
-            activeRequest &&
-            activeRequest.dispatch_status !== 'broker_matched' &&
-            activeRequest.dispatch_status !== 'expired' &&
-            activeRequest.status !== 'matched' &&
-            activeRequest.status !== 'expired',
-        );
-
-        if (requestIsActive) {
-            await refreshActiveRequest();
+    const openBrokerWorkspace = () => {
+        if (!activeRequest?.id) {
             return;
         }
+
+        if (requestedWorkspaceRequestId === activeRequest.id) {
+            setWorkspacePulse(true);
+            workspaceContainerRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+            return;
+        }
+
+        navigate(buildBrokerRequestWorkspacePath(activeRequest.id));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
         setLoading(true);
         setError(null);
@@ -210,7 +265,7 @@ const BrokerRequestWidget = () => {
         }
     };
 
-    const activeRequestSeconds = secondsUntilDeadline(activeRequest?.response_deadline_at);
+    const activeRequestSeconds = secondsUntilDeadline(activeRequest?.response_deadline_at, clockNow);
     const requestIsMatched = activeRequest?.dispatch_status === 'broker_matched' || activeRequest?.status === 'matched';
     const requestIsExpired = activeRequest?.dispatch_status === 'expired' || activeRequest?.status === 'expired';
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
@@ -222,6 +277,50 @@ const BrokerRequestWidget = () => {
         : requestIsExpired
             ? 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
             : 'border-orange-100 bg-orange-50/70 dark:border-orange-900/30 dark:bg-orange-950/20';
+    const dispatchProgressPercent = requestIsMatched
+        ? 100
+        : requestIsActive
+            ? Math.max(0, Math.min(100, (activeRequestSeconds / TOTAL_DISPATCH_SECONDS) * 100))
+            : 0;
+    const countdownTone = requestIsMatched
+        ? {
+            pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
+            dot: 'bg-emerald-500',
+            caption: 'Broker matched',
+            eyebrow: 'Accepted',
+            progress: 'bg-emerald-500',
+        }
+        : requestIsExpired
+            ? {
+                pill: 'border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-300',
+                dot: 'bg-gray-400',
+                caption: 'Window finished',
+                eyebrow: 'Closed',
+                progress: 'bg-gray-400',
+            }
+            : activeRequestSeconds <= 120
+                ? {
+                    pill: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300',
+                    dot: 'bg-red-500',
+                    caption: 'Final sprint',
+                    eyebrow: 'Live now',
+                    progress: 'bg-gradient-to-r from-red-500 via-orange-500 to-red-400',
+                }
+                : activeRequestSeconds <= 300
+                    ? {
+                        pill: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
+                        dot: 'bg-amber-500',
+                        caption: 'Responses expected',
+                        eyebrow: 'Live now',
+                        progress: 'bg-gradient-to-r from-amber-500 via-orange-500 to-orange-400',
+                    }
+                    : {
+                        pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
+                        dot: 'bg-emerald-500',
+                        caption: 'Broadcasting now',
+                        eyebrow: 'Live now',
+                        progress: 'bg-gradient-to-r from-emerald-500 via-orange-500 to-orange-400',
+                    };
 
     return (
         <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
@@ -236,7 +335,12 @@ const BrokerRequestWidget = () => {
             </div>
 
             {activeRequest && (
-                <div className={`mb-6 rounded-2xl border p-4 ${workspaceTone}`}>
+                <div
+                    ref={workspaceContainerRef}
+                    className={`mb-6 rounded-2xl border p-4 transition-all duration-300 ${workspaceTone} ${
+                        workspacePulse ? 'ring-2 ring-orange-300 shadow-lg shadow-orange-500/15' : ''
+                    }`}
+                >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">Live dispatch workspace</p>
@@ -247,11 +351,46 @@ const BrokerRequestWidget = () => {
                                 {dispatchWorkspaceSummary.subtitle}
                             </p>
                         </div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300">
-                            <Timer size={13} />
-                            {requestIsMatched ? 'Accepted' : requestIsExpired ? 'Closed' : formatCountdown(activeRequestSeconds)}
+                        <div className={`min-w-[168px] rounded-2xl border px-4 py-3 shadow-sm ${countdownTone.pill}`}>
+                            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                                <span className="relative flex h-2.5 w-2.5">
+                                    {requestIsActive && (
+                                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping ${countdownTone.dot}`} />
+                                    )}
+                                    <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${countdownTone.dot}`} />
+                                </span>
+                                {countdownTone.eyebrow}
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                                <Timer size={14} className={requestIsActive ? 'animate-pulse' : ''} />
+                                <span className="font-mono text-lg font-bold tracking-[0.18em]">
+                                    {requestIsMatched ? 'LOCKED' : requestIsExpired ? 'CLOSED' : formatCountdown(activeRequestSeconds)}
+                                </span>
+                            </div>
+                            <p className="mt-1 text-[11px] font-medium opacity-80">
+                                {countdownTone.caption}
+                            </p>
                         </div>
                     </div>
+
+                    {requestIsActive && (
+                        <div className="mt-4 rounded-2xl border border-white/70 bg-white/80 p-3 dark:border-zinc-900/60 dark:bg-zinc-950/50">
+                            <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500 dark:text-orange-300">
+                                <span>Dispatch momentum</span>
+                                <span>{Math.max(0, Math.round(dispatchProgressPercent))}% time left</span>
+                            </div>
+                            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-orange-100/80 dark:bg-orange-950/40">
+                                <div
+                                    className={`h-full rounded-full transition-[width] duration-1000 ease-linear ${countdownTone.progress} ${requestIsActive ? 'animate-pulse' : ''}`}
+                                    style={{ width: `${dispatchProgressPercent}%` }}
+                                />
+                            </div>
+                            <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span>Live ranking is checking the closest available brokers.</span>
+                                <span>{activeRequest.dispatched_broker_count || 0} contacted</span>
+                            </div>
+                        </div>
+                    )}
 
                     {requestIsMatched ? (
                         <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
@@ -342,10 +481,10 @@ const BrokerRequestWidget = () => {
                                     {activeRequest.fast_track_enabled && (
                                         <button
                                             type="button"
-                                            onClick={() => navigate(buildBrokerRequestWorkspacePath(activeRequest.id))}
+                                            onClick={openBrokerWorkspace}
                                             className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300 dark:hover:bg-orange-950/40"
                                         >
-                                            Open broker workspace
+                                            {requestedWorkspaceRequestId === activeRequest.id ? 'Focus broker workspace' : 'Open broker workspace'}
                                             <ArrowRight size={15} />
                                         </button>
                                     )}
@@ -444,13 +583,12 @@ const BrokerRequestWidget = () => {
                         <button
                             key={type}
                             type="button"
-                            disabled={requestIsActive}
                             onClick={() => setRequestType(type)}
                             className={`flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition-all ${
                                 requestType === type
                                     ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white'
                                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                            } disabled:cursor-not-allowed disabled:opacity-60`}
+                            }`}
                         >
                             {type}
                         </button>
@@ -461,7 +599,6 @@ const BrokerRequestWidget = () => {
                     <input
                         type="checkbox"
                         checked={fastTrackEnabled}
-                        disabled={requestIsActive}
                         onChange={(event) => setFastTrackEnabled(event.target.checked)}
                         className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
@@ -473,7 +610,7 @@ const BrokerRequestWidget = () => {
 
                 {requestIsActive && (
                     <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-sm text-gray-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-gray-200">
-                        A live request is already running. Refresh the workspace above while ranked brokers are being notified in waves.
+                        A live request is already running. You can still adjust the form below and start a new dispatch if your requirements change.
                     </div>
                 )}
 
@@ -487,10 +624,9 @@ const BrokerRequestWidget = () => {
                             <input
                                 type="text"
                                 value={location}
-                                disabled={requestIsActive}
                                 onChange={(e) => setLocation(e.target.value)}
                                 placeholder="e.g. Downtown, West End"
-                                className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-600 dark:bg-gray-900/50"
+                                className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                                 required
                             />
                         </div>
@@ -503,10 +639,9 @@ const BrokerRequestWidget = () => {
                         <input
                             type="text"
                             value={locationPostcode}
-                            disabled={requestIsActive}
                             onChange={(e) => setLocationPostcode(e.target.value.toUpperCase())}
                             placeholder="e.g. SW1A 1AA"
-                            className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-600 dark:bg-gray-900/50"
+                            className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                         />
                     </div>
 
@@ -519,10 +654,9 @@ const BrokerRequestWidget = () => {
                             <input
                                 type="text"
                                 value={budget}
-                                disabled={requestIsActive}
                                 onChange={(e) => setBudget(e.target.value)}
                                 placeholder="e.g. 500k - 600k"
-                                className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-12 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-600 dark:bg-gray-900/50"
+                                className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-12 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                                 required
                             />
                         </div>
@@ -534,11 +668,10 @@ const BrokerRequestWidget = () => {
                         </label>
                         <textarea
                             value={details}
-                            disabled={requestIsActive}
                             onChange={(e) => setDetails(e.target.value)}
                             placeholder="e.g. 2 bedrooms, balcony, pet friendly..."
                             rows={3}
-                            className="w-full resize-none rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-gray-600 dark:bg-gray-900/50"
+                            className="w-full resize-none rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
                         />
                     </div>
@@ -604,7 +737,7 @@ const BrokerRequestWidget = () => {
                     {loading
                         ? 'Dispatching...'
                         : requestIsActive
-                            ? 'Refresh live dispatch'
+                            ? 'Start another live dispatch'
                             : activeRequest
                                 ? 'Start another live dispatch'
                                 : 'Start live dispatch'}

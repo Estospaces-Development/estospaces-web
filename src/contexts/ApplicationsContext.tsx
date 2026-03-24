@@ -208,7 +208,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         setError(null);
 
         const [applicationsResult, viewingsResult] = await Promise.all([
-            getBackendApplications(),
+            getBackendApplications({ suppressErrorToast: true }),
             getViewings().catch(() => [] as Viewing[]),
         ]);
 

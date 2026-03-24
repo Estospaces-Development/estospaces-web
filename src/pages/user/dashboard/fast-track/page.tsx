@@ -115,7 +115,7 @@ export default function UserFastTrackPage() {
             getFastTrackCases(),
             getUserLeads(),
             getUserDocuments(),
-            getUserBrokerRequests(),
+            getUserBrokerRequests({ suppressErrorToast: true }),
         ]);
 
         if (casesResult.data) {

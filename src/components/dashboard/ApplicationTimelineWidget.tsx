@@ -170,8 +170,8 @@ const ApplicationTimelineWidget = () => {
             setLoading(true);
             try {
                 const [appsRes, brokerRequestsRes, propsRes] = await Promise.all([
-                    getApplications(),
-                    getUserBrokerRequests(),
+                    getApplications({ suppressErrorToast: true }),
+                    getUserBrokerRequests({ suppressErrorToast: true }),
                     getUserProperties({ limit: 50 }),
                 ]);
 
