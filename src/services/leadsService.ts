@@ -8,6 +8,32 @@ import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
 
+export interface LeadBrokerSummary {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    company_name?: string;
+    postcode?: string;
+    service_areas?: string[];
+    rating?: number;
+    review_count?: number;
+    fast_track_eligible?: boolean;
+    availability_expires_at?: string;
+    distance_miles?: number;
+}
+
+export interface BrokerAvailabilityState {
+    broker_id: string;
+    available_for_fast_response: boolean;
+    availability_started_at?: string;
+    availability_expires_at?: string;
+    seconds_remaining: number;
+    eligible_for_live_dispatch?: boolean;
+    verification_status?: string;
+    blocked_reason?: string;
+}
+
 export interface Lead {
     id: string;
     lead_number?: string;
@@ -15,6 +41,17 @@ export interface Lead {
     user_id?: string;
     broker_id?: string;
     status: string;
+    stage?: 'matching' | 'broker_matched' | 'docs_requested' | 'docs_uploaded' | 'under_review' | 'approved' | 'completed' | 'expired';
+    dispatch_status?: string;
+    dispatch_started_at?: string;
+    response_deadline_at?: string;
+    matched_broker_id?: string;
+    matched_at?: string;
+    dispatch_wave?: number;
+    dispatched_broker_count?: number;
+    documents_requested?: boolean;
+    documents_requested_at?: string;
+    fast_track_enabled?: boolean;
     sla_start_time?: string;
     sla_deadline?: string;
     sla_status?: string;
@@ -40,6 +77,7 @@ export interface Lead {
         title: string;
         address_line_1: string;
         city: string;
+        postcode?: string;
         price: number;
         image_urls: string;
         property_type: string;
@@ -48,7 +86,10 @@ export interface Lead {
         agent_email?: string;
         agent_phone?: string;
         listing_type?: string;
+        latitude?: number;
+        longitude?: number;
     };
+    matched_broker?: LeadBrokerSummary;
     // UI-mapped fields
     name?: string;
     email?: string;
@@ -99,6 +140,34 @@ export interface UserDocument {
     reviewed_at?: string;
     created_at: string;
     updated_at: string;
+}
+
+export interface BrokerRequestRecord {
+    id: string;
+    user_id?: string;
+    request_type: string;
+    location: string;
+    location_postcode?: string;
+    latitude?: number;
+    longitude?: number;
+    budget?: string;
+    details?: string;
+    requester_name?: string;
+    requester_email?: string;
+    requester_phone?: string;
+    status?: string;
+    dispatch_status?: string;
+    dispatch_started_at?: string;
+    response_deadline_at?: string;
+    dispatch_wave?: number;
+    available_broker_count?: number;
+    dispatched_broker_count?: number;
+    matched_broker_id?: string;
+    matched_at?: string;
+    fast_track_enabled?: boolean;
+    matched_broker?: LeadBrokerSummary | null;
+    created_at?: string;
+    updated_at?: string;
 }
 
 const DOCUMENT_UPLOAD_TYPES: Record<string, { document_type: string; document_category: string }> = {
@@ -203,25 +272,121 @@ export const createLead = async (propertyId: string): Promise<{ data: Lead | nul
 export const createBrokerRequest = async (requestData: {
     requestType: string;
     location: string;
+    locationPostcode?: string;
+    latitude?: number;
+    longitude?: number;
     budget: string;
     details: string;
-}): Promise<{ success: boolean; error: string | null }> => {
+    fastTrackEnabled?: boolean;
+}): Promise<{ success: boolean; data: BrokerRequestRecord | null; error: string | null }> => {
     try {
-        await apiFetch<any>(
+        const data = await apiFetch<BrokerRequestRecord>(
             `${CORE_URL()}/api/v1/leads/broker-request`,
             {
                 method: 'POST',
                 body: JSON.stringify({
                     request_type: requestData.requestType,
                     location: requestData.location,
+                    location_postcode: requestData.locationPostcode,
+                    latitude: requestData.latitude,
+                    longitude: requestData.longitude,
                     budget: requestData.budget,
                     details: requestData.details,
+                    fast_track_enabled: requestData.fastTrackEnabled,
                 }),
             },
         );
-        return { success: true, error: null };
+        return { success: true, data, error: null };
     } catch (error: any) {
-        return { success: false, error: getErrorMessage(error) };
+        return { success: false, data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getUserBrokerRequests = async (): Promise<{ data: BrokerRequestRecord[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord[]>(`${CORE_URL()}/api/v1/leads/broker-request/mine`);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getBrokerRequestById = async (requestId: string): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}`);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getBrokerRequestOffers = async (): Promise<{ data: BrokerRequestRecord[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord[]>(`${CORE_URL()}/api/v1/leads/broker-request/broker`);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const acceptBrokerRequestOffer = async (requestId: string): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}/accept`, {
+            method: 'POST',
+        });
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getBrokerAvailability = async (): Promise<{ data: BrokerAvailabilityState | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerAvailabilityState>(`${CORE_URL()}/api/v1/leads/broker-availability`);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const updateBrokerAvailability = async (
+    available: boolean,
+    coords?: { latitude?: number | null; longitude?: number | null },
+): Promise<{ data: BrokerAvailabilityState | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerAvailabilityState>(`${CORE_URL()}/api/v1/leads/broker-availability`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                available,
+                latitude: typeof coords?.latitude === 'number' ? coords.latitude : undefined,
+                longitude: typeof coords?.longitude === 'number' ? coords.longitude : undefined,
+            }),
+        });
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getNearbyAvailableBrokers = async (params: {
+    postcode?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    fastTrack?: boolean;
+    limit?: number;
+}): Promise<{ data: LeadBrokerSummary[] | null; error: string | null }> => {
+    try {
+        const url = new URL(`${CORE_URL()}/api/v1/leads/nearby-brokers`);
+        if (params.postcode) url.searchParams.set('postcode', params.postcode);
+        if (typeof params.latitude === 'number') url.searchParams.set('latitude', String(params.latitude));
+        if (typeof params.longitude === 'number') url.searchParams.set('longitude', String(params.longitude));
+        if (typeof params.fastTrack === 'boolean') url.searchParams.set('fast_track', String(params.fastTrack));
+        if (typeof params.limit === 'number') url.searchParams.set('limit', String(params.limit));
+
+        const data = await apiFetch<LeadBrokerSummary[]>(url.toString());
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
     }
 };
 
@@ -444,6 +609,13 @@ export const leadsService = {
     updateLeadStatus,
     createLead,
     createBrokerRequest,
+    getUserBrokerRequests,
+    getBrokerRequestById,
+    getBrokerRequestOffers,
+    acceptBrokerRequestOffer,
+    getBrokerAvailability,
+    updateBrokerAvailability,
+    getNearbyAvailableBrokers,
     createManualLead,
     updateLead,
     deleteLead,

@@ -36,6 +36,8 @@ interface NearbyPropertiesMapProps {
     properties?: Property[];
     userLocation?: UserLocation | null;
     onPropertyClick?: ((property: Property) => void) | null;
+    onOpenWorkspace?: ((property: Property) => void) | null;
+    onStartFastTrack?: ((property: Property) => void) | null;
 }
 
 /**
@@ -56,6 +58,8 @@ const NearbyPropertiesMap = ({
     properties = [],
     userLocation = null,
     onPropertyClick = null,
+    onOpenWorkspace = null,
+    onStartFastTrack = null,
 }: NearbyPropertiesMapProps) => {
     const navigate = useNavigate();
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
@@ -186,6 +190,24 @@ const NearbyPropertiesMap = ({
 
     const handleViewDetails = (property: Property) => {
         navigate(`/user/properties/${property.id}`);
+    };
+
+    const handleOpenWorkspace = (property: Property) => {
+        if (onOpenWorkspace) {
+            onOpenWorkspace(property);
+            return;
+        }
+
+        navigate(`/user/properties/${property.id}`);
+    };
+
+    const handleStartFastTrack = (property: Property) => {
+        if (onStartFastTrack) {
+            onStartFastTrack(property);
+            return;
+        }
+
+        navigate(`/user/properties/${property.id}?fast-track=1`);
     };
 
     // Get marker color based on distance category
@@ -346,12 +368,20 @@ const NearbyPropertiesMap = ({
                                                         <span>{property.bathrooms} Bath{property.bathrooms !== 1 ? 's' : ''}</span>
                                                     )}
                                                 </div>
-                                                <button
-                                                    onClick={() => handleViewDetails(property)}
-                                                    className="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
-                                                >
-                                                    View Details
-                                                </button>
+                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                    <button
+                                                        onClick={() => handleOpenWorkspace(property)}
+                                                        className="w-full rounded-lg border border-stone-200 px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-700 dark:text-white dark:hover:bg-zinc-900"
+                                                    >
+                                                        Open property
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleStartFastTrack(property)}
+                                                        className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
+                                                    >
+                                                        Start fast-track
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                     </button>
@@ -409,7 +439,7 @@ const NearbyPropertiesMap = ({
             </div>
 
             {/* Properties List Sidebar (Optional - can be toggled) */}
-            {selectedProperty && (
+                        {selectedProperty && (
                 <div className="absolute top-4 right-4 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-30 max-h-[80vh] overflow-y-auto">
                     <div className="flex items-start justify-between mb-3">
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Property Details</h3>
@@ -432,6 +462,20 @@ const NearbyPropertiesMap = ({
                                 {selectedProperty.distance} miles away
                             </p>
                         )}
+                        <div className="grid gap-2 sm:grid-cols-2 pt-2">
+                            <button
+                                onClick={() => handleViewDetails(selectedProperty)}
+                                className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-medium text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-700 dark:text-white dark:hover:bg-zinc-900"
+                            >
+                                Open property
+                            </button>
+                            <button
+                                onClick={() => handleStartFastTrack(selectedProperty)}
+                                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
+                            >
+                                Resume live workspace
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

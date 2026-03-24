@@ -1,54 +1,100 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { MapPin, Star, ChevronRight, Building, Loader2 } from 'lucide-react';
+import { MapPin, Star, ChevronRight, Building2, Loader2, Clock, BadgeCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { userService, Agency } from '@/services/userService';
-import { AGENCY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 
 const NearbyAgenciesList = () => {
-    const [agencies, setAgencies] = useState<Agency[]>([]);
+    const [brokers, setBrokers] = useState<LeadBrokerSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [activeRequest, setActiveRequest] = useState<BrokerRequestRecord | null>(null);
 
     useEffect(() => {
-        const fetchAgencies = async () => {
+        let cancelled = false;
+
+        const loadActiveRequest = async () => {
+            const { data } = await getUserBrokerRequests();
+            if (cancelled || !data) {
+                return;
+            }
+
+            const latestRequest = data.find((request) => request.status !== 'expired' && request.status !== 'matched') || data[0] || null;
+            setActiveRequest(latestRequest);
+        };
+
+        void loadActiveRequest();
+        const interval = window.setInterval(() => {
+            void loadActiveRequest();
+        }, 5000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
+    }, []);
+
+    useEffect(() => {
+        const fetchBrokers = async () => {
+            setLoading(true);
             try {
-                const { data, error } = await userService.getAgencies();
+                const { data, error } = await getNearbyAvailableBrokers({
+                    postcode: activeRequest?.location_postcode,
+                    fastTrack: true,
+                    limit: 5,
+                });
+
                 if (error) {
                     throw new Error(error);
                 }
-                setAgencies(data || []);
+
+                setBrokers(data || []);
                 setLoadError(null);
             } catch (err: any) {
-                setLoadError(err.message || 'Nearby agencies are not available right now.');
+                setLoadError(err.message || 'Nearby brokers are not available right now.');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchAgencies();
-    }, []);
+        void fetchBrokers();
+    }, [activeRequest?.location_postcode]);
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                        <Building size={20} className="text-blue-600 dark:text-blue-400" />
+                        <Building2 size={20} className="text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">Top Rated Agencies</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Nearby professionals</p>
+                        <h3 className="font-bold text-gray-900 dark:text-white">Nearby available brokers</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Ranked for 10-minute live dispatch</p>
                     </div>
                 </div>
                 <Link
-                    to="/user/dashboard/agencies"
+                    to="/user/dashboard/fast-track"
                     className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center gap-1"
                 >
-                    View All <ChevronRight size={14} />
+                    Open live workspace <ChevronRight size={14} />
                 </Link>
             </div>
+
+            {activeRequest && (
+                <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm dark:border-blue-900/30 dark:bg-blue-950/20">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-500 dark:text-blue-300">Live request</p>
+                    <p className="mt-1 font-semibold text-gray-900 dark:text-white">
+                        {activeRequest.matched_broker?.name || 'Searching nearby brokers'}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {activeRequest.dispatch_status
+                            ? activeRequest.dispatch_status.replace(/[_-]+/g, ' ')
+                            : 'Live dispatch in progress'}
+                        {activeRequest.location_postcode ? ` • ${activeRequest.location_postcode}` : ''}
+                    </p>
+                </div>
+            )}
 
             {loading ? (
                 <div className="flex justify-center py-8">
@@ -58,44 +104,50 @@ const NearbyAgenciesList = () => {
                 <div className="text-center py-8 text-sm text-gray-500">
                     {loadError}
                 </div>
-            ) : agencies.length === 0 ? (
+            ) : brokers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
-                    No agencies found nearby.
+                    {activeRequest?.location_postcode
+                        ? 'Your live request is active. Ranked brokers will appear here as each dispatch wave opens.'
+                        : 'Add a postcode or start a fast-track case to see ranked brokers here.'}
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {agencies.map((agency) => (
-                        <div key={agency.id} className="flex items-center gap-4 group cursor-pointer">
-                            <img
-                                src={agency.image || AGENCY_PLACEHOLDER_IMAGE}
-                                alt={agency.name}
-                                className="w-12 h-12 rounded-lg object-cover bg-gray-200 dark:bg-gray-700"
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = AGENCY_PLACEHOLDER_IMAGE;
-                                }}
-                            />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                    <h4 className="font-semibold text-sm text-gray-900 dark:text-white truncate group-hover:text-orange-600 transition-colors">
-                                        {agency.name}
+                    {brokers.map((broker, index) => (
+                        <div key={broker.id} className="flex items-start gap-4 group">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
+                                <span className="text-sm font-bold">{index + 1}</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                    <h4 className="truncate font-semibold text-sm text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors">
+                                        {broker.name}
                                     </h4>
-                                    {agency.verified && (
-                                        <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded-full font-medium">
-                                            Verified
-                                        </span>
-                                    )}
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                        <BadgeCheck size={11} />
+                                        Available
+                                    </span>
                                 </div>
-                                <div className="flex items-center gap-2 mt-0.5">
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    {broker.company_name || 'Independent broker'}
+                                    {broker.postcode ? ` • ${broker.postcode}` : ''}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1.5">
                                     <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
                                         <Star size={12} className="text-yellow-400 fill-yellow-400 mr-0.5" />
-                                        {agency.rating}
-                                        <span className="text-gray-400 dark:text-gray-500 font-normal ml-0.5">({agency.reviewCount})</span>
+                                        {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
+                                        <span className="text-gray-400 dark:text-gray-500 font-normal ml-0.5">
+                                            ({broker.review_count || 0})
+                                        </span>
                                     </div>
                                     <span className="text-gray-300 dark:text-gray-600 text-xs">•</span>
                                     <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                        <MapPin size={10} className="mr-0.5" />
-                                        {agency.distance || 'Service area not listed'}
+                                        <Clock size={10} className="mr-0.5" />
+                                        10-minute availability
                                     </div>
+                                </div>
+                                <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <MapPin size={10} className="mr-0.5" />
+                                    {broker.service_areas?.length ? broker.service_areas.join(', ') : 'Service area not listed'}
                                 </div>
                             </div>
                         </div>
@@ -104,11 +156,10 @@ const NearbyAgenciesList = () => {
             )}
 
             <button className="w-full mt-6 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium">
-                Find Agent by Postcode
+                Find broker by postcode
             </button>
         </div>
     );
 };
 
 export default NearbyAgenciesList;
-

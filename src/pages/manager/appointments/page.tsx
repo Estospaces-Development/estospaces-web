@@ -91,6 +91,7 @@ export default function ManagerAppointmentsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
     const [rescheduleForm, setRescheduleForm] = useState({
@@ -118,12 +119,25 @@ export default function ManagerAppointmentsPage() {
     }, []);
 
     const filteredAppointments = useMemo(() => {
-        if (statusFilter === 'all') {
-            return appointments;
+        let filtered = appointments;
+
+        // Status Filter
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter((appointment) => appointment.status === statusFilter);
         }
 
-        return appointments.filter((appointment) => appointment.status === statusFilter);
-    }, [appointments, statusFilter]);
+        // Search Filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((appointment) => {
+                const clientName = (getClientName(appointment) || '').toLowerCase();
+                const propertyName = (getPropertyName(appointment) || '').toLowerCase();
+                return clientName.includes(query) || propertyName.includes(query);
+            });
+        }
+
+        return filtered;
+    }, [appointments, statusFilter, searchQuery]);
 
     const summary = useMemo(() => ({
         total: appointments.length,
@@ -223,7 +237,20 @@ export default function ManagerAppointmentsPage() {
             </div>
 
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    <div className="relative flex-1 max-w-md">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Clock3 size={18} className="text-gray-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by client or property..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="block w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl text-sm placeholder-gray-400 focus:ring-2 focus:ring-orange-500 transition-all font-medium"
+                        />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                     {FILTERS.map((filter) => (
                         <button
                             key={filter.value}
@@ -239,6 +266,7 @@ export default function ManagerAppointmentsPage() {
                     ))}
                 </div>
             </div>
+        </div>
 
             <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
                 {loading ? (

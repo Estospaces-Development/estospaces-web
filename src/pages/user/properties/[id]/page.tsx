@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
+    BadgeCheck,
     MapPin,
     Bed,
     Bath,
@@ -31,9 +32,12 @@ import { messagesService } from '@/services/messagesService';
 import PropertyContactInfo from '@/components/dashboard/PropertyContactInfo';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
 import {
+    buildFastTrackDocumentItems,
+    buildFastTrackVerificationContent,
     getFastTrackStartAction,
     isLeadActive,
     normalizeWorkspaceDocuments,
+    resolveLeadStage,
 } from '@/lib/fastTrackWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages } from '@/lib/propertyImages';
@@ -157,9 +161,41 @@ const formatDetailLabel = (value: string) =>
         .trim()
         .replace(/\b\w/g, (char) => char.toUpperCase());
 
+const formatLeadStage = (value?: string) => {
+    if (!value) {
+        return 'Matching nearby brokers';
+    }
+
+    return value
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatMinutesRemaining = (deadline?: string) => {
+    if (!deadline) {
+        return '10-minute live response';
+    }
+
+    const remainingMs = new Date(deadline).getTime() - Date.now();
+    if (!Number.isFinite(remainingMs)) {
+        return '10-minute live response';
+    }
+
+    const minutes = Math.max(Math.ceil(remainingMs / 60000), 0);
+    if (minutes === 0) {
+        return 'Response window ending now';
+    }
+
+    return `${minutes} minute${minutes === 1 ? '' : 's'} left`;
+};
+
 const UserPropertyDetail = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const fastTrackQuery = searchParams.get('fast-track');
     const toast = useToast();
     const { user } = useAuth();
 
@@ -177,6 +213,7 @@ const UserPropertyDetail = () => {
     const [activeFastTrackCase, setActiveFastTrackCase] = useState<FastTrackCase | null>(null);
     const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
     const [uploadingFastTrackDocumentType, setUploadingFastTrackDocumentType] = useState<'identity' | 'address' | null>(null);
+    const [liveWorkspaceLoaded, setLiveWorkspaceLoaded] = useState(false);
     const [calendarMonth, setCalendarMonth] = useState(() => {
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -292,7 +329,7 @@ const UserPropertyDetail = () => {
         { label: 'Gallery', value: `${images.length} photo${images.length === 1 ? '' : 's'}`, icon: ImageIcon },
     ];
     const conciergeHighlights = [
-        { label: 'Response window', value: 'Under 5 minutes', icon: Clock },
+        { label: 'Response window', value: '10-minute live broker response', icon: Clock },
         { label: 'Private access', value: 'Message the broker directly', icon: MessageCircle },
         { label: 'Tour booking', value: 'Reserve a slot in minutes', icon: CalendarDays },
     ];
@@ -376,7 +413,7 @@ const UserPropertyDetail = () => {
 
         return data;
     };
-    const loadFastTrackWorkspace = async () => {
+    const loadFastTrackWorkspace = async (options: { silent?: boolean } = {}) => {
         if (!property || !user) {
             return {
                 lead: null,
@@ -385,7 +422,9 @@ const UserPropertyDetail = () => {
             };
         }
 
-        setIsFastTrackPanelLoading(true);
+        if (!options.silent) {
+            setIsFastTrackPanelLoading(true);
+        }
         try {
             const [leadsResult, casesResult, documentsResult] = await Promise.all([
                 getUserLeads(),
@@ -423,7 +462,9 @@ const UserPropertyDetail = () => {
                 documents: workspaceDocuments,
             };
         } finally {
-            setIsFastTrackPanelLoading(false);
+            if (!options.silent) {
+                setIsFastTrackPanelLoading(false);
+            }
         }
     };
 
@@ -510,6 +551,53 @@ const UserPropertyDetail = () => {
         });
     }, [viewingForm.requested_date]);
 
+    useEffect(() => {
+        if (!property || !user) {
+            return;
+        }
+
+        if (fastTrackQuery === '1') {
+            setIsFastTrackModalOpen(true);
+        }
+
+        let cancelled = false;
+        const refreshWorkspace = async (silent = false) => {
+            const workspace = await loadFastTrackWorkspace({ silent });
+            if (!cancelled) {
+                setLiveWorkspaceLoaded(Boolean(workspace.lead || workspace.fastTrackCase));
+            }
+        };
+
+        void refreshWorkspace();
+        const interval = window.setInterval(() => {
+            void refreshWorkspace(true);
+        }, 15000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
+    }, [fastTrackQuery, property, user]);
+
+    useEffect(() => {
+        if (!property || !user || !isFastTrackModalOpen) {
+            return;
+        }
+
+        let cancelled = false;
+        const interval = window.setInterval(async () => {
+            const workspace = await loadFastTrackWorkspace({ silent: true });
+            if (!cancelled) {
+                setLiveWorkspaceLoaded(Boolean(workspace.lead || workspace.fastTrackCase));
+            }
+        }, 5000);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
+    }, [isFastTrackModalOpen, property, user]);
+
     const mapFastTrackPropertyType = (listingType?: string) => {
         if (listingType === 'sale') {
             return 'buy';
@@ -539,6 +627,29 @@ const UserPropertyDetail = () => {
         navigate('/user/dashboard/fast-track');
     };
 
+    const liveDocumentItems = useMemo(
+        () => buildFastTrackDocumentItems(
+            userDocuments,
+            activeFastTrackCase?.documents || {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        [activeFastTrackCase?.documents, userDocuments],
+    );
+    const liveVerificationContent = useMemo(
+        () => buildFastTrackVerificationContent(liveDocumentItems),
+        [liveDocumentItems],
+    );
+    const liveLeadStageLabel = formatLeadStage(resolveLeadStage(activeLead, userDocuments));
+    const liveLeadDeadlineLabel = formatMinutesRemaining(activeLead?.response_deadline_at || activeLead?.sla_deadline);
+    const liveLeadBrokerLabel =
+        activeLead?.matched_broker?.name ||
+        activeLead?.matched_broker?.company_name ||
+        activeLead?.broker_id ||
+        'No broker matched yet';
+    const liveLeadDocumentLabel = liveVerificationContent.documentsLabel;
+
     const handleUploadFastTrackDocument = async (type: 'identity' | 'address', file: File) => {
         if (!ensureAuthenticated()) {
             return;
@@ -554,7 +665,7 @@ const UserPropertyDetail = () => {
             }
 
             toast.success(`${type === 'identity' ? 'Identity proof' : 'Address proof'} uploaded successfully.`);
-            await loadFastTrackWorkspace();
+            await loadFastTrackWorkspace({ silent: true });
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to upload the supporting file.');
         } finally {
@@ -902,17 +1013,55 @@ const UserPropertyDetail = () => {
                                                 <ImageIcon size={16} />
                                                 <span>Open immersive view</span>
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleStartFastTrack}
-                                                disabled={isStartingFastTrack}
-                                                className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
-                                            >
-                                                {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
-                                                <span>{isStartingFastTrack ? 'Checking status...' : '24-hour fast track'}</span>
-                                            </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleStartFastTrack}
+                                        disabled={isStartingFastTrack}
+                                        className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+                                    >
+                                        {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
+                                        <span>{isStartingFastTrack ? 'Checking live status...' : '24-hour fast track'}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {(activeLead || liveWorkspaceLoaded) && (
+                                <div className="mt-5 rounded-[1.7rem] border border-orange-200/80 bg-orange-50/80 px-4 py-4 shadow-sm dark:border-orange-900/30 dark:bg-orange-950/20">
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300">
+                                                <Clock size={13} />
+                                                10-minute live response
+                                            </span>
+                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200">
+                                                <BadgeCheck size={13} />
+                                                {liveLeadStageLabel}
+                                            </span>
                                         </div>
+                                        <div className="grid gap-2 sm:grid-cols-3">
+                                            <div className="rounded-[1.1rem] border border-white/80 bg-white px-3 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">Dispatch</p>
+                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                                    {formatLeadStage(activeLead?.dispatch_status || (activeLead?.matched_broker ? 'broker_matched' : 'matching'))}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-[1.1rem] border border-white/80 bg-white px-3 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">Broker</p>
+                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{liveLeadBrokerLabel}</p>
+                                            </div>
+                                            <div className="rounded-[1.1rem] border border-white/80 bg-white px-3 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">Docs</p>
+                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{liveLeadDocumentLabel}</p>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                            {activeLead?.documents_requested || activeLead?.documents_uploaded || activeLead?.documents_verified
+                                                ? liveVerificationContent.summary
+                                                : `Nearby brokers are being ranked live. ${liveLeadDeadlineLabel}.`}
+                                        </p>
                                     </div>
+                                </div>
+                            )}
 
                                     <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
                                         {heroMetaItems.map((item) => {
@@ -1091,6 +1240,12 @@ const UserPropertyDetail = () => {
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isStartingFastTrack ? 'Starting Fast-Track...' : 'Start 24-Hour Fast Track'}
+                            </button>
+                            <button
+                                onClick={openFastTrackDashboard}
+                                className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                            >
+                                Open live workspace
                             </button>
                             <button
                                 onClick={handleOpenConversation}
@@ -1279,7 +1434,7 @@ const UserPropertyDetail = () => {
                                     <div className="text-sm font-bold text-gray-900 dark:text-white">{property.agent_name || 'Verified Broker'}</div>
                                     <div className="mt-1 text-xs text-green-600 font-medium flex items-center gap-1 dark:text-green-400">
                                         <Clock size={12} />
-                                        SLA: under 5 minutes
+                                        SLA: 10-minute live response
                                     </div>
                                     {property.agent_company && (
                                         <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">{property.agent_company}</div>

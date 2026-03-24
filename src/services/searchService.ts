@@ -145,6 +145,7 @@ const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>
     }
 
     if (filters.minBedrooms) params.append('min_bedrooms', String(filters.minBedrooms));
+    if (filters.minBathrooms) params.append('min_bathrooms', String(filters.minBathrooms));
     if (filters.verifiedOnly) params.append('is_verified', 'true');
     if (filters.page) params.append('page', String(filters.page));
     if (filters.limit) params.append('limit', String(filters.limit));
@@ -157,6 +158,9 @@ const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>
         params.append('sort_order', 'desc');
     } else if (filters.sortBy === 'newest') {
         params.append('sort_by', 'created_at');
+        params.append('sort_order', 'desc');
+    } else if (filters.sortBy === 'views_desc') {
+        params.append('sort_by', 'views');
         params.append('sort_order', 'desc');
     }
 

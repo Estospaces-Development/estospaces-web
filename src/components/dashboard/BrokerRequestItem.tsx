@@ -9,29 +9,39 @@ export type RequestStatus = 'pending' | 'responded' | 'expired';
 
 export interface BrokerRequest {
     id: string;
+    requestKind?: 'lead' | 'offer';
     propertyName: string;
     brokerName: string;
     brokerAvatar?: string;
     distance: string;
     timestamp: Date;
     status: RequestStatus;
+    secondsRemaining?: number;
+    stageLabel?: string;
+    dispatchStatus?: string;
+    primaryActionLabel?: string;
+    secondaryActionLabel?: string;
 }
 
 interface BrokerRequestItemProps {
     request: BrokerRequest;
     onRespond: (id: string) => void;
+    onSecondaryAction?: (id: string) => void;
 }
 
-const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespond }) => {
+const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespond, onSecondaryAction }) => {
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Initialize seconds remaining based on the 5-minute broker SLA.
+    // Initialize seconds remaining based on the 10-minute broker SLA.
     const [secondsRemaining, setSecondsRemaining] = useState(() => {
+        if (typeof request.secondsRemaining === 'number') {
+            return Math.max(0, request.secondsRemaining);
+        }
         if (request.status !== 'pending') return 0;
         const now = new Date();
         const elapsed = Math.floor((now.getTime() - request.timestamp.getTime()) / 1000);
-        const remaining = 300 - elapsed;
+        const remaining = 600 - elapsed;
         return remaining > 0 ? remaining : 0;
     });
 
@@ -59,20 +69,26 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
     }, [secondsRemaining, currentStatus]);
 
     useEffect(() => {
+        if (typeof request.secondsRemaining === 'number') {
+            setSecondsRemaining(Math.max(0, request.secondsRemaining));
+        }
         if (request.status !== 'pending') {
             setCurrentStatus(request.status);
         }
-    }, [request.status]);
+    }, [request.secondsRemaining, request.status]);
 
     const handleRespond = (e: React.MouseEvent) => {
         e.stopPropagation();
         setCurrentStatus('responded');
         onRespond(request.id);
-        navigate('/manager/leads');
     };
 
     const handleViewProperty = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (onSecondaryAction) {
+            onSecondaryAction(request.id);
+            return;
+        }
         // Navigate to a property detail or list for now
         navigate(`/manager/dashboard/properties`);
     };
@@ -84,8 +100,8 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
     };
 
     const getProgressColor = () => {
-        if (secondsRemaining < 60) return 'bg-red-500';
-        if (secondsRemaining < 180) return 'bg-yellow-500';
+        if (secondsRemaining < 120) return 'bg-red-500';
+        if (secondsRemaining < 300) return 'bg-yellow-500';
         return 'bg-green-500';
     };
 
@@ -172,7 +188,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                         <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                             <div
                                 className={`h-full transition-all duration-1000 ease-linear ${getProgressColor()}`}
-                                style={{ width: `${(secondsRemaining / 300) * 100}%` }}
+                                style={{ width: `${(secondsRemaining / 600) * 100}%` }}
                             ></div>
                         </div>
 
@@ -181,14 +197,14 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                                 onClick={handleRespond}
                                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors flex items-center justify-center gap-1 group relative z-10"
                             >
-                                <span>Respond Now</span>
+                                <span>{request.primaryActionLabel || 'Respond Now'}</span>
                                 <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                             </button>
                             <button
                                 onClick={handleViewProperty}
                                 className="px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-100 dark:border-gray-700 relative z-10"
                             >
-                                View Properties
+                                {request.secondaryActionLabel || 'View Properties'}
                             </button>
                         </div>
                     </div>
@@ -197,13 +213,13 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                 {currentStatus !== 'pending' && (
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center text-xs">
                         <span className="text-gray-500 dark:text-gray-400">
-                            {currentStatus === 'responded' ? 'Response sent' : 'Time limit exceeded'}
+                            {request.stageLabel || (currentStatus === 'responded' ? 'Response sent' : 'Time limit exceeded')}
                         </span>
                         <button
                             onClick={handleViewProperty}
                             className="text-orange-500 hover:underline relative z-10"
                         >
-                            View Properties
+                            {request.secondaryActionLabel || 'View Properties'}
                         </button>
                     </div>
                 )}

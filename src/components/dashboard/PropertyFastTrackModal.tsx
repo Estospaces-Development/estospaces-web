@@ -14,8 +14,14 @@ import {
     X,
 } from 'lucide-react';
 import { FastTrackCase } from '@/services/fastTrackService';
-import { Lead, UserDocument } from '@/services/leadsService';
+import { Lead } from '@/services/leadsService';
 import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress';
+import {
+    buildFastTrackDocumentItems,
+    buildFastTrackVerificationContent,
+    resolveLeadStage,
+    shouldBlockFastTrackWorkspaceRefresh,
+} from '@/lib/fastTrackWorkflow';
 
 type UploadType = 'identity' | 'address';
 
@@ -46,6 +52,18 @@ const formatLeadLabel = (value?: string) => {
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+const formatLeadStage = (value?: string) => {
+    if (!value) {
+        return 'Matching nearby brokers';
+    }
+
+    return value
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
 const formatDocumentStatus = (value?: string) => {
     if (!value) {
         return {
@@ -62,10 +80,17 @@ const formatDocumentStatus = (value?: string) => {
         };
     }
 
-    if (normalized === 'rejected') {
+    if (normalized === 'rejected' || normalized === 'reupload_required') {
         return {
             label: 'Needs replacement',
             className: 'border-red-200 bg-red-50 text-red-700',
+        };
+    }
+
+    if (normalized === 'missing' || normalized === 'requested') {
+        return {
+            label: 'Upload needed',
+            className: 'border-stone-200 bg-stone-100 text-gray-600',
         };
     }
 
@@ -76,6 +101,25 @@ const formatDocumentStatus = (value?: string) => {
 };
 
 const formatWindowLabel = (lead: Lead | null, fastTrackCase: FastTrackCase | null) => {
+    if (lead?.documents_requested) {
+        return 'Documents requested';
+    }
+
+    if (lead?.matched_broker || lead?.matched_broker_id) {
+        return 'Broker matched';
+    }
+
+    if (typeof lead?.response_deadline_at === 'string') {
+        const remainingMs = new Date(lead.response_deadline_at).getTime() - Date.now();
+        if (Number.isFinite(remainingMs)) {
+            const remainingMinutes = Math.max(Math.ceil(remainingMs / 60000), 0);
+            if (remainingMinutes > 0) {
+                return `${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'} left`;
+            }
+            return 'Response window ending now';
+        }
+    }
+
     if (fastTrackCase) {
         if (fastTrackCase.finalStatus === 'completed') {
             return 'Completed';
@@ -100,7 +144,7 @@ const formatWindowLabel = (lead: Lead | null, fastTrackCase: FastTrackCase | nul
         return 'Broker replied';
     }
 
-    return 'Awaiting first response';
+    return '10-minute live response';
 };
 
 const buildRoadmap = (
@@ -199,32 +243,61 @@ export default function PropertyFastTrackModal({
     onOpenDashboard,
     onOpenMessages,
 }: PropertyFastTrackModalProps) {
-    const latestDocuments = useMemo(() => {
-        const categories = new Map<string, UserDocument>();
-        userDocuments.forEach((document) => {
-            if (!categories.has(document.document_category)) {
-                categories.set(document.document_category, document);
-            }
-        });
-
-        return {
-            identity: categories.get('identity') || null,
-            address: categories.get('address') || null,
-        };
-    }, [userDocuments]);
+    const documentItems = useMemo(
+        () => buildFastTrackDocumentItems(
+            userDocuments,
+            fastTrackCase?.documents || {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        [fastTrackCase?.documents, userDocuments],
+    );
+    const verificationContent = useMemo(
+        () => buildFastTrackVerificationContent(documentItems),
+        [documentItems],
+    );
+    const latestDocuments = useMemo(() => ({
+        identity: documentItems.find((item) => item.id === 'identity') || null,
+        address: documentItems.find((item) => item.id === 'address') || null,
+    }), [documentItems]);
+    const resolvedLeadStage = useMemo(
+        () => resolveLeadStage(lead, userDocuments),
+        [lead, userDocuments],
+    );
 
     const roadmap = useMemo(
-        () => buildRoadmap(lead, fastTrackCase, Boolean(latestDocuments.identity), Boolean(latestDocuments.address)),
+        () => buildRoadmap(
+            lead,
+            fastTrackCase,
+            Boolean(latestDocuments.identity && latestDocuments.identity.status !== 'missing'),
+            Boolean(latestDocuments.address && latestDocuments.address.status !== 'missing'),
+        ),
         [fastTrackCase, lead, latestDocuments.address, latestDocuments.identity],
     );
 
-    const leadStatusLabel = formatLeadLabel(lead?.status);
-    const windowLabel = formatWindowLabel(lead, fastTrackCase);
-    const verificationLabel = lead?.documents_verified
-        ? 'Verified'
-        : lead?.documents_uploaded || latestDocuments.identity || latestDocuments.address
-            ? 'Uploaded'
-            : 'Upload needed';
+    const leadStatusLabel = formatLeadStage(resolvedLeadStage);
+    const leadStageLabel = formatLeadStage(resolvedLeadStage);
+    const windowLabel = (() => {
+        if (resolvedLeadStage === 'approved') {
+            return 'Documents verified';
+        }
+        if (resolvedLeadStage === 'under_review' || resolvedLeadStage === 'docs_uploaded') {
+            return 'Under review';
+        }
+        if (resolvedLeadStage === 'docs_requested') {
+            return 'Documents requested';
+        }
+
+        return formatWindowLabel(lead, fastTrackCase);
+    })();
+    const verificationLabel = verificationContent.verificationLabel;
+    const matchedBrokerLabel = lead?.matched_broker?.name || lead?.matched_broker?.company_name || lead?.matched_broker_id || 'No broker matched yet';
+    const dispatchLabel = formatLeadStage(
+        lead?.dispatch_status || (lead?.matched_broker || lead?.matched_broker_id ? 'broker_matched' : 'matching'),
+    );
+    const documentsLabel = verificationContent.documentsLabel;
+    const showBlockingRefresh = isRefreshing && shouldBlockFastTrackWorkspaceRefresh(lead, fastTrackCase, userDocuments);
 
     if (!open) {
         return null;
@@ -245,6 +318,17 @@ export default function PropertyFastTrackModal({
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
                             {propertyAddress}
                         </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700">
+                                10-minute live response
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700">
+                                {leadStageLabel}
+                            </span>
+                            <span className="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700">
+                                {documentsLabel}
+                            </span>
+                        </div>
                     </div>
                     <button
                         type="button"
@@ -257,12 +341,20 @@ export default function PropertyFastTrackModal({
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-                    {isRefreshing ? (
+                    {showBlockingRefresh ? (
                         <div className="flex h-full min-h-[20rem] items-center justify-center text-orange-500">
                             <Loader2 className="h-9 w-9 animate-spin" />
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {isRefreshing && (
+                                <div className="flex justify-end">
+                                    <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-gray-500 shadow-sm">
+                                        <Loader2 size={14} className="animate-spin text-orange-500" />
+                                        Syncing live status
+                                    </div>
+                                </div>
+                            )}
                             <div className="grid gap-4 md:grid-cols-3">
                                 <div className="rounded-[1.7rem] border border-stone-200/80 bg-white px-5 py-5 shadow-sm">
                                     <div className="flex items-center gap-3">
@@ -296,6 +388,36 @@ export default function PropertyFastTrackModal({
                                             <p className="mt-1 text-lg font-semibold text-gray-900">{verificationLabel}</p>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <div className="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Dispatch</p>
+                                    <p className="mt-2 text-sm font-semibold text-gray-900">{dispatchLabel}</p>
+                                </div>
+                                <div className="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Matched broker</p>
+                                    <p className="mt-2 text-sm font-semibold text-gray-900">{matchedBrokerLabel}</p>
+                                </div>
+                                <div className="rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Documents</p>
+                                    <p className="mt-2 text-sm font-semibold text-gray-900">{documentsLabel}</p>
+                                </div>
+                            </div>
+
+                            <div className="rounded-[1.7rem] border border-stone-200/80 bg-white px-5 py-5 shadow-sm">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Live status reason</p>
+                                <p className="mt-2 text-base font-semibold text-gray-900">{verificationContent.summary}</p>
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    {verificationContent.reasonLines.map((line) => (
+                                        <div
+                                            key={line}
+                                            className="rounded-[1.2rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600"
+                                        >
+                                            {line}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
@@ -365,26 +487,13 @@ export default function PropertyFastTrackModal({
                                     </div>
 
                                     <div className="mt-5 space-y-3">
-                                        {([
-                                            {
-                                                type: 'identity' as const,
-                                                title: 'Identity proof',
-                                                hint: 'Passport, driver licence, or national ID',
-                                                document: latestDocuments.identity,
-                                            },
-                                            {
-                                                type: 'address' as const,
-                                                title: 'Address proof',
-                                                hint: 'Bank statement, utility bill, or tenancy proof',
-                                                document: latestDocuments.address,
-                                            },
-                                        ]).map((item) => {
-                                            const status = formatDocumentStatus(item.document?.status);
-                                            const isUploading = uploadingType === item.type;
+                                        {documentItems.map((item) => {
+                                            const status = formatDocumentStatus(item.status);
+                                            const isUploading = uploadingType === item.id;
 
                                             return (
                                                 <label
-                                                    key={item.type}
+                                                    key={item.id}
                                                     className="block cursor-pointer rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm transition hover:border-orange-300"
                                                 >
                                                     <input
@@ -399,7 +508,7 @@ export default function PropertyFastTrackModal({
                                                                 return;
                                                             }
 
-                                                            await onUploadDocument(item.type, file);
+                                                            await onUploadDocument(item.id, file);
                                                         }}
                                                     />
                                                     <div className="flex items-start justify-between gap-3">
@@ -410,12 +519,21 @@ export default function PropertyFastTrackModal({
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <p className="text-sm font-semibold text-gray-900">{item.title}</p>
-                                                                    <p className="mt-1 text-xs leading-5 text-gray-500">{item.hint}</p>
+                                                                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                                                                        {item.id === 'identity'
+                                                                            ? 'Passport, driver licence, or national ID'
+                                                                            : 'Bank statement, utility bill, or tenancy proof'}
+                                                                    </p>
                                                                 </div>
                                                             </div>
                                                             <p className="mt-3 truncate text-sm text-gray-600">
-                                                                {item.document?.file_name || 'No file uploaded yet'}
+                                                                {item.fileName || 'No file uploaded yet'}
                                                             </p>
+                                                            {item.reason && (
+                                                                <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
+                                                                    Reason: {item.reason}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                         <div className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold ${status.className}`}>
                                                             {isUploading ? <Loader2 size={13} className="animate-spin" /> : status.label}
@@ -423,7 +541,13 @@ export default function PropertyFastTrackModal({
                                                     </div>
                                                     <div className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-600">
                                                         <Upload size={16} />
-                                                        <span>{item.document ? 'Replace file' : 'Upload image or PDF'}</span>
+                                                        <span>
+                                                            {item.status === 'reupload_required'
+                                                                ? 'Upload replacement'
+                                                                : item.fileName
+                                                                    ? 'Replace file'
+                                                                    : 'Upload image or PDF'}
+                                                        </span>
                                                     </div>
                                                 </label>
                                             );
@@ -453,7 +577,7 @@ export default function PropertyFastTrackModal({
                         onClick={onOpenDashboard}
                         className="inline-flex items-center justify-center gap-2 rounded-[1.2rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
                     >
-                        <span>Open full fast-track dashboard</span>
+                        <span>Open live workspace</span>
                         <ArrowUpRight size={16} />
                     </button>
                 </div>

@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Clock3, Loader2, MessageSquare, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
+import LeadActionMap from '@/components/manager/LeadActionMap';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrokerLeads, respondToLead, type Lead } from '@/services/leadsService';
 import { messagesService } from '@/services/messagesService';
+import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 
 const STATUS_FILTERS = [
     { value: 'all', label: 'All Leads' },
@@ -74,11 +76,12 @@ function getSlaRemainingSeconds(lead: Lead, now: number) {
         return Math.max(0, lead.sla_remaining_seconds);
     }
 
-    if (!lead.sla_deadline) {
+    const deadline = getLeadDeadline(lead);
+    if (!deadline) {
         return 0;
     }
 
-    const remaining = Math.ceil((new Date(lead.sla_deadline).getTime() - now) / 1000);
+    const remaining = Math.ceil((new Date(deadline).getTime() - now) / 1000);
     return remaining > 0 ? remaining : 0;
 }
 
@@ -188,6 +191,7 @@ export default function ManagerLeadsPage() {
                 getLeadClientName(lead),
                 getLeadClientContact(lead),
                 lead.status,
+                resolveLeadStage(lead),
             ]
                 .filter(Boolean)
                 .join(' ')
@@ -198,7 +202,11 @@ export default function ManagerLeadsPage() {
     }, [leads, searchQuery]);
 
     const summary = useMemo(() => {
-        const awaitingResponse = leads.filter((lead) => lead.status === 'pending_broker_response').length;
+        const awaitingResponse = leads.filter((lead) => resolveLeadStage(lead) === 'matching').length;
+        const documentsQueue = leads.filter((lead) => {
+            const stage = resolveLeadStage(lead);
+            return stage === 'docs_requested' || stage === 'under_review' || stage === 'approved';
+        }).length;
         const viewingScheduled = leads.filter((lead) => lead.status === 'viewing_scheduled').length;
         const breached = leads.filter((lead) => {
             const remaining = getSlaRemainingSeconds(lead, now);
@@ -208,6 +216,7 @@ export default function ManagerLeadsPage() {
         return {
             total: leads.length,
             awaitingResponse,
+            documentsQueue,
             viewingScheduled,
             breached,
         };
@@ -243,6 +252,15 @@ export default function ManagerLeadsPage() {
         });
         return conversation;
     }, [openConversation]);
+
+    const openLeadMessages = useCallback(async (lead: Lead) => {
+        try {
+            const conversation = await openConversation(lead);
+            navigate(`/manager/messages?conversation=${conversation.id}`);
+        } catch (conversationError: any) {
+            toast.error(conversationError?.message || 'Unable to open the conversation.');
+        }
+    }, [navigate, openConversation, toast]);
 
     const handleRequestDocs = useCallback(async (lead: Lead) => {
         if (!lead.user_id) {
@@ -309,7 +327,7 @@ export default function ManagerLeadsPage() {
                     </div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Lead Response Desk</h1>
                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        Live broker enquiries with the 5-minute SLA countdown and message handoff.
+                        Live lead stages, document requests, and the 10-minute response window in one workspace.
                     </p>
                 </div>
                 <button
@@ -324,8 +342,8 @@ export default function ManagerLeadsPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 {[
                     { label: 'Total Leads', value: summary.total, icon: UserRound, accent: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
-                    { label: 'Awaiting SLA', value: summary.awaitingResponse, icon: Clock3, accent: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
-                    { label: 'Viewing Scheduled', value: summary.viewingScheduled, icon: ShieldCheck, accent: 'text-purple-500 bg-purple-100 dark:bg-purple-900/30' },
+                    { label: 'Live Matching', value: summary.awaitingResponse, icon: Clock3, accent: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
+                    { label: 'Documents Queue', value: summary.documentsQueue, icon: ShieldCheck, accent: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/30' },
                     { label: 'Breached', value: summary.breached, icon: AlertTriangle, accent: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
                 ].map((card) => (
                     <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
@@ -337,6 +355,16 @@ export default function ManagerLeadsPage() {
                     </div>
                 ))}
             </div>
+
+            <LeadActionMap
+                leads={filteredLeads}
+                now={now}
+                actingLeadID={actingLeadID}
+                onRequestDocuments={handleRequestDocs}
+                onOpenMessages={(lead) => {
+                    void openLeadMessages(lead);
+                }}
+            />
 
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -385,7 +413,12 @@ export default function ManagerLeadsPage() {
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
                         {filteredLeads.map((lead) => {
                             const remainingSeconds = getSlaRemainingSeconds(lead, now);
-                            const isAwaitingResponse = lead.status === 'pending_broker_response';
+                            const stage = resolveLeadStage(lead);
+                            const isAwaitingResponse = stage === 'matching';
+                            const canRequestDocuments = Boolean(
+                                lead.user_id
+                                && !['completed', 'expired'].includes(stage),
+                            );
                             const isBusy = actingLeadID === lead.id;
 
                             return (
@@ -399,6 +432,9 @@ export default function ManagerLeadsPage() {
                                                 </span>
                                                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getSlaBadge(lead.sla_status || 'pending', remainingSeconds)}`}>
                                                     {slaLabels[lead.sla_status || 'pending'] || 'Pending'}
+                                                </span>
+                                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                                                    {formatLeadStage(stage)}
                                                 </span>
                                             </div>
 
@@ -415,6 +451,30 @@ export default function ManagerLeadsPage() {
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Property Address</p>
                                                     <p className="mt-1">{getLeadAddress(lead)}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Dispatch</p>
+                                                    <p className="mt-1 font-medium text-gray-900 dark:text-white">
+                                                        {(lead.dispatch_status || 'matching').replace(/[_-]+/g, ' ')}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Matched Broker</p>
+                                                    <p className="mt-1 font-medium text-gray-900 dark:text-white">
+                                                        {lead.matched_broker?.name || lead.property?.agent_name || 'Awaiting first response'}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {lead.matched_broker?.company_name || lead.property?.agent_company || '10-minute response window live'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Documents</p>
+                                                    <p className="mt-1 font-medium text-gray-900 dark:text-white">
+                                                        {lead.documents_verified ? 'Approved' : lead.documents_uploaded ? 'Uploaded' : lead.documents_requested ? 'Requested' : 'Not requested'}
+                                                    </p>
                                                 </div>
                                             </div>
 
@@ -439,7 +499,7 @@ export default function ManagerLeadsPage() {
                                                 )}
                                                 {isAwaitingResponse && (
                                                     <div className={`rounded-2xl px-4 py-2 font-semibold ${getSlaBadge(lead.sla_status || 'pending', remainingSeconds)}`}>
-                                                        {remainingSeconds > 0 ? `SLA ${formatCountdown(remainingSeconds)}` : 'SLA breached'}
+                                                        {remainingSeconds > 0 ? `10 min ${formatCountdown(remainingSeconds)}` : 'Response window expired'}
                                                     </div>
                                                 )}
                                             </div>
@@ -464,22 +524,30 @@ export default function ManagerLeadsPage() {
                                                         Request Documents
                                                     </button>
                                                 </>
-                                            ) : lead.user_id ? (
-                                                <button
-                                                    onClick={async () => {
-                                                        try {
-                                                            const conversation = await openConversation(lead);
-                                                            navigate(`/manager/messages?conversation=${conversation.id}`);
-                                                        } catch (conversationError: any) {
-                                                            toast.error(conversationError?.message || 'Unable to open the conversation.');
-                                                        }
-                                                    }}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                                                >
-                                                    <MessageSquare className="h-4 w-4" />
-                                                    Open Messages
-                                                </button>
-                                            ) : null}
+                                            ) : (
+                                                <>
+                                                    {lead.user_id ? (
+                                                        <button
+                                                            onClick={() => {
+                                                                void openLeadMessages(lead);
+                                                            }}
+                                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                        >
+                                                            <MessageSquare className="h-4 w-4" />
+                                                            Open Messages
+                                                        </button>
+                                                    ) : null}
+                                                    {canRequestDocuments ? (
+                                                        <button
+                                                            onClick={() => void handleRequestDocs(lead)}
+                                                            disabled={isBusy}
+                                                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                        >
+                                                            {isBusy ? 'Sending request...' : 'Request Documents'}
+                                                        </button>
+                                                    ) : null}
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

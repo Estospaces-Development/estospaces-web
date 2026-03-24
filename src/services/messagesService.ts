@@ -15,9 +15,19 @@ export interface Message {
     sender_id: string;
     content: string;
     type: 'text' | 'image' | 'file';
+    attachments?: MessageAttachment[];
     is_read: boolean;
     read_at?: string;
     created_at: string;
+}
+
+export interface MessageAttachment {
+    id?: string;
+    file_url: string;
+    file_name: string;
+    mime_type?: string;
+    file_size?: number;
+    storage_path?: string;
 }
 
 export interface Conversation {
@@ -62,6 +72,7 @@ export interface SendMessageParams {
     recipientId?: string;
     content: string;
     type?: 'text' | 'image' | 'file';
+    attachments?: MessageAttachment[];
     context?: ConversationContext;
 }
 
@@ -109,6 +120,7 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
             recipient_id: params.recipientId,
             content: params.content,
             type: params.type || 'text',
+            attachments: params.attachments || [],
             context: params.context
                 ? {
                     property_id: params.context.propertyId,

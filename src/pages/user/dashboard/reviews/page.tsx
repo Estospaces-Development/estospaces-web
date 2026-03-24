@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, MessageSquare, ArrowLeft, Loader2, Calendar, Trash2, Plus, X } from 'lucide-react';
+import { Star, MessageSquare, ArrowLeft, Loader2, Calendar, Trash2, Plus, X, Search } from 'lucide-react';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -10,6 +10,7 @@ export default function ReviewsPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [reviews, setReviews] = useState<Review[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showWriteForm, setShowWriteForm] = useState(false);
@@ -32,6 +33,15 @@ export default function ReviewsPage() {
     useEffect(() => {
         fetchReviews();
     }, []);
+
+    const filteredReviews = React.useMemo(() => {
+        if (!searchQuery.trim()) return reviews;
+        const query = searchQuery.toLowerCase();
+        return reviews.filter(r => 
+            r.comment.toLowerCase().includes(query) || 
+            r.property_id.toLowerCase().includes(query)
+        );
+    }, [reviews, searchQuery]);
 
     const handleDelete = async (id: string) => {
         setDeletingId(id);
@@ -105,8 +115,8 @@ export default function ReviewsPage() {
                         <span className="font-bold text-sm">Dashboard</span>
                     </button>
 
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                        <div className="flex-1">
                             <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-3">
                                 My Reviews
                             </h1>
@@ -114,13 +124,26 @@ export default function ReviewsPage() {
                                 View and manage your property ratings and feedback
                             </p>
                         </div>
-                        <button
-                            onClick={() => setShowWriteForm(true)}
-                            className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/25 transition-all active:scale-95"
-                        >
-                            <Plus size={18} />
-                            Write a Review
-                        </button>
+                        
+                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+                            <div className="relative w-full sm:w-64">
+                                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search reviews..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
+                                />
+                            </div>
+                            <button
+                                onClick={() => setShowWriteForm(true)}
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/25 transition-all active:scale-95"
+                            >
+                                <Plus size={18} />
+                                Write a Review
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -172,9 +195,9 @@ export default function ReviewsPage() {
                     </div>
                 )}
 
-                {reviews.length > 0 ? (
+                {filteredReviews.length > 0 ? (
                     <div className="space-y-6">
-                        {reviews.map((review) => (
+                        {filteredReviews.map((review) => (
                             <div key={review.id} className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 border border-transparent hover:border-orange-500/20 transition-all group">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                                     <div className="flex items-center gap-4">
@@ -218,18 +241,31 @@ export default function ReviewsPage() {
                 ) : (
                     <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-xl p-16 text-center">
                         <div className="w-24 h-24 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-8">
-                            <Star size={48} className="text-gray-200" />
+                            {searchQuery ? <Search size={48} className="text-gray-200" /> : <Star size={48} className="text-gray-200" />}
                         </div>
-                        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">No reviews yet</h3>
+                        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">
+                            {searchQuery ? "No matching reviews" : "No reviews yet"}
+                        </h3>
                         <p className="text-gray-500 font-medium max-w-sm mx-auto mb-10">
-                            You haven't reviewed any properties yet. Your feedback helps others find their dream homes.
+                            {searchQuery 
+                                ? `We couldn't find any reviews matching "${searchQuery}".`
+                                : "You haven't reviewed any properties yet. Your feedback helps others find their dream homes."}
                         </p>
-                        <button
-                            onClick={() => setShowWriteForm(true)}
-                            className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all shadow-lg shadow-orange-500/25"
-                        >
-                            Write a Review
-                        </button>
+                        {searchQuery ? (
+                             <button
+                                onClick={() => setSearchQuery('')}
+                                className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all"
+                            >
+                                Clear Search
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowWriteForm(true)}
+                                className="px-10 py-4 bg-orange-500 text-white rounded-2xl font-black active:scale-95 transition-all shadow-lg shadow-orange-500/25"
+                            >
+                                Write a Review
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

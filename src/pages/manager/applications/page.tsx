@@ -23,6 +23,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const { user } = useAuth();
     const toast = useToast();
     const {
+        applications: filteredApplications,
         allApplications,
         isLoading: contextLoading,
         searchQuery,
@@ -40,14 +41,12 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
 
-    // Filtered applications are already provided by context
-    const applications = allApplications;
-
+    // Stats use allApplications (unfiltered) so counts are always accurate
     const stats = useMemo(() => {
-        const total = applications.length;
-        const pending = applications.filter((a: any) => a.status === APPLICATION_STATUS.PENDING || a.status === APPLICATION_STATUS.SUBMITTED).length;
-        const actionRequired = applications.filter((a: any) => a.requiresAction).length;
-        const approved = applications.filter((a: any) => a.status === APPLICATION_STATUS.APPROVED).length;
+        const total = allApplications.length;
+        const pending = allApplications.filter((a: any) => a.status === APPLICATION_STATUS.PENDING || a.status === APPLICATION_STATUS.SUBMITTED).length;
+        const actionRequired = allApplications.filter((a: any) => a.requiresAction).length;
+        const approved = allApplications.filter((a: any) => a.status === APPLICATION_STATUS.APPROVED).length;
 
         return [
             { label: 'Total Active', value: total.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -55,7 +54,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             { label: 'Action Required', value: actionRequired.toString(), icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
             { label: 'Completed', value: approved.toString(), icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
         ];
-    }, [applications]);
+    }, [allApplications]);
 
     const handleCardClick = (id: string) => {
         setSelectedId(id);
@@ -141,8 +140,8 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                     Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="h-[200px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-2xl border border-gray-100 dark:border-gray-700" />
                     ))
-                ) : applications.length > 0 ? (
-                    applications.map((app) => (
+                ) : filteredApplications.length > 0 ? (
+                    filteredApplications.map((app) => (
                         <ApplicationCard
                             key={app.id}
                             application={app}

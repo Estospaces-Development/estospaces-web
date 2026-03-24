@@ -25,29 +25,34 @@ import {
     reviewUserDocument,
     updateUserVerification,
 } from '@/services/userVerificationService';
+import {
+    canCompleteFastTrackVerification,
+    getLatestFastTrackReviewDocuments,
+    latestDocumentByCategory,
+} from '@/lib/fastTrackWorkflow';
 
 interface UserVerificationReviewModalProps {
     scope: VerificationScope;
     userId: string;
     onClose: () => void;
+    onUpdated?: () => void | Promise<void>;
+    variant?: 'queue' | 'fast_track';
 }
 
-const getLatestDocumentsByCategory = (documents: UserDocument[]) => {
-    const latest = new Map<string, UserDocument>();
-    for (const document of documents) {
-        if (!latest.has(document.document_category)) {
-            latest.set(document.document_category, document);
-        }
-    }
-    return latest;
-};
-
-const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = ({ scope, userId, onClose }) => {
+const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = ({
+    scope,
+    userId,
+    onClose,
+    onUpdated,
+    variant = 'queue',
+}) => {
     const isAdmin = scope === 'admin';
+    const isFastTrackReview = variant === 'fast_track';
     const [details, setDetails] = useState<UserVerificationDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [actionLoading, setActionLoading] = useState(false);
+    const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+    const [verificationActionLoading, setVerificationActionLoading] = useState(false);
     const [notes, setNotes] = useState('');
 
     const fetchDetails = useCallback(async () => {
@@ -63,20 +68,28 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     }, [fetchDetails]);
 
     const latestDocuments = useMemo(
-        () => getLatestDocumentsByCategory(details?.documents || []),
+        () => latestDocumentByCategory(details?.documents || []),
         [details?.documents],
     );
+    const reviewDocuments = useMemo(
+        () => isFastTrackReview
+            ? getLatestFastTrackReviewDocuments(details?.documents || [])
+            : details?.documents || [],
+        [details?.documents, isFastTrackReview],
+    );
 
-    const canApprove = latestDocuments.has('identity') && latestDocuments.has('address');
+    const canApprove = isFastTrackReview
+        ? canCompleteFastTrackVerification(details?.documents || [])
+        : latestDocuments.has('identity') && latestDocuments.has('address');
 
     const handleDocumentReview = async (
         documentId: string,
         status: 'approved' | 'reupload_required',
         rejectReason?: string,
     ) => {
-        setActionLoading(true);
+        setActiveDocumentId(documentId);
         const { error: reviewError } = await reviewUserDocument(scope, documentId, status, rejectReason);
-        setActionLoading(false);
+        setActiveDocumentId(null);
 
         if (reviewError) {
             setError(reviewError);
@@ -84,18 +97,20 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         }
 
         await fetchDetails();
+        await onUpdated?.();
     };
 
     const handleVerificationUpdate = async (status: 'verified' | 'rejected') => {
-        setActionLoading(true);
+        setVerificationActionLoading(true);
         const { error: updateError } = await updateUserVerification(scope, userId, status, notes);
-        setActionLoading(false);
+        setVerificationActionLoading(false);
 
         if (updateError) {
             setError(updateError);
             return;
         }
 
+        await onUpdated?.();
         onClose();
     };
 
@@ -104,7 +119,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             <ModalWrapper onClose={onClose}>
                 <div className="flex flex-col items-center justify-center py-20">
                     <Loader2 className={`animate-spin ${isAdmin ? 'text-orange-500' : 'text-blue-500'}`} size={40} />
-                    <p className="text-gray-600 mt-4 font-medium">Loading user details...</p>
+                    <p className="text-gray-600 mt-4 font-medium">
+                        {isFastTrackReview ? 'Loading fast-track review...' : 'Loading user details...'}
+                    </p>
                 </div>
             </ModalWrapper>
         );
@@ -135,7 +152,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         {details.user.full_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{details.user.full_name}</h2>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {isFastTrackReview ? `Fast-track review for ${details.user.full_name}` : details.user.full_name}
+                        </h2>
                         <div className="flex items-center gap-3 mt-1">
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${levelConfig.bg} ${levelConfig.text}`}>
                                 {levelLabel}
@@ -160,22 +179,36 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     </div>
                 </div>
 
+                {isFastTrackReview && (
+                    <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm leading-6 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-200">
+                        <p>
+                            Review each uploaded fast-track document separately. Approving one file updates only that document and the live case status refreshes after every review action.
+                        </p>
+                        <p>
+                            Only the latest identity proof and latest address proof are shown here, so older rejected uploads do not override the current fast-track state.
+                        </p>
+                    </div>
+                )}
+
                 <div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Verification Documents</h3>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">
+                        {isFastTrackReview ? 'Fast-track documents' : 'Verification Documents'}
+                    </h3>
                     <div className="space-y-3">
-                        {details.documents.length === 0 ? (
+                        {reviewDocuments.length === 0 ? (
                             <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border-2 border-dashed border-gray-200">
                                 <FileText className="mx-auto text-gray-300 mb-2" size={32} />
                                 <p className="text-sm text-gray-500">No documents uploaded</p>
                             </div>
                         ) : (
-                            details.documents.map((document) => (
+                            reviewDocuments.map((document) => (
                                 <DocumentReviewCard
                                     key={document.id}
                                     document={document}
                                     onApprove={() => handleDocumentReview(document.id, 'approved')}
                                     onRequestChanges={(reason) => handleDocumentReview(document.id, 'reupload_required', reason)}
-                                    loading={actionLoading}
+                                    loading={activeDocumentId === document.id}
+                                    disabled={Boolean(activeDocumentId) || verificationActionLoading}
                                 />
                             ))
                         )}
@@ -189,30 +222,41 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     <textarea
                         value={notes}
                         onChange={(event) => setNotes(event.target.value)}
-                        placeholder={isAdmin ? 'Add approval or revoke notes...' : 'Add review notes for this user...'}
+                        placeholder={isFastTrackReview
+                            ? 'Add case notes for the live fast-track review...'
+                            : isAdmin
+                                ? 'Add approval or revoke notes...'
+                                : 'Add review notes for this user...'}
                         className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl text-sm resize-none focus:ring-2 focus:ring-orange-500 outline-none"
                         rows={3}
                     />
                 </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex gap-3">
-                <button
-                    onClick={() => handleVerificationUpdate('rejected')}
-                    disabled={actionLoading}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
-                >
-                    {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
-                    Revoke
-                </button>
-                <button
-                    onClick={() => handleVerificationUpdate('verified')}
-                    disabled={actionLoading || !canApprove}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                >
-                    {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                    Approve Verification
-                </button>
+            <div className="p-6 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => handleVerificationUpdate('rejected')}
+                        disabled={verificationActionLoading || Boolean(activeDocumentId)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
+                    >
+                        {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                        Revoke
+                    </button>
+                    <button
+                        onClick={() => handleVerificationUpdate('verified')}
+                        disabled={verificationActionLoading || Boolean(activeDocumentId) || !canApprove}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                    >
+                        {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                        {isFastTrackReview ? 'Complete fast-track verification' : 'Approve Verification'}
+                    </button>
+                </div>
+                {isFastTrackReview && !canApprove && (
+                    <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                        Approve the latest identity proof and the latest address proof individually before completing the fast-track verification.
+                    </p>
+                )}
             </div>
         </ModalWrapper>
     );
@@ -223,7 +267,8 @@ const DocumentReviewCard: React.FC<{
     onApprove: () => void;
     onRequestChanges: (reason: string) => void;
     loading: boolean;
-}> = ({ document, onApprove, onRequestChanges, loading }) => {
+    disabled?: boolean;
+}> = ({ document, onApprove, onRequestChanges, loading, disabled = false }) => {
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
 
@@ -288,7 +333,7 @@ const DocumentReviewCard: React.FC<{
                         <div className="flex gap-2">
                             <button
                                 onClick={() => onRequestChanges(rejectReason)}
-                                disabled={loading || !rejectReason.trim()}
+                                disabled={loading || disabled || !rejectReason.trim()}
                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
                             >
                                 Confirm
@@ -307,13 +352,14 @@ const DocumentReviewCard: React.FC<{
                             <>
                                 <button
                                     onClick={onApprove}
-                                    disabled={loading}
+                                    disabled={loading || disabled}
                                     className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1"
                                 >
                                     <Check size={12} /> Approve
                                 </button>
                                 <button
                                     onClick={() => setShowRejectForm(true)}
+                                    disabled={disabled}
                                     className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-medium hover:bg-red-200 flex items-center gap-1"
                                 >
                                     <X size={12} /> Request Changes

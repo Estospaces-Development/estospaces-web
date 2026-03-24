@@ -20,6 +20,7 @@ export default function ManagerContractsPage() {
     const [signingId, setSigningId] = useState<string | null>(null);
     const [viewContract, setViewContract] = useState<Contract | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const { success, error: toastError } = useToast();
 
     const fetchContracts = useCallback(async () => {
@@ -50,9 +51,29 @@ export default function ManagerContractsPage() {
     };
 
     const filteredContracts = contracts.filter(c => {
-        if (activeTab === 'all') return true;
-        if (activeTab === 'pending') return c.status === 'pending_user_signature' || c.status === 'pending_manager_signature';
-        return c.status === activeTab;
+        // Tab filter
+        const matchesTab = activeTab === 'all' 
+            ? true 
+            : activeTab === 'pending' 
+                ? (c.status === 'pending_user_signature' || c.status === 'pending_manager_signature')
+                : c.status === activeTab;
+        
+        if (!matchesTab) return false;
+
+        // Search filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            const haysack = [
+                c.id,
+                c.property,
+                c.name,
+                c.title,
+            ].filter(Boolean).join(' ').toLowerCase();
+            
+            return haysack.includes(query);
+        }
+
+        return true;
     });
 
     const tabs: { key: Tab; label: string; count: number }[] = [
@@ -68,18 +89,23 @@ export default function ManagerContractsPage() {
     return (
         <div className="p-6 md:p-8 font-outfit">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <FileText className="text-orange-500" /> Contracts
-                    </h1>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                        Manage tenancy agreements and digital signatures
-                    </p>
+            {/* Search and Actions */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div className="relative flex-1 max-w-md">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <FileText size={18} className="text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search contracts by tenant or property..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
+                    />
                 </div>
                 <button
                     onClick={fetchContracts}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors self-end md:self-auto"
                 >
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
                 </button>

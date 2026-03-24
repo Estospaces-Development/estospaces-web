@@ -43,6 +43,7 @@ const getPrimaryDashboardFilter = (filterParam: string) => {
 const mapDashboardFilterToSearchSort = (filterParam: string) => {
     const primary = getPrimaryDashboardFilter(filterParam);
     if (primary === 'budget_friendly') return 'price_asc';
+    if (primary === 'most_viewed' || primary === 'high_demand') return 'views_desc';
     if (primary === 'recently_added') return 'newest';
     return undefined;
 };

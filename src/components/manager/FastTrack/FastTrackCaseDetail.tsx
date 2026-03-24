@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { FastTrackCase, FastTrackStep } from '@/services/fastTrackService';
+import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 import FastTrackActions from './FastTrackActions';
 import FastTrackDocuments from './FastTrackDocuments';
 import FastTrackProgress from './FastTrackProgress';
@@ -27,8 +28,11 @@ interface FastTrackCaseDetailProps {
     onClose: () => void;
     onUpdate: (updatedCase: FastTrackCase) => void;
     verificationSummary?: string;
+    verificationReasonLines?: string[];
     leadStatusLabel?: string;
     onOpenVerificationReview?: () => void;
+    onRequestDocuments?: () => void;
+    isRequestingDocuments?: boolean;
     isDocumentsVerifiedOverride?: boolean;
 }
 
@@ -83,8 +87,11 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     onClose,
     onUpdate,
     verificationSummary,
+    verificationReasonLines = [],
     leadStatusLabel,
     onOpenVerificationReview,
+    onRequestDocuments,
+    isRequestingDocuments = false,
     isDocumentsVerifiedOverride,
 }) => {
     const navigate = useNavigate();
@@ -99,7 +106,9 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         [caseData.documents],
     );
     const totalDocuments = useMemo(() => Object.keys(caseData.documents).length, [caseData.documents]);
-    const isClosed = caseData.finalStatus === 'completed' || caseData.finalStatus === 'expired' || caseData.finalStatus === 'rejected';
+    const isOverdue = isFastTrackCaseOverdue(caseData);
+    const isExpired = caseData.finalStatus === 'expired';
+    const isClosed = caseData.finalStatus === 'completed' || isExpired || caseData.finalStatus === 'rejected';
     const submittedLabel = new Date(caseData.submittedAt).toLocaleString('en-GB', {
         day: 'numeric',
         month: 'short',
@@ -119,6 +128,21 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const isDocumentsVerified = typeof isDocumentsVerifiedOverride === 'boolean'
         ? isDocumentsVerifiedOverride
         : Object.values(caseData.documents).every((status) => status === 'verified');
+    const displayStatusTone = isOverdue
+        ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
+        : statusMeta.tone;
+    const displayStatusLabel = caseData.finalStatus === 'in_progress'
+        ? (isOverdue ? 'Overdue' : `${caseData.hoursRemaining}h remaining`)
+        : statusMeta.label;
+    const displayStatusNote = isOverdue
+        ? 'The 24-hour target has elapsed, but this case stays active until a manager completes or rejects it.'
+        : statusMeta.note;
+    const displayWindowLabel = caseData.finalStatus === 'in_progress'
+        ? (isOverdue ? 'Overdue' : `${caseData.hoursRemaining} hours left`)
+        : statusMeta.label;
+    const displayWindowNote = isOverdue
+        ? 'The timer is now an attention signal only. Managers can still continue the workflow from this screen.'
+        : 'SLA visibility stays tied to the actual 24-hour countdown from submission time.';
 
     const advanceStep = () => {
         if (isClosed) {
@@ -166,13 +190,22 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         }
     };
 
+    const handleOpenProperty = () => {
+        if (!propertyPath) {
+            return;
+        }
+
+        window.open(propertyPath, '_blank', 'noopener,noreferrer');
+    };
+
     return (
-        <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col h-full animate-in slide-in-from-right duration-300">
+        <div className="bg-white dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-800 flex h-full flex-col overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="p-6 border-b border-gray-100 dark:border-zinc-800 sticky top-0 bg-white/90 dark:bg-black/90 backdrop-blur-md z-10 rounded-t-2xl">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-start gap-4">
                             <button
+                                type="button"
                                 onClick={onClose}
                                 className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
                                 aria-label="Close fast-track case detail"
@@ -192,27 +225,25 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                             </div>
                         </div>
 
-                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold ${statusMeta.tone}`}>
+                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border font-semibold ${displayStatusTone}`}>
                             {caseData.finalStatus === 'completed' ? (
                                 <CheckCircle2 size={18} />
-                            ) : caseData.finalStatus === 'expired' || caseData.finalStatus === 'rejected' ? (
+                            ) : isOverdue || isExpired || caseData.finalStatus === 'rejected' ? (
                                 <AlertTriangle size={18} />
                             ) : (
                                 <Clock size={18} className="animate-pulse" />
                             )}
-                            <span>
-                                {caseData.finalStatus === 'in_progress' ? `${caseData.hoursRemaining}h remaining` : statusMeta.label}
-                            </span>
+                            <span>{displayStatusLabel}</span>
                         </div>
                     </div>
 
                     <div className="rounded-2xl border border-gray-100 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/40 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                        {statusMeta.note}
+                        {displayStatusNote}
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-6">
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
                     <div className="space-y-6">
                         <section className="bg-gray-50 dark:bg-zinc-900/40 rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
@@ -243,11 +274,9 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 </div>
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Window</p>
-                                    <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
-                                        {caseData.finalStatus === 'in_progress' ? `${caseData.hoursRemaining} hours left` : statusMeta.label}
-                                    </p>
+                                    <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{displayWindowLabel}</p>
                                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                        SLA visibility stays tied to the actual 24-hour countdown from submission time.
+                                        {displayWindowNote}
                                     </p>
                                 </div>
                             </div>
@@ -275,28 +304,58 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                         {leadStatusLabel || 'The lead timeline stays aligned with the latest user verification activity.'}
                                     </p>
+                                    {verificationReasonLines.length > 0 && (
+                                        <div className="mt-3 space-y-2">
+                                            {verificationReasonLines.map((line) => (
+                                                <div
+                                                    key={line}
+                                                    className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs leading-5 text-gray-600 dark:border-zinc-700 dark:bg-black dark:text-gray-300"
+                                                >
+                                                    {line}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                {onOpenVerificationReview ? (
-                                    <button
-                                        type="button"
-                                        onClick={onOpenVerificationReview}
-                                        className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-left transition hover:border-orange-300 hover:bg-orange-100 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:bg-orange-900/20"
-                                    >
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Action</p>
-                                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Review uploaded documents</p>
-                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                            Open the tenant verification workspace, approve files, or request replacements without leaving the fast-track flow.
-                                        </p>
-                                    </button>
-                                ) : (
-                                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Admin verification</p>
-                                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">User verification is admin-only</p>
-                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                            Managers can monitor status here, but document approval happens from the admin verification queue.
-                                        </p>
-                                    </div>
-                                )}
+                                <div className="space-y-3">
+                                    {onOpenVerificationReview ? (
+                                        <button
+                                            type="button"
+                                            onClick={onOpenVerificationReview}
+                                            className="w-full rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-left transition hover:border-orange-300 hover:bg-orange-100 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:bg-orange-900/20"
+                                        >
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Action</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Review uploaded documents</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Open the tenant verification workspace, approve files, or request replacements without leaving the fast-track flow.
+                                            </p>
+                                        </button>
+                                    ) : (
+                                        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Admin verification</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">User verification is admin-only</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Managers can monitor status here, but document approval happens from the admin verification queue.
+                                            </p>
+                                        </div>
+                                    )}
+                                    {onRequestDocuments ? (
+                                        <button
+                                            type="button"
+                                            onClick={onRequestDocuments}
+                                            disabled={isRequestingDocuments}
+                                            className="w-full rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-left transition hover:border-blue-300 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70 dark:border-blue-900/40 dark:bg-blue-900/10 dark:hover:bg-blue-900/20"
+                                        >
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-500">Follow-up</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                                {isRequestingDocuments ? 'Sending document request...' : 'Request documents from this case'}
+                                            </p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Trigger the user upload request directly from the fast-track detail, even if the lead has already moved past the first response stage.
+                                            </p>
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
                         </section>
                     </div>
@@ -317,6 +376,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
 
                             <div className="mt-4 space-y-3">
                                 <button
+                                    type="button"
                                     onClick={() => void handleOpenConversation()}
                                     disabled={isOpeningConversation}
                                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-4 py-3 transition-colors"
@@ -327,11 +387,12 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
 
                                 {propertyPath && (
                                     <button
-                                        onClick={() => navigate(propertyPath)}
+                                        type="button"
+                                        onClick={handleOpenProperty}
                                         className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
                                     >
                                         <Home size={18} />
-                                        View property
+                                        View property in new tab
                                     </button>
                                 )}
                             </div>

@@ -77,7 +77,10 @@ const FILTER_PARAM_MAP: Record<string, string> = {
 
 const normalizeFilterValue = (value: unknown) => {
     if (Array.isArray(value)) {
-        return value.length > 0 ? value[0] : '';
+        return value
+            .map((item) => String(item).trim())
+            .filter((item) => item.length > 0)
+            .join(',');
     }
 
     return value;

@@ -1,20 +1,32 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertTriangle,
     ArrowLeft,
     CheckCircle2,
     Clock,
+    FileImage,
     FileText,
     Home,
     Loader2,
     Shield,
+    Upload,
 } from 'lucide-react';
 import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
-import FastTrackDocuments from '@/components/manager/FastTrack/FastTrackDocuments';
+import { Lead, getUserDocuments, getUserLeads, uploadDocument, UserDocument } from '@/services/leadsService';
 import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress';
+import {
+    buildFastTrackVerificationContent,
+    normalizeWorkspaceDocuments,
+    resolveLeadStage,
+} from '@/lib/fastTrackWorkflow';
+import {
+    buildUserFastTrackDocumentItems,
+    getOutstandingDocumentNames,
+    resolveUserFastTrackSelection,
+} from '@/lib/userFastTrack';
 
 const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: string; note: string }> = {
     in_progress: {
@@ -39,6 +51,36 @@ const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: st
     },
 };
 
+const formatLeadStage = (value?: string) => {
+    if (!value) {
+        return 'Matching nearby brokers';
+    }
+
+    return value
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
+const formatDeadlineLabel = (deadline?: string) => {
+    if (!deadline) {
+        return '10-minute broker response';
+    }
+
+    const remainingMs = new Date(deadline).getTime() - Date.now();
+    if (!Number.isFinite(remainingMs)) {
+        return '10-minute broker response';
+    }
+
+    const minutes = Math.max(Math.ceil(remainingMs / 60000), 0);
+    if (minutes === 0) {
+        return 'Response window ending now';
+    }
+
+    return `${minutes} minute${minutes === 1 ? '' : 's'} left`;
+};
+
 const stepDescriptions: Record<FastTrackCase['currentStep'], string> = {
     documents: 'The team is reviewing verification documents and supporting records.',
     owner_approval: 'The case is waiting for owner approval before moving forward.',
@@ -51,9 +93,15 @@ export default function UserFastTrackPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
+    const [leads, setLeads] = useState<Lead[]>([]);
+    const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(searchParams.get('case'));
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [uploadingType, setUploadingType] = useState<'identity' | 'address' | null>(null);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const identityUploadInputRef = useRef<HTMLInputElement | null>(null);
+    const addressUploadInputRef = useRef<HTMLInputElement | null>(null);
 
     const fetchCases = useCallback(async (silent: boolean = false) => {
         if (!silent) {
@@ -61,20 +109,32 @@ export default function UserFastTrackPage() {
             setError(null);
         }
 
-        const { data, error: requestError } = await getFastTrackCases();
-        if (data) {
-            setCases(data);
+        const [casesResult, leadsResult, documentsResult] = await Promise.all([
+            getFastTrackCases(),
+            getUserLeads(),
+            getUserDocuments(),
+        ]);
+
+        if (casesResult.data) {
+            setCases(casesResult.data);
+        }
+
+        if (leadsResult.data) {
+            setLeads(leadsResult.data);
+        }
+
+        setUserDocuments(normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error));
+
+        const requestError = casesResult.error || leadsResult.error || documentsResult.error;
+        if (casesResult.data || leadsResult.data) {
             setError(null);
-            setSelectedCaseId((previous) => {
-                const requestedCaseId = searchParams.get('case');
-                if (requestedCaseId && data.some((item) => item.caseId === requestedCaseId)) {
-                    return requestedCaseId;
-                }
-                if (previous && data.some((item) => item.caseId === previous)) {
-                    return previous;
-                }
-                return data[0]?.caseId || null;
-            });
+            setUploadError(null);
+            setSelectedCaseId((previous) => resolveUserFastTrackSelection(
+                casesResult.data || [],
+                searchParams.get('case'),
+                searchParams.get('lead'),
+                previous,
+            ));
         } else if (!silent) {
             setError(requestError || 'Unable to load your fast-track cases.');
         }
@@ -124,6 +184,7 @@ export default function UserFastTrackPage() {
         setSearchParams((previous) => {
             const next = new URLSearchParams(previous);
             next.set('case', selectedCaseId);
+            next.delete('lead');
             return next;
         });
     }, [searchParams, selectedCaseId, setSearchParams]);
@@ -133,11 +194,99 @@ export default function UserFastTrackPage() {
         [cases, selectedCaseId],
     );
 
+    const selectedLead = useMemo(
+        () => leads.find((item) => item.id === selectedCase?.leadId || item.property_id === selectedCase?.propertyId) || null,
+        [leads, selectedCase?.leadId, selectedCase?.propertyId],
+    );
+
     const stats = useMemo(() => ({
         active: cases.filter((item) => item.finalStatus === 'in_progress').length,
         completed: cases.filter((item) => item.finalStatus === 'completed').length,
         attention: cases.filter((item) => item.finalStatus === 'expired' || item.finalStatus === 'rejected').length,
     }), [cases]);
+
+    const requestedDocumentItems = useMemo(
+        () => buildUserFastTrackDocumentItems(selectedCase?.documents || {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, userDocuments),
+        [selectedCase?.documents, userDocuments],
+    );
+    const verificationContent = useMemo(
+        () => buildFastTrackVerificationContent(
+            requestedDocumentItems.map((item) => ({
+                id: item.id,
+                title: item.title,
+                status: item.status === 'requested' ? 'missing' : item.status,
+                statusLabel: item.statusLabel,
+                fileName: item.fileName,
+                reason: item.reason,
+                reviewedAt: item.reviewedAt,
+            })),
+        ),
+        [requestedDocumentItems],
+    );
+    const selectedLeadStage = formatLeadStage(resolveLeadStage(selectedLead, userDocuments));
+    const selectedLeadDeadline = formatDeadlineLabel(selectedLead?.response_deadline_at || selectedLead?.sla_deadline);
+    const selectedLeadBroker = selectedLead?.matched_broker?.name || selectedLead?.matched_broker?.company_name || selectedLead?.matched_broker_id || 'No broker matched yet';
+    const uploadActionItems = useMemo(
+        () => requestedDocumentItems.filter((item) => item.status === 'requested' || item.status === 'reupload_required'),
+        [requestedDocumentItems],
+    );
+    const outstandingDocumentNames = useMemo(
+        () => getOutstandingDocumentNames(requestedDocumentItems),
+        [requestedDocumentItems],
+    );
+    const selectedLeadDocuments = selectedLead?.documents_requested || selectedLead?.documents_uploaded || selectedLead?.documents_verified
+        ? verificationContent.documentsLabel
+        : 'No pending document request';
+    const documentRequestLabel = outstandingDocumentNames.length > 0
+        ? outstandingDocumentNames.join(', ')
+        : 'Identity proof and address proof';
+    const showRequestedDocumentsPanel = Boolean(
+        selectedCase && (
+            selectedLead?.documents_requested
+            || selectedLead?.documents_uploaded
+            || selectedLead?.documents_verified
+            || selectedCase.finalStatus === 'in_progress'
+        ),
+    );
+
+    const handleUploadDocument = useCallback(async (type: 'identity' | 'address', file: File) => {
+        if (!selectedLead?.id) {
+            return;
+        }
+
+        setUploadError(null);
+        setUploadingType(type);
+        const result = await uploadDocument(type, file, { leadId: selectedLead.id });
+        setUploadingType(null);
+
+        if (!result.success || result.error) {
+            setUploadError(result.error || 'Unable to upload the requested document right now.');
+            return;
+        }
+
+        await fetchCases(true);
+    }, [fetchCases, selectedLead?.id]);
+
+    const handleBannerUpload = useCallback(async (
+        type: 'identity' | 'address',
+        event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+        const file = event.target.files?.[0];
+        event.currentTarget.value = '';
+        if (!file) {
+            return;
+        }
+
+        await handleUploadDocument(type, file);
+    }, [handleUploadDocument]);
+
+    const openUploadPicker = useCallback((type: 'identity' | 'address') => {
+        const target = type === 'identity' ? identityUploadInputRef.current : addressUploadInputRef.current;
+        target?.click();
+    }, []);
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
@@ -154,7 +303,7 @@ export default function UserFastTrackPage() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">24-Hour Fast Track</h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            Track every live case, document checkpoint, and stage update in one place.
+                            Track every live case, 10-minute broker response, document checkpoint, and stage update in one place.
                         </p>
                     </div>
                 </div>
@@ -196,7 +345,7 @@ export default function UserFastTrackPage() {
                         <Clock className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={40} />
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">No fast-track cases yet</h2>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            Start a 24-hour fast-track case from a property page and it will appear here automatically.
+                            Start a 24-hour fast-track case from a property page and it will appear here automatically with the live broker stage.
                         </p>
                         <button
                             onClick={() => navigate('/user/search')}
@@ -273,6 +422,99 @@ export default function UserFastTrackPage() {
                                     {statusMeta[selectedCase.finalStatus].note}
                                 </div>
 
+                                {selectedLead && (
+                                    <div className="mt-5 grid gap-3 md:grid-cols-4">
+                                        <div className="rounded-2xl border border-orange-100 dark:border-orange-900/40 bg-orange-50/70 dark:bg-orange-950/20 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">Live window</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{selectedLeadDeadline}</p>
+                                        </div>
+                                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Stage</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{selectedLeadStage}</p>
+                                        </div>
+                                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Matched broker</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{selectedLeadBroker}</p>
+                                        </div>
+                                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Documents</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{selectedLeadDocuments}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {selectedLead?.documents_requested && (
+                                    <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50/80 p-5 dark:border-orange-900/40 dark:bg-orange-950/20">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">Document request</p>
+                                        <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                            {selectedLeadBroker} asked for {documentRequestLabel}
+                                        </h3>
+                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                            Upload the requested files from this case below. The live stage updates here as soon as the documents are submitted.
+                                        </p>
+                                        <div className="mt-3 rounded-2xl border border-orange-200 bg-white/80 px-4 py-3 text-sm leading-6 text-gray-700 dark:border-orange-900/30 dark:bg-black/20 dark:text-gray-200">
+                                            {verificationContent.summary}
+                                        </div>
+                                        <div className="mt-4 flex flex-wrap gap-3">
+                                            {uploadActionItems.length > 0 ? (
+                                                uploadActionItems.map((item) => (
+                                                    <button
+                                                        key={`${item.id}-banner-action`}
+                                                        type="button"
+                                                        onClick={() => openUploadPicker(item.uploadType)}
+                                                        disabled={!selectedLead?.id || uploadingType === item.uploadType}
+                                                        className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-orange-400"
+                                                    >
+                                                        <Upload size={15} />
+                                                        <span>
+                                                            {uploadingType === item.uploadType ? 'Uploading...' : item.actionLabel === 'Upload replacement'
+                                                                ? `Re-upload ${item.title}`
+                                                                : `Upload ${item.title}`}
+                                                        </span>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                                    All requested documents are uploaded. The case is now waiting for manager review.
+                                                </div>
+                                            )}
+                                        </div>
+                                        <input
+                                            ref={identityUploadInputRef}
+                                            type="file"
+                                            accept="image/*,.pdf"
+                                            className="hidden"
+                                            disabled={!selectedLead?.id || uploadingType === 'identity'}
+                                            onChange={(event) => void handleBannerUpload('identity', event)}
+                                        />
+                                        <input
+                                            ref={addressUploadInputRef}
+                                            type="file"
+                                            accept="image/*,.pdf"
+                                            className="hidden"
+                                            disabled={!selectedLead?.id || uploadingType === 'address'}
+                                            onChange={(event) => void handleBannerUpload('address', event)}
+                                        />
+                                    </div>
+                                )}
+
+                                {selectedLead?.documents_requested && selectedCase.propertyId && (
+                                    <div className="mt-4 flex flex-wrap gap-3">
+                                        <button
+                                            onClick={() => navigate(`/user/properties/${selectedCase.propertyId}?fast-track=1`)}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                                        >
+                                            Open property workspace
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(`/user/dashboard/fast-track?case=${selectedCase.caseId}`)}
+                                            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                        >
+                                            Refresh live status
+                                        </button>
+                                    </div>
+                                )}
+
                                 <div className="mt-6">
                                     <FastTrackProgress currentStep={selectedCase.currentStep} />
                                 </div>
@@ -300,7 +542,9 @@ export default function UserFastTrackPage() {
                                             <p className="font-semibold">Next action</p>
                                         </div>
                                         <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                                            If documents are requested or re-uploads are needed, head to your profile upload area right away.
+                                            {selectedLead?.documents_requested
+                                                ? `Upload ${documentRequestLabel} from this case so ${selectedLeadBroker} can continue the live review.`
+                                                : 'If documents are requested or re-uploads are needed, upload them from this case instead of using profile settings.'}
                                         </p>
                                     </div>
                                 </div>
@@ -310,18 +554,98 @@ export default function UserFastTrackPage() {
                                 <div className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6">
                                     <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                                         <Shield className="text-orange-500" size={20} />
-                                        <h3 className="text-lg font-semibold">Document checklist</h3>
+                                        <h3 className="text-lg font-semibold">
+                                            {selectedLead?.documents_requested ? 'Requested documents' : 'Document checklist'}
+                                        </h3>
                                     </div>
                                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                        This is read-only on your side, so you can see what is verified without accidentally changing the workflow.
+                                        {selectedLead?.documents_requested
+                                            ? 'Upload the requested files directly from this case. The manager will see them in the same live workflow.'
+                                            : 'Your verification file status stays visible here for this fast-track case.'}
                                     </p>
-                                    <div className="mt-4">
-                                        <FastTrackDocuments
-                                            documents={selectedCase.documents}
-                                            onVerify={() => {}}
-                                            isReadOnly
-                                        />
+
+                                    {showRequestedDocumentsPanel && (
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            {requestedDocumentItems.map((item) => (
+                                                <span
+                                                    key={`${item.id}-pill`}
+                                                    className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300"
+                                                >
+                                                    {item.title}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="mt-5 space-y-3">
+                                        {requestedDocumentItems.map((item) => {
+                                            const isUploading = uploadingType === item.uploadType;
+                                            const badgeTone = item.status === 'verified'
+                                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300'
+                                                : item.status === 'reupload_required'
+                                                    ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300'
+                                                    : item.status === 'uploaded'
+                                                        ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300'
+                                                        : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300';
+
+                                            return (
+                                                <label
+                                                    key={item.id}
+                                                    className="block cursor-pointer rounded-2xl border border-gray-100 bg-gray-50 p-4 transition hover:border-orange-200 hover:bg-orange-50/60 dark:border-gray-700 dark:bg-gray-900/50 dark:hover:border-orange-900/40"
+                                                >
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*,.pdf"
+                                                        className="hidden"
+                                                        disabled={!selectedLead?.id || isUploading}
+                                                        onChange={async (event) => {
+                                                            const file = event.target.files?.[0];
+                                                            event.currentTarget.value = '';
+                                                            if (!file) {
+                                                                return;
+                                                            }
+
+                                                            await handleUploadDocument(item.uploadType, file);
+                                                        }}
+                                                    />
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
+                                                                    <FileImage size={18} />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.title}</p>
+                                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{item.hint}</p>
+                                                                </div>
+                                                            </div>
+                                                            <p className="mt-3 truncate text-sm text-gray-600 dark:text-gray-300">
+                                                                {item.fileName || 'No file uploaded yet'}
+                                                            </p>
+                                                            {item.reason && (
+                                                                <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300">
+                                                                    Reason: {item.reason}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <span className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold ${badgeTone}`}>
+                                                            {isUploading ? <Loader2 size={13} className="animate-spin" /> : item.statusLabel}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-orange-600 dark:text-orange-300">
+                                                        <Upload size={15} />
+                                                        <span>{item.actionLabel}</span>
+                                                    </div>
+                                                </label>
+                                            );
+                                        })}
                                     </div>
+
+                                    {uploadError && (
+                                        <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300">
+                                            {uploadError}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-6">
@@ -331,10 +655,10 @@ export default function UserFastTrackPage() {
                                     </div>
                                     <div className="mt-4 space-y-3">
                                         <button
-                                            onClick={() => navigate('/user/dashboard/profile')}
+                                            onClick={() => navigate(`/user/dashboard/fast-track?case=${selectedCase.caseId}`)}
                                             className="w-full rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-3 transition-colors"
                                         >
-                                            Open document uploads
+                                            Open live workspace
                                         </button>
                                         <button
                                             onClick={() => navigate('/user/dashboard/messages')}
@@ -344,10 +668,10 @@ export default function UserFastTrackPage() {
                                         </button>
                                         {selectedCase.propertyId && (
                                             <button
-                                                onClick={() => navigate(`/user/properties/${selectedCase.propertyId}`)}
+                                                onClick={() => navigate(`/user/properties/${selectedCase.propertyId}?fast-track=1`)}
                                                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
                                             >
-                                                View property
+                                                Open property workspace
                                             </button>
                                         )}
                                     </div>

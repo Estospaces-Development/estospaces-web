@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     CheckCircle2, Clock, MapPin, ChevronDown, Activity, FileText,
-    Loader2, Eye, MessageCircle, ArrowRight,
-    Phone, AlertCircle, Info, ExternalLink, Send
+    Eye, MessageCircle, ArrowRight,
+    ExternalLink, Send, Radio, UserCheck
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
 
 // --- Types & Interfaces ---
 
@@ -30,6 +31,7 @@ interface TimelineEventType {
 
 interface ApplicationItem {
     id: string;
+    source?: 'application' | 'broker_request' | 'listing';
     type: 'buy' | 'rent' | 'sell';
     currentStage: string;
     currentStageNumber: number;
@@ -44,6 +46,7 @@ interface ApplicationItem {
         title: string;
         city: string | null;
         price: number | null;
+        priceLabel?: string;
         image_urls: string[];
     };
     broker?: {
@@ -54,6 +57,8 @@ interface ApplicationItem {
     stages?: Stage[];
     timeline?: TimelineEventType[];
     stats?: { views: number; inquiries: number; saved: number };
+    primaryActionPath?: string;
+    primaryActionLabel?: string;
 }
 
 // --- Constants & Config ---
@@ -79,6 +84,12 @@ const SELL_STAGES: Stage[] = [
     { name: 'Published & Live', description: 'Property is live.', icon: Activity, color: 'green' },
     { name: 'Viewings & Offers', description: ' receiving offers.', icon: MessageCircle, color: 'orange' },
     { name: 'Sale Completed', description: 'Sale complete.', icon: CheckCircle2, color: 'green' }
+];
+
+const BROKER_REQUEST_STAGES: Stage[] = [
+    { name: 'Request Sent', description: 'Your 10-minute broker request is live.', icon: Send, color: 'blue', tips: ['Keep this live workspace open for updates'] },
+    { name: 'Nearby Brokers Pinged', description: 'Ranked brokers are being notified in dispatch waves.', icon: Radio, color: 'orange', tips: ['Nearby available brokers are being contacted first'] },
+    { name: 'Broker Matched', description: 'A broker accepted your request and the live workspace is ready.', icon: UserCheck, color: 'green', tips: ['Open the live workspace to continue'] },
 ];
 
 
@@ -142,6 +153,7 @@ const TimelineSkeleton = () => (
 
 import { getApplications } from '../../services/applicationsService';
 import { getUserProperties } from '../../services/userPropertiesService';
+import { getUserBrokerRequests } from '../../services/leadsService';
 
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
@@ -156,38 +168,97 @@ const ApplicationTimelineWidget = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // Fetch Applications
-                const appsRes = await getApplications();
-                if (appsRes.data) {
-                    const mappedApps: ApplicationItem[] = appsRes.data.map((app: any) => ({
-                        id: app.id,
-                        type: app.listing_type === 'sale' ? 'buy' : 'rent',
-                        currentStage: app.status === 'approved' ? 'Tenancy Agreement' : app.status === 'rejected' ? 'Application Rejected' : 'Documents Submitted',
-                        currentStageNumber: app.status === 'approved' ? 4 : 2,
-                        totalStages: 4,
-                        progress: app.status === 'approved' ? 100 : 50,
-                        lastUpdated: new Date(app.updated_at),
-                        nextAction: app.status === 'approved' ? 'Sign Agreement' : 'Wait for review',
-                        estimatedCompletion: '1-2 weeks',
-                        property: {
-                            id: app.property_id,
-                            title: app.property_title || 'Property application',
-                            city: app.property_address || null,
-                            price: typeof app.property_price === 'number' ? app.property_price : null,
-                            image_urls: app.property_image ? [app.property_image] : [],
-                        },
-                        stages: RENT_STAGES.map((s, i) => ({
-                            ...s,
-                            status: (app.status === 'approved' && i < 4) || (app.status !== 'approved' && i < 2) ? 'completed' : (app.status !== 'approved' && i === 2) ? 'current' : 'upcoming'
-                        }))
-                    }));
-                    setApplications(mappedApps);
-                }
+                const [appsRes, brokerRequestsRes, propsRes] = await Promise.all([
+                    getApplications(),
+                    getUserBrokerRequests(),
+                    getUserProperties({ limit: 50 }),
+                ]);
 
-                // Fetch Listings (User Properties)
-                const propsRes = await getUserProperties({ limit: 50 });
-                if (propsRes.data) {
-                    const mappedProps: ApplicationItem[] = propsRes.data.map((prop: any) => ({
+                const mappedApps: ApplicationItem[] = (appsRes.data || []).map((app: any) => ({
+                    id: app.id,
+                    source: 'application',
+                    type: app.listing_type === 'sale' ? 'buy' : 'rent',
+                    currentStage: app.status === 'approved' ? 'Tenancy Agreement' : app.status === 'rejected' ? 'Application Rejected' : 'Documents Submitted',
+                    currentStageNumber: app.status === 'approved' ? 4 : 2,
+                    totalStages: 4,
+                    progress: app.status === 'approved' ? 100 : 50,
+                    lastUpdated: new Date(app.updated_at),
+                    nextAction: app.status === 'approved' ? 'Sign Agreement' : 'Wait for review',
+                    estimatedCompletion: '1-2 weeks',
+                    property: {
+                        id: app.property_id,
+                        title: app.property_title || 'Property application',
+                        city: app.property_address || null,
+                        price: typeof app.property_price === 'number' ? app.property_price : null,
+                        image_urls: app.property_image ? [app.property_image] : [],
+                    },
+                    stages: RENT_STAGES.map((s, i) => ({
+                        ...s,
+                        status: (app.status === 'approved' && i < 4) || (app.status !== 'approved' && i < 2) ? 'completed' : (app.status !== 'approved' && i === 2) ? 'current' : 'upcoming'
+                    }))
+                }));
+
+                const mappedBrokerRequests: ApplicationItem[] = (brokerRequestsRes.data || [])
+                    .filter((request) => isLiveBrokerRequest(request))
+                    .map((request) => {
+                        const summary = getBrokerRequestTrackingSummary(request);
+                        const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
+
+                        return {
+                            id: `broker-request-${request.id}`,
+                            source: 'broker_request',
+                            type: request.request_type === 'rent' ? 'rent' : request.request_type === 'sell' ? 'sell' : 'buy',
+                            currentStage: summary.currentStage,
+                            currentStageNumber: summary.currentStageNumber,
+                            totalStages: summary.totalStages,
+                            progress: summary.progress,
+                            lastUpdated: new Date(request.updated_at || request.created_at || Date.now()),
+                            nextAction: summary.nextAction,
+                            estimatedCompletion: '10-minute live broker dispatch',
+                            property: {
+                                id: request.id,
+                                title: request.location ? `Live broker request for ${request.location}` : 'Live broker request',
+                                city: request.location_postcode || request.location || null,
+                                price: null,
+                                priceLabel: request.budget ? `Budget ${request.budget}` : '10-minute live dispatch',
+                                image_urls: [],
+                            },
+                            broker: request.matched_broker ? {
+                                name: request.matched_broker.name,
+                                phone: request.matched_broker.phone || '',
+                                avatar: '',
+                            } : undefined,
+                            stages: BROKER_REQUEST_STAGES.map((stage, index) => ({
+                                ...stage,
+                                status: index < stageIndex ? 'completed' : index === stageIndex ? 'current' : 'upcoming',
+                            })),
+                            timeline: [
+                                {
+                                    date: new Date(request.created_at || request.updated_at || Date.now()),
+                                    event: '10-minute broker dispatch requested',
+                                    type: 'milestone',
+                                },
+                                {
+                                    date: new Date(request.updated_at || request.created_at || Date.now()),
+                                    event: request.matched_broker?.name
+                                        ? `${request.matched_broker.name} accepted the live request`
+                                        : `Dispatch wave ${request.dispatch_wave || 1} is notifying nearby brokers`,
+                                    type: request.matched_broker ? 'success' : 'info',
+                                },
+                            ],
+                            primaryActionPath: '/user/dashboard/fast-track',
+                            primaryActionLabel: request.matched_broker ? 'Open Live Workspace' : 'Track Live Dispatch',
+                        };
+                    });
+
+                setApplications(
+                    [...mappedBrokerRequests, ...mappedApps].sort(
+                        (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
+                    ),
+                );
+
+                const mappedProps: ApplicationItem[] = (propsRes.data || []).map((prop: any) => ({
+                        source: 'listing',
                         id: prop.id,
                         type: prop.status === 'sold' ? 'sell' : 'rent', // Infer type
                         currentStage: ['published', 'active', 'online'].includes(prop.status) ? 'Published & Live' : prop.status === 'sold' ? 'Sale Completed' : 'Property Listed',
@@ -217,8 +288,7 @@ const ApplicationTimelineWidget = () => {
                                         : 'upcoming'
                         }))
                     }));
-                    setListings(mappedProps);
-                }
+                setListings(mappedProps);
 
             } catch (error) {
             } finally {
@@ -287,7 +357,9 @@ const ApplicationTimelineWidget = () => {
                         <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center">
                             <FileText className="w-8 h-8 text-gray-400" />
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No active {activeTab}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                            {activeTab === 'applications' ? 'No active applications or live broker requests' : 'No active listings'}
+                        </h3>
                         <p className="text-gray-500 dark:text-gray-400 mb-4">Start your property journey today</p>
                     </div>
                 ) : (
@@ -314,7 +386,9 @@ const ApplicationTimelineWidget = () => {
                                                 <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-bold text-xl text-gray-900 dark:text-white">{formatPropertyPrice(item.property.price)}</p>
+                                                <p className="font-bold text-xl text-gray-900 dark:text-white">
+                                                    {item.property.priceLabel || formatPropertyPrice(item.property.price)}
+                                                </p>
                                                 <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
                                             </div>
                                         </div>
@@ -372,8 +446,15 @@ const ApplicationTimelineWidget = () => {
                                     )}
 
                                     <div className="flex gap-3">
-                                        <button onClick={() => navigate(`/user/properties/${item.property.id}`)} className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2">View Property <ExternalLink size={14} /></button>
-                                        <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
+                                        <button
+                                            onClick={() => navigate(item.primaryActionPath || `/user/properties/${item.property.id}`)}
+                                            className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                                        >
+                                            {item.primaryActionLabel || 'View Property'} <ExternalLink size={14} />
+                                        </button>
+                                        {item.source !== 'broker_request' && (
+                                            <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
+                                        )}
                                     </div>
                                 </div>
                             )}

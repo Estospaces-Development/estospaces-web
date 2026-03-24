@@ -437,7 +437,7 @@ function PropertiesContent() {
                                             Status
                                         </label>
                                         <div className="flex flex-wrap gap-2">
-                                            {statusOptions.slice(0, 4).map((option) => (
+                                            {statusOptions.map((option) => (
                                                 <button
                                                     key={option.value}
                                                     onClick={() => {

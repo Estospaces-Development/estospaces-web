@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-
-const {
+import {
     buildManagerFastTrackSearchParams,
     resolveManagerFastTrackSelection,
-} = await import(new URL('./managerFastTrack.ts', import.meta.url).href);
+} from './managerFastTrack';
 
 test('resolveManagerFastTrackSelection prefers a requested case id', () => {
     assert.equal(
@@ -33,6 +32,21 @@ test('resolveManagerFastTrackSelection can match a requested lead through matchi
             'case-a',
         ),
         'case-b',
+    );
+});
+
+test('resolveManagerFastTrackSelection stays on the list page without a requested case or lead', () => {
+    assert.equal(
+        resolveManagerFastTrackSelection(
+            [
+                { caseId: 'case-a', leadId: 'lead-a' },
+                { caseId: 'case-b', leadId: 'lead-b' },
+            ],
+            null,
+            null,
+            'case-a',
+        ),
+        null,
     );
 });
 

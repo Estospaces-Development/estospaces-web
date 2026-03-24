@@ -276,7 +276,7 @@ export function getNotificationNavigationPath(
                 ? `/user/dashboard/fast-track?case=${data.fast_track_id || data.fastTrackId}`
                 : '/user/dashboard/fast-track';
         case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
-            return role === 'manager' ? '/manager/leads' : '/user/dashboard/profile';
+            return role === 'manager' ? '/manager/leads' : '/user/dashboard/fast-track';
         case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             if (role === 'manager') {
                 return conversationID ? `/manager/messages?conversation=${conversationID}` : '/manager/messages';

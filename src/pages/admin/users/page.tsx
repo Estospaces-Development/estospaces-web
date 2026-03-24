@@ -24,6 +24,8 @@ function UserManagementContent() {
     const [statsData, setStatsData] = useState<any>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [actionUserId, setActionUserId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 20;
 
     const fetchUsers = useCallback(async () => {
         try {
@@ -100,6 +102,42 @@ function UserManagementContent() {
         return matchesSearch && matchesTab;
     });
 
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const paginatedUsers = filteredUsers.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
+
+    const handleExportCSV = () => {
+        if (filteredUsers.length === 0) {
+            showToastError('No users to export.');
+            return;
+        }
+        const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
+        const rows = filteredUsers.map(u => {
+            const name = u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.full_name || 'No Name';
+            return [
+                name.replace(/,/g, ' '),
+                u.email,
+                u.role,
+                u.is_active ? 'Active' : 'Deactivated',
+                new Date(u.created_at).toLocaleDateString(),
+            ].join(',');
+        });
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToastSuccess(`Exported ${filteredUsers.length} users to CSV.`);
+    };
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, activeTab]);
+
     return (
         <div className="space-y-10 animate-in fade-in duration-500">
             {/* Header */}
@@ -124,7 +162,10 @@ function UserManagementContent() {
                             className="pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/10 font-bold text-sm w-64 shadow-sm transition-all"
                         />
                     </div>
-                    <button className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2">
+                    <button
+                        onClick={() => navigate('/auth/register')}
+                        className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
+                    >
                         <UserPlus size={18} /> Add User
                     </button>
                 </div>
@@ -167,7 +208,10 @@ function UserManagementContent() {
                         ))}
                     </div>
                     <div className="flex gap-4">
-                        <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                        >
                             <Download size={16} /> Export CSV
                         </button>
                     </div>
@@ -185,7 +229,7 @@ function UserManagementContent() {
                             </tr>
                         </thead>
                         <tbody className="divide-y dark:divide-gray-700">
-                            {filteredUsers.map((user) => (
+                            {paginatedUsers.map((user) => (
                                 <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">
@@ -250,12 +294,20 @@ function UserManagementContent() {
 
                 {/* Pagination Footer */}
                 <div className="px-10 py-8 border-t dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Showing {filteredUsers.length} of {statsData?.total_users || 0} Members</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Showing {paginatedUsers.length} of {filteredUsers.length} Members (Page {safeCurrentPage}/{totalPages})</p>
                     <div className="flex gap-2">
-                        <button className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30" disabled>
+                        <button
+                            disabled={safeCurrentPage <= 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30"
+                        >
                             <ArrowRight size={18} className="rotate-180" />
                         </button>
-                        <button className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
+                        <button
+                            disabled={safeCurrentPage >= totalPages}
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30"
+                        >
                             <ArrowRight size={18} />
                         </button>
                     </div>

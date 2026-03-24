@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, Home, Building2, X, Layers, Globe } from 'lucide-react';
+import { Home, Layers, Globe } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { useNavigate } from 'react-router-dom';
 
 // Fix for Leaflet marker icons
 import 'leaflet/dist/leaflet.css';
@@ -11,6 +12,8 @@ import 'leaflet/dist/leaflet.css';
 interface MapViewProps {
     houses?: any[];
     agencies?: any[];
+    onOpenProperty?: ((property: any) => void) | null;
+    onStartFastTrack?: ((property: any) => void) | null;
 }
 
 // Custom marker icons
@@ -61,7 +64,8 @@ function MapAutoCenter({ houses }: { houses: any[] }) {
     return null;
 }
 
-const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [] }) => {
+const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenProperty = null, onStartFastTrack = null }) => {
+    const navigate = useNavigate();
     const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
     const [isMounted, setIsMounted] = useState(false);
 
@@ -143,11 +147,31 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [] }) => {
                                 <p className="text-xs text-gray-600 mb-2">{house.address}</p>
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-bold text-orange-600">{house.price}</span>
+                                </div>
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
                                     <button
-                                        className="text-[10px] uppercase font-bold text-gray-400 hover:text-orange-500 transition-colors"
-                                        onClick={() => window.location.href = `/user/properties/${house.id}`}
+                                        className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                                        onClick={() => {
+                                            if (onOpenProperty) {
+                                                onOpenProperty(house);
+                                                return;
+                                            }
+                                            navigate(`/user/properties/${house.id}`);
+                                        }}
                                     >
-                                        View Details
+                                        Open property
+                                    </button>
+                                    <button
+                                        className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
+                                        onClick={() => {
+                                            if (onStartFastTrack) {
+                                                onStartFastTrack(house);
+                                                return;
+                                            }
+                                            navigate(`/user/properties/${house.id}?fast-track=1`);
+                                        }}
+                                    >
+                                        Start fast-track
                                     </button>
                                 </div>
                             </div>

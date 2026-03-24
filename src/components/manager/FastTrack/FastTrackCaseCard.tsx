@@ -4,6 +4,7 @@ import FastTrackProgress from './FastTrackProgress';
 import FastTrackDocuments from './FastTrackDocuments';
 import FastTrackActions from './FastTrackActions';
 import { Clock, AlertTriangle, AlertCircle, BadgeCheck, FileClock } from 'lucide-react';
+import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 
 interface FastTrackCaseCardProps {
     caseData: FastTrackCase;
@@ -19,11 +20,14 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
     leadStatusLabel,
 }) => {
     const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number } | null>(null);
-    const [countdownExpired, setCountdownExpired] = useState(caseData.finalStatus === 'expired');
 
     useEffect(() => {
         const calculateTimeLeft = () => {
-            if (caseData.finalStatus === 'completed' || caseData.finalStatus === 'rejected') {
+            if (
+                caseData.finalStatus === 'completed'
+                || caseData.finalStatus === 'rejected'
+                || caseData.finalStatus === 'expired'
+            ) {
                 setTimeLeft(null);
                 return;
             }
@@ -35,14 +39,12 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
 
             if (diff <= 0) {
                 setTimeLeft({ hours: 0, minutes: 0 });
-                setCountdownExpired(true);
                 return;
             }
 
             const hours = Math.floor(diff / (1000 * 60 * 60));
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             setTimeLeft({ hours, minutes });
-            setCountdownExpired(caseData.finalStatus === ('expired' as string));
         };
 
         calculateTimeLeft();
@@ -68,9 +70,16 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
     };
 
     const isDocsVerified = Object.values(caseData.documents).every(status => status === 'verified');
-    const isAtRisk = timeLeft ? timeLeft.hours < 6 : false;
+    const isOverdue = isFastTrackCaseOverdue(caseData) || Boolean(
+        caseData.finalStatus === 'in_progress'
+        && timeLeft
+        && timeLeft.hours === 0
+        && timeLeft.minutes === 0,
+    );
+    const isAtRisk = !isOverdue && (timeLeft ? timeLeft.hours < 6 : false);
+    const isExpired = caseData.finalStatus === 'expired';
     const isRejected = caseData.finalStatus === 'rejected';
-    const isLocked = countdownExpired || isRejected;
+    const isLocked = isExpired || isRejected;
 
     const getTypeColor = (type: string) => {
         switch (type) {
@@ -83,7 +92,11 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
 
     return (
         <div className={`bg-white dark:bg-black border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-5 flex flex-col h-full
-        ${isLocked ? 'border-red-200 dark:border-red-900/50 opacity-90' : 'border-gray-100 dark:border-zinc-800'}
+        ${isLocked
+            ? 'border-red-200 dark:border-red-900/50 opacity-90'
+            : isOverdue
+                ? 'border-orange-200 dark:border-orange-900/50'
+                : 'border-gray-100 dark:border-zinc-800'}
     `}>
             {/* Header */}
             <div className="flex justify-between items-start mb-3">
@@ -102,9 +115,14 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                                 <AlertCircle className="w-3 h-3" /> Rejected
                             </span>
                         )}
-                        {countdownExpired && !isRejected && caseData.finalStatus !== 'completed' && (
+                        {isExpired && !isRejected && caseData.finalStatus !== 'completed' && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
                                 <AlertCircle className="w-3 h-3" /> Expired
+                            </span>
+                        )}
+                        {isOverdue && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> Overdue
                             </span>
                         )}
                     </div>
@@ -161,7 +179,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                     currentStep={caseData.currentStep}
                     onAdvance={handleAdvanceStep}
                     isDocumentsVerified={isDocsVerified}
-                    isReadOnly={isLocked && caseData.finalStatus !== 'completed'}
+                    isReadOnly={isLocked}
                 />
             </div>
         </div>
