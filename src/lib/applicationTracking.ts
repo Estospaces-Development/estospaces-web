@@ -31,7 +31,7 @@ export const getBrokerRequestTrackingSummary = (
             currentStageNumber: 3,
             totalStages: 3,
             progress: 100,
-            nextAction: 'Open live workspace',
+            nextAction: 'Open broker workspace',
         };
     }
 

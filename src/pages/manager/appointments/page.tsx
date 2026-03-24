@@ -290,6 +290,7 @@ export default function ManagerAppointmentsPage() {
                         {filteredAppointments.map((appointment) => {
                             const { date, time } = formatDateTime(appointment.scheduled_at);
                             const isBusy = actingID === appointment.id;
+                            const isWorkflowLocked = Boolean(appointment.workflow_locked);
 
                             return (
                                 <div key={appointment.id} className="p-6">
@@ -326,10 +327,17 @@ export default function ManagerAppointmentsPage() {
                                                     {appointment.cancellation_reason && <p className="mt-2"><span className="font-semibold text-gray-900 dark:text-white">Cancellation:</span> {appointment.cancellation_reason}</p>}
                                                 </div>
                                             )}
+
+                                            {isWorkflowLocked && (
+                                                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                                                    <p className="font-semibold">Workflow locked</p>
+                                                    <p className="mt-1">{appointment.workflow_lock_reason || 'This appointment can no longer be changed because the linked deal has already advanced.'}</p>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-col gap-3 xl:min-w-[260px]">
-                                            {(appointment.status === 'pending' || appointment.status === 'rescheduled') && (
+                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => runAction(appointment.id, () => bookingsService.confirmViewing(appointment.id), 'Appointment confirmed successfully.')}
                                                     disabled={isBusy}
@@ -340,7 +348,7 @@ export default function ManagerAppointmentsPage() {
                                                 </button>
                                             )}
 
-                                            {(appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
+                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => openReschedule(appointment)}
                                                     disabled={isBusy}
@@ -350,7 +358,7 @@ export default function ManagerAppointmentsPage() {
                                                 </button>
                                             )}
 
-                                            {appointment.status === 'confirmed' && (
+                                            {!isWorkflowLocked && appointment.status === 'confirmed' && (
                                                 <button
                                                     onClick={() => runAction(appointment.id, () => bookingsService.updateViewing(appointment.id, { status: 'completed' }).then(() => undefined), 'Appointment marked as completed.')}
                                                     disabled={isBusy}
@@ -360,7 +368,7 @@ export default function ManagerAppointmentsPage() {
                                                 </button>
                                             )}
 
-                                            {(appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
+                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => runAction(appointment.id, () => bookingsService.cancelViewing(appointment.id, 'Cancelled by manager'), 'Appointment cancelled successfully.')}
                                                     disabled={isBusy}

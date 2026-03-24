@@ -15,7 +15,7 @@ import {
     Upload,
 } from 'lucide-react';
 import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
-import { Lead, getUserDocuments, getUserLeads, uploadDocument, UserDocument } from '@/services/leadsService';
+import { BrokerRequestRecord, Lead, getUserBrokerRequests, getUserDocuments, getUserLeads, uploadDocument, UserDocument } from '@/services/leadsService';
 import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress';
 import {
     buildFastTrackVerificationContent,
@@ -27,6 +27,7 @@ import {
     getOutstandingDocumentNames,
     resolveUserFastTrackSelection,
 } from '@/lib/userFastTrack';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 
 const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: string; note: string }> = {
     in_progress: {
@@ -94,6 +95,7 @@ export default function UserFastTrackPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [leads, setLeads] = useState<Lead[]>([]);
+    const [brokerRequests, setBrokerRequests] = useState<BrokerRequestRecord[]>([]);
     const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(searchParams.get('case'));
     const [loading, setLoading] = useState(true);
@@ -109,10 +111,11 @@ export default function UserFastTrackPage() {
             setError(null);
         }
 
-        const [casesResult, leadsResult, documentsResult] = await Promise.all([
+        const [casesResult, leadsResult, documentsResult, brokerRequestsResult] = await Promise.all([
             getFastTrackCases(),
             getUserLeads(),
             getUserDocuments(),
+            getUserBrokerRequests(),
         ]);
 
         if (casesResult.data) {
@@ -124,8 +127,9 @@ export default function UserFastTrackPage() {
         }
 
         setUserDocuments(normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error));
+        setBrokerRequests(brokerRequestsResult.data || []);
 
-        const requestError = casesResult.error || leadsResult.error || documentsResult.error;
+        const requestError = casesResult.error || leadsResult.error || documentsResult.error || brokerRequestsResult.error;
         if (casesResult.data || leadsResult.data) {
             setError(null);
             setUploadError(null);
@@ -204,6 +208,21 @@ export default function UserFastTrackPage() {
         completed: cases.filter((item) => item.finalStatus === 'completed').length,
         attention: cases.filter((item) => item.finalStatus === 'expired' || item.finalStatus === 'rejected').length,
     }), [cases]);
+    const matchedPriorityRequest = useMemo(
+        () => brokerRequests.find((item) => (
+            item.fast_track_enabled
+            && (item.dispatch_status === 'broker_matched' || item.status === 'matched' || Boolean(item.matched_broker))
+        )) || null,
+        [brokerRequests],
+    );
+    const activePriorityRequest = useMemo(
+        () => brokerRequests.find((item) => (
+            item.fast_track_enabled
+            && item.dispatch_status !== 'expired'
+            && item.status !== 'expired'
+        )) || null,
+        [brokerRequests],
+    );
 
     const requestedDocumentItems = useMemo(
         () => buildUserFastTrackDocumentItems(selectedCase?.documents || {
@@ -343,16 +362,39 @@ export default function UserFastTrackPage() {
                 ) : cases.length === 0 ? (
                     <div className="mt-8 rounded-3xl bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 p-12 text-center">
                         <Clock className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={40} />
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">No fast-track cases yet</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                            {matchedPriorityRequest ? 'Property handoff is still pending' : 'No fast-track cases yet'}
+                        </h2>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            Start a 24-hour fast-track case from a property page and it will appear here automatically with the live broker stage.
+                            {matchedPriorityRequest
+                                ? 'Your broker is matched, but the 24-hour property fast-track has not started yet. It begins only after property options are shared and you choose one.'
+                                : activePriorityRequest
+                                    ? 'Your live broker request is active. A 24-hour fast-track case will appear here only after a specific property is shared and selected.'
+                                    : 'Start a 24-hour fast-track case from a selected property and it will appear here automatically.'}
                         </p>
-                        <button
-                            onClick={() => navigate('/user/search')}
-                            className="mt-6 rounded-xl bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-gray-900 font-semibold px-5 py-3 transition-colors"
-                        >
-                            Explore properties
-                        </button>
+                        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                            {(matchedPriorityRequest || activePriorityRequest) ? (
+                                <button
+                                    onClick={() => navigate(buildBrokerRequestWorkspacePath((matchedPriorityRequest || activePriorityRequest)?.id))}
+                                    className="rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold px-5 py-3 transition-colors"
+                                >
+                                    Open broker workspace
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => navigate('/user/search')}
+                                    className="rounded-xl bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-gray-900 font-semibold px-5 py-3 transition-colors"
+                                >
+                                    Explore properties
+                                </button>
+                            )}
+                            <button
+                                onClick={() => navigate('/user/dashboard/messages')}
+                                className="rounded-xl border border-gray-200 px-5 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                Open messages
+                            </button>
+                        </div>
                     </div>
                 ) : selectedCase ? (
                     <div className="mt-8 grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">

@@ -10,6 +10,7 @@ import {
     withdrawApplication as withdrawBackendApplication,
 } from '@/services/applicationsService';
 import { getViewings, type Viewing } from '@/services/bookingsService';
+import { findRelatedViewing } from '@/lib/applicationWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 export const APPLICATION_STATUS = {
@@ -219,19 +220,9 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
-        const mappedApplications = (applicationsResult.data || []).map((application) => {
-            const matchingViewing = relatedViewings
-                .filter((viewing) =>
-                    viewing.property_id === application.property_id &&
-                    viewing.user_id === application.user_id &&
-                    viewing.status !== 'cancelled',
-                )
-                .sort((left, right) => (
-                    new Date(right.scheduled_at).getTime() - new Date(left.scheduled_at).getTime()
-                ))[0];
-
-            return mapBackendApplication(application, matchingViewing);
-        });
+        const mappedApplications = (applicationsResult.data || []).map((application) => (
+            mapBackendApplication(application, findRelatedViewing(application, relatedViewings))
+        ));
 
         setApplications(mappedApplications);
         setIsLoading(false);
@@ -265,6 +256,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         const { data: application, error: createError } = await createBackendApplication({
             property_id: propertyId,
             manager_id: managerId,
+            lead_id: data.lead_id || data.leadId,
+            fast_track_case_id: data.fast_track_case_id || data.fastTrackCaseId,
             applicant_name: data.applicant_name || data.personal_info?.full_name || data.fullName,
             applicant_email: data.applicant_email || data.personal_info?.email || data.email,
             applicant_phone: data.applicant_phone || data.personal_info?.phone || data.phone,

@@ -779,6 +779,8 @@ const UserPropertyDetail = () => {
             await bookingsService.createViewing({
                 property_id: property.id,
                 manager_id: property.manager_id,
+                lead_id: activeLead?.id || activeFastTrackCase?.leadId,
+                fast_track_case_id: activeFastTrackCase?.id,
                 client_name: displayName,
                 client_email: user?.email || '',
                 client_phone: user?.phone || '',

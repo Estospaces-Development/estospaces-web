@@ -11,6 +11,8 @@ export interface Application {
     id: string;
     property_id: string;
     user_id: string;
+    lead_id?: string | null;
+    fast_track_case_id?: string | null;
     manager_id?: string | null;
     applicant_name?: string;
     applicant_email?: string;
@@ -88,6 +90,8 @@ export const getApplicationById = async (applicationId: string): Promise<Applica
 export const createApplication = async (applicationData: {
     property_id: string;
     manager_id: string;
+    lead_id?: string;
+    fast_track_case_id?: string;
     applicant_name?: string;
     applicant_email?: string;
     applicant_phone?: string;

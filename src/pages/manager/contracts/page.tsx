@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw } from 'lucide-react';
-import { getUserContracts, getContract, signContract } from '@/services/contractsService';
+import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contractStatus';
+import { getUserContracts, signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -51,12 +52,13 @@ export default function ManagerContractsPage() {
     };
 
     const filteredContracts = contracts.filter(c => {
+        const normalizedStatus = normalizeContractStatus(c.status);
         // Tab filter
         const matchesTab = activeTab === 'all' 
             ? true 
             : activeTab === 'pending' 
-                ? (c.status === 'pending_user_signature' || c.status === 'pending_manager_signature')
-                : c.status === activeTab;
+                ? (normalizedStatus === 'pending_user_signature' || normalizedStatus === 'pending_manager_signature')
+                : normalizedStatus === activeTab;
         
         if (!matchesTab) return false;
 
@@ -78,9 +80,9 @@ export default function ManagerContractsPage() {
 
     const tabs: { key: Tab; label: string; count: number }[] = [
         { key: 'all', label: 'All', count: contracts.length },
-        { key: 'pending', label: 'Pending', count: contracts.filter(c => c.status.startsWith('pending')).length },
-        { key: 'active', label: 'Active', count: contracts.filter(c => c.status === 'active').length },
-        { key: 'draft', label: 'Drafts', count: contracts.filter(c => c.status === 'draft').length },
+        { key: 'pending', label: 'Pending', count: contracts.filter(c => normalizeContractStatus(c.status).startsWith('pending')).length },
+        { key: 'active', label: 'Active', count: contracts.filter(c => normalizeContractStatus(c.status) === 'active').length },
+        { key: 'draft', label: 'Drafts', count: contracts.filter(c => normalizeContractStatus(c.status) === 'draft').length },
     ];
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -149,8 +151,9 @@ export default function ManagerContractsPage() {
             {!loading && filteredContracts.length > 0 && (
                 <div className="grid gap-4">
                     {filteredContracts.map(contract => {
-                        const status = STATUS_MAP[contract.status] || STATUS_MAP.draft;
-                        const needsCountersign = contract.status === 'pending_manager_signature';
+                        const normalizedStatus = normalizeContractStatus(contract.status);
+                        const status = STATUS_MAP[normalizedStatus] || STATUS_MAP.draft;
+                        const needsCountersign = isPendingManagerSignature(contract.status);
 
                         return (
                             <div
@@ -243,7 +246,7 @@ export default function ManagerContractsPage() {
                         </div>
                         <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
                             {(() => {
-                                const s = STATUS_MAP[viewContract.status] || STATUS_MAP.draft;
+                                const s = STATUS_MAP[normalizeContractStatus(viewContract.status)] || STATUS_MAP.draft;
                                 return (
                                     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${s.color}`}>
                                         {s.icon} {s.label}
@@ -304,7 +307,7 @@ export default function ManagerContractsPage() {
                             >
                                 Close
                             </button>
-                            {viewContract.status === 'pending_manager_signature' && (
+                            {isPendingManagerSignature(viewContract.status) && (
                                 <button
                                     onClick={() => handleCountersign(viewContract.id)}
                                     disabled={signingId === viewContract.id}

@@ -29,6 +29,7 @@ export interface Viewing {
     property_id: string;
     user_id: string;
     manager_id: string;
+    application_id?: string;
     client_name?: string;
     client_email?: string;
     client_phone?: string;
@@ -48,12 +49,16 @@ export interface Viewing {
     user_notes?: string;
     manager_notes?: string;
     cancellation_reason?: string;
+    workflow_locked?: boolean;
+    workflow_lock_reason?: string;
     created_at: string;
 }
 
 export interface CreateViewingRequest {
     property_id: string;
     manager_id: string;
+    lead_id?: string;
+    fast_track_case_id?: string;
     client_name?: string;
     client_email?: string;
     client_phone?: string;

@@ -16,6 +16,7 @@ import {
     Search,
     PenTool
 } from 'lucide-react';
+import { isPendingUserSignature, normalizeContractStatus } from '@/lib/contractStatus';
 import { getUserContracts, signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
@@ -56,17 +57,14 @@ export default function ContractsPage() {
     };
 
     const getStatusStyles = (status: string) => {
-        switch (status.toLowerCase()) {
+        switch (normalizeContractStatus(status)) {
             case 'active':
-            case 'signed':
                 return 'bg-green-50 text-green-600 border-green-100';
             case 'pending_user_signature':
                 return 'bg-orange-50 text-orange-600 border-orange-200';
             case 'draft':
-            case 'sent':
             case 'pending_manager_signature':
                 return 'bg-yellow-50 text-yellow-600 border-yellow-100';
-            case 'expired':
             case 'terminated':
                 return 'bg-red-50 text-red-600 border-red-100';
             default:
@@ -79,13 +77,11 @@ export default function ContractsPage() {
             pending_user_signature: 'Awaiting Your Signature',
             pending_manager_signature: 'Awaiting Manager Signature',
             draft: 'Draft',
-            sent: 'Sent',
             active: 'Active',
-            signed: 'Signed',
-            expired: 'Expired',
             terminated: 'Terminated',
         };
-        return map[status] || status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const normalizedStatus = normalizeContractStatus(status);
+        return map[normalizedStatus] || normalizedStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     };
 
     if (isLoading) {
@@ -145,7 +141,7 @@ export default function ContractsPage() {
                             {filtered.length > 0 ? (
                                 <div className="space-y-4">
                                     {filtered.map((contract) => {
-                                        const needsSignature = contract.status === 'pending_user_signature';
+                                        const needsSignature = isPendingUserSignature(contract.status);
                                         return (
                                             <div
                                                 key={contract.id}

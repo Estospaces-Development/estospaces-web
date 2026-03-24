@@ -30,6 +30,7 @@ import {
     getDispatchWorkspaceSummary,
     getMatchedExperienceSteps,
 } from '@/lib/brokerDispatchPresentation';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 
 const secondsUntilDeadline = (deadline?: string) => {
     if (!deadline) {
@@ -313,7 +314,9 @@ const BrokerRequestWidget = () => {
                                             Priority lane
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {activeRequest.fast_track_enabled ? '24-hour fast-track is attached to this request.' : 'Standard live follow-up is active for this request.'}
+                                            {activeRequest.fast_track_enabled
+                                                ? 'Fast-track priority is reserved for the first property your broker shares and you choose.'
+                                                : 'Standard live follow-up is active for this request.'}
                                         </p>
                                     </div>
                                 </div>
@@ -339,10 +342,10 @@ const BrokerRequestWidget = () => {
                                     {activeRequest.fast_track_enabled && (
                                         <button
                                             type="button"
-                                            onClick={() => navigate('/user/dashboard/fast-track')}
+                                            onClick={() => navigate(buildBrokerRequestWorkspacePath(activeRequest.id))}
                                             className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300 dark:hover:bg-orange-950/40"
                                         >
-                                            Open live workspace
+                                            Open broker workspace
                                             <ArrowRight size={15} />
                                         </button>
                                     )}
@@ -354,7 +357,7 @@ const BrokerRequestWidget = () => {
                                     <CheckCircle2 size={18} className="text-orange-500" />
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">What happens next</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">The matched broker and your live workspace stay in sync from here.</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">The matched broker stays linked here until a property is shared and selected.</p>
                                     </div>
                                 </div>
 

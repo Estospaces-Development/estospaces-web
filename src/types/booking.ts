@@ -4,16 +4,19 @@
 
 export type ContractStatus = 
     | 'draft'
-    | 'sent'
     | 'pending_user_signature'
     | 'pending_manager_signature'
-    | 'signed'
     | 'active'
+    | 'terminated'
+    | 'sent'
+    | 'signed'
     | 'expired'
-    | 'terminated';
+    | 'pending_user'
+    | 'pending_manager';
 
 export interface Contract {
     id: string;
+    application_id?: string;
     property_id: string;
     manager_id: string;
     user_id: string;

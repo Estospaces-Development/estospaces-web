@@ -75,7 +75,6 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
 export const getMatchedExperienceSteps = (request: BrokerRequestRecord): MatchedExperienceStep[] => {
     const brokerName = request.matched_broker?.name || 'Your broker';
     const requestTypeLabel = formatRequestTypeLabel(request.request_type).toLowerCase();
-    const workspaceLabel = request.fast_track_enabled ? 'fast-track workspace' : 'live workspace';
 
     return [
         {
@@ -89,9 +88,11 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
             description: 'Your location, budget, and requirements remain in this workspace so the matched broker sees the same brief you submitted.',
         },
         {
-            id: 'next',
-            title: `Follow the ${workspaceLabel}`,
-            description: 'Any document request, live update, or next action will continue from the same active case flow.',
+            id: 'handoff',
+            title: request.fast_track_enabled ? 'Property handoff comes next' : 'Continue in the broker workspace',
+            description: request.fast_track_enabled
+                ? 'The 24-hour property fast-track starts only after your broker shares property options and you choose one.'
+                : 'Property options, document requests, and next actions will continue from the same broker workspace.',
         },
     ];
 };

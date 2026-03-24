@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Clock3, Loader2, MessageSquare, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
+import Modal from '@/components/ui/Modal';
 import LeadActionMap from '@/components/manager/LeadActionMap';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBrokerLeads, respondToLead, type Lead } from '@/services/leadsService';
+import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 
@@ -69,6 +71,26 @@ function getLeadClientName(lead: Lead) {
 
 function getLeadClientContact(lead: Lead) {
     return lead.email || lead.phone || 'No contact details';
+}
+
+function getDateInputValue(offsetDays = 0) {
+    const date = new Date();
+    date.setDate(date.getDate() + offsetDays);
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function canScheduleLeadViewing(lead: Lead) {
+    const stage = resolveLeadStage(lead);
+    return Boolean(
+        lead.user_id &&
+        lead.property_id &&
+        lead.broker_id &&
+        !['completed', 'expired', 'rejected', 'withdrawn'].includes(stage) &&
+        !['closed_won', 'closed_lost', 'cancelled'].includes(lead.status),
+    );
 }
 
 function getSlaRemainingSeconds(lead: Lead, now: number) {
@@ -133,6 +155,12 @@ export default function ManagerLeadsPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [actingLeadID, setActingLeadID] = useState<string | null>(null);
     const [now, setNow] = useState(Date.now());
+    const [scheduleLead, setScheduleLead] = useState<Lead | null>(null);
+    const [scheduleForm, setScheduleForm] = useState({
+        requested_date: getDateInputValue(1),
+        requested_time: '10:00',
+        user_notes: '',
+    });
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -318,6 +346,57 @@ export default function ManagerLeadsPage() {
         }
     }, [fetchLeads, navigate, sendLeadMessage, statusFilter, toast]);
 
+    const openScheduleViewing = useCallback((lead: Lead) => {
+        setScheduleLead(lead);
+        setScheduleForm({
+            requested_date: getDateInputValue(1),
+            requested_time: '10:00',
+            user_notes: lead.notes || '',
+        });
+    }, []);
+
+    const handleScheduleViewing = useCallback(async () => {
+        if (!scheduleLead?.property_id || !scheduleLead.user_id || !scheduleLead.broker_id) {
+            toast.error('This lead is missing the property, user, or manager link required for scheduling.');
+            return;
+        }
+        if (!scheduleForm.requested_date || !scheduleForm.requested_time) {
+            toast.error('Choose a viewing date and time first.');
+            return;
+        }
+
+        setActingLeadID(scheduleLead.id);
+        try {
+            await bookingsService.createViewing({
+                property_id: scheduleLead.property_id,
+                manager_id: scheduleLead.broker_id,
+                lead_id: scheduleLead.id,
+                client_name: getLeadClientName(scheduleLead),
+                client_email: scheduleLead.email || '',
+                client_phone: scheduleLead.phone || '',
+                property_title: getLeadTitle(scheduleLead),
+                property_address: getLeadAddress(scheduleLead),
+                property_image: parseLeadPropertyImage(scheduleLead.property?.image_urls),
+                property_price: scheduleLead.property?.price,
+                listing_type: scheduleLead.property?.listing_type,
+                agent_name: scheduleLead.property?.agent_name,
+                agent_email: scheduleLead.property?.agent_email,
+                agent_phone: scheduleLead.property?.agent_phone,
+                requested_date: scheduleForm.requested_date,
+                requested_time: scheduleForm.requested_time,
+                user_notes: scheduleForm.user_notes,
+            });
+
+            setScheduleLead(null);
+            toast.success('Viewing created successfully. The appointment and linked application are now in sync.');
+            await fetchLeads(statusFilter, { silent: true });
+        } catch (scheduleError: any) {
+            toast.error(scheduleError?.message || 'Unable to schedule the viewing right now.');
+        } finally {
+            setActingLeadID(null);
+        }
+    }, [fetchLeads, scheduleForm.requested_date, scheduleForm.requested_time, scheduleForm.user_notes, scheduleLead, statusFilter, toast]);
+
     return (
         <div className="space-y-8 pb-20">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -361,6 +440,7 @@ export default function ManagerLeadsPage() {
                 now={now}
                 actingLeadID={actingLeadID}
                 onRequestDocuments={handleRequestDocs}
+                onScheduleViewing={openScheduleViewing}
                 onOpenMessages={(lead) => {
                     void openLeadMessages(lead);
                 }}
@@ -419,6 +499,7 @@ export default function ManagerLeadsPage() {
                                 lead.user_id
                                 && !['completed', 'expired'].includes(stage),
                             );
+                            const canScheduleViewing = canScheduleLeadViewing(lead);
                             const isBusy = actingLeadID === lead.id;
 
                             return (
@@ -523,6 +604,15 @@ export default function ManagerLeadsPage() {
                                                     >
                                                         Request Documents
                                                     </button>
+                                                    {canScheduleViewing ? (
+                                                        <button
+                                                            onClick={() => openScheduleViewing(lead)}
+                                                            disabled={isBusy}
+                                                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                        >
+                                                            Schedule Viewing
+                                                        </button>
+                                                    ) : null}
                                                 </>
                                             ) : (
                                                 <>
@@ -546,6 +636,15 @@ export default function ManagerLeadsPage() {
                                                             {isBusy ? 'Sending request...' : 'Request Documents'}
                                                         </button>
                                                     ) : null}
+                                                    {canScheduleViewing ? (
+                                                        <button
+                                                            onClick={() => openScheduleViewing(lead)}
+                                                            disabled={isBusy}
+                                                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                        >
+                                                            Schedule Viewing
+                                                        </button>
+                                                    ) : null}
                                                 </>
                                             )}
                                         </div>
@@ -556,6 +655,77 @@ export default function ManagerLeadsPage() {
                     </div>
                 )}
             </div>
+
+            <Modal
+                isOpen={Boolean(scheduleLead)}
+                onClose={() => {
+                    if (!actingLeadID) {
+                        setScheduleLead(null);
+                    }
+                }}
+                title="Schedule Viewing"
+                size="md"
+                footer={scheduleLead ? (
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setScheduleLead(null)}
+                            disabled={Boolean(actingLeadID)}
+                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                        >
+                            Close
+                        </button>
+                        <button
+                            onClick={() => void handleScheduleViewing()}
+                            disabled={Boolean(actingLeadID)}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {actingLeadID === scheduleLead.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Create Appointment
+                        </button>
+                    </div>
+                ) : null}
+            >
+                {scheduleLead ? (
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{getLeadTitle(scheduleLead)}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{getLeadClientName(scheduleLead)} · {getLeadAddress(scheduleLead)}</p>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <label className="space-y-2 text-sm">
+                                <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
+                                <input
+                                    type="date"
+                                    value={scheduleForm.requested_date}
+                                    onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
+                                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                />
+                            </label>
+                            <label className="space-y-2 text-sm">
+                                <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
+                                <input
+                                    type="time"
+                                    value={scheduleForm.requested_time}
+                                    onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
+                                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                />
+                            </label>
+                        </div>
+
+                        <label className="block space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Notes</span>
+                            <textarea
+                                rows={4}
+                                value={scheduleForm.user_notes}
+                                onChange={(event) => setScheduleForm((previous) => ({ ...previous, user_notes: event.target.value }))}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                placeholder="Share anything the client or manager should know before the appointment."
+                            />
+                        </label>
+                    </div>
+                ) : null}
+            </Modal>
         </div>
     );
 }

@@ -1,4 +1,5 @@
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { normalizeContract } from '@/lib/contractStatus';
 import { Contract } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
@@ -22,7 +23,7 @@ export const createContract = async (data: CreateContractRequest): Promise<{ dat
             method: 'POST',
             body: JSON.stringify(data),
         });
-        return { data: response, error: null };
+        return { data: normalizeContract(response), error: null };
     } catch (error: any) {
         return { data: null, error: error.message || 'Failed to create contract' };
     }
@@ -31,7 +32,7 @@ export const createContract = async (data: CreateContractRequest): Promise<{ dat
 export const getContract = async (id: string): Promise<{ data: Contract | null; error: string | null }> => {
     try {
         const response = await apiFetch<Contract>(`${BOOKING_URL()}/api/v1/contracts/${id}`);
-        return { data: response, error: null };
+        return { data: normalizeContract(response), error: null };
     } catch (error: any) {
         return { data: null, error: error.message || 'Failed to fetch contract' };
     }
@@ -39,8 +40,8 @@ export const getContract = async (id: string): Promise<{ data: Contract | null; 
 
 export const getUserContracts = async (): Promise<{ data: Contract[] | null; error: string | null }> => {
     try {
-        const response = await apiFetch<{ data: Contract[] }>(`${BOOKING_URL()}/api/v1/contracts/mine`);
-        return { data: response.data, error: null };
+        const response = await apiFetch<Contract[]>(`${BOOKING_URL()}/api/v1/contracts/mine`);
+        return { data: response.map(normalizeContract), error: null };
     } catch (error: any) {
         return { data: null, error: error.message || 'Failed to fetch contracts' };
     }
@@ -53,7 +54,7 @@ export const signContract = async (id: string, role: 'user' | 'manager'): Promis
             method: 'PUT',
             body: JSON.stringify(payload),
         });
-        return { data: response.contract, error: null };
+        return { data: normalizeContract(response.contract), error: null };
     } catch (error: any) {
         return { data: null, error: error.message || 'Failed to sign contract' };
     }

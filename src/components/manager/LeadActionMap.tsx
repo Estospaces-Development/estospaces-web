@@ -11,6 +11,7 @@ interface LeadActionMapProps {
     now: number;
     actingLeadID?: string | null;
     onRequestDocuments: (lead: Lead) => void;
+    onScheduleViewing: (lead: Lead) => void;
     onOpenMessages: (lead: Lead) => void;
 }
 
@@ -56,6 +57,7 @@ export default function LeadActionMap({
     now,
     actingLeadID = null,
     onRequestDocuments,
+    onScheduleViewing,
     onOpenMessages,
 }: LeadActionMapProps) {
     const navigate = useNavigate();
@@ -96,6 +98,13 @@ export default function LeadActionMap({
     const selectedLead = useMemo(
         () => leadsWithCoordinates.find((lead) => lead.id === selectedLeadID) || null,
         [leadsWithCoordinates, selectedLeadID],
+    );
+    const canScheduleSelectedLead = Boolean(
+        selectedLead?.user_id &&
+        selectedLead?.property_id &&
+        selectedLead?.broker_id &&
+        !['completed', 'expired', 'rejected', 'withdrawn'].includes(resolveLeadStage(selectedLead)) &&
+        !['closed_won', 'closed_lost', 'cancelled'].includes(selectedLead?.status || ''),
     );
 
     if (!mapBounds || leadsWithCoordinates.length === 0) {
@@ -210,6 +219,16 @@ export default function LeadActionMap({
                                 <FileUp className="h-4 w-4" />
                                 {actingLeadID === selectedLead.id ? 'Sending request...' : 'Request documents'}
                             </button>
+                            {canScheduleSelectedLead ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onScheduleViewing(selectedLead)}
+                                    disabled={actingLeadID === selectedLead.id}
+                                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                >
+                                    Schedule viewing
+                                </button>
+                            ) : null}
                             {selectedLead.property_id && (
                                 <button
                                     type="button"

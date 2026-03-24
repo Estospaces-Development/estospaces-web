@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -206,6 +206,7 @@ const DashboardClient = () => {
   const [currentFilteredPage, setCurrentFilteredPage] = useState(() => parsePositivePage(searchParams.get('page')));
   const [nearbyProperties, setNearbyProperties] = useState<SearchResult[]>([]);
   const [nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
+  const brokerRequestWorkspaceRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const nextDashboardType = mapSearchParamsToDashboardType(searchParams.get('type'));
@@ -232,6 +233,21 @@ const DashboardClient = () => {
 
     setActiveTab('buy');
   }, [selectedPropertyType, setActiveTab]);
+
+  useEffect(() => {
+    if (searchParams.get('workspace') !== 'broker-request') {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      brokerRequestWorkspaceRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [searchParams]);
 
   useEffect(() => {
     let active = true;
@@ -484,7 +500,15 @@ const DashboardClient = () => {
       {!showFilteredResults && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2">
+            <div
+              id="broker-request-workspace"
+              ref={brokerRequestWorkspaceRef}
+              className={`lg:col-span-2 scroll-mt-24 rounded-3xl transition-shadow ${
+                searchParams.get('workspace') === 'broker-request'
+                  ? 'ring-2 ring-orange-200 shadow-lg shadow-orange-500/10'
+                  : ''
+              }`}
+            >
               <Suspense fallback={<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />}>
                 <BrokerRequestWidget />
               </Suspense>

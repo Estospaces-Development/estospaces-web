@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 
 // --- Types & Interfaces ---
 
@@ -89,7 +90,7 @@ const SELL_STAGES: Stage[] = [
 const BROKER_REQUEST_STAGES: Stage[] = [
     { name: 'Request Sent', description: 'Your 10-minute broker request is live.', icon: Send, color: 'blue', tips: ['Keep this live workspace open for updates'] },
     { name: 'Nearby Brokers Pinged', description: 'Ranked brokers are being notified in dispatch waves.', icon: Radio, color: 'orange', tips: ['Nearby available brokers are being contacted first'] },
-    { name: 'Broker Matched', description: 'A broker accepted your request and the live workspace is ready.', icon: UserCheck, color: 'green', tips: ['Open the live workspace to continue'] },
+    { name: 'Broker Matched', description: 'A broker accepted your request. Property options and the next handoff now continue from the broker workspace.', icon: UserCheck, color: 'green', tips: ['The 24-hour property fast-track begins only after a property is shared and selected'] },
 ];
 
 
@@ -246,8 +247,8 @@ const ApplicationTimelineWidget = () => {
                                     type: request.matched_broker ? 'success' : 'info',
                                 },
                             ],
-                            primaryActionPath: '/user/dashboard/fast-track',
-                            primaryActionLabel: request.matched_broker ? 'Open Live Workspace' : 'Track Live Dispatch',
+                            primaryActionPath: buildBrokerRequestWorkspacePath(request.id),
+                            primaryActionLabel: request.matched_broker ? 'Open Broker Workspace' : 'Track Live Dispatch',
                         };
                     });
 

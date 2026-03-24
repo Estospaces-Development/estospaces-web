@@ -46,9 +46,9 @@ test('matched experience steps keep the user in the same live workflow', () => {
                 description: 'Your location, budget, and requirements remain in this workspace so the matched broker sees the same brief you submitted.',
             },
             {
-                id: 'next',
-                title: 'Follow the fast-track workspace',
-                description: 'Any document request, live update, or next action will continue from the same active case flow.',
+                id: 'handoff',
+                title: 'Property handoff comes next',
+                description: 'The 24-hour property fast-track starts only after your broker shares property options and you choose one.',
             },
         ],
     );

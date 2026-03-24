@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { MapPin, Star, ChevronRight, Building2, Loader2, Clock, BadgeCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 
 const NearbyAgenciesList = () => {
     const [brokers, setBrokers] = useState<LeadBrokerSummary[]>([]);
@@ -74,10 +75,10 @@ const NearbyAgenciesList = () => {
                     </div>
                 </div>
                 <Link
-                    to="/user/dashboard/fast-track"
+                    to={buildBrokerRequestWorkspacePath(activeRequest?.id)}
                     className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center gap-1"
                 >
-                    Open live workspace <ChevronRight size={14} />
+                    Open broker workspace <ChevronRight size={14} />
                 </Link>
             </div>
 
@@ -108,7 +109,7 @@ const NearbyAgenciesList = () => {
                 <div className="text-center py-8 text-gray-500 text-sm">
                     {activeRequest?.location_postcode
                         ? 'Your live request is active. Ranked brokers will appear here as each dispatch wave opens.'
-                        : 'Add a postcode or start a fast-track case to see ranked brokers here.'}
+                        : 'Add a postcode or start a live broker request to see ranked brokers here.'}
                 </div>
             ) : (
                 <div className="space-y-4">
