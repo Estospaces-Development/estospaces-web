@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Building2,
     MapPin,
@@ -23,16 +23,31 @@ import {
     Mail,
     ChevronRight,
     Upload,
+    Loader2,
     MessageSquare
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
+import { useToast } from '@/contexts/ToastContext';
 import ApplicationCard from '@/components/dashboard/applications/ApplicationCard';
 import ApplicationCardSkeleton from '@/components/dashboard/applications/ApplicationCardSkeleton';
 import ApplicationFilters from '@/components/dashboard/applications/ApplicationFilters';
+import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
+import { messagesService } from '@/services/messagesService';
+import {
+    getNextSaleJourneyActions,
+    getSaleJourneySummary,
+    isSaleProgressionRecord,
+} from '@/lib/saleJourney';
 
 function ApplicationDetailDrawer({ application, onClose }: { application: Application; onClose: () => void }) {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const toast = useToast();
+    const [openingConversation, setOpeningConversation] = useState(false);
+    const isSaleProgression = isSaleProgressionRecord(application);
+    const nextSaleAction = getNextSaleJourneyActions(application.status)[0];
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
@@ -42,6 +57,13 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
         submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-700' },
         under_review: { label: 'Under Review', color: 'bg-amber-100 text-amber-700' },
         documents_requested: { label: 'Documents Required', color: 'bg-orange-100 text-orange-700' },
+        offer_submitted: { label: 'Offer Submitted', color: 'bg-blue-100 text-blue-700' },
+        offer_under_review: { label: 'Offer Under Review', color: 'bg-amber-100 text-amber-700' },
+        offer_accepted: { label: 'Offer Accepted', color: 'bg-green-100 text-green-700' },
+        sale_agreed: { label: 'Sale Agreed', color: 'bg-emerald-100 text-emerald-700' },
+        memorandum_issued: { label: 'Memorandum Issued', color: 'bg-purple-100 text-purple-700' },
+        conveyancing: { label: 'Conveyancing', color: 'bg-indigo-100 text-indigo-700' },
+        exchange: { label: 'Exchange', color: 'bg-cyan-100 text-cyan-700' },
         approved: { label: 'Approved', color: 'bg-green-100 text-green-700' },
         rejected: { label: 'Rejected', color: 'bg-red-100 text-red-700' },
         withdrawn: { label: 'Withdrawn', color: 'bg-gray-100 text-gray-500' },
@@ -49,6 +71,46 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
     };
 
     const statusInfo = statusMap[application.status] || { label: application.status, color: 'bg-gray-100 text-gray-700' };
+
+    const handleOpenConversation = async () => {
+        if (!application.managerId || !user) {
+            toast.error('The live agent conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(application.managerId, {
+                propertyId: application.propertyId,
+                propertyTitle: application.propertyTitle,
+                propertyAddress: application.propertyAddress,
+                propertyImage: application.propertyImage,
+                listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
+                propertyPrice: application.propertyPrice,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: application.agentName || '',
+                recipientEmail: application.agentEmail || '',
+                recipientPhone: application.agentPhone || '',
+                recipientAgency: application.agentAgency || '',
+            });
+
+            onClose();
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the agent conversation right now.');
+        } finally {
+            setOpeningConversation(false);
+        }
+    };
+
+    const uploadDocumentsPath = buildWorkspacePath('/user/dashboard/fast-track', {
+        applicationId: application.id,
+        caseId: application.fastTrackCaseId,
+        leadId: application.leadId,
+        propertyId: application.propertyId,
+    });
 
     return (
         <div className="fixed inset-0 z-50 flex">
@@ -141,21 +203,48 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                         </div>
                     </div>
 
+                    {isSaleProgression && (
+                        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/50 dark:bg-orange-950/20">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-orange-500">Purchase Journey</p>
+                                    <h4 className="mt-2 text-base font-bold text-gray-900 dark:text-white">
+                                        {application.journeyLabel || 'Live purchase progression'}
+                                    </h4>
+                                    <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                        {getSaleJourneySummary(application.status, application.journeySummary)}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl border border-white/70 bg-white/80 px-3 py-2 text-right shadow-sm dark:border-orange-900/30 dark:bg-orange-950/40">
+                                    <p className="text-[11px] font-bold uppercase tracking-widest text-orange-500">Next milestone</p>
+                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                        {nextSaleAction?.label || 'Completion recorded'}
+                                    </p>
+                                </div>
+                            </div>
+                            <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                                {nextSaleAction?.description || 'This purchase journey is already at its latest recorded stage.'}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div className="space-y-3">
                         {application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED && (
                             <button
-                                onClick={() => { onClose(); navigate('/user/dashboard/profile'); }}
+                                onClick={() => { onClose(); navigate(uploadDocumentsPath); }}
                                 className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all"
                             >
                                 <Upload size={18} /> Upload Documents
                             </button>
                         )}
                         <button
-                            onClick={() => { onClose(); navigate('/user/dashboard/messages'); }}
-                            className="w-full py-3 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all"
+                            onClick={() => void handleOpenConversation()}
+                            disabled={openingConversation}
+                            className="w-full py-3 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all disabled:cursor-wait disabled:opacity-70"
                         >
-                            <MessageSquare size={18} /> Message Agent
+                            {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                            <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                         </button>
                         {application.propertyId && (
                             <button
@@ -188,13 +277,51 @@ export default function ApplicationsPage() {
         fetchApplications
     } = useApplications();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showFilters, setShowFilters] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+    const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const hasWorkspaceFocusRequest = Boolean(
+        searchParams.get('application')
+        || searchParams.get('case')
+        || searchParams.get('lead')
+        || searchParams.get('property'),
+    );
+    const focusedApplicationFromRoute = resolveFocusedApplication(applications, {
+        applicationId: searchParams.get('application'),
+        caseId: searchParams.get('case'),
+        leadId: searchParams.get('lead'),
+        propertyId: searchParams.get('property'),
+    });
+
+    useEffect(() => {
+        setHasAppliedRouteFocus(false);
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (hasAppliedRouteFocus || !focusedApplicationFromRoute) {
+            return;
+        }
+
+        setSelectedApplication(focusedApplicationFromRoute);
+        setHasAppliedRouteFocus(true);
+    }, [focusedApplicationFromRoute, hasAppliedRouteFocus]);
 
     const totalApplications = applications.length;
-    const pendingStatusList: string[] = [APPLICATION_STATUS.SUBMITTED, APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.PENDING];
+    const pendingStatusList: string[] = [
+        APPLICATION_STATUS.SUBMITTED,
+        APPLICATION_STATUS.UNDER_REVIEW,
+        APPLICATION_STATUS.PENDING,
+        APPLICATION_STATUS.OFFER_SUBMITTED,
+        APPLICATION_STATUS.OFFER_UNDER_REVIEW,
+        APPLICATION_STATUS.OFFER_ACCEPTED,
+        APPLICATION_STATUS.SALE_AGREED,
+        APPLICATION_STATUS.MEMORANDUM_ISSUED,
+        APPLICATION_STATUS.CONVEYANCING,
+        APPLICATION_STATUS.EXCHANGE,
+    ];
     const pendingCount = applications.filter(app => pendingStatusList.includes(app.status)).length;
     const approvedCount = applications.filter(app => app.status === APPLICATION_STATUS.APPROVED).length;
     const actionRequiredCount = applications.filter(app => app.requiresAction).length;
@@ -314,6 +441,12 @@ export default function ApplicationsPage() {
                         setShowFilters={setShowFilters}
                     />
                 </div>
+
+                {hasWorkspaceFocusRequest && !focusedApplicationFromRoute && (
+                    <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                        You are in the right application workspace for this live case, but no linked application record exists yet. It will appear here automatically as soon as the broker or manager creates it.
+                    </div>
+                )}
 
                 {/* Action Required Banner */}
                 {applications.some(app => app.requiresAction) && (

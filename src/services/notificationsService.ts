@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { getNotificationNavigationPath as resolveNotificationNavigationPath } from '@/lib/notificationNavigation';
 
 const NOTIFICATION_URL = () => getServiceUrl('notification');
 
@@ -86,6 +87,11 @@ export interface NotificationData {
     propertyAddress?: string;
     propertyImage?: string;
     applicationId?: string;
+    contractId?: string;
+    leadId?: string;
+    caseId?: string;
+    paymentId?: string;
+    invoiceId?: string;
     fast_track_id?: string;
     fastTrackId?: string;
     viewingId?: string;
@@ -233,75 +239,7 @@ export function getNotificationNavigationPath(
     notification: Pick<Notification, 'type' | 'data'> | { type: string; data?: NotificationData | Record<string, any> | null },
     role: string = 'user',
 ): string | null {
-    const data = notification.data as NotificationData | undefined;
-    const targetPath = typeof data?.target_path === 'string'
-        ? data.target_path
-        : typeof data?.targetPath === 'string'
-            ? data.targetPath
-            : '';
-
-    if (targetPath.trim()) {
-        return targetPath;
-    }
-
-    const conversationID = typeof data?.conversation_id === 'string'
-        ? data.conversation_id
-        : typeof data?.conversationId === 'string'
-            ? data.conversationId
-            : '';
-
-    switch (notification.type) {
-        case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
-        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
-            return '/admin/verifications';
-        case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
-            return '/user/dashboard/profile';
-        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
-            return '/manager/verification';
-        case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
-        case NOTIFICATION_TYPES.VIEWING_COMPLETED:
-        case NOTIFICATION_TYPES.VIEWING_BOOKED:
-        case NOTIFICATION_TYPES.VIEWING_CANCELLED:
-        case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
-        case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-            return role === 'manager' ? '/manager/appointments' : '/user/dashboard/viewings';
-        case NOTIFICATION_TYPES.APPLICATION_UPDATE:
-        case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
-        case NOTIFICATION_TYPES.APPLICATION_APPROVED:
-            return '/user/dashboard/applications';
-        case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
-        case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
-        case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
-            return data?.fast_track_id || data?.fastTrackId
-                ? `/user/dashboard/fast-track?case=${data.fast_track_id || data.fastTrackId}`
-                : '/user/dashboard/fast-track';
-        case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
-            return role === 'manager' ? '/manager/leads' : '/user/dashboard/fast-track';
-        case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
-            if (role === 'manager') {
-                return conversationID ? `/manager/messages?conversation=${conversationID}` : '/manager/messages';
-            }
-            if (role === 'admin') {
-                return '/admin/chat';
-            }
-            return conversationID ? `/user/dashboard/messages?conversation=${conversationID}` : '/user/dashboard/messages';
-        case NOTIFICATION_TYPES.PROPERTY_SAVED:
-        case NOTIFICATION_TYPES.PRICE_DROP:
-        case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
-            return data?.propertyId ? `/user/properties/${data.propertyId}` : '/user/dashboard/saved';
-        case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
-        case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-            return '/user/dashboard/notifications';
-        case NOTIFICATION_TYPES.CONTRACT_UPDATE:
-            return '/user/dashboard/contracts';
-        case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
-        case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return role === 'manager' ? '/manager/verification' : '/user/dashboard/profile';
-        case NOTIFICATION_TYPES.APPLICATION_REJECTED:
-            return role === 'manager' ? '/manager/verification' : '/user/dashboard/profile';
-        default:
-            return role === 'admin' ? '/admin/notifications' : null;
-    }
+    return resolveNotificationNavigationPath(notification, role);
 }
 
 export function getNotificationsPagePath(role: string = 'user'): string {
@@ -313,6 +251,17 @@ export function getNotificationsPagePath(role: string = 'user'): string {
         default:
             return '/user/dashboard/notifications';
     }
+}
+
+export function isPropertyWorkflowNotification(
+    notification: Pick<Notification, 'type' | 'data'> | { type: string; data?: NotificationData | Record<string, any> | null },
+): boolean {
+    if (notification.type !== NOTIFICATION_TYPES.SYSTEM) {
+        return false;
+    }
+
+    const entity = typeof notification.data?.entity === 'string' ? notification.data.entity.trim() : '';
+    return entity === 'property_review_submission' || entity === 'property_status_update';
 }
 
 // ── Convenience Wrappers ────────────────────────────────────────────────────
@@ -377,5 +326,6 @@ export const notificationsService = {
     notifyViewingCancelled,
     getNotificationNavigationPath,
     getNotificationsPagePath,
+    isPropertyWorkflowNotification,
     NOTIFICATION_TYPES,
 };

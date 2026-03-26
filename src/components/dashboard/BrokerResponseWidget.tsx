@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, MoreHorizontal, Info, BellRing, Loader2, Timer, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Info, BellRing, Loader2, MapPin, MoreHorizontal, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
     acceptBrokerRequestOffer,
@@ -10,9 +10,14 @@ import {
     getBrokerLeads,
     getBrokerRequestOffers,
     respondToLead,
+    syncBrokerRequestPropertyShares,
+    type BrokerRequestRecord,
     updateBrokerAvailability,
 } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { getUserProperties } from '@/services/userPropertiesService';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { useToast } from '@/contexts/ToastContext';
 
 const secondsUntilDeadline = (deadline?: string) => {
     if (!deadline) {
@@ -37,11 +42,54 @@ const formatOfferSummary = (dispatchStatus?: string, matchedBrokerName?: string 
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+const parsePropertyImage = (value?: string) => {
+    if (!value) {
+        return PROPERTY_PLACEHOLDER_IMAGE;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed) && typeof parsed[0] === 'string' && parsed[0].trim().length > 0) {
+            return parsed[0];
+        }
+    } catch {
+        // The property may already expose a direct URL.
+    }
+
+    return value;
+};
+
+const formatPropertyPrice = (price?: number) => {
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+        return 'Price on request';
+    }
+
+    return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0,
+    }).format(price);
+};
+
+type ManagerPortfolioProperty = {
+    id: string;
+    title: string;
+    city?: string;
+    postcode?: string;
+    price?: number;
+    listing_type?: string;
+    image_urls?: string;
+};
+
 const BrokerResponseWidget: React.FC = () => {
     const navigate = useNavigate();
+    const toast = useToast();
     const [requests, setRequests] = useState<BrokerRequest[]>([]);
+    const [matchedRequests, setMatchedRequests] = useState<BrokerRequestRecord[]>([]);
+    const [managerProperties, setManagerProperties] = useState<ManagerPortfolioProperty[]>([]);
+    const [shareSelections, setShareSelections] = useState<Record<string, string[]>>({});
+    const [shareSavingRequestId, setShareSavingRequestId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [availabilitySeconds, setAvailabilitySeconds] = useState(0);
     const [availableForFastResponse, setAvailableForFastResponse] = useState(false);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
     const [availabilityBlockedReason, setAvailabilityBlockedReason] = useState<string | null>(null);
@@ -53,10 +101,14 @@ const BrokerResponseWidget: React.FC = () => {
         }
 
         try {
-            const [leadsResult, offersResult, availabilityResult] = await Promise.all([
+            const [leadsResult, offersResult, availabilityResult, propertiesResult] = await Promise.all([
                 getBrokerLeads(),
                 getBrokerRequestOffers(),
                 getBrokerAvailability(),
+                getUserProperties({
+                    limit: 40,
+                    status: ['published', 'active', 'online'],
+                }),
             ]);
 
             const mappedLeads = (leadsResult.data || []).map((lead) => ({
@@ -76,6 +128,8 @@ const BrokerResponseWidget: React.FC = () => {
                 dispatchStatus: lead.dispatch_status,
                 primaryActionLabel: 'Respond Now',
                 secondaryActionLabel: 'Open leads',
+                statusReason: lead.status_reason,
+                nextAction: lead.next_action,
             }));
 
             const mappedOffers = (offersResult.data || []).map((offer) => ({
@@ -95,6 +149,8 @@ const BrokerResponseWidget: React.FC = () => {
                 dispatchStatus: offer.dispatch_status,
                 primaryActionLabel: 'Accept Offer',
                 secondaryActionLabel: 'Open leads',
+                statusReason: offer.status_reason,
+                nextAction: offer.next_action,
             }));
 
             const merged = [...mappedOffers, ...mappedLeads]
@@ -112,8 +168,22 @@ const BrokerResponseWidget: React.FC = () => {
                 });
 
             setRequests(merged.slice(0, 4));
+            setMatchedRequests((offersResult.data || []).filter((offer) => (
+                (offer.dispatch_status === 'broker_matched' || offer.status === 'matched')
+                && Boolean(offer.matched_broker_id)
+            )));
+            setManagerProperties((propertiesResult.data || []).map((property: any) => ({
+                id: property.id,
+                title: property.title,
+                city: property.city,
+                postcode: property.postcode,
+                price: property.price,
+                listing_type: property.listing_type,
+                image_urls: Array.isArray(property.images) && typeof property.images[0] === 'string'
+                    ? JSON.stringify(property.images)
+                    : property.image_urls,
+            })));
             setAvailableForFastResponse(Boolean(availabilityResult.data?.available_for_fast_response));
-            setAvailabilitySeconds(availabilityResult.data?.seconds_remaining || 0);
             setAvailabilityBlockedReason(availabilityResult.data?.blocked_reason || null);
         } catch (error) {
         } finally {
@@ -136,22 +206,23 @@ const BrokerResponseWidget: React.FC = () => {
     }, [fetchRequests]);
 
     useEffect(() => {
-        if (!availableForFastResponse || availabilitySeconds <= 0) {
-            return;
-        }
+        setShareSelections((previous) => {
+            const next = { ...previous };
 
-        const timer = window.setInterval(() => {
-            setAvailabilitySeconds((previous) => {
-                if (previous <= 1) {
-                    setAvailableForFastResponse(false);
-                    return 0;
+            matchedRequests.forEach((request) => {
+                const existingSelection = next[request.id];
+                if (existingSelection && existingSelection.length > 0) {
+                    return;
                 }
-                return previous - 1;
-            });
-        }, 1000);
 
-        return () => window.clearInterval(timer);
-    }, [availabilitySeconds, availableForFastResponse]);
+                next[request.id] = (request.property_shares || [])
+                    .sort((left, right) => left.rank - right.rank)
+                    .map((share) => share.property_id);
+            });
+
+            return next;
+        });
+    }, [matchedRequests]);
 
     const handleRespond = async (id: string) => {
         try {
@@ -168,6 +239,51 @@ const BrokerResponseWidget: React.FC = () => {
                 await fetchRequests(true);
             }
         } catch (error) {
+        }
+    };
+
+    const togglePropertySelection = (requestId: string, propertyId: string) => {
+        setShareSelections((previous) => {
+            const current = previous[requestId] || [];
+            const nextSelection = current.includes(propertyId)
+                ? current.filter((item) => item !== propertyId)
+                : [...current, propertyId];
+
+            return {
+                ...previous,
+                [requestId]: nextSelection,
+            };
+        });
+    };
+
+    const savePropertyShares = async (requestId: string) => {
+        const selectedPropertyIds = shareSelections[requestId] || [];
+        if (selectedPropertyIds.length === 0) {
+            toast.error('Choose at least one property before sharing the shortlist.');
+            return;
+        }
+
+        setShareSavingRequestId(requestId);
+
+        try {
+            const { data, error } = await syncBrokerRequestPropertyShares(
+                requestId,
+                selectedPropertyIds.map((propertyId, index) => ({
+                    property_id: propertyId,
+                    rank: index + 1,
+                })),
+            );
+
+            if (error || !data) {
+                throw new Error(error || 'Unable to share the shortlisted properties right now.');
+            }
+
+            toast.success('Property shortlist shared with the matched client.');
+            await fetchRequests(true);
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to share the shortlist right now.');
+        } finally {
+            setShareSavingRequestId(null);
         }
     };
 
@@ -193,18 +309,23 @@ const BrokerResponseWidget: React.FC = () => {
 
         if (response.data) {
             setAvailableForFastResponse(response.data.available_for_fast_response);
-            setAvailabilitySeconds(response.data.seconds_remaining || 0);
             setAvailabilityBlockedReason(response.data.blocked_reason || null);
         }
     };
 
-    const formatCountdown = (seconds: number) => {
-        const minutes = Math.floor(seconds / 60);
-        const remainder = seconds % 60;
-        return `${minutes}:${remainder.toString().padStart(2, '0')}`;
-    };
-
     const pendingCount = requests.filter((request) => request.status === 'pending').length;
+    const availabilityLabel = availabilityBlockedReason
+        ? 'Live dispatch unavailable'
+        : availableForFastResponse
+            ? 'Live queue is on'
+            : 'Offline for the rapid-response queue';
+    const availabilityHint = availabilityBlockedReason
+        ? availabilityBlockedReason
+        : availableForFastResponse
+            ? pendingCount > 0
+                ? `${pendingCount} waiting user${pendingCount === 1 ? '' : 's'} are shown below with their own countdown.`
+                : 'Waiting users will appear here with their own 10-minute countdown.'
+            : 'Go live when you want to start receiving user requests.';
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 ring-2 ring-blue-500/10">
@@ -232,22 +353,18 @@ const BrokerResponseWidget: React.FC = () => {
 
             <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Availability session</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Live dispatch</p>
                     <div className="mt-2 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-                        <Timer className="h-4 w-4 text-orange-500" />
-                        <span>
-                            {availabilityBlockedReason
-                                ? 'Live dispatch unavailable'
-                                : availableForFastResponse
-                                    ? `Available for 10-minute response - ${formatCountdown(availabilitySeconds)}`
-                                    : 'Offline for the rapid-response queue'}
-                        </span>
+                        <Zap className="h-4 w-4 text-orange-500" />
+                        <span>{availabilityLabel}</span>
                     </div>
-                    {availabilityBlockedReason && (
-                        <p className="mt-2 text-xs text-amber-600 dark:text-amber-300">
-                            {availabilityBlockedReason}
-                        </p>
-                    )}
+                    <p className={`mt-2 text-xs ${
+                        availabilityBlockedReason
+                            ? 'text-amber-600 dark:text-amber-300'
+                            : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                        {availabilityHint}
+                    </p>
                     {availabilityError && (
                         <p className="mt-2 text-xs text-red-600 dark:text-red-400">
                             {availabilityError}
@@ -269,8 +386,8 @@ const BrokerResponseWidget: React.FC = () => {
                     {availabilityBlockedReason
                         ? 'Open verification'
                         : availableForFastResponse
-                            ? 'Stop availability'
-                            : 'Available for 10 min'}
+                            ? 'Pause live queue'
+                            : 'Go live'}
                 </button>
             </div>
 
@@ -291,10 +408,200 @@ const BrokerResponseWidget: React.FC = () => {
                 )}
             </div>
 
+            {matchedRequests.length > 0 && (
+                <div className="mt-8 rounded-3xl border border-gray-100 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/30">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Matched client workspaces</p>
+                            <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Share your ranked property shortlist</h4>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                These are the live broker requests you already accepted. Share only your own published properties so the user can select one and trigger the 24-hour fast-track.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/manager/dashboard/properties')}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                        >
+                            Manage properties
+                            <ArrowRight className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    <div className="mt-5 space-y-5">
+                        {matchedRequests.map((request) => {
+                            const selectedIds = shareSelections[request.id] || [];
+                            const sharedCount = request.property_shares?.length || 0;
+                            const selectedProperty = request.selected_property;
+                            const isSaving = shareSavingRequestId === request.id;
+
+                            return (
+                                <div
+                                    key={request.id}
+                                    className="rounded-3xl border border-white bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-black"
+                                >
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                                    Matched
+                                                </span>
+                                                <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                    {request.request_type}
+                                                </span>
+                                            </div>
+                                            <h5 className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
+                                                {request.requester_name || request.requester_email || 'Matched client'}
+                                            </h5>
+                                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                {request.location || 'Location shared in request'}
+                                                {request.location_postcode ? ` - ${request.location_postcode}` : ''}
+                                            </p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                {selectedProperty
+                                                    ? `${selectedProperty.title} has already been selected by the client.`
+                                                    : sharedCount > 0
+                                                        ? `${sharedCount} shortlisted propert${sharedCount === 1 ? 'y is' : 'ies are'} already shared. Update the ranking or add more options below.`
+                                                        : 'No property shortlist shared yet. Choose the best owned properties below and send them into the client workspace.'}
+                                            </p>
+                                        </div>
+                                        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Request area</p>
+                                            <p className="mt-2 flex items-center gap-2 font-medium text-gray-900 dark:text-white">
+                                                <MapPin className="h-4 w-4 text-orange-500" />
+                                                {request.location_postcode || request.location || 'UK'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {selectedProperty && (
+                                        <div className="mt-5 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+                                            <div className="grid gap-4 md:grid-cols-[140px_minmax(0,1fr)]">
+                                                <img
+                                                    src={parsePropertyImage(selectedProperty.image_urls)}
+                                                    alt={selectedProperty.title}
+                                                    className="h-full min-h-[140px] w-full object-cover"
+                                                    onError={(event) => {
+                                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                    }}
+                                                />
+                                                <div className="p-4">
+                                                    <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        <span className="text-sm font-semibold">Client selected this property</span>
+                                                    </div>
+                                                    <h6 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{selectedProperty.title}</h6>
+                                                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                        {[selectedProperty.address_line_1, selectedProperty.city, selectedProperty.postcode].filter(Boolean).join(', ')}
+                                                    </p>
+                                                    <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                        {formatPropertyPrice(selectedProperty.price)}
+                                                    </p>
+                                                    <div className="mt-4 flex flex-wrap gap-3">
+                                                        <button
+                                                            onClick={() => navigate('/manager/leads')}
+                                                            className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                                                        >
+                                                            Open lead workflow
+                                                            <ArrowRight className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => navigate(`/manager/dashboard/properties/${selectedProperty.id}`)}
+                                                            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                                                        >
+                                                            Open property
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!selectedProperty && (
+                                        <>
+                                            <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                                                {managerProperties.map((property) => {
+                                                    const isSelected = selectedIds.includes(property.id);
+
+                                                    return (
+                                                        <button
+                                                            key={`${request.id}-${property.id}`}
+                                                            type="button"
+                                                            onClick={() => togglePropertySelection(request.id, property.id)}
+                                                            className={`overflow-hidden rounded-2xl border text-left transition ${
+                                                                isSelected
+                                                                    ? 'border-orange-300 bg-orange-50 shadow-sm dark:border-orange-800 dark:bg-orange-950/20'
+                                                                    : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/70 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:border-orange-900/40'
+                                                            }`}
+                                                        >
+                                                            <div className="grid gap-4 md:grid-cols-[112px_minmax(0,1fr)]">
+                                                                <img
+                                                                    src={parsePropertyImage(property.image_urls)}
+                                                                    alt={property.title}
+                                                                    className="h-full min-h-[112px] w-full object-cover"
+                                                                    onError={(event) => {
+                                                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                                    }}
+                                                                />
+                                                                <div className="p-4">
+                                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                        <div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                                                                                    isSelected
+                                                                                        ? 'bg-orange-500 text-white'
+                                                                                        : 'border border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-black dark:text-gray-300'
+                                                                                }`}>
+                                                                                    {isSelected ? selectedIds.indexOf(property.id) + 1 : '+'}
+                                                                                </span>
+                                                                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.title}</p>
+                                                                            </div>
+                                                                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                                                {[property.city, property.postcode].filter(Boolean).join(', ') || 'Location unavailable'}
+                                                                            </p>
+                                                                        </div>
+                                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                            {formatPropertyPrice(property.price)}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                                                        <span>{property.listing_type || 'property'}</span>
+                                                                        <span>{isSelected ? 'Included in shortlist' : 'Click to shortlist'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {selectedIds.length > 0
+                                                        ? `${selectedIds.length} propert${selectedIds.length === 1 ? 'y is' : 'ies are'} ready to share in ranked order.`
+                                                        : 'Choose the strongest matching properties from your live inventory.'}
+                                                </div>
+                                                <button
+                                                    onClick={() => void savePropertyShares(request.id)}
+                                                    disabled={isSaving || selectedIds.length === 0}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                                    {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             <div className="mt-6 flex justify-between items-center text-xs text-gray-500 border-t border-gray-100 dark:border-gray-800 pt-4">
                 <div className="flex items-center gap-1">
                     <Info className="w-4 h-4" />
-                    <span>USP: 10-minute broker response SLA and live availability session are active.</span>
+                    <span>The user keeps the 10-minute countdown. Managers stay live until they pause availability.</span>
                 </div>
                 <button
                     onClick={() => navigate('/manager/leads')}

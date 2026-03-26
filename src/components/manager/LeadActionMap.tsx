@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from 'react';
-import { Clock3, FileUp, MapPin, MessageSquare } from 'lucide-react';
+import { Clock3, FileUp, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { Lead } from '@/services/leadsService';
 import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 
@@ -15,12 +18,26 @@ interface LeadActionMapProps {
     onOpenMessages: (lead: Lead) => void;
 }
 
-interface MapBounds {
-    minLat: number;
-    maxLat: number;
-    minLng: number;
-    maxLng: number;
-}
+const createLeadMarkerIcon = (selected: boolean) => L.divIcon({
+    className: 'lead-action-marker',
+    html: `<div style="
+        background:${selected ? '#f97316' : '#0f172a'};
+        width:${selected ? 42 : 36}px;
+        height:${selected ? 42 : 36}px;
+        border-radius:999px;
+        border:3px solid white;
+        box-shadow:0 14px 28px rgba(15,23,42,0.28);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:white;
+        font-weight:700;
+        font-size:16px;
+    ">&#9679;</div>`,
+    iconSize: [selected ? 42 : 36, selected ? 42 : 36],
+    iconAnchor: [selected ? 21 : 18, selected ? 42 : 36],
+    popupAnchor: [0, selected ? -32 : -28],
+});
 
 const formatCountdown = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -42,15 +59,29 @@ const getLeadRemainingSeconds = (lead: Lead, now: number) => {
     return remaining > 0 ? remaining : 0;
 };
 
-const buildPosition = (latitude: number, longitude: number, bounds: MapBounds) => {
-    const latRange = bounds.maxLat - bounds.minLat || 0.1;
-    const lngRange = bounds.maxLng - bounds.minLng || 0.1;
+function LeadMapAutoFit({ leads }: { leads: Lead[] }) {
+    const map = useMap();
 
-    return {
-        left: `${Math.max(8, Math.min(92, ((longitude - bounds.minLng) / lngRange) * 100))}%`,
-        top: `${Math.max(10, Math.min(90, ((bounds.maxLat - latitude) / latRange) * 100))}%`,
-    };
-};
+    useEffect(() => {
+        const points = leads
+            .filter((lead) => typeof lead.property?.latitude === 'number' && typeof lead.property?.longitude === 'number')
+            .map((lead) => [lead.property?.latitude as number, lead.property?.longitude as number] as [number, number]);
+
+        if (points.length === 0) {
+            map.setView([54.5, -3], 5);
+            return;
+        }
+
+        if (points.length === 1) {
+            map.setView(points[0], 14);
+            return;
+        }
+
+        map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
+    }, [leads, map]);
+
+    return null;
+}
 
 export default function LeadActionMap({
     leads,
@@ -62,27 +93,16 @@ export default function LeadActionMap({
 }: LeadActionMapProps) {
     const navigate = useNavigate();
     const [selectedLeadID, setSelectedLeadID] = useState<string | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const leadsWithCoordinates = useMemo(
         () => leads.filter((lead) => typeof lead.property?.latitude === 'number' && typeof lead.property?.longitude === 'number'),
         [leads],
     );
-
-    const mapBounds = useMemo<MapBounds | null>(() => {
-        if (leadsWithCoordinates.length === 0) {
-            return null;
-        }
-
-        const latitudes = leadsWithCoordinates.map((lead) => lead.property?.latitude as number);
-        const longitudes = leadsWithCoordinates.map((lead) => lead.property?.longitude as number);
-
-        return {
-            minLat: Math.min(...latitudes),
-            maxLat: Math.max(...latitudes),
-            minLng: Math.min(...longitudes),
-            maxLng: Math.max(...longitudes),
-        };
-    }, [leadsWithCoordinates]);
 
     useEffect(() => {
         if (!selectedLeadID && leadsWithCoordinates[0]) {
@@ -100,14 +120,14 @@ export default function LeadActionMap({
         [leadsWithCoordinates, selectedLeadID],
     );
     const canScheduleSelectedLead = Boolean(
-        selectedLead?.user_id &&
-        selectedLead?.property_id &&
-        selectedLead?.broker_id &&
-        !['completed', 'expired', 'rejected', 'withdrawn'].includes(resolveLeadStage(selectedLead)) &&
-        !['closed_won', 'closed_lost', 'cancelled'].includes(selectedLead?.status || ''),
+        selectedLead?.user_id
+        && selectedLead?.property_id
+        && selectedLead?.broker_id
+        && !['completed', 'expired', 'rejected', 'withdrawn'].includes(resolveLeadStage(selectedLead))
+        && !['closed_won', 'closed_lost', 'cancelled'].includes(selectedLead?.status || ''),
     );
 
-    if (!mapBounds || leadsWithCoordinates.length === 0) {
+    if (leadsWithCoordinates.length === 0) {
         return (
             <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lead map</h3>
@@ -124,55 +144,113 @@ export default function LeadActionMap({
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Interactive lead map</h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        See the current lead stage and trigger follow-up from the property marker itself.
+                        Live property markers stay connected to the same lead stage, client timer, and next action.
                     </p>
                 </div>
                 <div className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-900/20 dark:text-orange-300">
-                    10-minute live response
+                    User countdown stays live here
                 </div>
             </div>
 
             <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="relative h-[460px] bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.22),_transparent_40%),linear-gradient(180deg,_#f8fafc,_#e2e8f0)] dark:bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.18),_transparent_42%),linear-gradient(180deg,_#111827,_#020617)]">
-                    <iframe
-                        title="Lead property map"
-                        className="absolute inset-0 h-full w-full opacity-45"
-                        src={`https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d${28000}!2d${(mapBounds.minLng + mapBounds.maxLng) / 2}!3d${(mapBounds.minLat + mapBounds.maxLat) / 2}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2suk!4v1640000000000!5m2!1sen!2suk`}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                    />
+                <div className="relative h-[460px] bg-slate-100 dark:bg-slate-950">
+                    {isMounted ? (
+                        <MapContainer
+                            center={[54.5, -3]}
+                            zoom={6}
+                            style={{ height: '100%', width: '100%' }}
+                            scrollWheelZoom
+                        >
+                            <LeadMapAutoFit leads={leadsWithCoordinates} />
+                            <TileLayer
+                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            />
+                            {leadsWithCoordinates.map((lead) => {
+                                const stage = resolveLeadStage(lead);
+                                const isSelected = selectedLeadID === lead.id;
+                                const canScheduleViewing = Boolean(
+                                    lead.user_id
+                                    && lead.property_id
+                                    && lead.broker_id
+                                    && !['completed', 'expired', 'rejected', 'withdrawn'].includes(stage)
+                                    && !['closed_won', 'closed_lost', 'cancelled'].includes(lead.status || ''),
+                                );
 
-                    <div className="absolute inset-0">
-                        {leadsWithCoordinates.map((lead) => {
-                            const position = buildPosition(
-                                lead.property?.latitude as number,
-                                lead.property?.longitude as number,
-                                mapBounds,
-                            );
-                            const stage = resolveLeadStage(lead);
-                            const isSelected = selectedLeadID === lead.id;
+                                return (
+                                    <Marker
+                                        key={lead.id}
+                                        position={[lead.property?.latitude as number, lead.property?.longitude as number]}
+                                        icon={createLeadMarkerIcon(isSelected)}
+                                        eventHandlers={{ click: () => setSelectedLeadID(lead.id) }}
+                                    >
+                                        <Popup>
+                                            <div className="min-w-[240px] p-1">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                                    {formatLeadStage(stage)}
+                                                </p>
+                                                <h4 className="mt-2 text-sm font-semibold text-slate-900">
+                                                    {lead.property?.title || lead.property_name || 'Property enquiry'}
+                                                </h4>
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    {[lead.property?.address_line_1, lead.property?.city, lead.property?.postcode].filter(Boolean).join(', ')}
+                                                </p>
+                                                <p className="mt-2 text-xs font-medium text-slate-700">
+                                                    {lead.name || lead.email || 'Client enquiry'}
+                                                </p>
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    Response timer: {formatCountdown(getLeadRemainingSeconds(lead, now))}
+                                                </p>
+                                                <div className="mt-3 grid gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onOpenMessages(lead)}
+                                                        className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
+                                                    >
+                                                        Open messages
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onRequestDocuments(lead)}
+                                                        disabled={actingLeadID === lead.id || !lead.user_id}
+                                                        className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        {actingLeadID === lead.id ? 'Sending request...' : 'Request documents'}
+                                                    </button>
+                                                    {canScheduleViewing ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => onScheduleViewing(lead)}
+                                                            disabled={actingLeadID === lead.id}
+                                                            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            Schedule viewing
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        </Popup>
+                                    </Marker>
+                                );
+                            })}
+                        </MapContainer>
+                    ) : (
+                        <div className="flex h-full items-center justify-center text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Loading lead map...
+                        </div>
+                    )}
 
-                            return (
-                                <button
-                                    key={lead.id}
-                                    type="button"
-                                    onClick={() => setSelectedLeadID(lead.id)}
-                                    className="absolute -translate-x-1/2 -translate-y-1/2"
-                                    style={position}
-                                >
-                                    <span className={`flex h-12 w-12 items-center justify-center rounded-full border-4 border-white shadow-xl transition ${isSelected ? 'bg-orange-500 text-white scale-110' : 'bg-slate-900 text-white hover:scale-105 dark:bg-slate-100 dark:text-slate-900'}`}>
-                                        <MapPin className="h-5 w-5" />
-                                    </span>
-                                    <span className="mt-2 inline-flex rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-md dark:bg-black/80 dark:text-slate-200">
-                                        {formatLeadStage(stage)}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                    <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            {leadsWithCoordinates.length} lead{leadsWithCoordinates.length === 1 ? '' : 's'} on the map
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Click any marker to keep the live lead tools in sync.
+                        </p>
                     </div>
                 </div>
 
-                {selectedLead && (
+                {selectedLead ? (
                     <aside className="border-t border-gray-100 p-6 dark:border-gray-800 xl:border-l xl:border-t-0">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Selected lead</p>
                         <h4 className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
@@ -185,7 +263,9 @@ export default function LeadActionMap({
                         <div className="mt-5 grid gap-3">
                             <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900/60">
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Stage</p>
-                                <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{formatLeadStage(resolveLeadStage(selectedLead))}</p>
+                                <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                    {formatLeadStage(resolveLeadStage(selectedLead))}
+                                </p>
                             </div>
                             <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900/60">
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Response timer</p>
@@ -196,8 +276,12 @@ export default function LeadActionMap({
                             </div>
                             <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900/60">
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Client</p>
-                                <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedLead.name || selectedLead.email || 'Client enquiry'}</p>
-                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{selectedLead.email || selectedLead.phone || 'Contact details pending'}</p>
+                                <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                    {selectedLead.name || selectedLead.email || 'Client enquiry'}
+                                </p>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {selectedLead.email || selectedLead.phone || 'Contact details pending'}
+                                </p>
                             </div>
                         </div>
 
@@ -229,7 +313,7 @@ export default function LeadActionMap({
                                     Schedule viewing
                                 </button>
                             ) : null}
-                            {selectedLead.property_id && (
+                            {selectedLead.property_id ? (
                                 <button
                                     type="button"
                                     onClick={() => navigate(`/manager/dashboard/properties/${selectedLead.property_id}`)}
@@ -237,10 +321,10 @@ export default function LeadActionMap({
                                 >
                                     Open property
                                 </button>
-                            )}
+                            ) : null}
                         </div>
                     </aside>
-                )}
+                ) : null}
             </div>
         </div>
     );

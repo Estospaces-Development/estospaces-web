@@ -9,6 +9,7 @@ import {
     Building2,
     CheckCircle2,
     Clock,
+    Loader2,
     MapPin,
     MessageSquare,
     Phone,
@@ -22,15 +23,26 @@ import {
     createBrokerRequest,
     getBrokerRequestById,
     getNearbyAvailableBrokers,
+    rematchBrokerRequest,
+    selectBrokerRequestProperty,
     getUserBrokerRequests,
     LeadBrokerSummary,
 } from '@/services/leadsService';
+import { createFastTrackCase } from '@/services/fastTrackService';
+import { messagesService } from '@/services/messagesService';
 import {
     formatRequestTypeLabel,
     getDispatchWorkspaceSummary,
     getMatchedExperienceSteps,
 } from '@/lib/brokerDispatchPresentation';
-import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import {
+    buildBrokerRequestWorkspacePath,
+    publishBrokerRequestWorkspaceSelection,
+} from '@/lib/brokerRequestWorkspace';
+import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
     if (!deadline) {
@@ -65,9 +77,93 @@ const formatAcceptedAt = (value?: string) => {
 
 const TOTAL_DISPATCH_SECONDS = 10 * 60;
 
+const parsePropertyImage = (value?: string) => {
+    if (!value) {
+        return PROPERTY_PLACEHOLDER_IMAGE;
+    }
+
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed) && typeof parsed[0] === 'string' && parsed[0].trim().length > 0) {
+            return parsed[0];
+        }
+    } catch {
+        // The API may already return a single URL string.
+    }
+
+    return value;
+};
+
+const formatPropertyPrice = (price?: number) => {
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+        return 'Price on request';
+    }
+
+    return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0,
+    }).format(price);
+};
+
+const formatPropertyAddress = (property?: {
+    address_line_1?: string;
+    city?: string;
+    postcode?: string;
+}) => [property?.address_line_1, property?.city, property?.postcode].filter(Boolean).join(', ');
+
+const formatPropertyBadgeLabel = (value?: string) => {
+    if (!value) {
+        return null;
+    }
+
+    return value
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
+const formatMinutesUntil = (deadline?: string, now = Date.now()) => {
+    if (!deadline) {
+        return null;
+    }
+
+    const remainingMs = new Date(deadline).getTime() - now;
+    if (!Number.isFinite(remainingMs)) {
+        return null;
+    }
+
+    const minutes = Math.max(Math.ceil(remainingMs / 60000), 0);
+    return minutes;
+};
+
+const formatRequirementsPreview = (value?: string | null) => {
+    const trimmedValue = String(value || '').trim();
+    if (!trimmedValue) {
+        return null;
+    }
+
+    if (trimmedValue.length <= 140) {
+        return trimmedValue;
+    }
+
+    return `${trimmedValue.slice(0, 137).trimEnd()}...`;
+};
+
+const mapListingTypeToFastTrackPropertyType = (listingType?: string) => {
+    if (listingType === 'sale') {
+        return 'buy' as const;
+    }
+    if (listingType === 'lease') {
+        return 'lease' as const;
+    }
+    return 'rent' as const;
+};
+
 const BrokerRequestWidget = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
+    const toast = useToast();
     const [requestType, setRequestType] = useState('buy');
     const [details, setDetails] = useState('');
     const [location, setLocation] = useState('');
@@ -81,10 +177,14 @@ const BrokerRequestWidget = () => {
     const [activeRequest, setActiveRequest] = useState<BrokerRequestRecord | null>(null);
     const [clockNow, setClockNow] = useState(() => Date.now());
     const [workspacePulse, setWorkspacePulse] = useState(false);
+    const [selectingPropertyId, setSelectingPropertyId] = useState<string | null>(null);
+    const [rematching, setRematching] = useState(false);
+    const [openingConversation, setOpeningConversation] = useState(false);
     const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
         ? searchParams.get('request')?.trim() || null
         : null;
+    const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
 
     useEffect(() => {
         const interval = window.setInterval(() => {
@@ -118,6 +218,7 @@ const BrokerRequestWidget = () => {
 
                 if (data) {
                     setActiveRequest(data);
+                    publishBrokerRequestWorkspaceSelection(data.id);
                     setRequestType(data.request_type || 'buy');
                     setLocationPostcode(data.location_postcode || '');
                     setLocation(data.location || '');
@@ -133,8 +234,13 @@ const BrokerRequestWidget = () => {
                 return;
             }
 
-            const latestRequest = data.find((request) => request.status !== 'expired' && request.status !== 'matched') || data[0];
+            const latestRequest = selectPrimaryBrokerRequest(data);
+            if (!latestRequest) {
+                return;
+            }
+
             setActiveRequest(latestRequest);
+            publishBrokerRequestWorkspaceSelection(latestRequest.id);
             setRequestType(latestRequest.request_type || 'buy');
             setLocationPostcode(latestRequest.location_postcode || '');
             setLocation(latestRequest.location || '');
@@ -192,7 +298,11 @@ const BrokerRequestWidget = () => {
             return;
         }
 
-        const isTerminal = activeRequest.status === 'expired' || activeRequest.status === 'matched' || activeRequest.dispatch_status === 'broker_matched';
+        const handoffStatus = String(activeRequest.handoff_status || '').trim().toLowerCase();
+        const isTerminal = activeRequest.status === 'expired'
+            || activeRequest.status === 'cancelled'
+            || handoffStatus === 'archived'
+            || Boolean(activeRequest.selected_fast_track_case_id);
         if (isTerminal) {
             return;
         }
@@ -215,6 +325,143 @@ const BrokerRequestWidget = () => {
         const { data } = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
         if (data) {
             setActiveRequest(data);
+            publishBrokerRequestWorkspaceSelection(data.id);
+        }
+    };
+
+    const handleRematch = async () => {
+        if (!activeRequest?.id) {
+            return;
+        }
+
+        setRematching(true);
+        setError(null);
+
+        try {
+            const { data, error: rematchError } = await rematchBrokerRequest(activeRequest.id);
+            if (rematchError || !data) {
+                throw new Error(rematchError || 'Unable to restart the live dispatch right now.');
+            }
+
+            setActiveRequest(data);
+            toast.success('Broker rematch started. Nearby brokers are being pinged again.');
+        } catch (actionError: any) {
+            const message = actionError?.message || 'Unable to restart the live dispatch right now.';
+            setError(message);
+            toast.error(message);
+        } finally {
+            setRematching(false);
+        }
+    };
+
+    const handleSelectProperty = async (propertyId: string) => {
+        if (!activeRequest?.id || !user?.id) {
+            toast.error('Please sign in again before selecting a property.');
+            return;
+        }
+
+        setSelectingPropertyId(propertyId);
+        setError(null);
+
+        try {
+            const { data: selectedRequest, error: selectionError } = await selectBrokerRequestProperty(activeRequest.id, propertyId);
+            if (selectionError || !selectedRequest) {
+                throw new Error(selectionError || 'Unable to lock this property into your workspace.');
+            }
+
+            const selectedProperty = selectedRequest.selected_property
+                || selectedRequest.property_shares?.find((share) => share.property_id === propertyId)?.property
+                || null;
+
+            if (!selectedProperty) {
+                throw new Error('The selected property could not be loaded from the broker workspace.');
+            }
+
+            let nextFastTrackCaseId = selectedRequest.selected_fast_track_case_id || null;
+
+            if (!nextFastTrackCaseId) {
+                const fastTrackResult = await createFastTrackCase({
+                    property_id: selectedProperty.id,
+                    broker_request_id: selectedRequest.id,
+                    lead_id: selectedRequest.selected_lead_id || undefined,
+                    manager_id: selectedRequest.matched_broker_id || undefined,
+                    client_id: user.id,
+                    client_name: displayName,
+                    property_title: selectedProperty.title,
+                    property_type: mapListingTypeToFastTrackPropertyType(selectedProperty.listing_type),
+                    property_country: selectedProperty.country || undefined,
+                    listing_type: selectedProperty.listing_type as 'rent' | 'sale' | 'lease' | undefined,
+                    started_from: 'broker_request_selection',
+                });
+
+                if (fastTrackResult.error || !fastTrackResult.data) {
+                    throw new Error(fastTrackResult.error || 'Unable to start the property fast-track.');
+                }
+
+                nextFastTrackCaseId = fastTrackResult.data.caseId;
+            }
+
+            const refreshedRequest = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
+            const resolvedRequest = refreshedRequest.data || selectedRequest;
+            setActiveRequest(resolvedRequest);
+
+            const params = new URLSearchParams();
+            params.set('fast-track', '1');
+            params.set('broker-request', resolvedRequest.id);
+            if (nextFastTrackCaseId) {
+                params.set('case', nextFastTrackCaseId);
+            }
+
+            toast.success('Property selected. Your 24-hour fast-track is now live.');
+            navigate(`/user/properties/${propertyId}?${params.toString()}`);
+        } catch (actionError: any) {
+            const message = actionError?.message || 'Unable to select this property right now.';
+            setError(message);
+            toast.error(message);
+        } finally {
+            setSelectingPropertyId(null);
+        }
+    };
+
+    const handleOpenConversation = async () => {
+        if (!activeRequest?.matched_broker_id || !user) {
+            toast.error('The matched broker conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const propertyContext = selectedProperty
+                ? {
+                    propertyId: selectedProperty.id,
+                    propertyTitle: selectedProperty.title,
+                    propertyAddress: formatPropertyAddress(selectedProperty),
+                    propertyImage: parsePropertyImage(selectedProperty.image_urls),
+                    listingType: selectedProperty.listing_type,
+                    propertyPrice: selectedProperty.price,
+                }
+                : {
+                    propertyTitle: `${formatRequestTypeLabel(activeRequest.request_type)} request`,
+                    propertyAddress: [activeRequest.location, activeRequest.location_postcode].filter(Boolean).join(' - ') || undefined,
+                    listingType: activeRequest.request_type === 'buy' ? 'sale' : activeRequest.request_type,
+                };
+
+            const conversation = await messagesService.upsertDirectConversation(activeRequest.matched_broker_id, {
+                ...propertyContext,
+                senderName: displayName,
+                senderEmail: user.email || '',
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: matchedBroker?.name || '',
+                recipientEmail: matchedBroker?.email || '',
+                recipientPhone: matchedBroker?.phone || '',
+                recipientAgency: matchedBroker?.company_name || '',
+            });
+
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+        } finally {
+            setOpeningConversation(false);
         }
     };
 
@@ -256,7 +503,14 @@ const BrokerRequestWidget = () => {
             }
 
             if (data) {
-                setActiveRequest(data);
+                const hydratedRequest = data.id
+                    ? await getBrokerRequestById(data.id, { suppressErrorToast: true })
+                    : { data: null };
+                const resolvedRequest = hydratedRequest.data || data;
+
+                setActiveRequest(resolvedRequest);
+                publishBrokerRequestWorkspaceSelection(resolvedRequest.id);
+                navigate(buildBrokerRequestWorkspacePath(resolvedRequest.id), { replace: true });
             }
         } catch (err: any) {
             setError(err.message || 'Failed to submit request. Please try again.');
@@ -272,11 +526,22 @@ const BrokerRequestWidget = () => {
     const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
     const matchedExperienceSteps = requestIsMatched && activeRequest ? getMatchedExperienceSteps(activeRequest) : [];
+    const sharedProperties = activeRequest?.property_shares || [];
+    const selectedProperty = activeRequest?.selected_property
+        || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
+        || null;
+    const handoffMinutesRemaining = formatMinutesUntil(activeRequest?.handoff_due_at, clockNow);
     const workspaceTone = requestIsMatched
         ? 'border-emerald-200 bg-white shadow-sm dark:border-emerald-900/40 dark:bg-gray-900'
         : requestIsExpired
             ? 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
             : 'border-orange-100 bg-orange-50/70 dark:border-orange-900/30 dark:bg-orange-950/20';
+    const submittedArea = [
+        activeRequest?.location || location,
+        activeRequest?.location_postcode || locationPostcode,
+    ].filter(Boolean).join(' - ');
+    const submittedBudget = activeRequest?.budget || budget;
+    const submittedRequirements = activeRequest?.details || details;
     const dispatchProgressPercent = requestIsMatched
         ? 100
         : requestIsActive
@@ -348,7 +613,7 @@ const BrokerRequestWidget = () => {
                                 {dispatchWorkspaceSummary.title}
                             </h4>
                             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                {dispatchWorkspaceSummary.subtitle}
+                                {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
                             </p>
                         </div>
                         <div className={`min-w-[168px] rounded-2xl border px-4 py-3 shadow-sm ${countdownTone.pill}`}>
@@ -392,8 +657,31 @@ const BrokerRequestWidget = () => {
                         </div>
                     )}
 
+                    {activeRequest && (
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Search area</p>
+                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                    {submittedArea || 'Area shared in your live request'}
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Budget</p>
+                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                    {submittedBudget || 'Budget available in request brief'}
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Requirements</p>
+                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                    {formatRequirementsPreview(submittedRequirements) || 'Requirements stay attached to this workspace'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {requestIsMatched ? (
-                        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+                        <div className="mt-5 space-y-4">
                             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 dark:border-emerald-900/40 dark:bg-emerald-950/20">
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div>
@@ -472,11 +760,12 @@ const BrokerRequestWidget = () => {
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => navigate('/user/dashboard/messages')}
+                                        onClick={handleOpenConversation}
+                                        disabled={openingConversation}
                                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                     >
-                                        <MessageSquare size={15} />
-                                        Open messages
+                                        {openingConversation ? <Loader2 size={15} className="animate-spin" /> : <MessageSquare size={15} />}
+                                        {openingConversation ? 'Opening thread' : 'Open messages'}
                                     </button>
                                     {activeRequest.fast_track_enabled && (
                                         <button
@@ -496,11 +785,11 @@ const BrokerRequestWidget = () => {
                                     <CheckCircle2 size={18} className="text-orange-500" />
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">What happens next</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">The matched broker stays linked here until a property is shared and selected.</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">The matched broker stays linked here until a property is shared, chosen, and attached to a real fast-track case.</p>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 space-y-3">
+                                <div className="mt-4 grid gap-3 md:grid-cols-3">
                                     {matchedExperienceSteps.map((step, index) => (
                                         <div key={step.id} className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                             <div className="flex items-start gap-3">
@@ -516,11 +805,207 @@ const BrokerRequestWidget = () => {
                                     ))}
                                 </div>
 
+                                {activeRequest.fast_track_enabled && (
+                                    <div className="mt-4 rounded-xl border border-orange-100 bg-white p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Broker handoff</p>
+                                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                    {selectedProperty
+                                                        ? 'Selected property is now locked in'
+                                                        : sharedProperties.length > 0
+                                                            ? `${sharedProperties.length} shared option${sharedProperties.length === 1 ? '' : 's'} ready to review`
+                                                            : 'Waiting for the broker shortlist'}
+                                                </p>
+                                                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                    {selectedProperty
+                                                        ? 'Open the selected property or jump straight into the 24-hour fast-track workspace.'
+                                                        : sharedProperties.length > 0
+                                                            ? 'Choose one of the broker-shared properties below to launch the canonical 24-hour fast-track.'
+                                                            : handoffMinutesRemaining !== null
+                                                                ? `Your broker should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
+                                                                : 'Your broker is preparing property options for this request.'}
+                                                </p>
+                                            </div>
+                                            {handoffMinutesRemaining !== null && !selectedProperty && sharedProperties.length === 0 && (
+                                                <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-right dark:border-orange-900/30 dark:bg-orange-950/20">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
+                                                    <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                        {handoffMinutesRemaining === 0 ? 'Now' : `${handoffMinutesRemaining}m`}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {selectedProperty ? (
+                                            <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+                                                <img
+                                                    src={parsePropertyImage(selectedProperty.image_urls)}
+                                                    alt={selectedProperty.title}
+                                                    className="aspect-[16/9] w-full object-cover"
+                                                    onError={(event) => {
+                                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                    }}
+                                                />
+                                                <div className="space-y-4 p-5">
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                                                    Selected property
+                                                                </span>
+                                                                {formatPropertyBadgeLabel(selectedProperty.listing_type) && (
+                                                                    <span className="inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-100/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/30 dark:text-emerald-200">
+                                                                        {formatPropertyBadgeLabel(selectedProperty.listing_type)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <h6 className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{selectedProperty.title}</h6>
+                                                            <p className="mt-3 flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                                                <MapPin size={15} className="mt-0.5 shrink-0 text-emerald-500 dark:text-emerald-300" />
+                                                                <span>{formatPropertyAddress(selectedProperty) || 'Address available on the property page'}</span>
+                                                            </p>
+                                                        </div>
+                                                        <div className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 text-left shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">Locked price</p>
+                                                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                                                                {formatPropertyPrice(selectedProperty.price)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid gap-3">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}${activeRequest.selected_fast_track_case_id ? `&case=${activeRequest.selected_fast_track_case_id}` : ''}`)}
+                                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                                                        >
+                                                            Open selected property
+                                                            <ArrowRight size={15} />
+                                                        </button>
+                                                        {activeRequest.selected_fast_track_case_id && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`)}
+                                                                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                            >
+                                                                Open live fast-track
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : sharedProperties.length > 0 ? (
+                                            <div className="mt-4 space-y-3">
+                                                {sharedProperties
+                                                    .sort((left, right) => left.rank - right.rank)
+                                                    .map((share) => {
+                                                        const property = share.property;
+                                                        if (!property) {
+                                                            return null;
+                                                        }
+
+                                                        const isSelecting = selectingPropertyId === property.id;
+
+                                                        return (
+                                                            <div
+                                                                key={share.id}
+                                                                className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm dark:border-orange-900/30 dark:bg-zinc-950/70"
+                                                            >
+                                                                <img
+                                                                    src={parsePropertyImage(property.image_urls)}
+                                                                    alt={property.title}
+                                                                    className="aspect-[16/9] w-full object-cover"
+                                                                    onError={(event) => {
+                                                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                                    }}
+                                                                />
+                                                                <div className="space-y-4 p-5">
+                                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                                <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-600 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300">
+                                                                                    Option {share.rank}
+                                                                                </span>
+                                                                                {formatPropertyBadgeLabel(property.listing_type) && (
+                                                                                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-300">
+                                                                                        {formatPropertyBadgeLabel(property.listing_type)}
+                                                                                    </span>
+                                                                                )}
+                                                                                {formatPropertyBadgeLabel(property.property_type) && (
+                                                                                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-600 dark:border-gray-800 dark:bg-zinc-900 dark:text-gray-300">
+                                                                                        {formatPropertyBadgeLabel(property.property_type)}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <h6 className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{property.title}</h6>
+                                                                        </div>
+                                                                        <div className="rounded-2xl border border-orange-200/80 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20">
+                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">Guide price</p>
+                                                                            <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                                                                                {formatPropertyPrice(property.price)}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <p className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                                                        <MapPin size={15} className="mt-0.5 shrink-0 text-orange-500 dark:text-orange-300" />
+                                                                        <span>{formatPropertyAddress(property) || 'Address available on the property page'}</span>
+                                                                    </p>
+                                                                    {share.note && (
+                                                                        <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 dark:border-orange-900/30 dark:bg-orange-950/20">
+                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Broker note</p>
+                                                                            <p className="mt-2 text-sm leading-6 text-orange-950 dark:text-orange-100">{share.note}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="grid gap-3">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => void handleSelectProperty(property.id)}
+                                                                            disabled={Boolean(selectingPropertyId)}
+                                                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                        >
+                                                                            {isSelecting && <Loader2 size={15} className="animate-spin" />}
+                                                                            {isSelecting ? 'Starting fast-track...' : 'Choose this property'}
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => navigate(`/user/properties/${property.id}?broker-request=${activeRequest.id}`)}
+                                                                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                                        >
+                                                                            View property details
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        ) : (
+                                            <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100">
+                                                The request is now matched, but the broker has not shared the property shortlist yet. Once they do, you will be able to compare options and start the 24-hour fast-track from the chosen property.
+                                            </div>
+                                        )}
+
+                                        {!selectedProperty && (
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleRematch()}
+                                                disabled={rematching || Boolean(selectingPropertyId)}
+                                                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                            >
+                                                {rematching && <Loader2 size={15} className="animate-spin" />}
+                                                {rematching ? 'Restarting live dispatch...' : 'Request a broker rematch'}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
                                 <button
                                     type="button"
                                     onClick={() => {
                                         setActiveRequest(null);
                                         setError(null);
+                                        publishBrokerRequestWorkspaceSelection(null);
+                                        navigate('/user/dashboard', { replace: true });
                                     }}
                                     className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                 >
@@ -569,7 +1054,7 @@ const BrokerRequestWidget = () => {
                                 </button>
                                 <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                                     <UserCheck size={14} />
-                                    {dispatchWorkspaceSummary.helper}
+                                    {activeRequest?.next_action || dispatchWorkspaceSummary.helper}
                                 </div>
                             </div>
                         </>

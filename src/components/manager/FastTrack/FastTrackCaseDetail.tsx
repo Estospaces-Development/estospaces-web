@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
@@ -19,6 +19,12 @@ import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { FastTrackCase, FastTrackStep } from '@/services/fastTrackService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import {
+    FastTrackLinkedJourney,
+    formatWorkflowStatusLabel,
+    resolveFastTrackPrimaryLaneLabel,
+} from '@/lib/fastTrackLinkedJourney';
+import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import FastTrackActions from './FastTrackActions';
 import FastTrackDocuments from './FastTrackDocuments';
 import FastTrackProgress from './FastTrackProgress';
@@ -30,6 +36,7 @@ interface FastTrackCaseDetailProps {
     verificationSummary?: string;
     verificationReasonLines?: string[];
     leadStatusLabel?: string;
+    linkedJourney?: FastTrackLinkedJourney;
     onOpenVerificationReview?: () => void;
     onRequestDocuments?: () => void;
     isRequestingDocuments?: boolean;
@@ -37,21 +44,33 @@ interface FastTrackCaseDetailProps {
 }
 
 const stepCopy: Record<FastTrackStep, { label: string; description: string }> = {
-    documents: {
-        label: 'Document review',
-        description: 'Identity, income, and supporting documents are being checked.',
+    property_selected: {
+        label: 'Property selected',
+        description: 'The user has chosen a property and the live fast-track is now bound to that exact listing.',
     },
-    owner_approval: {
-        label: 'Owner approval',
-        description: 'The case is ready for owner confirmation before legal work finishes.',
+    documents_requested: {
+        label: 'Documents requested',
+        description: 'The client has been asked for verification documents before the viewing and review can continue.',
     },
-    legal_check: {
-        label: 'Legal check',
-        description: 'Terms and compliance items are being reviewed for a clean handoff.',
+    documents_verified: {
+        label: 'Documents verified',
+        description: 'The verification checklist is complete and the real viewing flow should be scheduled next.',
     },
-    payment_ready: {
-        label: 'Final readiness',
-        description: 'The case is cleared for the final operational handoff stage.',
+    viewing_scheduled: {
+        label: 'Viewing scheduled',
+        description: 'A real viewing has been booked and the appointments workflow now owns the next update.',
+    },
+    viewing_completed: {
+        label: 'Viewing completed',
+        description: 'The viewing is complete and the application or sale review can now continue.',
+    },
+    application_in_review: {
+        label: 'Application in review',
+        description: 'Use the linked application flow to approve, reject, or continue the deal review.',
+    },
+    ready_for_contract: {
+        label: 'Ready for contract',
+        description: 'The tenancy agreement can now be created for approved rent deals.',
     },
     completed: {
         label: 'Completed',
@@ -82,6 +101,20 @@ const statusCopy: Record<FastTrackCase['finalStatus'], { label: string; tone: st
     },
 };
 
+const formatViewingSlot = (value?: string | null) => {
+    if (!value) {
+        return 'No viewing is linked yet';
+    }
+
+    return new Date(value).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
 const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     caseData,
     onClose,
@@ -89,6 +122,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     verificationSummary,
     verificationReasonLines = [],
     leadStatusLabel,
+    linkedJourney,
     onOpenVerificationReview,
     onRequestDocuments,
     isRequestingDocuments = false,
@@ -98,6 +132,24 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const toast = useToast();
     const { user } = useAuth();
     const [isOpeningConversation, setIsOpeningConversation] = useState(false);
+    const [overrideReasonDraft, setOverrideReasonDraft] = useState(caseData.overrideReason || '');
+    const applicationsWorkspacePath = buildWorkspacePath('/manager/applications', {
+        applicationId: linkedJourney?.application?.id,
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+    });
+    const contractsWorkspacePath = buildWorkspacePath('/manager/contracts', {
+        contractId: linkedJourney?.contract?.id,
+        applicationId: linkedJourney?.application?.id,
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+    });
+
+    useEffect(() => {
+        setOverrideReasonDraft(caseData.overrideReason || '');
+    }, [caseData.caseId, caseData.overrideReason]);
 
     const stepMeta = stepCopy[caseData.currentStep];
     const statusMeta = statusCopy[caseData.finalStatus];
@@ -134,32 +186,76 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const displayStatusLabel = caseData.finalStatus === 'in_progress'
         ? (isOverdue ? 'Overdue' : `${caseData.hoursRemaining}h remaining`)
         : statusMeta.label;
-    const displayStatusNote = isOverdue
+    const displayStatusNote = caseData.statusReason || (isOverdue
         ? 'The 24-hour target has elapsed, but this case stays active until a manager completes or rejects it.'
-        : statusMeta.note;
+        : statusMeta.note);
     const displayWindowLabel = caseData.finalStatus === 'in_progress'
         ? (isOverdue ? 'Overdue' : `${caseData.hoursRemaining} hours left`)
         : statusMeta.label;
     const displayWindowNote = isOverdue
         ? 'The timer is now an attention signal only. Managers can still continue the workflow from this screen.'
         : 'SLA visibility stays tied to the actual 24-hour countdown from submission time.';
+    const linkedWorkflowCards = useMemo(() => {
+        const rentJourney = caseData.journeyType !== 'buy';
+
+        return [
+            {
+                title: rentJourney ? 'Application lane' : 'Offer and sale lane',
+                value: linkedJourney
+                    ? resolveFastTrackPrimaryLaneLabel(caseData.journeyType, linkedJourney)
+                    : 'Not created yet',
+                detail: linkedJourney?.primarySummary || (
+                    rentJourney
+                        ? 'No linked application has been surfaced on this case yet.'
+                        : 'No linked offer or sale progression has been surfaced on this case yet.'
+                ),
+            },
+            {
+                title: 'Viewing',
+                value: linkedJourney?.viewing
+                    ? formatWorkflowStatusLabel(linkedJourney.viewing.status)
+                    : 'Not scheduled yet',
+                detail: linkedJourney?.viewing
+                    ? formatViewingSlot(linkedJourney.viewing.scheduled_at)
+                    : 'Schedule the real appointment so the fast-track case can move into attended review.',
+            },
+            {
+                title: rentJourney ? 'Contract handoff' : 'Completion handoff',
+                value: rentJourney
+                    ? (linkedJourney?.contract
+                        ? formatWorkflowStatusLabel(linkedJourney.contract.status)
+                        : 'No contract drafted yet')
+                    : (linkedJourney?.saleProgression
+                        ? formatWorkflowStatusLabel(linkedJourney.saleProgression.current_stage)
+                        : 'Legal progression not started'),
+                detail: rentJourney
+                    ? (linkedJourney?.contract
+                        ? 'The tenancy contract is now the completion record for this case.'
+                        : 'Contracts appear here after the rental application is approved.')
+                    : (linkedJourney?.saleProgression
+                        ? linkedJourney.nextStep
+                        : 'Purchase journeys continue through the live sale progression, not tenancy contracts.'),
+            },
+        ];
+    }, [caseData.journeyType, linkedJourney]);
 
     const advanceStep = () => {
         if (isClosed) {
             return;
         }
 
-        const steps: FastTrackStep[] = ['documents', 'owner_approval', 'legal_check', 'payment_ready', 'completed'];
-        const currentIndex = steps.indexOf(caseData.currentStep);
-        if (currentIndex < 0 || currentIndex >= steps.length - 1) {
+        if (caseData.currentStep !== 'documents_requested') {
             return;
         }
 
-        const nextStep = steps[currentIndex + 1];
+        if (!isDocumentsVerified && !overrideReasonDraft.trim()) {
+            return;
+        }
         onUpdate({
             ...caseData,
-            currentStep: nextStep,
-            finalStatus: nextStep === 'completed' ? 'completed' : caseData.finalStatus,
+            currentStep: 'documents_verified',
+            finalStatus: caseData.finalStatus,
+            overrideReason: overrideReasonDraft.trim() || caseData.overrideReason,
         });
     };
 
@@ -259,9 +355,9 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
 
                             <div className="mt-5 grid gap-4 md:grid-cols-3">
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
                                     <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{stepMeta.label}</p>
-                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{stepMeta.description}</p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{caseData.statusReason || stepMeta.description}</p>
                                 </div>
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Documents</p>
@@ -290,6 +386,17 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Uploaded files are reviewed from the real verification workspace. This panel mirrors the live checklist only.
                             </p>
+                            {caseData.overrideReason ? (
+                                <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 dark:border-orange-900/40 dark:bg-orange-950/20">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Manager override active</p>
+                                    <p className="mt-2 text-sm font-medium text-gray-900 dark:text-white">{caseData.overrideReason}</p>
+                                    {caseData.overrideAt ? (
+                                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                            Logged {new Date(caseData.overrideAt).toLocaleString('en-GB')}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            ) : null}
                             <div className="mt-4">
                                 <FastTrackDocuments
                                     documents={caseData.documents}
@@ -401,6 +508,48 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                         <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
                             <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                                 <FileText className="text-indigo-500" size={20} />
+                                <h3 className="text-lg font-semibold">Linked journey records</h3>
+                            </div>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Keep the fast-track case aligned with the real downstream records instead of switching tabs blindly.
+                            </p>
+                            <div className="mt-4 space-y-3">
+                                {linkedWorkflowCards.map((item) => (
+                                    <div
+                                        key={item.title}
+                                        className="rounded-2xl bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 p-4"
+                                    >
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">{item.title}</p>
+                                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{item.detail}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-4 grid gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(applicationsWorkspacePath)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                >
+                                    <FileText size={18} />
+                                    Open applications workspace
+                                </button>
+                                {caseData.journeyType !== 'buy' ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(contractsWorkspacePath)}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                    >
+                                        <Shield size={18} />
+                                        Open contracts workspace
+                                    </button>
+                                ) : null}
+                            </div>
+                        </section>
+
+                        <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                                <FileText className="text-indigo-500" size={20} />
                                 <h3 className="text-lg font-semibold">Workflow actions</h3>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -412,6 +561,12 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     onAdvance={advanceStep}
                                     isDocumentsVerified={isDocumentsVerified}
                                     isReadOnly={isClosed}
+                                    nextAction={caseData.nextAction}
+                                    statusReason={caseData.statusReason}
+                                    pendingRequirements={caseData.pendingRequirements}
+                                    completedRequirements={caseData.completedRequirements}
+                                    overrideReason={overrideReasonDraft}
+                                    onOverrideReasonChange={setOverrideReasonDraft}
                                 />
                             </div>
                         </section>

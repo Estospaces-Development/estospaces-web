@@ -12,15 +12,28 @@ import {
     AlertCircle,
     Home,
     Key,
+    Calendar,
     LucideIcon,
 } from 'lucide-react';
 
 // Application status constants (matching ApplicationsContext)
 const APPLICATION_STATUS = {
+    DRAFT: 'draft',
     PENDING: 'pending',
     SUBMITTED: 'submitted',
+    APPOINTMENT_BOOKED: 'appointment_booked',
+    VIEWING_SCHEDULED: 'viewing_scheduled',
+    VIEWING_COMPLETED: 'viewing_completed',
     UNDER_REVIEW: 'under_review',
     DOCUMENTS_REQUESTED: 'documents_requested',
+    VERIFICATION_IN_PROGRESS: 'verification_in_progress',
+    OFFER_SUBMITTED: 'offer_submitted',
+    OFFER_UNDER_REVIEW: 'offer_under_review',
+    OFFER_ACCEPTED: 'offer_accepted',
+    SALE_AGREED: 'sale_agreed',
+    MEMORANDUM_ISSUED: 'memorandum_issued',
+    CONVEYANCING: 'conveyancing',
+    EXCHANGE: 'exchange',
     APPROVED: 'approved',
     REJECTED: 'rejected',
     WITHDRAWN: 'withdrawn',
@@ -41,75 +54,105 @@ interface StatusTrackerProps {
 }
 
 const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => {
+    const isSaleJourney = listingType !== 'rent';
+
     const getStages = (): Stage[] => {
-        const baseStages: Stage[] = [
+        if (isSaleJourney) {
+            return [
+                {
+                    id: 'offer_submitted',
+                    label: 'Offer Submitted',
+                    description: 'The selected property is linked and the purchase offer is recorded.',
+                    icon: FileText,
+                    statuses: [APPLICATION_STATUS.DRAFT, APPLICATION_STATUS.PENDING, APPLICATION_STATUS.SUBMITTED, APPLICATION_STATUS.OFFER_SUBMITTED],
+                },
+                {
+                    id: 'offer_review',
+                    label: 'Offer Review',
+                    description: 'The broker or manager is reviewing the submitted offer.',
+                    icon: Search,
+                    statuses: [APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.OFFER_UNDER_REVIEW],
+                },
+                {
+                    id: 'sale_agreed',
+                    label: 'Sale Agreed',
+                    description: 'The offer is accepted and the deal is agreed in principle.',
+                    icon: UserCheck,
+                    statuses: [APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.OFFER_ACCEPTED, APPLICATION_STATUS.SALE_AGREED],
+                },
+                {
+                    id: 'memorandum',
+                    label: 'Memorandum & Conveyancing',
+                    description: 'The memorandum is issued and legal work is progressing.',
+                    icon: FileCheck,
+                    statuses: [APPLICATION_STATUS.MEMORANDUM_ISSUED, APPLICATION_STATUS.CONVEYANCING, APPLICATION_STATUS.EXCHANGE],
+                },
+                {
+                    id: 'completion',
+                    label: 'Completion',
+                    description: 'The purchase is completed and the handover is done.',
+                    icon: Home,
+                    statuses: [APPLICATION_STATUS.COMPLETED],
+                },
+            ];
+        }
+
+        return [
             {
-                id: 'submitted',
-                label: 'Application Submitted',
-                description: 'Your application has been received',
+                id: 'selected',
+                label: 'Property Selected',
+                description: 'A specific property is now linked to your live journey.',
                 icon: FileText,
-                statuses: [APPLICATION_STATUS.PENDING, APPLICATION_STATUS.SUBMITTED],
+                statuses: [APPLICATION_STATUS.DRAFT, APPLICATION_STATUS.PENDING, APPLICATION_STATUS.SUBMITTED],
             },
             {
-                id: 'under_review',
-                label: 'Under Review',
-                description: 'Agent is reviewing your application',
+                id: 'viewing',
+                label: 'Viewing Scheduled',
+                description: 'A real viewing appointment is booked for this property.',
+                icon: Calendar,
+                statuses: [APPLICATION_STATUS.APPOINTMENT_BOOKED, APPLICATION_STATUS.VIEWING_SCHEDULED],
+            },
+            {
+                id: 'review',
+                label: 'Application Review',
+                description: 'The viewing is done and the application is being reviewed.',
                 icon: Search,
-                statuses: [APPLICATION_STATUS.UNDER_REVIEW],
-            },
-            {
-                id: 'verification',
-                label: listingType === 'rent' ? 'Tenant Verification' : 'Buyer Verification',
-                description: listingType === 'rent' ? 'Background & credit check in progress' : 'Financial verification in progress',
-                icon: UserCheck,
-                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
+                statuses: [APPLICATION_STATUS.VIEWING_COMPLETED, APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.VERIFICATION_IN_PROGRESS],
             },
             {
                 id: 'documents',
-                label: 'Document Review',
-                description: 'Final document verification',
+                label: 'Documents & Compliance',
+                description: 'Referencing and legal compliance follow-up are active now.',
                 icon: FileCheck,
-                statuses: [],
+                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
             },
             {
-                id: 'decision',
-                label: 'Final Decision',
-                description: status === APPLICATION_STATUS.APPROVED || status === APPLICATION_STATUS.COMPLETED
-                    ? 'Congratulations! Your application is approved'
-                    : status === APPLICATION_STATUS.REJECTED
-                        ? 'Application was not approved'
-                        : 'Awaiting final decision',
-                icon: (status === APPLICATION_STATUS.APPROVED || status === APPLICATION_STATUS.COMPLETED) ? CheckCircle :
-                    status === APPLICATION_STATUS.REJECTED ? XCircle : Clock,
-                statuses: [APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.REJECTED, APPLICATION_STATUS.COMPLETED],
+                id: 'contract',
+                label: 'Ready For Contract',
+                description: 'The tenancy is approved and ready for the agreement stage.',
+                icon: Key,
+                statuses: [APPLICATION_STATUS.APPROVED],
+            },
+            {
+                id: 'completion',
+                label: 'Active Tenancy',
+                description: 'The contract is complete and the tenancy is now active.',
+                icon: CheckCircle,
+                statuses: [APPLICATION_STATUS.COMPLETED],
             },
         ];
-
-        if (status === APPLICATION_STATUS.APPROVED || status === APPLICATION_STATUS.COMPLETED) {
-            baseStages.push({
-                id: 'completion',
-                label: listingType === 'rent' ? 'Move In Ready' : 'Key Handover',
-                description: status === APPLICATION_STATUS.COMPLETED
-                    ? (listingType === 'rent' ? 'Keys collected & moved in' : 'Keys handed over & completed')
-                    : (listingType === 'rent' ? 'Prepare for your move-in date' : 'Proceed to contract signing'),
-                icon: listingType === 'rent' ? Key : Home,
-                statuses: [APPLICATION_STATUS.COMPLETED],
-            });
-        }
-
-        return baseStages;
     };
 
     const stages = getStages();
 
     const getCurrentStageIndex = () => {
         if (status === APPLICATION_STATUS.WITHDRAWN) return -1;
-        if (status === APPLICATION_STATUS.REJECTED) return stages.length - 2;
-        if (status === APPLICATION_STATUS.COMPLETED) return stages.length - 1;
-        if (status === APPLICATION_STATUS.APPROVED) return stages.length - 1;
-        if (status === APPLICATION_STATUS.DOCUMENTS_REQUESTED) return 2;
-        if (status === APPLICATION_STATUS.UNDER_REVIEW) return 1;
-        return 0;
+        if (status === APPLICATION_STATUS.REJECTED) {
+            return Math.max(stages.findIndex((stage) => stage.id === (isSaleJourney ? 'offer_review' : 'review')), 1);
+        }
+
+        const matchedIndex = stages.findIndex((stage) => stage.statuses.includes(status));
+        return matchedIndex >= 0 ? matchedIndex : 0;
     };
 
     const currentStageIndex = getCurrentStageIndex();
@@ -120,6 +163,12 @@ const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => 
             case APPLICATION_STATUS.REJECTED: return 'text-red-600 bg-red-100 border-red-200';
             case APPLICATION_STATUS.WITHDRAWN: return 'text-gray-600 bg-gray-100 border-gray-100';
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED: return 'text-orange-600 bg-orange-100 border-orange-200';
+            case APPLICATION_STATUS.OFFER_ACCEPTED:
+            case APPLICATION_STATUS.SALE_AGREED:
+            case APPLICATION_STATUS.APPROVED: return 'text-green-600 bg-green-100 border-green-200';
+            case APPLICATION_STATUS.MEMORANDUM_ISSUED: return 'text-purple-600 bg-purple-100 border-purple-200';
+            case APPLICATION_STATUS.CONVEYANCING:
+            case APPLICATION_STATUS.EXCHANGE: return 'text-indigo-600 bg-indigo-100 border-indigo-200';
             default: return 'text-blue-600 bg-blue-100 border-blue-200';
         }
     };
@@ -130,6 +179,13 @@ const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => 
             case APPLICATION_STATUS.SUBMITTED: return 'Submitted';
             case APPLICATION_STATUS.UNDER_REVIEW: return 'Under Review';
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED: return 'Documents Needed';
+            case APPLICATION_STATUS.OFFER_SUBMITTED: return 'Offer Submitted';
+            case APPLICATION_STATUS.OFFER_UNDER_REVIEW: return 'Offer Under Review';
+            case APPLICATION_STATUS.OFFER_ACCEPTED: return 'Offer Accepted';
+            case APPLICATION_STATUS.SALE_AGREED: return 'Sale Agreed';
+            case APPLICATION_STATUS.MEMORANDUM_ISSUED: return 'Memorandum Issued';
+            case APPLICATION_STATUS.CONVEYANCING: return 'Conveyancing';
+            case APPLICATION_STATUS.EXCHANGE: return 'Exchange';
             case APPLICATION_STATUS.APPROVED: return 'Approved';
             case APPLICATION_STATUS.REJECTED: return 'Not Approved';
             case APPLICATION_STATUS.WITHDRAWN: return 'Withdrawn';
@@ -159,7 +215,7 @@ const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => 
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="text-white text-lg font-semibold">Application Progress</h3>
-                        <p className="text-orange-100 text-sm mt-1">{listingType === 'rent' ? 'Rental Application' : 'Purchase Application'}</p>
+                        <p className="text-orange-100 text-sm mt-1">{isSaleJourney ? 'Purchase Progression' : 'Rental Application'}</p>
                     </div>
                     <div className={`px-4 py-2 rounded-full text-sm font-medium border ${getStatusColor()}`}>{getStatusLabel()}</div>
                 </div>
@@ -216,7 +272,7 @@ const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => 
                 <div className="px-6 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                         <Clock size={16} />
-                        <span>Estimated processing time: <strong>3-5 business days</strong></span>
+                        <span>Estimated processing time: <strong>{isSaleJourney ? 'varies by legal milestones' : '3-5 business days'}</strong></span>
                     </div>
                 </div>
             )}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Calendar,
     Clock,
@@ -17,12 +17,14 @@ import ConfirmModal from '@/components/ui/ConfirmModal';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyById } from '@/services/propertyService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
 
 export default function ViewingsPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
     const [viewings, setViewings] = useState<any[]>([]);
@@ -79,23 +81,44 @@ export default function ViewingsPage() {
         fetchViewings();
     }, [fetchViewings]);
 
-    const filteredViewings = viewings.filter(viewing => {
-        if (!viewing.date) return true;
-        const viewingDate = new Date(viewing.date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    const focusedViewingId = resolveFocusedViewing(viewings, {
+        viewingId: searchParams.get('viewing'),
+        applicationId: searchParams.get('application'),
+        caseId: searchParams.get('case'),
+        leadId: searchParams.get('lead'),
+        propertyId: searchParams.get('property'),
+    })?.id || null;
 
-        switch (filter) {
-            case 'upcoming':
-                return viewingDate >= today && viewing.status !== 'cancelled';
-            case 'past':
-                return viewingDate < today || viewing.status === 'completed';
-            case 'cancelled':
-                return viewing.status === 'cancelled';
-            default:
-                return true;
-        }
-    });
+    const filteredViewings = [...viewings]
+        .filter(viewing => {
+            if (!viewing.date) return true;
+            const viewingDate = new Date(viewing.date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            switch (filter) {
+                case 'upcoming':
+                    return viewingDate >= today && viewing.status !== 'cancelled';
+                case 'past':
+                    return viewingDate < today || viewing.status === 'completed';
+                case 'cancelled':
+                    return viewing.status === 'cancelled';
+                default:
+                    return true;
+            }
+        })
+        .sort((left, right) => {
+            if (!focusedViewingId) {
+                return 0;
+            }
+            if (left.id === focusedViewingId) {
+                return -1;
+            }
+            if (right.id === focusedViewingId) {
+                return 1;
+            }
+            return 0;
+        });
 
     const handleCancelViewing = async (viewingId: string) => {
         if (!user?.id) {
@@ -214,10 +237,19 @@ export default function ViewingsPage() {
                     </div>
                 ) : filteredViewings.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6">
+                        {focusedViewingId && (
+                            <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                                Your linked fast-track appointment is pinned first so you can keep the live journey moving without searching manually.
+                            </div>
+                        )}
                         {filteredViewings.map((viewing) => (
                             <div
                                 key={viewing.id}
-                                className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300"
+                                className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden group hover:shadow-xl transition-all duration-300 ${
+                                    viewing.id === focusedViewingId
+                                        ? 'ring-2 ring-orange-300 dark:ring-orange-700'
+                                        : ''
+                                }`}
                             >
                                 <div className="flex flex-col md:flex-row">
                                     {/* Property Image */}
@@ -271,6 +303,26 @@ export default function ViewingsPage() {
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {(viewing.user_notes || viewing.manager_notes || viewing.cancellation_reason) && (
+                                                <div className="mt-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 p-4 space-y-2">
+                                                    {viewing.user_notes && (
+                                                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                            <span className="font-bold text-gray-900 dark:text-white">Your note:</span> {viewing.user_notes}
+                                                        </p>
+                                                    )}
+                                                    {viewing.manager_notes && (
+                                                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                            <span className="font-bold text-gray-900 dark:text-white">Manager note:</span> {viewing.manager_notes}
+                                                        </p>
+                                                    )}
+                                                    {viewing.cancellation_reason && (
+                                                        <p className="text-sm text-red-600 dark:text-red-300">
+                                                            <span className="font-bold">Cancellation reason:</span> {viewing.cancellation_reason}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
@@ -284,14 +336,20 @@ export default function ViewingsPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex gap-3 w-full sm:w-auto">
+                                            <div className="flex flex-col gap-3 w-full sm:w-auto">
+                                                {viewing.workflow_locked && (
+                                                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
+                                                        {viewing.workflow_lock_reason || 'This appointment is locked because the linked workflow has already progressed.'}
+                                                    </div>
+                                                )}
+                                                <div className="flex gap-3 w-full sm:w-auto">
                                                 <button
                                                     onClick={() => navigate(`/user/properties/${viewing.property_id}`)}
                                                     className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
                                                 >
                                                     View Listing
                                                 </button>
-                                                {(viewing.status === 'pending' || viewing.status === 'confirmed') && (
+                                                {(viewing.status === 'pending' || viewing.status === 'confirmed') && !viewing.workflow_locked && (
                                                     <button
                                                         onClick={() => {
                                                             setViewingToCancel(viewing.id);
@@ -302,6 +360,7 @@ export default function ViewingsPage() {
                                                         Cancel Appointment
                                                     </button>
                                                 )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

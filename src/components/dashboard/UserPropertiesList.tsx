@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
-import { Loader2, AlertCircle, ChevronLeft, ChevronRight, Filter, Map, Square } from 'lucide-react';
+import { Loader2, AlertCircle, Filter, Map, Square } from 'lucide-react';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -267,34 +268,15 @@ const UserPropertiesList = () => {
 
                     {/* Pagination */}
                     {pagination && pagination.totalPages > 1 && (
-                        <div className="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
-                                Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-                                {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{' '}
-                                {pagination.totalCount} properties
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => handlePageChange(pagination.page - 1)}
-                                    disabled={!pagination.hasPreviousPage}
-                                    className="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
-                                >
-                                    <ChevronLeft size={16} />
-                                    Previous
-                                </button>
-                                <span className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">
-                                    Page {pagination.page} of {pagination.totalPages}
-                                </span>
-                                <button
-                                    onClick={() => handlePageChange(pagination.page + 1)}
-                                    disabled={!pagination.hasNextPage}
-                                    className="px-3 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 shadow-sm"
-                                >
-                                    Next
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        </div>
+                        <PaginationBar
+                            currentPage={pagination.page}
+                            totalPages={pagination.totalPages}
+                            onPageChange={handlePageChange}
+                            totalItems={pagination.totalCount}
+                            pageSize={pagination.limit}
+                            currentItemCount={properties.length}
+                            itemLabel="properties"
+                        />
                     )}
                 </>
             )}

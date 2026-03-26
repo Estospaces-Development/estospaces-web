@@ -189,7 +189,7 @@ export default function NotificationsPage() {
         } else if (notification.data?.propertyId) {
             navigate(`/user/properties/${notification.data.propertyId}`);
         } else if (notification.data?.applicationId) {
-            navigate('/user/dashboard/applications');
+            navigate('/user/applications');
         } else if (notification.data?.viewingId) {
             navigate('/user/dashboard/viewings');
         }

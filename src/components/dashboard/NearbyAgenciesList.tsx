@@ -1,40 +1,66 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { MapPin, Star, ChevronRight, Building2, Loader2, Clock, BadgeCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
-import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import {
+    BROKER_REQUEST_WORKSPACE_EVENT,
+    buildBrokerRequestWorkspacePath,
+    readBrokerRequestWorkspaceSelection,
+} from '@/lib/brokerRequestWorkspace';
+import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
 
 const NearbyAgenciesList = () => {
+    const [searchParams] = useSearchParams();
     const [brokers, setBrokers] = useState<LeadBrokerSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [activeRequest, setActiveRequest] = useState<BrokerRequestRecord | null>(null);
+    const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
+        ? searchParams.get('request')?.trim() || null
+        : null;
+
+    const loadActiveRequest = useCallback(async (preferredRequestId?: string | null) => {
+        const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
+        if (!data) {
+            return;
+        }
+
+        const latestRequest = selectPrimaryBrokerRequest(
+            data,
+            preferredRequestId || requestedWorkspaceRequestId || readBrokerRequestWorkspaceSelection(),
+        );
+        setActiveRequest(latestRequest);
+    }, [requestedWorkspaceRequestId]);
 
     useEffect(() => {
         let cancelled = false;
-
-        const loadActiveRequest = async () => {
-            const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
-            if (cancelled || !data) {
+        const syncActiveRequest = async (preferredRequestId?: string | null) => {
+            await loadActiveRequest(preferredRequestId);
+            if (cancelled) {
                 return;
             }
-
-            const latestRequest = data.find((request) => request.status !== 'expired' && request.status !== 'matched') || data[0] || null;
-            setActiveRequest(latestRequest);
         };
 
-        void loadActiveRequest();
+        const handleWorkspaceSelection = (event: Event) => {
+            const detail = event instanceof CustomEvent ? event.detail : null;
+            const requestId = typeof detail?.requestId === 'string' ? detail.requestId : null;
+            void syncActiveRequest(requestId);
+        };
+
+        void syncActiveRequest();
         const interval = window.setInterval(() => {
-            void loadActiveRequest();
+            void syncActiveRequest();
         }, 5000);
+        window.addEventListener(BROKER_REQUEST_WORKSPACE_EVENT, handleWorkspaceSelection);
 
         return () => {
             cancelled = true;
             window.clearInterval(interval);
+            window.removeEventListener(BROKER_REQUEST_WORKSPACE_EVENT, handleWorkspaceSelection);
         };
-    }, []);
+    }, [loadActiveRequest]);
 
     useEffect(() => {
         const fetchBrokers = async () => {

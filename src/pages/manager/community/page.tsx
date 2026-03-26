@@ -8,11 +8,24 @@ import CommunityFilterBar, { SortOption } from '../../../components/community/Co
 import CommunityPostCard from '../../../components/community/CommunityPostCard';
 import CreatePostModal from '../../../components/community/CreatePostModal';
 import CommentsModal from '../../../components/community/CommentsModal';
-import { getCommunityPosts, CommunityPost, PostTag, AuthorRole, PostVisibility, PostComment } from '@/services/communityService';
-import { useAuth } from '@/contexts/AuthContext';
+import {
+    addComment,
+    AuthorRole,
+    CommunityPost,
+    createCommunityPost,
+    getCommunityPosts,
+    PostComment,
+    PostTag,
+    PostVisibility,
+    toggleCommunityLike,
+    updateCommunityArchive,
+    updateCommunityPin,
+    updateCommunityVisibility,
+} from '@/services/communityService';
+import { useToast } from '@/contexts/ToastContext';
 
 const BrokersCommunity = () => {
-    const { user } = useAuth();
+    const toast = useToast();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTag, setSelectedTag] = useState<PostTag | 'all'>('all');
@@ -61,43 +74,66 @@ const BrokersCommunity = () => {
         return sorted;
     }, [posts, selectedTag, selectedRole, sortBy]);
 
-    const handleLike = (postId: string) => {
-        setPosts(prev => prev.map(p => p.postId === postId ? { ...p, likesCount: p.likesCount + 1 } : p));
+    const handleLike = async (postId: string) => {
+        const targetPost = posts.find((post) => post.postId === postId);
+        if (!targetPost) {
+            return;
+        }
+
+        const { data, error } = await toggleCommunityLike(postId, !targetPost.isLiked);
+        if (error || !data) {
+            toast.error(error || 'Unable to update community like right now.');
+            return;
+        }
+
+        setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
     };
 
-    const handlePin = (postId: string) => {
-        setPosts(prev => prev.map(p => p.postId === postId ? { ...p, isPinned: !p.isPinned } : p));
+    const handlePin = async (postId: string) => {
+        const targetPost = posts.find((post) => post.postId === postId);
+        if (!targetPost) {
+            return;
+        }
+
+        const { data, error } = await updateCommunityPin(postId, !targetPost.isPinned);
+        if (error || !data) {
+            toast.error(error || 'Unable to update pinned state right now.');
+            return;
+        }
+
+        setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
     };
 
-    const handleHide = (postId: string) => {
-        setPosts(prev => prev.filter(p => p.postId !== postId));
+    const handleHide = async (postId: string) => {
+        const { error } = await updateCommunityArchive(postId, true);
+        if (error) {
+            toast.error(error || 'Unable to archive this post right now.');
+            return;
+        }
+
+        setPosts((prev) => prev.filter((post) => post.postId !== postId));
     };
 
-    const handleVisibilityChange = (postId: string, visibility: any) => {
-        setPosts(prev => prev.map(p => p.postId === postId ? { ...p, visibility } : p));
+    const handleVisibilityChange = async (postId: string, visibility: PostVisibility | 'all' | 'brokers') => {
+        const { data, error } = await updateCommunityVisibility(postId, visibility as PostVisibility);
+        if (error || !data) {
+            toast.error(error || 'Unable to update visibility right now.');
+            return;
+        }
+
+        setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
     };
 
-    const handleCreatePost = (content: string, tag: PostTag, visibility: PostVisibility) => {
-        const newPost: CommunityPost = {
-            postId: `post-${Date.now()}`,
-            authorId: user?.id || 'unknown',
-            authorName: user?.name || 'Unknown User',
-            authorRole: (user?.role as AuthorRole) || 'manager',
-            category: 'general',
-            title: 'New Post',
-            content,
-            tag,
-            createdAt: new Date().toISOString(),
-            likesCount: 0,
-            commentsCount: 0,
-            comments: [],
-            isPinned: false,
-            visibility,
-            isLiked: false,
-            tags: [tag]
-        };
-        setPosts(prev => [newPost, ...prev]);
+    const handleCreatePost = async (content: string, tag: PostTag, visibility: PostVisibility) => {
+        const { data, error } = await createCommunityPost(content, tag, visibility);
+        if (error || !data) {
+            toast.error(error || 'Unable to create a community post right now.');
+            return;
+        }
+
+        setPosts(prev => [data, ...prev]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        toast.success('Community post published.');
     };
 
     const handleCommentClick = (post: CommunityPost) => {
@@ -105,27 +141,24 @@ const BrokersCommunity = () => {
         setIsCommentsModalOpen(true);
     };
 
-    const handleAddComment = (postId: string, content: string) => {
-        const newComment: PostComment = {
-            commentId: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            postId,
-            authorId: user?.id || 'unknown',
-            authorName: user?.name || 'Unknown User',
-            authorRole: (user?.role as AuthorRole) || 'manager',
-            content,
-            createdAt: new Date().toISOString(),
-        };
-        setPosts(prev => prev.map(p => {
-            if (p.postId === postId) {
-                return { ...p, comments: [...p.comments, newComment], commentsCount: p.commentsCount + 1 };
+    const handleAddComment = async (postId: string, content: string) => {
+        const { data, error } = await addComment(postId, content);
+        if (error || !data) {
+            toast.error(error || 'Unable to add your comment right now.');
+            return;
+        }
+
+        setPosts(prev => prev.map(post => {
+            if (post.postId !== postId) {
+                return post;
             }
-            return p;
+            return { ...post, comments: [...post.comments, data as PostComment], commentsCount: post.commentsCount + 1 };
         }));
         setSelectedPost((prev: CommunityPost | null) => {
-            if (prev && prev.postId === postId) {
-                return { ...prev, comments: [...prev.comments, newComment], commentsCount: prev.commentsCount + 1 };
+            if (!prev || prev.postId !== postId) {
+                return prev;
             }
-            return prev;
+            return { ...prev, comments: [...prev.comments, data as PostComment], commentsCount: prev.commentsCount + 1 };
         });
     };
 
@@ -170,7 +203,11 @@ const BrokersCommunity = () => {
                 />
 
                 <div className="space-y-4">
-                    {filteredAndSortedPosts.length === 0 ? (
+                    {loading ? (
+                        <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-center px-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                            Loading community posts...
+                        </div>
+                    ) : filteredAndSortedPosts.length === 0 ? (
                         <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center px-6">
                             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">
                                 <Users size={40} className="text-gray-300 dark:text-gray-600" />

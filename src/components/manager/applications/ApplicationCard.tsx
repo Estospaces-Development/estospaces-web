@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     FileText,
     MapPin,
@@ -19,6 +19,9 @@ import {
 import { APPLICATION_STATUS, Application } from '../../../contexts/ApplicationsContext';
 import { useNavigate } from 'react-router-dom';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
 
 interface ApplicationCardProps {
     application: Application;
@@ -27,6 +30,9 @@ interface ApplicationCardProps {
 
 const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const toast = useToast();
+    const [openingConversation, setOpeningConversation] = useState(false);
 
     const getStatusConfig = (status: string) => {
         switch (status) {
@@ -91,6 +97,55 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     label: 'Verification in Progress',
                     color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
                     dotColor: 'bg-blue-500',
+                    icon: TrendingUp,
+                };
+            case APPLICATION_STATUS.OFFER_SUBMITTED:
+                return {
+                    label: 'Offer Submitted',
+                    color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+                    dotColor: 'bg-blue-500',
+                    icon: FileText,
+                };
+            case APPLICATION_STATUS.OFFER_UNDER_REVIEW:
+                return {
+                    label: 'Offer Under Review',
+                    color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+                    dotColor: 'bg-amber-500',
+                    icon: Clock,
+                };
+            case APPLICATION_STATUS.OFFER_ACCEPTED:
+                return {
+                    label: 'Offer Accepted',
+                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    dotColor: 'bg-emerald-500',
+                    icon: CheckCircle,
+                };
+            case APPLICATION_STATUS.SALE_AGREED:
+                return {
+                    label: 'Sale Agreed',
+                    color: 'bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400',
+                    dotColor: 'bg-teal-500',
+                    icon: CheckCircle,
+                };
+            case APPLICATION_STATUS.MEMORANDUM_ISSUED:
+                return {
+                    label: 'Memorandum Issued',
+                    color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+                    dotColor: 'bg-purple-500',
+                    icon: FileText,
+                };
+            case APPLICATION_STATUS.CONVEYANCING:
+                return {
+                    label: 'Conveyancing',
+                    color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
+                    dotColor: 'bg-indigo-500',
+                    icon: Building2,
+                };
+            case APPLICATION_STATUS.EXCHANGE:
+                return {
+                    label: 'Exchange',
+                    color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
+                    dotColor: 'bg-cyan-500',
                     icon: TrendingUp,
                 };
             case APPLICATION_STATUS.APPROVED:
@@ -177,9 +232,39 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const statusConfig = getStatusConfig(application.status);
     const primaryAction = getPrimaryAction();
 
-    const handleMessageAgent = (e: React.MouseEvent) => {
+    const handleMessageAgent = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        navigate('/manager/messages');
+        if (openingConversation) {
+            return;
+        }
+        if (application.conversationId) {
+            navigate(`/manager/messages?conversation=${application.conversationId}`);
+            return;
+        }
+        if (!application.userId || !user) {
+            toast.error('The client conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(application.userId, {
+                propertyId: application.propertyId,
+                propertyTitle: application.propertyTitle,
+                propertyAddress: application.propertyAddress,
+                propertyImage: application.propertyImage,
+                listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
+                propertyPrice: application.propertyPrice,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+            });
+            navigate(`/manager/messages?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the client conversation right now.');
+        } finally {
+            setOpeningConversation(false);
+        }
     };
 
     const getProgressPercentage = () => {
@@ -193,6 +278,13 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.UNDER_REVIEW: return 55;
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED: return 65;
             case APPLICATION_STATUS.VERIFICATION_IN_PROGRESS: return 80;
+            case APPLICATION_STATUS.OFFER_SUBMITTED: return 20;
+            case APPLICATION_STATUS.OFFER_UNDER_REVIEW: return 35;
+            case APPLICATION_STATUS.OFFER_ACCEPTED: return 55;
+            case APPLICATION_STATUS.SALE_AGREED: return 65;
+            case APPLICATION_STATUS.MEMORANDUM_ISSUED: return 78;
+            case APPLICATION_STATUS.CONVEYANCING: return 88;
+            case APPLICATION_STATUS.EXCHANGE: return 95;
             case APPLICATION_STATUS.APPROVED:
             case APPLICATION_STATUS.COMPLETED: return 100;
             case APPLICATION_STATUS.REJECTED:
@@ -332,6 +424,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleMessageAgent}
+                                disabled={openingConversation}
                                 className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
                                 title="Message Agent"
                             >

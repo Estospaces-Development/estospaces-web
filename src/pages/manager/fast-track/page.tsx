@@ -4,6 +4,10 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FastTrackCase, getFastTrackCases, updateFastTrackCase } from '../../../services/fastTrackService';
 import { Lead, getBrokerLeads, respondToLead } from '../../../services/leadsService';
+import { getApplications, type Application } from '../../../services/applicationsService';
+import { getViewings, type Viewing } from '../../../services/bookingsService';
+import { getUserContracts } from '../../../services/contractsService';
+import { getSaleProgressions, type SaleProgression } from '../../../services/salesService';
 import {
     UserVerificationInfo,
     UserVerificationDetails,
@@ -33,6 +37,8 @@ import {
     buildManagerFastTrackSearchParams,
     resolveManagerFastTrackSelection,
 } from '../../../lib/managerFastTrack';
+import { resolveFastTrackLinkedJourney, type FastTrackLinkedJourney } from '../../../lib/fastTrackLinkedJourney';
+import type { Contract } from '../../../types/booking';
 
 type ManagerFastTrackCase = FastTrackCase & {
     matchingLead: Lead | null;
@@ -40,6 +46,15 @@ type ManagerFastTrackCase = FastTrackCase & {
     verificationSummary: string;
     leadStatusLabel: string;
     documentsReady: boolean;
+    linkedJourney: FastTrackLinkedJourney;
+};
+
+const safeLoad = async <T,>(loader: () => Promise<T>) => {
+    try {
+        return { data: await loader(), error: null as string | null };
+    } catch (error: any) {
+        return { data: null as T | null, error: error?.message || 'Failed to load workflow records' };
+    }
 };
 
 const FastTrackDashboard = () => {
@@ -66,6 +81,24 @@ const FastTrackDashboard = () => {
             getBrokerLeads(),
             getPendingUserVerifications('manager'),
         ]);
+        const [
+            applicationsResult,
+            viewingsResult,
+            contractsResult,
+            saleProgressionsResult,
+        ] = await Promise.all([
+            getApplications({ suppressErrorToast: true }),
+            safeLoad(() => getViewings()),
+            safeLoad(async () => {
+                const result = await getUserContracts();
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                return result.data || [];
+            }),
+            getSaleProgressions(),
+        ]);
 
         if (casesResult.error || leadsResult.error || verificationResult.error) {
             if (!silent) {
@@ -79,6 +112,10 @@ const FastTrackDashboard = () => {
 
         const leads = leadsResult.data || [];
         const verificationInfos = verificationResult.data || [];
+        const applications = applicationsResult.data || [];
+        const viewings = viewingsResult.data || [];
+        const contracts = contractsResult.data || [];
+        const saleProgressions = saleProgressionsResult.data || [];
         const leadById = new Map<string, Lead>();
         const leadByCaseKey = new Map<string, Lead>();
         const verificationByUserId = new Map<string, UserVerificationInfo>();
@@ -117,6 +154,12 @@ const FastTrackDashboard = () => {
                 verificationSummary: buildVerificationSummary(verificationInfo, matchingLead, documents),
                 leadStatusLabel: formatLeadStage(resolveLeadStage(matchingLead)),
                 documentsReady: Object.values(documents).every((status) => status === 'verified'),
+                linkedJourney: resolveFastTrackLinkedJourney(caseItem, {
+                    applications: applications as Application[],
+                    viewings: viewings as Viewing[],
+                    contracts: contracts as Contract[],
+                    saleProgressions: saleProgressions as SaleProgression[],
+                }),
             };
         });
 
@@ -211,6 +254,14 @@ const FastTrackDashboard = () => {
                     currentStep: updatedCase.currentStep,
                     finalStatus: updatedCase.finalStatus,
                     documents: updatedCase.documents,
+                    nextAction: updatedCase.nextAction,
+                    nextActionTarget: updatedCase.nextActionTarget,
+                    statusReason: updatedCase.statusReason,
+                    pendingRequirements: updatedCase.pendingRequirements,
+                    completedRequirements: updatedCase.completedRequirements,
+                    overrideReason: updatedCase.overrideReason,
+                    overrideBy: updatedCase.overrideBy,
+                    overrideAt: updatedCase.overrideAt,
                     documentsReady: Object.values(updatedCase.documents).every((status) => status === 'verified'),
                 }
                 : caseItem
@@ -220,6 +271,7 @@ const FastTrackDashboard = () => {
             current_step: updatedCase.currentStep,
             final_status: updatedCase.finalStatus,
             documents: updatedCase.documents,
+            override_reason: updatedCase.overrideReason,
         });
 
         if (updateError) {
@@ -312,6 +364,7 @@ const FastTrackDashboard = () => {
                         verificationSummary={selectedVerificationDetails ? selectedCaseVerificationContent.summary : selectedCase.verificationSummary}
                         verificationReasonLines={selectedVerificationDetails ? selectedCaseVerificationContent.reasonLines : []}
                         leadStatusLabel={selectedVerificationDetails ? selectedCaseLeadStatusLabel : selectedCase.leadStatusLabel}
+                        linkedJourney={selectedCase.linkedJourney}
                         onOpenVerificationReview={selectedCase.clientId ? () => setSelectedVerificationUserId(selectedCase.clientId) : undefined}
                         onRequestDocuments={selectedCase.matchingLead ? () => {
                             void handleRequestDocuments(selectedCase);

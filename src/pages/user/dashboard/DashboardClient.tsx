@@ -7,8 +7,6 @@ import {
   ArrowRight,
   Bookmark,
   Building2,
-  ChevronLeft,
-  ChevronRight,
   Home,
   Key,
   Loader2,
@@ -23,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import ApplicationTimelineWidget from '@/components/dashboard/ApplicationTimelineWidget';
 import NearbyAgenciesList from '@/components/dashboard/NearbyAgenciesList';
+import PaginationBar from '@/components/ui/PaginationBar';
 import BrokerRequestWidget from '@/components/dashboard/BrokerRequestWidget';
 import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
 import PropertyCard from '@/components/dashboard/PropertyCard';
@@ -421,7 +420,7 @@ const DashboardClient = () => {
       <div id="greeting-section" className="flex items-center justify-between animate-fadeIn">
         <div>
           <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
-            {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span> ðŸ‘‹
+            {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span> {'\u{1F44B}'}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
             What would you like to do today?
@@ -556,7 +555,7 @@ const DashboardClient = () => {
             </button>
 
             <button
-              onClick={() => navigate('/user/dashboard/saved')}
+              onClick={() => navigate('/user/saved')}
               className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
             >
               <div className="p-3.5 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-rose-500/25">
@@ -627,24 +626,16 @@ const DashboardClient = () => {
           )}
 
           {filteredTotalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-4">
-              <button
-                disabled={currentFilteredPage === 1}
-                onClick={() => setCurrentFilteredPage((page) => Math.max(page - 1, 1))}
-                className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Page <span className="font-semibold text-gray-900 dark:text-white">{currentFilteredPage}</span> of {filteredTotalPages}
-              </span>
-              <button
-                disabled={currentFilteredPage >= filteredTotalPages}
-                onClick={() => setCurrentFilteredPage((page) => page + 1)}
-                className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <ChevronRight size={18} />
-              </button>
+            <div className="mt-8">
+              <PaginationBar
+                currentPage={currentFilteredPage}
+                totalPages={filteredTotalPages}
+                onPageChange={setCurrentFilteredPage}
+                totalItems={filteredCount}
+                pageSize={FILTERED_RESULTS_PAGE_SIZE}
+                currentItemCount={filteredProperties.length}
+                itemLabel="properties"
+              />
             </div>
           )}
 

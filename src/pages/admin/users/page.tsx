@@ -6,13 +6,14 @@ import {
     UserPlus, Clock, CheckCircle, XCircle, Users, Plus,
     Filter, Search, MoreVertical, Eye, Edit, Trash2,
     Mail, Phone, Download, Share2, FileDown, FileSpreadsheet,
-    Star, Shield, ArrowRight, TrendingUp, UserCheck, Loader2, Power
+    Star, Shield, TrendingUp, UserCheck, Loader2, Power
 } from 'lucide-react';
 
 import { userService } from '@/services/userService';
 import { getPlatformAnalytics } from '@/services/analyticsService';
 import { User } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 function UserManagementContent() {
     const navigate = useNavigate();
@@ -293,24 +294,16 @@ function UserManagementContent() {
                 </div>
 
                 {/* Pagination Footer */}
-                <div className="px-10 py-8 border-t dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Showing {paginatedUsers.length} of {filteredUsers.length} Members (Page {safeCurrentPage}/{totalPages})</p>
-                    <div className="flex gap-2">
-                        <button
-                            disabled={safeCurrentPage <= 1}
-                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                            className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30"
-                        >
-                            <ArrowRight size={18} className="rotate-180" />
-                        </button>
-                        <button
-                            disabled={safeCurrentPage >= totalPages}
-                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                            className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30"
-                        >
-                            <ArrowRight size={18} />
-                        </button>
-                    </div>
+                <div className="border-t bg-gray-50/50 px-10 py-8 dark:border-gray-700 dark:bg-gray-900/20">
+                    <PaginationBar
+                        currentPage={safeCurrentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredUsers.length}
+                        pageSize={PAGE_SIZE}
+                        currentItemCount={paginatedUsers.length}
+                        itemLabel="members"
+                    />
                 </div>
             </div>
         </div>

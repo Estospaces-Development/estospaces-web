@@ -29,6 +29,9 @@ export interface Viewing {
     property_id: string;
     user_id: string;
     manager_id: string;
+    broker_request_id?: string | null;
+    lead_id?: string | null;
+    fast_track_case_id?: string | null;
     application_id?: string;
     client_name?: string;
     client_email?: string;
@@ -86,6 +89,17 @@ export interface UpdateViewingRequest {
     cancellation_reason?: string;
 }
 
+export interface ViewingAvailabilitySlot {
+    date: string;
+    time: string;
+    status: Viewing['status'];
+}
+
+export interface ViewingAvailability {
+    property_id: string;
+    slots: ViewingAvailabilitySlot[];
+}
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -110,6 +124,11 @@ export async function createViewing(request: CreateViewingRequest): Promise<View
  */
 export async function getViewings(): Promise<Viewing[]> {
     return apiFetch<Viewing[]>(`${BOOKING_URL()}/api/v1/viewings`);
+}
+
+export async function getViewingAvailability(propertyId: string): Promise<ViewingAvailability> {
+    const query = new URLSearchParams({ property_id: propertyId }).toString();
+    return apiFetch<ViewingAvailability>(`${BOOKING_URL()}/api/v1/viewings/availability?${query}`);
 }
 
 export async function getViewing(id: string): Promise<Viewing> {
@@ -156,6 +175,7 @@ export async function getContractTemplates(): Promise<ContractTemplate[]> {
 export const bookingsService = {
     getBookings,
     getViewings,
+    getViewingAvailability,
     getViewing,
     createViewing,
     getContracts,

@@ -8,8 +8,12 @@ export default function MessageInboxFab() {
     const navigate = useNavigate();
     const location = useLocation();
     const { totalUnreadCount } = useMessages();
+    const hideOnContextualWorkspace = location.pathname.startsWith('/user/dashboard/messages')
+        || location.pathname.startsWith('/user/dashboard/fast-track')
+        || location.pathname === '/user/applications'
+        || location.pathname.startsWith('/user/properties/');
 
-    if (location.pathname.startsWith('/user/dashboard/messages')) {
+    if (hideOnContextualWorkspace) {
         return null;
     }
 

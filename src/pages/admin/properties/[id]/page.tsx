@@ -30,6 +30,7 @@ import {
 } from '@/services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import VirtualTourRequestPanel from '@/components/virtual-tour/VirtualTourRequestPanel';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -416,6 +417,12 @@ export default function AdminPropertyDetailPage() {
                             </div>
                         </div>
                     ) : null}
+
+                    <VirtualTourRequestPanel
+                        propertyId={property.id}
+                        propertyTitle={property.title}
+                        adminView={true}
+                    />
 
                     <div className="rounded-[2rem] border bg-white p-8 shadow-xl shadow-gray-200/40 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
                         <h2 className="text-2xl font-black text-gray-900 dark:text-white">Listing Overview</h2>

@@ -8,9 +8,11 @@ import { useNotifications } from '@/contexts/NotificationsContext';
 import {
     getNotificationNavigationPath,
     getNotificationsPagePath,
+    isPropertyWorkflowNotification,
     NOTIFICATION_TYPES,
     type Notification,
 } from '@/services/notificationsService';
+import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
 
 const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -53,11 +55,22 @@ const NotificationDropdown = () => {
 
         const targetPath = getNotificationNavigationPath(notification, user?.role || 'user');
         if (targetPath) {
-            navigate(targetPath);
+            const targetUrl = buildHostedWorkspaceUrl(targetPath, user?.role || 'user');
+            const resolved = new URL(targetUrl, window.location.origin);
+            if (resolved.origin === window.location.origin) {
+                navigate(`${resolved.pathname}${resolved.search}${resolved.hash}`);
+            } else {
+                window.location.href = resolved.toString();
+            }
         }
     };
 
-    const getIcon = (type: string) => {
+    const getIcon = (notification: Notification) => {
+        if (isPropertyWorkflowNotification(notification)) {
+            return <Home size={18} className="text-orange-500" />;
+        }
+
+        const { type } = notification;
         switch (type) {
             case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
             case NOTIFICATION_TYPES.VIEWING_COMPLETED:
@@ -170,7 +183,7 @@ const NotificationDropdown = () => {
                                     >
                                         <div className="flex gap-3">
                                             <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!notification.is_read ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                                                {getIcon(notification.type)}
+                                                {getIcon(notification)}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-0.5">
@@ -228,7 +241,13 @@ const NotificationDropdown = () => {
                         <button
                             onClick={() => {
                                 setIsOpen(false);
-                                navigate(getNotificationsPagePath(user?.role || 'user'));
+                                const targetUrl = buildHostedWorkspaceUrl(getNotificationsPagePath(user?.role || 'user'), user?.role || 'user');
+                                const resolved = new URL(targetUrl, window.location.origin);
+                                if (resolved.origin === window.location.origin) {
+                                    navigate(`${resolved.pathname}${resolved.search}${resolved.hash}`);
+                                } else {
+                                    window.location.href = resolved.toString();
+                                }
                             }}
                             className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                         >

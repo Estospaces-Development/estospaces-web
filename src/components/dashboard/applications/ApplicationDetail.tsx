@@ -20,15 +20,25 @@ import {
     History,
     Shield,
     Key,
+    Loader2,
     LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApplications, APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import StatusTracker from './StatusTracker';
 import UserContractModal from '@/components/dashboard/contracts/UserContractModal';
 import { getUserContracts } from '@/services/contractsService';
+import { messagesService } from '@/services/messagesService';
 import { type Contract } from '@/types/booking';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import {
+    canWithdrawApplicationRecord,
+    getNextSaleJourneyActions,
+    getSaleJourneySummary,
+    isSaleProgressionRecord,
+} from '@/lib/saleJourney';
 
 interface ActivityItem {
     id: number;
@@ -50,9 +60,12 @@ interface ApplicationDetailProps {
 const ApplicationDetail = ({ applicationId, application: initialApplication, onClose, onUpdateStatus }: ApplicationDetailProps) => {
     const navigate = useNavigate();
     const { allApplications, withdrawApplication, updateApplicationStatus } = useApplications();
+    const { user } = useAuth();
+    const toast = useToast();
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
+    const [openingConversation, setOpeningConversation] = useState(false);
 
     // Contract state
     const [contract, setContract] = useState<Contract | null>(null);
@@ -107,7 +120,9 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         );
     }
 
-    const canWithdraw = !([APPLICATION_STATUS.WITHDRAWN, APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.REJECTED, APPLICATION_STATUS.COMPLETED] as string[]).includes(application.status);
+    const canWithdraw = canWithdrawApplicationRecord(application);
+    const isSaleProgression = isSaleProgressionRecord(application);
+    const upcomingSaleAction = getNextSaleJourneyActions(application.status)[0];
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
@@ -136,6 +151,38 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         if (onUpdateStatus && applicationId) {
             onUpdateStatus(applicationId, APPLICATION_STATUS.COMPLETED);
             setShowCompleteConfirm(false);
+        }
+    };
+
+    const handleOpenConversation = async () => {
+        if (!application?.managerId || !user) {
+            toast.error('The live agent conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(application.managerId, {
+                propertyId: application.propertyId,
+                propertyTitle: application.propertyTitle,
+                propertyAddress: application.propertyAddress,
+                propertyImage: application.propertyImage,
+                listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
+                propertyPrice: application.propertyPrice,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: application.agentName || '',
+                recipientEmail: application.agentEmail || '',
+                recipientPhone: application.agentPhone || '',
+                recipientAgency: application.agentAgency || '',
+            });
+
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the agent conversation right now.');
+        } finally {
+            setOpeningConversation(false);
         }
     };
 
@@ -421,11 +468,12 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => navigate('/user/dashboard/messages')}
-                                        className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                        onClick={() => void handleOpenConversation()}
+                                        disabled={openingConversation}
+                                        className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                     >
-                                        <MessageSquare size={18} />
-                                        <span>Message Agent</span>
+                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                        <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                                     </button>
                                 </div>
 
@@ -470,8 +518,35 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                     </div>
                                 </div>
 
+                                {isSaleProgression && (
+                                    <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
+                                                    Purchase Journey
+                                                </p>
+                                                <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {application.journeyLabel || 'Live purchase progression'}
+                                                </h3>
+                                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                                    {getSaleJourneySummary(application.status, application.journeySummary)}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
+                                                <p className="font-semibold text-gray-900 dark:text-white">Next milestone</p>
+                                                <p className="mt-2">
+                                                    {upcomingSaleAction
+                                                        ? `${upcomingSaleAction.label}. ${upcomingSaleAction.description}`
+                                                        : 'The purchase journey is already at its latest recorded stage.'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Next Steps */}
-                                {application.status !== APPLICATION_STATUS.APPROVED &&
+                                {!isSaleProgression &&
+                                    application.status !== APPLICATION_STATUS.APPROVED &&
                                     application.status !== APPLICATION_STATUS.REJECTED &&
                                     application.status !== APPLICATION_STATUS.WITHDRAWN && (
                                         <div className="lg:col-span-2 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
@@ -552,11 +627,12 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                 </p>
                                                 <div className="flex flex-wrap gap-3">
                                                     <button
-                                                        onClick={() => navigate('/user/dashboard/messages')}
-                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors"
+                                                        onClick={() => void handleOpenConversation()}
+                                                        disabled={openingConversation}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                                     >
-                                                        <MessageSquare size={18} />
-                                                        <span>Contact Agent</span>
+                                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                                        <span>{openingConversation ? 'Opening thread' : 'Contact Agent'}</span>
                                                     </button>
 
                                                     {/* Contract Button */}

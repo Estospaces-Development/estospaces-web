@@ -1,21 +1,45 @@
 "use client";
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MessageSquare, Book, Mail, Send, CheckCircle, Loader2, ArrowLeft, ChevronRight } from 'lucide-react';
 import { messagesService } from '@/services/messagesService';
 import { useToast } from '@/contexts/ToastContext';
 
+const DEFAULT_FORM_DATA = {
+    category: 'General Inquiry',
+    subject: '',
+    message: '',
+};
+
+function getPrefilledFormData(searchParams: URLSearchParams, previous = DEFAULT_FORM_DATA) {
+    return {
+        category: searchParams.get('category') || previous.category,
+        subject: searchParams.get('subject') || previous.subject,
+        message: searchParams.get('message') || previous.message,
+    };
+}
+
 export default function HelpPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const toast = useToast();
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
-    const [formData, setFormData] = useState({
-        category: 'General Inquiry',
-        subject: '',
-        message: ''
-    });
+    const [formData, setFormData] = useState(() => getPrefilledFormData(searchParams));
+    const searchParamKey = searchParams.toString();
+
+    useEffect(() => {
+        const category = searchParams.get('category');
+        const subject = searchParams.get('subject');
+        const message = searchParams.get('message');
+
+        if (!category && !subject && !message) {
+            return;
+        }
+
+        setFormData((previous) => getPrefilledFormData(searchParams, previous));
+    }, [searchParams, searchParamKey]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -126,7 +150,7 @@ export default function HelpPage() {
                                     <button
                                         onClick={() => {
                                             setSubmitted(false);
-                                            setFormData({ category: 'General Inquiry', subject: '', message: '' });
+                                            setFormData(DEFAULT_FORM_DATA);
                                         }}
                                         className="w-full py-4 bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-black border border-white/20 dark:border-gray-100 transition-all active:scale-95"
                                     >
@@ -146,6 +170,7 @@ export default function HelpPage() {
                                             <option value="General Inquiry">General Inquiry</option>
                                             <option value="Technical Problem">Technical Problem</option>
                                             <option value="Billing Issue">Billing Issue</option>
+                                            <option value="Overseas Relocation">Overseas Relocation</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2">

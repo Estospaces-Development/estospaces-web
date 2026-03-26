@@ -4,6 +4,11 @@ import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contra
 import { getUserContracts, signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
+import { useSearchParams } from 'react-router-dom';
+import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
+import { getApplications, type Application } from '@/services/applicationsService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
 
 type Tab = 'all' | 'draft' | 'pending' | 'active' | 'terminated';
 
@@ -16,26 +21,50 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: React.Rea
 };
 
 export default function ManagerContractsPage() {
+    const [searchParams] = useSearchParams();
     const [contracts, setContracts] = useState<Contract[]>([]);
+    const [applications, setApplications] = useState<Application[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [signingId, setSigningId] = useState<string | null>(null);
     const [viewContract, setViewContract] = useState<Contract | null>(null);
+    const [createContractTarget, setCreateContractTarget] = useState<Application | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const { success, error: toastError } = useToast();
+    const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const hasWorkspaceFocusRequest = Boolean(
+        searchParams.get('contract')
+        || searchParams.get('application')
+        || searchParams.get('case')
+        || searchParams.get('lead')
+        || searchParams.get('property'),
+    );
 
     const fetchContracts = useCallback(async () => {
         setLoading(true);
-        const { data, error } = await getUserContracts();
-        if (error) {
-            toastError(error);
-        } else if (data) {
-            setContracts(data);
+        const [contractsResult, applicationsResult, fastTrackResult] = await Promise.all([
+            getUserContracts(),
+            getApplications({ suppressErrorToast: true }),
+            getFastTrackCases({ suppressErrorToast: true }),
+        ]);
+
+        if (contractsResult.error) {
+            toastError(contractsResult.error);
+        } else if (contractsResult.data) {
+            setContracts(contractsResult.data);
         }
+
+        setApplications(applicationsResult.data || []);
+        setFastTrackCases(fastTrackResult.data || []);
         setLoading(false);
     }, [toastError]);
 
     useEffect(() => { fetchContracts(); }, [fetchContracts]);
+
+    useEffect(() => {
+        setHasAppliedRouteFocus(false);
+    }, [searchParams]);
 
     const handleCountersign = async (id: string) => {
         setSigningId(id);
@@ -50,6 +79,49 @@ export default function ManagerContractsPage() {
         }
         setSigningId(null);
     };
+
+    const { application: focusedApplication, contract: focusedContract } = resolveContractWorkspaceContext(
+        contracts,
+        applications,
+        {
+            contractId: searchParams.get('contract'),
+            applicationId: searchParams.get('application'),
+            caseId: searchParams.get('case'),
+            leadId: searchParams.get('lead'),
+            propertyId: searchParams.get('property'),
+        },
+    );
+    const focusedFastTrackCase = fastTrackCases.find((caseItem) => (
+        caseItem.caseId === (searchParams.get('case') || focusedApplication?.fast_track_case_id || '')
+        || (searchParams.get('lead') ? caseItem.leadId === searchParams.get('lead') : false)
+        || (searchParams.get('property') ? caseItem.propertyId === searchParams.get('property') : false)
+        || (focusedApplication?.property_id ? caseItem.propertyId === focusedApplication.property_id : false)
+    )) || null;
+    const focusedJourneyType = focusedFastTrackCase?.journeyType || (focusedApplication?.listing_type === 'sale' ? 'buy' : 'rent');
+    const applicationsWorkspacePath = buildWorkspacePath('/manager/applications', {
+        applicationId: searchParams.get('application') || focusedApplication?.id,
+        caseId: searchParams.get('case') || focusedFastTrackCase?.caseId,
+        leadId: searchParams.get('lead') || focusedApplication?.lead_id || focusedFastTrackCase?.leadId,
+        propertyId: searchParams.get('property') || focusedApplication?.property_id || focusedFastTrackCase?.propertyId,
+    });
+    const fastTrackWorkspacePath = focusedFastTrackCase
+        ? `/manager/fast-track?case=${focusedFastTrackCase.caseId}`
+        : '/manager/fast-track';
+    const canDraftLinkedContract = Boolean(
+        focusedApplication
+        && focusedJourneyType !== 'buy'
+        && !focusedContract
+        && ['approved', 'ready_for_contract'].includes(String(focusedApplication.status || '').trim()),
+    );
+
+    useEffect(() => {
+        if (hasAppliedRouteFocus || !focusedContract) {
+            return;
+        }
+
+        setViewContract(focusedContract);
+        setHasAppliedRouteFocus(true);
+    }, [focusedContract, hasAppliedRouteFocus]);
 
     const filteredContracts = contracts.filter(c => {
         const normalizedStatus = normalizeContractStatus(c.status);
@@ -76,6 +148,17 @@ export default function ManagerContractsPage() {
         }
 
         return true;
+    }).sort((left, right) => {
+        if (!focusedContract) {
+            return 0;
+        }
+        if (left.id === focusedContract.id) {
+            return -1;
+        }
+        if (right.id === focusedContract.id) {
+            return 1;
+        }
+        return 0;
     });
 
     const tabs: { key: Tab; label: string; count: number }[] = [
@@ -140,9 +223,14 @@ export default function ManagerContractsPage() {
             {!loading && filteredContracts.length === 0 && (
                 <div className="text-center py-20">
                     <FileText className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
+                    {hasWorkspaceFocusRequest && !focusedContract && (
+                        <p className="mx-auto mb-4 max-w-xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                            You are in the correct contracts workspace for this fast-track case, but no live tenancy contract has been created yet.
+                        </p>
+                    )}
                     <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">No contracts found</h3>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                        Contracts are created from approved applications.
+                        Tenancy contracts are created from approved rental applications. Purchase journeys continue in the sale progression workspace.
                     </p>
                 </div>
             )}
@@ -150,6 +238,58 @@ export default function ManagerContractsPage() {
             {/* Contract Cards */}
             {!loading && filteredContracts.length > 0 && (
                 <div className="grid gap-4">
+                    {hasWorkspaceFocusRequest && !focusedContract && (
+                        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                            <p className="font-semibold">
+                                {focusedJourneyType === 'buy'
+                                    ? 'This linked fast-track case is a purchase journey, so a tenancy contract is not expected here.'
+                                    : canDraftLinkedContract
+                                        ? 'The linked rental application is approved and ready for a draft tenancy agreement.'
+                                        : focusedApplication
+                                            ? `The linked rental application is currently ${String(focusedApplication.status || '').replace(/_/g, ' ')}.`
+                                            : 'This contracts workspace is linked correctly, but the downstream rental records are not ready for a tenancy agreement yet.'}
+                            </p>
+                            <p className="mt-2">
+                                {focusedJourneyType === 'buy'
+                                    ? 'Keep the deal moving from the purchase journey workspace instead of waiting for a rent contract.'
+                                    : canDraftLinkedContract
+                                        ? 'You can draft the tenancy agreement directly from here without leaving the linked case.'
+                                        : focusedApplication
+                                            ? 'Open the linked application to continue the review and approval steps before the contract stage.'
+                                            : (focusedFastTrackCase?.nextAction || focusedFastTrackCase?.statusReason || 'Continue the live case from fast-track or applications and this workspace will populate automatically once the next record is created.')}
+                            </p>
+                            <div className="mt-4 flex flex-wrap gap-3">
+                                {canDraftLinkedContract && focusedApplication && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setCreateContractTarget(focusedApplication)}
+                                        className="rounded-xl bg-orange-600 px-4 py-2.5 font-semibold text-white transition-colors hover:bg-orange-700"
+                                    >
+                                        Draft linked contract
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(applicationsWorkspacePath)}
+                                    className="rounded-xl border border-orange-300 px-4 py-2.5 font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:text-orange-200 dark:hover:bg-orange-950/30"
+                                >
+                                    {focusedJourneyType === 'buy' ? 'Open purchase journey' : 'Open applications workspace'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(fastTrackWorkspacePath)}
+                                    className="rounded-xl border border-gray-300 px-4 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-black"
+                                >
+                                    Open fast-track case
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {focusedContract && (
+                        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                            The contract linked to your fast-track case is pinned first and opened automatically so you can countersign without searching manually.
+                        </div>
+                    )}
                     {filteredContracts.map(contract => {
                         const normalizedStatus = normalizeContractStatus(contract.status);
                         const status = STATUS_MAP[normalizedStatus] || STATUS_MAP.draft;
@@ -158,8 +298,13 @@ export default function ManagerContractsPage() {
                         return (
                             <div
                                 key={contract.id}
-                                className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow ${needsCountersign ? 'ring-2 ring-orange-400/50' : ''
-                                    }`}
+                                className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow ${
+                                    contract.id === focusedContract?.id
+                                        ? 'ring-2 ring-orange-400/50'
+                                        : needsCountersign
+                                            ? 'ring-2 ring-orange-400/50'
+                                            : ''
+                                }`}
                             >
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                     {/* Left Side */}
@@ -169,7 +314,9 @@ export default function ManagerContractsPage() {
                                                 {status.icon} {status.label}
                                             </span>
                                             <span className="text-xs text-gray-400 dark:text-gray-500">
-                                                {contract.contract_type === 'rental' ? 'Tenancy Agreement' : contract.contract_type}
+                                                {contract.contract_type === 'rental' || contract.contract_type === 'tenancy'
+                                                    ? 'Tenancy Agreement'
+                                                    : contract.contract_type}
                                             </span>
                                         </div>
 
@@ -323,6 +470,17 @@ export default function ManagerContractsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {createContractTarget && (
+                <CreateContractModal
+                    applicationId={createContractTarget.id}
+                    propertyPrice={createContractTarget.property_price || 0}
+                    onClose={() => setCreateContractTarget(null)}
+                    onSuccess={() => {
+                        void fetchContracts();
+                    }}
+                />
             )}
         </div>
     );

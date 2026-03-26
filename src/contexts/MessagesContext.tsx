@@ -13,7 +13,7 @@ interface Message {
     time: string;
     read: boolean;
     delivered: boolean;
-    attachments: any[];
+    attachments: messagesService.MessageAttachment[];
 }
 
 interface Conversation {
@@ -165,7 +165,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             time: formatMessageTime(message.created_at),
             read: message.is_read,
             delivered: true,
-            attachments: [],
+            attachments: message.attachments || [],
         };
     }, [user?.id]);
 
@@ -419,7 +419,8 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             const sentMessage = await messagesService.sendMessage({
                 conversationId,
                 content: text.trim(),
-                type: 'text',
+                type: attachments.length > 0 && !text.trim() ? 'file' : 'text',
+                attachments,
             });
 
             const mappedMessage = mapBackendMessage(sentMessage);

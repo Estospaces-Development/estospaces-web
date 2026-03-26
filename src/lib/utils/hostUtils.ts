@@ -2,37 +2,82 @@
  * Host & Subdomain Utilities
  */
 
+export type HostedApp = 'landing' | 'app' | 'admin';
+
+export const isLocalhostHost = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
+
+export const resolveCurrentAppFromHostname = (hostname: string): HostedApp => {
+    if (hostname.startsWith('admin.')) {
+        return 'admin';
+    }
+    if (hostname.startsWith('app.') || hostname.startsWith('user.') || hostname.startsWith('manager.')) {
+        return 'app';
+    }
+    return 'landing';
+};
+
+export const resolveHostedWorkspaceRedirect = (
+    currentApp: HostedApp,
+    pathname: string,
+): { path: string; role: 'user' | 'admin' } | null => {
+    if (currentApp === 'admin' && !pathname.startsWith('/admin')) {
+        return { path: '/admin', role: 'admin' };
+    }
+
+    if (currentApp === 'app' && pathname === '/') {
+        return { path: '/user/dashboard', role: 'user' };
+    }
+
+    if (currentApp === 'app' && pathname.startsWith('/admin')) {
+        return { path: '/user/dashboard', role: 'user' };
+    }
+
+    if (currentApp === 'admin' && (pathname.startsWith('/user') || pathname.startsWith('/manager'))) {
+        return { path: '/admin/dashboard', role: 'admin' };
+    }
+
+    if (currentApp === 'landing' && pathname.startsWith('/admin')) {
+        return { path: pathname, role: 'admin' };
+    }
+
+    if (currentApp === 'landing' && (pathname.startsWith('/user') || pathname.startsWith('/manager'))) {
+        return { path: pathname, role: 'user' };
+    }
+
+    return null;
+};
+
 export const getHostConfig = () => {
     const hostname = window.location.hostname;
-    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const isLocalhost = isLocalhostHost(hostname);
+    const origin = isLocalhost ? `http://localhost:${window.location.port}` : window.location.origin;
     
     // Default domains
     const APP_DOMAIN = 'app.estospaces.com';
     const ADMIN_DOMAIN = 'admin.estospaces.com';
     const LANDING_DOMAIN = 'estospaces.com';
 
-    let currentApp: 'landing' | 'app' | 'admin' = 'landing';
-
-    if (hostname.startsWith('admin.')) {
-        currentApp = 'admin';
-    } else if (hostname.startsWith('app.') || hostname.startsWith('user.')) {
-        currentApp = 'app';
-    } else if (isLocalhost) {
-        // On localhost, we rely on paths or can use port logic if separated
-        // For now, assume localhost defaults to landing unless path specified
-        currentApp = 'landing';
-    }
+    const currentApp = isLocalhost ? 'landing' : resolveCurrentAppFromHostname(hostname);
 
     return {
         hostname,
         isLocalhost,
+        origin,
         currentApp,
-        appUrl: isLocalhost ? `http://localhost:${window.location.port}` : `https://${APP_DOMAIN}`,
-        adminUrl: isLocalhost ? `http://localhost:${window.location.port}/admin` : `https://${ADMIN_DOMAIN}`,
-        landingUrl: isLocalhost ? `http://localhost:${window.location.port}` : `https://${LANDING_DOMAIN}`,
+        appUrl: isLocalhost ? origin : `https://${APP_DOMAIN}`,
+        adminUrl: isLocalhost ? origin : `https://${ADMIN_DOMAIN}`,
+        landingUrl: isLocalhost ? origin : `https://${LANDING_DOMAIN}`,
     };
 };
 
 export const useHost = () => {
     return getHostConfig();
+};
+
+export const buildHostedWorkspaceUrl = (path: string, role?: string) => {
+    const config = getHostConfig();
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    const targetApp = normalizedPath.startsWith('/admin') || role === 'admin' ? 'admin' : 'app';
+    const base = targetApp === 'admin' ? config.adminUrl : config.appUrl;
+    return `${base}${normalizedPath}`;
 };

@@ -13,13 +13,14 @@ import {
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 const PropertyCard = lazy(() => import('@/components/dashboard/PropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
 import {
     Plus, Edit, Trash2, Filter, Download, Search, Grid, List, Map as MapIcon,
-    ChevronDown, ChevronLeft, ChevronRight, X, Settings, ArrowUpDown, Heart, FileText, FileJson, File as FileIcon, Share2
+    ChevronDown, X, Settings, ArrowUpDown, Heart, FileText, FileJson, File as FileIcon, Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 type ViewMode = 'grid' | 'list' | 'map';
@@ -68,7 +69,6 @@ const statusOptions: { value: PropertyStatus | string; label: string; color: str
     { value: 'rented', label: 'Rented', color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
     { value: 'under_contract', label: 'Under Contract', color: 'text-orange-700 dark:text-orange-400', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
     { value: 'off_market', label: 'Off Market', color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30' },
-    { value: 'coming_soon', label: 'Coming Soon', color: 'text-indigo-700 dark:text-indigo-400', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
     { value: 'online', label: 'Online', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
     { value: 'active', label: 'Active', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
     { value: 'draft', label: 'Draft', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
@@ -604,32 +604,16 @@ function PropertiesContent() {
             )}
 
             {tabFilteredProperties.length > 0 && pagination.totalPages > 1 && (
-                <div className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors dark:border-gray-800 dark:bg-gray-900 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} properties
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => handlePageChange(pagination.page - 1)}
-                            disabled={loading || pagination.page <= 1}
-                            className="flex items-center gap-1 rounded-lg border border-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                            Previous
-                        </button>
-                        <span className="px-2 text-sm text-gray-600 dark:text-gray-400">
-                            Page {pagination.page} of {pagination.totalPages}
-                        </span>
-                        <button
-                            onClick={() => handlePageChange(pagination.page + 1)}
-                            disabled={loading || pagination.page >= pagination.totalPages}
-                            className="flex items-center gap-1 rounded-lg border border-gray-100 px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                        >
-                            Next
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
+                <PaginationBar
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    onPageChange={handlePageChange}
+                    totalItems={pagination.total}
+                    pageSize={pagination.limit}
+                    currentItemCount={tabFilteredProperties.length}
+                    itemLabel="properties"
+                    disabled={loading}
+                />
             )}
 
             {/* Empty State */}

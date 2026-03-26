@@ -1,15 +1,21 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
+
 export type FastTrackStep =
-    | 'documents'
-    | 'owner_approval'
-    | 'legal_check'
-    | 'payment_ready'
+    | 'property_selected'
+    | 'documents_requested'
+    | 'documents_verified'
+    | 'viewing_scheduled'
+    | 'viewing_completed'
+    | 'application_in_review'
+    | 'ready_for_contract'
     | 'completed';
 
-export type PropertyType = 'rent' | 'lease' | 'buy';
+export type PropertyType = 'rent' | 'lease' | 'buy' | 'sale';
 
 export type DocStatus = 'pending' | 'verified';
 
@@ -22,16 +28,32 @@ export interface FastTrackDocuments {
 interface BackendFastTrackCase {
     id: string;
     property_id: string;
+    broker_request_id?: string;
     lead_id?: string;
     manager_id?: string;
     client_id: string;
     client_name: string;
     property_title: string;
     property_type: PropertyType;
+    listing_type?: 'rent' | 'sale' | 'lease';
+    started_from?: 'direct_property' | 'broker_request_selection';
     current_step: FastTrackStep;
     final_status: 'in_progress' | 'completed' | 'expired' | 'rejected';
     documents: FastTrackDocuments;
+    journey_type?: 'rent' | 'buy';
+    journey_source?: 'direct_property' | 'broker_request_selection';
+    journey_stage?: string;
+    next_action?: string;
+    next_action_target?: string;
+    status_reason?: string;
+    blocking_requirements?: string[];
+    pending_requirements?: string[];
+    completed_requirements?: string[];
+    override_reason?: string;
+    override_by?: string;
+    override_at?: string;
     submitted_at: string;
+    expires_at?: string;
     updated_at: string;
     hours_remaining: number;
 }
@@ -44,16 +66,60 @@ export interface FastTrackCase {
     clientName: string;
     clientId: string;
     propertyId: string;
+    brokerRequestId?: string;
     leadId?: string;
     managerId?: string;
+    listingType?: 'rent' | 'sale' | 'lease';
+    startedFrom?: 'direct_property' | 'broker_request_selection';
     submittedAt: string;
+    expiresAt?: string;
     hoursRemaining: number;
     currentStep: FastTrackStep;
     documents: FastTrackDocuments;
     finalStatus: 'in_progress' | 'completed' | 'expired' | 'rejected';
+    journeyType?: 'rent' | 'buy';
+    journeySource?: 'direct_property' | 'broker_request_selection';
+    journeyStage?: string;
+    nextAction?: string;
+    nextActionTarget?: string;
+    statusReason?: string;
+    blockingRequirements?: string[];
+    pendingRequirements?: string[];
+    completedRequirements?: string[];
+    overrideReason?: string;
+    overrideBy?: string;
+    overrideAt?: string;
     // extra fields to preserve ID
     id: string;
 }
+
+const normalizeFastTrackStep = (step?: string): FastTrackStep => {
+    switch (String(step || '').trim()) {
+        case 'property_selected':
+            return 'property_selected';
+        case 'documents_verified':
+            return 'documents_verified';
+        case 'viewing_scheduled':
+            return 'viewing_scheduled';
+        case 'viewing_completed':
+            return 'viewing_completed';
+        case 'application_in_review':
+            return 'application_in_review';
+        case 'ready_for_contract':
+            return 'ready_for_contract';
+        case 'completed':
+            return 'completed';
+        case 'documents':
+            return 'documents_requested';
+        case 'owner_approval':
+        case 'legal_check':
+            return 'application_in_review';
+        case 'payment_ready':
+            return 'ready_for_contract';
+        default:
+            return 'documents_requested';
+    }
+};
 
 const normalizeDocStatus = (value: unknown): DocStatus => {
     if (typeof value === 'string') {
@@ -76,27 +142,47 @@ const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => (
     caseId: apiCase.id,
     id: apiCase.id,
     propertyId: apiCase.property_id,
+    brokerRequestId: apiCase.broker_request_id,
     leadId: apiCase.lead_id,
     managerId: apiCase.manager_id,
     clientId: apiCase.client_id,
     propertyTitle: apiCase.property_title,
     propertyType: apiCase.property_type,
+    listingType: apiCase.listing_type,
+    startedFrom: apiCase.started_from,
     clientName: apiCase.client_name,
     submittedAt: apiCase.submitted_at,
+    expiresAt: apiCase.expires_at,
     hoursRemaining: apiCase.hours_remaining,
-    currentStep: apiCase.current_step,
+    currentStep: normalizeFastTrackStep(apiCase.current_step),
     documents: normalizeDocuments(apiCase.documents),
     finalStatus: apiCase.final_status,
+    journeyType: apiCase.journey_type,
+    journeySource: apiCase.journey_source,
+    journeyStage: apiCase.journey_stage,
+    nextAction: apiCase.next_action,
+    nextActionTarget: apiCase.next_action_target,
+    statusReason: apiCase.status_reason,
+    blockingRequirements: apiCase.blocking_requirements || [],
+    pendingRequirements: apiCase.pending_requirements || [],
+    completedRequirements: apiCase.completed_requirements || [],
+    overrideReason: apiCase.override_reason,
+    overrideBy: apiCase.override_by,
+    overrideAt: apiCase.override_at,
 });
 
 export interface CreateFastTrackRequest {
     property_id: string;
+    broker_request_id?: string;
     lead_id?: string;
     manager_id?: string;
     client_id: string;
     client_name: string;
     property_title: string;
     property_type: PropertyType;
+    property_country?: string;
+    listing_type?: 'rent' | 'sale' | 'lease';
+    started_from?: 'direct_property' | 'broker_request_selection';
 }
 
 export interface UpdateFastTrackRequest {
@@ -105,11 +191,12 @@ export interface UpdateFastTrackRequest {
     lead_id?: string;
     manager_id?: string;
     documents?: FastTrackDocuments;
+    override_reason?: string;
 }
 
-export const getFastTrackCases = async () => {
+export const getFastTrackCases = async (options: ServiceRequestOptions = {}) => {
     try {
-        const result = await apiFetch<BackendFastTrackCase[]>(`${BOOKING_URL()}/api/v1/fast-track`);
+        const result = await apiFetch<BackendFastTrackCase[]>(`${BOOKING_URL()}/api/v1/fast-track`, options);
         if (result) {
             return { data: result.map(mapBackendToFrontend), error: null };
         }

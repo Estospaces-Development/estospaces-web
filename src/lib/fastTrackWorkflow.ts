@@ -40,6 +40,62 @@ export interface FastTrackCaseLike {
     hoursRemaining?: number;
 }
 
+export type CanonicalFastTrackStep =
+    | 'property_selected'
+    | 'documents_requested'
+    | 'documents_verified'
+    | 'viewing_scheduled'
+    | 'viewing_completed'
+    | 'application_in_review'
+    | 'ready_for_contract'
+    | 'completed';
+
+export const FAST_TRACK_STEP_SEQUENCE: CanonicalFastTrackStep[] = [
+    'property_selected',
+    'documents_requested',
+    'documents_verified',
+    'viewing_scheduled',
+    'viewing_completed',
+    'application_in_review',
+    'ready_for_contract',
+    'completed',
+];
+
+export const FAST_TRACK_STEP_META: Record<CanonicalFastTrackStep, { label: string; description: string }> = {
+    property_selected: {
+        label: 'Property selected',
+        description: 'A specific property is now linked to the live fast-track case.',
+    },
+    documents_requested: {
+        label: 'Documents requested',
+        description: 'The client has been asked to upload identity and address documents for review.',
+    },
+    documents_verified: {
+        label: 'Documents verified',
+        description: 'Verification documents are approved and the case is ready for viewing logistics.',
+    },
+    viewing_scheduled: {
+        label: 'Viewing scheduled',
+        description: 'A real viewing appointment is booked from the linked lead and appointments flow.',
+    },
+    viewing_completed: {
+        label: 'Viewing completed',
+        description: 'The viewing is complete and the downstream review can now continue.',
+    },
+    application_in_review: {
+        label: 'Application in review',
+        description: 'The broker and manager are reviewing the linked rent or sale decision next.',
+    },
+    ready_for_contract: {
+        label: 'Ready for contract',
+        description: 'The rent journey is ready for a tenancy agreement or the sale journey is at final approval readiness.',
+    },
+    completed: {
+        label: 'Completed',
+        description: 'The fast-track workflow is fully complete and the linked deal is locked in.',
+    },
+};
+
 export type FastTrackDocumentReviewStatus = 'missing' | 'uploaded' | 'verified' | 'reupload_required';
 
 export interface FastTrackDocumentItem {
@@ -92,6 +148,38 @@ export const formatLeadStage = (value?: string) => {
         .trim()
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
+
+export const normalizeCanonicalFastTrackStep = (value?: string | null): CanonicalFastTrackStep => {
+    switch (String(value || '').trim()) {
+        case 'property_selected':
+            return 'property_selected';
+        case 'documents_verified':
+            return 'documents_verified';
+        case 'viewing_scheduled':
+            return 'viewing_scheduled';
+        case 'viewing_completed':
+            return 'viewing_completed';
+        case 'application_in_review':
+            return 'application_in_review';
+        case 'ready_for_contract':
+            return 'ready_for_contract';
+        case 'completed':
+            return 'completed';
+        case 'documents':
+        case 'documents_requested':
+            return 'documents_requested';
+        case 'owner_approval':
+        case 'legal_check':
+            return 'application_in_review';
+        case 'payment_ready':
+            return 'ready_for_contract';
+        default:
+            return 'documents_requested';
+    }
+};
+
+export const getFastTrackStepIndex = (step?: string | null) =>
+    FAST_TRACK_STEP_SEQUENCE.indexOf(normalizeCanonicalFastTrackStep(step));
 
 export const isLeadActive = (lead: LeadLike | null | undefined) => {
     if (!lead) {
@@ -245,12 +333,12 @@ export const buildFastTrackVerificationContent = (items: FastTrackDocumentItem[]
 
     let verificationLabel = 'Upload needed';
     let documentsLabel = 'Waiting for documents';
-    let summary = 'Upload identity and address proof to keep the fast-track case moving.';
+    let summary = 'Upload identity and legal compliance evidence to keep the fast-track case moving.';
 
     if (verifiedItems.length === items.length && items.length > 0) {
         verificationLabel = 'Verified';
         documentsLabel = 'All required documents approved';
-        summary = 'Identity and address proofs are approved for this fast-track case.';
+        summary = 'Identity and legal compliance evidence is approved for this fast-track case.';
     } else if (reuploadItems.length > 0) {
         const item = reuploadItems[0];
         verificationLabel = 'Action needed';
@@ -353,6 +441,34 @@ export const buildDocumentsFromDetails = (
         identityProof: identity?.status === 'verified' ? 'verified' : 'pending',
         addressProof: address?.status === 'verified' ? 'verified' : 'pending',
     };
+};
+
+export const deriveLiveFastTrackCurrentStep = (
+    currentStep: string | null | undefined,
+    documents: UserDocumentLike[] = [],
+    fallback: FastTrackDocumentsLike = {
+        identityProof: 'pending',
+        addressProof: 'pending',
+    },
+): CanonicalFastTrackStep => {
+    const normalizedStep = normalizeCanonicalFastTrackStep(currentStep);
+    const liveDocuments = buildDocumentsFromDetails(documents, fallback);
+    const documentsVerified = (
+        liveDocuments.identityProof === 'verified'
+        && liveDocuments.addressProof === 'verified'
+    );
+
+    if (
+        documentsVerified
+        && (
+            normalizedStep === 'property_selected'
+            || normalizedStep === 'documents_requested'
+        )
+    ) {
+        return 'documents_verified';
+    }
+
+    return normalizedStep;
 };
 
 export const buildVerificationSummary = (

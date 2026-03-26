@@ -17,6 +17,7 @@ import {
     NOTIFICATION_TYPES as NOTIFICATION_TYPE_VALUES,
     type Notification,
 } from '../services/notificationsService';
+import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
 
 interface NotificationsContextType {
     notifications: Notification[];
@@ -70,7 +71,7 @@ const showBrowserNotification = (notification: Notification, role: string) => {
         window.focus();
         const targetPath = getNotificationNavigationPath(notification, role);
         if (targetPath) {
-            window.location.href = targetPath;
+            window.location.href = buildHostedWorkspaceUrl(targetPath, role);
         }
         browserNotification.close();
     };

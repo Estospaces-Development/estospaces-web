@@ -2,7 +2,13 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
-    ignores: ["dist/**", "node_modules/**"],
+    ignores: [
+      "dist/**",
+      "dist-verify*/**",
+      "node_modules/**",
+      "output/**",
+      ".playwright-cli/**",
+    ],
   },
   {
     rules: {

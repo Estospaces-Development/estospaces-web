@@ -5,6 +5,7 @@ import {
     buildFastTrackVerificationContent,
     buildDocumentsFromVerification,
     canCompleteFastTrackVerification,
+    deriveLiveFastTrackCurrentStep,
     formatLeadStage,
     getLatestFastTrackReviewDocuments,
     getFastTrackStartAction,
@@ -365,5 +366,37 @@ test('workspace refresh only blocks before the first fast-track payload arrives'
             },
         ]),
         false,
+    );
+});
+
+test('live fast-track step promotes approved documents ahead of stale saved case state', () => {
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'property_selected',
+            [
+                { document_category: 'identity', status: 'approved' },
+                { document_category: 'address', status: 'approved' },
+            ],
+            {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        'documents_verified',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'viewing_scheduled',
+            [
+                { document_category: 'identity', status: 'approved' },
+                { document_category: 'address', status: 'approved' },
+            ],
+            {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        'viewing_scheduled',
     );
 });

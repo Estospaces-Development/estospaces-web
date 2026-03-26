@@ -29,21 +29,33 @@ import { useApplications, APPLICATION_STATUS, Application, ApplicationStatus } f
 import StatusTracker from './StatusTracker';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
+import {
+    canWithdrawApplicationRecord,
+    getNextSaleJourneyActions,
+    getSaleJourneySummary,
+    isSaleProgressionRecord,
+} from '@/lib/saleJourney';
 
 interface ApplicationDetailProps {
     applicationId: string;
     application?: Application;
     onClose: () => void;
-    onUpdateStatus?: (id: string, status: ApplicationStatus) => void;
+    onUpdateStatus?: (id: string, status: ApplicationStatus) => Promise<void> | void;
 }
 
 const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, application: initialApplication, onClose, onUpdateStatus }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const toast = useToast();
     const { allApplications, withdrawApplication } = useApplications();
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
     const [showContractModal, setShowContractModal] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
+    const [openingConversation, setOpeningConversation] = useState(false);
 
     // Find the application - prioritize the passed prop, fall back to context search
     const application = initialApplication || allApplications?.find(app => app.id === applicationId);
@@ -72,12 +84,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
         );
     }
 
-    const canWithdraw = ![
-        APPLICATION_STATUS.WITHDRAWN as ApplicationStatus,
-        APPLICATION_STATUS.APPROVED as ApplicationStatus,
-        APPLICATION_STATUS.REJECTED as ApplicationStatus,
-        APPLICATION_STATUS.COMPLETED as ApplicationStatus,
-    ].includes(application.status);
+    const canWithdraw = canWithdrawApplicationRecord(application);
+    const isSaleProgression = isSaleProgressionRecord(application);
+    const saleNextActions = getNextSaleJourneyActions(application.status);
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
@@ -95,7 +104,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
 
     const handleWithdraw = async () => {
         if (onUpdateStatus) {
-            onUpdateStatus(applicationId, APPLICATION_STATUS.WITHDRAWN as ApplicationStatus);
+            await Promise.resolve(onUpdateStatus(applicationId, APPLICATION_STATUS.WITHDRAWN as ApplicationStatus));
         } else {
             await withdrawApplication(applicationId);
         }
@@ -104,8 +113,50 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
 
     const handleComplete = async () => {
         if (onUpdateStatus) {
-            onUpdateStatus(applicationId, APPLICATION_STATUS.COMPLETED as ApplicationStatus);
+            await Promise.resolve(onUpdateStatus(applicationId, APPLICATION_STATUS.COMPLETED as ApplicationStatus));
             setShowCompleteConfirm(false);
+        }
+    };
+
+    const handleSaleProgressionUpdate = async (nextStatus: string) => {
+        if (!onUpdateStatus) {
+            return;
+        }
+
+        await Promise.resolve(onUpdateStatus(applicationId, nextStatus as ApplicationStatus));
+    };
+
+    const handleOpenConversation = async () => {
+        if (openingConversation) {
+            return;
+        }
+        if (application.conversationId) {
+            navigate(`/manager/messages?conversation=${application.conversationId}`);
+            return;
+        }
+        if (!application.userId || !user) {
+            toast.error('The client conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(application.userId, {
+                propertyId: application.propertyId,
+                propertyTitle: application.propertyTitle,
+                propertyAddress: application.propertyAddress,
+                propertyImage: application.propertyImage,
+                listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
+                propertyPrice: application.propertyPrice,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+            });
+            navigate(`/manager/messages?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the client conversation right now.');
+        } finally {
+            setOpeningConversation(false);
         }
     };
 
@@ -402,11 +453,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => navigate('/manager/messages')}
+                                        onClick={() => void handleOpenConversation()}
+                                        disabled={openingConversation}
                                         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all shadow-sm"
                                     >
                                         <MessageSquare size={18} />
-                                        <span>Message Agent</span>
+                                        <span>{openingConversation ? 'Opening thread...' : 'Message Agent'}</span>
                                     </button>
                                 </div>
 
@@ -451,8 +503,54 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                     </div>
                                 </div>
 
+                                {isSaleProgression && (
+                                    <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="max-w-3xl">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
+                                                    Purchase Journey
+                                                </p>
+                                                <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {application.journeyLabel || 'Live purchase progression'}
+                                                </h3>
+                                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                                    {getSaleJourneySummary(application.status, application.journeySummary)}
+                                                </p>
+                                            </div>
+                                            <div className="min-w-[220px] rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
+                                                {saleNextActions.length > 0
+                                                    ? 'Advance the purchase stage from here so both dashboards stay aligned live.'
+                                                    : 'This purchase journey is already at its final recorded stage.'}
+                                            </div>
+                                        </div>
+
+                                        {saleNextActions.length > 0 && (
+                                            <div className="mt-6 grid gap-3 md:grid-cols-2">
+                                                {saleNextActions.map((action) => (
+                                                    <button
+                                                        key={action.status}
+                                                        onClick={() => void handleSaleProgressionUpdate(action.status)}
+                                                        className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-700 dark:hover:bg-gray-800"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                                {action.label}
+                                                            </span>
+                                                            <ChevronRight size={18} className="text-orange-500" />
+                                                        </div>
+                                                        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                                            {action.description}
+                                                        </p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Next Steps & Approved Message */}
-                                {application.status !== APPLICATION_STATUS.APPROVED &&
+                                {!isSaleProgression &&
+                                    application.status !== APPLICATION_STATUS.APPROVED &&
                                     application.status !== APPLICATION_STATUS.REJECTED &&
                                     application.status !== APPLICATION_STATUS.WITHDRAWN ? (
                                     <div className="lg:col-span-2 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/10 dark:to-orange-800/10 rounded-xl p-6 border border-orange-200 dark:border-orange-800/50">
@@ -531,11 +629,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                                 </p>
                                                 <div className="flex flex-wrap gap-3">
                                                     <button
-                                                        onClick={() => navigate('/manager/messages')}
+                                                        onClick={() => void handleOpenConversation()}
+                                                        disabled={openingConversation}
                                                         className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg font-medium transition-colors shadow-sm"
                                                     >
                                                         <MessageSquare size={18} />
-                                                        <span>Contact Agent</span>
+                                                        <span>{openingConversation ? 'Opening thread...' : 'Contact Agent'}</span>
                                                     </button>
 
                                                     {application.listingType === 'rent' && (

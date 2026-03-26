@@ -7,13 +7,13 @@ import {
     Bed, Bath, Car, Maximize, Building, DollarSign, CheckCircle, X,
     Phone, Mail, Globe, Shield, Star, TrendingUp, Eye, MessageCircle,
     ChevronLeft, ChevronRight, Clock, User, FileText, Verified, Settings,
-    Send, Video, Camera
+    Send, Video
 } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
-import VirtualTourViewer from '@/components/virtual-tour/VirtualTourViewer';
 import ShareModal from '@/components/dashboard/ShareModal';
+import VirtualTourRequestPanel from '@/components/virtual-tour/VirtualTourRequestPanel';
 
 // Helper for currency formatting
 const formatPrice = (price: any) => {
@@ -60,9 +60,6 @@ export default function PropertyDetailPage() {
 
     const property = id ? getProperty(id) : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
-
-    // Get virtual tour
-    const defaultVirtualTour = null;
 
     // Increment views on mount - only once per session per property
     useEffect(() => {
@@ -321,7 +318,7 @@ export default function PropertyDetailPage() {
                         }`}
                 >
                     Virtual Tour
-                    {defaultVirtualTour && <span className="w-2 h-2 rounded-full bg-green-500"></span>}
+                    {property.virtualTourUrl && <span className="w-2 h-2 rounded-full bg-green-500"></span>}
                     {activeTab === 'virtual-tour' && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 dark:bg-orange-400"></div>
                     )}
@@ -684,23 +681,7 @@ export default function PropertyDetailPage() {
 
             {/* Virtual Tour Tab */}
             {activeTab === 'virtual-tour' && (
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden" style={{ minHeight: '600px' }}>
-                    {defaultVirtualTour ? (
-                        <VirtualTourViewer
-                            tour={defaultVirtualTour}
-                            onClose={() => setActiveTab('details')}
-                            embedded={true}
-                        />
-                    ) : (
-                        <div className="flex flex-col items-center justify-center p-12 text-center" style={{ minHeight: '600px' }}>
-                            <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 text-gray-400">
-                                <Camera size={40} />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Virtual Tour Available</h3>
-                            <p className="text-gray-500 max-w-sm">This property doesn't have a virtual tour yet.</p>
-                        </div>
-                    )}
-                </div>
+                <VirtualTourRequestPanel propertyId={property.id} propertyTitle={property.title} />
             )}
 
             {/* Location Tab */}

@@ -21,6 +21,8 @@ export interface BrokerRequest {
     dispatchStatus?: string;
     primaryActionLabel?: string;
     secondaryActionLabel?: string;
+    statusReason?: string;
+    nextAction?: string;
 }
 
 interface BrokerRequestItemProps {
@@ -212,14 +214,21 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
 
                 {currentStatus !== 'pending' && (
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center text-xs">
-                        <span className="text-gray-500 dark:text-gray-400">
-                            {request.stageLabel || (currentStatus === 'responded' ? 'Response sent' : 'Time limit exceeded')}
-                        </span>
+                        <div className="pr-3">
+                            <span className="text-gray-500 dark:text-gray-400">
+                                {request.stageLabel || (currentStatus === 'responded' ? 'Response sent' : 'Time limit exceeded')}
+                            </span>
+                            {request.statusReason ? (
+                                <p className="mt-1 text-[11px] leading-5 text-gray-400 dark:text-gray-500">
+                                    {request.statusReason}
+                                </p>
+                            ) : null}
+                        </div>
                         <button
                             onClick={handleViewProperty}
                             className="text-orange-500 hover:underline relative z-10"
                         >
-                            {request.secondaryActionLabel || 'View Properties'}
+                            {request.nextAction || request.secondaryActionLabel || 'View Properties'}
                         </button>
                     </div>
                 )}

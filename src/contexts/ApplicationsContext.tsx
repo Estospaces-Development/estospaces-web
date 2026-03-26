@@ -10,8 +10,11 @@ import {
     withdrawApplication as withdrawBackendApplication,
 } from '@/services/applicationsService';
 import { getViewings, type Viewing } from '@/services/bookingsService';
+import { getFastTrackCases } from '@/services/fastTrackService';
+import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { findRelatedViewing } from '@/lib/applicationWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { saleProgressionStageForStatus, isSaleProgressionRecord } from '@/lib/saleJourney';
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -23,6 +26,13 @@ export const APPLICATION_STATUS = {
     UNDER_REVIEW: 'under_review',
     DOCUMENTS_REQUESTED: 'documents_requested',
     VERIFICATION_IN_PROGRESS: 'verification_in_progress',
+    OFFER_SUBMITTED: 'offer_submitted',
+    OFFER_UNDER_REVIEW: 'offer_under_review',
+    OFFER_ACCEPTED: 'offer_accepted',
+    SALE_AGREED: 'sale_agreed',
+    MEMORANDUM_ISSUED: 'memorandum_issued',
+    CONVEYANCING: 'conveyancing',
+    EXCHANGE: 'exchange',
     APPROVED: 'approved',
     REJECTED: 'rejected',
     WITHDRAWN: 'withdrawn',
@@ -41,6 +51,13 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
     under_review: { label: 'Under Review', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
     documents_requested: { label: 'Documents Required', color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
     verification_in_progress: { label: 'Verification in Progress', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+    offer_submitted: { label: 'Offer Submitted', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+    offer_under_review: { label: 'Offer Under Review', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
+    offer_accepted: { label: 'Offer Accepted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700' },
+    sale_agreed: { label: 'Sale Agreed', color: 'green', bgColor: 'bg-emerald-100', textColor: 'text-emerald-700' },
+    memorandum_issued: { label: 'Memorandum Issued', color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-700' },
+    conveyancing: { label: 'Conveyancing', color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-700' },
+    exchange: { label: 'Exchange', color: 'cyan', bgColor: 'bg-cyan-100', textColor: 'text-cyan-700' },
     approved: { label: 'Approved', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700' },
     rejected: { label: 'Rejected', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-700' },
     withdrawn: { label: 'Withdrawn', color: 'gray', bgColor: 'bg-gray-100', textColor: 'text-gray-500' },
@@ -49,9 +66,15 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
 
 export interface Application {
     id: string;
+    source?: 'application' | 'sale_progression';
     referenceId?: string;
     propertyId?: string;
     userId?: string;
+    brokerRequestId?: string;
+    leadId?: string;
+    fastTrackCaseId?: string;
+    managerId?: string;
+    conversationId?: string;
     status: ApplicationStatus;
     createdAt: string;
     updatedAt?: string;
@@ -71,6 +94,8 @@ export interface Application {
     requiresAction?: boolean;
     hasAppointment?: boolean;
     deadline?: string;
+    journeyLabel?: string;
+    journeySummary?: string;
     appointment?: {
         date: string;
         time: string;
@@ -136,6 +161,104 @@ const deriveAppointment = (viewing?: Viewing) => {
     };
 };
 
+const buildJourneyKey = (payload: {
+    propertyId?: string | null;
+    userId?: string | null;
+    leadId?: string | null;
+    fastTrackCaseId?: string | null;
+}) => {
+    if (payload.fastTrackCaseId) {
+        return `case:${payload.fastTrackCaseId}`;
+    }
+    if (payload.leadId) {
+        return `lead:${payload.leadId}`;
+    }
+    return `property:${payload.propertyId || 'unknown'}:user:${payload.userId || 'unknown'}`;
+};
+
+const findRelatedSaleViewing = (
+    progression: SaleProgression,
+    viewings: Viewing[],
+) => {
+    const directMatch = viewings
+        .filter((viewing) =>
+            viewing.property_id === progression.property_id &&
+            viewing.user_id === progression.user_id &&
+            viewing.status !== 'cancelled',
+        )
+        .sort((left, right) => new Date(right.scheduled_at).getTime() - new Date(left.scheduled_at).getTime())[0];
+
+    return directMatch;
+};
+
+const mapSaleProgressionStatus = (progression: SaleProgression): ApplicationStatus => {
+    switch (progression.current_stage) {
+        case 'offer_under_review':
+            return APPLICATION_STATUS.OFFER_UNDER_REVIEW;
+        case 'offer_accepted':
+            return APPLICATION_STATUS.OFFER_ACCEPTED;
+        case 'sale_agreed':
+            return APPLICATION_STATUS.SALE_AGREED;
+        case 'memorandum_issued':
+            return APPLICATION_STATUS.MEMORANDUM_ISSUED;
+        case 'conveyancing':
+            return APPLICATION_STATUS.CONVEYANCING;
+        case 'exchange':
+            return APPLICATION_STATUS.EXCHANGE;
+        case 'completion':
+            return APPLICATION_STATUS.COMPLETED;
+        case 'offer_submitted':
+        default:
+            return APPLICATION_STATUS.OFFER_SUBMITTED;
+    }
+};
+
+const getSaleJourneyCopy = (status: ApplicationStatus) => {
+    switch (status) {
+        case APPLICATION_STATUS.OFFER_UNDER_REVIEW:
+            return {
+                label: 'Offer Under Review',
+                summary: 'The broker or manager is reviewing the submitted purchase offer.',
+            };
+        case APPLICATION_STATUS.OFFER_ACCEPTED:
+            return {
+                label: 'Offer Accepted',
+                summary: 'The offer is accepted and the sale is moving toward the memorandum stage.',
+            };
+        case APPLICATION_STATUS.SALE_AGREED:
+            return {
+                label: 'Sale Agreed',
+                summary: 'The purchase is agreed in principle and the deal pack is being prepared.',
+            };
+        case APPLICATION_STATUS.MEMORANDUM_ISSUED:
+            return {
+                label: 'Memorandum Issued',
+                summary: 'The memorandum is issued and legal coordination is underway.',
+            };
+        case APPLICATION_STATUS.CONVEYANCING:
+            return {
+                label: 'Conveyancing',
+                summary: 'Legal checks, searches, and document review are active now.',
+            };
+        case APPLICATION_STATUS.EXCHANGE:
+            return {
+                label: 'Exchange',
+                summary: 'The purchase is approaching exchange and final completion.',
+            };
+        case APPLICATION_STATUS.COMPLETED:
+            return {
+                label: 'Completed',
+                summary: 'The sale has completed successfully.',
+            };
+        case APPLICATION_STATUS.OFFER_SUBMITTED:
+        default:
+            return {
+                label: 'Offer Submitted',
+                summary: 'The purchase offer is now logged against the selected property.',
+            };
+    }
+};
+
 const deriveStatusFromViewing = (application: BackendApplication, viewing?: Viewing): ApplicationStatus => {
     if (application.status === APPLICATION_STATUS.APPROVED) return APPLICATION_STATUS.APPROVED;
     if (application.status === APPLICATION_STATUS.REJECTED) return APPLICATION_STATUS.REJECTED;
@@ -164,9 +287,15 @@ const deriveStatusFromViewing = (application: BackendApplication, viewing?: View
 
 const mapBackendApplication = (application: BackendApplication, relatedViewing?: Viewing): Application => ({
     id: application.id,
+    source: 'application',
     referenceId: buildReferenceId(application.id),
     propertyId: application.property_id,
     userId: application.user_id,
+    brokerRequestId: application.broker_request_id || undefined,
+    leadId: application.lead_id || undefined,
+    fastTrackCaseId: application.fast_track_case_id || undefined,
+    managerId: application.manager_id || undefined,
+    conversationId: application.conversation_id || undefined,
     status: deriveStatusFromViewing(application, relatedViewing),
     createdAt: application.created_at,
     updatedAt: application.updated_at,
@@ -186,6 +315,56 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
     hasAppointment: !!relatedViewing && relatedViewing.status !== 'cancelled',
     appointment: deriveAppointment(relatedViewing),
 });
+
+const mapSaleProgression = (
+    progression: SaleProgression,
+    propertyContext: {
+        title?: string;
+        address?: string;
+        image?: string;
+        price?: number;
+        propertyType?: string;
+        agentName?: string;
+        agentAgency?: string;
+        agentEmail?: string;
+        agentPhone?: string;
+    } | undefined,
+    relatedViewing?: Viewing,
+): Application => {
+    const status = mapSaleProgressionStatus(progression);
+    const journeyCopy = getSaleJourneyCopy(status);
+
+    return {
+        id: progression.id,
+        source: 'sale_progression',
+        referenceId: `PUR-${progression.id.slice(0, 8).toUpperCase()}`,
+        propertyId: progression.property_id,
+        userId: progression.user_id,
+        leadId: progression.lead_id || undefined,
+        fastTrackCaseId: progression.fast_track_case_id || undefined,
+        managerId: progression.manager_id || undefined,
+        status,
+        createdAt: progression.created_at,
+        updatedAt: progression.updated_at,
+        propertyTitle: propertyContext?.title || 'Purchase progression',
+        propertyAddress: propertyContext?.address || 'Address unavailable',
+        propertyImage: toImageUrl(propertyContext?.image),
+        propertyPrice: propertyContext?.price,
+        propertyType: propertyContext?.propertyType || 'property',
+        agentName: propertyContext?.agentName || relatedViewing?.agent_name || '',
+        agentAgency: propertyContext?.agentAgency || relatedViewing?.agent_agency || '',
+        agentEmail: propertyContext?.agentEmail || relatedViewing?.agent_email || '',
+        agentPhone: propertyContext?.agentPhone || relatedViewing?.agent_phone || '',
+        listingType: 'sale',
+        submittedDate: progression.created_at,
+        lastUpdated: progression.updated_at,
+        requiresAction: false,
+        hasAppointment: !!relatedViewing && relatedViewing.status !== 'cancelled',
+        journeyLabel: journeyCopy.label,
+        journeySummary: journeyCopy.summary,
+        appointment: deriveAppointment(relatedViewing),
+    };
+};
 
 export const ApplicationsProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
@@ -207,9 +386,12 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         setIsLoading(true);
         setError(null);
 
-        const [applicationsResult, viewingsResult] = await Promise.all([
+        await getFastTrackCases({ suppressErrorToast: true });
+
+        const [applicationsResult, viewingsResult, saleProgressionsResult] = await Promise.all([
             getBackendApplications({ suppressErrorToast: true }),
             getViewings().catch(() => [] as Viewing[]),
+            getSaleProgressions(),
         ]);
 
         if (applicationsResult.error) {
@@ -220,11 +402,100 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
-        const mappedApplications = (applicationsResult.data || []).map((application) => (
-            mapBackendApplication(application, findRelatedViewing(application, relatedViewings))
-        ));
+        const propertyContextById = new Map<string, {
+            title?: string;
+            address?: string;
+            image?: string;
+            price?: number;
+            propertyType?: string;
+            agentName?: string;
+            agentAgency?: string;
+            agentEmail?: string;
+            agentPhone?: string;
+        }>();
 
-        setApplications(mappedApplications);
+        (applicationsResult.data || []).forEach((application) => {
+            if (!application.property_id) {
+                return;
+            }
+
+            propertyContextById.set(application.property_id, {
+                title: application.property_title,
+                address: application.property_address,
+                image: application.property_image,
+                price: application.property_price,
+                propertyType: application.property_type,
+                agentName: application.agent_name,
+                agentAgency: application.agent_agency,
+                agentEmail: application.agent_email,
+                agentPhone: application.agent_phone,
+            });
+        });
+
+        relatedViewings.forEach((viewing) => {
+            if (!viewing.property_id || propertyContextById.has(viewing.property_id)) {
+                return;
+            }
+
+            propertyContextById.set(viewing.property_id, {
+                title: viewing.property_title,
+                address: viewing.property_address,
+                image: viewing.property_image,
+                price: viewing.property_price,
+                propertyType: viewing.listing_type,
+                agentName: viewing.agent_name,
+                agentAgency: viewing.agent_agency,
+                agentEmail: viewing.agent_email,
+                agentPhone: viewing.agent_phone,
+            });
+        });
+
+        const saleProgressions = saleProgressionsResult.data || [];
+        const saleProgressionKeys = new Set(
+            saleProgressions.map((progression) =>
+                buildJourneyKey({
+                    propertyId: progression.property_id,
+                    userId: progression.user_id,
+                    leadId: progression.lead_id,
+                    fastTrackCaseId: progression.fast_track_case_id,
+                }),
+            ),
+        );
+
+        const mappedApplications = (applicationsResult.data || [])
+            .filter((application) => {
+                if (application.listing_type !== 'sale') {
+                    return true;
+                }
+
+                return !saleProgressionKeys.has(
+                    buildJourneyKey({
+                        propertyId: application.property_id,
+                        userId: application.user_id,
+                        leadId: application.lead_id,
+                        fastTrackCaseId: application.fast_track_case_id,
+                    }),
+                );
+            })
+            .map((application) => (
+                mapBackendApplication(application, findRelatedViewing(application, relatedViewings))
+            ));
+
+        const mappedSaleProgressions = saleProgressions.map((progression) =>
+            mapSaleProgression(
+                progression,
+                propertyContextById.get(progression.property_id),
+                findRelatedSaleViewing(progression, relatedViewings),
+            ),
+        );
+
+        setApplications(
+            [...mappedApplications, ...mappedSaleProgressions].sort(
+                (left, right) =>
+                    new Date(right.lastUpdated || right.createdAt).getTime() -
+                    new Date(left.lastUpdated || left.createdAt).getTime(),
+            ),
+        );
         setIsLoading(false);
     };
 
@@ -290,6 +561,11 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     };
 
     const withdrawApplication = async (id: string) => {
+        const application = applications.find((item) => item.id === id);
+        if (isSaleProgressionRecord(application)) {
+            return { success: false, error: 'Purchase progressions cannot be withdrawn from the applications workspace' };
+        }
+
         const { data, error: updateError } = await withdrawBackendApplication(id);
 
         if (updateError || !data) {
@@ -303,6 +579,22 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     const updateApplicationStatus = async (id: string, status: string) => {
         if (status === APPLICATION_STATUS.WITHDRAWN) {
             return withdrawApplication(id);
+        }
+
+        const application = applications.find((item) => item.id === id);
+        if (isSaleProgressionRecord(application)) {
+            const stage = saleProgressionStageForStatus(status);
+            if (!stage) {
+                return { success: false, error: 'This purchase step cannot be updated from here yet' };
+            }
+
+            const { data, error: updateError } = await updateSaleProgression(id, stage);
+            if (updateError || !data) {
+                return { success: false, error: updateError || 'Failed to update purchase progression' };
+            }
+
+            await fetchApplications();
+            return { success: true };
         }
 
         const { data, error: updateError } = await updateBackendApplicationStatus(id, status);

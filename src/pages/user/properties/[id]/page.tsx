@@ -21,13 +21,14 @@ import {
     CheckCircle2,
     Upload,
     X,
+    Heart,
 } from 'lucide-react';
 import { getPropertyById, Property } from '../../../../services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
 import { createFastTrackCase, FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
-import { bookingsService } from '@/services/bookingsService';
+import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import PropertyContactInfo from '@/components/dashboard/PropertyContactInfo';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
@@ -85,6 +86,55 @@ const buildCalendarDays = (month: Date, minimumDateValue: string) => {
             isDisabled: minimumDate ? date < minimumDate : false,
         };
     });
+};
+
+const isPastViewingTimeSlot = (dateValue: string, timeValue: string) => {
+    if (!dateValue || !timeValue) {
+        return false;
+    }
+
+    const scheduledAt = new Date(`${dateValue}T${timeValue}:00`);
+    if (Number.isNaN(scheduledAt.getTime())) {
+        return false;
+    }
+
+    return scheduledAt.getTime() <= Date.now();
+};
+
+const isViewingTimeSlotUnavailable = (
+    dateValue: string,
+    timeValue: string,
+    bookedSlotsByDate: Record<string, Set<string>>,
+) => isPastViewingTimeSlot(dateValue, timeValue) || Boolean(bookedSlotsByDate[dateValue]?.has(timeValue));
+
+const getAvailableViewingTimeSlots = (
+    dateValue: string,
+    bookedSlotsByDate: Record<string, Set<string>>,
+) => VIEWING_TIME_SLOTS.filter((slot) => !isViewingTimeSlotUnavailable(dateValue, slot.value, bookedSlotsByDate));
+
+const findNextAvailableViewingSelection = (
+    minimumDateValue: string,
+    bookedSlotsByDate: Record<string, Set<string>>,
+) => {
+    const probe = new Date(`${minimumDateValue}T00:00:00`);
+    if (Number.isNaN(probe.getTime())) {
+        return null;
+    }
+
+    for (let offset = 0; offset < 120; offset += 1) {
+        const candidate = new Date(probe);
+        candidate.setDate(probe.getDate() + offset);
+        const requestedDate = toDateValue(candidate);
+        const availableSlots = getAvailableViewingTimeSlots(requestedDate, bookedSlotsByDate);
+        if (availableSlots.length > 0) {
+            return {
+                requested_date: requestedDate,
+                requested_time: availableSlots[0].value,
+            };
+        }
+    }
+
+    return null;
 };
 
 const formatPreviewDate = (dateValue: string) => {
@@ -196,6 +246,8 @@ const UserPropertyDetail = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const fastTrackQuery = searchParams.get('fast-track');
+    const brokerRequestQuery = searchParams.get('broker-request')?.trim() || '';
+    const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
 
@@ -223,6 +275,7 @@ const UserPropertyDetail = () => {
         requested_time: '10:00',
         user_notes: '',
     });
+    const [viewingAvailability, setViewingAvailability] = useState<ViewingAvailability | null>(null);
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -261,8 +314,24 @@ const UserPropertyDetail = () => {
         : [property?.city, property?.postcode].filter(Boolean).join(', ');
     const locationLabel = [property?.city, property?.country].filter(Boolean).join(', ') || 'Prime location';
     const minimumViewingDate = useMemo(() => toDateValue(new Date()), []);
+    const bookedViewingSlotsByDate = useMemo(() => {
+        const entries: Record<string, Set<string>> = {};
+        (viewingAvailability?.slots || []).forEach((slot) => {
+            if (!entries[slot.date]) {
+                entries[slot.date] = new Set<string>();
+            }
+            entries[slot.date].add(slot.time);
+        });
+        return entries;
+    }, [viewingAvailability]);
     const selectedDatePreview = useMemo(() => formatPreviewDate(viewingForm.requested_date), [viewingForm.requested_date]);
     const selectedTimePreview = useMemo(() => formatPreviewTime(viewingForm.requested_time), [viewingForm.requested_time]);
+    const selectedDateAvailableTimeSlots = useMemo(
+        () => viewingForm.requested_date
+            ? getAvailableViewingTimeSlots(viewingForm.requested_date, bookedViewingSlotsByDate)
+            : VIEWING_TIME_SLOTS,
+        [bookedViewingSlotsByDate, viewingForm.requested_date],
+    );
     const priceLabel = typeof property?.price === 'number'
         ? `${property.currency || 'GBP'} ${property.price.toLocaleString()}`
         : 'Price on request';
@@ -372,8 +441,11 @@ const UserPropertyDetail = () => {
         return new Date(today.getFullYear(), today.getMonth(), 1);
     }, []);
     const calendarDays = useMemo(
-        () => buildCalendarDays(calendarMonth, minimumViewingDate),
-        [calendarMonth, minimumViewingDate],
+        () => buildCalendarDays(calendarMonth, minimumViewingDate).map((day) => ({
+            ...day,
+            isDisabled: day.isDisabled || VIEWING_TIME_SLOTS.every((slot) => isViewingTimeSlotUnavailable(day.value, slot.value, bookedViewingSlotsByDate)),
+        })),
+        [bookedViewingSlotsByDate, calendarMonth, minimumViewingDate],
     );
     const canGoToPreviousMonth = calendarMonth.getTime() > currentMonthStart.getTime();
     const showPreviousImage = () => {
@@ -448,8 +520,19 @@ const UserPropertyDetail = () => {
                 .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
             const workspaceDocuments = normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error);
 
-            const matchingLead = propertyLeads.find((lead) => isLeadActive(lead)) || propertyLeads[0] || null;
-            const matchingCase = propertyCases.find((fastTrackCase) => fastTrackCase.finalStatus === 'in_progress') || propertyCases[0] || null;
+            const matchingLead = (
+                propertyLeads.find((lead) => brokerRequestQuery && lead.broker_request_id === brokerRequestQuery && isLeadActive(lead))
+                || propertyLeads.find((lead) => isLeadActive(lead))
+                || propertyLeads[0]
+                || null
+            );
+            const matchingCase = (
+                propertyCases.find((fastTrackCase) => requestedCaseId && fastTrackCase.caseId === requestedCaseId)
+                || propertyCases.find((fastTrackCase) => brokerRequestQuery && fastTrackCase.brokerRequestId === brokerRequestQuery && fastTrackCase.finalStatus === 'in_progress')
+                || propertyCases.find((fastTrackCase) => fastTrackCase.finalStatus === 'in_progress')
+                || propertyCases[0]
+                || null
+            );
             const reconciledCase = await reconcileFastTrackCaseContext(matchingCase, matchingLead);
 
             setActiveLead(matchingLead);
@@ -552,6 +635,73 @@ const UserPropertyDetail = () => {
     }, [viewingForm.requested_date]);
 
     useEffect(() => {
+        if (!property?.id) {
+            setViewingAvailability(null);
+            return;
+        }
+
+        let cancelled = false;
+        const loadViewingAvailability = async () => {
+            try {
+                const availability = await bookingsService.getViewingAvailability(property.id);
+                if (!cancelled) {
+                    setViewingAvailability(availability);
+                }
+            } catch {
+                if (!cancelled) {
+                    setViewingAvailability({
+                        property_id: property.id,
+                        slots: [],
+                    });
+                }
+            }
+        };
+
+        void loadViewingAvailability();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [property?.id]);
+
+    useEffect(() => {
+        const currentSelectionIsValid = selectedDateAvailableTimeSlots.some((slot) => slot.value === viewingForm.requested_time);
+        if (viewingForm.requested_date && currentSelectionIsValid) {
+            return;
+        }
+
+        const nextSelection = viewingForm.requested_date && selectedDateAvailableTimeSlots.length > 0
+            ? {
+                requested_date: viewingForm.requested_date,
+                requested_time: selectedDateAvailableTimeSlots[0].value,
+            }
+            : findNextAvailableViewingSelection(minimumViewingDate, bookedViewingSlotsByDate);
+
+        if (!nextSelection) {
+            return;
+        }
+
+        if (
+            nextSelection.requested_date === viewingForm.requested_date
+            && nextSelection.requested_time === viewingForm.requested_time
+        ) {
+            return;
+        }
+
+        setViewingForm((previous) => ({
+            ...previous,
+            requested_date: nextSelection.requested_date,
+            requested_time: nextSelection.requested_time,
+        }));
+    }, [
+        bookedViewingSlotsByDate,
+        minimumViewingDate,
+        selectedDateAvailableTimeSlots,
+        viewingForm.requested_date,
+        viewingForm.requested_time,
+    ]);
+
+    useEffect(() => {
         if (!property || !user) {
             return;
         }
@@ -621,6 +771,11 @@ const UserPropertyDetail = () => {
     const openFastTrackDashboard = () => {
         if (activeFastTrackCase?.caseId) {
             navigate(`/user/dashboard/fast-track?case=${activeFastTrackCase.caseId}`);
+            return;
+        }
+
+        if (requestedCaseId) {
+            navigate(`/user/dashboard/fast-track?case=${requestedCaseId}`);
             return;
         }
 
@@ -699,14 +854,20 @@ const UserPropertyDetail = () => {
                 throw new Error('Unable to prepare the fast-track lead.');
             }
 
+            const brokerRequestId = leadToUse.broker_request_id || brokerRequestQuery || undefined;
+
             const fastTrackResult = await createFastTrackCase({
                 property_id: property.id,
+                broker_request_id: brokerRequestId,
                 lead_id: leadToUse.id,
                 manager_id: leadToUse.broker_id,
                 client_id: user!.id,
                 client_name: displayName,
                 property_title: property.title,
                 property_type: mapFastTrackPropertyType(property.listing_type),
+                property_country: property.country || undefined,
+                listing_type: property.listing_type as 'rent' | 'sale' | 'lease' | undefined,
+                started_from: brokerRequestId ? 'broker_request_selection' : 'direct_property',
             });
             if (fastTrackResult.error || !fastTrackResult.data) {
                 throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
@@ -801,7 +962,19 @@ const UserPropertyDetail = () => {
             toast.success('Viewing request sent successfully.');
             navigate('/user/dashboard/viewings');
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to schedule the viewing.');
+            if (String(actionError?.message || '').toLowerCase().includes('already booked') && property?.id) {
+                try {
+                    const availability = await bookingsService.getViewingAvailability(property.id);
+                    setViewingAvailability(availability);
+                } catch {
+                    // Keep the current UI state if refreshing availability also fails.
+                }
+                toast.error('That viewing slot was just taken. Pick another available time and try again.');
+            } else if (String(actionError?.message || '').toLowerCase().includes('future time')) {
+                toast.error('Please choose a future viewing time.');
+            } else {
+                toast.error(actionError?.message || 'Unable to schedule the viewing.');
+            }
         } finally {
             setIsSchedulingViewing(false);
         }
@@ -838,13 +1011,22 @@ const UserPropertyDetail = () => {
         <div className="relative mx-auto max-w-[1480px] px-4 py-8 pb-20">
             <div className="pointer-events-none absolute inset-x-10 top-12 -z-10 h-64 rounded-[3rem] bg-orange-50/90 blur-3xl dark:bg-orange-950/20" />
             <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
-            <button
-                onClick={() => navigate(-1)}
-                className="mb-8 flex items-center gap-2 text-gray-600 transition-colors group hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300"
-            >
-                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                <span>Back</span>
-            </button>
+            <div className="mb-8 flex items-center justify-between">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex items-center gap-2 text-gray-600 transition-colors group hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300"
+                >
+                    <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+                    <span>Back</span>
+                </button>
+                <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-orange-300 hover:text-orange-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-400"
+                >
+                    <Heart size={16} className="text-gray-400 group-hover:text-orange-500" />
+                    <span>Save</span>
+                </button>
+            </div>
 
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.36fr)_minmax(420px,0.92fr)] xl:items-start">
                 <div className="min-w-0 space-y-8">
@@ -1352,6 +1534,9 @@ const UserPropertyDetail = () => {
                                         <span className="rounded-full bg-stone-100 px-3 py-1.5 text-gray-500 dark:bg-zinc-900 dark:text-gray-400">
                                             Today onward bookable
                                         </span>
+                                        <span className="rounded-full bg-stone-100 px-3 py-1.5 text-gray-500 dark:bg-zinc-900 dark:text-gray-400">
+                                            Fully booked or past-only days are disabled
+                                        </span>
                                         <span className="rounded-full bg-stone-100 px-3 py-1.5 font-medium text-gray-700 dark:bg-zinc-900 dark:text-gray-200">
                                             In-person
                                         </span>
@@ -1384,24 +1569,44 @@ const UserPropertyDetail = () => {
                                         <div className="mt-3 grid grid-cols-2 gap-2">
                                             {VIEWING_TIME_SLOTS.map((slot) => {
                                                 const isSelected = viewingForm.requested_time === slot.value;
+                                                const isUnavailable = Boolean(viewingForm.requested_date && isViewingTimeSlotUnavailable(viewingForm.requested_date, slot.value, bookedViewingSlotsByDate));
 
                                                 return (
                                                     <button
                                                         key={slot.value}
                                                         type="button"
-                                                        onClick={() => setViewingForm((previous) => ({ ...previous, requested_time: slot.value }))}
+                                                        onClick={() => !isUnavailable && setViewingForm((previous) => ({ ...previous, requested_time: slot.value }))}
+                                                        disabled={isUnavailable}
                                                         className={`rounded-xl border px-3 py-2.5 text-left transition ${
                                                             isSelected
                                                                 ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                                                : 'border-stone-200 bg-stone-50 text-gray-800 hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-800'
+                                                                : isUnavailable
+                                                                    ? 'cursor-not-allowed border-stone-200 bg-stone-100 text-gray-400 opacity-70 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500'
+                                                                    : 'border-stone-200 bg-stone-50 text-gray-800 hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-800'
                                                         }`}
                                                     >
                                                         <p className="text-[13px] font-semibold">{slot.label}</p>
-                                                        <p className={`mt-1 text-[10px] ${isSelected ? 'text-white/80' : 'text-gray-400'}`}>{slot.hint}</p>
+                                                        <p className={`mt-1 text-[10px] ${
+                                                            isSelected
+                                                                ? 'text-white/80'
+                                                                : isUnavailable
+                                                                    ? 'text-gray-400 dark:text-zinc-500'
+                                                                    : 'text-gray-400'
+                                                        }`}
+                                                        >
+                                                            {isUnavailable
+                                                                ? (isPastViewingTimeSlot(viewingForm.requested_date, slot.value) ? 'Time passed' : 'Already booked')
+                                                                : slot.hint}
+                                                        </p>
                                                     </button>
                                                 );
                                             })}
                                         </div>
+                                        {viewingForm.requested_date && selectedDateAvailableTimeSlots.length === 0 && (
+                                            <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                                Every time on this day is booked. Choose another day to continue.
+                                            </p>
+                                        )}
                                     </div>
 
                                     <label className="block rounded-[1.4rem] border border-stone-200/80 bg-white/92 p-3.5 text-sm text-gray-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950/80 dark:text-gray-400">

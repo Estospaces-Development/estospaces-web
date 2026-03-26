@@ -206,6 +206,8 @@ interface FormData {
     countryId: string;
     neighborhood: string;
     landmark: string;
+    latitude: string;
+    longitude: string;
 
     // Property Details
     totalArea: number;
@@ -287,6 +289,8 @@ const initialFormData: FormData = {
     countryId: '',
     neighborhood: '',
     landmark: '',
+    latitude: '',
+    longitude: '',
 
     totalArea: 0,
     carpetArea: 0,
@@ -458,6 +462,8 @@ export default function AddPropertyPage() {
                 countryId: property.location?.countryId || '',
                 neighborhood: property.location?.neighborhood || '',
                 landmark: property.location?.landmark || '',
+                latitude: property.location?.latitude !== undefined ? String(property.location.latitude) : '',
+                longitude: property.location?.longitude !== undefined ? String(property.location.longitude) : '',
 
                 totalArea: property.dimensions?.totalArea || property.area || 0,
                 carpetArea: property.dimensions?.carpetArea || 0,
@@ -836,6 +842,8 @@ export default function AddPropertyPage() {
     const buildPropertyData = async (): Promise<Partial<Property>> => {
         const images = await processImages(formData.images);
         const videos = await processVideos(formData.videos);
+        const latitude = formData.latitude.trim() === '' ? undefined : parseFloat(formData.latitude);
+        const longitude = formData.longitude.trim() === '' ? undefined : parseFloat(formData.longitude);
 
         return {
             title: formData.title,
@@ -856,6 +864,8 @@ export default function AddPropertyPage() {
                 country: formData.country,
                 countryCode: formData.countryCode,
                 countryId: formData.countryId,
+                latitude: Number.isFinite(latitude as number) ? latitude : undefined,
+                longitude: Number.isFinite(longitude as number) ? longitude : undefined,
                 neighborhood: formData.neighborhood,
                 landmark: formData.landmark,
             },
@@ -1454,6 +1464,40 @@ export default function AddPropertyPage() {
                             initialState={formData.state}
                             initialCity={formData.city}
                         />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Latitude
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={formData.latitude}
+                                    onChange={(e) => handleInputChange('latitude', e.target.value)}
+                                    className="w-full rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-900 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:border-gray-600"
+                                    placeholder="e.g. 51.5007"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Use real coordinates to make the manager and discovery maps place this property accurately.
+                                </p>
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Longitude
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={formData.longitude}
+                                    onChange={(e) => handleInputChange('longitude', e.target.value)}
+                                    className="w-full rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-900 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:border-gray-600"
+                                    placeholder="e.g. -0.1246"
+                                />
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Leave this blank only if you intentionally want the property excluded from map markers.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
 

@@ -100,6 +100,7 @@ const AdminSettings = lazyPage(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazyPage(() => import('./pages/admin/users/page'));
 const AdminVerifications = lazyPage(() => import('./pages/admin/verifications/page'));
 const AdminReviews = lazyPage(() => import('./pages/admin/reviews/page'));
+const AdminProfile = lazyPage(() => import('./pages/admin/profile/page'));
 
 // Lazy loaded pages - Manager
 const ManagerDashboard = lazyPage(() => import('./pages/manager/dashboard/page'));
@@ -110,9 +111,9 @@ const ManagerPropertyDetail = lazyPage(() => import('./pages/manager/dashboard/p
 const ManagerAnalytics = lazyPage(() => import('./pages/manager/analytics/page'));
 const ManagerApplications = lazyPage(() => import('./pages/manager/applications/page'));
 const ManagerAppointments = lazyPage(() => import('./pages/manager/appointments/page'));
-// const ManagerBilling = lazy(() => import('./pages/manager/billing/page'));
+const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
 const ManagerClients = lazyPage(() => import('./pages/manager/clients/page'));
-// const ManagerCommunity = lazy(() => import('./pages/manager/community/page'));
+const ManagerCommunity = lazyPage(() => import('./pages/manager/community/page'));
 const ManagerContracts = lazyPage(() => import('./pages/manager/contracts/page'));
 const ManagerFastTrack = lazyPage(() => import('./pages/manager/fast-track/page'));
 const ManagerHelp = lazyPage(() => import('./pages/manager/help/page'));
@@ -120,6 +121,7 @@ const ManagerLeads = lazyPage(() => import('./pages/manager/leads/page'));
 const ManagerMessages = lazyPage(() => import('./pages/manager/messages/page'));
 const ManagerNotifications = lazyPage(() => import('./pages/manager/notifications/page'));
 const ManagerProfile = lazyPage(() => import('./pages/manager/profile/page'));
+const ManagerUserVerifications = lazyPage(() => import('./pages/manager/user-verifications/page'));
 const ManagerVerification = lazyPage(() => import('./pages/manager/verification/page'));
 
 // Lazy loaded pages - User
@@ -140,7 +142,7 @@ const UserFastTrack = lazyPage(() => import('./pages/user/dashboard/fast-track/p
 const UserHelp = lazyPage(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazyPage(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazyPage(() => import('./pages/user/dashboard/notifications/page'));
-// const UserOverseas = lazy(() => import('./pages/user/dashboard/overseas/page'));
+const UserOverseas = lazyPage(() => import('./pages/user/dashboard/overseas/page'));
 const UserPayments = lazyPage(() => import('./pages/user/dashboard/payments/page'));
 const UserProfileDash = lazyPage(() => import('./pages/user/dashboard/profile/page'));
 const UserReviews = lazyPage(() => import('./pages/user/dashboard/reviews/page'));
@@ -194,6 +196,7 @@ const App: React.FC = () => {
             <Route path="users" element={<AdminUsers />} />
             <Route path="verifications" element={<AdminVerifications />} />
             <Route path="reviews" element={<AdminReviews />} />
+            <Route path="profile" element={<AdminProfile />} />
           </Route>
 
           {/* Manager Routes */}
@@ -208,17 +211,16 @@ const App: React.FC = () => {
             <Route path="applications" element={<ManagerApplications />} />
             <Route path="appointments" element={<ManagerAppointments />} />
             <Route path="contracts" element={<ManagerContracts />} />
-            <Route path="billing" element={<Navigate to="/manager/dashboard" replace />} />
-            {/* <Route path="billing" element={<ManagerBilling />} /> */}{/* Commented out — backend API pending */}
+            <Route path="billing" element={<ManagerBilling />} />
             <Route path="clients" element={<ManagerClients />} />
-            <Route path="community" element={<Navigate to="/manager/dashboard" replace />} />
+            <Route path="community" element={<ManagerCommunity />} />
             <Route path="fast-track" element={<ManagerFastTrack />} />
             <Route path="help" element={<ManagerHelp />} />
             <Route path="leads" element={<ManagerLeads />} />
             <Route path="messages" element={<ManagerMessages />} />
             <Route path="notifications" element={<PageErrorBoundary><ManagerNotifications /></PageErrorBoundary>} />
             <Route path="profile" element={<ManagerProfile />} />
-            <Route path="user-verifications" element={<Navigate to="/manager/dashboard" replace />} />
+            <Route path="user-verifications" element={<ManagerUserVerifications />} />
             <Route path="verification" element={<ManagerVerification />} />
           </Route>
 
@@ -232,10 +234,8 @@ const App: React.FC = () => {
             <Route path="dashboard/help" element={<UserHelp />} />
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
-            <Route path="dashboard/overseas" element={<Navigate to="/user/dashboard" replace />} />
-            {/* <Route path="dashboard/overseas" element={<UserOverseas />} /> */}{/* Commented out - overseas dashboard is out of scope for the current phase */}
+            <Route path="dashboard/overseas" element={<UserOverseas />} />
             <Route path="dashboard/payments" element={<UserPayments />} />
-            {/* <Route path="dashboard/payments" element={<UserPayments />} /> */}{/* Commented out - backend API pending */}
             <Route path="dashboard/profile" element={<UserProfileDash />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
             <Route path="dashboard/settings" element={<UserSettingsDash />} />

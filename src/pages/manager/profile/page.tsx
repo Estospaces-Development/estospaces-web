@@ -21,8 +21,15 @@ export default function ManagerProfilePage() {
         address: '',
         postcode: '',
         companyName: '',
+        branchName: '',
         businessPhone: '',
         companyAddress: '',
+        registeredOfficeAddress: '',
+        complaintsContact: '',
+        redressSchemeName: '',
+        redressMembershipNumber: '',
+        cmpProvider: '',
+        cmpCertificateUrl: '',
         website: '',
         bio: '',
         licenseNumber: '',
@@ -47,8 +54,15 @@ export default function ManagerProfilePage() {
             website: user?.user_metadata?.website || prev.website || '',
             // Broker / manager fields
             companyName: managerProfile?.company_name || prev.companyName || '',
+            branchName: managerProfile?.branch_name || prev.branchName || '',
             businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
             companyAddress: managerProfile?.company_address || prev.companyAddress || '',
+            registeredOfficeAddress: managerProfile?.registered_office_address || prev.registeredOfficeAddress || '',
+            complaintsContact: managerProfile?.complaints_contact || prev.complaintsContact || '',
+            redressSchemeName: managerProfile?.redress_scheme_name || prev.redressSchemeName || '',
+            redressMembershipNumber: managerProfile?.redress_membership_number || prev.redressMembershipNumber || '',
+            cmpProvider: managerProfile?.cmp_provider || prev.cmpProvider || '',
+            cmpCertificateUrl: managerProfile?.cmp_certificate_url || prev.cmpCertificateUrl || '',
             licenseNumber: managerProfile?.company_registration_number || managerProfile?.license_number || prev.licenseNumber || '',
             taxId: managerProfile?.tax_id || prev.taxId || '',
         }));
@@ -87,10 +101,17 @@ export default function ManagerProfilePage() {
             if (isManager) {
                 payload.broker_settings = {
                     company_name: formData.companyName,
+                    branch_name: formData.branchName,
                     company_description: formData.bio,
                     company_reg_number: formData.licenseNumber,
                     business_phone: formData.businessPhone,
                     company_address: formData.companyAddress,
+                    registered_office_address: formData.registeredOfficeAddress,
+                    complaints_contact: formData.complaintsContact,
+                    redress_scheme_name: formData.redressSchemeName,
+                    redress_membership_number: formData.redressMembershipNumber,
+                    cmp_provider: formData.cmpProvider,
+                    cmp_certificate_url: formData.cmpCertificateUrl,
                     tax_id: formData.taxId,
                 };
             }
@@ -285,6 +306,12 @@ export default function ManagerProfilePage() {
                                         </div>
                                     </div>
                                     <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Branch Name</label>
+                                        <input type="text" name="branchName" value={formData.branchName} onChange={handleChange}
+                                            placeholder="Westminster Branch"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License / Reg Number</label>
                                         <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
                                             placeholder="REG123456"
@@ -316,6 +343,53 @@ export default function ManagerProfilePage() {
                                             placeholder="1 Office Road, London, EC1A 1AA"
                                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registered Office Address</label>
+                                    <div className="relative">
+                                        <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
+                                        <textarea name="registeredOfficeAddress" value={formData.registeredOfficeAddress} onChange={handleChange} rows={2}
+                                            placeholder="Registered office or branch legal address"
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Complaints Contact</label>
+                                        <div className="relative">
+                                            <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <input type="text" name="complaintsContact" value={formData.complaintsContact} onChange={handleChange}
+                                                placeholder="complaints@agency.co.uk"
+                                                className={iconInputClass} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Scheme</label>
+                                        <input type="text" name="redressSchemeName" value={formData.redressSchemeName} onChange={handleChange}
+                                            placeholder="The Property Ombudsman"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Membership Number</label>
+                                        <input type="text" name="redressMembershipNumber" value={formData.redressMembershipNumber} onChange={handleChange}
+                                            placeholder="TPO-123456"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Provider</label>
+                                        <input type="text" name="cmpProvider" value={formData.cmpProvider} onChange={handleChange}
+                                            placeholder="Client money protection provider"
+                                            className={inputClass} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Certificate URL</label>
+                                    <input type="url" name="cmpCertificateUrl" value={formData.cmpCertificateUrl} onChange={handleChange}
+                                        placeholder="https://..."
+                                        className={inputClass} />
                                 </div>
 
                                 <div>

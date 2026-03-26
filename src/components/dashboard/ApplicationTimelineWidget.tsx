@@ -32,7 +32,7 @@ interface TimelineEventType {
 
 interface ApplicationItem {
     id: string;
-    source?: 'application' | 'broker_request' | 'listing';
+    source?: 'application' | 'broker_request' | 'listing' | 'sale_progression';
     type: 'buy' | 'rent' | 'sell';
     currentStage: string;
     currentStageNumber: number;
@@ -64,34 +64,81 @@ interface ApplicationItem {
 
 // --- Constants & Config ---
 
-const BUY_STAGES: Stage[] = [
-    { name: 'Application Submitted', description: 'Your buying application has been received.', icon: Send, color: 'blue', tips: ['Ensure documents ready'] },
-    { name: 'Document Verification', description: 'Verifying identity and funds.', icon: FileText, color: 'purple', tips: ['Upload ID'], requiredDocs: ['ID', 'Proof of Funds'] },
-    { name: 'Property Inspection', description: 'Schedule viewing.', icon: Eye, color: 'orange', tips: ['Check structure'] },
-    { name: 'Offer Negotiation', description: 'Offer under review.', icon: MessageCircle, color: 'yellow', tips: ['Set budget'] },
-    { name: 'Completion', description: 'Finalize contracts.', icon: CheckCircle2, color: 'green', tips: ['Sign contracts'] }
-];
-
 const RENT_STAGES: Stage[] = [
-    { name: 'Interest Registered', description: 'Interest shown.', icon: ArrowRight, color: 'blue', tips: ['Broker will contact'] },
-    { name: 'Documents Submitted', description: 'Docs under review.', icon: FileText, color: 'purple', tips: ['Employment proof'], requiredDocs: ['ID', 'References'] },
-    { name: 'Viewing Scheduled', description: 'Viewing arranged.', icon: Clock, color: 'orange', tips: ['Ask about utilities'] },
-    { name: 'Tenancy Agreement', description: 'Sign agreement.', icon: CheckCircle2, color: 'green', tips: ['Read terms'] }
+    { name: 'Property Selected', description: 'A specific property is now linked to your live journey.', icon: ArrowRight, color: 'blue' },
+    { name: 'Viewing Scheduled', description: 'A real viewing appointment is booked.', icon: Clock, color: 'orange' },
+    { name: 'Application Review', description: 'Referencing and legal compliance checks are being reviewed.', icon: FileText, color: 'purple' },
+    { name: 'Ready for Contract', description: 'The tenancy is approved and ready for the agreement stage.', icon: CheckCircle2, color: 'green' },
+    { name: 'Active Tenancy', description: 'The tenancy is complete and active.', icon: CheckCircle2, color: 'green' }
 ];
 
-const SELL_STAGES: Stage[] = [
-    { name: 'Property Listed', description: 'Listing prepared.', icon: FileText, color: 'blue' },
-    { name: 'Photos & Valuation', description: 'Photos in progress.', icon: Eye, color: 'purple' },
-    { name: 'Published & Live', description: 'Property is live.', icon: Activity, color: 'green' },
-    { name: 'Viewings & Offers', description: ' receiving offers.', icon: MessageCircle, color: 'orange' },
-    { name: 'Sale Completed', description: 'Sale complete.', icon: CheckCircle2, color: 'green' }
+const SALE_STAGES: Stage[] = [
+    { name: 'Offer Submitted', description: 'Your offer is now recorded against the property.', icon: Send, color: 'blue' },
+    { name: 'Offer Accepted', description: 'The sale is agreed in principle.', icon: CheckCircle2, color: 'green' },
+    { name: 'Memorandum Issued', description: 'The sale memo and next legal steps are underway.', icon: FileText, color: 'purple' },
+    { name: 'Conveyancing', description: 'Legal work and checks are progressing.', icon: MessageCircle, color: 'orange' },
+    { name: 'Exchange & Completion', description: 'The purchase is approaching completion.', icon: CheckCircle2, color: 'green' }
 ];
 
 const BROKER_REQUEST_STAGES: Stage[] = [
     { name: 'Request Sent', description: 'Your 10-minute broker request is live.', icon: Send, color: 'blue', tips: ['Keep this live workspace open for updates'] },
     { name: 'Nearby Brokers Pinged', description: 'Ranked brokers are being notified in dispatch waves.', icon: Radio, color: 'orange', tips: ['Nearby available brokers are being contacted first'] },
-    { name: 'Broker Matched', description: 'A broker accepted your request. Property options and the next handoff now continue from the broker workspace.', icon: UserCheck, color: 'green', tips: ['The 24-hour property fast-track begins only after a property is shared and selected'] },
+    { name: 'Broker Matched', description: 'A broker accepted your request and the live queue is now locked.', icon: UserCheck, color: 'green', tips: ['The same broker stays attached until the property handoff is complete'] },
+    { name: 'Properties Shared', description: 'The broker has shared a shortlist of matching properties.', icon: Eye, color: 'purple', tips: ['Choose one property to start the 24-hour fast-track'] },
+    { name: 'Property Selected', description: 'A specific property is selected and the live fast-track can continue.', icon: CheckCircle2, color: 'green', tips: ['The selected property now owns the next 24-hour workflow'] },
 ];
+
+const getRentStageSummary = (application: any) => {
+    switch (application.status) {
+        case 'completed':
+            return { currentStage: 'Active Tenancy', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Open contract' };
+        case 'ready_for_contract':
+        case 'approved':
+            return { currentStage: 'Ready for Contract', currentStageNumber: 4, totalStages: 5, progress: 80, nextAction: 'Review contract' };
+        case 'under_review':
+        case 'referencing':
+        case 'right_to_rent_pending':
+        case 'documents_requested':
+        case 'viewing_completed':
+            return { currentStage: 'Application Review', currentStageNumber: 3, totalStages: 5, progress: 60, nextAction: 'Wait for review update' };
+        case 'viewing_scheduled':
+        case 'appointment_booked':
+            return { currentStage: 'Viewing Scheduled', currentStageNumber: 2, totalStages: 5, progress: 40, nextAction: 'Attend the viewing' };
+        default:
+            return { currentStage: 'Property Selected', currentStageNumber: 1, totalStages: 5, progress: 20, nextAction: 'Schedule a viewing' };
+    }
+};
+
+const getSaleStageSummary = (currentStage?: string, status?: string) => {
+    if (currentStage === 'completion' || status === 'completed') {
+        return { currentStage: 'Exchange & Completion', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Review completion updates' };
+    }
+    if (currentStage === 'exchange' || currentStage === 'conveyancing') {
+        return { currentStage: 'Conveyancing', currentStageNumber: 4, totalStages: 5, progress: 80, nextAction: 'Track legal progress' };
+    }
+    if (currentStage === 'memorandum_issued' || currentStage === 'sale_agreed') {
+        return { currentStage: 'Memorandum Issued', currentStageNumber: 3, totalStages: 5, progress: 60, nextAction: 'Monitor the sale memo' };
+    }
+    if (currentStage === 'offer_accepted') {
+        return { currentStage: 'Offer Accepted', currentStageNumber: 2, totalStages: 5, progress: 40, nextAction: 'Wait for the memorandum stage' };
+    }
+    return { currentStage: 'Offer Submitted', currentStageNumber: 1, totalStages: 5, progress: 20, nextAction: 'Wait for review' };
+};
+
+const buildJourneyKey = (payload: {
+    propertyId?: string | null;
+    userId?: string | null;
+    leadId?: string | null;
+    fastTrackCaseId?: string | null;
+}) => {
+    if (payload.fastTrackCaseId) {
+        return `case:${payload.fastTrackCaseId}`;
+    }
+    if (payload.leadId) {
+        return `lead:${payload.leadId}`;
+    }
+    return `property:${payload.propertyId || 'unknown'}:user:${payload.userId || 'unknown'}`;
+};
 
 
 
@@ -153,6 +200,8 @@ const TimelineSkeleton = () => (
 // --- Main Component ---
 
 import { getApplications } from '../../services/applicationsService';
+import { getViewings } from '../../services/bookingsService';
+import { getSaleProgressions } from '../../services/salesService';
 import { getUserProperties } from '../../services/userPropertiesService';
 import { getUserBrokerRequests } from '../../services/leadsService';
 
@@ -169,41 +218,150 @@ const ApplicationTimelineWidget = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [appsRes, brokerRequestsRes, propsRes] = await Promise.all([
+                const [appsRes, brokerRequestsRes, propsRes, saleProgressionsRes, viewingsRes] = await Promise.all([
                     getApplications({ suppressErrorToast: true }),
                     getUserBrokerRequests({ suppressErrorToast: true }),
                     getUserProperties({ limit: 50 }),
+                    getSaleProgressions(),
+                    getViewings().catch(() => []),
                 ]);
 
-                const mappedApps: ApplicationItem[] = (appsRes.data || []).map((app: any) => ({
-                    id: app.id,
-                    source: 'application',
-                    type: app.listing_type === 'sale' ? 'buy' : 'rent',
-                    currentStage: app.status === 'approved' ? 'Tenancy Agreement' : app.status === 'rejected' ? 'Application Rejected' : 'Documents Submitted',
-                    currentStageNumber: app.status === 'approved' ? 4 : 2,
-                    totalStages: 4,
-                    progress: app.status === 'approved' ? 100 : 50,
-                    lastUpdated: new Date(app.updated_at),
-                    nextAction: app.status === 'approved' ? 'Sign Agreement' : 'Wait for review',
-                    estimatedCompletion: '1-2 weeks',
-                    property: {
-                        id: app.property_id,
-                        title: app.property_title || 'Property application',
-                        city: app.property_address || null,
-                        price: typeof app.property_price === 'number' ? app.property_price : null,
-                        image_urls: app.property_image ? [app.property_image] : [],
-                    },
-                    stages: RENT_STAGES.map((s, i) => ({
-                        ...s,
-                        status: (app.status === 'approved' && i < 4) || (app.status !== 'approved' && i < 2) ? 'completed' : (app.status !== 'approved' && i === 2) ? 'current' : 'upcoming'
-                    }))
-                }));
+                const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
+                const propertyContextById = new Map<string, {
+                    title?: string;
+                    address?: string;
+                    price?: number;
+                    image?: string;
+                }>();
+
+                (appsRes.data || []).forEach((app: any) => {
+                    if (!app.property_id || propertyContextById.has(app.property_id)) {
+                        return;
+                    }
+
+                    propertyContextById.set(app.property_id, {
+                        title: app.property_title,
+                        address: app.property_address,
+                        price: app.property_price,
+                        image: app.property_image,
+                    });
+                });
+
+                viewings.forEach((viewing: any) => {
+                    if (!viewing.property_id || propertyContextById.has(viewing.property_id)) {
+                        return;
+                    }
+
+                    propertyContextById.set(viewing.property_id, {
+                        title: viewing.property_title,
+                        address: viewing.property_address,
+                        price: viewing.property_price,
+                        image: viewing.property_image,
+                    });
+                });
+
+                const saleProgressionKeys = new Set(
+                    (saleProgressionsRes.data || []).map((progression) =>
+                        buildJourneyKey({
+                            propertyId: progression.property_id,
+                            userId: progression.user_id,
+                            leadId: progression.lead_id,
+                            fastTrackCaseId: progression.fast_track_case_id,
+                        }),
+                    ),
+                );
+
+                const mappedApps: ApplicationItem[] = (appsRes.data || [])
+                    .filter((app: any) => {
+                        if (app.listing_type !== 'sale') {
+                            return true;
+                        }
+
+                        return !saleProgressionKeys.has(
+                            buildJourneyKey({
+                                propertyId: app.property_id,
+                                userId: app.user_id,
+                                leadId: app.lead_id,
+                                fastTrackCaseId: app.fast_track_case_id,
+                            }),
+                        );
+                    })
+                    .map((app: any) => {
+                    const summary = app.listing_type === 'sale'
+                        ? getSaleStageSummary(undefined, app.status)
+                        : getRentStageSummary(app);
+                    const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
+                    const stageList = app.listing_type === 'sale' ? SALE_STAGES : RENT_STAGES;
+
+                    return {
+                        id: app.id,
+                        source: 'application',
+                        type: app.listing_type === 'sale' ? 'buy' : 'rent',
+                        currentStage: summary.currentStage,
+                        currentStageNumber: summary.currentStageNumber,
+                        totalStages: summary.totalStages,
+                        progress: summary.progress,
+                        lastUpdated: new Date(app.updated_at),
+                        nextAction: summary.nextAction,
+                        estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
+                        property: {
+                            id: app.property_id,
+                            title: app.property_title || 'Property application',
+                            city: app.property_address || null,
+                            price: typeof app.property_price === 'number' ? app.property_price : null,
+                            image_urls: app.property_image ? [app.property_image] : [],
+                        },
+                        stages: stageList.map((stage, index) => ({
+                            ...stage,
+                            status: index < stageIndex ? 'completed' : index === stageIndex ? 'current' : 'upcoming',
+                        })),
+                    };
+                });
 
                 const mappedBrokerRequests: ApplicationItem[] = (brokerRequestsRes.data || [])
                     .filter((request) => isLiveBrokerRequest(request))
                     .map((request) => {
                         const summary = getBrokerRequestTrackingSummary(request);
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
+                        const requestTimeline: TimelineEventType[] = [
+                            {
+                                date: new Date(request.created_at || request.updated_at || Date.now()),
+                                event: '10-minute broker dispatch requested',
+                                type: 'milestone',
+                            },
+                        ];
+
+                        if (request.matched_broker?.name) {
+                            requestTimeline.push({
+                                date: new Date(request.matched_at || request.updated_at || request.created_at || Date.now()),
+                                event: `${request.matched_broker.name} accepted the live request`,
+                                type: 'success',
+                            });
+                        } else {
+                            requestTimeline.push({
+                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                event: `Dispatch wave ${request.dispatch_wave || 1} is notifying nearby brokers`,
+                                type: 'info',
+                            });
+                        }
+
+                        if ((request.property_shares?.length || 0) > 0) {
+                            requestTimeline.push({
+                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                event: `${request.property_shares?.length || 0} property option${request.property_shares?.length === 1 ? '' : 's'} shared by the broker`,
+                                type: 'action',
+                            });
+                        }
+
+                        if (request.selected_property?.title || request.selected_property_id) {
+                            requestTimeline.push({
+                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                event: request.selected_property?.title
+                                    ? `${request.selected_property.title} selected for the live fast-track`
+                                    : 'A property has been selected for the live fast-track',
+                                type: 'success',
+                            });
+                        }
 
                         return {
                             id: `broker-request-${request.id}`,
@@ -218,11 +376,11 @@ const ApplicationTimelineWidget = () => {
                             estimatedCompletion: '10-minute live broker dispatch',
                             property: {
                                 id: request.id,
-                                title: request.location ? `Live broker request for ${request.location}` : 'Live broker request',
-                                city: request.location_postcode || request.location || null,
-                                price: null,
+                                title: request.selected_property?.title || (request.location ? `Live broker request for ${request.location}` : 'Live broker request'),
+                                city: request.selected_property?.city || request.location_postcode || request.location || null,
+                                price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
                                 priceLabel: request.budget ? `Budget ${request.budget}` : '10-minute live dispatch',
-                                image_urls: [],
+                                image_urls: request.selected_property?.image_urls ? [request.selected_property.image_urls] : [],
                             },
                             broker: request.matched_broker ? {
                                 name: request.matched_broker.name,
@@ -233,27 +391,64 @@ const ApplicationTimelineWidget = () => {
                                 ...stage,
                                 status: index < stageIndex ? 'completed' : index === stageIndex ? 'current' : 'upcoming',
                             })),
-                            timeline: [
-                                {
-                                    date: new Date(request.created_at || request.updated_at || Date.now()),
-                                    event: '10-minute broker dispatch requested',
-                                    type: 'milestone',
-                                },
-                                {
-                                    date: new Date(request.updated_at || request.created_at || Date.now()),
-                                    event: request.matched_broker?.name
-                                        ? `${request.matched_broker.name} accepted the live request`
-                                        : `Dispatch wave ${request.dispatch_wave || 1} is notifying nearby brokers`,
-                                    type: request.matched_broker ? 'success' : 'info',
-                                },
-                            ],
-                            primaryActionPath: buildBrokerRequestWorkspacePath(request.id),
-                            primaryActionLabel: request.matched_broker ? 'Open Broker Workspace' : 'Track Live Dispatch',
+                            timeline: requestTimeline,
+                            primaryActionPath: request.selected_fast_track_case_id
+                                ? `/user/dashboard/fast-track?case=${request.selected_fast_track_case_id}`
+                                : buildBrokerRequestWorkspacePath(request.id),
+                            primaryActionLabel: request.selected_fast_track_case_id
+                                ? 'Open Live Fast-Track'
+                                : request.matched_broker
+                                    ? 'Open Broker Workspace'
+                                    : 'Track Live Dispatch',
                         };
                     });
 
+                const mappedSaleProgressions: ApplicationItem[] = (saleProgressionsRes.data || []).map((progression) => {
+                    const summary = getSaleStageSummary(progression.current_stage, progression.status);
+                    const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
+                    const propertyContext = propertyContextById.get(progression.property_id);
+
+                    return {
+                        id: `sale-progression-${progression.id}`,
+                        source: 'sale_progression',
+                        type: 'buy',
+                        currentStage: summary.currentStage,
+                        currentStageNumber: summary.currentStageNumber,
+                        totalStages: summary.totalStages,
+                        progress: summary.progress,
+                        lastUpdated: new Date(progression.updated_at),
+                        nextAction: summary.nextAction,
+                        estimatedCompletion: 'Purchase progression is live',
+                        property: {
+                            id: progression.property_id,
+                            title: propertyContext?.title || 'Purchase progression',
+                            city: propertyContext?.address || null,
+                            price: typeof propertyContext?.price === 'number' ? propertyContext.price : null,
+                            image_urls: propertyContext?.image ? [propertyContext.image] : [],
+                        },
+                        stages: SALE_STAGES.map((stage, index) => ({
+                            ...stage,
+                            status: index < stageIndex ? 'completed' : index === stageIndex ? 'current' : 'upcoming',
+                        })),
+                        timeline: [
+                            {
+                                date: new Date(progression.created_at),
+                                event: 'Sale progression started',
+                                type: 'milestone',
+                            },
+                            {
+                                date: new Date(progression.updated_at),
+                                event: `Current sale stage: ${summary.currentStage}`,
+                                type: progression.status === 'completed' ? 'success' : 'info',
+                            },
+                        ],
+                        primaryActionPath: '/user/applications',
+                        primaryActionLabel: 'Open Purchase Progress',
+                    };
+                });
+
                 setApplications(
-                    [...mappedBrokerRequests, ...mappedApps].sort(
+                    [...mappedBrokerRequests, ...mappedSaleProgressions, ...mappedApps].sort(
                         (left, right) => right.lastUpdated.getTime() - left.lastUpdated.getTime(),
                     ),
                 );
@@ -261,7 +456,7 @@ const ApplicationTimelineWidget = () => {
                 const mappedProps: ApplicationItem[] = (propsRes.data || []).map((prop: any) => ({
                         source: 'listing',
                         id: prop.id,
-                        type: prop.status === 'sold' ? 'sell' : 'rent', // Infer type
+                        type: prop.listing_type === 'rent' ? 'rent' : prop.status === 'sold' ? 'sell' : 'buy',
                         currentStage: ['published', 'active', 'online'].includes(prop.status) ? 'Published & Live' : prop.status === 'sold' ? 'Sale Completed' : 'Property Listed',
                         currentStageNumber: ['published', 'active', 'online'].includes(prop.status) ? 3 : prop.status === 'sold' ? 5 : 1,
                         totalStages: 5,
@@ -278,7 +473,7 @@ const ApplicationTimelineWidget = () => {
                                 : [],
                         },
                         stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
-                        stages: SELL_STAGES.map((s, i) => ({
+                        stages: SALE_STAGES.map((s, i) => ({
                             ...s,
                             status: prop.status === 'sold'
                                 ? 'completed'

@@ -32,11 +32,13 @@ export interface Property {
     city: string;
     postcode: string;
     country: string;
-    latitude?: string;
-    longitude?: string;
+    latitude?: number | string;
+    longitude?: number | string;
     image_urls?: string[];
     video_urls?: string[];
     virtual_tour_url?: string;
+    virtual_tour_status?: VirtualTourStatus;
+    active_virtual_tour_request?: VirtualTourRequest | null;
     features?: string[] | string;
     amenities?: string[] | string;
     views?: number;
@@ -50,6 +52,23 @@ export interface Property {
     available_from?: string;
     maintenance_charges?: number;
     created_at?: string;
+    updated_at?: string;
+}
+
+export type VirtualTourStatus = 'unavailable' | 'requested' | 'processing' | 'ready';
+
+export interface VirtualTourRequest {
+    id: string;
+    property_id: string;
+    manager_id: string;
+    requested_by: string;
+    status: VirtualTourStatus;
+    request_note?: string;
+    fulfillment_note?: string;
+    virtual_tour_url?: string;
+    fulfilled_by?: string | null;
+    fulfilled_at?: string | null;
+    created_at: string;
     updated_at?: string;
 }
 

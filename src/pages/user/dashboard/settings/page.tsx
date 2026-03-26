@@ -103,6 +103,15 @@ export default function SettingsPage() {
         }
     };
 
+    const openHelpRequest = (category: string, subject: string, message: string) => {
+        const params = new URLSearchParams({
+            category,
+            subject,
+            message,
+        });
+        navigate(`/user/dashboard/help?${params.toString()}`);
+    };
+
     const tabs = [
         { id: 'alerts' as TabId, label: 'Alerts', icon: Bell },
         { id: 'search' as TabId, label: 'Search', icon: Search },
@@ -340,7 +349,7 @@ export default function SettingsPage() {
                                     </div>
                                     <div>
                                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Account Flags</h2>
-                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Only the onboarding flag is currently persisted by the backend.</p>
+                                        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Pilot account controls, privacy requests, and support handoffs.</p>
                                     </div>
                                 </div>
 
@@ -356,11 +365,43 @@ export default function SettingsPage() {
                                 </div>
                             </div>
 
-                            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-3xl p-8">
-                                <h3 className="text-lg font-bold text-amber-900 dark:text-amber-200">Not Wired Yet</h3>
-                                <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
-                                    Push notifications, SMS alerts, language, currency, theme mode, and security toggles are not backed by the current preferences API on `develop`, so they are intentionally hidden here instead of pretending to save.
-                                </p>
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <button
+                                    type="button"
+                                    onClick={() => openHelpRequest(
+                                        'General Inquiry',
+                                        'Data export request',
+                                        'Please prepare a pilot export of my account data, including verification documents, messages, invoices, and audit-linked records.',
+                                    )}
+                                    className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
+                                >
+                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Request Data Export</h3>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Open a prefilled support ticket for account and journey data export.</p>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => openHelpRequest(
+                                        'General Inquiry',
+                                        'Data deletion request',
+                                        'Please review a deletion or retention request for my pilot account and advise what evidence must be retained for compliance and audit purposes.',
+                                    )}
+                                    className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
+                                >
+                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Request Data Deletion</h3>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Start a privacy and retention review with the pilot operations team.</p>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => openHelpRequest(
+                                        'General Inquiry',
+                                        'Pilot support request',
+                                        'I need help with a live pilot workflow, billing state, compliance review, or account operation.',
+                                    )}
+                                    className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
+                                >
+                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">Contact Pilot Support</h3>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Open the support centre with a prefilled pilot operations ticket.</p>
+                                </button>
                             </div>
                         </div>
                     )}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     FileText, Clock, CheckCircle, XCircle, FileCheck, Plus, Filter,
     Search, Eye, Edit, Trash2, Mail, Phone, Download, Share2,
@@ -14,12 +15,14 @@ import { useApplications, APPLICATION_STATUS, ApplicationsProvider } from '@/con
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
 import ApplicationDetail from '@/components/manager/applications/ApplicationDetail';
 import ApplicationFilters from '@/components/manager/applications/ApplicationFilters';
+import { resolveFocusedApplication } from '@/lib/workspaceLinks';
 
 interface ApplicationsContentProps {
     initialView?: 'list' | 'detail';
 }
 
 function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps) {
+    const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
     const {
@@ -40,11 +43,48 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const [view, setView] = useState<'list' | 'detail'>(initialView);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const hasWorkspaceFocusRequest = Boolean(
+        searchParams.get('application')
+        || searchParams.get('case')
+        || searchParams.get('lead')
+        || searchParams.get('property'),
+    );
+    const focusedApplicationFromRoute = resolveFocusedApplication(allApplications, {
+        applicationId: searchParams.get('application'),
+        caseId: searchParams.get('case'),
+        leadId: searchParams.get('lead'),
+        propertyId: searchParams.get('property'),
+    });
+
+    useEffect(() => {
+        setHasAppliedRouteFocus(false);
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (hasAppliedRouteFocus || !focusedApplicationFromRoute) {
+            return;
+        }
+
+        setSelectedId(focusedApplicationFromRoute.id);
+        setView('detail');
+        setHasAppliedRouteFocus(true);
+    }, [focusedApplicationFromRoute, hasAppliedRouteFocus]);
 
     // Stats use allApplications (unfiltered) so counts are always accurate
     const stats = useMemo(() => {
         const total = allApplications.length;
-        const pending = allApplications.filter((a: any) => a.status === APPLICATION_STATUS.PENDING || a.status === APPLICATION_STATUS.SUBMITTED).length;
+        const pending = allApplications.filter((a: any) => [
+            APPLICATION_STATUS.PENDING,
+            APPLICATION_STATUS.SUBMITTED,
+            APPLICATION_STATUS.OFFER_SUBMITTED,
+            APPLICATION_STATUS.OFFER_UNDER_REVIEW,
+            APPLICATION_STATUS.OFFER_ACCEPTED,
+            APPLICATION_STATUS.SALE_AGREED,
+            APPLICATION_STATUS.MEMORANDUM_ISSUED,
+            APPLICATION_STATUS.CONVEYANCING,
+            APPLICATION_STATUS.EXCHANGE,
+        ].includes(a.status)).length;
         const actionRequired = allApplications.filter((a: any) => a.requiresAction).length;
         const approved = allApplications.filter((a: any) => a.status === APPLICATION_STATUS.APPROVED).length;
 
@@ -69,10 +109,13 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
 
     const handleUpdateStatus = async (id: string, status: any) => {
         try {
-            await updateApplicationStatus(id, status);
+            const result = await updateApplicationStatus(id, status);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to update application status');
+            }
             toast.success(`Application status updated to ${status.replace(/_/g, ' ')}`);
         } catch (err) {
-            toast.error('Failed to update status');
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
         }
     };
 
@@ -134,6 +177,12 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                 setShowFilters={setShowFilters}
             />
 
+            {hasWorkspaceFocusRequest && !focusedApplicationFromRoute && (
+                <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                    You are in the correct applications workspace for this fast-track case, but no linked application record exists yet. It will appear here automatically as soon as the live workflow creates it.
+                </div>
+            )}
+
             {/* Applications List */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {contextLoading ? (
@@ -157,7 +206,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                         <p className="text-gray-500 dark:text-gray-400 max-w-sm">
                             {searchQuery || statusFilter !== 'all'
                                 ? "No applications match your current filters. Try adjusting them to see more results."
-                                : "You haven't submitted any applications yet. When you do, they'll appear here."}
+                                : "No applications have been received yet. When users submit applications for your properties, they will appear here."}
                         </p>
                         {(searchQuery || statusFilter !== 'all' || propertyTypeFilter !== 'all') && (
                             <button

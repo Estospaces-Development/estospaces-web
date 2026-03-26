@@ -5,10 +5,10 @@ import { Check, CheckCheck, FileText, Download } from 'lucide-react';
 
 interface Attachment {
     id: string;
-    type: string;
-    url: string;
-    name: string;
-    size?: number;
+    file_url: string;
+    file_name: string;
+    mime_type?: string;
+    file_size?: number;
 }
 
 interface Message {
@@ -38,31 +38,31 @@ const MessageBubble = ({ message, isUser, showAvatar, agentName = '', agentAvata
     };
 
     const renderAttachment = (attachment: Attachment) => {
-        if (attachment.type.startsWith('image/')) {
+        if ((attachment.mime_type || '').startsWith('image/')) {
             return (
                 <div className="mt-2 rounded-lg overflow-hidden">
                     <img
-                        src={attachment.url}
-                        alt={attachment.name}
+                        src={attachment.file_url}
+                        alt={attachment.file_name}
                         className="max-w-full h-auto max-h-64 object-cover"
                     />
                 </div>
             );
-        } else if (attachment.type === 'application/pdf') {
+        } else if (attachment.mime_type === 'application/pdf') {
             return (
                 <div className="mt-2 flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
                     <FileText size={20} className="text-gray-600 dark:text-gray-400" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {attachment.name}
+                            {attachment.file_name}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : 'PDF Document'}
+                            {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : 'PDF Document'}
                         </p>
                     </div>
                     <a
-                        href={attachment.url}
-                        download={attachment.name}
+                        href={attachment.file_url}
+                        download={attachment.file_name}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                         <Download size={16} />
@@ -75,12 +75,12 @@ const MessageBubble = ({ message, isUser, showAvatar, agentName = '', agentAvata
                     <FileText size={20} className="text-gray-600 dark:text-gray-400" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {attachment.name}
+                            {attachment.file_name}
                         </p>
                     </div>
                     <a
-                        href={attachment.url}
-                        download={attachment.name}
+                        href={attachment.file_url}
+                        download={attachment.file_name}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                         <Download size={16} />

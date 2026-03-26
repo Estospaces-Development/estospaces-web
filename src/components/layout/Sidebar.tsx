@@ -22,7 +22,8 @@ import {
     Calendar,
     BarChart3,
     Activity,
-    UserCircle
+    UserCircle,
+    CreditCard
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -71,15 +72,16 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     const managerMenuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/manager/dashboard' },
         { icon: Zap, label: 'Fast Track 24h', path: '/manager/fast-track' },
-        // { icon: Users, label: 'Brokers Community', path: '/manager/community' }, // Commented out — empty state, no manager content yet
+        { icon: Users, label: 'Brokers Community', path: '/manager/community' },
         { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
         { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
+        { icon: Shield, label: 'User Verifications', path: '/manager/user-verifications' },
         { icon: FileText, label: 'Applications', path: '/manager/applications' },
         { icon: FileText, label: 'Contracts', path: '/manager/contracts' },
         { icon: Calendar, label: 'Appointments', path: '/manager/appointments' },
         { icon: MessageSquare, label: 'Messages', path: '/manager/messages' },
         { icon: BarChart3, label: 'Analytics', path: '/manager/analytics' },
-        // { icon: CreditCard, label: 'Billing', path: '/manager/billing' }, // Commented out - backend API pending
+        { icon: CreditCard, label: 'Billing', path: '/manager/billing' },
     ];
 
     // Manager footer items — matches legacy sidebar footer exactly

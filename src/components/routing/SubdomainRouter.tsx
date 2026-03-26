@@ -1,6 +1,10 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useHost } from '@/lib/utils/hostUtils';
+import {
+    buildHostedWorkspaceUrl,
+    resolveHostedWorkspaceRedirect,
+    useHost,
+} from '@/lib/utils/hostUtils';
 
 interface SubdomainRouterProps {
     children: React.ReactNode;
@@ -21,25 +25,17 @@ const SubdomainRouter: React.FC<SubdomainRouterProps> = ({ children }) => {
         return <>{children}</>;
     }
 
-    // Redirect admin.estospaces.com to /admin if not already there
-    if (currentApp === 'admin' && !pathname.startsWith('/admin')) {
-        return <Navigate to="/admin" replace />;
-    }
+    const redirect = resolveHostedWorkspaceRedirect(currentApp, pathname);
+    if (redirect) {
+        const targetUrl = buildHostedWorkspaceUrl(redirect.path, redirect.role);
+        const resolved = new URL(targetUrl, window.location.origin);
 
-    // Redirect app.estospaces.com to /user or /manager if at root
-    if (currentApp === 'app' && pathname === '/') {
-        // We'll default to /user/dashboard, AuthGuard will handle role specific redirect
-        return <Navigate to="/user/dashboard" replace />;
-    }
+        if (resolved.origin === window.location.origin) {
+            return <Navigate to={`${resolved.pathname}${resolved.search}${resolved.hash}`} replace />;
+        }
 
-    // Prevent admin access from app.estospaces.com
-    if (currentApp === 'app' && pathname.startsWith('/admin')) {
-        return <Navigate to="/user/dashboard" replace />;
-    }
-
-    // Prevent user access from admin.estospaces.com
-    if (currentApp === 'admin' && (pathname.startsWith('/user') || pathname.startsWith('/manager'))) {
-        return <Navigate to="/admin/dashboard" replace />;
+        window.location.replace(resolved.toString());
+        return null;
     }
 
     return <>{children}</>;

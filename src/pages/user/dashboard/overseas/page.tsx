@@ -3,9 +3,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Search, Globe, ChevronDown, Phone, Home, Building2, Sparkles, ArrowLeft, Loader2
+    Search, Globe, ChevronDown, Phone, Home, Building2, Sparkles, ArrowLeft
 } from 'lucide-react';
-import Badge from '@/components/ui/Badge';
 
 const COUNTRIES = [
     { code: 'ALL', name: 'Global', flag: '🌍' },
@@ -27,6 +26,17 @@ export default function OverseasPage() {
         navigate(`/user/search?location=${encodeURIComponent(query)}&type=${propertyType}`);
     };
 
+    const handleAdvisorSupport = () => {
+        const country = COUNTRIES.find(c => c.code === selectedCountry);
+        const destination = [cityQuery, country?.name !== 'Global' ? country?.name : 'International'].filter(Boolean).join(', ');
+        const params = new URLSearchParams({
+            category: 'Overseas Relocation',
+            subject: `Advisor request for ${destination}`,
+            message: `I need help with an overseas ${propertyType} journey for ${destination}. Please connect me with an advisor and tell me the next steps for search, legal preparation, and relocation support.`,
+        });
+        navigate(`/user/dashboard/help?${params.toString()}`);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -44,12 +54,9 @@ export default function OverseasPage() {
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
-                                    Overseas
-                                </h1>
-                                <Badge variant="warning" size="sm" className="mt-1">Beta</Badge>
-                            </div>
+                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none mb-2">
+                                Overseas
+                            </h1>
                             <p className="text-gray-500 dark:text-gray-400 font-medium">
                                 Exclusive international listings across the globe
                             </p>
@@ -143,7 +150,10 @@ export default function OverseasPage() {
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black mb-4 tracking-tight">Need help with international relocation?</h3>
                         <p className="text-orange-100 font-bold mb-10 max-w-xl mx-auto">Our specialist agents handle visas, legal paperwork, and currency exchange to make your global move seamless.</p>
-                        <button className="px-12 py-5 bg-white text-orange-600 font-black rounded-[2rem] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto">
+                        <button
+                            onClick={handleAdvisorSupport}
+                            className="px-12 py-5 bg-white text-orange-600 font-black rounded-[2rem] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto"
+                        >
                             <Phone size={20} /> Speak to an Advisor
                         </button>
                     </div>

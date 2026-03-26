@@ -1,25 +1,25 @@
 import React from 'react';
 import { FastTrackStep } from '../../../services/fastTrackService';
-import { FileText, Home, Scale, CreditCard, CheckCircle2 } from 'lucide-react';
+import { BadgeCheck, CalendarCheck2, CalendarClock, FileSearch, FileSignature, FileText, Home, ShieldCheck } from 'lucide-react';
+import { CanonicalFastTrackStep, getFastTrackStepIndex } from '@/lib/fastTrackWorkflow';
 
 interface FastTrackProgressProps {
     currentStep: FastTrackStep;
 }
 
-const steps: { id: FastTrackStep; label: string; icon: React.ElementType }[] = [
-    { id: 'documents', label: 'Docs', icon: FileText },
-    { id: 'owner_approval', label: 'Owner', icon: Home },
-    { id: 'legal_check', label: 'Legal', icon: Scale },
-    { id: 'payment_ready', label: 'Ready', icon: CreditCard },
-    { id: 'completed', label: 'Done', icon: CheckCircle2 },
+const steps: { id: CanonicalFastTrackStep; label: string; icon: React.ElementType }[] = [
+    { id: 'property_selected', label: 'Property', icon: Home },
+    { id: 'documents_requested', label: 'Docs', icon: FileText },
+    { id: 'documents_verified', label: 'Verified', icon: ShieldCheck },
+    { id: 'viewing_scheduled', label: 'Viewing', icon: CalendarClock },
+    { id: 'viewing_completed', label: 'Visited', icon: CalendarCheck2 },
+    { id: 'application_in_review', label: 'Review', icon: FileSearch },
+    { id: 'ready_for_contract', label: 'Contract', icon: FileSignature },
+    { id: 'completed', label: 'Done', icon: BadgeCheck },
 ];
 
 const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) => {
-    const getCurrentStepIndex = () => {
-        return steps.findIndex((s) => s.id === currentStep);
-    };
-
-    const currentIndex = getCurrentStepIndex();
+    const currentIndex = getFastTrackStepIndex(currentStep);
 
     return (
         <div className="w-full relative mt-4 mb-2">

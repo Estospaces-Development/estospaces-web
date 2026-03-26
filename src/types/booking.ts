@@ -16,7 +16,11 @@ export type ContractStatus =
 
 export interface Contract {
     id: string;
+    booking_id?: string;
     application_id?: string;
+    broker_request_id?: string;
+    lead_id?: string;
+    fast_track_case_id?: string;
     property_id: string;
     manager_id: string;
     user_id: string;

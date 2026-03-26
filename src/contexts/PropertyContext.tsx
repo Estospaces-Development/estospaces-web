@@ -34,6 +34,15 @@ export type FacingDirection = 'north' | 'south' | 'east' | 'west' | 'northeast' 
 
 const PROPERTY_CONDITIONS: PropertyCondition[] = ['new', 'excellent', 'good', 'fair', 'needs_renovation'];
 
+const toOptionalNumber = (value?: number | string | null): number | undefined => {
+    if (value === undefined || value === null || value === '') {
+        return undefined;
+    }
+
+    const parsed = typeof value === 'number' ? value : parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 export interface PriceInfo {
     amount: number;
     currency: CurrencyCode;
@@ -343,8 +352,8 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
                 city: p.city,
                 postalCode: p.postcode,
                 country: p.country,
-                latitude: p.latitude ? parseFloat(p.latitude) : undefined,
-                longitude: p.longitude ? parseFloat(p.longitude) : undefined,
+                latitude: toOptionalNumber(p.latitude),
+                longitude: toOptionalNumber(p.longitude),
             },
             address: p.address_line_1,
             city: p.city,
@@ -433,6 +442,8 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
         if (p.location?.city !== undefined) serviceProps.city = p.location.city;
         if (p.location?.postalCode !== undefined) serviceProps.postcode = p.location.postalCode;
         if (p.location?.country !== undefined) serviceProps.country = p.location.country;
+        if (p.location?.latitude !== undefined) serviceProps.latitude = p.location.latitude;
+        if (p.location?.longitude !== undefined) serviceProps.longitude = p.location.longitude;
         // Fallback to top-level fields
         if (!serviceProps.city && p.city) serviceProps.city = p.city;
         if (!serviceProps.address_line_1 && p.address) serviceProps.address_line_1 = p.address;

@@ -32,8 +32,9 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 return;
             }
 
-            const submitTime = new Date(caseData.submittedAt).getTime();
-            const targetTime = submitTime + 24 * 60 * 60 * 1000;
+            const targetTime = caseData.expiresAt
+                ? new Date(caseData.expiresAt).getTime()
+                : new Date(caseData.submittedAt).getTime() + 24 * 60 * 60 * 1000;
             const now = new Date().getTime();
             const diff = targetTime - now;
 
@@ -50,19 +51,15 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
         calculateTimeLeft();
         const timer = setInterval(calculateTimeLeft, 60000);
         return () => clearInterval(timer);
-    }, [caseData.submittedAt, caseData.finalStatus]);
+    }, [caseData.expiresAt, caseData.submittedAt, caseData.finalStatus]);
 
     const handleAdvanceStep = () => {
         let nextStep: FastTrackStep = caseData.currentStep;
         let nextStatus = caseData.finalStatus;
 
         switch (caseData.currentStep) {
-            case 'documents': nextStep = 'owner_approval'; break;
-            case 'owner_approval': nextStep = 'legal_check'; break;
-            case 'legal_check': nextStep = 'payment_ready'; break;
-            case 'payment_ready':
-                nextStep = 'completed';
-                nextStatus = 'completed';
+            case 'documents_requested':
+                nextStep = 'documents_verified';
                 break;
         }
 
@@ -168,7 +165,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 </div>
             )}
 
-            {caseData.currentStep === 'documents' && caseData.finalStatus !== 'completed' && !isLocked && (
+            {caseData.currentStep === 'documents_requested' && caseData.finalStatus !== 'completed' && !isLocked && (
                 <FastTrackDocuments
                     documents={caseData.documents}
                 />

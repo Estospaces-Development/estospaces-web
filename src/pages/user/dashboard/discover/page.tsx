@@ -9,8 +9,6 @@ import {
     Map as MapIcon,
     ArrowLeft,
     AlertCircle,
-    ChevronLeft,
-    ChevronRight,
     Plus
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -18,6 +16,7 @@ import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import MapView from '@/components/dashboard/MapView';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
 
 const ITEMS_PER_PAGE = 12;
@@ -490,24 +489,16 @@ function DiscoverContent() {
 
                         {/* Pagination */}
                         {totalPages > 1 && (
-                            <div className="mt-12 flex items-center justify-center gap-4">
-                                <button
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(prev => prev - 1)}
-                                    className="p-2 rounded-xl bg-white dark:bg-gray-800 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                                >
-                                    <ChevronLeft size={24} />
-                                </button>
-                                <span className="text-gray-600 dark:text-gray-400 font-medium">
-                                    Page <span className="text-gray-900 dark:text-white">{currentPage}</span> of {totalPages}
-                                </span>
-                                <button
-                                    disabled={currentPage >= totalPages}
-                                    onClick={() => setCurrentPage(prev => prev + 1)}
-                                    className="p-2 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                                >
-                                    <ChevronRight size={24} />
-                                </button>
+                            <div className="mt-12">
+                                <PaginationBar
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={setCurrentPage}
+                                    totalItems={total}
+                                    pageSize={ITEMS_PER_PAGE}
+                                    currentItemCount={paginatedProperties.length}
+                                    itemLabel="properties"
+                                />
                             </div>
                         )}
                     </>

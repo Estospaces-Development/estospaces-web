@@ -21,6 +21,7 @@ import { getPlatformAnalytics, AnalyticsData } from '@/services/analyticsService
 import { useNotifications } from '@/contexts/NotificationsContext';
 import {
     getNotificationNavigationPath,
+    isPropertyWorkflowNotification,
     NOTIFICATION_TYPES,
     type Notification,
 } from '@/services/notificationsService';
@@ -40,7 +41,12 @@ const formatNotificationTime = (isoString: string) => {
     return date.toLocaleDateString();
 };
 
-const getNotificationIcon = (type: string) => {
+const getNotificationIcon = (notification: Notification) => {
+    if (isPropertyWorkflowNotification(notification)) {
+        return <Building2 size={16} className="text-blue-500" />;
+    }
+
+    const { type } = notification;
     switch (type) {
         case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
@@ -239,7 +245,7 @@ export default function AdminDashboard() {
                             onClick={() => navigate('/admin/fast-track')}
                             className="mt-5 w-full py-2 bg-white text-orange-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-50 transition-colors shadow-sm flex items-center justify-center gap-2"
                         >
-                            View Live Map <ArrowRight size={14} />
+                            Open Fast-Track Queue <ArrowRight size={14} />
                         </button>
                     </div>
                 </div>
@@ -438,7 +444,7 @@ export default function AdminDashboard() {
                                     >
                                         <div className="flex items-start gap-3">
                                             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-900">
-                                                {getNotificationIcon(notification.type)}
+                                                {getNotificationIcon(notification)}
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-start justify-between gap-3">

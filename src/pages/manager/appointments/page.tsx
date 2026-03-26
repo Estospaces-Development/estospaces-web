@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
+import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 
 const FILTERS = [
     { value: 'all', label: 'All' },
@@ -86,6 +87,7 @@ function getStatusBadge(status: Viewing['status']) {
 
 export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const toast = useToast();
     const [appointments, setAppointments] = useState<Viewing[]>([]);
     const [loading, setLoading] = useState(true);
@@ -118,6 +120,14 @@ export default function ManagerAppointmentsPage() {
         fetchAppointments();
     }, []);
 
+    const focusedAppointmentId = resolveFocusedViewing(appointments, {
+        viewingId: searchParams.get('viewing'),
+        applicationId: searchParams.get('application'),
+        caseId: searchParams.get('case'),
+        leadId: searchParams.get('lead'),
+        propertyId: searchParams.get('property'),
+    })?.id || null;
+
     const filteredAppointments = useMemo(() => {
         let filtered = appointments;
 
@@ -136,8 +146,19 @@ export default function ManagerAppointmentsPage() {
             });
         }
 
-        return filtered;
-    }, [appointments, statusFilter, searchQuery]);
+        return [...filtered].sort((left, right) => {
+            if (!focusedAppointmentId) {
+                return 0;
+            }
+            if (left.id === focusedAppointmentId) {
+                return -1;
+            }
+            if (right.id === focusedAppointmentId) {
+                return 1;
+            }
+            return 0;
+        });
+    }, [appointments, focusedAppointmentId, searchQuery, statusFilter]);
 
     const summary = useMemo(() => ({
         total: appointments.length,
@@ -287,13 +308,21 @@ export default function ManagerAppointmentsPage() {
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {focusedAppointmentId && (
+                            <div className="border-b border-orange-200 bg-orange-50 px-6 py-4 text-sm text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                                The appointment linked to your live workflow is pinned first so you can confirm or reschedule it without searching manually.
+                            </div>
+                        )}
                         {filteredAppointments.map((appointment) => {
                             const { date, time } = formatDateTime(appointment.scheduled_at);
                             const isBusy = actingID === appointment.id;
                             const isWorkflowLocked = Boolean(appointment.workflow_locked);
 
                             return (
-                                <div key={appointment.id} className="p-6">
+                                <div
+                                    key={appointment.id}
+                                    className={`p-6 ${appointment.id === focusedAppointmentId ? 'bg-orange-50/70 dark:bg-orange-950/10' : ''}`}
+                                >
                                     <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                                         <div className="space-y-4">
                                             <div className="flex flex-wrap items-center gap-3">

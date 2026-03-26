@@ -23,6 +23,7 @@ import { useNotifications } from '@/contexts/NotificationsContext';
 import {
     NOTIFICATION_TYPES,
     getNotificationNavigationPath,
+    isPropertyWorkflowNotification,
     type Notification,
 } from '@/services/notificationsService';
 
@@ -30,7 +31,12 @@ type FilterType = 'all' | 'unread' | 'read';
 
 const groupOrder = ['Today', 'Yesterday', 'This Week', 'This Month', 'Older'];
 
-const getNotificationIcon = (type: string) => {
+const getNotificationIcon = (notification: Notification) => {
+    if (isPropertyWorkflowNotification(notification)) {
+        return <Home size={20} className="text-blue-500" />;
+    }
+
+    const { type } = notification;
     switch (type) {
         case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
@@ -61,7 +67,12 @@ const getNotificationIcon = (type: string) => {
     }
 };
 
-const getNotificationColor = (type: string) => {
+const getNotificationColor = (notification: Notification) => {
+    if (isPropertyWorkflowNotification(notification)) {
+        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/40';
+    }
+
+    const { type } = notification;
     switch (type) {
         case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
@@ -332,7 +343,7 @@ export default function AdminNotificationsPage() {
                                                 className={`group relative flex items-center gap-4 p-4 border rounded-2xl transition-all hover:shadow-xl hover:-translate-y-0.5 ${
                                                     notification.is_read
                                                         ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                                                        : getNotificationColor(notification.type)
+                                                        : getNotificationColor(notification)
                                                 }`}
                                             >
                                                 <input
@@ -347,7 +358,7 @@ export default function AdminNotificationsPage() {
                                                     className="flex-shrink-0 rounded-xl p-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-900/60"
                                                     onClick={() => handleNotificationClick(notification)}
                                                 >
-                                                    {getNotificationIcon(notification.type)}
+                                                    {getNotificationIcon(notification)}
                                                 </button>
 
                                                 <button

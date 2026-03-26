@@ -16,9 +16,15 @@ import {
 } from 'lucide-react';
 import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
 import { BrokerRequestRecord, Lead, getUserBrokerRequests, getUserDocuments, getUserLeads, uploadDocument, UserDocument } from '@/services/leadsService';
+import { getApplications, type Application } from '@/services/applicationsService';
+import { getViewings, type Viewing } from '@/services/bookingsService';
+import { getUserContracts } from '@/services/contractsService';
+import { getPayments, getInvoices, type Invoice, type Payment } from '@/services/paymentsService';
+import { getSaleProgressions, type SaleProgression } from '@/services/salesService';
 import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress';
 import {
     buildFastTrackVerificationContent,
+    deriveLiveFastTrackCurrentStep,
     normalizeWorkspaceDocuments,
     resolveLeadStage,
 } from '@/lib/fastTrackWorkflow';
@@ -28,6 +34,16 @@ import {
     resolveUserFastTrackSelection,
 } from '@/lib/userFastTrack';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import {
+    resolveFastTrackLinkedJourney,
+    resolveFastTrackPrimaryLaneLabel,
+    formatWorkflowStatusLabel,
+} from '@/lib/fastTrackLinkedJourney';
+import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import type { Contract } from '@/types/booking';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
 
 const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: string; note: string }> = {
     in_progress: {
@@ -83,25 +99,45 @@ const formatDeadlineLabel = (deadline?: string) => {
 };
 
 const stepDescriptions: Record<FastTrackCase['currentStep'], string> = {
-    documents: 'The team is reviewing verification documents and supporting records.',
-    owner_approval: 'The case is waiting for owner approval before moving forward.',
-    legal_check: 'Legal and compliance checks are being completed.',
-    payment_ready: 'The case is in final readiness for handoff.',
+    property_selected: 'The property is now locked into this fast-track workspace and ready for document follow-up.',
+    documents_requested: 'The matched broker or manager has requested the client verification documents for this property.',
+    documents_verified: 'The verification documents are approved and the case is ready for viewing logistics.',
+    viewing_scheduled: 'A real viewing is booked and tracked from the appointments workflow.',
+    viewing_completed: 'The viewing is complete and the downstream review can continue.',
+    application_in_review: 'The linked application or sale decision is being reviewed now.',
+    ready_for_contract: 'The workflow is ready for the tenancy agreement or the final deal handoff.',
     completed: 'Everything required for this fast-track case is complete.',
+};
+
+const safeLoad = async <T,>(loader: () => Promise<T>) => {
+    try {
+        return { data: await loader(), error: null as string | null };
+    } catch (error: any) {
+        return { data: null as T | null, error: error?.message || 'Unable to load linked workflow records.' };
+    }
 };
 
 export default function UserFastTrackPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { user } = useAuth();
+    const toast = useToast();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [leads, setLeads] = useState<Lead[]>([]);
     const [brokerRequests, setBrokerRequests] = useState<BrokerRequestRecord[]>([]);
     const [userDocuments, setUserDocuments] = useState<UserDocument[]>([]);
+    const [applications, setApplications] = useState<Application[]>([]);
+    const [viewings, setViewings] = useState<Viewing[]>([]);
+    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [saleProgressions, setSaleProgressions] = useState<SaleProgression[]>([]);
+    const [payments, setPayments] = useState<Payment[]>([]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(searchParams.get('case'));
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [uploadingType, setUploadingType] = useState<'identity' | 'address' | null>(null);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [openingConversation, setOpeningConversation] = useState(false);
     const identityUploadInputRef = useRef<HTMLInputElement | null>(null);
     const addressUploadInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -117,6 +153,34 @@ export default function UserFastTrackPage() {
             getUserDocuments(),
             getUserBrokerRequests({ suppressErrorToast: true }),
         ]);
+        const [
+            applicationsResult,
+            viewingsResult,
+            contractsResult,
+            saleProgressionsResult,
+            paymentsResult,
+            invoicesResult,
+        ] = await Promise.all([
+            getApplications({ suppressErrorToast: true }),
+            safeLoad(() => getViewings()),
+            safeLoad(async () => {
+                const result = await getUserContracts();
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                return result.data || [];
+            }),
+            getSaleProgressions(),
+            safeLoad(async () => {
+                const result = await getPayments();
+                return Array.isArray(result?.data) ? result.data : [];
+            }),
+            safeLoad(async () => {
+                const result = await getInvoices();
+                return Array.isArray(result?.data) ? result.data : [];
+            }),
+        ]);
 
         if (casesResult.data) {
             setCases(casesResult.data);
@@ -128,6 +192,12 @@ export default function UserFastTrackPage() {
 
         setUserDocuments(normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error));
         setBrokerRequests(brokerRequestsResult.data || []);
+        setApplications(applicationsResult.data || []);
+        setViewings(viewingsResult.data || []);
+        setContracts(contractsResult.data || []);
+        setSaleProgressions(saleProgressionsResult.data || []);
+        setPayments(paymentsResult.data || []);
+        setInvoices(invoicesResult.data || []);
 
         const requestError = casesResult.error || leadsResult.error || documentsResult.error || brokerRequestsResult.error;
         if (casesResult.data || leadsResult.data) {
@@ -202,6 +272,19 @@ export default function UserFastTrackPage() {
         () => leads.find((item) => item.id === selectedCase?.leadId || item.property_id === selectedCase?.propertyId) || null,
         [leads, selectedCase?.leadId, selectedCase?.propertyId],
     );
+    const selectedLinkedJourney = useMemo(
+        () => selectedCase
+            ? resolveFastTrackLinkedJourney(selectedCase, {
+                applications,
+                viewings,
+                contracts,
+                saleProgressions,
+                payments,
+                invoices,
+            })
+            : null,
+        [applications, contracts, invoices, payments, saleProgressions, selectedCase, viewings],
+    );
 
     const stats = useMemo(() => ({
         active: cases.filter((item) => item.finalStatus === 'in_progress').length,
@@ -211,7 +294,14 @@ export default function UserFastTrackPage() {
     const matchedPriorityRequest = useMemo(
         () => brokerRequests.find((item) => (
             item.fast_track_enabled
-            && (item.dispatch_status === 'broker_matched' || item.status === 'matched' || Boolean(item.matched_broker))
+            && (
+                item.dispatch_status === 'broker_matched'
+                || item.status === 'matched'
+                || Boolean(item.matched_broker)
+                || item.handoff_status === 'awaiting_portfolio'
+                || item.handoff_status === 'portfolio_shared'
+                || item.handoff_status === 'property_selected'
+            )
         )) || null,
         [brokerRequests],
     );
@@ -220,9 +310,91 @@ export default function UserFastTrackPage() {
             item.fast_track_enabled
             && item.dispatch_status !== 'expired'
             && item.status !== 'expired'
+            && item.status !== 'cancelled'
         )) || null,
         [brokerRequests],
     );
+    const portfolioSharedRequest = useMemo(
+        () => brokerRequests.find((item) => item.fast_track_enabled && (item.handoff_status === 'portfolio_shared' || (item.property_shares?.length || 0) > 0)) || null,
+        [brokerRequests],
+    );
+    const selectedPriorityRequest = useMemo(
+        () => brokerRequests.find((item) => item.fast_track_enabled && (item.handoff_status === 'property_selected' || Boolean(item.selected_property_id) || Boolean(item.selected_fast_track_case_id))) || null,
+        [brokerRequests],
+    );
+    const selectedConversationRequest = selectedPriorityRequest
+        || portfolioSharedRequest
+        || matchedPriorityRequest
+        || activePriorityRequest
+        || null;
+    const selectedConversationRecipientId = selectedCase?.managerId
+        || selectedLead?.matched_broker_id
+        || selectedConversationRequest?.matched_broker_id
+        || null;
+    const selectedConversationRecipient = selectedLead?.matched_broker
+        || selectedConversationRequest?.matched_broker
+        || null;
+    const selectedConversationPropertyTitle = selectedCase?.propertyTitle
+        || selectedLead?.property?.title
+        || selectedConversationRequest?.selected_property?.title
+        || 'Fast-track case';
+    const selectedConversationPropertyAddress = [
+        selectedLead?.property?.address_line_1 || selectedConversationRequest?.selected_property?.address_line_1 || selectedConversationRequest?.location,
+        selectedLead?.property?.city || selectedConversationRequest?.selected_property?.city,
+        selectedLead?.property?.postcode || selectedConversationRequest?.selected_property?.postcode || selectedConversationRequest?.location_postcode,
+    ].filter(Boolean).join(', ') || undefined;
+    const selectedConversationListingType = selectedCase?.listingType
+        || selectedLead?.property?.listing_type
+        || selectedConversationRequest?.selected_property?.listing_type
+        || (selectedCase?.journeyType === 'buy' || selectedConversationRequest?.request_type === 'buy' ? 'sale' : 'rent');
+
+    const handleOpenMessages = useCallback(async () => {
+        if (!selectedConversationRecipientId || !user) {
+            toast.error('The live broker conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(selectedConversationRecipientId, {
+                propertyId: selectedCase?.propertyId || selectedLead?.property?.id || selectedConversationRequest?.selected_property?.id,
+                propertyTitle: selectedConversationPropertyTitle,
+                propertyAddress: selectedConversationPropertyAddress,
+                listingType: selectedConversationListingType,
+                propertyPrice: selectedLead?.property?.price || selectedConversationRequest?.selected_property?.price,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: selectedConversationRecipient?.name || '',
+                recipientEmail: selectedConversationRecipient?.email || '',
+                recipientPhone: selectedConversationRecipient?.phone || '',
+                recipientAgency: selectedConversationRecipient?.company_name || '',
+            });
+
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to open the message thread right now.');
+        } finally {
+            setOpeningConversation(false);
+        }
+    }, [
+        navigate,
+        selectedCase?.propertyId,
+        selectedConversationListingType,
+        selectedConversationPropertyAddress,
+        selectedConversationPropertyTitle,
+        selectedConversationRecipient?.company_name,
+        selectedConversationRecipient?.email,
+        selectedConversationRecipient?.name,
+        selectedConversationRecipient?.phone,
+        selectedConversationRecipientId,
+        selectedConversationRequest?.selected_property?.id,
+        selectedConversationRequest?.selected_property?.price,
+        selectedLead?.property?.id,
+        selectedLead?.property?.price,
+        toast,
+        user,
+    ]);
 
     const requestedDocumentItems = useMemo(
         () => buildUserFastTrackDocumentItems(selectedCase?.documents || {
@@ -230,6 +402,35 @@ export default function UserFastTrackPage() {
             addressProof: 'pending',
         }, userDocuments),
         [selectedCase?.documents, userDocuments],
+    );
+    const liveDocumentsRequirementLabel = 'Identity and legal compliance cleared';
+    const liveDocumentsRequirementComplete = useMemo(
+        () => requestedDocumentItems.length > 0 && requestedDocumentItems.every((item) => item.status === 'verified'),
+        [requestedDocumentItems],
+    );
+    const selectedCasePendingRequirements = useMemo(() => {
+        const baseRequirements = (selectedCase?.pendingRequirements || [])
+            .filter((requirement) => requirement !== liveDocumentsRequirementLabel);
+
+        if (!selectedCase || requestedDocumentItems.length === 0 || liveDocumentsRequirementComplete) {
+            return baseRequirements;
+        }
+
+        return [...baseRequirements, liveDocumentsRequirementLabel];
+    }, [liveDocumentsRequirementComplete, requestedDocumentItems.length, selectedCase]);
+    const selectedCaseCompletedRequirements = useMemo(() => {
+        const baseRequirements = (selectedCase?.completedRequirements || [])
+            .filter((requirement) => requirement !== liveDocumentsRequirementLabel);
+
+        if (!selectedCase || requestedDocumentItems.length === 0 || !liveDocumentsRequirementComplete) {
+            return baseRequirements;
+        }
+
+        return [...baseRequirements, liveDocumentsRequirementLabel];
+    }, [liveDocumentsRequirementComplete, requestedDocumentItems.length, selectedCase]);
+    const verifiedDocumentCount = useMemo(
+        () => requestedDocumentItems.filter((item) => item.status === 'verified').length,
+        [requestedDocumentItems],
     );
     const verificationContent = useMemo(
         () => buildFastTrackVerificationContent(
@@ -252,16 +453,42 @@ export default function UserFastTrackPage() {
         () => requestedDocumentItems.filter((item) => item.status === 'requested' || item.status === 'reupload_required'),
         [requestedDocumentItems],
     );
+    const allRequestedDocumentsVerified = useMemo(
+        () => requestedDocumentItems.length > 0 && requestedDocumentItems.every((item) => item.status === 'verified'),
+        [requestedDocumentItems],
+    );
+    const selectedCaseCurrentStep = useMemo(
+        () => selectedCase
+            ? deriveLiveFastTrackCurrentStep(
+                selectedCase.currentStep,
+                userDocuments,
+                selectedCase.documents || {
+                    identityProof: 'pending',
+                    addressProof: 'pending',
+                },
+            )
+            : null,
+        [selectedCase, userDocuments],
+    );
+    const waitingForDocumentReview = useMemo(
+        () => !allRequestedDocumentsVerified
+            && uploadActionItems.length === 0
+            && requestedDocumentItems.some((item) => item.status === 'uploaded'),
+        [allRequestedDocumentsVerified, requestedDocumentItems, uploadActionItems.length],
+    );
     const outstandingDocumentNames = useMemo(
         () => getOutstandingDocumentNames(requestedDocumentItems),
         [requestedDocumentItems],
     );
-    const selectedLeadDocuments = selectedLead?.documents_requested || selectedLead?.documents_uploaded || selectedLead?.documents_verified
-        ? verificationContent.documentsLabel
-        : 'No pending document request';
+    const selectedLeadDocuments = allRequestedDocumentsVerified
+        ? 'All required documents approved'
+        : selectedLead?.documents_requested || selectedLead?.documents_uploaded || selectedLead?.documents_verified
+            ? verificationContent.documentsLabel
+            : 'No pending document request';
     const documentRequestLabel = outstandingDocumentNames.length > 0
         ? outstandingDocumentNames.join(', ')
         : 'Identity proof and address proof';
+    const showActiveDocumentRequest = Boolean(selectedLead?.documents_requested && !allRequestedDocumentsVerified);
     const showRequestedDocumentsPanel = Boolean(
         selectedCase && (
             selectedLead?.documents_requested
@@ -269,6 +496,133 @@ export default function UserFastTrackPage() {
             || selectedLead?.documents_verified
             || selectedCase.finalStatus === 'in_progress'
         ),
+    );
+    const selectedCaseStatusReason = useMemo(() => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        if (
+            selectedCaseCurrentStep === 'documents_verified'
+            && selectedCase.currentStep !== selectedCaseCurrentStep
+        ) {
+            return selectedCase.journeyType === 'buy'
+                ? 'Identity and address checks are complete. The next live step is the viewing appointment or purchase offer journey.'
+                : 'Identity and address checks are complete. The next live step is the viewing appointment or tenancy review journey.';
+        }
+
+        return selectedCase.statusReason || statusMeta[selectedCase.finalStatus].note;
+    }, [selectedCase, selectedCaseCurrentStep]);
+    const selectedCaseNextAction = useMemo(() => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        if (
+            selectedCaseCurrentStep === 'documents_verified'
+            && selectedCase.currentStep !== selectedCaseCurrentStep
+        ) {
+            return selectedCase.journeyType === 'buy'
+                ? 'Watch for the viewing schedule or the next purchase offer update.'
+                : 'Watch for the viewing schedule or the next tenancy review update.';
+        }
+
+        return selectedCase.nextAction || 'Open the live workspace';
+    }, [selectedCase, selectedCaseCurrentStep]);
+    const linkedApplicationLabel = selectedCase && selectedLinkedJourney
+        ? resolveFastTrackPrimaryLaneLabel(selectedCase.journeyType, selectedLinkedJourney)
+        : 'Not created yet';
+    const linkedViewingLabel = selectedLinkedJourney?.viewing
+        ? formatWorkflowStatusLabel(selectedLinkedJourney.viewing.status)
+        : 'Not scheduled yet';
+    const linkedViewingDetail = selectedLinkedJourney?.viewing?.scheduled_at
+        ? new Date(selectedLinkedJourney.viewing.scheduled_at).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+        : 'A confirmed viewing will appear here once the appointment is booked.';
+    const linkedCompletionLabel = selectedCase?.journeyType === 'buy'
+        ? (
+            selectedLinkedJourney?.saleProgression
+                ? formatWorkflowStatusLabel(selectedLinkedJourney.saleProgression.current_stage)
+                : 'Offer journey not started'
+        )
+        : (
+            selectedLinkedJourney?.contract
+                ? formatWorkflowStatusLabel(selectedLinkedJourney.contract.status)
+                : 'No contract drafted yet'
+        );
+    const linkedPaymentsLabel = selectedLinkedJourney
+        ? `${selectedLinkedJourney.payments.length} payment${selectedLinkedJourney.payments.length === 1 ? '' : 's'} · ${selectedLinkedJourney.invoices.length} invoice${selectedLinkedJourney.invoices.length === 1 ? '' : 's'}`
+        : 'No linked payments yet';
+    const linkedPaymentsDetail = selectedLinkedJourney?.payments[0]
+        ? `Latest payment is ${formatWorkflowStatusLabel(selectedLinkedJourney.payments[0].status)}.`
+        : selectedLinkedJourney?.invoices[0]
+            ? `Latest invoice is ${formatWorkflowStatusLabel(selectedLinkedJourney.invoices[0].status)}.`
+            : 'Payment and invoice records will appear here once the contract or application reaches that stage.';
+    const linkedApplicationsPath = useMemo(
+        () => buildWorkspacePath('/user/applications', {
+            applicationId: selectedLinkedJourney?.application?.id,
+            caseId: selectedCase?.caseId,
+            leadId: selectedCase?.leadId,
+            propertyId: selectedCase?.propertyId,
+        }),
+        [selectedCase?.caseId, selectedCase?.leadId, selectedCase?.propertyId, selectedLinkedJourney?.application?.id],
+    );
+    const linkedViewingsPath = useMemo(
+        () => buildWorkspacePath('/user/dashboard/viewings', {
+            applicationId: selectedLinkedJourney?.application?.id,
+            viewingId: selectedLinkedJourney?.viewing?.id,
+            caseId: selectedCase?.caseId,
+            leadId: selectedCase?.leadId,
+            propertyId: selectedCase?.propertyId,
+        }),
+        [
+            selectedCase?.caseId,
+            selectedCase?.leadId,
+            selectedCase?.propertyId,
+            selectedLinkedJourney?.application?.id,
+            selectedLinkedJourney?.viewing?.id,
+        ],
+    );
+    const linkedContractsPath = useMemo(
+        () => buildWorkspacePath('/user/dashboard/contracts', {
+            applicationId: selectedLinkedJourney?.application?.id,
+            contractId: selectedLinkedJourney?.contract?.id,
+            caseId: selectedCase?.caseId,
+            leadId: selectedCase?.leadId,
+            propertyId: selectedCase?.propertyId,
+        }),
+        [
+            selectedCase?.caseId,
+            selectedCase?.leadId,
+            selectedCase?.propertyId,
+            selectedLinkedJourney?.application?.id,
+            selectedLinkedJourney?.contract?.id,
+        ],
+    );
+    const linkedPaymentsPath = useMemo(
+        () => buildWorkspacePath('/user/dashboard/payments', {
+            applicationId: selectedLinkedJourney?.application?.id,
+            contractId: selectedLinkedJourney?.contract?.id,
+            paymentId: selectedLinkedJourney?.payments[0]?.id,
+            invoiceId: selectedLinkedJourney?.invoices[0]?.id,
+            caseId: selectedCase?.caseId,
+            leadId: selectedCase?.leadId,
+            propertyId: selectedCase?.propertyId,
+        }),
+        [
+            selectedCase?.caseId,
+            selectedCase?.leadId,
+            selectedCase?.propertyId,
+            selectedLinkedJourney?.application?.id,
+            selectedLinkedJourney?.contract?.id,
+            selectedLinkedJourney?.invoices,
+            selectedLinkedJourney?.payments,
+        ],
     );
 
     const handleUploadDocument = useCallback(async (type: 'identity' | 'address', file: File) => {
@@ -363,22 +717,34 @@ export default function UserFastTrackPage() {
                     <div className="mt-8 rounded-3xl bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700 p-12 text-center">
                         <Clock className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={40} />
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                            {matchedPriorityRequest ? 'Property handoff is still pending' : 'No fast-track cases yet'}
+                            {selectedPriorityRequest
+                                ? 'Selected property is ready to continue'
+                                : matchedPriorityRequest
+                                    ? 'Property handoff is still pending'
+                                    : 'No fast-track cases yet'}
                         </h2>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {matchedPriorityRequest
-                                ? 'Your broker is matched, but the 24-hour property fast-track has not started yet. It begins only after property options are shared and you choose one.'
-                                : activePriorityRequest
-                                    ? 'Your live broker request is active. A 24-hour fast-track case will appear here only after a specific property is shared and selected.'
-                                    : 'Start a 24-hour fast-track case from a selected property and it will appear here automatically.'}
+                            {selectedPriorityRequest?.selected_fast_track_case_id
+                                ? 'A property has already been selected from the broker workspace. Open the live fast-track case to continue.'
+                                : portfolioSharedRequest
+                                    ? 'Your broker has already shared property options. Choose one from the broker workspace to launch the 24-hour fast-track.'
+                                    : matchedPriorityRequest
+                                        ? 'Your broker is matched, but the 24-hour property fast-track has not started yet. It begins only after property options are shared and you choose one.'
+                                        : activePriorityRequest
+                                            ? 'Your live broker request is active. A 24-hour fast-track case will appear here only after a specific property is shared and selected.'
+                                            : 'Start a 24-hour fast-track case from a selected property and it will appear here automatically.'}
                         </p>
                         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                            {(matchedPriorityRequest || activePriorityRequest) ? (
+                            {(selectedPriorityRequest || matchedPriorityRequest || activePriorityRequest) ? (
                                 <button
-                                    onClick={() => navigate(buildBrokerRequestWorkspacePath((matchedPriorityRequest || activePriorityRequest)?.id))}
+                                    onClick={() => navigate(
+                                        selectedPriorityRequest?.selected_fast_track_case_id
+                                            ? `/user/dashboard/fast-track?case=${selectedPriorityRequest.selected_fast_track_case_id}`
+                                            : buildBrokerRequestWorkspacePath((selectedPriorityRequest || matchedPriorityRequest || activePriorityRequest)?.id),
+                                    )}
                                     className="rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold px-5 py-3 transition-colors"
                                 >
-                                    Open broker workspace
+                                    {selectedPriorityRequest?.selected_fast_track_case_id ? 'Open live fast-track' : 'Open broker workspace'}
                                 </button>
                             ) : (
                                 <button
@@ -389,10 +755,11 @@ export default function UserFastTrackPage() {
                                 </button>
                             )}
                             <button
-                                onClick={() => navigate('/user/dashboard/messages')}
-                                className="rounded-xl border border-gray-200 px-5 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                onClick={() => void handleOpenMessages()}
+                                disabled={openingConversation}
+                                className="rounded-xl border border-gray-200 px-5 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-wait disabled:opacity-70 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                             >
-                                Open messages
+                                {openingConversation ? 'Opening thread...' : 'Open messages'}
                             </button>
                         </div>
                     </div>
@@ -461,8 +828,37 @@ export default function UserFastTrackPage() {
                                 </div>
 
                                 <div className="mt-5 rounded-2xl border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 text-sm text-gray-600 dark:text-gray-300">
-                                    {statusMeta[selectedCase.finalStatus].note}
+                                    {selectedCaseStatusReason}
                                 </div>
+
+                                {(selectedCaseNextAction || selectedCasePendingRequirements.length || selectedCaseCompletedRequirements.length || selectedCase.overrideReason) && (
+                                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Next action</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {selectedCaseNextAction}
+                                            </p>
+                                            {selectedCase.overrideReason ? (
+                                                <p className="mt-2 text-xs text-orange-600 dark:text-orange-300">
+                                                    Manager override: {selectedCase.overrideReason}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Case checklist</p>
+                                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                {selectedCasePendingRequirements.length > 0
+                                                    ? `Still pending: ${selectedCasePendingRequirements.join(', ')}`
+                                                    : 'No pending blockers are left on this case.'}
+                                            </p>
+                                            {selectedCaseCompletedRequirements.length > 0 ? (
+                                                <p className="mt-2 text-xs text-green-600 dark:text-green-300">
+                                                    Completed: {selectedCaseCompletedRequirements.join(', ')}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {selectedLead && (
                                     <div className="mt-5 grid gap-3 md:grid-cols-4">
@@ -485,7 +881,7 @@ export default function UserFastTrackPage() {
                                     </div>
                                 )}
 
-                                {selectedLead?.documents_requested && (
+                                {showActiveDocumentRequest && (
                                     <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50/80 p-5 dark:border-orange-900/40 dark:bg-orange-950/20">
                                         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">Document request</p>
                                         <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
@@ -517,7 +913,9 @@ export default function UserFastTrackPage() {
                                                 ))
                                             ) : (
                                                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-                                                    All requested documents are uploaded. The case is now waiting for manager review.
+                                                    {waitingForDocumentReview
+                                                        ? 'All requested documents are uploaded. The case is now waiting for manager review.'
+                                                        : 'All requested documents are approved. The journey can continue to the next live step.'}
                                                 </div>
                                             )}
                                         </div>
@@ -540,7 +938,7 @@ export default function UserFastTrackPage() {
                                     </div>
                                 )}
 
-                                {selectedLead?.documents_requested && selectedCase.propertyId && (
+                                {showActiveDocumentRequest && selectedCase.propertyId && (
                                     <div className="mt-4 flex flex-wrap gap-3">
                                         <button
                                             onClick={() => navigate(`/user/properties/${selectedCase.propertyId}?fast-track=1`)}
@@ -558,7 +956,7 @@ export default function UserFastTrackPage() {
                                 )}
 
                                 <div className="mt-6">
-                                    <FastTrackProgress currentStep={selectedCase.currentStep} />
+                                    <FastTrackProgress currentStep={selectedCaseCurrentStep || selectedCase.currentStep} />
                                 </div>
 
                                 <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -567,7 +965,7 @@ export default function UserFastTrackPage() {
                                             <Clock size={16} className="text-orange-500" />
                                             <p className="font-semibold">Current stage</p>
                                         </div>
-                                        <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{stepDescriptions[selectedCase.currentStep]}</p>
+                                        <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{stepDescriptions[selectedCaseCurrentStep || selectedCase.currentStep]}</p>
                                     </div>
                                     <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
                                         <div className="flex items-center gap-2 text-gray-900 dark:text-white">
@@ -575,7 +973,7 @@ export default function UserFastTrackPage() {
                                             <p className="font-semibold">Document progress</p>
                                         </div>
                                         <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                                            {Object.values(selectedCase.documents).filter((status) => status === 'verified').length} of {Object.keys(selectedCase.documents).length} required items are verified.
+                                            {verifiedDocumentCount} of {requestedDocumentItems.length} required items are verified.
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
@@ -584,12 +982,72 @@ export default function UserFastTrackPage() {
                                             <p className="font-semibold">Next action</p>
                                         </div>
                                         <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                                            {selectedLead?.documents_requested
+                                            {uploadActionItems.length > 0
                                                 ? `Upload ${documentRequestLabel} from this case so ${selectedLeadBroker} can continue the live review.`
-                                                : 'If documents are requested or re-uploads are needed, upload them from this case instead of using profile settings.'}
+                                                : waitingForDocumentReview
+                                                    ? `${selectedLeadBroker} is reviewing the files you already uploaded. The next live update will appear here as soon as review is complete.`
+                                                    : allRequestedDocumentsVerified
+                                                        ? selectedCase.journeyType === 'buy'
+                                                            ? 'Documents are approved. The next live step is viewing logistics or the offer journey.'
+                                                            : 'Documents are approved. The next live step is viewing logistics or tenancy review.'
+                                                        : 'If documents are requested or re-uploads are needed, upload them from this case instead of using profile settings.'}
                                         </p>
                                     </div>
                                 </div>
+
+                                {selectedLinkedJourney && (
+                                    <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50/70 p-5 dark:border-gray-700 dark:bg-gray-900/40">
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                            <div>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Linked journey</p>
+                                                <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {selectedLinkedJourney.primaryHeadline}
+                                                </h3>
+                                                <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
+                                                    {selectedLinkedJourney.primarySummary}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300">
+                                                {selectedLinkedJourney.nextStep}
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                            <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/80">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
+                                                    {selectedCase.journeyType === 'buy' ? 'Offer lane' : 'Application lane'}
+                                                </p>
+                                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{linkedApplicationLabel}</p>
+                                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                    {selectedCase.journeyType === 'buy'
+                                                        ? 'Your purchase offer and sale progression stay linked to this fast-track case.'
+                                                        : 'Your rental review and approval now continue through the linked application.'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/80">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Viewing</p>
+                                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{linkedViewingLabel}</p>
+                                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{linkedViewingDetail}</p>
+                                            </div>
+                                            <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/80">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
+                                                    {selectedCase.journeyType === 'buy' ? 'Completion lane' : 'Contract lane'}
+                                                </p>
+                                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{linkedCompletionLabel}</p>
+                                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                    {selectedCase.journeyType === 'buy'
+                                                        ? 'Purchase journeys continue through memorandum, conveyancing, exchange, and completion.'
+                                                        : 'Tenancy contracts and signatures appear here once the application is approved.'}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/80">
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Payments</p>
+                                                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{linkedPaymentsLabel}</p>
+                                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{linkedPaymentsDetail}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -597,11 +1055,11 @@ export default function UserFastTrackPage() {
                                     <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                                         <Shield className="text-orange-500" size={20} />
                                         <h3 className="text-lg font-semibold">
-                                            {selectedLead?.documents_requested ? 'Requested documents' : 'Document checklist'}
+                                            {showActiveDocumentRequest ? 'Requested documents' : 'Document checklist'}
                                         </h3>
                                     </div>
                                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                        {selectedLead?.documents_requested
+                                        {showActiveDocumentRequest
                                             ? 'Upload the requested files directly from this case. The manager will see them in the same live workflow.'
                                             : 'Your verification file status stays visible here for this fast-track case.'}
                                     </p>
@@ -703,10 +1161,37 @@ export default function UserFastTrackPage() {
                                             Open live workspace
                                         </button>
                                         <button
-                                            onClick={() => navigate('/user/dashboard/messages')}
+                                            onClick={() => void handleOpenMessages()}
+                                            disabled={openingConversation}
+                                            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                            {openingConversation ? 'Opening thread...' : 'Open messages'}
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(linkedApplicationsPath)}
                                             className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
                                         >
-                                            Open messages
+                                            Open applications
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(linkedViewingsPath)}
+                                            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                                        >
+                                            Open viewings
+                                        </button>
+                                        {selectedCase.journeyType !== 'buy' && (
+                                            <button
+                                                onClick={() => navigate(linkedContractsPath)}
+                                                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                                            >
+                                                Open contracts
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => navigate(linkedPaymentsPath)}
+                                            className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                                        >
+                                            Open payments
                                         </button>
                                         {selectedCase.propertyId && (
                                             <button

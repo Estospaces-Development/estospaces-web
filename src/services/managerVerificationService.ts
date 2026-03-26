@@ -38,6 +38,7 @@ export interface ManagerProfile {
     id: string;
     profile_type: ManagerProfileType;
     company_name?: string;
+    branch_name?: string;
     company_description?: string;
     business_phone?: string;
     license_number?: string;
@@ -46,6 +47,12 @@ export interface ManagerProfile {
     company_registration_number?: string;
     tax_id?: string;
     company_address?: string;
+    registered_office_address?: string;
+    complaints_contact?: string;
+    redress_scheme_name?: string;
+    redress_membership_number?: string;
+    cmp_provider?: string;
+    cmp_certificate_url?: string;
     authorized_representative_name?: string;
     authorized_representative_email?: string;
     has_ombudsman: boolean;
@@ -55,6 +62,8 @@ export interface ManagerProfile {
     naea_member: boolean;
     rics_member: boolean;
     verification_status: VerificationStatus;
+    agency_verification_status?: VerificationStatus;
+    agency_verification_reason?: string;
     rejection_reason?: string;
     revision_notes?: string;
     submitted_at?: string;
@@ -215,6 +224,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         id: data.user_id || data.id || '',
         profile_type: normalizeProfileType(data.profile_type),
         company_name: data.company_name || undefined,
+        branch_name: data.branch_name || undefined,
         company_description: data.company_description || undefined,
         business_phone: data.business_phone || undefined,
         license_number: data.company_reg_number || data.license_number || undefined,
@@ -223,6 +233,12 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         company_registration_number: data.company_reg_number || data.company_registration_number || undefined,
         tax_id: data.tax_id || undefined,
         company_address: data.company_address || undefined,
+        registered_office_address: data.registered_office_address || undefined,
+        complaints_contact: data.complaints_contact || undefined,
+        redress_scheme_name: data.redress_scheme_name || undefined,
+        redress_membership_number: data.redress_membership_number || undefined,
+        cmp_provider: data.cmp_provider || undefined,
+        cmp_certificate_url: data.cmp_certificate_url || undefined,
         authorized_representative_name: mapUserFullName(userInfo) || data.authorized_representative_name || undefined,
         authorized_representative_email: userInfo?.email || data.authorized_representative_email || undefined,
         has_ombudsman: Boolean(data.has_ombudsman),
@@ -232,6 +248,8 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         naea_member: Boolean(data.naea_member),
         rics_member: Boolean(data.rics_member),
         verification_status: mapVerificationStatus(data.verification_status),
+        agency_verification_status: mapVerificationStatus(data.agency_verification_status),
+        agency_verification_reason: data.agency_verification_reason || undefined,
         rejection_reason: data.verification_status === 'rejected' ? data.admin_notes || undefined : undefined,
         revision_notes: data.admin_notes || undefined,
         submitted_at: data.created_at || undefined,
@@ -355,10 +373,17 @@ export const getManagerVerificationSummary = async (userId: string): Promise<{ d
 
 const buildCreateManagerProfilePayload = (data: Partial<ManagerProfile>) => ({
     company_name: data.company_name || (data.profile_type === 'company' ? 'Pending Company Profile' : 'Pending Broker Profile'),
+    branch_name: data.branch_name || '',
     company_description: data.company_description || '',
     company_reg_number: data.company_registration_number || data.license_number || '',
     business_phone: data.business_phone || '',
     company_address: data.company_address || '',
+    registered_office_address: data.registered_office_address || '',
+    complaints_contact: data.complaints_contact || '',
+    redress_scheme_name: data.redress_scheme_name || '',
+    redress_membership_number: data.redress_membership_number || '',
+    cmp_provider: data.cmp_provider || '',
+    cmp_certificate_url: data.cmp_certificate_url || '',
     license_expiry_date: data.license_expiry_date || '',
     association_membership_id: data.association_membership_id || '',
     tax_id: data.tax_id || '',
@@ -379,12 +404,19 @@ const buildUpdateManagerProfilePayload = (data: Partial<ManagerProfile>) => {
 
     if (data.profile_type !== undefined) payload.profile_type = data.profile_type;
     if (data.company_name !== undefined) payload.company_name = data.company_name;
+    if (data.branch_name !== undefined) payload.branch_name = data.branch_name;
     if (data.company_description !== undefined) payload.company_description = data.company_description;
     if (data.business_phone !== undefined) payload.business_phone = data.business_phone;
     if (data.company_registration_number !== undefined || data.license_number !== undefined) {
         payload.company_reg_number = data.company_registration_number || data.license_number || '';
     }
     if (data.company_address !== undefined) payload.company_address = data.company_address;
+    if (data.registered_office_address !== undefined) payload.registered_office_address = data.registered_office_address;
+    if (data.complaints_contact !== undefined) payload.complaints_contact = data.complaints_contact;
+    if (data.redress_scheme_name !== undefined) payload.redress_scheme_name = data.redress_scheme_name;
+    if (data.redress_membership_number !== undefined) payload.redress_membership_number = data.redress_membership_number;
+    if (data.cmp_provider !== undefined) payload.cmp_provider = data.cmp_provider;
+    if (data.cmp_certificate_url !== undefined) payload.cmp_certificate_url = data.cmp_certificate_url;
     if (data.license_expiry_date !== undefined) payload.license_expiry_date = data.license_expiry_date;
     if (data.association_membership_id !== undefined) payload.association_membership_id = data.association_membership_id;
     if (data.tax_id !== undefined) payload.tax_id = data.tax_id;

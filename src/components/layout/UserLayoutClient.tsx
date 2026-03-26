@@ -37,7 +37,6 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
                                             </Suspense>
                                         </main>
                                         <MessageInboxFab />
-                                        {/* Lakshmi AI Assistant - Could be added here globally or per page */}
                                     </div>
                                 </MessagesProvider>
                             </PropertyFilterProvider>

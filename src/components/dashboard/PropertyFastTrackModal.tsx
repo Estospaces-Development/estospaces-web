@@ -19,6 +19,7 @@ import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress'
 import {
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
+    deriveLiveFastTrackCurrentStep,
     resolveLeadStage,
     shouldBlockFastTrackWorkspaceRefresh,
 } from '@/lib/fastTrackWorkflow';
@@ -153,24 +154,46 @@ const buildRoadmap = (
     hasIdentityDocument: boolean,
     hasAddressDocument: boolean,
 ) => {
+    const documentsCleared = (
+        lead?.documents_verified
+        || fastTrackCase?.currentStep === 'documents_verified'
+        || fastTrackCase?.currentStep === 'viewing_scheduled'
+        || fastTrackCase?.currentStep === 'viewing_completed'
+        || fastTrackCase?.currentStep === 'application_in_review'
+        || fastTrackCase?.currentStep === 'ready_for_contract'
+        || fastTrackCase?.currentStep === 'completed'
+    );
     const activeIndex = (() => {
         if (fastTrackCase?.finalStatus === 'completed') {
             return 4;
         }
 
-        if (fastTrackCase?.currentStep === 'payment_ready') {
+        if (fastTrackCase?.currentStep === 'ready_for_contract') {
             return 4;
         }
 
-        if (fastTrackCase?.currentStep === 'legal_check' || fastTrackCase?.currentStep === 'owner_approval') {
+        if (fastTrackCase?.currentStep === 'application_in_review' || fastTrackCase?.currentStep === 'viewing_completed') {
             return 3;
         }
 
-        if (fastTrackCase?.currentStep === 'documents' || lead?.documents_uploaded || hasIdentityDocument || hasAddressDocument) {
+        if (
+            fastTrackCase?.currentStep === 'viewing_scheduled'
+            || fastTrackCase?.currentStep === 'documents_verified'
+            || fastTrackCase?.currentStep === 'documents_requested'
+            || lead?.documents_uploaded
+            || hasIdentityDocument
+            || hasAddressDocument
+        ) {
             return 2;
         }
 
-        if (lead?.first_response_at || lead?.response_type || lead?.sla_status === 'success') {
+        if (
+            fastTrackCase?.currentStep === 'property_selected'
+            || lead?.broker_request_id
+            || lead?.first_response_at
+            || lead?.response_type
+            || lead?.sla_status === 'success'
+        ) {
             return 1;
         }
 
@@ -178,12 +201,12 @@ const buildRoadmap = (
     })();
 
     const currentReviewLabel =
-        fastTrackCase?.currentStep === 'owner_approval'
-            ? 'Owner approval is in progress.'
-            : fastTrackCase?.currentStep === 'legal_check'
-                ? 'Legal checks are underway.'
-                : fastTrackCase?.currentStep === 'payment_ready'
-                    ? 'The case is moving into final readiness.'
+        fastTrackCase?.currentStep === 'viewing_completed'
+            ? 'The viewing is done and the application review is now taking over.'
+            : fastTrackCase?.currentStep === 'application_in_review'
+                ? 'The linked application or sale decision is under review.'
+                : fastTrackCase?.currentStep === 'ready_for_contract'
+                    ? 'The case is cleared for the final contract or completion handoff.'
                     : 'The broker and operations team take over after documents are ready.';
 
     return [
@@ -194,21 +217,21 @@ const buildRoadmap = (
                 : 'Your fast-track request is active on this property.',
         },
         {
-            title: 'Broker engagement',
-            description: lead?.first_response_at
-                ? 'The broker has already responded and the case is moving.'
-                : 'The broker response window is being tracked live.',
+            title: 'Property is selected',
+            description: fastTrackCase || lead?.broker_request_id
+                ? 'This property is now the active selection for the live fast-track journey.'
+                : 'The broker response window is still being tracked live.',
         },
         {
             title: 'Documents and identity',
-            description: lead?.documents_verified
-                ? 'Identity and address proofs are verified.'
+            description: documentsCleared
+                ? 'Identity and legal compliance evidence is verified.'
                 : lead?.documents_uploaded || hasIdentityDocument || hasAddressDocument
                     ? 'Supporting files are uploaded and waiting for review.'
                     : 'Upload ID and address proof to keep the case moving smoothly.',
         },
         {
-            title: 'Review and approvals',
+            title: 'Viewing and review',
             description: currentReviewLabel,
         },
         {
@@ -265,15 +288,31 @@ export default function PropertyFastTrackModal({
         () => resolveLeadStage(lead, userDocuments),
         [lead, userDocuments],
     );
+    const liveFastTrackCase = useMemo(
+        () => fastTrackCase
+            ? {
+                ...fastTrackCase,
+                currentStep: deriveLiveFastTrackCurrentStep(
+                    fastTrackCase.currentStep,
+                    userDocuments,
+                    fastTrackCase.documents || {
+                        identityProof: 'pending',
+                        addressProof: 'pending',
+                    },
+                ),
+            }
+            : null,
+        [fastTrackCase, userDocuments],
+    );
 
     const roadmap = useMemo(
         () => buildRoadmap(
             lead,
-            fastTrackCase,
+            liveFastTrackCase,
             Boolean(latestDocuments.identity && latestDocuments.identity.status !== 'missing'),
             Boolean(latestDocuments.address && latestDocuments.address.status !== 'missing'),
         ),
-        [fastTrackCase, lead, latestDocuments.address, latestDocuments.identity],
+        [lead, latestDocuments.address, latestDocuments.identity, liveFastTrackCase],
     );
 
     const leadStatusLabel = formatLeadStage(resolvedLeadStage);
@@ -289,7 +328,7 @@ export default function PropertyFastTrackModal({
             return 'Documents requested';
         }
 
-        return formatWindowLabel(lead, fastTrackCase);
+        return formatWindowLabel(lead, liveFastTrackCase);
     })();
     const verificationLabel = verificationContent.verificationLabel;
     const matchedBrokerLabel = lead?.matched_broker?.name || lead?.matched_broker?.company_name || lead?.matched_broker_id || 'No broker matched yet';
@@ -435,7 +474,7 @@ export default function PropertyFastTrackModal({
                                         </div>
                                     </div>
                                     <div className="mt-5">
-                                        <FastTrackProgress currentStep={fastTrackCase.currentStep} />
+                                        <FastTrackProgress currentStep={liveFastTrackCase?.currentStep || fastTrackCase.currentStep} />
                                     </div>
                                 </div>
                             )}
@@ -555,7 +594,7 @@ export default function PropertyFastTrackModal({
                                     </div>
 
                                     <div className="mt-4 rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-sm">
-                                        Uploading both identity and address proof helps the fast-track team verify the case faster.
+                                            Uploading the requested identity and legal compliance evidence helps the fast-track team verify the case faster.
                                     </div>
                                 </section>
                             </div>

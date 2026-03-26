@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     FileText,
     Download,
@@ -14,27 +14,49 @@ import {
     Calendar,
     ChevronRight,
     Search,
-    PenTool
+    PenTool,
+    X
 } from 'lucide-react';
 import { isPendingUserSignature, normalizeContractStatus } from '@/lib/contractStatus';
 import { getUserContracts, signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
+import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
+import { getApplications, type Application } from '@/services/applicationsService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
 export default function ContractsPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const toast = useToast();
     const [contracts, setContracts] = useState<Contract[]>([]);
+    const [applications, setApplications] = useState<Application[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [signingId, setSigningId] = useState<string | null>(null);
+    const [viewContract, setViewContract] = useState<Contract | null>(null);
+    const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const hasWorkspaceFocusRequest = Boolean(
+        searchParams.get('contract')
+        || searchParams.get('application')
+        || searchParams.get('case')
+        || searchParams.get('lead')
+        || searchParams.get('property'),
+    );
 
     const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await getUserContracts();
-            if (error) throw new Error(error);
-            setContracts(Array.isArray(data) ? data : []);
+            const [contractsResult, applicationsResult, fastTrackResult] = await Promise.all([
+                getUserContracts(),
+                getApplications({ suppressErrorToast: true }),
+                getFastTrackCases({ suppressErrorToast: true }),
+            ]);
+            if (contractsResult.error) throw new Error(contractsResult.error);
+            setContracts(Array.isArray(contractsResult.data) ? contractsResult.data : []);
+            setApplications(applicationsResult.data || []);
+            setFastTrackCases(fastTrackResult.data || []);
         } catch (error: any) {
             toast.error('Failed to load contracts');
         } finally {
@@ -43,6 +65,10 @@ export default function ContractsPage() {
     }, [toast]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    useEffect(() => {
+        setHasAppliedRouteFocus(false);
+    }, [searchParams]);
 
     const handleSign = async (id: string) => {
         setSigningId(id);
@@ -84,6 +110,43 @@ export default function ContractsPage() {
         return map[normalizedStatus] || normalizedStatus.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     };
 
+    const { application: focusedApplication, contract: focusedContract } = resolveContractWorkspaceContext(
+        contracts,
+        applications,
+        {
+            contractId: searchParams.get('contract'),
+            applicationId: searchParams.get('application'),
+            caseId: searchParams.get('case'),
+            leadId: searchParams.get('lead'),
+            propertyId: searchParams.get('property'),
+        },
+    );
+    const focusedFastTrackCase = fastTrackCases.find((caseItem) => (
+        caseItem.caseId === (searchParams.get('case') || focusedApplication?.fast_track_case_id || '')
+        || (searchParams.get('lead') ? caseItem.leadId === searchParams.get('lead') : false)
+        || (searchParams.get('property') ? caseItem.propertyId === searchParams.get('property') : false)
+        || (focusedApplication?.property_id ? caseItem.propertyId === focusedApplication.property_id : false)
+    )) || null;
+    const focusedJourneyType = focusedFastTrackCase?.journeyType || (focusedApplication?.listing_type === 'sale' ? 'buy' : 'rent');
+    const applicationsWorkspacePath = buildWorkspacePath('/user/applications', {
+        applicationId: searchParams.get('application') || focusedApplication?.id,
+        caseId: searchParams.get('case') || focusedFastTrackCase?.caseId,
+        leadId: searchParams.get('lead') || focusedApplication?.lead_id || focusedFastTrackCase?.leadId,
+        propertyId: searchParams.get('property') || focusedApplication?.property_id || focusedFastTrackCase?.propertyId,
+    });
+    const fastTrackWorkspacePath = focusedFastTrackCase
+        ? `/user/dashboard/fast-track?case=${focusedFastTrackCase.caseId}`
+        : '/user/dashboard/fast-track';
+
+    useEffect(() => {
+        if (hasAppliedRouteFocus || !focusedContract) {
+            return;
+        }
+
+        setViewContract(focusedContract);
+        setHasAppliedRouteFocus(true);
+    }, [focusedContract, hasAppliedRouteFocus]);
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -95,7 +158,25 @@ export default function ContractsPage() {
     const filtered = contracts.filter(c =>
         (c.contract_type?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         (c.title?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-    );
+    ).sort((left, right) => {
+        if (!focusedContract) {
+            return 0;
+        }
+        if (left.id === focusedContract.id) {
+            return -1;
+        }
+        if (right.id === focusedContract.id) {
+            return 1;
+        }
+        return 0;
+    });
+
+    const uploadDocumentsPath = buildWorkspacePath('/user/dashboard/fast-track', {
+        applicationId: searchParams.get('application') || focusedContract?.application_id,
+        caseId: searchParams.get('case') || focusedContract?.fast_track_case_id,
+        leadId: searchParams.get('lead') || focusedContract?.lead_id,
+        propertyId: searchParams.get('property') || focusedContract?.property_id,
+    });
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
@@ -140,12 +221,61 @@ export default function ContractsPage() {
 
                             {filtered.length > 0 ? (
                                 <div className="space-y-4">
+                                    {hasWorkspaceFocusRequest && !focusedContract && (
+                                        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                                            <p className="font-semibold">
+                                                {focusedJourneyType === 'buy'
+                                                    ? 'This linked fast-track case is a purchase journey, so a tenancy contract will not appear here.'
+                                                    : focusedApplication && ['approved', 'ready_for_contract'].includes(String(focusedApplication.status || '').trim())
+                                                        ? 'The linked rental application is approved, but the manager has not drafted the tenancy agreement yet.'
+                                                        : focusedApplication
+                                                            ? `The linked rental application is currently ${String(focusedApplication.status || '').replace(/_/g, ' ')}.`
+                                                            : 'This contracts workspace is linked correctly, but the tenancy agreement is not ready yet.'}
+                                            </p>
+                                            <p className="mt-2">
+                                                {focusedJourneyType === 'buy'
+                                                    ? 'Continue from the purchase journey workspace instead of waiting for a rent contract.'
+                                                    : focusedApplication && ['approved', 'ready_for_contract'].includes(String(focusedApplication.status || '').trim())
+                                                        ? 'The contract will appear here automatically as soon as the manager drafts it.'
+                                                        : focusedApplication
+                                                            ? 'Keep the linked application moving first. The tenancy contract appears only after approval.'
+                                                            : (focusedFastTrackCase?.nextAction || focusedFastTrackCase?.statusReason || 'Continue from fast-track or the linked application and this workspace will populate automatically once the contract exists.')}
+                                            </p>
+                                            <div className="mt-4 flex flex-wrap gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(applicationsWorkspacePath)}
+                                                    className="rounded-xl border border-orange-300 px-4 py-2.5 font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:text-orange-200 dark:hover:bg-orange-950/30"
+                                                >
+                                                    {focusedJourneyType === 'buy' ? 'Open purchase journey' : 'Open applications workspace'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(fastTrackWorkspacePath)}
+                                                    className="rounded-xl border border-gray-300 px-4 py-2.5 font-semibold text-gray-700 transition-colors hover:bg-white dark:border-gray-700 dark:text-gray-200 dark:hover:bg-black"
+                                                >
+                                                    Open fast-track workspace
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {focusedContract && (
+                                        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                                            Your linked live contract is pinned first so you can review or sign it without searching the whole list.
+                                        </div>
+                                    )}
                                     {filtered.map((contract) => {
                                         const needsSignature = isPendingUserSignature(contract.status);
                                         return (
                                             <div
                                                 key={contract.id}
-                                                className={`p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border transition-all group ${needsSignature ? 'border-orange-300 dark:border-orange-700 shadow-orange-100 dark:shadow-orange-900/20 shadow-sm' : 'border-transparent hover:border-orange-500/20'}`}
+                                                className={`p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border transition-all group ${
+                                                    contract.id === focusedContract?.id
+                                                        ? 'border-orange-300 dark:border-orange-700 shadow-orange-100 dark:shadow-orange-900/20 shadow-sm ring-2 ring-orange-200/80 dark:ring-orange-900/40'
+                                                        : needsSignature
+                                                            ? 'border-orange-300 dark:border-orange-700 shadow-orange-100 dark:shadow-orange-900/20 shadow-sm'
+                                                            : 'border-transparent hover:border-orange-500/20'
+                                                }`}
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4">
@@ -197,7 +327,10 @@ export default function ContractsPage() {
                                                             }
                                                         </button>
                                                     )}
-                                                    <button className={`${needsSignature ? '' : 'flex-1'} py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2`}>
+                                                    <button
+                                                        onClick={() => setViewContract(contract)}
+                                                        className={`${needsSignature ? '' : 'flex-1'} py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2`}
+                                                    >
                                                         <Eye size={14} /> View Document
                                                     </button>
                                                     <button className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors">
@@ -213,8 +346,13 @@ export default function ContractsPage() {
                                     <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-6">
                                         <FileText size={32} className="text-gray-200" />
                                     </div>
+                                    {hasWorkspaceFocusRequest && !focusedContract && (
+                                        <p className="mb-4 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                                            You are in the correct contracts workspace for this fast-track case, but no live tenancy contract has been created yet.
+                                        </p>
+                                    )}
                                     <p className="text-gray-500 font-medium italic">
-                                        {searchQuery ? `No contracts found matching "${searchQuery}"` : 'No contracts yet. Contracts are created after an application is approved.'}
+                                        {searchQuery ? `No contracts found matching "${searchQuery}"` : 'No tenancy contracts yet. Rental contracts are created after approval, while purchase journeys continue in the sale progression workspace.'}
                                     </p>
                                 </div>
                             )}
@@ -232,7 +370,7 @@ export default function ContractsPage() {
                                 Upload your verification documents to progress your application.
                             </p>
                             <button
-                                onClick={() => navigate('/user/dashboard/profile')}
+                                onClick={() => navigate(uploadDocumentsPath)}
                                 className="w-full mt-2 py-4 bg-orange-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all relative z-10"
                             >
                                 Upload Documents
@@ -252,6 +390,71 @@ export default function ContractsPage() {
                     </div>
                 </div>
             </div>
+
+            {viewContract && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    onClick={() => setViewContract(null)}
+                >
+                    <div
+                        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-8 shadow-2xl dark:bg-gray-800"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Linked contract</p>
+                                <h2 className="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                                    {(viewContract.contract_type || 'Contract').replace(/\b\w/g, (character) => character.toUpperCase())}
+                                </h2>
+                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                    Contract ID {viewContract.id}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setViewContract(null)}
+                                className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Status</p>
+                                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{getStatusLabel(viewContract.status || '')}</p>
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Monthly rent</p>
+                                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                    {viewContract.monthly_rent ? `£${viewContract.monthly_rent.toLocaleString()}/mo` : 'TBC'}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Start date</p>
+                                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                    {viewContract.start_date ? new Date(viewContract.start_date).toLocaleDateString('en-GB') : 'TBC'}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+                                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Deposit</p>
+                                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                    {viewContract.deposit_amount ? `£${viewContract.deposit_amount.toLocaleString()}` : 'TBC'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {viewContract.content ? (
+                            <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-5 text-sm leading-6 text-gray-700 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
+                                {viewContract.content}
+                            </div>
+                        ) : (
+                            <div className="mt-6 rounded-2xl border border-dashed border-gray-200 p-5 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                Full contract text is not embedded in this record yet. This panel keeps the user on the exact linked contract while the signing workflow continues.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

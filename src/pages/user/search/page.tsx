@@ -5,9 +5,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
+import VirtualTourModal from '../../../components/dashboard/VirtualTourModal';
 import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion } from '../../../services/searchService';
 
 import { useToast } from '@/contexts/ToastContext';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 const PropertySearch = () => {
     const navigate = useNavigate();
@@ -35,6 +37,7 @@ const PropertySearch = () => {
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [virtualTourProperty, setVirtualTourProperty] = useState<{ id: string; title: string; virtual_tour_url?: string } | null>(null);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -414,6 +417,22 @@ const PropertySearch = () => {
                                     </span>
                                     <span className="text-xs text-gray-500">{p.bedrooms} bed · {p.bathrooms} bath {p.square_feet ? `· ${p.square_feet} sqft` : ''}</span>
                                 </div>
+                                <div className="mt-3 flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(`/user/properties/${p.id}`)}
+                                        className="flex-1 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+                                    >
+                                        View details
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setVirtualTourProperty({ id: p.id, title: p.title })}
+                                        className="px-3 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                                    >
+                                        Virtual Tour
+                                    </button>
+                                </div>
                             </div>
                         );
                     })}
@@ -422,26 +441,16 @@ const PropertySearch = () => {
 
             {/* Pagination Controls */}
             {total > 12 && (
-                <div className="flex justify-center pt-8">
-                    <div className="flex items-center gap-2">
-                        <button
-                            disabled={page === 1}
-                            onClick={() => setPage(page - 1)}
-                            className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg disabled:opacity-50 text-sm font-medium"
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-gray-600 dark:text-gray-400 px-4">
-                            Page {page} of {Math.ceil(total / 12)}
-                        </span>
-                        <button
-                            disabled={page >= Math.ceil(total / 12)}
-                            onClick={() => setPage(page + 1)}
-                            className="px-4 py-2 border border-gray-300 dark:border-zinc-700 rounded-lg disabled:opacity-50 text-sm font-medium"
-                        >
-                            Next
-                        </button>
-                    </div>
+                <div className="pt-8">
+                    <PaginationBar
+                        currentPage={page}
+                        totalPages={Math.ceil(total / 12)}
+                        onPageChange={setPage}
+                        totalItems={total}
+                        pageSize={12}
+                        currentItemCount={properties.length}
+                        itemLabel="properties"
+                    />
                 </div>
             )}
 
@@ -492,6 +501,13 @@ const PropertySearch = () => {
                     </div>
                 )}
             </Modal>
+
+            {virtualTourProperty && (
+                <VirtualTourModal
+                    property={virtualTourProperty}
+                    onClose={() => setVirtualTourProperty(null)}
+                />
+            )}
         </div>
     );
 };

@@ -6,7 +6,7 @@ import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
-import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X } from 'lucide-react';
 
 // Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
@@ -15,6 +15,7 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import TopProperties from '@/components/dashboard/TopProperties';
 import TabBar from '@/components/dashboard/TabBar';
 import BrokerResponseWidget from '@/components/dashboard/BrokerResponseWidget';
+import PaginationBar from '@/components/ui/PaginationBar';
 import ManagerPropertyCard from '@/components/dashboard/ManagerPropertyCard';
 
 const MANAGER_PROPERTIES_PAGE_SIZE = 6;
@@ -117,10 +118,13 @@ function DashboardContent() {
     .map((caseItem) => {
       const isOverdue = isFastTrackCaseOverdue(caseItem);
       const summary = {
-        documents: 'Waiting for admin verification before the next handoff',
-        owner_approval: 'Owner approval is the current blocker for this case',
-        legal_check: 'Legal checks are in progress',
-        payment_ready: 'Ready for the final operational handoff',
+        property_selected: 'Property is selected and ready for document follow-up',
+        documents_requested: 'Waiting for the client to upload requested verification documents',
+        documents_verified: 'Verification is complete and the case is ready for a real viewing',
+        viewing_scheduled: 'A linked viewing is booked from the appointments workflow',
+        viewing_completed: 'The viewing is complete and the deal review can continue',
+        application_in_review: 'Application or sale review is currently in progress',
+        ready_for_contract: 'Ready for tenancy contract or final deal handoff',
         completed: 'Completed',
       }[caseItem.currentStep];
 
@@ -480,29 +484,17 @@ function DashboardContent() {
               </div>
 
               {!propertyError && propertyTotalPages > 1 && (
-                <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-gray-800 dark:bg-gray-900/40 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Page <span className="font-semibold text-gray-900 dark:text-white">{propertyPage}</span> of {propertyTotalPages}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setPropertyPage((current) => Math.max(current - 1, 1))}
-                      disabled={propertyPage <= 1 || isLoading}
-                      className="inline-flex items-center gap-2 rounded-xl border border-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setPropertyPage((current) => Math.min(current + 1, propertyTotalPages))}
-                      disabled={propertyPage >= propertyTotalPages || isLoading}
-                      className="inline-flex items-center gap-2 rounded-xl border border-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <PaginationBar
+                  currentPage={propertyPage}
+                  totalPages={propertyTotalPages}
+                  onPageChange={setPropertyPage}
+                  totalItems={propertyTotal}
+                  pageSize={MANAGER_PROPERTIES_PAGE_SIZE}
+                  currentItemCount={properties.length}
+                  itemLabel="properties"
+                  disabled={isLoading}
+                  className="mt-8"
+                />
               )}
             </div>
           </div>

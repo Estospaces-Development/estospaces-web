@@ -42,6 +42,8 @@ export interface Lead {
     property_id?: string;
     user_id?: string;
     broker_id?: string;
+    broker_request_id?: string;
+    source?: 'direct_property' | 'broker_request' | string;
     status: string;
     stage?: 'matching' | 'broker_matched' | 'docs_requested' | 'docs_uploaded' | 'under_review' | 'approved' | 'completed' | 'expired';
     dispatch_status?: string;
@@ -74,6 +76,16 @@ export interface Lead {
     notes?: string;
     reassigned_from?: string;
     reassign_count?: number;
+    journey_type?: 'rent' | 'buy';
+    journey_source?: 'direct_property' | 'broker_request_selection' | string;
+    journey_stage?: string;
+    next_action?: string;
+    next_action_target?: string;
+    status_reason?: string;
+    blocking_requirements?: string[];
+    pending_requirements?: string[];
+    completed_requirements?: string[];
+    override_reason?: string;
     property?: {
         id: string;
         title: string;
@@ -166,10 +178,62 @@ export interface BrokerRequestRecord {
     dispatched_broker_count?: number;
     matched_broker_id?: string;
     matched_at?: string;
+    handoff_status?: 'awaiting_portfolio' | 'portfolio_shared' | 'property_selected' | 'cancelled' | 'archived' | string;
+    handoff_due_at?: string;
+    selected_property_id?: string;
+    selected_lead_id?: string;
+    selected_fast_track_case_id?: string;
     fast_track_enabled?: boolean;
+    journey_type?: 'rent' | 'buy';
+    journey_source?: 'direct_property' | 'broker_request_selection' | string;
+    journey_stage?: string;
+    next_action?: string;
+    next_action_target?: string;
+    status_reason?: string;
+    blocking_requirements?: string[];
+    pending_requirements?: string[];
+    completed_requirements?: string[];
+    override_reason?: string;
     matched_broker?: LeadBrokerSummary | null;
+    selected_property?: {
+        id: string;
+        title: string;
+        address_line_1: string;
+        city: string;
+        postcode?: string;
+        price: number;
+        image_urls?: string;
+        property_type: string;
+        listing_type?: string;
+    } | null;
+    property_shares?: BrokerRequestPropertyShare[];
     created_at?: string;
     updated_at?: string;
+}
+
+export interface BrokerRequestPropertyShare {
+    id: string;
+    broker_request_id: string;
+    broker_id: string;
+    property_id: string;
+    status: 'shared' | 'selected' | string;
+    rank: number;
+    note?: string;
+    shared_at?: string;
+    selected_at?: string;
+    lead_id?: string | null;
+    fast_track_case_id?: string | null;
+    property?: {
+        id: string;
+        title: string;
+        address_line_1: string;
+        city: string;
+        postcode?: string;
+        price: number;
+        image_urls?: string;
+        property_type: string;
+        listing_type?: string;
+    } | null;
 }
 
 const DOCUMENT_UPLOAD_TYPES: Record<string, { document_type: string; document_category: string }> = {
@@ -330,6 +394,60 @@ export const getBrokerRequestById = async (
 export const getBrokerRequestOffers = async (): Promise<{ data: BrokerRequestRecord[] | null; error: string | null }> => {
     try {
         const data = await apiFetch<BrokerRequestRecord[]>(`${CORE_URL()}/api/v1/leads/broker-request/broker`);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getBrokerRequestPropertyShares = async (
+    requestId: string,
+    options: ServiceRequestOptions = {},
+): Promise<{ data: BrokerRequestPropertyShare[] | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestPropertyShare[]>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}/properties`, options);
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const syncBrokerRequestPropertyShares = async (
+    requestId: string,
+    properties: Array<{ property_id: string; rank?: number; note?: string }>,
+): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}/properties`, {
+            method: 'PUT',
+            body: JSON.stringify({ properties }),
+        });
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const selectBrokerRequestProperty = async (
+    requestId: string,
+    propertyId: string,
+): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}/properties/${propertyId}/select`, {
+            method: 'POST',
+        });
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const rematchBrokerRequest = async (
+    requestId: string,
+): Promise<{ data: BrokerRequestRecord | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<BrokerRequestRecord>(`${CORE_URL()}/api/v1/leads/broker-request/${requestId}/rematch`, {
+            method: 'POST',
+        });
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
@@ -619,6 +737,10 @@ export const leadsService = {
     getUserBrokerRequests,
     getBrokerRequestById,
     getBrokerRequestOffers,
+    getBrokerRequestPropertyShares,
+    syncBrokerRequestPropertyShares,
+    selectBrokerRequestProperty,
+    rematchBrokerRequest,
     acceptBrokerRequestOffer,
     getBrokerAvailability,
     updateBrokerAvailability,

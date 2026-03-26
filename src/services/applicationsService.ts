@@ -12,6 +12,7 @@ export interface Application {
     id: string;
     property_id: string;
     user_id: string;
+    broker_request_id?: string | null;
     lead_id?: string | null;
     fast_track_case_id?: string | null;
     manager_id?: string | null;

@@ -20,6 +20,9 @@
 # production
 /build
 /dist
+/dist-verify*
+/output/
+/.playwright-cli/
 
 # misc
 .DS_Store
