@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FastTrackCase, FastTrackStep } from '../../../services/fastTrackService';
+import { FastTrackCase } from '../../../services/fastTrackService';
 import FastTrackProgress from './FastTrackProgress';
 import FastTrackDocuments from './FastTrackDocuments';
-import FastTrackActions from './FastTrackActions';
 import { Clock, AlertTriangle, AlertCircle, BadgeCheck, FileClock } from 'lucide-react';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 
@@ -53,20 +52,6 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
         return () => clearInterval(timer);
     }, [caseData.expiresAt, caseData.submittedAt, caseData.finalStatus]);
 
-    const handleAdvanceStep = () => {
-        let nextStep: FastTrackStep = caseData.currentStep;
-        let nextStatus = caseData.finalStatus;
-
-        switch (caseData.currentStep) {
-            case 'documents_requested':
-                nextStep = 'documents_verified';
-                break;
-        }
-
-        onUpdate({ ...caseData, currentStep: nextStep, finalStatus: nextStatus });
-    };
-
-    const isDocsVerified = Object.values(caseData.documents).every(status => status === 'verified');
     const isOverdue = isFastTrackCaseOverdue(caseData) || Boolean(
         caseData.finalStatus === 'in_progress'
         && timeLeft
@@ -140,7 +125,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 )}
             </div>
 
-            <FastTrackProgress currentStep={caseData.currentStep} />
+            <FastTrackProgress currentStep={caseData.currentStep} journeyType={caseData.journeyType} />
 
             {(verificationSummary || leadStatusLabel) && (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -171,13 +156,12 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 />
             )}
 
-            <div className="mt-auto">
-                <FastTrackActions
-                    currentStep={caseData.currentStep}
-                    onAdvance={handleAdvanceStep}
-                    isDocumentsVerified={isDocsVerified}
-                    isReadOnly={isLocked}
-                />
+            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Next action</p>
+                <p className="mt-1 font-medium text-gray-900 dark:text-white">{caseData.nextAction || 'Open the case for the live action'}</p>
+                {caseData.statusReason ? (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{caseData.statusReason}</p>
+                ) : null}
             </div>
         </div>
     );

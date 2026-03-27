@@ -28,6 +28,21 @@ const getRequestPriority = (request: BrokerRequestRecord) => {
     return 2;
 };
 
+const compareBrokerRequests = (left: BrokerRequestRecord, right: BrokerRequestRecord) => {
+    const priorityDelta = getRequestPriority(right) - getRequestPriority(left);
+    if (priorityDelta !== 0) {
+        return priorityDelta;
+    }
+
+    return getRequestTimestamp(right) - getRequestTimestamp(left);
+};
+
+export const sortBrokerRequestsByPriority = (
+    requests: BrokerRequestRecord[] | null | undefined,
+) => requests?.length
+    ? [...requests].sort(compareBrokerRequests)
+    : [];
+
 export const selectPrimaryBrokerRequest = (
     requests: BrokerRequestRecord[] | null | undefined,
     preferredRequestId?: string | null,
@@ -44,12 +59,14 @@ export const selectPrimaryBrokerRequest = (
         }
     }
 
-    return [...requests].sort((left, right) => {
-        const priorityDelta = getRequestPriority(right) - getRequestPriority(left);
-        if (priorityDelta !== 0) {
-            return priorityDelta;
-        }
-
-        return getRequestTimestamp(right) - getRequestTimestamp(left);
-    })[0] || null;
+    return sortBrokerRequestsByPriority(requests)[0] || null;
 };
+
+export const selectPrimaryBrokerRequestBy = (
+    requests: BrokerRequestRecord[] | null | undefined,
+    predicate: (request: BrokerRequestRecord) => boolean,
+    preferredRequestId?: string | null,
+) => selectPrimaryBrokerRequest(
+    requests?.filter(predicate) || [],
+    preferredRequestId,
+);

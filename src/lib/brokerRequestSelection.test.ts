@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { BrokerRequestRecord } from '@/services/leadsService';
-import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
+import {
+    selectPrimaryBrokerRequest,
+    selectPrimaryBrokerRequestBy,
+    sortBrokerRequestsByPriority,
+} from '@/lib/brokerRequestSelection';
 
 const makeRequest = (overrides: Partial<BrokerRequestRecord>): BrokerRequestRecord => ({
     id: overrides.id || 'request-id',
@@ -119,4 +123,53 @@ test('selectPrimaryBrokerRequest honors an explicitly selected request id when o
     );
 
     assert.equal(selected?.id, 'explicit-workspace');
+});
+
+test('selectPrimaryBrokerRequestBy keeps the newest selected workspace instead of the first array match', () => {
+    const selected = selectPrimaryBrokerRequestBy(
+        [
+            makeRequest({
+                id: 'selected-older',
+                status: 'matched',
+                dispatch_status: 'broker_matched',
+                handoff_status: 'property_selected',
+                selected_property_id: 'property-1',
+                created_at: '2026-03-25T09:10:00.000Z',
+                updated_at: '2026-03-25T09:10:00.000Z',
+            }),
+            makeRequest({
+                id: 'selected-newer',
+                status: 'matched',
+                dispatch_status: 'broker_matched',
+                handoff_status: 'property_selected',
+                selected_property_id: 'property-2',
+                created_at: '2026-03-25T09:20:00.000Z',
+                updated_at: '2026-03-25T09:20:00.000Z',
+            }),
+        ],
+        (request) => request.handoff_status === 'property_selected' || Boolean(request.selected_property_id),
+    );
+
+    assert.equal(selected?.id, 'selected-newer');
+});
+
+test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
+    const sorted = sortBrokerRequestsByPriority([
+        makeRequest({
+            id: 'matched-older',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            created_at: '2026-03-25T09:10:00.000Z',
+            updated_at: '2026-03-25T09:10:00.000Z',
+        }),
+        makeRequest({
+            id: 'matched-newer',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            created_at: '2026-03-25T09:30:00.000Z',
+            updated_at: '2026-03-25T09:30:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(sorted.map((request) => request.id), ['matched-newer', 'matched-older']);
 });

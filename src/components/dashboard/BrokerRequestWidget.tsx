@@ -75,6 +75,15 @@ const formatAcceptedAt = (value?: string) => {
     });
 };
 
+const formatWorkspaceReference = (requestId?: string | null) => {
+    const trimmed = String(requestId || '').trim();
+    if (!trimmed) {
+        return 'Pending';
+    }
+
+    return trimmed.slice(0, 8).toUpperCase();
+};
+
 const TOTAL_DISPATCH_SECONDS = 10 * 60;
 
 const parsePropertyImage = (value?: string) => {
@@ -697,8 +706,12 @@ const BrokerRequestWidget = () => {
                                             {activeRequest.location ? ` in ${activeRequest.location}` : ''}.
                                         </p>
                                     </div>
-                                    <div className="min-w-[150px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
-                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Accepted at</p>
+                                    <div className="min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Request ref</p>
+                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {formatWorkspaceReference(activeRequest.id)}
+                                        </p>
+                                        <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Accepted at</p>
                                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             {formatAcceptedAt(activeRequest.matched_at || activeRequest.updated_at || activeRequest.created_at)}
                                         </p>
@@ -742,7 +755,7 @@ const BrokerRequestWidget = () => {
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {activeRequest.fast_track_enabled
-                                                ? 'Fast-track priority is reserved for the first property your broker shares and you choose.'
+                                                ? 'Fast-track priority is reserved for the property you choose inside this live request.'
                                                 : 'Standard live follow-up is active for this request.'}
                                         </p>
                                     </div>

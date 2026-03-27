@@ -4,6 +4,11 @@
  */
 
 import { emitErrorToast } from '@/lib/apiToastBus';
+import {
+    AUTH_EXPIRED_MESSAGE,
+    handleUnauthorizedSession,
+    syncAuthExpiryState,
+} from '@/lib/authExpiry';
 
 // ── Service URL Registry ────────────────────────────────────────────────────
 
@@ -65,6 +70,8 @@ export interface ApiEnvelope<T> {
     message?: string;
 }
 
+export const AUTH_EXPIRED_EVENT = 'esto-auth-expired';
+
 export class ApiRequestError extends Error {
     status?: number;
     userMessage: string;
@@ -79,7 +86,6 @@ export class ApiRequestError extends Error {
 
 const USER_ERROR_MESSAGE = 'Invalid data provided. Please check your inputs.';
 const SYSTEM_ERROR_MESSAGE = 'The service is temporarily unreachable. We are working on a fix.';
-
 function getToastPayload(status?: number) {
     if (status && status >= 400 && status < 500) {
         return {
@@ -100,6 +106,30 @@ function notifyApiFailure(status?: number) {
         title: toast.title,
         duration: 5000,
         position: 'top-right',
+    });
+}
+
+function isAuthEndpoint(url: string) {
+    return url.includes('/api/v1/auth/login') || url.includes('/api/v1/auth/register');
+}
+
+function handleUnauthorizedResponse(url: string) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : null;
+
+    return handleUnauthorizedSession({
+        isBrowser: typeof window !== 'undefined',
+        isAuthEndpoint: isAuthEndpoint(url),
+        token,
+        onExpire: () => {
+            localStorage.removeItem('esto_token');
+            localStorage.removeItem('esto_user');
+            emitErrorToast(AUTH_EXPIRED_MESSAGE, {
+                title: 'Session expired',
+                duration: 5000,
+                position: 'top-right',
+            });
+            window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+        },
     });
 }
 
@@ -184,14 +214,22 @@ export async function apiFetchEnvelope<T>(
         } catch {
             // No JSON body
         }
+        const authExpired = response.status === 401 && handleUnauthorizedResponse(url);
         if (isDebug) console.error(`[API Response Error] ${method} ${url}:`, errorMsg);
-        if (!suppressErrorToast) {
+        if (!suppressErrorToast && !authExpired) {
             notifyApiFailure(response.status);
         }
-        throw new ApiRequestError(errorMsg, getToastPayload(response.status).message, response.status);
+        throw new ApiRequestError(
+            errorMsg,
+            authExpired ? AUTH_EXPIRED_MESSAGE : getToastPayload(response.status).message,
+            response.status,
+        );
     }
 
     const json = await parseJsonResponse<T>(response);
+    if (typeof window !== 'undefined') {
+        syncAuthExpiryState(localStorage.getItem('esto_token'));
+    }
 
     if (isDebug) {
         console.log(`[API Response Success] ${method} ${url}:`, json);

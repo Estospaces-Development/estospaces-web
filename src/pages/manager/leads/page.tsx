@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getBrokerLeads, respondToLead, type Lead } from '@/services/leadsService';
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
-import { formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { canRequestLeadDocuments, formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 
 const STATUS_FILTERS = [
     { value: 'all', label: 'All Leads' },
@@ -295,12 +295,18 @@ export default function ManagerLeadsPage() {
             toast.error('This lead does not have a linked user account for document follow-up yet.');
             return;
         }
+        if (!canRequestLeadDocuments(lead)) {
+            toast.error('This journey has already moved beyond the live lead-response stage. Continue it from messages, viewings, or the matched workspace instead.');
+            return;
+        }
 
         const requestMessage = `Hi ${getLeadClientName(lead)}, to keep your 24-hour fast-track moving, please upload your verification documents in the app. I will review them as soon as they arrive.`;
 
         setActingLeadID(lead.id);
         try {
-            const result = await respondToLead(lead.id, 'request_docs', requestMessage);
+            const result = await respondToLead(lead.id, 'request_docs', requestMessage, undefined, {
+                suppressErrorToast: true,
+            });
             if (result.error) {
                 throw new Error(result.error);
             }
@@ -329,6 +335,8 @@ export default function ManagerLeadsPage() {
                 lead.id,
                 'message',
                 responseMessage,
+                undefined,
+                { suppressErrorToast: true },
             );
             if (response.error) {
                 throw new Error(response.error);
@@ -439,6 +447,7 @@ export default function ManagerLeadsPage() {
                 leads={filteredLeads}
                 now={now}
                 actingLeadID={actingLeadID}
+                canRequestDocuments={canRequestLeadDocuments}
                 onRequestDocuments={handleRequestDocs}
                 onScheduleViewing={openScheduleViewing}
                 onOpenMessages={(lead) => {
@@ -495,10 +504,7 @@ export default function ManagerLeadsPage() {
                             const remainingSeconds = getSlaRemainingSeconds(lead, now);
                             const stage = resolveLeadStage(lead);
                             const isAwaitingResponse = stage === 'matching';
-                            const canRequestDocuments = Boolean(
-                                lead.user_id
-                                && !['completed', 'expired'].includes(stage),
-                            );
+                            const canRequestDocuments = canRequestLeadDocuments(lead);
                             const canScheduleViewing = canScheduleLeadViewing(lead);
                             const isBusy = actingLeadID === lead.id;
 
@@ -597,13 +603,15 @@ export default function ManagerLeadsPage() {
                                                         {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
                                                         Respond And Message
                                                     </button>
-                                                    <button
-                                                        onClick={() => void handleRequestDocs(lead)}
-                                                        disabled={isBusy}
-                                                        className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                                                    >
-                                                        Request Documents
-                                                    </button>
+                                                    {canRequestDocuments ? (
+                                                        <button
+                                                            onClick={() => void handleRequestDocs(lead)}
+                                                            disabled={isBusy}
+                                                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                        >
+                                                            Request Documents
+                                                        </button>
+                                                    ) : null}
                                                     {canScheduleViewing ? (
                                                         <button
                                                             onClick={() => openScheduleViewing(lead)}

@@ -580,6 +580,7 @@ export const respondToLead = async (
     responseType: 'call' | 'message' | 'schedule_viewing' | 'request_docs',
     message?: string,
     viewingDate?: string,
+    options: ServiceRequestOptions = {},
 ): Promise<{ data: any; error: string | null }> => {
     try {
         const data = await apiFetch<any>(
@@ -591,6 +592,7 @@ export const respondToLead = async (
                     message,
                     viewing_date: viewingDate,
                 }),
+                suppressErrorToast: options.suppressErrorToast,
             },
         );
         return { data, error: null };

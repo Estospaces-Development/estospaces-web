@@ -38,6 +38,17 @@ export interface LeadLike {
 export interface FastTrackCaseLike {
     finalStatus?: string;
     hoursRemaining?: number;
+    journeyType?: 'rent' | 'buy';
+    jurisdiction?: string;
+}
+
+export interface FastTrackLinkedJourneyLike {
+    application?: { status?: string | null } | null;
+    viewing?: { status?: string | null } | null;
+    contract?: { status?: string | null } | null;
+    saleProgression?: { current_stage?: string | null; status?: string | null } | null;
+    payments?: Array<{ status?: string | null; payment_type?: string | null }>;
+    invoices?: Array<{ status?: string | null; payment_type?: string | null }>;
 }
 
 export type CanonicalFastTrackStep =
@@ -148,6 +159,24 @@ export const formatLeadStage = (value?: string) => {
         .trim()
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
+
+export const normalizeComplianceJurisdiction = (value?: string | null) => {
+    switch (String(value || '').trim().toLowerCase()) {
+        case 'scotland':
+            return 'scotland';
+        case 'wales':
+            return 'wales';
+        case 'northern ireland':
+        case 'northern_ireland':
+        case 'ni':
+            return 'northern_ireland';
+        case 'england':
+        default:
+            return 'england';
+    }
+};
+
+export const isEnglandJurisdiction = (value?: string | null) => normalizeComplianceJurisdiction(value) === 'england';
 
 export const normalizeCanonicalFastTrackStep = (value?: string | null): CanonicalFastTrackStep => {
     switch (String(value || '').trim()) {
@@ -429,6 +458,23 @@ export const resolveLeadStage = (
     return 'matching';
 };
 
+export const canRequestLeadDocuments = (
+    lead: LeadLike | null | undefined,
+    documents: UserDocumentLike[] = [],
+) => {
+    const stage = resolveLeadStage(lead, documents);
+
+    return Boolean(
+        lead
+        && stage
+        && !CLOSED_LEAD_STATUSES.has(String(lead.status || '').toLowerCase())
+        && ['matching', 'broker_matched'].includes(stage)
+        && !lead.documents_requested
+        && !lead.documents_uploaded
+        && !lead.documents_verified
+    );
+};
+
 export const buildDocumentsFromDetails = (
     documents: UserDocumentLike[],
     fallback: FastTrackDocumentsLike,
@@ -450,6 +496,12 @@ export const deriveLiveFastTrackCurrentStep = (
         identityProof: 'pending',
         addressProof: 'pending',
     },
+    options: {
+        finalStatus?: string | null;
+        journeyType?: 'rent' | 'buy';
+        jurisdiction?: string | null;
+        linkedJourney?: FastTrackLinkedJourneyLike | null;
+    } = {},
 ): CanonicalFastTrackStep => {
     const normalizedStep = normalizeCanonicalFastTrackStep(currentStep);
     const liveDocuments = buildDocumentsFromDetails(documents, fallback);
@@ -457,6 +509,103 @@ export const deriveLiveFastTrackCurrentStep = (
         liveDocuments.identityProof === 'verified'
         && liveDocuments.addressProof === 'verified'
     );
+    const journeyType = options.journeyType === 'buy' ? 'buy' : 'rent';
+    const linkedJourney = options.linkedJourney || null;
+    const viewingStatus = String(linkedJourney?.viewing?.status || '').trim().toLowerCase();
+    const hasCompletedViewingCheckpoint = (
+        viewingStatus === 'completed'
+        || getFastTrackStepIndex(normalizedStep) >= getFastTrackStepIndex('viewing_completed')
+    );
+
+    if (String(options.finalStatus || '').trim() === 'completed' || normalizedStep === 'completed') {
+        return 'completed';
+    }
+
+    const hasPendingRentFinanceTasks = (linkedJourney?.payments || []).some((payment) => {
+        const type = String(payment.payment_type || '').toLowerCase();
+        const status = String(payment.status || '').toLowerCase();
+        return (type.includes('deposit') || type.includes('rent')) && ['pending', 'failed'].includes(status);
+    }) || (linkedJourney?.invoices || []).some((invoice) => {
+        const type = String(invoice.payment_type || '').toLowerCase();
+        const status = String(invoice.status || '').toLowerCase();
+        return (type.includes('deposit') || type.includes('rent')) && ['draft', 'open', 'uncollectible'].includes(status);
+    });
+
+    const normalizedContractStatus = (() => {
+        switch (String(linkedJourney?.contract?.status || '').trim()) {
+            case 'pending_user':
+                return 'pending_user_signature';
+            case 'pending_manager':
+                return 'pending_manager_signature';
+            case 'sent':
+                return 'draft';
+            case 'signed':
+                return 'active';
+            case 'expired':
+                return 'terminated';
+            default:
+                return String(linkedJourney?.contract?.status || '').trim();
+        }
+    })();
+
+    if (normalizedContractStatus) {
+        if (normalizedContractStatus === 'active' && !hasPendingRentFinanceTasks) {
+            return 'completed';
+        }
+
+        if (
+            normalizedContractStatus === 'draft'
+            || normalizedContractStatus === 'pending_user_signature'
+            || normalizedContractStatus === 'pending_manager_signature'
+            || normalizedContractStatus === 'active'
+        ) {
+            return 'ready_for_contract';
+        }
+    }
+
+    const saleProgressionStage = String(linkedJourney?.saleProgression?.current_stage || '').trim();
+    const saleProgressionStatus = String(linkedJourney?.saleProgression?.status || '').trim();
+    if (saleProgressionStage || saleProgressionStatus) {
+        if (saleProgressionStatus === 'completed' || saleProgressionStage === 'completion') {
+            return 'completed';
+        }
+
+        return 'application_in_review';
+    }
+
+    const rawApplicationStatus = String(linkedJourney?.application?.status || '').trim();
+    switch (rawApplicationStatus) {
+        case 'viewing_scheduled':
+            return 'viewing_scheduled';
+        case 'viewing_completed':
+            return 'viewing_completed';
+        case 'approved':
+        case 'ready_for_contract':
+            if (journeyType === 'rent' && hasCompletedViewingCheckpoint) {
+                return 'ready_for_contract';
+            }
+            if (journeyType === 'buy' && hasCompletedViewingCheckpoint) {
+                return 'application_in_review';
+            }
+            break;
+        case 'referencing':
+        case 'right_to_rent_pending':
+            if (journeyType === 'rent' && hasCompletedViewingCheckpoint) {
+                return 'application_in_review';
+            }
+            break;
+        case 'completed':
+            return 'completed';
+        default:
+            break;
+    }
+
+    if (viewingStatus === 'completed') {
+        return 'viewing_completed';
+    }
+    if (['pending', 'confirmed', 'rescheduled'].includes(viewingStatus)) {
+        return 'viewing_scheduled';
+    }
 
     if (
         documentsVerified

@@ -28,6 +28,7 @@ export interface FastTrackDocuments {
 interface BackendFastTrackCase {
     id: string;
     property_id: string;
+    property_country?: string;
     broker_request_id?: string;
     lead_id?: string;
     manager_id?: string;
@@ -52,6 +53,12 @@ interface BackendFastTrackCase {
     override_reason?: string;
     override_by?: string;
     override_at?: string;
+    jurisdiction?: string;
+    compliance_pack?: string;
+    required_compliance_items?: string[];
+    completed_compliance_items?: string[];
+    blocked_by_compliance?: boolean;
+    compliance_status_reason?: string;
     submitted_at: string;
     expires_at?: string;
     updated_at: string;
@@ -63,6 +70,7 @@ export interface FastTrackCase {
     caseId: string;
     propertyTitle: string;
     propertyType: PropertyType;
+    propertyCountry?: string;
     clientName: string;
     clientId: string;
     propertyId: string;
@@ -89,6 +97,12 @@ export interface FastTrackCase {
     overrideReason?: string;
     overrideBy?: string;
     overrideAt?: string;
+    jurisdiction?: string;
+    compliancePack?: string;
+    requiredComplianceItems?: string[];
+    completedComplianceItems?: string[];
+    blockedByCompliance?: boolean;
+    complianceStatusReason?: string;
     // extra fields to preserve ID
     id: string;
 }
@@ -142,6 +156,7 @@ const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => (
     caseId: apiCase.id,
     id: apiCase.id,
     propertyId: apiCase.property_id,
+    propertyCountry: apiCase.property_country,
     brokerRequestId: apiCase.broker_request_id,
     leadId: apiCase.lead_id,
     managerId: apiCase.manager_id,
@@ -169,6 +184,12 @@ const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => (
     overrideReason: apiCase.override_reason,
     overrideBy: apiCase.override_by,
     overrideAt: apiCase.override_at,
+    jurisdiction: apiCase.jurisdiction,
+    compliancePack: apiCase.compliance_pack,
+    requiredComplianceItems: apiCase.required_compliance_items || [],
+    completedComplianceItems: apiCase.completed_compliance_items || [],
+    blockedByCompliance: apiCase.blocked_by_compliance,
+    complianceStatusReason: apiCase.compliance_status_reason,
 });
 
 export interface CreateFastTrackRequest {

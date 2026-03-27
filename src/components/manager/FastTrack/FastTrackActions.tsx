@@ -1,6 +1,6 @@
 import React from 'react';
 import { FastTrackStep } from '@/services/fastTrackService';
-import { ArrowRight, CalendarClock, CheckCircle, FileCheck2, FileSearch, FileSignature, Send } from 'lucide-react';
+import { ArrowRight, CheckCircle, FileCheck2 } from 'lucide-react';
 
 interface FastTrackActionsProps {
     currentStep: FastTrackStep;
@@ -48,13 +48,6 @@ const FastTrackActions: React.FC<FastTrackActionsProps> = ({
 
     const getButtonConfig = () => {
         switch (currentStep) {
-            case 'property_selected':
-                return {
-                    label: 'Request documents from this case',
-                    icon: Send,
-                    disabled: true,
-                    hint: 'Use the document request action in the case detail so the client receives the correct upload prompt.'
-                };
             case 'documents_requested':
                 if (!isDocumentsVerified) {
                     return {
@@ -70,48 +63,12 @@ const FastTrackActions: React.FC<FastTrackActionsProps> = ({
                     disabled: !isDocumentsVerified,
                     hint: !isDocumentsVerified ? 'Verify all documents first' : undefined
                 };
-            case 'documents_verified':
-                return {
-                    label: 'Schedule viewing from leads',
-                    icon: CalendarClock,
-                    disabled: true,
-                    hint: 'Real viewing bookings advance this stage automatically.'
-                };
-            case 'viewing_scheduled':
-                return {
-                    label: 'Awaiting viewing completion',
-                    icon: CalendarClock,
-                    disabled: true,
-                    hint: 'Complete the linked appointment to move this case forward.'
-                };
-            case 'viewing_completed':
-                return {
-                    label: 'Review application in Applications',
-                    icon: FileSearch,
-                    disabled: true,
-                    hint: 'The deal review continues from the linked application or sale progression.'
-                };
-            case 'application_in_review':
-                return {
-                    label: 'Decision pending',
-                    icon: FileSearch,
-                    disabled: true,
-                    hint: 'Approve or reject the linked review before the contract stage starts.'
-                };
-            case 'ready_for_contract':
-                return {
-                    label: 'Create contract from approved application',
-                    icon: FileSignature,
-                    disabled: true,
-                    hint: 'Tenancy contracts are created only after the linked application is approved.'
-                };
             default:
-                return { label: 'Continue', icon: ArrowRight, disabled: false };
+                return null;
         }
     };
 
     const config = getButtonConfig();
-    const Icon = config.icon;
 
     return (
         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
@@ -169,22 +126,30 @@ const FastTrackActions: React.FC<FastTrackActionsProps> = ({
                     ) : null}
                 </div>
             )}
-            <button
-                onClick={onAdvance}
-                disabled={config.disabled}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300
-          ${config.disabled
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-600'
-                        : 'bg-orange-600 text-white hover:bg-orange-700 hover:shadow-md hover:scale-[1.02]'
-                    }
-        `}
-                title={config.hint}
-            >
-                <Icon className="w-4 h-4" />
-                {config.label}
-            </button>
-            {config.hint && (
-                <p className="text-xs text-center text-amber-500 mt-2">{config.hint}</p>
+            {config ? (
+                <>
+                    <button
+                        onClick={onAdvance}
+                        disabled={config.disabled}
+                        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300
+              ${config.disabled
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-zinc-800 dark:text-gray-600'
+                                : 'bg-orange-600 text-white hover:bg-orange-700 hover:shadow-md hover:scale-[1.02]'
+                            }
+            `}
+                        title={config.hint}
+                    >
+                        <config.icon className="w-4 h-4" />
+                        {config.label}
+                    </button>
+                    {config.hint && (
+                        <p className="text-xs text-center text-amber-500 mt-2">{config.hint}</p>
+                    )}
+                </>
+            ) : (
+                <div className="rounded-2xl border border-dashed border-gray-200 px-4 py-4 text-sm text-gray-500 dark:border-zinc-700 dark:text-gray-400">
+                    The operational actions for this stage are shown above from the linked viewing, review, contract, or billing records.
+                </div>
             )}
         </div>
     );

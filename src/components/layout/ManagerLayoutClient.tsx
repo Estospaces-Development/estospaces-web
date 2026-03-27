@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
 import { ManagerVerificationProvider } from '../../contexts/ManagerVerificationContext';
@@ -17,6 +19,26 @@ interface ManagerLayoutClientProps {
 
 export default function ManagerLayoutClient({ children, isSubdomain = false }: ManagerLayoutClientProps) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const { user, loading, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!loading) {
+            if (!isAuthenticated) {
+                navigate('/login');
+            } else if (user?.role !== 'manager') {
+                navigate('/login');
+            }
+        }
+    }, [isAuthenticated, loading, navigate, user]);
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    }
+
+    if (!isAuthenticated || user?.role !== 'manager') {
+        return null;
+    }
 
     return (
         <ThemeProvider>

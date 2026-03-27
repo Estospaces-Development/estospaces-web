@@ -13,6 +13,7 @@ interface LeadActionMapProps {
     leads: Lead[];
     now: number;
     actingLeadID?: string | null;
+    canRequestDocuments?: (lead: Lead) => boolean;
     onRequestDocuments: (lead: Lead) => void;
     onScheduleViewing: (lead: Lead) => void;
     onOpenMessages: (lead: Lead) => void;
@@ -87,6 +88,7 @@ export default function LeadActionMap({
     leads,
     now,
     actingLeadID = null,
+    canRequestDocuments,
     onRequestDocuments,
     onScheduleViewing,
     onOpenMessages,
@@ -119,6 +121,9 @@ export default function LeadActionMap({
         () => leadsWithCoordinates.find((lead) => lead.id === selectedLeadID) || null,
         [leadsWithCoordinates, selectedLeadID],
     );
+    const canRequestDocumentsForLead = (lead: Lead) => (
+        canRequestDocuments ? canRequestDocuments(lead) : Boolean(lead.user_id)
+    );
     const canScheduleSelectedLead = Boolean(
         selectedLead?.user_id
         && selectedLead?.property_id
@@ -126,6 +131,7 @@ export default function LeadActionMap({
         && !['completed', 'expired', 'rejected', 'withdrawn'].includes(resolveLeadStage(selectedLead))
         && !['closed_won', 'closed_lost', 'cancelled'].includes(selectedLead?.status || ''),
     );
+    const canRequestSelectedLead = selectedLead ? canRequestDocumentsForLead(selectedLead) : false;
 
     if (leadsWithCoordinates.length === 0) {
         return (
@@ -169,6 +175,7 @@ export default function LeadActionMap({
                             {leadsWithCoordinates.map((lead) => {
                                 const stage = resolveLeadStage(lead);
                                 const isSelected = selectedLeadID === lead.id;
+                                const canRequestDocs = canRequestDocumentsForLead(lead);
                                 const canScheduleViewing = Boolean(
                                     lead.user_id
                                     && lead.property_id
@@ -209,14 +216,16 @@ export default function LeadActionMap({
                                                     >
                                                         Open messages
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => onRequestDocuments(lead)}
-                                                        disabled={actingLeadID === lead.id || !lead.user_id}
-                                                        className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                                    >
-                                                        {actingLeadID === lead.id ? 'Sending request...' : 'Request documents'}
-                                                    </button>
+                                                    {canRequestDocs ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => onRequestDocuments(lead)}
+                                                            disabled={actingLeadID === lead.id}
+                                                            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            {actingLeadID === lead.id ? 'Sending request...' : 'Request documents'}
+                                                        </button>
+                                                    ) : null}
                                                     {canScheduleViewing ? (
                                                         <button
                                                             type="button"
@@ -294,15 +303,17 @@ export default function LeadActionMap({
                                 <MessageSquare className="h-4 w-4" />
                                 Open messages
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => onRequestDocuments(selectedLead)}
-                                disabled={actingLeadID === selectedLead.id || !selectedLead.user_id}
-                                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                            >
-                                <FileUp className="h-4 w-4" />
-                                {actingLeadID === selectedLead.id ? 'Sending request...' : 'Request documents'}
-                            </button>
+                            {canRequestSelectedLead ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onRequestDocuments(selectedLead)}
+                                    disabled={actingLeadID === selectedLead.id}
+                                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                >
+                                    <FileUp className="h-4 w-4" />
+                                    {actingLeadID === selectedLead.id ? 'Sending request...' : 'Request documents'}
+                                </button>
+                            ) : null}
                             {canScheduleSelectedLead ? (
                                 <button
                                     type="button"

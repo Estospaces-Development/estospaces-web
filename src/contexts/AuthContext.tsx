@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiFetch, getErrorMessage } from '@/lib/apiUtils';
+import { AUTH_EXPIRED_EVENT, apiFetch, getErrorMessage } from '@/lib/apiUtils';
+import { resetAuthExpiryState } from '@/lib/authExpiry';
 
 interface User {
     id: string;
@@ -106,6 +107,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUser();
     }, [refreshUser]);
 
+    useEffect(() => {
+        const handleAuthExpired = () => {
+            setUser(null);
+            setLoading(false);
+            setError('Your session has expired. Please log in again.');
+        };
+
+        window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+        return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    }, []);
+
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
         try {
@@ -158,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             localStorage.setItem('esto_token', token);
             localStorage.setItem('esto_user', JSON.stringify(userObj));
+            resetAuthExpiryState();
             setUser(userObj);
 
             // Refresh from /auth/me to get complete user data
@@ -233,6 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (token) {
                 localStorage.setItem('esto_token', token);
                 localStorage.setItem('esto_user', JSON.stringify(userObj));
+                resetAuthExpiryState();
                 setUser(userObj);
             }
 
@@ -247,6 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = useCallback(() => {
         localStorage.removeItem('esto_token');
         localStorage.removeItem('esto_user');
+        resetAuthExpiryState();
         setUser(null);
         setError(null);
     }, []);

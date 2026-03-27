@@ -5,21 +5,29 @@ import { CanonicalFastTrackStep, getFastTrackStepIndex } from '@/lib/fastTrackWo
 
 interface FastTrackProgressProps {
     currentStep: FastTrackStep;
+    journeyType?: 'rent' | 'buy';
 }
 
-const steps: { id: CanonicalFastTrackStep; label: string; icon: React.ElementType }[] = [
-    { id: 'property_selected', label: 'Property', icon: Home },
-    { id: 'documents_requested', label: 'Docs', icon: FileText },
-    { id: 'documents_verified', label: 'Verified', icon: ShieldCheck },
-    { id: 'viewing_scheduled', label: 'Viewing', icon: CalendarClock },
-    { id: 'viewing_completed', label: 'Visited', icon: CalendarCheck2 },
-    { id: 'application_in_review', label: 'Review', icon: FileSearch },
-    { id: 'ready_for_contract', label: 'Contract', icon: FileSignature },
-    { id: 'completed', label: 'Done', icon: BadgeCheck },
-];
-
-const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep }) => {
+const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep, journeyType }) => {
     const currentIndex = getFastTrackStepIndex(currentStep);
+    const steps: { id: CanonicalFastTrackStep; label: string; icon: React.ElementType }[] = [
+        { id: 'property_selected', label: 'Property', icon: Home },
+        { id: 'documents_requested', label: 'Docs', icon: FileText },
+        { id: 'documents_verified', label: 'Verified', icon: ShieldCheck },
+        { id: 'viewing_scheduled', label: 'Viewing', icon: CalendarClock },
+        { id: 'viewing_completed', label: 'Visited', icon: CalendarCheck2 },
+        {
+            id: 'application_in_review',
+            label: journeyType === 'buy' ? 'Offer' : 'Checks',
+            icon: FileSearch,
+        },
+        {
+            id: 'ready_for_contract',
+            label: journeyType === 'buy' ? 'Legal' : 'Tenancy',
+            icon: FileSignature,
+        },
+        { id: 'completed', label: 'Done', icon: BadgeCheck },
+    ];
 
     return (
         <div className="w-full relative mt-4 mb-2">

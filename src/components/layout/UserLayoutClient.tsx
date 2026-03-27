@@ -1,8 +1,10 @@
 "use client";
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import UserHeader from '../../components/layout/UserHeader';
 import HorizontalNavigation from '../../components/layout/HorizontalNavigation';
+import { useAuth } from '../../contexts/AuthContext';
 import { LocationProvider } from '../../contexts/LocationContext';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { PropertyFilterProvider } from '../../contexts/PropertyFilterContext';
@@ -18,6 +20,27 @@ interface UserLayoutClientProps {
 }
 
 export default function UserLayoutClient({ children, isSubdomain = false }: UserLayoutClientProps) {
+    const { user, loading, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!loading) {
+            if (!isAuthenticated) {
+                navigate('/login');
+            } else if (user?.role !== 'user') {
+                navigate('/login');
+            }
+        }
+    }, [isAuthenticated, loading, navigate, user]);
+
+    if (loading) {
+        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    }
+
+    if (!isAuthenticated || user?.role !== 'user') {
+        return null;
+    }
+
     return (
         <ThemeProvider>
             <NotificationsProvider>

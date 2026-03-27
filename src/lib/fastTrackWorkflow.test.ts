@@ -4,6 +4,7 @@ import {
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
     buildDocumentsFromVerification,
+    canRequestLeadDocuments,
     canCompleteFastTrackVerification,
     deriveLiveFastTrackCurrentStep,
     formatLeadStage,
@@ -184,6 +185,50 @@ test('lead stage resolves live workflow states from documents and response state
     );
 
     assert.equal(formatLeadStage('broker_matched'), 'Broker Matched');
+});
+
+test('document requests are only allowed while the lead is still in the live response stage', () => {
+    assert.equal(
+        canRequestLeadDocuments({
+            user_id: 'user-1',
+            dispatch_status: 'broker_matched',
+            documents_requested: false,
+            documents_uploaded: false,
+            documents_verified: false,
+            status: 'broker_responded',
+        } as any),
+        true,
+    );
+
+    assert.equal(
+        canRequestLeadDocuments({
+            user_id: 'user-1',
+            documents_requested: true,
+            documents_uploaded: false,
+            documents_verified: false,
+            status: 'broker_responded',
+        } as any),
+        false,
+    );
+
+    assert.equal(
+        canRequestLeadDocuments(
+            {
+                user_id: 'user-1',
+                documents_requested: false,
+                documents_uploaded: false,
+                documents_verified: false,
+                status: 'broker_responded',
+            } as any,
+            [
+                {
+                    document_category: 'identity',
+                    status: 'under_review',
+                },
+            ],
+        ),
+        false,
+    );
 });
 
 test('reupload detection surfaces replacement requests', () => {
@@ -398,5 +443,138 @@ test('live fast-track step promotes approved documents ahead of stale saved case
             },
         ),
         'viewing_scheduled',
+    );
+});
+
+test('live fast-track step follows linked viewing, rent contract, and payment records', () => {
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'documents_verified',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                linkedJourney: {
+                    viewing: { status: 'confirmed' },
+                },
+            },
+        ),
+        'viewing_scheduled',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'viewing_completed',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                linkedJourney: {
+                    application: { status: 'right_to_rent_pending' },
+                },
+            },
+        ),
+        'application_in_review',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'ready_for_contract',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                linkedJourney: {
+                    contract: { status: 'active' },
+                    payments: [{ status: 'pending', payment_type: 'security_deposit' }],
+                },
+            },
+        ),
+        'ready_for_contract',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'ready_for_contract',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                linkedJourney: {
+                    contract: { status: 'active' },
+                    payments: [{ status: 'completed', payment_type: 'security_deposit' }],
+                    invoices: [{ status: 'paid', payment_type: 'first_rent' }],
+                },
+            },
+        ),
+        'completed',
+    );
+});
+
+test('live fast-track step follows active sale progression for buy journeys', () => {
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'property_selected',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'buy',
+                linkedJourney: {
+                    application: { status: 'submitted' },
+                },
+            },
+        ),
+        'documents_verified',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'viewing_completed',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'buy',
+                linkedJourney: {
+                    saleProgression: { current_stage: 'memorandum_issued', status: 'active' },
+                },
+            },
+        ),
+        'application_in_review',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'application_in_review',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'buy',
+                linkedJourney: {
+                    saleProgression: { current_stage: 'completion', status: 'completed' },
+                },
+            },
+        ),
+        'completed',
     );
 });

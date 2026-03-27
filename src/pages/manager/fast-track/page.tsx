@@ -7,6 +7,7 @@ import { Lead, getBrokerLeads, respondToLead } from '../../../services/leadsServ
 import { getApplications, type Application } from '../../../services/applicationsService';
 import { getViewings, type Viewing } from '../../../services/bookingsService';
 import { getUserContracts } from '../../../services/contractsService';
+import { getManagerInvoices, getManagerPayments } from '../../../services/paymentsService';
 import { getSaleProgressions, type SaleProgression } from '../../../services/salesService';
 import {
     UserVerificationInfo,
@@ -29,6 +30,9 @@ import {
     buildDocumentsFromDetails,
     buildDocumentsFromVerification,
     buildVerificationSummary,
+    canRequestLeadDocuments,
+    deriveLiveFastTrackCurrentStep,
+    FAST_TRACK_STEP_META,
     formatLeadStage,
     needsFastTrackCaseAttention,
     resolveLeadStage,
@@ -86,6 +90,8 @@ const FastTrackDashboard = () => {
             viewingsResult,
             contractsResult,
             saleProgressionsResult,
+            paymentsResult,
+            invoicesResult,
         ] = await Promise.all([
             getApplications({ suppressErrorToast: true }),
             safeLoad(() => getViewings()),
@@ -98,6 +104,14 @@ const FastTrackDashboard = () => {
                 return result.data || [];
             }),
             getSaleProgressions(),
+            safeLoad(async () => {
+                const result = await getManagerPayments();
+                return Array.isArray(result?.data) ? result.data : [];
+            }),
+            safeLoad(async () => {
+                const result = await getManagerInvoices();
+                return Array.isArray(result?.data) ? result.data : [];
+            }),
         ]);
 
         if (casesResult.error || leadsResult.error || verificationResult.error) {
@@ -116,6 +130,8 @@ const FastTrackDashboard = () => {
         const viewings = viewingsResult.data || [];
         const contracts = contractsResult.data || [];
         const saleProgressions = saleProgressionsResult.data || [];
+        const payments = paymentsResult.data || [];
+        const invoices = invoicesResult.data || [];
         const leadById = new Map<string, Lead>();
         const leadByCaseKey = new Map<string, Lead>();
         const verificationByUserId = new Map<string, UserVerificationInfo>();
@@ -145,21 +161,39 @@ const FastTrackDashboard = () => {
                     addressProof: 'verified' as const,
                 }
                 : buildDocumentsFromVerification(verificationInfo, caseItem.documents);
+            const linkedJourney = resolveFastTrackLinkedJourney(caseItem, {
+                applications: applications as Application[],
+                viewings: viewings as Viewing[],
+                contracts: contracts as Contract[],
+                saleProgressions: saleProgressions as SaleProgression[],
+                payments,
+                invoices,
+            });
+            const liveCurrentStep = deriveLiveFastTrackCurrentStep(
+                caseItem.currentStep,
+                [],
+                documents,
+                {
+                    finalStatus: caseItem.finalStatus,
+                    journeyType: caseItem.journeyType,
+                    jurisdiction: caseItem.jurisdiction,
+                    linkedJourney,
+                },
+            );
+            const liveMeta = FAST_TRACK_STEP_META[liveCurrentStep];
 
             return {
                 ...caseItem,
+                currentStep: liveCurrentStep,
                 documents,
                 matchingLead,
                 verificationInfo,
                 verificationSummary: buildVerificationSummary(verificationInfo, matchingLead, documents),
                 leadStatusLabel: formatLeadStage(resolveLeadStage(matchingLead)),
                 documentsReady: Object.values(documents).every((status) => status === 'verified'),
-                linkedJourney: resolveFastTrackLinkedJourney(caseItem, {
-                    applications: applications as Application[],
-                    viewings: viewings as Viewing[],
-                    contracts: contracts as Contract[],
-                    saleProgressions: saleProgressions as SaleProgression[],
-                }),
+                nextAction: linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
+                statusReason: linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
+                linkedJourney,
             };
         });
 
@@ -319,12 +353,18 @@ const FastTrackDashboard = () => {
             toast.error('This fast-track case does not have a live user lead yet.');
             return;
         }
+        if (!canRequestLeadDocuments(caseItem.matchingLead, selectedVerificationDetails?.documents || [])) {
+            toast.error('This case has already moved beyond the live document-request stage.');
+            return;
+        }
 
         const requestMessage = `Hi ${caseItem.clientName}, please upload your verification documents so we can keep your 24-hour fast-track moving without delay.`;
 
         setRequestingLeadId(caseItem.matchingLead.id);
         try {
-            const response = await respondToLead(caseItem.matchingLead.id, 'request_docs', requestMessage);
+            const response = await respondToLead(caseItem.matchingLead.id, 'request_docs', requestMessage, undefined, {
+                suppressErrorToast: true,
+            });
             if (response.error) {
                 throw new Error(response.error);
             }
@@ -351,7 +391,7 @@ const FastTrackDashboard = () => {
         } finally {
             setRequestingLeadId(null);
         }
-    }, [fetchCases, toast, user]);
+    }, [fetchCases, selectedVerificationDetails?.documents, toast, user]);
 
     if (selectedCase) {
         return (
@@ -369,6 +409,8 @@ const FastTrackDashboard = () => {
                         onRequestDocuments={selectedCase.matchingLead ? () => {
                             void handleRequestDocuments(selectedCase);
                         } : undefined}
+                        onRefresh={() => fetchCases(true)}
+                        canRequestDocuments={canRequestLeadDocuments(selectedCase.matchingLead, selectedVerificationDetails?.documents || [])}
                         isRequestingDocuments={requestingLeadId === selectedCase.matchingLead?.id}
                         isDocumentsVerifiedOverride={selectedVerificationDetails
                             ? selectedCaseDocumentItems.every((item) => item.status === 'verified')

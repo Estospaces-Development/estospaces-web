@@ -15,6 +15,7 @@ import {
     updateBrokerAvailability,
 } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { sortBrokerRequestsByPriority } from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useToast } from '@/contexts/ToastContext';
@@ -70,6 +71,35 @@ const formatPropertyPrice = (price?: number) => {
         maximumFractionDigits: 0,
     }).format(price);
 };
+
+const formatWorkspaceReference = (requestId?: string) => {
+    const trimmed = String(requestId || '').trim();
+    if (!trimmed) {
+        return 'Pending';
+    }
+
+    return trimmed.slice(0, 8).toUpperCase();
+};
+
+const formatWorkspaceStartedAt = (value?: string) => {
+    if (!value) {
+        return 'Just now';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return 'Just now';
+    }
+
+    return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
+const MATCHED_WORKSPACES_ID = 'matched-client-workspaces';
 
 type ManagerPortfolioProperty = {
     id: string;
@@ -148,9 +178,11 @@ const BrokerResponseWidget: React.FC = () => {
                 stageLabel: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
                 dispatchStatus: offer.dispatch_status,
                 primaryActionLabel: 'Accept Offer',
-                secondaryActionLabel: 'Open leads',
+                secondaryActionLabel: offer.dispatch_status === 'broker_matched' ? 'Open matched workspace' : 'Open leads',
                 statusReason: offer.status_reason,
-                nextAction: offer.next_action,
+                nextAction: offer.dispatch_status === 'broker_matched'
+                    ? 'Open matched workspace'
+                    : offer.next_action,
             }));
 
             const merged = [...mappedOffers, ...mappedLeads]
@@ -168,10 +200,10 @@ const BrokerResponseWidget: React.FC = () => {
                 });
 
             setRequests(merged.slice(0, 4));
-            setMatchedRequests((offersResult.data || []).filter((offer) => (
+            setMatchedRequests(sortBrokerRequestsByPriority((offersResult.data || []).filter((offer) => (
                 (offer.dispatch_status === 'broker_matched' || offer.status === 'matched')
                 && Boolean(offer.matched_broker_id)
-            )));
+            ))));
             setManagerProperties((propertiesResult.data || []).map((property: any) => ({
                 id: property.id,
                 title: property.title,
@@ -240,6 +272,19 @@ const BrokerResponseWidget: React.FC = () => {
             }
         } catch (error) {
         }
+    };
+
+    const handleSecondaryAction = (id: string) => {
+        const selectedRequest = requests.find((request) => request.id === id);
+        if (selectedRequest?.requestKind === 'offer' && selectedRequest.dispatchStatus === 'broker_matched') {
+            document.getElementById(MATCHED_WORKSPACES_ID)?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            });
+            return;
+        }
+
+        navigate('/manager/leads');
     };
 
     const togglePropertySelection = (requestId: string, propertyId: string) => {
@@ -400,7 +445,7 @@ const BrokerResponseWidget: React.FC = () => {
                             key={request.id}
                             request={request}
                             onRespond={handleRespond}
-                            onSecondaryAction={() => navigate('/manager/leads')}
+                            onSecondaryAction={handleSecondaryAction}
                         />
                     ))
                 ) : (
@@ -409,13 +454,16 @@ const BrokerResponseWidget: React.FC = () => {
             </div>
 
             {matchedRequests.length > 0 && (
-                <div className="mt-8 rounded-3xl border border-gray-100 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/30">
+                <div
+                    id={MATCHED_WORKSPACES_ID}
+                    className="mt-8 rounded-3xl border border-gray-100 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/30"
+                >
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Matched client workspaces</p>
                             <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Share your ranked property shortlist</h4>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                These are the live broker requests you already accepted. Share only your own published properties so the user can select one and trigger the 24-hour fast-track.
+                                These are the live broker requests you already accepted. Only your published, active, or online properties appear here. Newly created listings stay in admin approval until an admin publishes them.
                             </p>
                         </div>
                         <button
@@ -452,6 +500,11 @@ const BrokerResponseWidget: React.FC = () => {
                                             <h5 className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
                                                 {request.requester_name || request.requester_email || 'Matched client'}
                                             </h5>
+                                            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                                                <span>Workspace {formatWorkspaceReference(request.id)}</span>
+                                                <span className="text-gray-300 dark:text-gray-600">|</span>
+                                                <span>Started {formatWorkspaceStartedAt(request.created_at || request.updated_at)}</span>
+                                            </div>
                                             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                                 {request.location || 'Location shared in request'}
                                                 {request.location_postcode ? ` - ${request.location_postcode}` : ''}
@@ -518,77 +571,85 @@ const BrokerResponseWidget: React.FC = () => {
 
                                     {!selectedProperty && (
                                         <>
-                                            <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                                                {managerProperties.map((property) => {
-                                                    const isSelected = selectedIds.includes(property.id);
+                                            {managerProperties.length > 0 ? (
+                                                <>
+                                                    <div className="mt-5 grid gap-3 lg:grid-cols-2">
+                                                        {managerProperties.map((property) => {
+                                                            const isSelected = selectedIds.includes(property.id);
 
-                                                    return (
-                                                        <button
-                                                            key={`${request.id}-${property.id}`}
-                                                            type="button"
-                                                            onClick={() => togglePropertySelection(request.id, property.id)}
-                                                            className={`overflow-hidden rounded-2xl border text-left transition ${
-                                                                isSelected
-                                                                    ? 'border-orange-300 bg-orange-50 shadow-sm dark:border-orange-800 dark:bg-orange-950/20'
-                                                                    : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/70 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:border-orange-900/40'
-                                                            }`}
-                                                        >
-                                                            <div className="grid gap-4 md:grid-cols-[112px_minmax(0,1fr)]">
-                                                                <img
-                                                                    src={parsePropertyImage(property.image_urls)}
-                                                                    alt={property.title}
-                                                                    className="h-full min-h-[112px] w-full object-cover"
-                                                                    onError={(event) => {
-                                                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                                                    }}
-                                                                />
-                                                                <div className="p-4">
-                                                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                                                        <div>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
-                                                                                    isSelected
-                                                                                        ? 'bg-orange-500 text-white'
-                                                                                        : 'border border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-black dark:text-gray-300'
-                                                                                }`}>
-                                                                                    {isSelected ? selectedIds.indexOf(property.id) + 1 : '+'}
-                                                                                </span>
-                                                                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.title}</p>
+                                                            return (
+                                                                <button
+                                                                    key={`${request.id}-${property.id}`}
+                                                                    type="button"
+                                                                    onClick={() => togglePropertySelection(request.id, property.id)}
+                                                                    className={`overflow-hidden rounded-2xl border text-left transition ${
+                                                                        isSelected
+                                                                            ? 'border-orange-300 bg-orange-50 shadow-sm dark:border-orange-800 dark:bg-orange-950/20'
+                                                                            : 'border-gray-100 bg-gray-50 hover:border-orange-200 hover:bg-orange-50/70 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:border-orange-900/40'
+                                                                    }`}
+                                                                >
+                                                                    <div className="grid gap-4 md:grid-cols-[112px_minmax(0,1fr)]">
+                                                                        <img
+                                                                            src={parsePropertyImage(property.image_urls)}
+                                                                            alt={property.title}
+                                                                            className="h-full min-h-[112px] w-full object-cover"
+                                                                            onError={(event) => {
+                                                                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                                            }}
+                                                                        />
+                                                                        <div className="p-4">
+                                                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                                <div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                                                                                            isSelected
+                                                                                                ? 'bg-orange-500 text-white'
+                                                                                                : 'border border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-black dark:text-gray-300'
+                                                                                        }`}>
+                                                                                            {isSelected ? selectedIds.indexOf(property.id) + 1 : '+'}
+                                                                                        </span>
+                                                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.title}</p>
+                                                                                    </div>
+                                                                                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                                                                        {[property.city, property.postcode].filter(Boolean).join(', ') || 'Location unavailable'}
+                                                                                    </p>
+                                                                                </div>
+                                                                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                                                    {formatPropertyPrice(property.price)}
+                                                                                </p>
                                                                             </div>
-                                                                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                                                                {[property.city, property.postcode].filter(Boolean).join(', ') || 'Location unavailable'}
-                                                                            </p>
+                                                                            <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                                                                <span>{property.listing_type || 'property'}</span>
+                                                                                <span>{isSelected ? 'Included in shortlist' : 'Click to shortlist'}</span>
+                                                                            </div>
                                                                         </div>
-                                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                                                            {formatPropertyPrice(property.price)}
-                                                                        </p>
                                                                     </div>
-                                                                    <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                                                        <span>{property.listing_type || 'property'}</span>
-                                                                        <span>{isSelected ? 'Included in shortlist' : 'Click to shortlist'}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
 
-                                            <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
-                                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {selectedIds.length > 0
-                                                        ? `${selectedIds.length} propert${selectedIds.length === 1 ? 'y is' : 'ies are'} ready to share in ranked order.`
-                                                        : 'Choose the strongest matching properties from your live inventory.'}
+                                                    <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
+                                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                            {selectedIds.length > 0
+                                                                ? `${selectedIds.length} propert${selectedIds.length === 1 ? 'y is' : 'ies are'} ready to share in ranked order.`
+                                                                : 'Choose the strongest matching properties from your live inventory.'}
+                                                        </div>
+                                                        <button
+                                                            onClick={() => void savePropertyShares(request.id)}
+                                                            disabled={isSaving || selectedIds.length === 0}
+                                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                                            {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="mt-5 rounded-2xl border border-dashed border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                                                    No published portfolio is ready to share yet. Newly created properties stay in Admin Approval Pending until an admin publishes them.
                                                 </div>
-                                                <button
-                                                    onClick={() => void savePropertyShares(request.id)}
-                                                    disabled={isSaving || selectedIds.length === 0}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                                                    {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}
-                                                </button>
-                                            </div>
+                                            )}
                                         </>
                                     )}
                                 </div>

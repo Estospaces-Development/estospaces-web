@@ -124,7 +124,8 @@ test('resolveFastTrackLinkedJourney links rent workflow records through fast-tra
     assert.equal(linked.contract?.id, 'contract-1');
     assert.equal(linked.payments.length, 1);
     assert.equal(linked.invoices.length, 1);
-    assert.match(linked.primaryHeadline, /Tenancy contract/i);
+    assert.match(linked.primaryHeadline, /Deposit and first-rent tasks/i);
+    assert.match(linked.nextStep, /billing workspace/i);
 });
 
 test('resolveFastTrackLinkedJourney prefers the sale progression for buy journeys', () => {
@@ -160,9 +161,31 @@ test('resolveFastTrackLinkedJourney prefers the sale progression for buy journey
 
     assert.equal(linked.saleProgression?.id, 'sale-1');
     assert.equal(linked.contract, null);
-    assert.match(linked.primaryHeadline, /Sale progression/i);
+    assert.match(linked.primaryHeadline, /Memorandum issued/i);
     assert.match(linked.primarySummary, /memorandum/i);
     assert.equal(resolveFastTrackPrimaryLaneLabel(buyCase.journeyType, linked), 'Memorandum Issued');
+});
+
+test('resolveFastTrackLinkedJourney keeps buy cases in the viewing lane until a viewing exists', () => {
+    const linked = resolveFastTrackLinkedJourney(buyCase, {
+        applications: [
+            {
+                id: 'app-buy-pending',
+                property_id: 'property-2',
+                user_id: 'user-1',
+                manager_id: 'manager-1',
+                fast_track_case_id: 'case-buy-1',
+                status: 'submitted',
+                move_in_date: '2026-05-01',
+                created_at: '2026-03-25T09:00:00Z',
+                updated_at: '2026-03-25T09:30:00Z',
+            },
+        ],
+    });
+
+    assert.match(linked.primaryHeadline, /Viewing not scheduled/i);
+    assert.match(linked.primarySummary, /viewing still needs to be booked/i);
+    assert.match(linked.nextStep, /viewings workspace/i);
 });
 
 test('resolveFastTrackLinkedJourney falls back to property and user matching when direct ids are missing', () => {
@@ -192,5 +215,5 @@ test('resolveFastTrackLinkedJourney falls back to property and user matching whe
     });
 
     assert.equal(linked.application?.id, 'app-current');
-    assert.match(linked.primaryHeadline, /Application/i);
+    assert.match(linked.primaryHeadline, /Referencing|Application/i);
 });

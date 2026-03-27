@@ -5,20 +5,25 @@ import { useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
     ArrowLeft,
+    CalendarClock,
     CheckCircle2,
     Clock,
     FileText,
     Home,
+    Loader2,
     MessageSquare,
     Shield,
     TimerReset,
     User,
+    XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { FastTrackCase, FastTrackStep } from '@/services/fastTrackService';
-import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import { bookingsService } from '@/services/bookingsService';
+import Modal from '@/components/ui/Modal';
+import { isEnglandJurisdiction, isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 import {
     FastTrackLinkedJourney,
     formatWorkflowStatusLabel,
@@ -33,12 +38,14 @@ interface FastTrackCaseDetailProps {
     caseData: FastTrackCase;
     onClose: () => void;
     onUpdate: (updatedCase: FastTrackCase) => void;
+    onRefresh?: () => void;
     verificationSummary?: string;
     verificationReasonLines?: string[];
     leadStatusLabel?: string;
     linkedJourney?: FastTrackLinkedJourney;
     onOpenVerificationReview?: () => void;
     onRequestDocuments?: () => void;
+    canRequestDocuments?: boolean;
     isRequestingDocuments?: boolean;
     isDocumentsVerifiedOverride?: boolean;
 }
@@ -115,16 +122,38 @@ const formatViewingSlot = (value?: string | null) => {
     });
 };
 
+const toDateInputValue = (value?: string | null) => {
+    const parsed = new Date(value || '');
+    if (Number.isNaN(parsed.getTime())) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow.toISOString().slice(0, 10);
+    }
+
+    return parsed.toISOString().slice(0, 10);
+};
+
+const toTimeInputValue = (value?: string | null) => {
+    const parsed = new Date(value || '');
+    if (Number.isNaN(parsed.getTime())) {
+        return '10:00';
+    }
+
+    return parsed.toISOString().slice(11, 16);
+};
+
 const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     caseData,
     onClose,
     onUpdate,
+    onRefresh,
     verificationSummary,
     verificationReasonLines = [],
     leadStatusLabel,
     linkedJourney,
     onOpenVerificationReview,
     onRequestDocuments,
+    canRequestDocuments = false,
     isRequestingDocuments = false,
     isDocumentsVerifiedOverride,
 }) => {
@@ -133,7 +162,27 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const { user } = useAuth();
     const [isOpeningConversation, setIsOpeningConversation] = useState(false);
     const [overrideReasonDraft, setOverrideReasonDraft] = useState(caseData.overrideReason || '');
+    const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+    const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+    const [actingViewingAction, setActingViewingAction] = useState<string | null>(null);
+    const [scheduleForm, setScheduleForm] = useState({
+        requested_date: toDateInputValue(),
+        requested_time: '10:00',
+        user_notes: '',
+    });
+    const [rescheduleForm, setRescheduleForm] = useState({
+        requested_date: toDateInputValue(linkedJourney?.viewing?.scheduled_at),
+        requested_time: toTimeInputValue(linkedJourney?.viewing?.scheduled_at),
+        manager_notes: linkedJourney?.viewing?.manager_notes || '',
+    });
     const applicationsWorkspacePath = buildWorkspacePath('/manager/applications', {
+        applicationId: linkedJourney?.application?.id,
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+    });
+    const appointmentsWorkspacePath = buildWorkspacePath('/manager/appointments', {
+        viewingId: linkedJourney?.viewing?.id,
         applicationId: linkedJourney?.application?.id,
         caseId: caseData.caseId,
         leadId: caseData.leadId,
@@ -146,12 +195,33 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
     });
+    const billingWorkspacePath = buildWorkspacePath('/manager/billing', {
+        applicationId: linkedJourney?.application?.id,
+        contractId: linkedJourney?.contract?.id,
+        paymentId: linkedJourney?.payments[0]?.id,
+        invoiceId: linkedJourney?.invoices[0]?.id,
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+    });
 
     useEffect(() => {
         setOverrideReasonDraft(caseData.overrideReason || '');
     }, [caseData.caseId, caseData.overrideReason]);
 
-    const stepMeta = stepCopy[caseData.currentStep];
+    useEffect(() => {
+        setScheduleForm({
+            requested_date: toDateInputValue(),
+            requested_time: '10:00',
+            user_notes: linkedJourney?.viewing?.user_notes || '',
+        });
+        setRescheduleForm({
+            requested_date: toDateInputValue(linkedJourney?.viewing?.scheduled_at),
+            requested_time: toTimeInputValue(linkedJourney?.viewing?.scheduled_at),
+            manager_notes: linkedJourney?.viewing?.manager_notes || '',
+        });
+    }, [caseData.caseId, linkedJourney?.viewing?.id, linkedJourney?.viewing?.manager_notes, linkedJourney?.viewing?.scheduled_at, linkedJourney?.viewing?.user_notes]);
+
     const statusMeta = statusCopy[caseData.finalStatus];
     const verifiedCount = useMemo(
         () => Object.values(caseData.documents).filter((status) => status === 'verified').length,
@@ -180,6 +250,65 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const isDocumentsVerified = typeof isDocumentsVerifiedOverride === 'boolean'
         ? isDocumentsVerifiedOverride
         : Object.values(caseData.documents).every((status) => status === 'verified');
+    const englandRentJourney = caseData.journeyType !== 'buy' && isEnglandJurisdiction(caseData.jurisdiction || caseData.propertyCountry);
+    const pendingRentFinanceTasks = caseData.journeyType === 'buy'
+        ? []
+        : [
+            ...(linkedJourney?.payments || []).filter((item) => {
+                const type = String(item.payment_type || '').toLowerCase();
+                const status = String(item.status || '').toLowerCase();
+                return (type.includes('deposit') || type.includes('rent')) && ['pending', 'failed'].includes(status);
+            }),
+            ...(linkedJourney?.invoices || []).filter((item) => {
+                const type = String(item.payment_type || '').toLowerCase();
+                const status = String(item.status || '').toLowerCase();
+                return (type.includes('deposit') || type.includes('rent')) && ['draft', 'open', 'uncollectible'].includes(status);
+            }),
+        ];
+    const stepMeta = (() => {
+        const base = stepCopy[caseData.currentStep];
+
+        if (caseData.journeyType === 'buy') {
+            if (caseData.currentStep === 'application_in_review') {
+                return {
+                    label: 'Proof of funds and offer',
+                    description: 'The purchase flow should now move through proof of funds, MIP review, and the live offer stage.',
+                };
+            }
+            if (caseData.currentStep === 'ready_for_contract') {
+                return {
+                    label: 'Legal completion',
+                    description: 'The purchase flow is now in memorandum, conveyancing, exchange, or completion handoff.',
+                };
+            }
+            return base;
+        }
+
+        if (caseData.currentStep === 'application_in_review') {
+            return {
+                label: englandRentJourney ? 'Referencing and Right to Rent' : 'Referencing and compliance',
+                description: englandRentJourney
+                    ? 'The rent journey is in post-viewing referencing and England Right to Rent review.'
+                    : 'The rent journey is in post-viewing referencing and jurisdiction-specific compliance review.',
+            };
+        }
+
+        if (caseData.currentStep === 'ready_for_contract') {
+            if (pendingRentFinanceTasks.length > 0) {
+                return {
+                    label: 'Deposit and first-rent tasks',
+                    description: 'The tenancy agreement is in place, and the remaining live blockers are deposit protection and first-rent tasks.',
+                };
+            }
+
+            return {
+                label: 'Tenancy agreement and signatures',
+                description: 'The rent journey is approved and is now moving through tenancy paperwork and signatures.',
+            };
+        }
+
+        return base;
+    })();
     const displayStatusTone = isOverdue
         ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:border-orange-800'
         : statusMeta.tone;
@@ -238,6 +367,27 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             },
         ];
     }, [caseData.journeyType, linkedJourney]);
+    const viewingStatus = String(linkedJourney?.viewing?.status || '').toLowerCase();
+    const viewingLocked = Boolean(linkedJourney?.viewing?.workflow_locked);
+    const canScheduleViewing = !isClosed && isDocumentsVerified && !linkedJourney?.viewing;
+    const canConfirmViewing = !viewingLocked && ['pending', 'rescheduled'].includes(viewingStatus);
+    const canRescheduleViewing = !viewingLocked && ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus);
+    const canCompleteViewing = !viewingLocked && viewingStatus === 'confirmed';
+    const canCancelViewing = !viewingLocked && ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus);
+    const rentJourney = caseData.journeyType !== 'buy';
+
+    const runViewingAction = async (actionKey: string, action: () => Promise<void>, successMessage: string) => {
+        setActingViewingAction(actionKey);
+        try {
+            await action();
+            toast.success(successMessage);
+            await onRefresh?.();
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to update this viewing right now.');
+        } finally {
+            setActingViewingAction(null);
+        }
+    };
 
     const advanceStep = () => {
         if (isClosed) {
@@ -257,6 +407,97 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             finalStatus: caseData.finalStatus,
             overrideReason: overrideReasonDraft.trim() || caseData.overrideReason,
         });
+    };
+
+    const handleScheduleViewing = async () => {
+        const managerId = caseData.managerId || user?.id;
+        if (!managerId) {
+            toast.error('This case does not have a manager assigned for scheduling yet.');
+            return;
+        }
+        if (!scheduleForm.requested_date || !scheduleForm.requested_time) {
+            toast.error('Choose a viewing date and time first.');
+            return;
+        }
+
+        await runViewingAction(
+            'schedule',
+            async () => {
+                await bookingsService.createViewing({
+                    property_id: caseData.propertyId,
+                    manager_id: managerId,
+                    lead_id: caseData.leadId,
+                    fast_track_case_id: caseData.id,
+                    client_name: caseData.clientName,
+                    property_title: caseData.propertyTitle,
+                    listing_type: caseData.listingType || caseData.propertyType,
+                    requested_date: scheduleForm.requested_date,
+                    requested_time: scheduleForm.requested_time,
+                    user_notes: scheduleForm.user_notes,
+                });
+                setScheduleModalOpen(false);
+            },
+            'Viewing scheduled successfully.',
+        );
+    };
+
+    const handleConfirmViewing = async () => {
+        if (!linkedJourney?.viewing?.id) {
+            return;
+        }
+
+        await runViewingAction(
+            'confirm',
+            () => bookingsService.confirmViewing(linkedJourney.viewing!.id),
+            'Viewing confirmed successfully.',
+        );
+    };
+
+    const handleRescheduleViewing = async () => {
+        if (!linkedJourney?.viewing?.id) {
+            return;
+        }
+        if (!rescheduleForm.requested_date || !rescheduleForm.requested_time) {
+            toast.error('Choose the new date and time first.');
+            return;
+        }
+
+        await runViewingAction(
+            'reschedule',
+            async () => {
+                await bookingsService.updateViewing(linkedJourney.viewing!.id, {
+                    requested_date: rescheduleForm.requested_date,
+                    requested_time: rescheduleForm.requested_time,
+                    manager_notes: rescheduleForm.manager_notes,
+                });
+                setRescheduleModalOpen(false);
+            },
+            'Viewing rescheduled successfully.',
+        );
+    };
+
+    const handleCompleteViewing = async () => {
+        if (!linkedJourney?.viewing?.id) {
+            return;
+        }
+
+        await runViewingAction(
+            'complete',
+            () => bookingsService.updateViewing(linkedJourney.viewing!.id, { status: 'completed' }).then(() => undefined),
+            'Viewing marked as completed.',
+        );
+    };
+
+    const handleCancelViewing = async () => {
+        if (!linkedJourney?.viewing?.id) {
+            return;
+        }
+
+        await runViewingAction(
+            'cancel',
+            () => bookingsService.cancelViewing(linkedJourney.viewing!.id, 'Cancelled by manager'),
+            'Viewing cancelled successfully.',
+        );
     };
 
     const handleOpenConversation = async () => {
@@ -351,7 +592,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 The manager and admin views now follow the real backend stages only.
                             </p>
 
-                            <FastTrackProgress currentStep={caseData.currentStep} />
+                            <FastTrackProgress currentStep={caseData.currentStep} journeyType={caseData.journeyType} />
 
                             <div className="mt-5 grid gap-4 md:grid-cols-3">
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
@@ -446,7 +687,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                             </p>
                                         </div>
                                     )}
-                                    {onRequestDocuments ? (
+                                    {onRequestDocuments && canRequestDocuments ? (
                                         <button
                                             type="button"
                                             onClick={onRequestDocuments}
@@ -458,7 +699,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                                 {isRequestingDocuments ? 'Sending document request...' : 'Request documents from this case'}
                                             </p>
                                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                Trigger the user upload request directly from the fast-track detail, even if the lead has already moved past the first response stage.
+                                                Trigger the user upload request while the case is still in the live response stage.
                                             </p>
                                         </button>
                                     ) : null}
@@ -532,7 +773,15 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
                                 >
                                     <FileText size={18} />
-                                    Open applications workspace
+                                    {rentJourney ? 'Open applications workspace' : 'Open offer workspace'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(appointmentsWorkspacePath)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                >
+                                    <CalendarClock size={18} />
+                                    Open appointments workspace
                                 </button>
                                 {caseData.journeyType !== 'buy' ? (
                                     <button
@@ -544,6 +793,14 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                         Open contracts workspace
                                     </button>
                                 ) : null}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(billingWorkspacePath)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                >
+                                    <Shield size={18} />
+                                    Open billing workspace
+                                </button>
                             </div>
                         </section>
 
@@ -555,6 +812,75 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Move the case only when the checklist and decision state match the real record.
                             </p>
+                            <div className="mt-4 grid gap-3">
+                                {canScheduleViewing ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setScheduleModalOpen(true)}
+                                        disabled={actingViewingAction !== null}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {actingViewingAction === 'schedule' ? <Loader2 size={18} className="animate-spin" /> : <CalendarClock size={18} />}
+                                        Schedule viewing
+                                    </button>
+                                ) : null}
+                                {linkedJourney?.viewing ? (
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(appointmentsWorkspacePath)}
+                                            className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                                        >
+                                            <CalendarClock size={18} />
+                                            Open appointment
+                                        </button>
+                                        {canConfirmViewing ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleConfirmViewing()}
+                                                disabled={actingViewingAction !== null}
+                                                className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {actingViewingAction === 'confirm' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                                Confirm viewing
+                                            </button>
+                                        ) : null}
+                                        {canRescheduleViewing ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setRescheduleModalOpen(true)}
+                                                disabled={actingViewingAction !== null}
+                                                className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                                            >
+                                                <CalendarClock size={18} />
+                                                Reschedule
+                                            </button>
+                                        ) : null}
+                                        {canCompleteViewing ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleCompleteViewing()}
+                                                disabled={actingViewingAction !== null}
+                                                className="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-200 px-4 py-3 font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-950/20"
+                                            >
+                                                {actingViewingAction === 'complete' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                                Mark completed
+                                            </button>
+                                        ) : null}
+                                        {canCancelViewing ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => void handleCancelViewing()}
+                                                disabled={actingViewingAction !== null}
+                                                className="w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-3 font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
+                                            >
+                                                {actingViewingAction === 'cancel' ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+                                                Cancel viewing
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+                            </div>
                             <div className="mt-4">
                                 <FastTrackActions
                                     currentStep={caseData.currentStep}
@@ -573,6 +899,144 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                     </div>
                 </div>
             </div>
+            <Modal
+                isOpen={scheduleModalOpen}
+                onClose={() => {
+                    if (!actingViewingAction) {
+                        setScheduleModalOpen(false);
+                    }
+                }}
+                title="Schedule viewing"
+                size="md"
+                closeOnBackdrop={!actingViewingAction}
+                footer={(
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setScheduleModalOpen(false)}
+                            disabled={actingViewingAction !== null}
+                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                        >
+                            Close
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void handleScheduleViewing()}
+                            disabled={actingViewingAction !== null}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {actingViewingAction === 'schedule' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Create appointment
+                        </button>
+                    </div>
+                )}
+            >
+                <div className="space-y-4">
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{caseData.propertyTitle}</p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{caseData.clientName}</p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
+                            <input
+                                type="date"
+                                value={scheduleForm.requested_date}
+                                onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            />
+                        </label>
+                        <label className="space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
+                            <input
+                                type="time"
+                                value={scheduleForm.requested_time}
+                                onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            />
+                        </label>
+                    </div>
+                    <label className="block space-y-2 text-sm">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Notes for the client</span>
+                        <textarea
+                            rows={4}
+                            value={scheduleForm.user_notes}
+                            onChange={(event) => setScheduleForm((previous) => ({ ...previous, user_notes: event.target.value }))}
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            placeholder="Share arrival details, documents to bring, or access instructions."
+                        />
+                    </label>
+                </div>
+            </Modal>
+            <Modal
+                isOpen={rescheduleModalOpen}
+                onClose={() => {
+                    if (!actingViewingAction) {
+                        setRescheduleModalOpen(false);
+                    }
+                }}
+                title="Reschedule viewing"
+                size="md"
+                closeOnBackdrop={!actingViewingAction}
+                footer={(
+                    <div className="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setRescheduleModalOpen(false)}
+                            disabled={actingViewingAction !== null}
+                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                        >
+                            Close
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void handleRescheduleViewing()}
+                            disabled={actingViewingAction !== null}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {actingViewingAction === 'reschedule' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Save reschedule
+                        </button>
+                    </div>
+                )}
+            >
+                <div className="space-y-4">
+                    <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{caseData.propertyTitle}</p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{caseData.clientName}</p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
+                            <input
+                                type="date"
+                                value={rescheduleForm.requested_date}
+                                onChange={(event) => setRescheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            />
+                        </label>
+                        <label className="space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
+                            <input
+                                type="time"
+                                value={rescheduleForm.requested_time}
+                                onChange={(event) => setRescheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            />
+                        </label>
+                    </div>
+                    <label className="block space-y-2 text-sm">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Manager notes</span>
+                        <textarea
+                            rows={4}
+                            value={rescheduleForm.manager_notes}
+                            onChange={(event) => setRescheduleForm((previous) => ({ ...previous, manager_notes: event.target.value }))}
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            placeholder="Explain the new slot or what the client should bring."
+                        />
+                    </label>
+                </div>
+            </Modal>
         </div>
     );
 };
