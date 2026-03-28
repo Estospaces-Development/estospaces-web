@@ -2,9 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
+import { getDocumentAccessUrl, openDocumentAccessUrl } from '@/services/documentAccessService';
+
+const isPreviewableImageDocument = (mimeType?: string, documentUrl?: string) => {
+    return Boolean(
+        mimeType?.startsWith('image/')
+        || documentUrl?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i),
+    );
+};
 
 export default function VerificationPage() {
     const { user } = useAuth();
@@ -29,6 +37,7 @@ export default function VerificationPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedRoleForProfile, setSelectedRoleForProfile] = useState<ManagerProfileType>('broker');
     const [actionError, setActionError] = useState<string | null>(null);
+    const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
     const needsReverification = verificationStatus === 'rejected' || verificationStatus === 'verification_required';
     const canRequestReview = verificationStatus === 'incomplete'
         || verificationStatus === 'rejected'
@@ -155,6 +164,52 @@ export default function VerificationPage() {
             }
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    useEffect(() => {
+        const imageDocuments = documents.filter((document) => isPreviewableImageDocument(document.mime_type, document.document_url));
+        if (imageDocuments.length === 0) {
+            setPreviewUrls({});
+            return;
+        }
+
+        let isCancelled = false;
+
+        const loadPreviewUrls = async () => {
+            const entries = await Promise.all(
+                imageDocuments.map(async (document) => {
+                    const { url } = await getDocumentAccessUrl(document.id);
+                    return url ? [document.id, url] as const : null;
+                }),
+            );
+
+            if (isCancelled) {
+                return;
+            }
+
+            const nextPreviewUrls: Record<string, string> = {};
+            for (const entry of entries) {
+                if (!entry) {
+                    continue;
+                }
+                nextPreviewUrls[entry[0]] = entry[1];
+            }
+            setPreviewUrls(nextPreviewUrls);
+        };
+
+        void loadPreviewUrls();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [documents]);
+
+    const handleOpenDocument = async (documentId: string) => {
+        setActionError(null);
+        const { error } = await openDocumentAccessUrl(documentId);
+        if (error) {
+            setActionError(error);
         }
     };
 
@@ -336,8 +391,8 @@ export default function VerificationPage() {
                         const doc = getDocumentByType(step.id);
                         const hasDocument = !!doc;
                         const isRejected = step.status === 'rejected' || step.status === 'reupload_required';
-                        const isImage = doc?.mime_type?.startsWith('image/') || 
-                                       doc?.document_url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
+                        const isImage = isPreviewableImageDocument(doc?.mime_type, doc?.document_url);
+                        const previewUrl = doc ? previewUrls[doc.id] : undefined;
 
                         return (
                         <div
@@ -372,10 +427,10 @@ export default function VerificationPage() {
 
                             {/* Document Preview / Icon */}
                             <div className="relative mb-6">
-                                {hasDocument && isImage ? (
+                                {hasDocument && isImage && previewUrl ? (
                                     <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-white dark:border-gray-800 shadow-md group-hover:scale-110 transition-transform duration-300">
                                         <img 
-                                            src={doc.document_url} 
+                                            src={previewUrl}
                                             alt={step.title} 
                                             className="w-full h-full object-cover"
                                             onError={(e) => {
@@ -439,17 +494,20 @@ export default function VerificationPage() {
                                     </button>
                                 )}
 
-                                {hasDocument && doc.document_url && (
-                                    <a
-                                        href={`${doc.document_url}${doc.document_url.includes('?') ? '&' : '?'}t=${new Date(doc.updated_at).getTime()}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                {hasDocument && (
+                                    <button
+                                        type="button"
                                         className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm"
-                                        onClick={(e) => e.stopPropagation()}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (doc) {
+                                                void handleOpenDocument(doc.id);
+                                            }
+                                        }}
                                     >
                                         <Eye className="w-3.5 h-3.5" />
                                         View Current
-                                    </a>
+                                    </button>
                                 )}
                             </div>
 
