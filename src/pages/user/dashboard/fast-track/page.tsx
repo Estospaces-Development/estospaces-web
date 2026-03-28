@@ -493,6 +493,7 @@ export default function UserFastTrackPage() {
                     journeyType: selectedCase.journeyType,
                     jurisdiction: selectedCase.jurisdiction || selectedCase.propertyCountry,
                     linkedJourney: selectedLinkedJourney,
+                    liveStage: selectedCase.liveStage,
                 },
             )
             : null,
@@ -541,7 +542,7 @@ export default function UserFastTrackPage() {
                     : 'Identity and address checks are complete. The next live step is the viewing appointment, then referencing and compliance review.';
         }
 
-        return selectedLinkedJourney?.primarySummary || selectedCase.statusReason || statusMeta[selectedCase.finalStatus].note;
+        return selectedCase.journeyStatusReason || selectedLinkedJourney?.primarySummary || selectedCase.statusReason || statusMeta[selectedCase.finalStatus].note;
     }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedLinkedJourney?.primarySummary]);
     const selectedCaseNextAction = useMemo(() => {
         if (!selectedCase) {
@@ -559,7 +560,11 @@ export default function UserFastTrackPage() {
                     : 'Watch for the viewing schedule, then complete referencing and compliance review.';
         }
 
-        return selectedLinkedJourney?.nextStep || selectedCase.nextAction || 'Open the live workspace';
+        return selectedCase.nextActions?.[0]?.description
+            || selectedCase.nextActions?.[0]?.label
+            || selectedLinkedJourney?.nextStep
+            || selectedCase.nextAction
+            || 'Open the live workspace';
     }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedLinkedJourney?.nextStep]);
     const linkedApplicationLabel = selectedCase && selectedLinkedJourney
         ? resolveFastTrackPrimaryLaneLabel(selectedCase.journeyType, selectedLinkedJourney)
@@ -597,6 +602,12 @@ export default function UserFastTrackPage() {
             : selectedCase?.journeyType === 'buy'
                 ? 'Purchase payments only appear once the sale progression reaches the relevant legal or completion stage.'
                 : 'Deposit protection and first-rent records will appear here once the tenancy agreement reaches billing handoff.';
+    const selectedJourneyBlockers = selectedLinkedJourney?.blockers?.length
+        ? selectedLinkedJourney.blockers
+        : (selectedCase?.blockers || []);
+    const selectedJourneyDeadlines = selectedLinkedJourney?.deadlines?.length
+        ? selectedLinkedJourney.deadlines
+        : (selectedCase?.deadlines || []);
     const linkedApplicationsPath = useMemo(
         () => buildWorkspacePath('/user/applications', {
             applicationId: selectedLinkedJourney?.application?.id,
@@ -1045,6 +1056,42 @@ export default function UserFastTrackPage() {
                                                 {selectedLinkedJourney.nextStep}
                                             </div>
                                         </div>
+
+                                        {(selectedJourneyBlockers.length > 0 || selectedJourneyDeadlines.length > 0) ? (
+                                            <div className="mt-5 grid gap-4 md:grid-cols-2">
+                                                {selectedJourneyBlockers.length > 0 ? (
+                                                    <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/30 dark:bg-orange-950/20">
+                                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300">Current blockers</p>
+                                                        <div className="mt-3 space-y-2">
+                                                            {selectedJourneyBlockers.slice(0, 3).map((item) => (
+                                                                <div key={item.code} className="rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm text-orange-700 dark:border-orange-900/30 dark:bg-gray-900 dark:text-orange-200">
+                                                                    <p className="font-semibold">{item.title}</p>
+                                                                    {item.description ? (
+                                                                        <p className="mt-1 text-xs text-orange-600 dark:text-orange-300">{item.description}</p>
+                                                                    ) : null}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                                {selectedJourneyDeadlines.length > 0 ? (
+                                                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
+                                                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-600 dark:text-blue-300">Deadlines</p>
+                                                        <div className="mt-3 space-y-2">
+                                                            {selectedJourneyDeadlines.slice(0, 3).map((item) => (
+                                                                <div key={item.code} className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-blue-700 dark:border-blue-900/30 dark:bg-gray-900 dark:text-blue-200">
+                                                                    <p className="font-semibold">{item.label}</p>
+                                                                    <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">
+                                                                        {item.due_at ? new Date(item.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Date pending'}
+                                                                        {item.status ? ` · ${item.status.replace(/_/g, ' ')}` : ''}
+                                                                    </p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
 
                                         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                             <div className="rounded-2xl border border-gray-100 bg-white p-4 dark:border-gray-700 dark:bg-gray-800/80">

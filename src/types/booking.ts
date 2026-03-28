@@ -1,6 +1,7 @@
 /**
  * Booking & Contract Shared Types
  */
+import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyState, JourneyStateFields } from '@/types/journey';
 
 export type ContractStatus = 
     | 'draft'
@@ -14,7 +15,7 @@ export type ContractStatus =
     | 'pending_user'
     | 'pending_manager';
 
-export interface Contract {
+export interface Contract extends JourneyStateFields {
     id: string;
     booking_id?: string;
     application_id?: string;
@@ -41,6 +42,15 @@ export interface Contract {
     expires_at?: string;
     created_at: string;
     updated_at: string;
+    journeyState?: JourneyState | null;
+    jurisdictionProfile?: string;
+    liveStage?: string;
+    stageGroup?: string;
+    journeyStatusReason?: string;
+    blockers?: JourneyBlocker[];
+    deadlines?: JourneyDeadline[];
+    requiredEvidence?: JourneyRequirement[];
+    nextActions?: JourneyAction[];
     // UI-mapped fields
     name?: string;
     property?: string;

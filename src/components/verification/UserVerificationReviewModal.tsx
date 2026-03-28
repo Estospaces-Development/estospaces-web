@@ -25,6 +25,8 @@ import {
     reviewUserDocument,
     updateUserVerification,
 } from '@/services/userVerificationService';
+import { openDocumentAccessUrl } from '@/services/documentAccessService';
+import { useToast } from '@/contexts/ToastContext';
 import {
     canCompleteFastTrackVerification,
     getLatestFastTrackReviewDocuments,
@@ -52,8 +54,10 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
+    const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
     const [verificationActionLoading, setVerificationActionLoading] = useState(false);
     const [notes, setNotes] = useState('');
+    const toast = useToast();
 
     const fetchDetails = useCallback(async () => {
         setLoading(true);
@@ -113,6 +117,15 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         await onUpdated?.();
         onClose();
     };
+
+    const handleOpenDocument = useCallback(async (documentId: string) => {
+        setOpeningDocumentId(documentId);
+        const { error: accessError } = await openDocumentAccessUrl(documentId);
+        if (accessError) {
+            toast.error(accessError);
+        }
+        setOpeningDocumentId((current) => current === documentId ? null : current);
+    }, [toast]);
 
     if (loading) {
         return (
@@ -204,13 +217,15 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                             reviewDocuments.map((document) => (
                                 <DocumentReviewCard
                                     key={document.id}
-                                    document={document}
-                                    onApprove={() => handleDocumentReview(document.id, 'approved')}
-                                    onRequestChanges={(reason) => handleDocumentReview(document.id, 'reupload_required', reason)}
-                                    loading={activeDocumentId === document.id}
-                                    disabled={Boolean(activeDocumentId) || verificationActionLoading}
-                                />
-                            ))
+                                document={document}
+                                onApprove={() => handleDocumentReview(document.id, 'approved')}
+                                onRequestChanges={(reason) => handleDocumentReview(document.id, 'reupload_required', reason)}
+                                loading={activeDocumentId === document.id}
+                                onView={() => handleOpenDocument(document.id)}
+                                viewLoading={openingDocumentId === document.id}
+                                disabled={Boolean(activeDocumentId) || verificationActionLoading}
+                            />
+                        ))
                         )}
                     </div>
                 </div>
@@ -266,9 +281,11 @@ const DocumentReviewCard: React.FC<{
     document: UserDocument;
     onApprove: () => void;
     onRequestChanges: (reason: string) => void;
+    onView: () => void;
     loading: boolean;
+    viewLoading?: boolean;
     disabled?: boolean;
-}> = ({ document, onApprove, onRequestChanges, loading, disabled = false }) => {
+}> = ({ document, onApprove, onRequestChanges, onView, loading, viewLoading = false, disabled = false }) => {
     const [showRejectForm, setShowRejectForm] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
 
@@ -366,14 +383,14 @@ const DocumentReviewCard: React.FC<{
                                 </button>
                             </>
                         )}
-                        <a
-                            href={document.file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            onClick={onView}
+                            disabled={viewLoading}
                             className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 ml-auto"
                         >
-                            <FileText size={12} /> View
-                        </a>
+                            {viewLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                            View
+                        </button>
                     </div>
                 )}
             </div>

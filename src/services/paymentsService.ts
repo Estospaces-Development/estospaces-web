@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { JourneyDeadline } from '@/types/journey';
 
 const PAYMENT_URL = () => getServiceUrl('payment');
 
@@ -28,6 +29,11 @@ export interface Payment {
     billing_mode?: 'invoice_tracking';
     payment_record_status?: string;
     refund_status?: string;
+    metadata?: string;
+    jurisdiction_profile?: string;
+    workflow_item_code?: string;
+    compliance_status_reason?: string;
+    compliance_deadlines?: JourneyDeadline[];
     created_at: string;
     updated_at?: string;
 }
@@ -52,6 +58,11 @@ export interface Invoice {
     paid_at?: string | null;
     billing_mode?: 'invoice_tracking';
     invoice_status?: string;
+    metadata?: string;
+    jurisdiction_profile?: string;
+    workflow_item_code?: string;
+    compliance_status_reason?: string;
+    compliance_deadlines?: JourneyDeadline[];
     created_at: string;
     updated_at?: string;
 }
@@ -70,6 +81,7 @@ export interface CreatePaymentInput {
     payment_method: string;
     payment_type?: string;
     due_at?: string;
+    metadata?: string;
     idempotency_key?: string;
 }
 
@@ -85,6 +97,7 @@ export interface CreateInvoiceInput {
     tax_amount?: number;
     due_date: string;
     currency?: string;
+    metadata?: string;
 }
 
 const withSuccess = <T>(data: T) => ({ success: true, data });

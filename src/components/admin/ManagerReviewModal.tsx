@@ -26,7 +26,9 @@ import {
     type LucideIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import * as managerVerificationService from '@/services/managerVerificationService';
+import { openDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     ManagerProfile,
     ManagerDocument,
@@ -703,7 +705,18 @@ const DocumentCard: React.FC<{
     actionLoading,
     disabled,
 }) => {
+        const toast = useToast();
+        const [viewLoading, setViewLoading] = useState(false);
         const docStatusConfig = getDocStatusConfig(document.verification_status);
+
+        const handleOpenDocument = useCallback(async () => {
+            setViewLoading(true);
+            const { error } = await openDocumentAccessUrl(document.id);
+            if (error) {
+                toast.error(error);
+            }
+            setViewLoading(false);
+        }, [document.id, toast]);
 
         return (
             <div className="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-300 transition-colors">
@@ -767,23 +780,22 @@ const DocumentCard: React.FC<{
                     </div>
                 ) : (
                     <div className="mt-4 flex items-center gap-2">
-                        <a
-                            href={document.document_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            onClick={handleOpenDocument}
+                            disabled={viewLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
-                            <Eye size={12} />
+                            {viewLoading ? <Loader2 className="animate-spin" size={12} /> : <Eye size={12} />}
                             View
-                        </a>
-                        <a
-                            href={document.document_url}
-                            download
+                        </button>
+                        <button
+                            onClick={handleOpenDocument}
+                            disabled={viewLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
                             <Download size={12} />
                             Download
-                        </a>
+                        </button>
                         {!disabled && document.verification_status !== 'rejected' && document.verification_status !== 'reupload_required' && (
                             <button
                                 onClick={onRequestReupload}

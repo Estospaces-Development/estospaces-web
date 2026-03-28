@@ -40,15 +40,17 @@ export interface FastTrackCaseLike {
     hoursRemaining?: number;
     journeyType?: 'rent' | 'buy';
     jurisdiction?: string;
+    liveStage?: string;
 }
 
 export interface FastTrackLinkedJourneyLike {
-    application?: { status?: string | null } | null;
+    application?: { status?: string | null; liveStage?: string | null } | null;
     viewing?: { status?: string | null } | null;
-    contract?: { status?: string | null } | null;
-    saleProgression?: { current_stage?: string | null; status?: string | null } | null;
+    contract?: { status?: string | null; liveStage?: string | null } | null;
+    saleProgression?: { current_stage?: string | null; status?: string | null; liveStage?: string | null } | null;
     payments?: Array<{ status?: string | null; payment_type?: string | null }>;
     invoices?: Array<{ status?: string | null; payment_type?: string | null }>;
+    liveStage?: string | null;
 }
 
 export type CanonicalFastTrackStep =
@@ -182,21 +184,35 @@ export const normalizeCanonicalFastTrackStep = (value?: string | null): Canonica
     switch (String(value || '').trim()) {
         case 'property_selected':
             return 'property_selected';
+        case 'documents':
+        case 'documents_requested':
+            return 'documents_requested';
         case 'documents_verified':
             return 'documents_verified';
         case 'viewing_scheduled':
             return 'viewing_scheduled';
         case 'viewing_completed':
             return 'viewing_completed';
+        case 'referencing':
+        case 'right_to_rent_or_national_compliance':
+        case 'buyer_qualification':
+        case 'offer':
+        case 'sale_agreed':
+        case 'memorandum':
+        case 'conveyancing':
+        case 'exchange':
         case 'application_in_review':
             return 'application_in_review';
+        case 'approval':
+        case 'tenancy_pack_issued':
+        case 'signatures_pending':
+        case 'deposit_and_first_rent':
         case 'ready_for_contract':
             return 'ready_for_contract';
+        case 'active_tenancy':
+        case 'completion':
         case 'completed':
             return 'completed';
-        case 'documents':
-        case 'documents_requested':
-            return 'documents_requested';
         case 'owner_approval':
         case 'legal_check':
             return 'application_in_review';
@@ -501,9 +517,10 @@ export const deriveLiveFastTrackCurrentStep = (
         journeyType?: 'rent' | 'buy';
         jurisdiction?: string | null;
         linkedJourney?: FastTrackLinkedJourneyLike | null;
+        liveStage?: string | null;
     } = {},
 ): CanonicalFastTrackStep => {
-    const normalizedStep = normalizeCanonicalFastTrackStep(currentStep);
+    const normalizedStep = normalizeCanonicalFastTrackStep(options.liveStage || options.linkedJourney?.liveStage || currentStep);
     const liveDocuments = buildDocumentsFromDetails(documents, fallback);
     const documentsVerified = (
         liveDocuments.identityProof === 'verified'
@@ -563,7 +580,7 @@ export const deriveLiveFastTrackCurrentStep = (
         }
     }
 
-    const saleProgressionStage = String(linkedJourney?.saleProgression?.current_stage || '').trim();
+    const saleProgressionStage = String(linkedJourney?.saleProgression?.liveStage || linkedJourney?.saleProgression?.current_stage || '').trim();
     const saleProgressionStatus = String(linkedJourney?.saleProgression?.status || '').trim();
     if (saleProgressionStage || saleProgressionStatus) {
         if (saleProgressionStatus === 'completed' || saleProgressionStage === 'completion') {
@@ -573,7 +590,7 @@ export const deriveLiveFastTrackCurrentStep = (
         return 'application_in_review';
     }
 
-    const rawApplicationStatus = String(linkedJourney?.application?.status || '').trim();
+    const rawApplicationStatus = String(linkedJourney?.application?.liveStage || linkedJourney?.application?.status || '').trim();
     switch (rawApplicationStatus) {
         case 'viewing_scheduled':
             return 'viewing_scheduled';

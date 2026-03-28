@@ -669,13 +669,14 @@ export const uploadDocument = async (
             throw new Error(`Document upload type "${type}" is not supported on develop`);
         }
 
-        const uploadedFile = await uploadMediaFile(file, 'document', crypto.randomUUID(), file.name);
+        const uploadedFile = await uploadMediaFile(file, 'document', crypto.randomUUID(), file.name, false);
 
         const data = await apiFetch<UserDocument>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
             body: JSON.stringify({
                 document_type: mapping.document_type,
                 document_category: mapping.document_category,
+                media_id: uploadedFile.id,
                 file_name: file.name,
                 file_url: uploadedFile.file_url,
                 file_size: file.size,

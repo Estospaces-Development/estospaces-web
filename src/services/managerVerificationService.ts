@@ -464,13 +464,14 @@ export const uploadManagerDocument = async (
     documentType: ManagerDocumentType,
 ): Promise<{ url: string | null; path: string | null; error: string | null }> => {
     try {
-        const uploadedFile = await uploadMediaFile(file, 'document', managerId, file.name);
+        const uploadedFile = await uploadMediaFile(file, 'document', managerId, file.name, false);
 
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
             body: JSON.stringify({
                 document_type: documentType,
                 document_category: mapDocumentCategory(documentType),
+                media_id: uploadedFile.id,
                 file_name: file.name,
                 file_url: uploadedFile.file_url,
                 file_size: file.size,

@@ -178,9 +178,11 @@ const FastTrackDashboard = () => {
                     journeyType: caseItem.journeyType,
                     jurisdiction: caseItem.jurisdiction,
                     linkedJourney,
+                    liveStage: caseItem.liveStage,
                 },
             );
             const liveMeta = FAST_TRACK_STEP_META[liveCurrentStep];
+            const preferredAction = caseItem.nextActions?.[0] || linkedJourney.nextActions?.[0] || null;
 
             return {
                 ...caseItem,
@@ -191,8 +193,8 @@ const FastTrackDashboard = () => {
                 verificationSummary: buildVerificationSummary(verificationInfo, matchingLead, documents),
                 leadStatusLabel: formatLeadStage(resolveLeadStage(matchingLead)),
                 documentsReady: Object.values(documents).every((status) => status === 'verified'),
-                nextAction: linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
-                statusReason: linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
+                nextAction: preferredAction?.label || linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
+                statusReason: caseItem.journeyStatusReason || linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
                 linkedJourney,
             };
         });

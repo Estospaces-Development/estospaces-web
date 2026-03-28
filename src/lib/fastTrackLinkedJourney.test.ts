@@ -128,6 +128,80 @@ test('resolveFastTrackLinkedJourney links rent workflow records through fast-tra
     assert.match(linked.nextStep, /billing workspace/i);
 });
 
+test('resolveFastTrackLinkedJourney prefers backend journey-state copy, blockers, and deadlines when available', () => {
+    const linked = resolveFastTrackLinkedJourney({
+        ...rentCase,
+        liveStage: 'right_to_rent_or_national_compliance',
+        journeyStatusReason: 'Right to Rent still needs to be cleared before approval.',
+        blockers: [
+            {
+                code: 'right_to_rent',
+                title: 'Right to Rent still required',
+                description: 'Complete the England Right to Rent check before approval.',
+            },
+        ],
+        deadlines: [
+            {
+                code: 'rtr_follow_up',
+                label: 'Right to Rent follow-up',
+                due_at: '2026-03-29T09:00:00Z',
+                status: 'scheduled',
+            },
+        ],
+        nextActions: [
+            {
+                code: 'review_application',
+                label: 'Open applications',
+                description: 'Finish the Right to Rent review in the applications workspace.',
+            },
+        ],
+    }, {
+        applications: [
+            {
+                id: 'app-rtr-1',
+                property_id: 'property-1',
+                user_id: 'user-1',
+                manager_id: 'manager-1',
+                fast_track_case_id: 'case-rent-1',
+                status: 'under_review',
+                move_in_date: '2026-04-01',
+                created_at: '2026-03-25T08:30:00Z',
+                updated_at: '2026-03-25T10:00:00Z',
+                liveStage: 'right_to_rent_or_national_compliance',
+                journeyStatusReason: 'Right to Rent still needs to be cleared before approval.',
+                blockers: [
+                    {
+                        code: 'right_to_rent',
+                        title: 'Right to Rent still required',
+                    },
+                ],
+                deadlines: [
+                    {
+                        code: 'rtr_follow_up',
+                        label: 'Right to Rent follow-up',
+                        due_at: '2026-03-29T09:00:00Z',
+                        status: 'scheduled',
+                    },
+                ],
+                nextActions: [
+                    {
+                        code: 'review_application',
+                        label: 'Open applications',
+                        description: 'Finish the Right to Rent review in the applications workspace.',
+                    },
+                ],
+            } as any,
+        ],
+    });
+
+    assert.equal(linked.liveStage, 'right_to_rent_or_national_compliance');
+    assert.match(linked.primaryHeadline, /Right to Rent/i);
+    assert.match(linked.primarySummary, /Right to Rent/i);
+    assert.match(linked.nextStep, /applications workspace/i);
+    assert.equal(linked.blockers.length, 1);
+    assert.equal(linked.deadlines.length, 1);
+});
+
 test('resolveFastTrackLinkedJourney prefers the sale progression for buy journeys', () => {
     const linked = resolveFastTrackLinkedJourney(buyCase, {
         applications: [

@@ -324,6 +324,12 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const displayWindowNote = isOverdue
         ? 'The timer is now an attention signal only. Managers can still continue the workflow from this screen.'
         : 'SLA visibility stays tied to the actual 24-hour countdown from submission time.';
+    const journeyBlockers = linkedJourney?.blockers?.length
+        ? linkedJourney.blockers
+        : (caseData.blockers || []);
+    const journeyDeadlines = linkedJourney?.deadlines?.length
+        ? linkedJourney.deadlines
+        : (caseData.deadlines || []);
     const linkedWorkflowCards = useMemo(() => {
         const rentJourney = caseData.journeyType !== 'buy';
 
@@ -598,7 +604,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
                                     <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{stepMeta.label}</p>
-                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{caseData.statusReason || stepMeta.description}</p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{caseData.journeyStatusReason || caseData.statusReason || stepMeta.description}</p>
                                 </div>
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Documents</p>
@@ -766,6 +772,41 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     </div>
                                 ))}
                             </div>
+                            {(journeyBlockers.length > 0 || journeyDeadlines.length > 0) ? (
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    {journeyBlockers.length > 0 ? (
+                                        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/30 dark:bg-orange-950/20">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">Active blockers</p>
+                                            <div className="mt-3 space-y-2">
+                                                {journeyBlockers.slice(0, 3).map((item) => (
+                                                    <div key={item.code} className="rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm text-orange-700 dark:border-orange-900/30 dark:bg-black dark:text-orange-200">
+                                                        <p className="font-semibold">{item.title}</p>
+                                                        {item.description ? (
+                                                            <p className="mt-1 text-xs text-orange-600 dark:text-orange-300">{item.description}</p>
+                                                        ) : null}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    {journeyDeadlines.length > 0 ? (
+                                        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">Compliance deadlines</p>
+                                            <div className="mt-3 space-y-2">
+                                                {journeyDeadlines.slice(0, 3).map((item) => (
+                                                    <div key={item.code} className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-blue-700 dark:border-blue-900/30 dark:bg-black dark:text-blue-200">
+                                                        <p className="font-semibold">{item.label}</p>
+                                                        <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">
+                                                            {item.due_at ? new Date(item.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Deadline pending'}
+                                                            {item.status ? ` · ${item.status.replace(/_/g, ' ')}` : ''}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
                             <div className="mt-4 grid gap-3">
                                 <button
                                     type="button"

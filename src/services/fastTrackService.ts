@@ -1,5 +1,6 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import type { ApiFetchOptions } from '@/lib/apiUtils';
+import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyState, JourneyStateFields } from '@/types/journey';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -25,7 +26,7 @@ export interface FastTrackDocuments {
 }
 
 // Backend Model structure
-interface BackendFastTrackCase {
+interface BackendFastTrackCase extends JourneyStateFields {
     id: string;
     property_id: string;
     property_country?: string;
@@ -103,6 +104,15 @@ export interface FastTrackCase {
     completedComplianceItems?: string[];
     blockedByCompliance?: boolean;
     complianceStatusReason?: string;
+    journeyState?: JourneyState | null;
+    jurisdictionProfile?: string;
+    liveStage?: string;
+    stageGroup?: string;
+    journeyStatusReason?: string;
+    blockers?: JourneyBlocker[];
+    deadlines?: JourneyDeadline[];
+    requiredEvidence?: JourneyRequirement[];
+    nextActions?: JourneyAction[];
     // extra fields to preserve ID
     id: string;
 }
@@ -111,20 +121,35 @@ const normalizeFastTrackStep = (step?: string): FastTrackStep => {
     switch (String(step || '').trim()) {
         case 'property_selected':
             return 'property_selected';
+        case 'documents_requested':
+        case 'documents':
+            return 'documents_requested';
         case 'documents_verified':
             return 'documents_verified';
         case 'viewing_scheduled':
             return 'viewing_scheduled';
         case 'viewing_completed':
             return 'viewing_completed';
+        case 'referencing':
+        case 'right_to_rent_or_national_compliance':
+        case 'buyer_qualification':
+        case 'offer':
+        case 'sale_agreed':
+        case 'memorandum':
+        case 'conveyancing':
+        case 'exchange':
         case 'application_in_review':
             return 'application_in_review';
+        case 'approval':
+        case 'tenancy_pack_issued':
+        case 'signatures_pending':
+        case 'deposit_and_first_rent':
         case 'ready_for_contract':
             return 'ready_for_contract';
         case 'completed':
+        case 'active_tenancy':
+        case 'completion':
             return 'completed';
-        case 'documents':
-            return 'documents_requested';
         case 'owner_approval':
         case 'legal_check':
             return 'application_in_review';
@@ -169,7 +194,7 @@ const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => (
     submittedAt: apiCase.submitted_at,
     expiresAt: apiCase.expires_at,
     hoursRemaining: apiCase.hours_remaining,
-    currentStep: normalizeFastTrackStep(apiCase.current_step),
+    currentStep: normalizeFastTrackStep(apiCase.live_stage || apiCase.current_step),
     documents: normalizeDocuments(apiCase.documents),
     finalStatus: apiCase.final_status,
     journeyType: apiCase.journey_type,
@@ -190,6 +215,15 @@ const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => (
     completedComplianceItems: apiCase.completed_compliance_items || [],
     blockedByCompliance: apiCase.blocked_by_compliance,
     complianceStatusReason: apiCase.compliance_status_reason,
+    journeyState: apiCase.journey_state || null,
+    jurisdictionProfile: apiCase.jurisdiction_profile || apiCase.journey_state?.jurisdiction_profile,
+    liveStage: apiCase.live_stage || apiCase.journey_state?.live_stage,
+    stageGroup: apiCase.stage_group || apiCase.journey_state?.stage_group,
+    journeyStatusReason: apiCase.journey_status_reason || apiCase.journey_state?.journey_status_reason,
+    blockers: apiCase.blockers || apiCase.journey_state?.blockers || [],
+    deadlines: apiCase.deadlines || apiCase.journey_state?.deadlines || [],
+    requiredEvidence: apiCase.required_evidence || apiCase.journey_state?.required_evidence || [],
+    nextActions: apiCase.next_actions || apiCase.journey_state?.next_actions || [],
 });
 
 export interface CreateFastTrackRequest {

@@ -5,10 +5,11 @@
 
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import type { ApiFetchOptions } from '@/lib/apiUtils';
+import type { JourneyState, JourneyStateFields, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyAction } from '@/types/journey';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
-export interface Application {
+export interface Application extends JourneyStateFields {
     id: string;
     property_id: string;
     user_id: string;
@@ -43,6 +44,15 @@ export interface Application {
     review_notes?: string;
     created_at: string;
     updated_at: string;
+    journeyState?: JourneyState | null;
+    jurisdictionProfile?: string;
+    liveStage?: string;
+    stageGroup?: string;
+    journeyStatusReason?: string;
+    blockers?: JourneyBlocker[];
+    deadlines?: JourneyDeadline[];
+    requiredEvidence?: JourneyRequirement[];
+    nextActions?: JourneyAction[];
 }
 
 export interface ApplicationsResponse {
@@ -67,7 +77,7 @@ export const getApplications = async (options: ServiceRequestOptions = {}): Prom
             `${BOOKING_URL()}/api/v1/applications`,
             options,
         );
-        return { data, error: null };
+        return { data: data?.map(normalizeApplication) || [], error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -82,7 +92,7 @@ export const getApplicationById = async (applicationId: string): Promise<Applica
         const data = await apiFetch<Application>(
             `${BOOKING_URL()}/api/v1/applications/${applicationId}`,
         );
-        return { data, error: null };
+        return { data: data ? normalizeApplication(data) : null, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -127,7 +137,7 @@ export const createApplication = async (applicationData: {
                 body: JSON.stringify(applicationData),
             },
         );
-        return { data, error: null };
+        return { data: data ? normalizeApplication(data) : null, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -146,7 +156,7 @@ export const updateApplicationStatus = async (
                 body: JSON.stringify({ status, review_notes: reviewNotes }),
             },
         );
-        return { data, error: null };
+        return { data: data ? normalizeApplication(data) : null, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -160,7 +170,7 @@ export const withdrawApplication = async (applicationId: string): Promise<Applic
                 method: 'PUT',
             },
         );
-        return { data, error: null };
+        return { data: data ? normalizeApplication(data) : null, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -183,7 +193,7 @@ export const reviewApplication = async (
                 body: JSON.stringify({ status, review_notes: reviewNotes }),
             },
         );
-        return { data, error: null };
+        return { data: data ? normalizeApplication(data) : null, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -197,3 +207,16 @@ export const applicationsService = {
     updateApplicationStatus,
     withdrawApplication,
 };
+
+const normalizeApplication = (application: Application): Application => ({
+    ...application,
+    journeyState: application.journey_state || application.journeyState || null,
+    jurisdictionProfile: application.jurisdiction_profile || application.jurisdictionProfile || application.journey_state?.jurisdiction_profile,
+    liveStage: application.live_stage || application.liveStage || application.journey_state?.live_stage,
+    stageGroup: application.stage_group || application.stageGroup || application.journey_state?.stage_group,
+    journeyStatusReason: application.journey_status_reason || application.journeyStatusReason || application.journey_state?.journey_status_reason,
+    blockers: application.blockers || application.journey_state?.blockers || [],
+    deadlines: application.deadlines || application.journey_state?.deadlines || [],
+    requiredEvidence: application.required_evidence || application.requiredEvidence || application.journey_state?.required_evidence || [],
+    nextActions: application.next_actions || application.nextActions || application.journey_state?.next_actions || [],
+});

@@ -1,4 +1,5 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyState, JourneyStateFields } from '@/types/journey';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 
@@ -19,7 +20,7 @@ export interface Offer {
     updated_at: string;
 }
 
-export interface SaleProgression {
+export interface SaleProgression extends JourneyStateFields {
     id: string;
     property_id: string;
     user_id: string;
@@ -34,12 +35,22 @@ export interface SaleProgression {
     notes?: string;
     created_at: string;
     updated_at: string;
+    property_country?: string;
+    journeyState?: JourneyState | null;
+    jurisdictionProfile?: string;
+    liveStage?: string;
+    stageGroup?: string;
+    journeyStatusReason?: string;
+    blockers?: JourneyBlocker[];
+    deadlines?: JourneyDeadline[];
+    requiredEvidence?: JourneyRequirement[];
+    nextActions?: JourneyAction[];
 }
 
 export const getSaleProgressions = async (): Promise<{ data: SaleProgression[] | null; error: string | null }> => {
     try {
         const data = await apiFetch<SaleProgression[]>(`${BOOKING_URL()}/api/v1/sale-progressions`);
-        return { data, error: null };
+        return { data: data?.map(normalizeSaleProgression) || [], error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -58,7 +69,7 @@ export const updateSaleProgression = async (
                 notes,
             }),
         });
-        return { data, error: null };
+        return { data: data ? normalizeSaleProgression(data) : null, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
     }
@@ -83,3 +94,16 @@ export const createOffer = async (payload: {
         return { data: null, error: getErrorMessage(error) };
     }
 };
+
+const normalizeSaleProgression = (progression: SaleProgression): SaleProgression => ({
+    ...progression,
+    journeyState: progression.journey_state || progression.journeyState || null,
+    jurisdictionProfile: progression.jurisdiction_profile || progression.jurisdictionProfile || progression.journey_state?.jurisdiction_profile,
+    liveStage: progression.live_stage || progression.liveStage || progression.journey_state?.live_stage,
+    stageGroup: progression.stage_group || progression.stageGroup || progression.journey_state?.stage_group,
+    journeyStatusReason: progression.journey_status_reason || progression.journeyStatusReason || progression.journey_state?.journey_status_reason,
+    blockers: progression.blockers || progression.journey_state?.blockers || [],
+    deadlines: progression.deadlines || progression.journey_state?.deadlines || [],
+    requiredEvidence: progression.required_evidence || progression.requiredEvidence || progression.journey_state?.required_evidence || [],
+    nextActions: progression.next_actions || progression.nextActions || progression.journey_state?.next_actions || [],
+});

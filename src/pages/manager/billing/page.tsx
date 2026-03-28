@@ -39,6 +39,12 @@ const formatAmount = (amount: number, currency: string) => (
 );
 
 const paymentTone = (payment: Payment) => {
+    if (payment.workflow_item_code === 'deposit_protection') {
+        return 'Deposit compliance task';
+    }
+    if (payment.workflow_item_code === 'first_rent') {
+        return 'First-rent activation task';
+    }
     if (payment.payment_type?.includes('deposit') || payment.payment_type?.includes('rent')) {
         return 'Rent journey billing';
     }
@@ -310,10 +316,23 @@ export default function ManagerBillingPage() {
                                                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                                                         <span>{formatDate(payment.created_at)}</span>
                                                         {payment.payment_type ? <span>{payment.payment_type.replace(/_/g, ' ')}</span> : null}
+                                                        {payment.workflow_item_code ? <span>{payment.workflow_item_code.replace(/_/g, ' ')}</span> : null}
                                                         {payment.payment_method ? <span>{payment.payment_method}</span> : null}
                                                     </div>
                                                     {payment.failure_reason ? (
                                                         <p className="mt-2 text-xs font-medium text-red-500">{payment.failure_reason}</p>
+                                                    ) : null}
+                                                    {payment.compliance_status_reason ? (
+                                                        <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-300">{payment.compliance_status_reason}</p>
+                                                    ) : null}
+                                                    {payment.compliance_deadlines?.length ? (
+                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                            {payment.compliance_deadlines.slice(0, 2).map((deadline) => (
+                                                                <span key={deadline.code} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300">
+                                                                    {deadline.label}: {formatDate(deadline.due_at)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
                                                     ) : null}
                                                     {payment.status === 'refunded' ? (
                                                         <p className="mt-2 text-xs font-medium text-purple-500">
@@ -375,7 +394,20 @@ export default function ManagerBillingPage() {
                                                 <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500 dark:text-gray-400">
                                                     <span>Issued {formatDate(invoice.issued_date || invoice.created_at)}</span>
                                                     <span>Due {formatDate(invoice.due_date)}</span>
+                                                    {invoice.workflow_item_code ? <span>{invoice.workflow_item_code.replace(/_/g, ' ')}</span> : null}
                                                 </div>
+                                                {invoice.compliance_status_reason ? (
+                                                    <p className="mt-2 text-xs font-medium text-blue-600 dark:text-blue-300">{invoice.compliance_status_reason}</p>
+                                                ) : null}
+                                                {invoice.compliance_deadlines?.length ? (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {invoice.compliance_deadlines.slice(0, 2).map((deadline) => (
+                                                            <span key={deadline.code} className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300">
+                                                                {deadline.label}: {formatDate(deadline.due_at)}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
                                         <div className="text-left xl:text-right">

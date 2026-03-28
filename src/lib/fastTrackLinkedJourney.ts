@@ -4,6 +4,7 @@ import type { FastTrackCase } from '@/services/fastTrackService';
 import type { Invoice, Payment } from '@/services/paymentsService';
 import type { SaleProgression } from '@/services/salesService';
 import type { Contract } from '@/types/booking';
+import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyStateFields } from '@/types/journey';
 import { getNextSaleJourneyActions, getSaleJourneySummary } from './saleJourney';
 import { isEnglandJurisdiction } from './fastTrackWorkflow';
 
@@ -26,6 +27,12 @@ export interface FastTrackLinkedJourney {
     saleProgression: SaleProgression | null;
     payments: Payment[];
     invoices: Invoice[];
+    liveStage: string | null;
+    stageGroup: string | null;
+    blockers: JourneyBlocker[];
+    deadlines: JourneyDeadline[];
+    requiredEvidence: JourneyRequirement[];
+    nextActions: JourneyAction[];
     primaryHeadline: string;
     primarySummary: string;
     nextStep: string;
@@ -37,22 +44,22 @@ export const resolveFastTrackPrimaryLaneLabel = (
 ) => {
     if (journeyType === 'buy') {
         if (linkedJourney.saleProgression) {
-            return formatLabel(linkedJourney.saleProgression.current_stage);
+            return liveStageLabel(linkedJourney.saleProgression.liveStage || linkedJourney.saleProgression.current_stage, journeyType);
         }
 
         if (linkedJourney.application) {
-            return formatLabel(linkedJourney.application.status);
+            return liveStageLabel(linkedJourney.application.liveStage || linkedJourney.application.status, journeyType);
         }
 
         return 'Not created yet';
     }
 
     if (linkedJourney.application) {
-        return formatLabel(linkedJourney.application.status);
+        return liveStageLabel(linkedJourney.application.liveStage || linkedJourney.application.status, journeyType);
     }
 
     if (linkedJourney.saleProgression) {
-        return formatLabel(linkedJourney.saleProgression.current_stage);
+        return liveStageLabel(linkedJourney.saleProgression.liveStage || linkedJourney.saleProgression.current_stage, journeyType);
     }
 
     return 'Not created yet';
@@ -108,6 +115,59 @@ const formatLabel = (value?: string | null) => {
         .trim()
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
+
+const liveStageLabel = (value?: string | null, journeyType?: FastTrackCase['journeyType'], jurisdiction?: string | null) => {
+    switch (String(value || '').trim()) {
+        case 'documents_requested':
+            return 'Documents requested';
+        case 'documents_verified':
+            return 'Documents verified';
+        case 'viewing_scheduled':
+            return 'Viewing scheduled';
+        case 'viewing_completed':
+            return 'Viewing completed';
+        case 'referencing':
+            return 'Referencing';
+        case 'right_to_rent_or_national_compliance':
+            return isEnglandJurisdiction(jurisdiction) ? 'Right to Rent' : 'National compliance';
+        case 'approval':
+            return 'Approval';
+        case 'tenancy_pack_issued':
+            return jurisdiction === 'wales' ? 'Occupation contract issued' : jurisdiction === 'scotland' ? 'PRT pack issued' : 'Tenancy agreement issued';
+        case 'signatures_pending':
+            return 'Signatures pending';
+        case 'deposit_and_first_rent':
+            return 'Deposit and first-rent tasks';
+        case 'active_tenancy':
+            return 'Active tenancy';
+        case 'buyer_qualification':
+            return 'Proof of funds / MIP';
+        case 'offer':
+            return journeyType === 'buy' ? 'Offer' : 'Application in review';
+        case 'sale_agreed':
+            return 'Sale agreed';
+        case 'memorandum':
+            return 'Memorandum';
+        case 'conveyancing':
+            return 'Conveyancing';
+        case 'exchange':
+            return 'Exchange';
+        case 'completion':
+            return 'Completion';
+        default:
+            return formatLabel(value);
+    }
+};
+
+const extractJourneyState = (record: JourneyStateFields | null | undefined) => ({
+    liveStage: record?.live_stage || (record as any)?.liveStage || record?.journey_state?.live_stage || null,
+    stageGroup: record?.stage_group || (record as any)?.stageGroup || record?.journey_state?.stage_group || null,
+    journeyStatusReason: record?.journey_status_reason || (record as any)?.journeyStatusReason || record?.journey_state?.journey_status_reason || '',
+    blockers: record?.blockers || (record as any)?.blockers || record?.journey_state?.blockers || [],
+    deadlines: record?.deadlines || (record as any)?.deadlines || record?.journey_state?.deadlines || [],
+    requiredEvidence: record?.required_evidence || (record as any)?.requiredEvidence || record?.journey_state?.required_evidence || [],
+    nextActions: record?.next_actions || (record as any)?.nextActions || record?.journey_state?.next_actions || [],
+});
 
 const normalizeContractStatus = (status?: string | null) => {
     switch (String(status || '').trim()) {
@@ -363,9 +423,26 @@ export const resolveFastTrackLinkedJourney = (
         ))
         .sort((left, right) => toTimestamp(right.created_at) - toTimestamp(left.created_at));
 
-    const summary = fastTrackCase.journeyType === 'buy'
+    const fallbackSummary = fastTrackCase.journeyType === 'buy'
         ? buildBuyJourneySummary(saleProgression, viewing, application)
         : buildRentJourneySummary(application, viewing, contract, payments, invoices, fastTrackCase.jurisdiction);
+    const journeyStateCandidates = fastTrackCase.journeyType === 'buy'
+        ? [saleProgression, application, fastTrackCase]
+        : [contract, application, saleProgression, fastTrackCase];
+    const journeyState = journeyStateCandidates
+        .map((candidate) => extractJourneyState(candidate))
+        .find((candidate) => (
+            Boolean(candidate.liveStage)
+            || Boolean(candidate.journeyStatusReason)
+            || candidate.blockers.length > 0
+            || candidate.nextActions.length > 0
+            || candidate.deadlines.length > 0
+        )) || extractJourneyState(fastTrackCase);
+    const primaryHeadline = journeyState.liveStage
+        ? liveStageLabel(journeyState.liveStage, fastTrackCase.journeyType, fastTrackCase.jurisdiction)
+        : fallbackSummary.primaryHeadline;
+    const primarySummary = journeyState.journeyStatusReason || fallbackSummary.primarySummary;
+    const nextStep = journeyState.nextActions[0]?.description || journeyState.nextActions[0]?.label || fallbackSummary.nextStep;
 
     return {
         application,
@@ -374,8 +451,14 @@ export const resolveFastTrackLinkedJourney = (
         saleProgression,
         payments,
         invoices,
-        primaryHeadline: summary.primaryHeadline,
-        primarySummary: summary.primarySummary,
-        nextStep: summary.nextStep,
+        liveStage: journeyState.liveStage,
+        stageGroup: journeyState.stageGroup,
+        blockers: journeyState.blockers,
+        deadlines: journeyState.deadlines,
+        requiredEvidence: journeyState.requiredEvidence,
+        nextActions: journeyState.nextActions,
+        primaryHeadline,
+        primarySummary,
+        nextStep,
     };
 };

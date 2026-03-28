@@ -578,3 +578,40 @@ test('live fast-track step follows active sale progression for buy journeys', ()
         'completed',
     );
 });
+
+test('live fast-track step prefers backend live stages when the server has newer regulated state', () => {
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'viewing_completed',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                liveStage: 'signatures_pending',
+            },
+        ),
+        'ready_for_contract',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'documents_verified',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'buy',
+                linkedJourney: {
+                    liveStage: 'buyer_qualification',
+                    saleProgression: { liveStage: 'buyer_qualification', status: 'active' },
+                },
+            },
+        ),
+        'application_in_review',
+    );
+});

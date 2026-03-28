@@ -26,6 +26,15 @@ export const normalizeContractStatus = (status?: string): ContractStatus => {
 export const normalizeContract = <T extends Contract>(contract: T): T => ({
     ...contract,
     status: normalizeContractStatus(contract.status),
+    journeyState: contract.journey_state || contract.journeyState || null,
+    jurisdictionProfile: contract.jurisdiction_profile || contract.jurisdictionProfile || contract.journey_state?.jurisdiction_profile,
+    liveStage: contract.live_stage || contract.liveStage || contract.journey_state?.live_stage,
+    stageGroup: contract.stage_group || contract.stageGroup || contract.journey_state?.stage_group,
+    journeyStatusReason: contract.journey_status_reason || contract.journeyStatusReason || contract.journey_state?.journey_status_reason,
+    blockers: contract.blockers || contract.journey_state?.blockers || [],
+    deadlines: contract.deadlines || contract.journey_state?.deadlines || [],
+    requiredEvidence: contract.required_evidence || contract.requiredEvidence || contract.journey_state?.required_evidence || [],
+    nextActions: contract.next_actions || contract.nextActions || contract.journey_state?.next_actions || [],
 });
 
 export const isPendingUserSignature = (status?: string) => normalizeContractStatus(status) === 'pending_user_signature';
