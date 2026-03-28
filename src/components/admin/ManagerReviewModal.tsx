@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
     X,
     CheckCircle,
@@ -642,7 +643,11 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
         };
     }, [onClose]);
 
-    return (
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Premium Backdrop */}
             <div
@@ -654,7 +659,8 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
             <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 
