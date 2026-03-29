@@ -6,7 +6,12 @@ import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
 
-const WelcomeBanner = () => {
+interface WelcomeBannerProps {
+    analytics?: analyticsService.AnalyticsData | null;
+    loading?: boolean;
+}
+
+const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -21,6 +26,16 @@ const WelcomeBanner = () => {
         : (user?.email?.split('@')[0] || 'User');
 
     useEffect(() => {
+        if (analytics !== undefined) {
+            setStats({
+                activeProperties: analytics?.total_properties || 0,
+                activeLeads: analytics?.active_leads || 0,
+                totalApplications: analytics?.propertyPerformance?.reduce((acc, p) => acc + p.applications, 0) || 0,
+            });
+            setLoading(externalLoading);
+            return;
+        }
+
         const fetchStats = async () => {
             if (!user) return;
             setLoading(true);
@@ -45,7 +60,7 @@ const WelcomeBanner = () => {
         };
 
         fetchStats();
-    }, [user]);
+    }, [analytics, externalLoading, user]);
 
     return (
         <div className="mb-6">

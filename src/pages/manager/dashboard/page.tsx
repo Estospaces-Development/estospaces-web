@@ -196,7 +196,7 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
-      <WelcomeBanner />
+      <WelcomeBanner analytics={analytics} loading={!analytics && isLoading} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -324,7 +324,7 @@ function DashboardContent() {
 
             {/* Top Properties */}
             <div>
-              <TopProperties />
+              <TopProperties analytics={analytics} loading={!analytics && isLoading} />
             </div>
           </div>
 

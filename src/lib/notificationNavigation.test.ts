@@ -101,6 +101,19 @@ test('payment notifications deep-link the manager into the billing workspace', (
     assert.equal(path, '/manager/billing?application=application-9&contract=contract-9&payment=payment-9&invoice=invoice-9&case=case-9&lead=lead-9&property=property-9');
 });
 
+test('sale journey notifications deep-link the user into the exact fast-track workspace', () => {
+    const path = getNotificationNavigationPath({
+        type: 'sale_journey_updated',
+        data: {
+            fast_track_id: 'case-sale-1',
+            lead_id: 'lead-sale-1',
+            property_id: 'property-sale-1',
+        },
+    }, 'user');
+
+    assert.equal(path, '/user/dashboard/fast-track?case=case-sale-1&lead=lead-sale-1&property=property-sale-1');
+});
+
 test('user verification submitted notifications open the manager verification queue for managers', () => {
     const path = getNotificationNavigationPath({
         type: 'user_verification_submitted',

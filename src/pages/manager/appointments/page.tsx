@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
+import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 
 const FILTERS = [
@@ -96,6 +97,7 @@ export default function ManagerAppointmentsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
+    const [verificationTarget, setVerificationTarget] = useState<Viewing | null>(null);
     const [rescheduleForm, setRescheduleForm] = useState({
         requested_date: '',
         requested_time: '10:00',
@@ -366,6 +368,16 @@ export default function ManagerAppointmentsPage() {
                                         </div>
 
                                         <div className="flex flex-col gap-3 xl:min-w-[260px]">
+                                            {appointment.user_id ? (
+                                                <button
+                                                    onClick={() => setVerificationTarget(appointment)}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                >
+                                                    <FileText className="h-4 w-4" />
+                                                    Review documents
+                                                </button>
+                                            ) : null}
+
                                             {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'rescheduled') && (
                                                 <button
                                                     onClick={() => runAction(appointment.id, () => bookingsService.confirmViewing(appointment.id), 'Appointment confirmed successfully.')}
@@ -483,6 +495,20 @@ export default function ManagerAppointmentsPage() {
                     </>
                 )}
             </Modal>
+
+            {verificationTarget?.user_id ? (
+                <UserVerificationReviewModal
+                    scope="manager"
+                    userId={verificationTarget.user_id}
+                    variant="fast_track"
+                    onUpdated={async () => {
+                        await fetchAppointments();
+                    }}
+                    onClose={() => {
+                        setVerificationTarget(null);
+                    }}
+                />
+            ) : null}
         </div>
     );
 }

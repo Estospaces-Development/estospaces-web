@@ -1,4 +1,7 @@
 export type SaleJourneyStage =
+    | 'viewing_completed'
+    | 'buyer_qualification'
+    | 'offer'
     | 'offer_submitted'
     | 'offer_under_review'
     | 'offer_accepted'
@@ -11,6 +14,8 @@ export type SaleJourneyStage =
 type ApplicationRecordLike = {
     source?: string;
     status?: string | null;
+    liveStage?: string | null;
+    live_stage?: string | null;
 };
 
 export interface SaleJourneyAction {
@@ -21,6 +26,122 @@ export interface SaleJourneyAction {
 
 export const isSaleProgressionRecord = (application?: ApplicationRecordLike | null) =>
     application?.source === 'sale_progression';
+
+export const resolveSaleJourneyDisplayStage = (application?: ApplicationRecordLike | null): SaleJourneyStage | null => {
+    if (!application) {
+        return null;
+    }
+
+    const liveStage = String(application.liveStage || application.live_stage || '').trim();
+    switch (liveStage) {
+        case 'buyer_qualification':
+            return 'buyer_qualification';
+        case 'offer':
+            return 'offer';
+        case 'viewing_completed':
+            return 'viewing_completed';
+        case 'sale_agreed':
+            return 'sale_agreed';
+        case 'memorandum':
+            return 'memorandum_issued';
+        case 'conveyancing':
+            return 'conveyancing';
+        case 'exchange':
+            return 'exchange';
+        case 'completion':
+            return 'completion';
+    }
+
+    switch (String(application.status || '').trim()) {
+        case 'viewing_completed':
+            return 'viewing_completed';
+        case 'offer_submitted':
+            return 'offer_submitted';
+        case 'offer_under_review':
+        case 'under_review':
+            return 'offer_under_review';
+        case 'offer_accepted':
+            return 'offer_accepted';
+        case 'sale_agreed':
+        case 'approved':
+            return 'sale_agreed';
+        case 'memorandum_issued':
+            return 'memorandum_issued';
+        case 'conveyancing':
+            return 'conveyancing';
+        case 'exchange':
+            return 'exchange';
+        case 'completed':
+            return 'completion';
+        default:
+            return null;
+    }
+};
+
+export const getSaleJourneyStageLabel = (input?: string | ApplicationRecordLike | null) => {
+    const stage = typeof input === 'string'
+        ? (input as SaleJourneyStage)
+        : resolveSaleJourneyDisplayStage(input);
+
+    switch (stage) {
+        case 'viewing_completed':
+            return 'Viewing completed';
+        case 'buyer_qualification':
+            return 'Buyer qualification';
+        case 'offer':
+            return 'Offer ready';
+        case 'offer_submitted':
+            return 'Offer submitted';
+        case 'offer_under_review':
+            return 'Offer under review';
+        case 'offer_accepted':
+            return 'Offer accepted';
+        case 'sale_agreed':
+            return 'Sale agreed';
+        case 'memorandum_issued':
+            return 'Memorandum issued';
+        case 'conveyancing':
+            return 'Conveyancing';
+        case 'exchange':
+            return 'Exchange';
+        case 'completion':
+            return 'Completion';
+        default:
+            return 'Purchase journey';
+    }
+};
+
+export const getSaleJourneyProgress = (input?: string | ApplicationRecordLike | null) => {
+    const stage = typeof input === 'string'
+        ? (input as SaleJourneyStage)
+        : resolveSaleJourneyDisplayStage(input);
+
+    switch (stage) {
+        case 'viewing_completed':
+            return 28;
+        case 'buyer_qualification':
+            return 40;
+        case 'offer':
+            return 52;
+        case 'offer_submitted':
+            return 60;
+        case 'offer_under_review':
+            return 68;
+        case 'offer_accepted':
+        case 'sale_agreed':
+            return 78;
+        case 'memorandum_issued':
+            return 86;
+        case 'conveyancing':
+            return 92;
+        case 'exchange':
+            return 97;
+        case 'completion':
+            return 100;
+        default:
+            return 20;
+    }
+};
 
 export const canWithdrawApplicationRecord = (application?: ApplicationRecordLike | null) => {
     if (!application) {
@@ -129,6 +250,12 @@ export const getSaleJourneySummary = (status: string, journeySummary?: string) =
     }
 
     switch (String(status || '').trim()) {
+        case 'viewing_completed':
+            return 'The viewing is complete and the next regulated step is buyer qualification, proof of funds or MIP, and AML review.';
+        case 'buyer_qualification':
+            return 'Verify proof of funds or MIP, then clear AML before the offer lane opens.';
+        case 'offer':
+            return 'Buyer qualification and AML are complete, so the offer can now be recorded and reviewed.';
         case 'offer_under_review':
             return 'The purchase offer is under review and waiting for a manager decision.';
         case 'offer_accepted':

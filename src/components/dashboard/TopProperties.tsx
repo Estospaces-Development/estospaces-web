@@ -13,11 +13,30 @@ interface TopProperty {
     status: string;
 }
 
-const TopProperties = () => {
+interface TopPropertiesProps {
+    analytics?: analyticsService.AnalyticsData | null;
+    loading?: boolean;
+}
+
+const TopProperties = ({ analytics, loading: externalLoading = false }: TopPropertiesProps) => {
     const [topProperties, setTopProperties] = useState<TopProperty[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (analytics !== undefined) {
+            const mapped = analytics?.propertyPerformance?.map((p) => ({
+                id: p.property,
+                name: p.property,
+                price: '',
+                views: p.views,
+                inquiries: p.applications,
+                status: 'Online'
+            })) || [];
+            setTopProperties(mapped.slice(0, 3));
+            setLoading(externalLoading);
+            return;
+        }
+
         const fetchTopProperties = async () => {
             setLoading(true);
             try {
@@ -41,7 +60,7 @@ const TopProperties = () => {
         };
 
         fetchTopProperties();
-    }, []);
+    }, [analytics, externalLoading]);
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6">

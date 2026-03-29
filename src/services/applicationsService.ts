@@ -65,6 +65,37 @@ export interface ApplicationResponse {
     error: string | null;
 }
 
+export interface BuyerQualification {
+    id: string;
+    application_id: string;
+    status: string;
+    mortgage_in_principle_verified: boolean;
+    proof_of_funds_verified: boolean;
+    verified_at?: string | null;
+    reviewer_id?: string | null;
+    review_notes?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AMLReview {
+    id: string;
+    application_id: string;
+    status: string;
+    identity_status?: string;
+    source_of_funds_status?: string;
+    verified_at?: string | null;
+    reviewer_id?: string | null;
+    review_notes?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface WorkflowRecordResponse<T> {
+    data: T | null;
+    error: string | null;
+}
+
 type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 /**
@@ -199,6 +230,76 @@ export const reviewApplication = async (
     }
 };
 
+export const getBuyerQualification = async (applicationId: string): Promise<WorkflowRecordResponse<BuyerQualification>> => {
+    try {
+        const data = await apiFetch<BuyerQualification>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/buyer-qualification`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const updateBuyerQualification = async (
+    applicationId: string,
+    payload: {
+        status: string;
+        review_notes?: string;
+        verified_at?: string;
+        mortgage_in_principle_verified?: boolean;
+        proof_of_funds_verified?: boolean;
+    },
+): Promise<WorkflowRecordResponse<BuyerQualification>> => {
+    try {
+        const data = await apiFetch<BuyerQualification>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/buyer-qualification`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getAMLReview = async (applicationId: string): Promise<WorkflowRecordResponse<AMLReview>> => {
+    try {
+        const data = await apiFetch<AMLReview>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/aml-review`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const updateAMLReview = async (
+    applicationId: string,
+    payload: {
+        status: string;
+        review_notes?: string;
+        verified_at?: string;
+        identity_status?: string;
+        source_of_funds_status?: string;
+    },
+): Promise<WorkflowRecordResponse<AMLReview>> => {
+    try {
+        const data = await apiFetch<AMLReview>(
+            `${BOOKING_URL()}/api/v1/applications/${applicationId}/aml-review`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
 export const applicationsService = {
     getApplications,
     getApplicationById,
@@ -206,6 +307,10 @@ export const applicationsService = {
     reviewApplication,
     updateApplicationStatus,
     withdrawApplication,
+    getBuyerQualification,
+    updateBuyerQualification,
+    getAMLReview,
+    updateAMLReview,
 };
 
 const normalizeApplication = (application: Application): Application => ({

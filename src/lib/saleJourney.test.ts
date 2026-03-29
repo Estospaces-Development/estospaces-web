@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import {
     canWithdrawApplicationRecord,
     getNextSaleJourneyActions,
+    getSaleJourneyProgress,
     getSaleJourneySummary,
+    getSaleJourneyStageLabel,
+    resolveSaleJourneyDisplayStage,
     saleProgressionStageForStatus,
 } from './saleJourney';
 
@@ -48,4 +51,27 @@ test('sale journey summary prefers explicit copy and falls back to transparent d
         getSaleJourneySummary('sale_agreed', 'Broker confirmed the deal and is preparing the memo.'),
         'Broker confirmed the deal and is preparing the memo.',
     );
+});
+
+test('sale display helpers surface buyer qualification and offer-ready stages before a sale progression exists', () => {
+    const buyerQualificationRecord = {
+        source: 'application',
+        status: 'under_review',
+        liveStage: 'buyer_qualification',
+    };
+    const offerReadyRecord = {
+        source: 'application',
+        status: 'under_review',
+        liveStage: 'offer',
+    };
+
+    assert.equal(resolveSaleJourneyDisplayStage(buyerQualificationRecord), 'buyer_qualification');
+    assert.equal(getSaleJourneyStageLabel(buyerQualificationRecord), 'Buyer qualification');
+    assert.equal(getSaleJourneySummary('buyer_qualification'), 'Verify proof of funds or MIP, then clear AML before the offer lane opens.');
+    assert.equal(getSaleJourneyProgress(buyerQualificationRecord), 40);
+
+    assert.equal(resolveSaleJourneyDisplayStage(offerReadyRecord), 'offer');
+    assert.equal(getSaleJourneyStageLabel(offerReadyRecord), 'Offer ready');
+    assert.equal(getSaleJourneySummary('offer'), 'Buyer qualification and AML are complete, so the offer can now be recorded and reviewed.');
+    assert.equal(getSaleJourneyProgress(offerReadyRecord), 52);
 });

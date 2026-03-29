@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     ArrowLeft,
@@ -22,6 +22,7 @@ import {
     Shield,
     Key,
     Upload,
+    Loader2,
     LucideIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -33,11 +34,38 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import {
+    getAMLReview,
+    getBuyerQualification,
+    updateAMLReview,
+    updateBuyerQualification,
+    type AMLReview,
+    type BuyerQualification,
+} from '@/services/applicationsService';
+import {
+    getPropertyComplianceEvidence,
+    upsertPropertyComplianceEvidence,
+    type PropertyComplianceReadiness,
+} from '@/services/propertyService';
+import { createOffer, getSaleProgressions } from '@/services/salesService';
+import {
     canWithdrawApplicationRecord,
     getNextSaleJourneyActions,
     getSaleJourneySummary,
+    getSaleJourneyStageLabel,
     isSaleProgressionRecord,
+    resolveSaleJourneyDisplayStage,
 } from '@/lib/saleJourney';
+import {
+    buildLatestPropertyComplianceEvidenceMap,
+    createPropertyComplianceDrafts,
+    findRequirementBlocker,
+    getOfferReadinessBlockers,
+    getOfferReadinessRequirements,
+    getPropertyComplianceStatusLabel,
+    isPropertyOfferReady,
+    type PropertyComplianceEvidenceDraft,
+} from '@/lib/propertyCompliance';
+import { buildWorkspacePath } from '@/lib/workspaceLinks';
 
 interface ApplicationDetailProps {
     applicationId: string;
@@ -50,15 +78,130 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
     const navigate = useNavigate();
     const { user } = useAuth();
     const toast = useToast();
-    const { allApplications, withdrawApplication } = useApplications();
+    const { allApplications, fetchApplications, withdrawApplication } = useApplications();
+    const application = initialApplication || allApplications?.find(app => app.id === applicationId);
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
     const [showContractModal, setShowContractModal] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [openingConversation, setOpeningConversation] = useState(false);
+    const [buyerQualification, setBuyerQualification] = useState<BuyerQualification | null>(null);
+    const [amlReview, setAmlReview] = useState<AMLReview | null>(null);
+    const [purchaseWorkflowError, setPurchaseWorkflowError] = useState<string | null>(null);
+    const [isLoadingPurchaseWorkflow, setIsLoadingPurchaseWorkflow] = useState(false);
+    const [purchaseWorkflowAction, setPurchaseWorkflowAction] = useState<string | null>(null);
+    const [buyerQualificationDraft, setBuyerQualificationDraft] = useState({
+        mortgageInPrincipleVerified: false,
+        proofOfFundsVerified: false,
+        reviewNotes: '',
+    });
+    const [amlReviewDraft, setAmlReviewDraft] = useState({
+        identityStatus: 'pending',
+        sourceOfFundsStatus: 'pending',
+        reviewNotes: '',
+    });
+    const [offerDraft, setOfferDraft] = useState({
+        amount: String(application?.propertyPrice || ''),
+        notes: '',
+    });
+    const [propertyComplianceReadiness, setPropertyComplianceReadiness] = useState<PropertyComplianceReadiness | null>(null);
+    const [propertyComplianceDrafts, setPropertyComplianceDrafts] = useState<Record<string, PropertyComplianceEvidenceDraft>>({});
 
-    // Find the application - prioritize the passed prop, fall back to context search
-    const application = initialApplication || allApplications?.find(app => app.id === applicationId);
+    const isSaleProgression = isSaleProgressionRecord(application);
+    const purchaseDisplayStage = resolveSaleJourneyDisplayStage(application);
+    const isPurchaseApplication = application?.listingType !== 'rent';
+    const supportsManagedPurchaseWorkflow = Boolean(
+        application
+        && isPurchaseApplication
+        && !isSaleProgression
+        && ['viewing_completed', 'buyer_qualification', 'offer'].includes(purchaseDisplayStage || ''),
+    );
+
+    useEffect(() => {
+        setOfferDraft({
+            amount: String(application?.propertyPrice || ''),
+            notes: '',
+        });
+    }, [application?.id, application?.propertyPrice]);
+
+    const loadManagedPurchaseWorkflow = async (targetApplication: Application) => {
+        const compliancePromise = targetApplication.propertyId
+            ? getPropertyComplianceEvidence(targetApplication.propertyId)
+            : Promise.resolve({ data: { evidence: [], readiness: null }, error: null });
+
+        const [qualificationResult, amlResult, complianceResult] = await Promise.all([
+            getBuyerQualification(targetApplication.id),
+            getAMLReview(targetApplication.id),
+            compliancePromise,
+        ]);
+
+        if (qualificationResult.error) {
+            throw new Error(qualificationResult.error);
+        }
+        if (amlResult.error) {
+            throw new Error(amlResult.error);
+        }
+        if (complianceResult.error) {
+            throw new Error(complianceResult.error);
+        }
+
+        const readiness = complianceResult.data?.readiness || null;
+        const drafts = createPropertyComplianceDrafts(
+            getOfferReadinessRequirements(readiness),
+            buildLatestPropertyComplianceEvidenceMap(complianceResult.data?.evidence || []),
+        );
+
+        setBuyerQualification(qualificationResult.data);
+        setAmlReview(amlResult.data);
+        setPropertyComplianceReadiness(readiness);
+        setPropertyComplianceDrafts(drafts);
+        setBuyerQualificationDraft({
+            mortgageInPrincipleVerified: qualificationResult.data?.mortgage_in_principle_verified || false,
+            proofOfFundsVerified: qualificationResult.data?.proof_of_funds_verified || false,
+            reviewNotes: qualificationResult.data?.review_notes || '',
+        });
+        setAmlReviewDraft({
+            identityStatus: amlResult.data?.identity_status || 'pending',
+            sourceOfFundsStatus: amlResult.data?.source_of_funds_status || 'pending',
+            reviewNotes: amlResult.data?.review_notes || '',
+        });
+        setPurchaseWorkflowError(null);
+    };
+
+    useEffect(() => {
+        if (!application || !supportsManagedPurchaseWorkflow) {
+            setBuyerQualification(null);
+            setAmlReview(null);
+            setPropertyComplianceReadiness(null);
+            setPropertyComplianceDrafts({});
+            setPurchaseWorkflowError(null);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPurchaseWorkflow = async () => {
+            setIsLoadingPurchaseWorkflow(true);
+            setPurchaseWorkflowError(null);
+            try {
+                await loadManagedPurchaseWorkflow(application);
+                if (!cancelled) {
+                    setIsLoadingPurchaseWorkflow(false);
+                }
+            } catch (error: any) {
+                if (!cancelled) {
+                    setPurchaseWorkflowError(error?.message || 'Unable to load the live purchase workflow right now.');
+                    setIsLoadingPurchaseWorkflow(false);
+                }
+            }
+        };
+
+        void loadPurchaseWorkflow();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [application?.id, supportsManagedPurchaseWorkflow]);
 
     if (!application) {
         return (
@@ -85,7 +228,6 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
     }
 
     const canWithdraw = canWithdrawApplicationRecord(application);
-    const isSaleProgression = isSaleProgressionRecord(application);
     const saleNextActions = getNextSaleJourneyActions(application.status);
 
     const formatDate = (dateString?: string) => {
@@ -124,6 +266,224 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
         }
 
         await Promise.resolve(onUpdateStatus(applicationId, nextStatus as ApplicationStatus));
+    };
+
+    const purchaseStageLabel = purchaseDisplayStage
+        ? getSaleJourneyStageLabel(purchaseDisplayStage)
+        : 'Purchase journey';
+    const purchaseJourneySummary = getSaleJourneySummary(
+        purchaseDisplayStage || application.status,
+        application.journeySummary || application.journeyStatusReason,
+    );
+    const buyerQualificationReady = buyerQualificationDraft.mortgageInPrincipleVerified || buyerQualificationDraft.proofOfFundsVerified;
+    const amlReviewReady = amlReviewDraft.identityStatus === 'completed' && amlReviewDraft.sourceOfFundsStatus === 'completed';
+    const purchaseOfferReady = buyerQualification?.status === 'completed' && amlReview?.status === 'completed';
+    const offerReadinessRequirements = getOfferReadinessRequirements(propertyComplianceReadiness);
+    const offerReadinessBlockers = getOfferReadinessBlockers(propertyComplianceReadiness);
+    const propertyOfferReady = isPropertyOfferReady(propertyComplianceReadiness);
+    const offerLaneReady = purchaseOfferReady && propertyOfferReady;
+    const displayStatusLabel = isPurchaseApplication && purchaseDisplayStage
+        ? purchaseStageLabel
+        : application.status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const displayStatusTone = (() => {
+        if (isPurchaseApplication && purchaseDisplayStage === 'buyer_qualification') {
+            return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+        }
+        if (isPurchaseApplication && purchaseDisplayStage === 'offer') {
+            return 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400';
+        }
+        if (application.status === APPLICATION_STATUS.APPROVED) {
+            return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+        }
+        if (application.status === APPLICATION_STATUS.REJECTED) {
+            return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+        }
+        if (application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED) {
+            return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+        }
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+    })();
+
+    const refreshManagedPurchaseWorkflow = async () => {
+        if (!application || !supportsManagedPurchaseWorkflow) {
+            return;
+        }
+
+        await Promise.all([
+            loadManagedPurchaseWorkflow(application),
+            fetchApplications(),
+        ]);
+    };
+
+    const handleBuyerQualificationUpdate = async () => {
+        if (!application) {
+            return;
+        }
+
+        setPurchaseWorkflowAction('buyer_qualification');
+        try {
+            const result = await updateBuyerQualification(application.id, {
+                status: buyerQualificationReady ? 'completed' : 'pending',
+                review_notes: buyerQualificationDraft.reviewNotes,
+                verified_at: buyerQualificationReady ? new Date().toISOString() : undefined,
+                mortgage_in_principle_verified: buyerQualificationDraft.mortgageInPrincipleVerified,
+                proof_of_funds_verified: buyerQualificationDraft.proofOfFundsVerified,
+            });
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            await refreshManagedPurchaseWorkflow();
+            toast.success(buyerQualificationReady ? 'Buyer qualification completed.' : 'Buyer qualification saved as pending.');
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to update buyer qualification right now.');
+        } finally {
+            setPurchaseWorkflowAction(null);
+        }
+    };
+
+    const handleAMLReviewUpdate = async () => {
+        if (!application) {
+            return;
+        }
+
+        setPurchaseWorkflowAction('aml_review');
+        try {
+            const result = await updateAMLReview(application.id, {
+                status: amlReviewReady ? 'completed' : 'pending',
+                review_notes: amlReviewDraft.reviewNotes,
+                verified_at: amlReviewReady ? new Date().toISOString() : undefined,
+                identity_status: amlReviewDraft.identityStatus,
+                source_of_funds_status: amlReviewDraft.sourceOfFundsStatus,
+            });
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            await refreshManagedPurchaseWorkflow();
+            toast.success(amlReviewReady ? 'AML review completed.' : 'AML review saved as pending.');
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to update AML review right now.');
+        } finally {
+            setPurchaseWorkflowAction(null);
+        }
+    };
+
+    const handleCreateOffer = async () => {
+        if (!application?.propertyId || !application.managerId) {
+            toast.error('This purchase application is missing the manager or property link needed for an offer.');
+            return;
+        }
+
+        const offerAmount = Number(offerDraft.amount);
+        if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
+            toast.error('Enter a valid buyer offer amount before continuing.');
+            return;
+        }
+
+        setPurchaseWorkflowAction('create_offer');
+        try {
+            const offerResult = await createOffer({
+                application_id: application.id,
+                property_id: application.propertyId,
+                manager_id: application.managerId,
+                lead_id: application.leadId,
+                fast_track_case_id: application.fastTrackCaseId,
+                amount: offerAmount,
+                notes: offerDraft.notes,
+            });
+            if (offerResult.error || !offerResult.data) {
+                throw new Error(offerResult.error || 'Unable to create the offer record.');
+            }
+
+            const progressionsResult = await getSaleProgressions();
+            if (progressionsResult.error) {
+                throw new Error(progressionsResult.error);
+            }
+
+            await fetchApplications();
+
+            const linkedProgression = (progressionsResult.data || []).find((progression) => (
+                progression.offer_id === offerResult.data?.id
+                || (application.fastTrackCaseId && progression.fast_track_case_id === application.fastTrackCaseId)
+                || (application.leadId && progression.lead_id === application.leadId)
+                || (
+                    progression.property_id === application.propertyId
+                    && progression.user_id === application.userId
+                    && progression.manager_id === application.managerId
+                )
+            ));
+
+            navigate(buildWorkspacePath('/manager/applications', {
+                applicationId: linkedProgression?.id,
+                caseId: application.fastTrackCaseId,
+                leadId: application.leadId,
+                propertyId: application.propertyId,
+            }));
+            toast.success('Buyer offer recorded and the live sale progression is now open.');
+        } catch (error: any) {
+            if (String(error?.message || '').includes('seller property pack')) {
+                try {
+                    await refreshManagedPurchaseWorkflow();
+                } catch {
+                    // Keep the original offer error visible if the refresh also fails.
+                }
+            }
+            toast.error(error?.message || 'Unable to record the buyer offer right now.');
+        } finally {
+            setPurchaseWorkflowAction(null);
+        }
+    };
+
+    const handlePropertyComplianceDraftChange = (
+        requirementCode: string,
+        updates: Partial<PropertyComplianceEvidenceDraft>,
+    ) => {
+        setPropertyComplianceDrafts((previous) => ({
+            ...previous,
+            [requirementCode]: {
+                status: previous[requirementCode]?.status || 'pending',
+                referenceNumber: previous[requirementCode]?.referenceNumber || '',
+                reviewNotes: previous[requirementCode]?.reviewNotes || '',
+                ...updates,
+            },
+        }));
+    };
+
+    const handlePropertyReadinessUpdate = async (
+        requirementCode: string,
+        requirementLabel: string,
+    ) => {
+        if (!application?.propertyId) {
+            toast.error('This purchase application is missing the property link needed for seller readiness.');
+            return;
+        }
+
+        const draft = propertyComplianceDrafts[requirementCode];
+        if (!draft) {
+            toast.error('The seller-readiness record is not ready to update yet.');
+            return;
+        }
+
+        setPurchaseWorkflowAction(`property_compliance:${requirementCode}`);
+        try {
+            const result = await upsertPropertyComplianceEvidence(application.propertyId, requirementCode, {
+                status: draft.status,
+                jurisdiction: propertyComplianceReadiness?.jurisdiction_profile,
+                reference_number: draft.referenceNumber.trim() || undefined,
+                review_notes: draft.reviewNotes.trim() || undefined,
+            });
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            await refreshManagedPurchaseWorkflow();
+            toast.success(`${requirementLabel} saved.`);
+        } catch (error: any) {
+            toast.error(error?.message || `Unable to update ${requirementLabel.toLowerCase()} right now.`);
+        } finally {
+            setPurchaseWorkflowAction(null);
+        }
     };
 
     const handleOpenConversation = async () => {
@@ -388,7 +748,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
 
                 {/* Status Tracker */}
                 <div className="mb-6">
-                    <StatusTracker status={application.status} listingType={application.listingType} />
+                    <StatusTracker
+                        status={application.status}
+                        listingType={application.listingType}
+                        liveStage={application.liveStage}
+                        source={application.source}
+                    />
                 </div>
 
                 {/* Tabs */}
@@ -489,15 +854,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                         </div>
                                         <div className="flex items-center justify-between py-3">
                                             <span className="text-gray-500 dark:text-gray-400">Status</span>
-                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${application.status === APPLICATION_STATUS.APPROVED
-                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                : application.status === APPLICATION_STATUS.REJECTED
-                                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                    : application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED
-                                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                                                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                                                }`}>
-                                                {application.status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${displayStatusTone}`}>
+                                                {displayStatusLabel}
                                             </span>
                                         </div>
                                     </div>
@@ -548,8 +906,349 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                     </div>
                                 )}
 
+                                {supportsManagedPurchaseWorkflow && !isSaleProgression && (
+                                    <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="max-w-3xl">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
+                                                    Purchase Journey
+                                                </p>
+                                                <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {purchaseStageLabel}
+                                                </h3>
+                                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                                    {purchaseJourneySummary}
+                                                </p>
+                                            </div>
+                                            <div className="min-w-[220px] rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
+                                                {offerLaneReady
+                                                    ? 'Qualification, AML, and seller readiness are cleared. Record the first buyer offer to open the live sale progression.'
+                                                    : purchaseOfferReady
+                                                        ? 'Buyer qualification and AML are clear. Finish the seller readiness pack here to open the offer lane.'
+                                                        : 'Clear buyer qualification, AML, and seller readiness from here so the offer lane can open without leaving this case.'}
+                                            </div>
+                                        </div>
+
+                                        {application.blockers && application.blockers.length > 0 && (
+                                            <div className="mt-6 grid gap-3 md:grid-cols-2">
+                                                {application.blockers.map((blocker) => (
+                                                    <div
+                                                        key={blocker.code}
+                                                        className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300"
+                                                    >
+                                                        <p className="font-semibold text-gray-900 dark:text-white">{blocker.title}</p>
+                                                        <p className="mt-2 leading-6">{blocker.description}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <div className="mt-6 grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
+                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Buyer qualification</p>
+                                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                            Proof of funds or MIP must be checked before the offer moves forward.
+                                                        </p>
+                                                    </div>
+                                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${buyerQualification?.status === 'completed'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                                        }`}>
+                                                        {(buyerQualification?.status || 'pending').replace(/_/g, ' ')}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-4 space-y-3">
+                                                    <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={buyerQualificationDraft.mortgageInPrincipleVerified}
+                                                            onChange={(event) => setBuyerQualificationDraft((previous) => ({
+                                                                ...previous,
+                                                                mortgageInPrincipleVerified: event.target.checked,
+                                                            }))}
+                                                            className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                                                        />
+                                                        Mortgage in Principle verified
+                                                    </label>
+                                                    <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={buyerQualificationDraft.proofOfFundsVerified}
+                                                            onChange={(event) => setBuyerQualificationDraft((previous) => ({
+                                                                ...previous,
+                                                                proofOfFundsVerified: event.target.checked,
+                                                            }))}
+                                                            className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                                                        />
+                                                        Proof of funds verified
+                                                    </label>
+                                                    <textarea
+                                                        value={buyerQualificationDraft.reviewNotes}
+                                                        onChange={(event) => setBuyerQualificationDraft((previous) => ({
+                                                            ...previous,
+                                                            reviewNotes: event.target.value,
+                                                        }))}
+                                                        rows={3}
+                                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                        placeholder="Add notes about the affordability evidence or follow-up needed."
+                                                    />
+                                                    <button
+                                                        onClick={() => void handleBuyerQualificationUpdate()}
+                                                        disabled={purchaseWorkflowAction !== null}
+                                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        {purchaseWorkflowAction === 'buyer_qualification' ? <Loader2 size={16} className="animate-spin" /> : null}
+                                                        {buyerQualificationReady ? 'Complete buyer qualification' : 'Save as pending'}
+                                                    </button>
+                                                </div>
+                                            </section>
+
+                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">AML review</p>
+                                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                            Identity and source-of-funds checks must both be complete before the offer is recorded.
+                                                        </p>
+                                                    </div>
+                                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${amlReview?.status === 'completed'
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                                        }`}>
+                                                        {(amlReview?.status || 'pending').replace(/_/g, ' ')}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-4 space-y-3">
+                                                    <label className="block text-sm">
+                                                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Identity status</span>
+                                                        <select
+                                                            value={amlReviewDraft.identityStatus}
+                                                            onChange={(event) => setAmlReviewDraft((previous) => ({
+                                                                ...previous,
+                                                                identityStatus: event.target.value,
+                                                            }))}
+                                                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                        >
+                                                            <option value="pending">Pending</option>
+                                                            <option value="completed">Completed</option>
+                                                        </select>
+                                                    </label>
+                                                    <label className="block text-sm">
+                                                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Source of funds</span>
+                                                        <select
+                                                            value={amlReviewDraft.sourceOfFundsStatus}
+                                                            onChange={(event) => setAmlReviewDraft((previous) => ({
+                                                                ...previous,
+                                                                sourceOfFundsStatus: event.target.value,
+                                                            }))}
+                                                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                        >
+                                                            <option value="pending">Pending</option>
+                                                            <option value="completed">Completed</option>
+                                                        </select>
+                                                    </label>
+                                                    <textarea
+                                                        value={amlReviewDraft.reviewNotes}
+                                                        onChange={(event) => setAmlReviewDraft((previous) => ({
+                                                            ...previous,
+                                                            reviewNotes: event.target.value,
+                                                        }))}
+                                                        rows={3}
+                                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                        placeholder="Add AML or source-of-funds notes for the live audit trail."
+                                                    />
+                                                    <button
+                                                        onClick={() => void handleAMLReviewUpdate()}
+                                                        disabled={purchaseWorkflowAction !== null}
+                                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        {purchaseWorkflowAction === 'aml_review' ? <Loader2 size={16} className="animate-spin" /> : null}
+                                                        {amlReviewReady ? 'Complete AML review' : 'Save AML status'}
+                                                    </button>
+                                                </div>
+                                            </section>
+
+                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Seller readiness pack</p>
+                                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                            Seller instruction, material information, and any Scottish Home Report requirement must be ready before the first offer is recorded.
+                                                        </p>
+                                                    </div>
+                                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${propertyOfferReady
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                                        }`}>
+                                                        {propertyOfferReady ? 'Offer ready' : 'Action needed'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="mt-4 space-y-4">
+                                                    {propertyComplianceReadiness?.status_reason && (
+                                                        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
+                                                            {propertyComplianceReadiness.status_reason}
+                                                        </div>
+                                                    )}
+
+                                                    {offerReadinessRequirements.length > 0 ? offerReadinessRequirements.map((requirement) => {
+                                                        const draft = propertyComplianceDrafts[requirement.code] || {
+                                                            status: 'pending',
+                                                            referenceNumber: '',
+                                                            reviewNotes: '',
+                                                        };
+                                                        const requirementBlocker = findRequirementBlocker(offerReadinessBlockers, requirement.code);
+                                                        const actionKey = `property_compliance:${requirement.code}`;
+                                                        const draftStatusLabel = getPropertyComplianceStatusLabel(draft.status);
+                                                        const requirementStatusTone = draft.status === 'completed' || draft.status === 'waived'
+                                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                            : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+
+                                                        return (
+                                                            <div
+                                                                key={requirement.code}
+                                                                className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900"
+                                                            >
+                                                                <div className="flex items-center justify-between gap-3">
+                                                                    <div>
+                                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{requirement.label}</p>
+                                                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                                            {requirementBlocker?.description || requirement.description || 'Record the seller-side readiness evidence for this offer stage.'}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${requirementStatusTone}`}>
+                                                                        {draftStatusLabel}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="mt-4 space-y-3">
+                                                                    <label className="block text-sm">
+                                                                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Status</span>
+                                                                        <select
+                                                                            value={draft.status}
+                                                                            onChange={(event) => handlePropertyComplianceDraftChange(requirement.code, {
+                                                                                status: event.target.value,
+                                                                            })}
+                                                                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                                        >
+                                                                            <option value="pending">Pending</option>
+                                                                            <option value="completed">Completed</option>
+                                                                            <option value="waived">Waived</option>
+                                                                        </select>
+                                                                    </label>
+                                                                    <label className="block text-sm">
+                                                                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Reference or note</span>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={draft.referenceNumber}
+                                                                            onChange={(event) => handlePropertyComplianceDraftChange(requirement.code, {
+                                                                                referenceNumber: event.target.value,
+                                                                            })}
+                                                                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                                            placeholder="Add a pack ref, file note, or authority record id."
+                                                                        />
+                                                                    </label>
+                                                                    <textarea
+                                                                        value={draft.reviewNotes}
+                                                                        onChange={(event) => handlePropertyComplianceDraftChange(requirement.code, {
+                                                                            reviewNotes: event.target.value,
+                                                                        })}
+                                                                        rows={3}
+                                                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                                        placeholder="Add context about the seller pack, material information, or next follow-up."
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => void handlePropertyReadinessUpdate(requirement.code, requirement.label)}
+                                                                        disabled={purchaseWorkflowAction !== null}
+                                                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                    >
+                                                                        {purchaseWorkflowAction === actionKey ? <Loader2 size={16} className="animate-spin" /> : null}
+                                                                        Save {requirement.label}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }) : (
+                                                        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                            The property does not currently expose any seller-side offer-readiness requirements for this purchase lane.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </section>
+
+                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Record first offer</p>
+                                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                                            Once qualification and AML are complete, the live sale progression starts here.
+                                                        </p>
+                                                    </div>
+                                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${offerLaneReady
+                                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                                                        }`}>
+                                                        {offerLaneReady ? 'Ready' : 'Waiting'}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-4 space-y-3">
+                                                    {!propertyOfferReady && (
+                                                        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
+                                                            Finish the seller readiness pack before the first offer is recorded, otherwise the backend will keep the offer lane blocked.
+                                                        </div>
+                                                    )}
+                                                    <label className="block text-sm">
+                                                        <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Offer amount</span>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            step="1000"
+                                                            value={offerDraft.amount}
+                                                            onChange={(event) => setOfferDraft((previous) => ({
+                                                                ...previous,
+                                                                amount: event.target.value,
+                                                            }))}
+                                                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                            placeholder="450000"
+                                                        />
+                                                    </label>
+                                                    <textarea
+                                                        value={offerDraft.notes}
+                                                        onChange={(event) => setOfferDraft((previous) => ({
+                                                            ...previous,
+                                                            notes: event.target.value,
+                                                        }))}
+                                                        rows={4}
+                                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                                        placeholder="Record the buyer's offer terms, timing, or negotiation notes."
+                                                    />
+                                                    <button
+                                                        onClick={() => void handleCreateOffer()}
+                                                        disabled={!offerLaneReady || purchaseWorkflowAction !== null || isLoadingPurchaseWorkflow}
+                                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    >
+                                                        {purchaseWorkflowAction === 'create_offer' ? <Loader2 size={16} className="animate-spin" /> : null}
+                                                        Record buyer offer
+                                                    </button>
+                                                </div>
+                                            </section>
+                                        </div>
+
+                                        {(purchaseWorkflowError || isLoadingPurchaseWorkflow) && (
+                                            <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                                                {isLoadingPurchaseWorkflow
+                                                    ? 'Loading the live qualification, AML, and seller-readiness records for this purchase.'
+                                                    : purchaseWorkflowError}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Next Steps & Approved Message */}
                                 {!isSaleProgression &&
+                                    !supportsManagedPurchaseWorkflow &&
                                     application.status !== APPLICATION_STATUS.APPROVED &&
                                     application.status !== APPLICATION_STATUS.REJECTED &&
                                     application.status !== APPLICATION_STATUS.WITHDRAWN ? (

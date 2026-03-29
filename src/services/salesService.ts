@@ -76,6 +76,7 @@ export const updateSaleProgression = async (
 };
 
 export const createOffer = async (payload: {
+    application_id?: string;
     property_id: string;
     manager_id: string;
     lead_id?: string;

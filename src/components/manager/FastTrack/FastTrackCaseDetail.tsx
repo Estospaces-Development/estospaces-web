@@ -22,6 +22,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { FastTrackCase, FastTrackStep } from '@/services/fastTrackService';
 import { bookingsService } from '@/services/bookingsService';
+import { updateSaleProgression } from '@/services/salesService';
 import Modal from '@/components/ui/Modal';
 import { isEnglandJurisdiction, isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 import {
@@ -29,6 +30,7 @@ import {
     formatWorkflowStatusLabel,
     resolveFastTrackPrimaryLaneLabel,
 } from '@/lib/fastTrackLinkedJourney';
+import { getNextSaleJourneyActions, saleProgressionStageForStatus } from '@/lib/saleJourney';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import FastTrackActions from './FastTrackActions';
 import FastTrackDocuments from './FastTrackDocuments';
@@ -165,6 +167,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
     const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
     const [actingViewingAction, setActingViewingAction] = useState<string | null>(null);
+    const [actingSaleAction, setActingSaleAction] = useState<string | null>(null);
     const [scheduleForm, setScheduleForm] = useState({
         requested_date: toDateInputValue(),
         requested_time: '10:00',
@@ -269,6 +272,16 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         const base = stepCopy[caseData.currentStep];
 
         if (caseData.journeyType === 'buy') {
+            const canShowLiveBuyHeadline = (
+                Boolean(linkedJourney?.primaryHeadline)
+                && !['property_selected', 'documents_requested', 'documents_verified', 'viewing_scheduled'].includes(caseData.currentStep)
+            );
+            if (canShowLiveBuyHeadline) {
+                return {
+                    label: linkedJourney?.primaryHeadline || base.label,
+                    description: linkedJourney?.primarySummary || base.description,
+                };
+            }
             if (caseData.currentStep === 'application_in_review') {
                 return {
                     label: 'Proof of funds and offer',
@@ -381,6 +394,27 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const canCompleteViewing = !viewingLocked && viewingStatus === 'confirmed';
     const canCancelViewing = !viewingLocked && ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus);
     const rentJourney = caseData.journeyType !== 'buy';
+    const purchaseWorkspaceLabel = linkedJourney?.saleProgression
+        ? 'Open sale progression workspace'
+        : linkedJourney?.liveStage === 'buyer_qualification'
+            ? 'Open buyer qualification workspace'
+            : linkedJourney?.liveStage === 'offer'
+                ? 'Open offer workspace'
+                : 'Open purchase workspace';
+    const saleProgressionActions = !rentJourney && linkedJourney?.saleProgression
+        ? getNextSaleJourneyActions(linkedJourney.saleProgression.current_stage).reduce<Array<{
+            status: string;
+            label: string;
+            description: string;
+            stage: NonNullable<ReturnType<typeof saleProgressionStageForStatus>>;
+        }>>((accumulator, action) => {
+            const stage = saleProgressionStageForStatus(action.status);
+            if (stage) {
+                accumulator.push({ ...action, stage });
+            }
+            return accumulator;
+        }, [])
+        : [];
 
     const runViewingAction = async (actionKey: string, action: () => Promise<void>, successMessage: string) => {
         setActingViewingAction(actionKey);
@@ -392,6 +426,19 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             toast.error(error?.message || 'Unable to update this viewing right now.');
         } finally {
             setActingViewingAction(null);
+        }
+    };
+
+    const runSaleProgressionAction = async (actionKey: string, action: () => Promise<void>, successMessage: string) => {
+        setActingSaleAction(actionKey);
+        try {
+            await action();
+            toast.success(successMessage);
+            await onRefresh?.();
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to update the purchase stage right now.');
+        } finally {
+            setActingSaleAction(null);
         }
     };
 
@@ -503,6 +550,26 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             'cancel',
             () => bookingsService.cancelViewing(linkedJourney.viewing!.id, 'Cancelled by manager'),
             'Viewing cancelled successfully.',
+        );
+    };
+
+    const handleSaleProgressionUpdate = async (
+        nextStage: NonNullable<ReturnType<typeof saleProgressionStageForStatus>>,
+        successMessage: string,
+    ) => {
+        if (!linkedJourney?.saleProgression?.id) {
+            return;
+        }
+
+        await runSaleProgressionAction(
+            nextStage,
+            async () => {
+                const result = await updateSaleProgression(linkedJourney.saleProgression!.id, nextStage);
+                if (result.error || !result.data) {
+                    throw new Error(result.error || 'Unable to update the purchase stage right now.');
+                }
+            },
+            successMessage,
         );
     };
 
@@ -814,7 +881,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
                                 >
                                     <FileText size={18} />
-                                    {rentJourney ? 'Open applications workspace' : 'Open offer workspace'}
+                                    {rentJourney ? 'Open applications workspace' : purchaseWorkspaceLabel}
                                 </button>
                                 <button
                                     type="button"
@@ -919,6 +986,53 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                                 Cancel viewing
                                             </button>
                                         ) : null}
+                                    </div>
+                                ) : null}
+                                {!rentJourney && linkedJourney?.saleProgression ? (
+                                    <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-900/40 dark:bg-violet-950/20">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-300">Purchase stage controls</p>
+                                        <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
+                                            {formatWorkflowStatusLabel(linkedJourney.saleProgression.current_stage)}
+                                        </p>
+                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                            {linkedJourney.primarySummary}
+                                        </p>
+                                        {saleProgressionActions.length > 0 ? (
+                                            <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                                {saleProgressionActions.map((action) => (
+                                                    <button
+                                                        key={action.stage}
+                                                        type="button"
+                                                        onClick={() => void handleSaleProgressionUpdate(action.stage, `${action.label} saved.`)}
+                                                        disabled={actingSaleAction !== null}
+                                                        className="rounded-xl border border-violet-200 bg-white px-4 py-4 text-left transition-colors hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-violet-900/40 dark:bg-black dark:hover:bg-violet-950/20"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                                {action.label}
+                                                            </span>
+                                                            {actingSaleAction === action.stage ? (
+                                                                <Loader2 size={18} className="animate-spin text-violet-500" />
+                                                            ) : (
+                                                                <CheckCircle2 size={18} className="text-violet-500" />
+                                                            )}
+                                                        </div>
+                                                        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                                            {action.description}
+                                                        </p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                                                This purchase journey is already at its latest recorded stage from the dashboard.
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : null}
+                                {!rentJourney && !linkedJourney?.saleProgression && ['buyer_qualification', 'offer'].includes(String(linkedJourney?.liveStage || '')) ? (
+                                    <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+                                        Buyer qualification is the current live stage. Open the purchase workspace to clear proof of funds, AML, and record the first offer before sale-stage controls appear here.
                                     </div>
                                 ) : null}
                             </div>

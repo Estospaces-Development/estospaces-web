@@ -14,10 +14,13 @@ import {
     LucideIcon
 } from 'lucide-react';
 import { APPLICATION_STATUS, ApplicationStatus } from '../../../contexts/ApplicationsContext';
+import { getSaleJourneyStageLabel, resolveSaleJourneyDisplayStage } from '@/lib/saleJourney';
 
 interface StatusTrackerProps {
     status: ApplicationStatus;
     listingType?: string;
+    liveStage?: string;
+    source?: string;
 }
 
 interface Stage {
@@ -25,42 +28,66 @@ interface Stage {
     label: string;
     description: string;
     icon: LucideIcon;
-    statuses: ApplicationStatus[];
+    statuses: string[];
 }
 
-const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale' }) => {
+const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source }) => {
     const isSaleJourney = listingType !== 'rent';
+    const saleDisplayStage = isSaleJourney
+        ? resolveSaleJourneyDisplayStage({ source, status, liveStage })
+        : null;
 
     const getStages = (): Stage[] => {
         if (isSaleJourney) {
             return [
                 {
-                    id: 'offer_submitted',
-                    label: 'Offer Submitted',
-                    description: 'The selected property is linked and the purchase offer is recorded.',
-                    icon: FileText,
-                    statuses: [APPLICATION_STATUS.DRAFT, APPLICATION_STATUS.PENDING, APPLICATION_STATUS.SUBMITTED, APPLICATION_STATUS.OFFER_SUBMITTED],
+                    id: 'viewing_completed',
+                    label: 'Viewing completed',
+                    description: 'The property viewing is done and the purchase can now move into buyer qualification.',
+                    icon: Calendar,
+                    statuses: [APPLICATION_STATUS.DRAFT, APPLICATION_STATUS.PENDING, APPLICATION_STATUS.SUBMITTED, APPLICATION_STATUS.APPOINTMENT_BOOKED, APPLICATION_STATUS.VIEWING_SCHEDULED, APPLICATION_STATUS.VIEWING_COMPLETED],
                 },
                 {
-                    id: 'offer_review',
-                    label: 'Offer Review',
-                    description: 'The broker or manager is reviewing the submitted offer.',
+                    id: 'buyer_qualification',
+                    label: 'Buyer qualification',
+                    description: 'Verify proof of funds or MIP and clear AML before the offer lane opens.',
+                    icon: FileCheck,
+                    statuses: [APPLICATION_STATUS.BUYER_QUALIFICATION],
+                },
+                {
+                    id: 'offer',
+                    label: 'Offer',
+                    description: 'The first buyer offer is ready to be recorded and reviewed.',
                     icon: Search,
-                    statuses: [APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.OFFER_UNDER_REVIEW],
+                    statuses: [APPLICATION_STATUS.OFFER_READY, APPLICATION_STATUS.OFFER_SUBMITTED, APPLICATION_STATUS.OFFER_UNDER_REVIEW],
                 },
                 {
                     id: 'sale_agreed',
-                    label: 'Sale Agreed',
-                    description: 'The offer is accepted and the deal is agreed in principle.',
+                    label: 'Sale agreed',
+                    description: 'The offer is accepted and the purchase is agreed in principle.',
                     icon: UserCheck,
                     statuses: [APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.OFFER_ACCEPTED, APPLICATION_STATUS.SALE_AGREED],
                 },
                 {
                     id: 'memorandum',
-                    label: 'Memorandum & Conveyancing',
-                    description: 'The memorandum is issued and legal work is progressing.',
+                    label: 'Memorandum',
+                    description: 'The memorandum is issued and legal coordination begins.',
+                    icon: FileText,
+                    statuses: [APPLICATION_STATUS.MEMORANDUM_ISSUED],
+                },
+                {
+                    id: 'conveyancing',
+                    label: 'Conveyancing',
+                    description: 'Searches, legal packs, and solicitor milestones are underway.',
                     icon: FileCheck,
-                    statuses: [APPLICATION_STATUS.MEMORANDUM_ISSUED, APPLICATION_STATUS.CONVEYANCING, APPLICATION_STATUS.EXCHANGE],
+                    statuses: [APPLICATION_STATUS.CONVEYANCING],
+                },
+                {
+                    id: 'exchange',
+                    label: 'Exchange',
+                    description: 'Contracts are close to exchange and completion is in sight.',
+                    icon: Key,
+                    statuses: [APPLICATION_STATUS.EXCHANGE],
                 },
                 {
                     id: 'completion',
@@ -123,7 +150,28 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
     const getCurrentStageIndex = () => {
         if (status === APPLICATION_STATUS.WITHDRAWN) return -1;
         if (status === APPLICATION_STATUS.REJECTED) {
-            return Math.max(stages.findIndex((stage) => stage.id === (isSaleJourney ? 'offer_review' : 'review')), 1);
+            return Math.max(stages.findIndex((stage) => stage.id === (isSaleJourney ? 'offer' : 'review')), 1);
+        }
+
+        if (isSaleJourney && saleDisplayStage) {
+            const matchedSaleIndex = stages.findIndex((stage) => {
+                if (stage.id === saleDisplayStage) {
+                    return true;
+                }
+                if (stage.id === 'offer' && ['offer_submitted', 'offer_under_review', 'offer'].includes(saleDisplayStage)) {
+                    return true;
+                }
+                if (stage.id === 'sale_agreed' && ['offer_accepted', 'sale_agreed'].includes(saleDisplayStage)) {
+                    return true;
+                }
+                if (stage.id === 'memorandum' && saleDisplayStage === 'memorandum_issued') {
+                    return true;
+                }
+                return false;
+            });
+            if (matchedSaleIndex >= 0) {
+                return matchedSaleIndex;
+            }
         }
 
         const matchedIndex = stages.findIndex((stage) => stage.statuses.includes(status));
@@ -133,6 +181,13 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
     const currentStageIndex = getCurrentStageIndex();
 
     const getStatusColor = () => {
+        if (isSaleJourney && saleDisplayStage === 'buyer_qualification') {
+            return 'text-orange-600 bg-orange-100 border-orange-200';
+        }
+        if (isSaleJourney && saleDisplayStage === 'offer') {
+            return 'text-violet-600 bg-violet-100 border-violet-200';
+        }
+
         switch (status) {
             case APPLICATION_STATUS.OFFER_ACCEPTED:
             case APPLICATION_STATUS.SALE_AGREED:
@@ -144,6 +199,10 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                 return 'text-gray-600 bg-gray-100 border-gray-100';
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED:
                 return 'text-orange-600 bg-orange-100 border-orange-200';
+            case APPLICATION_STATUS.BUYER_QUALIFICATION:
+                return 'text-orange-600 bg-orange-100 border-orange-200';
+            case APPLICATION_STATUS.OFFER_READY:
+                return 'text-violet-600 bg-violet-100 border-violet-200';
             case APPLICATION_STATUS.MEMORANDUM_ISSUED:
                 return 'text-purple-600 bg-purple-100 border-purple-200';
             case APPLICATION_STATUS.CONVEYANCING:
@@ -155,6 +214,10 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
     };
 
     const getStatusLabel = () => {
+        if (isSaleJourney && saleDisplayStage) {
+            return getSaleJourneyStageLabel(saleDisplayStage);
+        }
+
         switch (status) {
             case APPLICATION_STATUS.PENDING:
             case APPLICATION_STATUS.SUBMITTED:

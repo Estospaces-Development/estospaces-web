@@ -12,6 +12,37 @@ export type MatchedExperienceStep = {
     description: string;
 };
 
+export type ManagerWorkspaceAction = {
+    label: string;
+};
+
+export type ManagerTrackerLane =
+    | 'offer_pending'
+    | 'lead_pending'
+    | 'share_needed'
+    | 'shortlist_shared'
+    | 'property_selected'
+    | 'lead_responded'
+    | 'expired';
+
+export type ManagerTrackerItem = {
+    id: string;
+    requestKind: 'lead' | 'offer';
+    status: 'pending' | 'responded' | 'expired';
+    timestamp: Date;
+    secondsRemaining?: number;
+    trackerLane: ManagerTrackerLane;
+};
+
+const secondsUntilDeadline = (deadline?: string) => {
+    if (!deadline) {
+        return undefined;
+    }
+
+    const seconds = Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 1000));
+    return Number.isFinite(seconds) ? seconds : undefined;
+};
+
 export const formatDispatchStatus = (value?: string) => {
     if (!value) {
         return 'Live dispatch started';
@@ -30,6 +61,15 @@ export const formatRequestTypeLabel = (value?: string) => {
     return value
         .replace(/[_-]+/g, ' ')
         .replace(/\b\w/g, (character) => character.toUpperCase());
+};
+
+export const formatWorkspaceReference = (requestId?: string) => {
+    const trimmed = String(requestId || '').trim();
+    if (!trimmed) {
+        return 'Pending';
+    }
+
+    return trimmed.slice(0, 8).toUpperCase();
 };
 
 const formatRequestArea = (request: Pick<BrokerRequestRecord, 'location' | 'location_postcode'>) => {
@@ -142,4 +182,97 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
             description: handoffDescription,
         },
     ];
+};
+
+export const getManagerWorkspaceAction = (request: BrokerRequestRecord): ManagerWorkspaceAction => {
+    if (request.handoff_status === 'property_selected' || request.selected_fast_track_case_id || request.selected_property_id) {
+        return {
+            label: 'Open selected workspace',
+        };
+    }
+
+    if (request.handoff_status === 'portfolio_shared' || (request.property_shares?.length || 0) > 0) {
+        return {
+            label: 'Update shared shortlist',
+        };
+    }
+
+    if (request.dispatch_status === 'broker_matched' || request.status === 'matched') {
+        return {
+            label: 'Share property shortlist',
+        };
+    }
+
+    return {
+        label: 'Open matched workspace',
+    };
+};
+
+export const getManagerWorkspaceStateLabel = (request: BrokerRequestRecord) => {
+    if (request.handoff_status === 'property_selected' || request.selected_fast_track_case_id || request.selected_property_id) {
+        return 'Property selected';
+    }
+
+    if (request.handoff_status === 'portfolio_shared' || (request.property_shares?.length || 0) > 0) {
+        return 'Shortlist shared';
+    }
+
+    if (request.handoff_status === 'awaiting_portfolio' || request.dispatch_status === 'broker_matched' || request.status === 'matched') {
+        return 'Share needed';
+    }
+
+    return 'Live workspace';
+};
+
+export const getManagerTrackerResponseCountdown = (
+    request: Pick<BrokerRequestRecord, 'dispatch_status' | 'status' | 'response_deadline_at'>,
+) => {
+    if (request.dispatch_status === 'broker_matched' || request.status === 'matched') {
+        return undefined;
+    }
+
+    return secondsUntilDeadline(request.response_deadline_at);
+};
+
+const MANAGER_TRACKER_LANE_PRIORITY: Record<ManagerTrackerLane, number> = {
+    offer_pending: 7,
+    lead_pending: 6,
+    share_needed: 5,
+    shortlist_shared: 4,
+    property_selected: 3,
+    lead_responded: 2,
+    expired: 1,
+};
+
+export const sortManagerTrackerItems = <T extends ManagerTrackerItem>(items: T[]) => [...items].sort((left, right) => {
+    const priorityDelta = MANAGER_TRACKER_LANE_PRIORITY[right.trackerLane] - MANAGER_TRACKER_LANE_PRIORITY[left.trackerLane];
+    if (priorityDelta !== 0) {
+        return priorityDelta;
+    }
+
+    if (left.status === 'pending' && right.status !== 'pending') return -1;
+    if (left.status !== 'pending' && right.status === 'pending') return 1;
+
+    const leftSeconds = typeof left.secondsRemaining === 'number' ? left.secondsRemaining : Number.MAX_SAFE_INTEGER;
+    const rightSeconds = typeof right.secondsRemaining === 'number' ? right.secondsRemaining : Number.MAX_SAFE_INTEGER;
+    if (leftSeconds !== rightSeconds) {
+        return leftSeconds - rightSeconds;
+    }
+
+    return right.timestamp.getTime() - left.timestamp.getTime();
+});
+
+export const selectManagerTrackerItems = <T extends ManagerTrackerItem>(items: T[], limit = 4) => {
+    if (limit <= 0) {
+        return [];
+    }
+
+    const sorted = sortManagerTrackerItems(items);
+    const topShareNeeded = sorted
+        .filter((item) => item.requestKind === 'offer' && item.trackerLane === 'share_needed')
+        .slice(0, Math.min(limit, 2));
+    const selectedIds = new Set(topShareNeeded.map((item) => item.id));
+    const remaining = sorted.filter((item) => !selectedIds.has(item.id));
+
+    return [...topShareNeeded, ...remaining].slice(0, limit);
 };

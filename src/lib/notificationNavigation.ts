@@ -132,6 +132,9 @@ export function getNotificationNavigationPath(
         case 'application_approved':
         case 'application_rejected':
             return role === 'manager' ? managerApplicationsPath : userApplicationsPath;
+        case 'sale_journey_updated':
+        case 'sale_journey_completed':
+            return role === 'manager' ? managerFastTrackPath : userFastTrackPath;
         case 'fast_track_started':
         case 'fast_track_updated':
         case 'fast_track_completed':

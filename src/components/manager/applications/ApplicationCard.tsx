@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
     FileText,
+    FileCheck,
     MapPin,
     User,
     Clock,
@@ -22,6 +23,7 @@ import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
+import { getSaleJourneyProgress, getSaleJourneyStageLabel, resolveSaleJourneyDisplayStage } from '@/lib/saleJourney';
 
 interface ApplicationCardProps {
     application: Application;
@@ -33,8 +35,29 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
+    const saleDisplayStage = application.listingType !== 'rent'
+        ? resolveSaleJourneyDisplayStage(application)
+        : null;
 
     const getStatusConfig = (status: string) => {
+        if (saleDisplayStage === 'buyer_qualification') {
+            return {
+                label: getSaleJourneyStageLabel(saleDisplayStage),
+                color: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+                dotColor: 'bg-orange-500',
+                icon: FileCheck,
+            };
+        }
+
+        if (saleDisplayStage === 'offer') {
+            return {
+                label: getSaleJourneyStageLabel(saleDisplayStage),
+                color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
+                dotColor: 'bg-violet-500',
+                icon: TrendingUp,
+            };
+        }
+
         switch (status) {
             case APPLICATION_STATUS.DRAFT:
                 return {
@@ -187,6 +210,14 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     };
 
     const getPrimaryAction = () => {
+        if (saleDisplayStage === 'buyer_qualification') {
+            return { label: 'Qualify', action: 'view' };
+        }
+
+        if (saleDisplayStage === 'offer') {
+            return { label: 'Record Offer', action: 'view' };
+        }
+
         switch (application.status) {
             case APPLICATION_STATUS.DRAFT:
                 return { label: 'Continue', action: 'edit' };
@@ -268,6 +299,10 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     };
 
     const getProgressPercentage = () => {
+        if (application.listingType !== 'rent' && saleDisplayStage) {
+            return getSaleJourneyProgress(saleDisplayStage);
+        }
+
         switch (application.status) {
             case APPLICATION_STATUS.DRAFT: return 10;
             case APPLICATION_STATUS.PENDING:

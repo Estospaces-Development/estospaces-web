@@ -4,6 +4,7 @@
  */
 
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -70,6 +71,56 @@ export interface VirtualTourRequest {
     fulfilled_at?: string | null;
     created_at: string;
     updated_at?: string;
+}
+
+export interface PropertyComplianceReadiness {
+    jurisdiction_profile: string;
+    listing_type: string;
+    status: string;
+    status_reason?: string;
+    blockers?: JourneyBlocker[];
+    deadlines?: JourneyDeadline[];
+    required_evidence?: JourneyRequirement[];
+    next_actions?: JourneyAction[];
+    updated_at?: string | null;
+}
+
+export interface PropertyComplianceEvidence {
+    id: string;
+    property_id: string;
+    category: string;
+    jurisdiction: string;
+    status: string;
+    reference_number?: string;
+    document_url?: string;
+    issued_at?: string | null;
+    expires_at?: string | null;
+    served_at?: string | null;
+    reviewed_at?: string | null;
+    reviewer_id?: string | null;
+    created_by: string;
+    updated_by: string;
+    review_notes?: string;
+    metadata?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PropertyComplianceEvidencePayload {
+    status?: string;
+    jurisdiction?: string;
+    reference_number?: string;
+    document_url?: string;
+    issued_at?: string;
+    expires_at?: string;
+    served_at?: string;
+    review_notes?: string;
+    metadata?: string;
+}
+
+interface PropertyComplianceEvidenceEnvelope {
+    evidence: PropertyComplianceEvidence[];
+    readiness: PropertyComplianceReadiness | null;
 }
 
 
@@ -374,6 +425,51 @@ export const getPropertySections = async (country: string = 'UK'): Promise<{ dat
     try {
         const data = await apiFetch<any>(
             `${CORE_URL()}/api/v1/properties/sections?country=${country}`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getPropertyComplianceReadiness = async (
+    propertyId: string,
+): Promise<{ data: PropertyComplianceReadiness | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<PropertyComplianceReadiness>(
+            `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-readiness`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getPropertyComplianceEvidence = async (
+    propertyId: string,
+): Promise<{ data: PropertyComplianceEvidenceEnvelope | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<PropertyComplianceEvidenceEnvelope>(
+            `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-evidence`,
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const upsertPropertyComplianceEvidence = async (
+    propertyId: string,
+    category: string,
+    payload: PropertyComplianceEvidencePayload,
+): Promise<{ data: PropertyComplianceEvidenceEnvelope | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<PropertyComplianceEvidenceEnvelope>(
+            `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-evidence/${category}`,
+            {
+                method: 'PUT',
+                body: JSON.stringify(payload),
+            },
         );
         return { data, error: null };
     } catch (error: any) {

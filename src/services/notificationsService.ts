@@ -27,6 +27,8 @@ export const NOTIFICATION_TYPES = {
     APPLICATION_APPROVED: 'application_approved',
     APPLICATION_REJECTED: 'application_rejected',
     DOCUMENTS_REQUESTED: 'documents_requested',
+    SALE_JOURNEY_UPDATED: 'sale_journey_updated',
+    SALE_JOURNEY_COMPLETED: 'sale_journey_completed',
     FAST_TRACK_STARTED: 'fast_track_started',
     FAST_TRACK_UPDATED: 'fast_track_updated',
     FAST_TRACK_COMPLETED: 'fast_track_completed',

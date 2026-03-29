@@ -5,6 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Info, BellRing, Loader2, MapPin, MoreHorizontal, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
+    formatWorkspaceReference,
+    getManagerTrackerResponseCountdown,
+    selectManagerTrackerItems,
+    getManagerWorkspaceAction,
+    getManagerWorkspaceStateLabel,
+} from '@/lib/brokerDispatchPresentation';
+import {
     acceptBrokerRequestOffer,
     getBrokerAvailability,
     getBrokerLeads,
@@ -19,15 +26,6 @@ import { sortBrokerRequestsByPriority } from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useToast } from '@/contexts/ToastContext';
-
-const secondsUntilDeadline = (deadline?: string) => {
-    if (!deadline) {
-        return undefined;
-    }
-
-    const seconds = Math.max(0, Math.ceil((new Date(deadline).getTime() - Date.now()) / 1000));
-    return Number.isFinite(seconds) ? seconds : undefined;
-};
 
 const formatOfferSummary = (dispatchStatus?: string, matchedBrokerName?: string | null) => {
     if (matchedBrokerName) {
@@ -72,15 +70,6 @@ const formatPropertyPrice = (price?: number) => {
     }).format(price);
 };
 
-const formatWorkspaceReference = (requestId?: string) => {
-    const trimmed = String(requestId || '').trim();
-    if (!trimmed) {
-        return 'Pending';
-    }
-
-    return trimmed.slice(0, 8).toUpperCase();
-};
-
 const formatWorkspaceStartedAt = (value?: string) => {
     if (!value) {
         return 'Just now';
@@ -100,6 +89,7 @@ const formatWorkspaceStartedAt = (value?: string) => {
 };
 
 const MATCHED_WORKSPACES_ID = 'matched-client-workspaces';
+const getMatchedWorkspaceCardId = (requestId: string) => `matched-workspace-${requestId}`;
 
 type ManagerPortfolioProperty = {
     id: string;
@@ -119,6 +109,7 @@ const BrokerResponseWidget: React.FC = () => {
     const [managerProperties, setManagerProperties] = useState<ManagerPortfolioProperty[]>([]);
     const [shareSelections, setShareSelections] = useState<Record<string, string[]>>({});
     const [shareSavingRequestId, setShareSavingRequestId] = useState<string | null>(null);
+    const [focusedWorkspaceRequestId, setFocusedWorkspaceRequestId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [availableForFastResponse, setAvailableForFastResponse] = useState(false);
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -160,11 +151,23 @@ const BrokerResponseWidget: React.FC = () => {
                 secondaryActionLabel: 'Open leads',
                 statusReason: lead.status_reason,
                 nextAction: lead.next_action,
+                trackerLane: resolveLeadStage(lead) === 'matching'
+                    ? 'lead_pending' as const
+                    : resolveLeadStage(lead) === 'expired'
+                        ? 'expired' as const
+                        : 'lead_responded' as const,
             }));
 
-            const mappedOffers = (offersResult.data || []).map((offer) => ({
-                id: offer.id,
-                requestKind: 'offer' as const,
+            const mappedOffers = (offersResult.data || []).map((offer) => {
+                const workspaceAction = getManagerWorkspaceAction(offer);
+                const workspaceReference = formatWorkspaceReference(offer.id);
+                const hasSelectedProperty = Boolean(offer.selected_property_id || offer.selected_fast_track_case_id);
+                const hasSharedShortlist = (offer.property_shares?.length || 0) > 0;
+                const isMatchedOffer = offer.dispatch_status === 'broker_matched' || offer.status === 'matched';
+
+                return {
+                    id: offer.id,
+                    requestKind: 'offer' as const,
                 propertyName: `${(offer.request_type || 'broker').replace(/\b\w/g, (character) => character.toUpperCase())} request${offer.location ? ` - ${offer.location}` : ''}`,
                 brokerName: offer.requester_name || offer.requester_email || 'Marketplace client',
                 distance: offer.location_postcode || offer.location || 'UK',
@@ -174,32 +177,30 @@ const BrokerResponseWidget: React.FC = () => {
                     : offer.dispatch_status === 'expired' || offer.status === 'expired' || offer.dispatch_status === 'unavailable'
                         ? 'expired' as const
                         : 'pending' as const,
-                secondsRemaining: secondsUntilDeadline(offer.response_deadline_at),
-                stageLabel: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
+                secondsRemaining: getManagerTrackerResponseCountdown(offer),
+                stageLabel: `${formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null)} • Workspace ${workspaceReference}`,
                 dispatchStatus: offer.dispatch_status,
-                primaryActionLabel: 'Accept Offer',
-                secondaryActionLabel: offer.dispatch_status === 'broker_matched' ? 'Open matched workspace' : 'Open leads',
-                statusReason: offer.status_reason,
-                nextAction: offer.dispatch_status === 'broker_matched'
-                    ? 'Open matched workspace'
-                    : offer.next_action,
-            }));
+                    primaryActionLabel: 'Accept Offer',
+                    secondaryActionLabel: offer.dispatch_status === 'broker_matched' ? workspaceAction.label : 'Open leads',
+                    statusReason: offer.status_reason,
+                    nextAction: offer.dispatch_status === 'broker_matched'
+                        ? workspaceAction.label
+                        : offer.next_action,
+                    trackerLane: offer.dispatch_status === 'expired' || offer.status === 'expired' || offer.dispatch_status === 'unavailable'
+                        ? 'expired' as const
+                        : offer.dispatch_status === 'broker_matched'
+                            ? hasSelectedProperty
+                                ? 'property_selected' as const
+                                : hasSharedShortlist
+                                    ? 'shortlist_shared' as const
+                                    : 'share_needed' as const
+                            : isMatchedOffer
+                                ? 'share_needed' as const
+                                : 'offer_pending' as const,
+                };
+            });
 
-            const merged = [...mappedOffers, ...mappedLeads]
-                .sort((left, right) => {
-                    if (left.status === 'pending' && right.status !== 'pending') return -1;
-                    if (left.status !== 'pending' && right.status === 'pending') return 1;
-
-                    const leftSeconds = typeof left.secondsRemaining === 'number' ? left.secondsRemaining : Number.MAX_SAFE_INTEGER;
-                    const rightSeconds = typeof right.secondsRemaining === 'number' ? right.secondsRemaining : Number.MAX_SAFE_INTEGER;
-                    if (leftSeconds !== rightSeconds) {
-                        return leftSeconds - rightSeconds;
-                    }
-
-                    return right.timestamp.getTime() - left.timestamp.getTime();
-                });
-
-            setRequests(merged.slice(0, 4));
+            setRequests(selectManagerTrackerItems([...mappedOffers, ...mappedLeads], 4));
             setMatchedRequests(sortBrokerRequestsByPriority((offersResult.data || []).filter((offer) => (
                 (offer.dispatch_status === 'broker_matched' || offer.status === 'matched')
                 && Boolean(offer.matched_broker_id)
@@ -256,6 +257,18 @@ const BrokerResponseWidget: React.FC = () => {
         });
     }, [matchedRequests]);
 
+    useEffect(() => {
+        if (!focusedWorkspaceRequestId) {
+            return undefined;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setFocusedWorkspaceRequestId((current) => current === focusedWorkspaceRequestId ? null : current);
+        }, 4000);
+
+        return () => window.clearTimeout(timeout);
+    }, [focusedWorkspaceRequestId]);
+
     const handleRespond = async (id: string) => {
         try {
             const selectedRequest = requests.find((request) => request.id === id);
@@ -277,6 +290,16 @@ const BrokerResponseWidget: React.FC = () => {
     const handleSecondaryAction = (id: string) => {
         const selectedRequest = requests.find((request) => request.id === id);
         if (selectedRequest?.requestKind === 'offer' && selectedRequest.dispatchStatus === 'broker_matched') {
+            setFocusedWorkspaceRequestId(id);
+            const matchedWorkspaceCard = document.getElementById(getMatchedWorkspaceCardId(id));
+            if (matchedWorkspaceCard) {
+                matchedWorkspaceCard.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+                return;
+            }
+
             document.getElementById(MATCHED_WORKSPACES_ID)?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'start',
@@ -485,7 +508,12 @@ const BrokerResponseWidget: React.FC = () => {
                             return (
                                 <div
                                     key={request.id}
-                                    className="rounded-3xl border border-white bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-black"
+                                    id={getMatchedWorkspaceCardId(request.id)}
+                                    className={`scroll-mt-28 rounded-3xl border bg-white p-5 shadow-sm transition-all dark:bg-black ${
+                                        focusedWorkspaceRequestId === request.id
+                                            ? 'border-orange-300 ring-2 ring-orange-200 dark:border-orange-700 dark:ring-orange-900/40'
+                                            : 'border-white dark:border-gray-800'
+                                    }`}
                                 >
                                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                         <div>
@@ -495,6 +523,15 @@ const BrokerResponseWidget: React.FC = () => {
                                                 </span>
                                                 <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                                     {request.request_type}
+                                                </span>
+                                                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+                                                    request.handoff_status === 'property_selected' || request.selected_property_id || request.selected_fast_track_case_id
+                                                        ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300'
+                                                        : request.handoff_status === 'portfolio_shared' || (request.property_shares?.length || 0) > 0
+                                                            ? 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/30 dark:bg-violet-950/20 dark:text-violet-300'
+                                                            : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300'
+                                                }`}>
+                                                    {getManagerWorkspaceStateLabel(request)}
                                                 </span>
                                             </div>
                                             <h5 className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">

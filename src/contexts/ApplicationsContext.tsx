@@ -4,6 +4,8 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { useAuth } from './AuthContext';
 import {
     Application as BackendApplication,
+    type AMLReview,
+    type BuyerQualification,
     createApplication as createBackendApplication,
     getApplications as getBackendApplications,
     updateApplicationStatus as updateBackendApplicationStatus,
@@ -14,7 +16,8 @@ import { getFastTrackCases } from '@/services/fastTrackService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { findRelatedViewing } from '@/lib/applicationWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
-import { saleProgressionStageForStatus, isSaleProgressionRecord } from '@/lib/saleJourney';
+import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, isSaleProgressionRecord } from '@/lib/saleJourney';
+import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -26,6 +29,8 @@ export const APPLICATION_STATUS = {
     UNDER_REVIEW: 'under_review',
     DOCUMENTS_REQUESTED: 'documents_requested',
     VERIFICATION_IN_PROGRESS: 'verification_in_progress',
+    BUYER_QUALIFICATION: 'buyer_qualification',
+    OFFER_READY: 'offer_ready',
     OFFER_SUBMITTED: 'offer_submitted',
     OFFER_UNDER_REVIEW: 'offer_under_review',
     OFFER_ACCEPTED: 'offer_accepted',
@@ -51,6 +56,8 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
     under_review: { label: 'Under Review', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
     documents_requested: { label: 'Documents Required', color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
     verification_in_progress: { label: 'Verification in Progress', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
+    buyer_qualification: { label: 'Buyer Qualification', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
+    offer_ready: { label: 'Offer Ready', color: 'violet', bgColor: 'bg-violet-100', textColor: 'text-violet-700' },
     offer_submitted: { label: 'Offer Submitted', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
     offer_under_review: { label: 'Offer Under Review', color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
     offer_accepted: { label: 'Offer Accepted', color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700' },
@@ -94,6 +101,16 @@ export interface Application {
     requiresAction?: boolean;
     hasAppointment?: boolean;
     deadline?: string;
+    liveStage?: string;
+    stageGroup?: string;
+    jurisdictionProfile?: string;
+    journeyStatusReason?: string;
+    blockers?: JourneyBlocker[];
+    deadlines?: JourneyDeadline[];
+    requiredEvidence?: JourneyRequirement[];
+    nextActions?: JourneyAction[];
+    buyerQualification?: BuyerQualification | null;
+    amlReview?: AMLReview | null;
     journeyLabel?: string;
     journeySummary?: string;
     appointment?: {
@@ -285,36 +302,54 @@ const deriveStatusFromViewing = (application: BackendApplication, viewing?: View
     return APPLICATION_STATUS.SUBMITTED;
 };
 
-const mapBackendApplication = (application: BackendApplication, relatedViewing?: Viewing): Application => ({
-    id: application.id,
-    source: 'application',
-    referenceId: buildReferenceId(application.id),
-    propertyId: application.property_id,
-    userId: application.user_id,
-    brokerRequestId: application.broker_request_id || undefined,
-    leadId: application.lead_id || undefined,
-    fastTrackCaseId: application.fast_track_case_id || undefined,
-    managerId: application.manager_id || undefined,
-    conversationId: application.conversation_id || undefined,
-    status: deriveStatusFromViewing(application, relatedViewing),
-    createdAt: application.created_at,
-    updatedAt: application.updated_at,
-    propertyTitle: application.property_title || 'Property',
-    propertyAddress: application.property_address || 'Address unavailable',
-    propertyImage: toImageUrl(application.property_image),
-    propertyPrice: application.property_price,
-    propertyType: application.property_type || 'property',
-    agentName: application.agent_name || '',
-    agentAgency: application.agent_agency || '',
-    agentEmail: application.agent_email || '',
-    agentPhone: application.agent_phone || '',
-    listingType: application.listing_type || 'sale',
-    submittedDate: application.created_at,
-    lastUpdated: application.updated_at || application.created_at,
-    requiresAction: application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
-    hasAppointment: !!relatedViewing && relatedViewing.status !== 'cancelled',
-    appointment: deriveAppointment(relatedViewing),
-});
+const mapBackendApplication = (application: BackendApplication, relatedViewing?: Viewing): Application => {
+    const displayStage = resolveSaleJourneyDisplayStage({
+        source: 'application',
+        status: application.status,
+        liveStage: application.liveStage,
+    });
+
+    return {
+        id: application.id,
+        source: 'application',
+        referenceId: buildReferenceId(application.id),
+        propertyId: application.property_id,
+        userId: application.user_id,
+        brokerRequestId: application.broker_request_id || undefined,
+        leadId: application.lead_id || undefined,
+        fastTrackCaseId: application.fast_track_case_id || undefined,
+        managerId: application.manager_id || undefined,
+        conversationId: application.conversation_id || undefined,
+        status: deriveStatusFromViewing(application, relatedViewing),
+        createdAt: application.created_at,
+        updatedAt: application.updated_at,
+        propertyTitle: application.property_title || 'Property',
+        propertyAddress: application.property_address || 'Address unavailable',
+        propertyImage: toImageUrl(application.property_image),
+        propertyPrice: application.property_price,
+        propertyType: application.property_type || 'property',
+        agentName: application.agent_name || '',
+        agentAgency: application.agent_agency || '',
+        agentEmail: application.agent_email || '',
+        agentPhone: application.agent_phone || '',
+        listingType: application.listing_type || 'sale',
+        submittedDate: application.created_at,
+        lastUpdated: application.updated_at || application.created_at,
+        requiresAction: application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
+        hasAppointment: !!relatedViewing && relatedViewing.status !== 'cancelled',
+        appointment: deriveAppointment(relatedViewing),
+        jurisdictionProfile: application.jurisdictionProfile,
+        liveStage: application.liveStage,
+        stageGroup: application.stageGroup,
+        journeyStatusReason: application.journeyStatusReason,
+        blockers: application.blockers || [],
+        deadlines: application.deadlines || [],
+        requiredEvidence: application.requiredEvidence || [],
+        nextActions: application.nextActions || [],
+        journeyLabel: displayStage ? getSaleJourneyStageLabel(displayStage) : undefined,
+        journeySummary: displayStage ? getSaleJourneySummary(displayStage, application.journeyStatusReason) : application.journeyStatusReason,
+    };
+};
 
 const mapSaleProgression = (
     progression: SaleProgression,
@@ -363,6 +398,14 @@ const mapSaleProgression = (
         journeyLabel: journeyCopy.label,
         journeySummary: journeyCopy.summary,
         appointment: deriveAppointment(relatedViewing),
+        jurisdictionProfile: progression.jurisdictionProfile,
+        liveStage: progression.liveStage,
+        stageGroup: progression.stageGroup,
+        journeyStatusReason: progression.journeyStatusReason,
+        blockers: progression.blockers || [],
+        deadlines: progression.deadlines || [],
+        requiredEvidence: progression.requiredEvidence || [],
+        nextActions: progression.nextActions || [],
     };
 };
 
