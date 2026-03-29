@@ -84,3 +84,15 @@ export const buildHostedWorkspaceUrl = (path: string, role?: string) => {
     const base = targetApp === 'admin' ? config.adminUrl : config.appUrl;
     return `${base}${normalizedPath}`;
 };
+
+export const isSameHostedWorkspaceUrl = (targetUrl: string, currentUrl: string) => {
+    const resolvedTarget = new URL(targetUrl, currentUrl);
+    const resolvedCurrent = new URL(currentUrl);
+
+    return (
+        resolvedTarget.origin === resolvedCurrent.origin &&
+        resolvedTarget.pathname === resolvedCurrent.pathname &&
+        resolvedTarget.search === resolvedCurrent.search &&
+        resolvedTarget.hash === resolvedCurrent.hash
+    );
+};

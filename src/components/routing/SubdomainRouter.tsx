@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import {
     buildHostedWorkspaceUrl,
+    isSameHostedWorkspaceUrl,
     resolveHostedWorkspaceRedirect,
     useHost,
 } from '@/lib/utils/hostUtils';
@@ -29,6 +30,11 @@ const SubdomainRouter: React.FC<SubdomainRouterProps> = ({ children }) => {
     if (redirect) {
         const targetUrl = buildHostedWorkspaceUrl(redirect.path, redirect.role);
         const resolved = new URL(targetUrl, window.location.origin);
+        const currentUrl = window.location.href;
+
+        if (isSameHostedWorkspaceUrl(resolved.toString(), currentUrl)) {
+            return <>{children}</>;
+        }
 
         if (resolved.origin === window.location.origin) {
             return <Navigate to={`${resolved.pathname}${resolved.search}${resolved.hash}`} replace />;

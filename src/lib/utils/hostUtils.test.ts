@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     buildHostedWorkspaceUrl,
+    isSameHostedWorkspaceUrl,
     isSingleOriginHostedHost,
     resolveCurrentAppFromHostname,
     resolveHostedWorkspaceRedirect,
@@ -59,4 +60,22 @@ test('cloud run dev hosts stay on the same origin for admin links', () => {
             });
         }
     }
+});
+
+test('same-origin hosted admin redirect does not navigate to the current URL again', () => {
+    assert.equal(
+        isSameHostedWorkspaceUrl(
+            'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app/admin/dashboard',
+            'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app/admin/dashboard',
+        ),
+        true,
+    );
+
+    assert.equal(
+        isSameHostedWorkspaceUrl(
+            'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app/admin/dashboard',
+            'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app/login',
+        ),
+        false,
+    );
 });
