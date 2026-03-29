@@ -10,16 +10,18 @@ import {
     syncAuthExpiryState,
 } from '@/lib/authExpiry';
 
+const VITE_ENV = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env ?? {};
+
 // ── Service URL Registry ────────────────────────────────────────────────────
 
 const SERVICE_URLS = {
-    core: import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080',
-    booking: import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8081',
-    notification: import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
-    payment: import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
-    search: import.meta.env.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
-    media: import.meta.env.VITE_MEDIA_SERVICE_URL || 'http://localhost:8085',
-    messaging: import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8086',
+    core: VITE_ENV.VITE_CORE_SERVICE_URL || 'http://localhost:8080',
+    booking: VITE_ENV.VITE_BOOKING_SERVICE_URL || 'http://localhost:8081',
+    notification: VITE_ENV.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
+    payment: VITE_ENV.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
+    search: VITE_ENV.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
+    media: VITE_ENV.VITE_MEDIA_SERVICE_URL || 'http://localhost:8085',
+    messaging: VITE_ENV.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8086',
 } as const;
 
 export type ServiceName = keyof typeof SERVICE_URLS;
@@ -32,11 +34,13 @@ export function getServiceUrl(service: ServiceName): string {
 // ── Auth Header Helper ──────────────────────────────────────────────────────
 
 /** Returns standard auth headers with Bearer token from localStorage. */
-export function getAuthHeaders(body?: any): Record<string, string> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : '';
-    const headers: Record<string, string> = {
-        'Authorization': `Bearer ${token}`,
-    };
+export function getAuthHeaders(body?: any, tokenOverride?: string | null): Record<string, string> {
+    const token = tokenOverride ?? (typeof window !== 'undefined' ? localStorage.getItem('esto_token') : null);
+    const headers: Record<string, string> = {};
+
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
 
     // Only set JSON content type if not uploading files
     if (!(body instanceof FormData)) {
@@ -113,13 +117,61 @@ function isAuthEndpoint(url: string) {
     return url.includes('/api/v1/auth/login') || url.includes('/api/v1/auth/register');
 }
 
-function handleUnauthorizedResponse(url: string) {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : null;
+const AUTH_ME_PATH = '/api/v1/auth/me';
+
+export type UnauthorizedResponseState = 'session-expired' | 'ignored' | 'unhandled';
+
+let sessionValidationPromise: Promise<boolean> | null = null;
+let sessionValidationToken: string | null = null;
+
+function getStoredAuthToken() {
+    return typeof window !== 'undefined' ? localStorage.getItem('esto_token') : null;
+}
+
+async function validateCurrentSession(token: string) {
+    if (sessionValidationPromise && sessionValidationToken === token) {
+        return sessionValidationPromise;
+    }
+
+    sessionValidationToken = token;
+    sessionValidationPromise = fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
+        headers: getAuthHeaders(undefined, token),
+    })
+        .then((response) => response.status !== 401)
+        .catch(() => true)
+        .finally(() => {
+            sessionValidationPromise = null;
+            sessionValidationToken = null;
+        });
+
+    return sessionValidationPromise;
+}
+
+export async function handleUnauthorizedResponse(
+    url: string,
+    requestToken: string | null,
+): Promise<UnauthorizedResponseState> {
+    const activeToken = getStoredAuthToken();
+
+    if (typeof window === 'undefined' || isAuthEndpoint(url)) {
+        return 'unhandled';
+    }
+
+    if (!requestToken || requestToken !== activeToken) {
+        return 'ignored';
+    }
+
+    if (!url.includes(AUTH_ME_PATH)) {
+        const sessionStillValid = await validateCurrentSession(activeToken);
+        if (sessionStillValid) {
+            return 'ignored';
+        }
+    }
 
     return handleUnauthorizedSession({
         isBrowser: typeof window !== 'undefined',
-        isAuthEndpoint: isAuthEndpoint(url),
-        token,
+        isAuthEndpoint: false,
+        token: requestToken,
         onExpire: () => {
             localStorage.removeItem('esto_token');
             localStorage.removeItem('esto_user');
@@ -130,7 +182,7 @@ function handleUnauthorizedResponse(url: string) {
             });
             window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
         },
-    });
+    }) ? 'session-expired' : 'unhandled';
 }
 
 export function getErrorMessage(error: unknown, fallback = SYSTEM_ERROR_MESSAGE): string {
@@ -170,9 +222,16 @@ export async function apiFetchEnvelope<T>(
     url: string,
     options: ApiFetchOptions = {},
 ): Promise<ApiEnvelope<T>> {
-    const isDebug = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
+    const isDebug = VITE_ENV.DEV === true && VITE_ENV.VITE_DEBUG_API === 'true';
     const method = options.method || 'GET';
     const { suppressErrorToast = false, ...requestOptions } = options;
+    const storedToken = getStoredAuthToken();
+    const headers = new Headers({
+        ...getAuthHeaders(requestOptions.body, storedToken),
+        ...requestOptions.headers,
+    });
+    const authHeader = headers.get('Authorization');
+    const requestToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() || null : null;
 
     if (isDebug) {
         let bodyLog = '';
@@ -194,7 +253,7 @@ export async function apiFetchEnvelope<T>(
     try {
         response = await fetch(url, {
             ...requestOptions,
-            headers: { ...getAuthHeaders(requestOptions.body), ...requestOptions.headers },
+            headers,
         });
     } catch (error: any) {
         if (!suppressErrorToast) {
@@ -214,21 +273,25 @@ export async function apiFetchEnvelope<T>(
         } catch {
             // No JSON body
         }
-        const authExpired = response.status === 401 && handleUnauthorizedResponse(url);
+        const unauthorizedState = response.status === 401
+            ? await handleUnauthorizedResponse(url, requestToken)
+            : 'unhandled';
         if (isDebug) console.error(`[API Response Error] ${method} ${url}:`, errorMsg);
-        if (!suppressErrorToast && !authExpired) {
+        if (!suppressErrorToast && unauthorizedState === 'unhandled') {
             notifyApiFailure(response.status);
         }
         throw new ApiRequestError(
             errorMsg,
-            authExpired ? AUTH_EXPIRED_MESSAGE : getToastPayload(response.status).message,
+            unauthorizedState === 'session-expired'
+                ? AUTH_EXPIRED_MESSAGE
+                : getToastPayload(response.status).message,
             response.status,
         );
     }
 
     const json = await parseJsonResponse<T>(response);
     if (typeof window !== 'undefined') {
-        syncAuthExpiryState(localStorage.getItem('esto_token'));
+        syncAuthExpiryState(getStoredAuthToken());
     }
 
     if (isDebug) {
