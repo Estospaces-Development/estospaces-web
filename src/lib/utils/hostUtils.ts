@@ -5,6 +5,7 @@
 export type HostedApp = 'landing' | 'app' | 'admin';
 
 export const isLocalhostHost = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
+export const isSingleOriginHostedHost = (hostname: string) => hostname.endsWith('.run.app');
 
 export const resolveCurrentAppFromHostname = (hostname: string): HostedApp => {
     if (hostname.startsWith('admin.')) {
@@ -50,6 +51,7 @@ export const resolveHostedWorkspaceRedirect = (
 export const getHostConfig = () => {
     const hostname = window.location.hostname;
     const isLocalhost = isLocalhostHost(hostname);
+    const isSingleOriginHosted = isSingleOriginHostedHost(hostname);
     const origin = isLocalhost ? `http://localhost:${window.location.port}` : window.location.origin;
     
     // Default domains
@@ -62,11 +64,12 @@ export const getHostConfig = () => {
     return {
         hostname,
         isLocalhost,
+        isSingleOriginHosted,
         origin,
         currentApp,
-        appUrl: isLocalhost ? origin : `https://${APP_DOMAIN}`,
-        adminUrl: isLocalhost ? origin : `https://${ADMIN_DOMAIN}`,
-        landingUrl: isLocalhost ? origin : `https://${LANDING_DOMAIN}`,
+        appUrl: isLocalhost || isSingleOriginHosted ? origin : `https://${APP_DOMAIN}`,
+        adminUrl: isLocalhost || isSingleOriginHosted ? origin : `https://${ADMIN_DOMAIN}`,
+        landingUrl: isLocalhost || isSingleOriginHosted ? origin : `https://${LANDING_DOMAIN}`,
     };
 };
 
