@@ -677,7 +677,18 @@ export default function UserFastTrackPage() {
 
         setUploadError(null);
         setUploadingType(type);
-        const result = await uploadDocument(type, file, { leadId: selectedLead.id });
+        const result = await uploadDocument(type, file, {
+            leadId: selectedLead.id,
+            fastTrackCaseId: selectedCase?.caseId,
+            applicationId: selectedLinkedJourney?.application?.id,
+            contractId: selectedLinkedJourney?.contract?.id,
+            propertyId: selectedCase?.propertyId,
+            managerId: selectedCase?.managerId,
+            linkFamily: 'client_reusable',
+            visibility: 'shared_with_user',
+            requirementCodes: type === 'identity' ? ['identity_proof'] : ['address_proof'],
+            reusable: true,
+        });
         setUploadingType(null);
 
         if (!result.success || result.error) {
@@ -686,7 +697,15 @@ export default function UserFastTrackPage() {
         }
 
         await fetchCases(true);
-    }, [fetchCases, selectedLead?.id]);
+    }, [
+        fetchCases,
+        selectedCase?.caseId,
+        selectedCase?.managerId,
+        selectedCase?.propertyId,
+        selectedLead?.id,
+        selectedLinkedJourney?.application?.id,
+        selectedLinkedJourney?.contract?.id,
+    ]);
 
     const handleBannerUpload = useCallback(async (
         type: 'identity' | 'address',
@@ -1240,6 +1259,12 @@ export default function UserFastTrackPage() {
                                             className="w-full rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold px-4 py-3 transition-colors"
                                         >
                                             Open live workspace
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(`/user/dashboard/case-file?case=${selectedCase.caseId}`)}
+                                            className="w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300 dark:hover:bg-orange-950/30"
+                                        >
+                                            Open shared case file
                                         </button>
                                         <button
                                             onClick={() => void handleOpenMessages()}

@@ -66,6 +66,7 @@ import {
     type PropertyComplianceEvidenceDraft,
 } from '@/lib/propertyCompliance';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import CaseFileWorkspace from '@/components/case-file/CaseFileWorkspace';
 
 interface ApplicationDetailProps {
     applicationId: string;
@@ -1390,43 +1391,24 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                         {/* Documents Tab */}
                         {activeTab === 'documents' && (
                             <div className="space-y-6">
-                                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                {application.fastTrackCaseId ? (
+                                    <CaseFileWorkspace
+                                        role="manager"
+                                        caseId={application.fastTrackCaseId}
+                                        embedded
+                                        initialTab="documents"
+                                    />
+                                ) : (
+                                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800">
+                                        <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                                             <Shield size={20} className="text-orange-500" />
-                                            Required Documents
-                                        </h3>
-                                        <button className="flex items-center gap-2 px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors">
-                                            <Upload size={14} />
-                                            Upload All
-                                        </button>
+                                            <h3 className="text-lg font-semibold">Shared case file unavailable</h3>
+                                        </div>
+                                        <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                                            This application is not linked to a live fast-track case yet, so the shared document workspace cannot be opened from here.
+                                        </p>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {['Passport or ID Proof', 'Recent Utility Bill', 'Employment Contract', '3 Months Bank Statements'].map((doc, index) => (
-                                            <div key={index} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800 transition-all shadow-sm group">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${index < 2 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'
-                                                        }`}>
-                                                        {index < 2 ? (
-                                                            <CheckCircle size={20} className="text-green-600 dark:text-green-400" />
-                                                        ) : (
-                                                            <FileText size={20} className="text-gray-400" />
-                                                        )}
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-gray-900 dark:text-white text-sm">{doc}</p>
-                                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                            {index < 2 ? 'Verified' : 'Pending upload'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <button className="p-2 text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors">
-                                                    {index < 2 ? <FileText size={18} /> : <Upload size={18} />}
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         )}
 

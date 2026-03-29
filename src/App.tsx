@@ -74,7 +74,6 @@ import UserLayout from './layouts/UserLayout';
 const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
 
 // Lazy loaded pages - Public
-const LandingPage = lazyPage(() => import('./pages/public/LandingPage'));
 const ContactPage = lazyPage(() => import('./pages/public/contact/page'));
 const CookiesPage = lazyPage(() => import('./pages/public/cookies/page'));
 const FAQPage = lazyPage(() => import('./pages/public/faq/page'));
@@ -112,6 +111,7 @@ const ManagerAnalytics = lazyPage(() => import('./pages/manager/analytics/page')
 const ManagerApplications = lazyPage(() => import('./pages/manager/applications/page'));
 const ManagerAppointments = lazyPage(() => import('./pages/manager/appointments/page'));
 const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
+const ManagerCaseFiles = lazyPage(() => import('./pages/manager/case-files/page'));
 const ManagerClients = lazyPage(() => import('./pages/manager/clients/page'));
 const ManagerCommunity = lazyPage(() => import('./pages/manager/community/page'));
 const ManagerContracts = lazyPage(() => import('./pages/manager/contracts/page'));
@@ -139,6 +139,7 @@ const UserSettings = lazyPage(() => import('./pages/user/settings/page'));
 const UserContracts = lazyPage(() => import('./pages/user/dashboard/contracts/page'));
 const UserDiscover = lazyPage(() => import('./pages/user/dashboard/discover/page'));
 const UserFastTrack = lazyPage(() => import('./pages/user/dashboard/fast-track/page'));
+const UserCaseFile = lazyPage(() => import('./pages/user/dashboard/case-file/page'));
 const UserHelp = lazyPage(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazyPage(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazyPage(() => import('./pages/user/dashboard/notifications/page'));
@@ -150,6 +151,7 @@ const UserSettingsDash = lazyPage(() => import('./pages/user/dashboard/settings/
 const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page'));
 
 import SubdomainRouter from './components/routing/SubdomainRouter';
+import StartupRedirect from './components/routing/StartupRedirect';
 
 const App: React.FC = () => {
   React.useEffect(() => {
@@ -163,9 +165,10 @@ const App: React.FC = () => {
       <SubdomainRouter>
         <PageErrorBoundary>
           <Routes>
+          <Route path="/" element={<StartupRedirect />} />
+
           {/* Public Routes */}
           <Route element={<PublicLayout />}>
-            <Route path="/" element={<LandingPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/cookies" element={<CookiesPage />} />
             <Route path="/faq" element={<FAQPage />} />
@@ -210,6 +213,7 @@ const App: React.FC = () => {
             <Route path="analytics" element={<ManagerAnalytics />} />
             <Route path="applications" element={<ManagerApplications />} />
             <Route path="appointments" element={<ManagerAppointments />} />
+            <Route path="case-files" element={<ManagerCaseFiles />} />
             <Route path="contracts" element={<ManagerContracts />} />
             <Route path="billing" element={<ManagerBilling />} />
             <Route path="clients" element={<ManagerClients />} />
@@ -229,6 +233,7 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<UserDashboard />} />
             <Route path="dashboard/contracts" element={<UserContracts />} />
+            <Route path="dashboard/case-file" element={<UserCaseFile />} />
             <Route path="dashboard/discover" element={<UserDiscover />} />
             <Route path="dashboard/fast-track" element={<UserFastTrack />} />
             <Route path="dashboard/help" element={<UserHelp />} />
@@ -253,7 +258,7 @@ const App: React.FC = () => {
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<StartupRedirect />} />
           </Routes>
         </PageErrorBoundary>
       </SubdomainRouter>

@@ -59,7 +59,7 @@ export const getHostConfig = () => {
     const ADMIN_DOMAIN = 'admin.estospaces.com';
     const LANDING_DOMAIN = 'estospaces.com';
 
-    const currentApp = isLocalhost ? 'landing' : resolveCurrentAppFromHostname(hostname);
+    const currentApp = isLocalhost ? 'app' : resolveCurrentAppFromHostname(hostname);
 
     return {
         hostname,

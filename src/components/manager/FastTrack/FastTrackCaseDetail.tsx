@@ -191,6 +191,11 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
     });
+    const caseFileWorkspacePath = buildWorkspacePath('/manager/case-files', {
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+    });
     const contractsWorkspacePath = buildWorkspacePath('/manager/contracts', {
         contractId: linkedJourney?.contract?.id,
         applicationId: linkedJourney?.application?.id,
@@ -882,6 +887,14 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 >
                                     <FileText size={18} />
                                     {rentJourney ? 'Open applications workspace' : purchaseWorkspaceLabel}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(caseFileWorkspacePath)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                >
+                                    <FileText size={18} />
+                                    Open shared case file
                                 </button>
                                 <button
                                     type="button"

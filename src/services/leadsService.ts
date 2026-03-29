@@ -247,6 +247,22 @@ const DOCUMENT_UPLOAD_TYPES: Record<string, { document_type: string; document_ca
     },
 };
 
+export interface DocumentUploadOptions {
+    leadId?: string;
+    fastTrackCaseId?: string;
+    applicationId?: string;
+    contractId?: string;
+    propertyId?: string;
+    managerId?: string;
+    requestId?: string;
+    linkFamily?: string;
+    visibility?: string;
+    requirementCodes?: string[];
+    reusable?: boolean;
+    documentType?: string;
+    documentCategory?: string;
+}
+
 /**
  * Fetch leads for the logged-in user
  * GET /api/v1/leads/mine (core-service)
@@ -661,11 +677,13 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
 export const uploadDocument = async (
     type: string,
     file: File,
-    options: { leadId?: string } = {},
+    options: DocumentUploadOptions = {},
 ): Promise<{ success: boolean; data: UserDocument | null; error: string | null }> => {
     try {
         const mapping = DOCUMENT_UPLOAD_TYPES[type];
-        if (!mapping) {
+        const resolvedDocumentType = options.documentType || mapping?.document_type;
+        const resolvedDocumentCategory = options.documentCategory || mapping?.document_category;
+        if (!resolvedDocumentType || !resolvedDocumentCategory) {
             throw new Error(`Document upload type "${type}" is not supported on develop`);
         }
 
@@ -674,14 +692,24 @@ export const uploadDocument = async (
         const data = await apiFetch<UserDocument>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
             body: JSON.stringify({
-                document_type: mapping.document_type,
-                document_category: mapping.document_category,
+                document_type: resolvedDocumentType,
+                document_category: resolvedDocumentCategory,
                 media_id: uploadedFile.id,
                 file_name: file.name,
                 file_url: uploadedFile.file_url,
                 file_size: file.size,
                 mime_type: file.type,
                 lead_id: options.leadId || '',
+                fast_track_case_id: options.fastTrackCaseId || '',
+                application_id: options.applicationId || '',
+                contract_id: options.contractId || '',
+                property_id: options.propertyId || '',
+                manager_id: options.managerId || '',
+                request_id: options.requestId || '',
+                link_family: options.linkFamily || '',
+                visibility: options.visibility || '',
+                requirement_codes: options.requirementCodes || [],
+                reusable: options.reusable ?? false,
             }),
         });
         return { success: true, data, error: null };

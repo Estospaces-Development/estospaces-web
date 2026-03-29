@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -40,6 +40,11 @@ import {
     normalizeWorkspaceDocuments,
     resolveLeadStage,
 } from '@/lib/fastTrackWorkflow';
+import {
+    formatImmersiveGalleryTransformOrigin,
+    IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT,
+    resolveImmersiveGalleryZoomPoint,
+} from '@/lib/immersiveGallery';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages } from '@/lib/propertyImages';
 
@@ -259,6 +264,8 @@ const UserPropertyDetail = () => {
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [isImmersiveZoomActive, setIsImmersiveZoomActive] = useState(false);
+    const [immersiveZoomPoint, setImmersiveZoomPoint] = useState(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
     const [isFastTrackModalOpen, setIsFastTrackModalOpen] = useState(false);
     const [isFastTrackPanelLoading, setIsFastTrackPanelLoading] = useState(false);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
@@ -276,6 +283,7 @@ const UserPropertyDetail = () => {
         user_notes: '',
     });
     const [viewingAvailability, setViewingAvailability] = useState<ViewingAvailability | null>(null);
+    const immersiveGalleryImageRef = useRef<HTMLImageElement | null>(null);
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -458,6 +466,17 @@ const UserPropertyDetail = () => {
         setSelectedImageIndex(index);
         setIsGalleryOpen(true);
     };
+    const handleImmersiveGalleryMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+        const imageRect = immersiveGalleryImageRef.current?.getBoundingClientRect();
+        const pointerRect = imageRect?.width && imageRect?.height ? imageRect : event.currentTarget.getBoundingClientRect();
+
+        setIsImmersiveZoomActive(true);
+        setImmersiveZoomPoint(resolveImmersiveGalleryZoomPoint(event.clientX, event.clientY, pointerRect));
+    };
+    const handleImmersiveGalleryMouseLeave = () => {
+        setIsImmersiveZoomActive(false);
+        setImmersiveZoomPoint(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
+    };
     const reconcileFastTrackCaseContext = async (
         fastTrackCase: FastTrackCase | null,
         lead: Lead | null,
@@ -596,6 +615,17 @@ const UserPropertyDetail = () => {
             window.removeEventListener('keydown', handleGalleryKeyDown);
         };
     }, [images.length, isGalleryOpen]);
+
+    useEffect(() => {
+        if (!isGalleryOpen) {
+            setIsImmersiveZoomActive(false);
+            setImmersiveZoomPoint(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
+            return;
+        }
+
+        setIsImmersiveZoomActive(false);
+        setImmersiveZoomPoint(IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT);
+    }, [isGalleryOpen, selectedImageIndex]);
 
     useEffect(() => {
         if (!isFastTrackModalOpen) {
@@ -1127,7 +1157,7 @@ const UserPropertyDetail = () => {
                                         <span>{propertyAddress || locationLabel}</span>
                                     </div>
                                     <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
-                                        The image stays fully visible now, while the photo controls, title, and gallery details sit cleanly underneath for a calmer and more premium browsing flow.
+                                        Start with the lead image here, switch between the curated photo set below, and open the immersive viewer whenever you want a larger, distraction-free look.
                                     </p>
 
                                     {images.length > 1 ? (
@@ -1264,7 +1294,7 @@ const UserPropertyDetail = () => {
                                     </div>
 
                                     <div className="rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
-                                        Tap the main photo to enter the full-screen gallery, use the thumbnails to switch instantly here on the page, and keep the decision cards below the image so the visual stays unobstructed.
+                                        Open the immersive viewer for a full-screen look, use the thumbnail rail to jump between angles quickly, and keep the key facts close enough to compare while the image stays front and centre.
                                     </div>
                                 </div>
                             </div>
@@ -1671,16 +1701,28 @@ const UserPropertyDetail = () => {
 
             {isGalleryOpen && (
                 <div
-                    className="fixed inset-0 z-[140] bg-[rgba(15,23,42,0.96)] px-4 py-5 backdrop-blur-md sm:px-6"
+                    className="fixed inset-0 z-[140] overflow-y-auto bg-[rgba(8,15,30,0.92)] px-3 py-3 backdrop-blur-md sm:px-5 sm:py-5"
                     onClick={() => setIsGalleryOpen(false)}
                 >
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                        <img
+                            src={coverImage}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-full w-full scale-110 object-cover opacity-30 blur-3xl"
+                            onError={(event) => {
+                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                            }}
+                        />
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_34%),linear-gradient(180deg,rgba(10,15,28,0.2),rgba(10,15,28,0.88)_72%)]" />
+                    </div>
                     <div
-                        className="mx-auto flex h-full max-w-[1400px] flex-col"
+                        className="relative mx-auto flex min-h-full max-w-[1500px] flex-col"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="flex items-start justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/5 px-5 py-4 text-white backdrop-blur">
+                        <div className="flex items-start justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 px-5 py-4 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Property gallery</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Immersive gallery</p>
                                 <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[2rem]">{property.title}</h2>
                                 <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
                                     <MapPin size={15} className="text-orange-400" />
@@ -1702,66 +1744,164 @@ const UserPropertyDetail = () => {
                             </div>
                         </div>
 
-                        <div className="relative mt-4 flex flex-1 items-center justify-center overflow-hidden rounded-[2rem] border border-white/10 bg-black/30 px-4 py-6">
-                            {images.length > 1 && (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={showPreviousImage}
-                                        className="absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15"
-                                        aria-label="Show previous property image"
-                                    >
-                                        <ChevronLeft size={18} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={showNextImage}
-                                        className="absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full border border-white/15 bg-white/10 p-3 text-white transition hover:bg-white/15"
-                                        aria-label="Show next property image"
-                                    >
-                                        <ChevronRight size={18} />
-                                    </button>
-                                </>
-                            )}
+                        <div className="mt-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,1.18fr)_320px]">
+                            <div
+                                data-testid="immersive-gallery-stage"
+                                className="relative min-h-[58vh] overflow-hidden rounded-[2.2rem] border border-white/10 bg-black/25 shadow-[0_32px_80px_-38px_rgba(15,23,42,0.88)]"
+                            >
+                                <img
+                                    src={coverImage}
+                                    alt=""
+                                    aria-hidden="true"
+                                    className="absolute inset-0 h-full w-full scale-105 object-cover opacity-28 blur-2xl"
+                                    onError={(event) => {
+                                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                    }}
+                                />
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_30%),linear-gradient(180deg,rgba(9,14,27,0.08),rgba(9,14,27,0.48)_45%,rgba(9,14,27,0.8)_100%)]" />
 
-                            <img
-                                src={coverImage}
-                                alt={`${property.title} full view ${selectedImageIndex + 1}`}
-                                className="max-h-full w-full rounded-[1.5rem] object-contain"
-                                onError={(event) => {
-                                    event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                }}
-                            />
-                        </div>
-
-                        {images.length > 1 && (
-                            <div className="mt-4 overflow-x-auto rounded-[1.5rem] border border-white/10 bg-white/5 p-3 backdrop-blur">
-                                <div className="flex gap-3">
-                                    {images.map((image, index) => (
+                                {images.length > 1 && (
+                                    <>
                                         <button
-                                            key={`${image}-${index}-fullscreen`}
                                             type="button"
-                                            onClick={() => setSelectedImageIndex(index)}
-                                            className={`group relative h-24 w-28 shrink-0 overflow-hidden rounded-[1.1rem] border transition ${
-                                                index === selectedImageIndex
-                                                    ? 'border-orange-400 ring-2 ring-orange-300/40'
-                                                    : 'border-white/10 hover:border-white/30'
-                                            }`}
-                                            aria-label={`Show fullscreen image ${index + 1}`}
+                                            onClick={showPreviousImage}
+                                            className="absolute left-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/22 p-3 text-white shadow-lg backdrop-blur transition hover:bg-black/34"
+                                            aria-label="Show previous property image"
                                         >
-                                            <img
-                                                src={image}
-                                                alt={`${property.title} fullscreen thumbnail ${index + 1}`}
-                                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                                                onError={(event) => {
-                                                    event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
-                                                }}
-                                            />
+                                            <ChevronLeft size={18} />
                                         </button>
-                                    ))}
+                                        <button
+                                            type="button"
+                                            onClick={showNextImage}
+                                            className="absolute right-4 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/20 bg-black/22 p-3 text-white shadow-lg backdrop-blur transition hover:bg-black/34"
+                                            aria-label="Show next property image"
+                                        >
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    </>
+                                )}
+
+                                <div
+                                    data-testid="immersive-gallery-zoom-surface"
+                                    className={`relative z-10 flex h-full items-center justify-center overflow-hidden px-4 py-6 sm:px-8 sm:py-10 ${
+                                        isImmersiveZoomActive ? 'cursor-zoom-out' : 'cursor-zoom-in'
+                                    }`}
+                                    onMouseMove={handleImmersiveGalleryMouseMove}
+                                    onMouseLeave={handleImmersiveGalleryMouseLeave}
+                                >
+                                    <div className="pointer-events-none absolute left-5 top-5 z-20 rounded-full border border-white/15 bg-black/24 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82 shadow-lg backdrop-blur-md">
+                                        {isImmersiveZoomActive ? 'Move to inspect details' : 'Hover to zoom'}
+                                    </div>
+                                    <img
+                                        ref={immersiveGalleryImageRef}
+                                        src={coverImage}
+                                        alt={`${property.title} full view ${selectedImageIndex + 1}`}
+                                        data-testid="immersive-gallery-image"
+                                        className="max-h-[74vh] w-auto max-w-full rounded-[1.7rem] object-contain shadow-[0_30px_80px_-34px_rgba(0,0,0,0.88)] transition-transform duration-200 ease-out will-change-transform"
+                                        style={{
+                                            transform: `scale(${isImmersiveZoomActive ? 2.35 : 1})`,
+                                            transformOrigin: formatImmersiveGalleryTransformOrigin(immersiveZoomPoint),
+                                        }}
+                                        onError={(event) => {
+                                            event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                        <div className="max-w-lg rounded-[1.5rem] border border-white/10 bg-black/24 px-4 py-3.5 text-white shadow-lg backdrop-blur-md">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">
+                                                {images.length > 1 ? `Photo ${selectedImageIndex + 1} of ${images.length}` : 'Featured property view'}
+                                            </p>
+                                            <p className="mt-2 text-sm leading-6 text-white/78">
+                                                Keep the main photo clean, use the side rail to jump between angles, and stay in the full-screen viewer while comparing the listing details.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className="rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/88 backdrop-blur">
+                                                {listingLabel}
+                                            </span>
+                                            <span className="rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/88 backdrop-blur">
+                                                {priceLabel}
+                                            </span>
+                                            {property.is_verified && (
+                                                <span className="rounded-full border border-emerald-300/35 bg-emerald-400/16 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100 backdrop-blur">
+                                                    Verified
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        )}
+
+                            <div
+                                data-testid="immersive-gallery-sidebar"
+                                className="flex flex-col gap-4"
+                            >
+                                <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-5 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">Viewing mode</p>
+                                    <h3 className="mt-3 text-xl font-semibold tracking-tight">Designed to keep the photo in focus</h3>
+                                    <p className="mt-3 text-sm leading-6 text-white/72">
+                                        The live image uses the full screen, while the surrounding backdrop echoes the same frame so the property feels larger and more cinematic without cropping away detail.
+                                    </p>
+                                    <div className="mt-4 grid gap-2.5 sm:grid-cols-3 lg:grid-cols-1">
+                                        <div className="rounded-[1.25rem] border border-white/10 bg-black/16 px-3.5 py-3">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">Current frame</p>
+                                            <p className="mt-1 text-sm font-semibold text-white">{selectedImageIndex + 1} / {images.length}</p>
+                                        </div>
+                                        <div className="rounded-[1.25rem] border border-white/10 bg-black/16 px-3.5 py-3">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">Property type</p>
+                                            <p className="mt-1 text-sm font-semibold text-white">{propertyTypeLabel}</p>
+                                        </div>
+                                        <div className="rounded-[1.25rem] border border-white/10 bg-black/16 px-3.5 py-3">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">Address</p>
+                                            <p className="mt-1 text-sm font-semibold text-white">{propertyAddress || locationLabel}</p>
+                                        </div>
+                                        <div className="rounded-[1.25rem] border border-orange-300/20 bg-orange-400/10 px-3.5 py-3">
+                                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-100/70">Zoom mode</p>
+                                            <p className="mt-1 text-sm font-semibold text-white">Amazon-style desktop hover zoom</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {images.length > 1 && (
+                                    <div className="rounded-[1.8rem] border border-white/10 bg-white/6 p-4 shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">Photo rail</p>
+                                            <span className="text-xs font-medium text-white/55">Switch instantly</span>
+                                        </div>
+                                        <div className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
+                                            {images.map((image, index) => (
+                                                <button
+                                                    key={`${image}-${index}-fullscreen`}
+                                                    type="button"
+                                                    onClick={() => setSelectedImageIndex(index)}
+                                                    className={`group relative h-24 w-28 shrink-0 overflow-hidden rounded-[1.25rem] border transition lg:h-28 lg:w-full ${
+                                                        index === selectedImageIndex
+                                                            ? 'border-orange-400 ring-2 ring-orange-300/45'
+                                                            : 'border-white/10 hover:border-white/30'
+                                                    }`}
+                                                    aria-label={`Show fullscreen image ${index + 1}`}
+                                                >
+                                                    <img
+                                                        src={image}
+                                                        alt={`${property.title} fullscreen thumbnail ${index + 1}`}
+                                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                                        onError={(event) => {
+                                                            event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                                                        }}
+                                                    />
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2 text-left text-[11px] font-semibold text-white">
+                                                        Photo {index + 1}
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

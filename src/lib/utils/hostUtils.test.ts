@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     buildHostedWorkspaceUrl,
+    getHostConfig,
     isSameHostedWorkspaceUrl,
     isSingleOriginHostedHost,
     resolveCurrentAppFromHostname,
@@ -78,4 +79,31 @@ test('same-origin hosted admin redirect does not navigate to the current URL aga
         ),
         false,
     );
+});
+
+test('localhost resolves as the app host so root boot skips the landing experience', () => {
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+        value: {
+            location: {
+                hostname: 'localhost',
+                origin: 'http://localhost:3000',
+                port: '3000',
+            },
+        },
+        configurable: true,
+    });
+
+    try {
+        assert.equal(getHostConfig().currentApp, 'app');
+    } finally {
+        if (originalWindow === undefined) {
+            delete (globalThis as { window?: Window }).window;
+        } else {
+            Object.defineProperty(globalThis, 'window', {
+                value: originalWindow,
+                configurable: true,
+            });
+        }
+    }
 });
