@@ -85,6 +85,16 @@ export const buildHostedWorkspaceUrl = (path: string, role?: string) => {
     return `${base}${normalizedPath}`;
 };
 
+export const buildHostedRedirectLocation = (
+    targetPath: string,
+    currentPath: string,
+    currentSearch = '',
+    currentHash = '',
+) => {
+    const shouldPreserveParams = targetPath === currentPath;
+    return `${targetPath}${shouldPreserveParams ? currentSearch : ''}${shouldPreserveParams ? currentHash : ''}`;
+};
+
 export const isSameHostedWorkspaceUrl = (targetUrl: string, currentUrl: string) => {
     const resolvedTarget = new URL(targetUrl, currentUrl);
     const resolvedCurrent = new URL(currentUrl);

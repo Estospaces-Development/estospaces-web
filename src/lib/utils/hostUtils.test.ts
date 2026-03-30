@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+    buildHostedRedirectLocation,
     buildHostedWorkspaceUrl,
     getHostConfig,
     isSameHostedWorkspaceUrl,
@@ -78,6 +79,30 @@ test('same-origin hosted admin redirect does not navigate to the current URL aga
             'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app/login',
         ),
         false,
+    );
+});
+
+test('same-path hosted redirects preserve query params and hash fragments', () => {
+    assert.equal(
+        buildHostedRedirectLocation(
+            '/admin/verifications',
+            '/admin/verifications',
+            '?entity=manager&managerId=broker-123',
+            '#docs',
+        ),
+        '/admin/verifications?entity=manager&managerId=broker-123#docs',
+    );
+});
+
+test('cross-path hosted redirects drop unrelated query params', () => {
+    assert.equal(
+        buildHostedRedirectLocation(
+            '/admin/dashboard',
+            '/user/dashboard',
+            '?entity=manager&managerId=broker-123',
+            '#docs',
+        ),
+        '/admin/dashboard',
     );
 });
 

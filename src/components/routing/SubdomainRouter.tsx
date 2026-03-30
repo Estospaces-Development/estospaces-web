@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import {
+    buildHostedRedirectLocation,
     buildHostedWorkspaceUrl,
     isSameHostedWorkspaceUrl,
     resolveHostedWorkspaceRedirect,
@@ -19,7 +20,7 @@ interface SubdomainRouterProps {
  */
 const SubdomainRouter: React.FC<SubdomainRouterProps> = ({ children }) => {
     const { currentApp, isLocalhost } = useHost();
-    const { pathname } = useLocation();
+    const { pathname, search, hash } = useLocation();
 
     // Skip redirection on localhost to allow easy development of all sections
     if (isLocalhost) {
@@ -28,7 +29,8 @@ const SubdomainRouter: React.FC<SubdomainRouterProps> = ({ children }) => {
 
     const redirect = resolveHostedWorkspaceRedirect(currentApp, pathname);
     if (redirect) {
-        const targetUrl = buildHostedWorkspaceUrl(redirect.path, redirect.role);
+        const targetLocation = buildHostedRedirectLocation(redirect.path, pathname, search, hash);
+        const targetUrl = buildHostedWorkspaceUrl(targetLocation, redirect.role);
         const resolved = new URL(targetUrl, window.location.origin);
         const currentUrl = window.location.href;
 
