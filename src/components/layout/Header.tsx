@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings } from 'lucide-react';
+import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings, BookOpen } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -129,6 +129,14 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     <div className="hidden md:block">
                         {getVerificationBadge()}
                     </div>
+
+                    <Link
+                        to="/manager/docs"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-600 transition-all hover:-translate-y-0.5 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200 dark:hover:bg-orange-500/15"
+                    >
+                        <BookOpen className="h-4 w-4" />
+                        <span className="hidden md:inline">Docs</span>
+                    </Link>
 
                     {/* Notifications */}
                     <div className="relative">

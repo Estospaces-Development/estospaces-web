@@ -13,6 +13,7 @@ import {
     Home,
     Heart,
     Settings,
+    BookOpen,
 } from 'lucide-react';
 import { useMessages } from '../../contexts/MessagesContext';
 import { usePropertyFilter } from '../../contexts/PropertyFilterContext';
@@ -52,6 +53,7 @@ const HorizontalNavigation = ({ useSubdomain = false }: HorizontalNavigationProp
         { icon: FileText, label: 'Contracts', path: '/user/dashboard/contracts' },
         { icon: User, label: 'Profile', path: '/user/dashboard/profile' },
         { icon: Settings, label: 'Settings', path: '/user/dashboard/settings' },
+        { icon: BookOpen, label: 'Docs', path: '/user/docs' },
         { icon: HelpCircle, label: 'Help & Support', path: '/user/dashboard/help' },
     ];
 

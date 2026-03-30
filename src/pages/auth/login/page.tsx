@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -61,7 +61,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Successfully logged in — redirect using role from response
+      // Successfully logged in â€” redirect using role from response
       const role = result.role || getRole();
       navigate(getRedirectPath(role));
     } catch (err: any) {
@@ -212,9 +212,10 @@ export default function LoginPage() {
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-12 text-center leading-relaxed">
         By continuing you agree to Estospaces<br />
         <Link to="/terms" className="text-primary hover:underline">terms &amp; conditions</Link>
-        {' · '}
+        {' \u00B7 '}
         <Link to="/privacy" className="text-primary hover:underline">privacy policy</Link>
       </p>
     </div>
   );
 }
+

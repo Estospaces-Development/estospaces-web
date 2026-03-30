@@ -115,6 +115,7 @@ const ManagerCaseFiles = lazyPage(() => import('./pages/manager/case-files/page'
 const ManagerClients = lazyPage(() => import('./pages/manager/clients/page'));
 const ManagerCommunity = lazyPage(() => import('./pages/manager/community/page'));
 const ManagerContracts = lazyPage(() => import('./pages/manager/contracts/page'));
+const ManagerDocs = lazyPage(() => import('./pages/manager/docs/page'));
 const ManagerFastTrack = lazyPage(() => import('./pages/manager/fast-track/page'));
 const ManagerHelp = lazyPage(() => import('./pages/manager/help/page'));
 const ManagerLeads = lazyPage(() => import('./pages/manager/leads/page'));
@@ -128,6 +129,7 @@ const ManagerVerification = lazyPage(() => import('./pages/manager/verification/
 const UserDashboard = lazyPage(() => import('./pages/user/dashboard/page'));
 const UserApplications = lazyPage(() => import('./pages/user/applications/page'));
 const UserBookings = lazyPage(() => import('./pages/user/bookings/page'));
+const UserDocs = lazyPage(() => import('./pages/user/docs/page'));
 const UserFavorites = lazyPage(() => import('./pages/user/favorites/page'));
 const UserProfile = lazyPage(() => import('./pages/user/profile/page'));
 const UserSaved = lazyPage(() => import('./pages/user/saved/page'));
@@ -215,6 +217,7 @@ const App: React.FC = () => {
             <Route path="appointments" element={<ManagerAppointments />} />
             <Route path="case-files" element={<ManagerCaseFiles />} />
             <Route path="contracts" element={<ManagerContracts />} />
+            <Route path="docs" element={<ManagerDocs />} />
             <Route path="billing" element={<ManagerBilling />} />
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<ManagerCommunity />} />
@@ -247,6 +250,7 @@ const App: React.FC = () => {
             <Route path="dashboard/viewings" element={<UserViewings />} />
             <Route path="applications" element={<UserApplications />} />
             <Route path="bookings" element={<UserBookings />} />
+            <Route path="docs" element={<UserDocs />} />
             <Route path="favorites" element={<UserSaved />} />
             <Route path="profile" element={<UserProfileDash />} />
             <Route path="saved" element={<UserSaved />} />

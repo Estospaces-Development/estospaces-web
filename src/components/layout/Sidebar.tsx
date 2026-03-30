@@ -23,7 +23,8 @@ import {
     BarChart3,
     Activity,
     UserCircle,
-    CreditCard
+    CreditCard,
+    BookOpen
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -88,6 +89,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     const managerFooterItems = [
         { icon: Shield, label: 'Verification', path: '/manager/verification' },
         { icon: UserCircle, label: 'Profile', path: '/manager/profile' },
+        { icon: BookOpen, label: 'Docs', path: '/manager/docs' },
         { icon: HelpCircle, label: 'Help & Support', path: '/manager/help' },
     ];
 
