@@ -38,7 +38,9 @@ import { messagesService } from '@/services/messagesService';
 import {
     getNextSaleJourneyActions,
     getSaleJourneySummary,
+    getSaleJourneyStageLabel,
     isSaleProgressionRecord,
+    resolveSaleJourneyDisplayStage,
 } from '@/lib/saleJourney';
 
 function ApplicationDetailDrawer({ application, onClose }: { application: Application; onClose: () => void }) {
@@ -47,6 +49,8 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
     const isSaleProgression = isSaleProgressionRecord(application);
+    const saleDisplayStage = resolveSaleJourneyDisplayStage(application);
+    const showsSaleJourney = application.listingType !== 'rent' && Boolean(saleDisplayStage);
     const nextSaleAction = getNextSaleJourneyActions(application.status)[0];
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -203,13 +207,13 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                         </div>
                     </div>
 
-                    {isSaleProgression && (
+                    {showsSaleJourney && (
                         <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/50 dark:bg-orange-950/20">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <p className="text-xs font-bold uppercase tracking-widest text-orange-500">Purchase Journey</p>
                                     <h4 className="mt-2 text-base font-bold text-gray-900 dark:text-white">
-                                        {application.journeyLabel || 'Live purchase progression'}
+                                        {application.journeyLabel || getSaleJourneyStageLabel(application)}
                                     </h4>
                                     <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
                                         {getSaleJourneySummary(application.status, application.journeySummary)}

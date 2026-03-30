@@ -17,6 +17,7 @@ import { getSaleProgressions, type SaleProgression, updateSaleProgression } from
 import { findRelatedViewing } from '@/lib/applicationWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, isSaleProgressionRecord } from '@/lib/saleJourney';
+import { findLinkedSaleProgression } from '@/lib/workspaceLinks';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
 
 export const APPLICATION_STATUS = {
@@ -281,6 +282,15 @@ const deriveStatusFromViewing = (application: BackendApplication, viewing?: View
     if (application.status === APPLICATION_STATUS.REJECTED) return APPLICATION_STATUS.REJECTED;
     if (application.status === APPLICATION_STATUS.WITHDRAWN) return APPLICATION_STATUS.WITHDRAWN;
     if (application.status === APPLICATION_STATUS.COMPLETED) return APPLICATION_STATUS.COMPLETED;
+    if (application.status === APPLICATION_STATUS.BUYER_QUALIFICATION) return APPLICATION_STATUS.BUYER_QUALIFICATION;
+    if (application.status === APPLICATION_STATUS.OFFER_READY) return APPLICATION_STATUS.OFFER_READY;
+    if (application.status === APPLICATION_STATUS.OFFER_SUBMITTED) return APPLICATION_STATUS.OFFER_SUBMITTED;
+    if (application.status === APPLICATION_STATUS.OFFER_UNDER_REVIEW) return APPLICATION_STATUS.OFFER_UNDER_REVIEW;
+    if (application.status === APPLICATION_STATUS.OFFER_ACCEPTED) return APPLICATION_STATUS.OFFER_ACCEPTED;
+    if (application.status === APPLICATION_STATUS.SALE_AGREED) return APPLICATION_STATUS.SALE_AGREED;
+    if (application.status === APPLICATION_STATUS.MEMORANDUM_ISSUED) return APPLICATION_STATUS.MEMORANDUM_ISSUED;
+    if (application.status === APPLICATION_STATUS.CONVEYANCING) return APPLICATION_STATUS.CONVEYANCING;
+    if (application.status === APPLICATION_STATUS.EXCHANGE) return APPLICATION_STATUS.EXCHANGE;
     if (application.status === APPLICATION_STATUS.VIEWING_SCHEDULED) return APPLICATION_STATUS.VIEWING_SCHEDULED;
     if (application.status === APPLICATION_STATUS.VIEWING_COMPLETED) return APPLICATION_STATUS.VIEWING_COMPLETED;
     if (application.status === APPLICATION_STATUS.APPOINTMENT_BOOKED) return APPLICATION_STATUS.APPOINTMENT_BOOKED;
@@ -625,19 +635,27 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         const application = applications.find((item) => item.id === id);
-        if (isSaleProgressionRecord(application)) {
-            const stage = saleProgressionStageForStatus(status);
+        const stage = saleProgressionStageForStatus(status);
+        const progressionTarget = isSaleProgressionRecord(application)
+            ? application
+            : (application && stage ? findLinkedSaleProgression(applications, application) : null);
+
+        if (progressionTarget) {
             if (!stage) {
                 return { success: false, error: 'This purchase step cannot be updated from here yet' };
             }
 
-            const { data, error: updateError } = await updateSaleProgression(id, stage);
+            const { data, error: updateError } = await updateSaleProgression(progressionTarget.id, stage);
             if (updateError || !data) {
                 return { success: false, error: updateError || 'Failed to update purchase progression' };
             }
 
             await fetchApplications();
             return { success: true };
+        }
+
+        if (application && stage) {
+            return { success: false, error: 'The live purchase progression is not ready yet for this case' };
         }
 
         const { data, error: updateError } = await updateBackendApplicationStatus(id, status);

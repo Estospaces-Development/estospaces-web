@@ -33,6 +33,18 @@ const applications: Application[] = [
         status: 'approved',
         createdAt: '2026-03-25T09:00:00Z',
     },
+    {
+        id: 'sale-progression-1',
+        source: 'sale_progression',
+        propertyId: 'property-1',
+        userId: 'user-1',
+        managerId: 'manager-1',
+        leadId: 'lead-1',
+        fastTrackCaseId: 'case-1',
+        status: 'offer_under_review',
+        createdAt: '2026-03-25T12:00:00Z',
+        updatedAt: '2026-03-25T12:10:00Z',
+    },
 ];
 
 const viewings: Viewing[] = [
@@ -121,13 +133,31 @@ test('buildWorkspacePath includes payment and invoice ids when present', () => {
     assert.equal(path, '/user/dashboard/payments?application=application-1&payment=payment-1&invoice=invoice-1');
 });
 
-test('resolveFocusedApplication prefers a direct application match before case fallback', () => {
+test('resolveFocusedApplication keeps a direct application match when no linked sale progression exists', () => {
     const focused = resolveFocusedApplication(applications, {
         applicationId: 'application-2',
-        caseId: 'case-1',
     });
 
     assert.equal(focused?.id, 'application-2');
+});
+
+test('resolveFocusedApplication upgrades a legacy application focus to the linked sale progression', () => {
+    const focused = resolveFocusedApplication(applications, {
+        applicationId: 'application-1',
+        caseId: 'case-1',
+        leadId: 'lead-1',
+        propertyId: 'property-1',
+    });
+
+    assert.equal(focused?.id, 'sale-progression-1');
+});
+
+test('resolveFocusedApplication prefers the sale progression when only case context is available', () => {
+    const focused = resolveFocusedApplication(applications, {
+        caseId: 'case-1',
+    });
+
+    assert.equal(focused?.id, 'sale-progression-1');
 });
 
 test('resolveFocusedViewing can focus a viewing from the linked application id', () => {

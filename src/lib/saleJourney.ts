@@ -55,6 +55,10 @@ export const resolveSaleJourneyDisplayStage = (application?: ApplicationRecordLi
     switch (String(application.status || '').trim()) {
         case 'viewing_completed':
             return 'viewing_completed';
+        case 'buyer_qualification':
+            return 'buyer_qualification';
+        case 'offer_ready':
+            return 'offer';
         case 'offer_submitted':
             return 'offer_submitted';
         case 'offer_under_review':
@@ -158,6 +162,8 @@ export const canWithdrawApplicationRecord = (application?: ApplicationRecordLike
 
 export const saleProgressionStageForStatus = (status: string): SaleJourneyStage | null => {
     switch (String(status || '').trim()) {
+        case 'offer_ready':
+            return 'offer';
         case 'offer_submitted':
             return 'offer_submitted';
         case 'offer_under_review':

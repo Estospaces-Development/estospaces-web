@@ -75,3 +75,14 @@ test('sale display helpers surface buyer qualification and offer-ready stages be
     assert.equal(getSaleJourneySummary('offer'), 'Buyer qualification and AML are complete, so the offer can now be recorded and reviewed.');
     assert.equal(getSaleJourneyProgress(offerReadyRecord), 52);
 });
+
+test('sale display helpers treat offer_ready as the offer stage even without liveStage', () => {
+    const offerReadyStatusRecord = {
+        source: 'application',
+        status: 'offer_ready',
+    };
+
+    assert.equal(resolveSaleJourneyDisplayStage(offerReadyStatusRecord), 'offer');
+    assert.equal(getSaleJourneyStageLabel(offerReadyStatusRecord), 'Offer ready');
+    assert.equal(getSaleJourneyProgress(offerReadyStatusRecord), 52);
+});

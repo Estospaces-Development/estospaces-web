@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     ArrowLeft,
@@ -54,6 +54,7 @@ import {
     getSaleJourneyStageLabel,
     isSaleProgressionRecord,
     resolveSaleJourneyDisplayStage,
+    saleProgressionStageForStatus,
 } from '@/lib/saleJourney';
 import {
     buildLatestPropertyComplianceEvidenceMap,
@@ -107,6 +108,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
     });
     const [propertyComplianceReadiness, setPropertyComplianceReadiness] = useState<PropertyComplianceReadiness | null>(null);
     const [propertyComplianceDrafts, setPropertyComplianceDrafts] = useState<Record<string, PropertyComplianceEvidenceDraft>>({});
+    const [pendingOfferFocus, setPendingOfferFocus] = useState(false);
+    const buyerQualificationSectionRef = useRef<HTMLElement | null>(null);
+    const amlSectionRef = useRef<HTMLElement | null>(null);
+    const sellerReadinessSectionRef = useRef<HTMLElement | null>(null);
+    const offerSectionRef = useRef<HTMLElement | null>(null);
+    const offerAmountInputRef = useRef<HTMLInputElement | null>(null);
 
     const isSaleProgression = isSaleProgressionRecord(application);
     const purchaseDisplayStage = resolveSaleJourneyDisplayStage(application);
@@ -117,6 +124,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
         && !isSaleProgression
         && ['viewing_completed', 'buyer_qualification', 'offer'].includes(purchaseDisplayStage || ''),
     );
+    const liveSaleJourneyStage = saleProgressionStageForStatus(application?.status || '');
+    const showsLiveSaleJourney = Boolean(
+        application
+        && isPurchaseApplication
+        && !supportsManagedPurchaseWorkflow
+        && (isSaleProgression || liveSaleJourneyStage),
+    );
 
     useEffect(() => {
         setOfferDraft({
@@ -124,6 +138,30 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
             notes: '',
         });
     }, [application?.id, application?.propertyPrice]);
+
+    const scrollToWorkflowSection = (section: 'buyer' | 'aml' | 'seller' | 'offer') => {
+        const target = (() => {
+            switch (section) {
+                case 'buyer':
+                    return buyerQualificationSectionRef.current;
+                case 'aml':
+                    return amlSectionRef.current;
+                case 'seller':
+                    return sellerReadinessSectionRef.current;
+                case 'offer':
+                    return offerSectionRef.current;
+                default:
+                    return null;
+            }
+        })();
+
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (section === 'offer') {
+            window.setTimeout(() => {
+                offerAmountInputRef.current?.focus();
+            }, 180);
+        }
+    };
 
     const loadManagedPurchaseWorkflow = async (targetApplication: Application) => {
         const compliancePromise = targetApplication.propertyId
@@ -176,6 +214,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
             setPropertyComplianceReadiness(null);
             setPropertyComplianceDrafts({});
             setPurchaseWorkflowError(null);
+            setPendingOfferFocus(false);
             return;
         }
 
@@ -278,11 +317,49 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
     );
     const buyerQualificationReady = buyerQualificationDraft.mortgageInPrincipleVerified || buyerQualificationDraft.proofOfFundsVerified;
     const amlReviewReady = amlReviewDraft.identityStatus === 'completed' && amlReviewDraft.sourceOfFundsStatus === 'completed';
-    const purchaseOfferReady = buyerQualification?.status === 'completed' && amlReview?.status === 'completed';
+    const qualificationComplete = buyerQualification?.status === 'completed';
+    const amlComplete = amlReview?.status === 'completed';
+    const purchaseOfferReady = qualificationComplete && amlComplete;
     const offerReadinessRequirements = getOfferReadinessRequirements(propertyComplianceReadiness);
     const offerReadinessBlockers = getOfferReadinessBlockers(propertyComplianceReadiness);
     const propertyOfferReady = isPropertyOfferReady(propertyComplianceReadiness);
     const offerLaneReady = purchaseOfferReady && propertyOfferReady;
+    const purchaseWorkspaceState = !qualificationComplete
+        ? {
+            tone: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300',
+            badge: 'Buyer qualification needed',
+            title: 'Finish buyer qualification to keep the purchase moving.',
+            description: 'Verify proof of funds or a mortgage in principle first. As soon as that is saved, we will keep this case in sync and point you to the next required step.',
+            actionLabel: 'Open buyer qualification',
+            targetSection: 'buyer' as const,
+        }
+        : !amlComplete
+            ? {
+                tone: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300',
+                badge: 'AML review needed',
+                title: 'Buyer qualification is done. AML is the last buyer-side check.',
+                description: 'Complete identity and source-of-funds review here so the offer lane can unlock without leaving this workspace.',
+                actionLabel: 'Open AML review',
+                targetSection: 'aml' as const,
+            }
+            : !propertyOfferReady
+                ? {
+                    tone: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300',
+                    badge: 'Seller readiness needed',
+                    title: 'Buyer checks are complete. The seller pack is now the only blocker.',
+                    description: propertyComplianceReadiness?.status_reason
+                        || 'Finish the seller readiness items below and the first-offer action will unlock immediately on this page.',
+                    actionLabel: 'Open seller readiness',
+                    targetSection: 'seller' as const,
+                }
+                : {
+                    tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300',
+                    badge: 'Offer lane unlocked',
+                    title: 'Everything is ready. Record the first buyer offer now.',
+                    description: 'Buyer qualification, AML, and seller readiness are all complete. Stay on this case and record the first offer to open the live sale progression.',
+                    actionLabel: 'Jump to record first offer',
+                    targetSection: 'offer' as const,
+                };
     const displayStatusLabel = isPurchaseApplication && purchaseDisplayStage
         ? purchaseStageLabel
         : application.status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -304,6 +381,15 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
         }
         return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
     })();
+
+    useEffect(() => {
+        if (!pendingOfferFocus || !offerLaneReady) {
+            return;
+        }
+
+        scrollToWorkflowSection('offer');
+        setPendingOfferFocus(false);
+    }, [offerLaneReady, pendingOfferFocus]);
 
     const refreshManagedPurchaseWorkflow = async () => {
         if (!application || !supportsManagedPurchaseWorkflow) {
@@ -334,6 +420,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                 throw new Error(result.error);
             }
 
+            setPendingOfferFocus(buyerQualificationReady);
             await refreshManagedPurchaseWorkflow();
             toast.success(buyerQualificationReady ? 'Buyer qualification completed.' : 'Buyer qualification saved as pending.');
         } catch (error: any) {
@@ -361,6 +448,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                 throw new Error(result.error);
             }
 
+            setPendingOfferFocus(amlReviewReady);
             await refreshManagedPurchaseWorkflow();
             toast.success(amlReviewReady ? 'AML review completed.' : 'AML review saved as pending.');
         } catch (error: any) {
@@ -478,6 +566,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                 throw new Error(result.error);
             }
 
+            setPendingOfferFocus(draft.status === 'completed' || draft.status === 'waived');
             await refreshManagedPurchaseWorkflow();
             toast.success(`${requirementLabel} saved.`);
         } catch (error: any) {
@@ -862,7 +951,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                     </div>
                                 </div>
 
-                                {isSaleProgression && (
+                                {showsLiveSaleJourney && (
                                     <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
                                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                             <div className="max-w-3xl">
@@ -870,7 +959,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                                     Purchase Journey
                                                 </p>
                                                 <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                                                    {application.journeyLabel || 'Live purchase progression'}
+                                                    {application.journeyLabel || getSaleJourneyStageLabel(application)}
                                                 </h3>
                                                 <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
                                                     {getSaleJourneySummary(application.status, application.journeySummary)}
@@ -944,8 +1033,31 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                             </div>
                                         )}
 
+                                        <div className={`mt-6 rounded-2xl border px-5 py-5 ${purchaseWorkspaceState.tone}`}>
+                                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                                <div className="max-w-3xl">
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.24em]">
+                                                        {purchaseWorkspaceState.badge}
+                                                    </p>
+                                                    <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                        {purchaseWorkspaceState.title}
+                                                    </h4>
+                                                    <p className="mt-2 text-sm leading-6">
+                                                        {purchaseWorkspaceState.description}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => scrollToWorkflowSection(purchaseWorkspaceState.targetSection)}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-gray-100 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
+                                                >
+                                                    {purchaseWorkspaceState.actionLabel}
+                                                    <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <div className="mt-6 grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
-                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                            <section ref={buyerQualificationSectionRef} className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div>
                                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">Buyer qualification</p>
@@ -1006,7 +1118,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                                 </div>
                                             </section>
 
-                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                            <section ref={amlSectionRef} className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div>
                                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">AML review</p>
@@ -1071,7 +1183,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                                 </div>
                                             </section>
 
-                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                            <section ref={sellerReadinessSectionRef} className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div>
                                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">Seller readiness pack</p>
@@ -1179,7 +1291,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                                 </div>
                                             </section>
 
-                                            <section className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
+                                            <section ref={offerSectionRef} className="rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-800">
                                                 <div className="flex items-center justify-between gap-3">
                                                     <div>
                                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">Record first offer</p>
@@ -1203,6 +1315,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                                     <label className="block text-sm">
                                                         <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">Offer amount</span>
                                                         <input
+                                                            ref={offerAmountInputRef}
                                                             type="number"
                                                             min="1"
                                                             step="1000"
@@ -1248,7 +1361,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({ applicationId, ap
                                 )}
 
                                 {/* Next Steps & Approved Message */}
-                                {!isSaleProgression &&
+                                {!showsLiveSaleJourney &&
                                     !supportsManagedPurchaseWorkflow &&
                                     application.status !== APPLICATION_STATUS.APPROVED &&
                                     application.status !== APPLICATION_STATUS.REJECTED &&

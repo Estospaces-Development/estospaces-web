@@ -77,6 +77,8 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
         const pending = allApplications.filter((a: any) => [
             APPLICATION_STATUS.PENDING,
             APPLICATION_STATUS.SUBMITTED,
+            APPLICATION_STATUS.BUYER_QUALIFICATION,
+            APPLICATION_STATUS.OFFER_READY,
             APPLICATION_STATUS.OFFER_SUBMITTED,
             APPLICATION_STATUS.OFFER_UNDER_REVIEW,
             APPLICATION_STATUS.OFFER_ACCEPTED,

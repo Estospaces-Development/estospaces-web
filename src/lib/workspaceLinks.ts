@@ -24,6 +24,58 @@ const sameId = (left: MaybeString, right: MaybeString) => {
     return normalizedLeft !== '' && normalizedLeft === normalizedRight;
 };
 
+const toTimestamp = (value?: string | null) => {
+    const parsed = value ? new Date(value).getTime() : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const pickLatestApplication = (applications: Application[]) => (
+    [...applications].sort((left, right) => (
+        toTimestamp(right.updatedAt || right.createdAt) - toTimestamp(left.updatedAt || left.createdAt)
+    ))[0] || null
+);
+
+const isSaleProgressionApplication = (application?: Application | null) =>
+    application?.source === 'sale_progression';
+
+export const findLinkedSaleProgression = (
+    applications: Application[],
+    application?: Application | null,
+    options: WorkspaceLinkOptions = {},
+) => {
+    if (!application) {
+        return null;
+    }
+
+    const caseId = normalizeId(options.caseId) || normalizeId(application.fastTrackCaseId);
+    const leadId = normalizeId(options.leadId) || normalizeId(application.leadId);
+    const propertyId = normalizeId(options.propertyId) || normalizeId(application.propertyId);
+    const userId = normalizeId(application.userId);
+    const managerId = normalizeId(application.managerId);
+
+    const matches = applications.filter((candidate) => {
+        if (!isSaleProgressionApplication(candidate)) {
+            return false;
+        }
+
+        if (caseId && sameId(candidate.fastTrackCaseId, caseId)) {
+            return true;
+        }
+        if (leadId && sameId(candidate.leadId, leadId)) {
+            return true;
+        }
+        if (!propertyId || !sameId(candidate.propertyId, propertyId)) {
+            return false;
+        }
+
+        const userMatches = !userId || sameId(candidate.userId, userId);
+        const managerMatches = !managerId || !normalizeId(candidate.managerId) || sameId(candidate.managerId, managerId);
+        return userMatches && managerMatches;
+    });
+
+    return pickLatestApplication(matches);
+};
+
 export const buildWorkspacePath = (basePath: string, options: WorkspaceLinkOptions) => {
     const searchParams = new URLSearchParams();
 
@@ -63,26 +115,44 @@ export const resolveFocusedApplication = (
     if (normalizeId(options.applicationId)) {
         const directMatch = applications.find((application) => sameId(application.id, options.applicationId));
         if (directMatch) {
+            if (!isSaleProgressionApplication(directMatch)) {
+                return findLinkedSaleProgression(applications, directMatch, options) || directMatch;
+            }
             return directMatch;
         }
     }
 
     if (normalizeId(options.caseId)) {
-        const caseMatch = applications.find((application) => sameId(application.fastTrackCaseId, options.caseId));
+        const caseMatches = applications.filter((application) => sameId(application.fastTrackCaseId, options.caseId));
+        const saleProgressionMatch = pickLatestApplication(caseMatches.filter((application) => isSaleProgressionApplication(application)));
+        if (saleProgressionMatch) {
+            return saleProgressionMatch;
+        }
+        const caseMatch = pickLatestApplication(caseMatches);
         if (caseMatch) {
             return caseMatch;
         }
     }
 
     if (normalizeId(options.leadId)) {
-        const leadMatch = applications.find((application) => sameId(application.leadId, options.leadId));
+        const leadMatches = applications.filter((application) => sameId(application.leadId, options.leadId));
+        const saleProgressionMatch = pickLatestApplication(leadMatches.filter((application) => isSaleProgressionApplication(application)));
+        if (saleProgressionMatch) {
+            return saleProgressionMatch;
+        }
+        const leadMatch = pickLatestApplication(leadMatches);
         if (leadMatch) {
             return leadMatch;
         }
     }
 
     if (normalizeId(options.propertyId)) {
-        return applications.find((application) => sameId(application.propertyId, options.propertyId)) || null;
+        const propertyMatches = applications.filter((application) => sameId(application.propertyId, options.propertyId));
+        const saleProgressionMatch = pickLatestApplication(propertyMatches.filter((application) => isSaleProgressionApplication(application)));
+        if (saleProgressionMatch) {
+            return saleProgressionMatch;
+        }
+        return pickLatestApplication(propertyMatches);
     }
 
     return null;
