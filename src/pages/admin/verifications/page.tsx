@@ -268,7 +268,7 @@ function VerificationsContent() {
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{manager.profile_type}</span>
-                        <span className="text-xs text-gray-500 font-bold">• {manager.authorized_representative_email || 'No Email'}</span>
+                        <span className="text-xs text-gray-500 font-bold">- {manager.authorized_representative_email || 'No Email'}</span>
                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                           isPending(manager.verification_status) ? 'bg-amber-100 text-amber-600' :
                           isReview(manager.verification_status) ? 'bg-blue-100 text-blue-600' :
@@ -309,7 +309,7 @@ function VerificationsContent() {
               <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Shield className="opacity-20" size={40} />
               </div>
-              <p className="uppercase tracking-widest text-xs">Queue Clear • Good work!</p>
+              <p className="uppercase tracking-widest text-xs">Queue Clear - Good work!</p>
             </div>
           )}
         </div>
@@ -339,3 +339,4 @@ export default function VerificationsPage() {
     </Suspense>
   );
 }
+

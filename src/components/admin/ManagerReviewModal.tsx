@@ -454,7 +454,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                                 <p className="font-medium text-gray-900">{formatActionType(entry.action_type)}</p>
                                                 <p className="text-xs text-gray-500">
                                                     {new Date(entry.created_at).toLocaleString()}
-                                                    {entry.actor_role && ` • ${entry.actor_role}`}
+                                                    {entry.actor_role && ` - ${entry.actor_role}`}
                                                 </p>
                                                 {entry.notes && (
                                                     <p className="text-xs text-gray-600 mt-1 bg-white px-2 py-1 rounded border">{entry.notes}</p>
@@ -737,7 +737,7 @@ const DocumentCard: React.FC<{
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                                 {document.document_name || 'Document uploaded'}
-                                {document.expiry_date && ` • Expires: ${new Date(document.expiry_date).toLocaleDateString()}`}
+                                {document.expiry_date && ` - Expires: ${new Date(document.expiry_date).toLocaleDateString()}`}
                             </p>
                             {document.document_number && (
                                 <p className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mt-1 inline-block">
@@ -936,3 +936,4 @@ const formatActionType = (actionType: string): string => {
 };
 
 export default ManagerReviewModal;
+
