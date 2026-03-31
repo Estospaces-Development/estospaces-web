@@ -566,6 +566,26 @@ export default function AddPropertyPage() {
         { number: 5, title: 'Contact & Publish', icon: <FileText className="w-5 h-5" /> },
     ];
 
+    const clearFieldErrors = (...fields: string[]) => {
+        if (fields.length === 0) return;
+
+        setErrors((prev) => {
+            let hasChanges = false;
+            const nextErrors = { ...prev };
+
+            fields.forEach((field) => {
+                if (nextErrors[field]) {
+                    delete nextErrors[field];
+                    hasChanges = true;
+                }
+            });
+
+            return hasChanges ? nextErrors : prev;
+        });
+    };
+
+    const hasValidPhoneNumber = (value: string) => value.replace(/\D/g, '').length >= 7;
+
     const validateStep = (step: number): boolean => {
         const newErrors: Record<string, string> = {};
 
@@ -588,7 +608,11 @@ export default function AddPropertyPage() {
             }
         } else if (step === 5) {
             if (!formData.contactName?.trim()) newErrors.contactName = 'Contact name is required';
-            if (!formData.contactPhone?.trim()) newErrors.contactPhone = 'Phone number is required';
+            if (!formData.contactPhone?.trim()) {
+                newErrors.contactPhone = 'Phone number is required';
+            } else if (!hasValidPhoneNumber(formData.contactPhone)) {
+                newErrors.contactPhone = 'Please enter a valid phone number';
+            }
             if (!formData.contactEmail?.trim()) {
                 newErrors.contactEmail = 'Email is required';
             } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
@@ -644,7 +668,11 @@ export default function AddPropertyPage() {
 
         // Step 5 validation
         if (!formData.contactName?.trim()) allErrors.contactName = 'Contact name is required';
-        if (!formData.contactPhone?.trim()) allErrors.contactPhone = 'Phone number is required';
+        if (!formData.contactPhone?.trim()) {
+            allErrors.contactPhone = 'Phone number is required';
+        } else if (!hasValidPhoneNumber(formData.contactPhone)) {
+            allErrors.contactPhone = 'Please enter a valid phone number';
+        }
         if (!formData.contactEmail?.trim()) {
             allErrors.contactEmail = 'Email is required';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
@@ -666,13 +694,7 @@ export default function AddPropertyPage() {
     const handleInputChange = <K extends keyof FormData>(field: K, value: FormData[K]) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
         setIsDirty(true);
-        if (errors[field]) {
-            setErrors((prev) => {
-                const newErrors = { ...prev };
-                delete newErrors[field];
-                return newErrors;
-            });
-        }
+        clearFieldErrors(String(field));
     };
 
     const handleNumericChange = (field: keyof FormData, value: string, defaultValue: number = 0) => {
@@ -756,6 +778,7 @@ export default function AddPropertyPage() {
                         images: [...prev.images, file],
                     }));
                     setIsDirty(true);
+                    clearFieldErrors('images');
                 }
             };
             reader.readAsDataURL(file);
@@ -1508,6 +1531,14 @@ export default function AddPropertyPage() {
                                     ? resolveCountryCurrency(addressData.countryCode)
                                     : formData.currency;
 
+                                const resolvedAddressFields = [
+                                    addressData.countryId ? 'country' : null,
+                                    addressData.stateId || addressData.stateName.trim() ? 'state' : null,
+                                    addressData.cityId || addressData.cityName.trim() ? 'city' : null,
+                                    addressData.addressLine1.trim() ? 'addressLine1' : null,
+                                    addressData.postalCode.trim() ? 'postalCode' : null,
+                                ].filter(Boolean) as string[];
+
                                 setFormData(prev => ({
                                     ...prev,
                                     countryId: addressData.countryId,
@@ -1529,6 +1560,7 @@ export default function AddPropertyPage() {
                                 if (hasInitializedRef.current || mode === 'create') {
                                     setIsDirty(true);
                                 }
+                                clearFieldErrors(...resolvedAddressFields);
                             }}
                             errors={errors}
                             disabled={saving}
@@ -1870,7 +1902,13 @@ export default function AddPropertyPage() {
                                 Property Images
                             </h2>
 
-                            <label htmlFor="image-upload" className="cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-primary transition-colors flex flex-col items-center w-full">
+                            <label
+                                htmlFor="image-upload"
+                                className={`w-full cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors flex flex-col items-center ${errors.images
+                                    ? 'border-red-500 bg-red-50/40 dark:bg-red-950/20'
+                                    : 'border-gray-300 dark:border-gray-700 hover:border-primary'
+                                    }`}
+                            >
                                 <input
                                     type="file"
                                     id="image-upload"
