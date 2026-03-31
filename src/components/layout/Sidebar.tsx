@@ -24,7 +24,8 @@ import {
     Activity,
     UserCircle,
     CreditCard,
-    BookOpen
+    BookOpen,
+    AlertCircle
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -39,7 +40,11 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     const { pathname } = useLocation();
     const { user, getDisplayName, signOut, getRole } = useAuth();
-    const { isVerified, isLoading: isVerificationLoading } = useManagerVerification();
+    const {
+        isVerified,
+        isLoading: isVerificationLoading,
+        isPropertySubmissionReady,
+    } = useManagerVerification();
     const role = getRole();
     const navigate = useNavigate();
     const handleSignOut = async () => {
@@ -169,8 +174,11 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
                             <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                                 {role}
                             </span>
-                            {role === 'manager' && !isVerificationLoading && isVerified && (
+                            {role === 'manager' && !isVerificationLoading && isVerified && isPropertySubmissionReady && (
                                 <Shield size={12} className="text-green-500" />
+                            )}
+                            {role === 'manager' && !isVerificationLoading && isVerified && !isPropertySubmissionReady && (
+                                <AlertCircle size={12} className="text-amber-500" />
                             )}
                             {role === 'manager' && !isVerificationLoading && !isVerified && (
                                 <Shield size={12} className="text-gray-400" />

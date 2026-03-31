@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import * as managerVerificationService from '../services/managerVerificationService';
+import { getManagerPropertySubmissionBlocker } from '../lib/managerPropertySubmission';
 import type {
     ManagerProfile,
     ManagerDocument,
@@ -29,6 +30,8 @@ interface ManagerVerificationContextValue {
     missingDocuments: ManagerDocumentType[];
     isComplete: boolean;
     canSubmit: boolean;
+    propertySubmissionBlocker: string | null;
+    isPropertySubmissionReady: boolean;
 
     // Actions
     refetch: () => Promise<void>;
@@ -89,6 +92,8 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         verificationStatus !== 'submitted' &&
         verificationStatus !== 'under_review' &&
         verificationStatus !== 'approved';
+    const propertySubmissionBlocker = getManagerPropertySubmissionBlocker(managerProfile);
+    const isPropertySubmissionReady = propertySubmissionBlocker === null;
 
     // ========================================================================
     // Fetch Data
@@ -220,7 +225,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
 
     const value = {
         managerProfile, documents, verificationStatus, isVerified, isLoading, error,
-        requiredDocuments, missingDocuments, isComplete, canSubmit,
+        requiredDocuments, missingDocuments, isComplete, canSubmit, propertySubmissionBlocker, isPropertySubmissionReady,
         refetch, createProfile, updateProfile, uploadDocument, deleteDocument, submitForVerification,
         getDocumentByType, getDocumentStatus,
     };

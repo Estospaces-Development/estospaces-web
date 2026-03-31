@@ -8,7 +8,14 @@ import { userService } from '@/services/userService';
 
 export default function ManagerProfilePage() {
     const { user, refreshUser } = useAuth();
-    const { managerProfile, verificationStatus, isVerified, refetch: refetchManagerData } = useManagerVerification();
+    const {
+        managerProfile,
+        verificationStatus,
+        isVerified,
+        propertySubmissionBlocker,
+        isPropertySubmissionReady,
+        refetch: refetchManagerData,
+    } = useManagerVerification();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -84,6 +91,12 @@ export default function ManagerProfilePage() {
         
         try {
             const isManager = user?.role === 'manager' || user?.role === 'broker';
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            const companyName = formData.companyName.trim();
+            const businessPhone = formData.businessPhone.trim();
+            const companyAddress = formData.companyAddress.trim();
+            const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
+            const isBrokerProfile = managerProfile?.profile_type !== 'company';
             
             const payload: any = {
                 first_name: formData.firstName,
@@ -100,13 +113,13 @@ export default function ManagerProfilePage() {
 
             if (isManager) {
                 payload.broker_settings = {
-                    company_name: formData.companyName,
+                    company_name: companyName || (isBrokerProfile ? fullName : ''),
                     branch_name: formData.branchName,
                     company_description: formData.bio,
                     company_reg_number: formData.licenseNumber,
-                    business_phone: formData.businessPhone,
-                    company_address: formData.companyAddress,
-                    registered_office_address: formData.registeredOfficeAddress,
+                    business_phone: businessPhone || formData.phone.trim(),
+                    company_address: companyAddress || formData.address.trim(),
+                    registered_office_address: registeredOfficeAddress || companyAddress || formData.address.trim(),
                     complaints_contact: formData.complaintsContact,
                     redress_scheme_name: formData.redressSchemeName,
                     redress_membership_number: formData.redressMembershipNumber,
@@ -140,10 +153,14 @@ export default function ManagerProfilePage() {
         }
     };
 
-    const statusLabel = isVerified ? 'Active' : (verificationStatus || 'Pending');
-    const statusColor = isVerified
+    const statusLabel = isVerified
+        ? (isPropertySubmissionReady ? 'Ready' : 'Profile incomplete')
+        : (verificationStatus || 'Pending');
+    const statusColor = isVerified && isPropertySubmissionReady
         ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
+        : isVerified
+            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
 
     const inputClass = "w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
     const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
@@ -176,7 +193,9 @@ export default function ManagerProfilePage() {
                         </div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{formData.firstName} {formData.lastName}</h2>
                         <p className="text-orange-600 dark:text-orange-400 font-medium text-sm mb-1">
-                            {isVerified ? 'Verified Manager' : 'Manager'}
+                            {isVerified
+                                ? (isPropertySubmissionReady ? 'Verified Manager' : 'Approved Manager')
+                                : 'Manager'}
                         </p>
                         <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">{formData.companyName || 'No company set'}</p>
                         {formData.address && (
@@ -194,6 +213,13 @@ export default function ManagerProfilePage() {
                             </div>
                         </div>
                     </div>
+
+                    {isVerified && !isPropertySubmissionReady && propertySubmissionBlocker && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-xl p-4">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Profile action required</p>
+                            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{propertySubmissionBlocker}</p>
+                        </div>
+                    )}
 
                     {/* Account Status */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">

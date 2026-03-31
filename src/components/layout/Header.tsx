@@ -17,7 +17,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     const navigate = useNavigate();
     const { user, signOut, getDisplayName, getRole } = useAuth();
     const { notifications, unreadCount } = useNotifications();
-    const { verificationStatus, isLoading: isVerificationLoading } = useManagerVerification();
+    const {
+        verificationStatus,
+        isLoading: isVerificationLoading,
+        isPropertySubmissionReady,
+    } = useManagerVerification();
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +64,14 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
         switch (verificationStatus) {
             case 'approved':
+                if (!isPropertySubmissionReady) {
+                    return (
+                        <Link to="/manager/profile" className="flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium rounded-full border border-amber-200 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/40 transition-colors">
+                            <AlertCircle size={12} />
+                            <span>Complete Profile</span>
+                        </Link>
+                    );
+                }
                 return (
                     <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium rounded-full border border-green-200 dark:border-green-800">
                         <CheckCircle size={12} />
