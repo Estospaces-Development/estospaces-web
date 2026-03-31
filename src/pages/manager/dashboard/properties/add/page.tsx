@@ -55,7 +55,9 @@ import {
 } from 'lucide-react';
 import AddressSection, { AddressFormData } from '@/components/ui/AddressSection';
 import Toast from '@/components/ui/Toast';
+import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { reassignMediaEntity } from '@/services/mediaService';
+import { getManagerPropertySubmissionBlocker } from '@/lib/managerPropertySubmission';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 // Mode type for clear distinction
@@ -342,11 +344,21 @@ const initialFormData: FormData = {
     draft: true,
 };
 
+const resolveCountryCurrency = (countryCode: string): CurrencyCode => {
+    const country = countries.find((entry) => entry.code === countryCode);
+    return country?.currency || 'USD';
+};
+
 export default function AddPropertyPage() {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const idValue = id;
     const { addProperty, updateProperty, getProperty, formatPrice, formatArea, uploadImages, uploadVideos, fetchProperties, loading: contextLoading } = useProperties();
+    const {
+        managerProfile,
+        isLoading: managerVerificationLoading,
+        error: managerVerificationError,
+    } = useManagerVerification();
     const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
 
     // Determine mode based on presence of ID
@@ -382,6 +394,20 @@ export default function AddPropertyPage() {
     const hideToast = useCallback(() => {
         setToast(prev => ({ ...prev, visible: false }));
     }, []);
+
+    useEffect(() => {
+        if (isEditMode) return;
+        if (formData.countryCode) return;
+        if (countries.length === 0) return;
+
+        const defaultCountry = countries[0];
+        setFormData(prev => ({
+            ...prev,
+            country: defaultCountry.name,
+            countryCode: defaultCountry.code,
+            currency: defaultCountry.currency,
+        }));
+    }, [formData.countryCode, isEditMode]);
 
     // Unsaved changes warning - uses beforeunload event for browser navigation
     useEffect(() => {
@@ -1019,8 +1045,23 @@ export default function AddPropertyPage() {
     };
 
     const handleSaveOrPublish = async () => {
-        const allErrors = validateAllFields();
         const isEditSubmission = mode === 'edit' && (formData.status === 'draft' || formData.status === 'rejected');
+        const isSubmissionAction = mode === 'create' || isEditSubmission;
+        const submissionBlocker = managerVerificationError
+            ? null
+            : getManagerPropertySubmissionBlocker(managerProfile);
+
+        if (isSubmissionAction && managerVerificationLoading) {
+            showToast('Checking your manager verification status. Please try again in a moment.', 'info');
+            return;
+        }
+
+        if (isSubmissionAction && submissionBlocker) {
+            showToast(submissionBlocker, 'error');
+            return;
+        }
+
+        const allErrors = validateAllFields();
 
         if (Object.keys(allErrors).length > 0) {
             setErrors(allErrors);
@@ -1109,6 +1150,11 @@ export default function AddPropertyPage() {
     }
 
     const isEditSubmission = mode === 'edit' && (formData.status === 'draft' || formData.status === 'rejected');
+    const isSubmissionAction = mode === 'create' || isEditSubmission;
+    const submissionBlocker = managerVerificationError
+        ? null
+        : getManagerPropertySubmissionBlocker(managerProfile);
+    const primaryActionDisabled = saving || (isSubmissionAction && (managerVerificationLoading || Boolean(submissionBlocker)));
     const primaryButtonLabel = mode === 'edit'
         ? isEditSubmission
             ? (saving ? 'Submitting...' : formData.status === 'rejected' ? 'Resubmit for Approval' : 'Submit for Approval')
@@ -1154,6 +1200,29 @@ export default function AddPropertyPage() {
                                 You have unsaved changes
                             </p>
                         )}
+                        {isSubmissionAction && (managerVerificationLoading || submissionBlocker) && (
+                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="flex items-start gap-2">
+                                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <p>
+                                            {managerVerificationLoading
+                                                ? 'Checking your manager verification status before enabling property submission.'
+                                                : submissionBlocker}
+                                        </p>
+                                    </div>
+                                    {!managerVerificationLoading && submissionBlocker && (
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate('/manager/verification')}
+                                            className="rounded-lg border border-amber-300 px-3 py-2 font-semibold text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-400/40 dark:text-amber-100 dark:hover:bg-amber-500/10"
+                                        >
+                                            Open Verification
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="flex gap-3">
                         <button
@@ -1165,7 +1234,7 @@ export default function AddPropertyPage() {
                         </button>
                         <button
                             onClick={handleSaveOrPublish}
-                            disabled={saving}
+                            disabled={primaryActionDisabled}
                             className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
                             {formData.featured && <Star className="w-4 h-4" />}
@@ -1435,11 +1504,16 @@ export default function AddPropertyPage() {
                                 landmark: formData.landmark || '',
                             }}
                             onChange={(addressData: AddressFormData) => {
+                                const currency = addressData.countryCode
+                                    ? resolveCountryCurrency(addressData.countryCode)
+                                    : formData.currency;
+
                                 setFormData(prev => ({
                                     ...prev,
                                     countryId: addressData.countryId,
                                     country: addressData.countryName,
                                     countryCode: addressData.countryCode,
+                                    currency,
                                     stateId: addressData.stateId,
                                     state: addressData.stateName,
                                     stateCode: addressData.stateCode,
@@ -2180,7 +2254,7 @@ export default function AddPropertyPage() {
                             <button
                                 type="button"
                                 onClick={handleSaveOrPublish}
-                                disabled={saving}
+                                disabled={primaryActionDisabled}
                                 className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg transition-all shadow-lg disabled:opacity-50 flex items-center gap-2"
                             >
                                 {formData.featured && <Star className="w-4 h-4" />}
