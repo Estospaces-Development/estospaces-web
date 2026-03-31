@@ -1810,12 +1810,9 @@ const UserPropertyDetail = () => {
 
                                 <div className="absolute inset-x-0 bottom-0 z-20 p-4 sm:p-5">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                                        <div className="max-w-lg rounded-[1.5rem] border border-white/10 bg-black/24 px-4 py-3.5 text-white shadow-lg backdrop-blur-md">
+                                        <div className="max-w-lg rounded-[1.5rem] border border-white/10 bg-black/24 px-4 py-3 text-white shadow-lg backdrop-blur-md">
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/55">
                                                 {images.length > 1 ? `Photo ${selectedImageIndex + 1} of ${images.length}` : 'Featured property view'}
-                                            </p>
-                                            <p className="mt-2 text-sm leading-6 text-white/78">
-                                                Keep the main photo clean, use the side rail to jump between angles, and stay in the full-screen viewer while comparing the listing details.
                                             </p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
