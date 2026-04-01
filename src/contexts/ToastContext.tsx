@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Toast from '@/components/ui/Toast';
 import { registerErrorToastHandler } from '@/lib/apiToastBus';
 import { isAuthRoutePath } from '@/lib/authUtils';
-import { AUTH_EXPIRED_MESSAGE } from '@/lib/authExpiry';
+import { shouldSuppressAuthRouteToast } from '@/lib/authToastRules';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -57,7 +57,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             position = 'top-right',
         } = options;
 
-        if (isAuthRoutePath(location.pathname) && title === 'Session expired' && message === AUTH_EXPIRED_MESSAGE) {
+        if (isAuthRoutePath(location.pathname) && shouldSuppressAuthRouteToast(title, message)) {
             return '';
         }
 
@@ -127,9 +127,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             return;
         }
 
-        setToasts((prev) => prev.filter((toast) => {
-            return !(toast.title === 'Session expired' && toast.message === AUTH_EXPIRED_MESSAGE);
-        }));
+        setToasts((prev) => prev.filter((toast) => !shouldSuppressAuthRouteToast(toast.title, toast.message)));
     }, [location.pathname]);
 
     return (
