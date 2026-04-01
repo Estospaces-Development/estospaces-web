@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { AUTH_EXPIRED_EVENT, apiFetch, getErrorMessage } from '@/lib/apiUtils';
+import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 
 interface User {
@@ -44,6 +44,23 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+
+function getCachedUser(): User | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const rawUser = localStorage.getItem('esto_user');
+    if (!rawUser) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(rawUser) as User;
+    } catch {
+        return null;
+    }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -93,10 +110,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
         } catch (err) {
-            // If token is invalid, sign out
-            localStorage.removeItem('esto_token');
-            localStorage.removeItem('esto_user');
-            setUser(null);
+            if (err instanceof ApiRequestError && err.status === 401) {
+                localStorage.removeItem('esto_token');
+                localStorage.removeItem('esto_user');
+                setUser(null);
+            } else {
+                const cachedUser = getCachedUser();
+                if (cachedUser?.isAuthenticated) {
+                    setUser(cachedUser);
+                }
+            }
         } finally {
             setLoading(false);
         }

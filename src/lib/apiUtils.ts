@@ -139,7 +139,19 @@ async function validateCurrentSession(token: string) {
     sessionValidationPromise = fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
         headers: getAuthHeaders(undefined, token),
     })
-        .then((response) => response.status !== 401)
+        .then(async (response) => {
+            if (response.status !== 401) {
+                return true;
+            }
+
+            // Shared dev can briefly serve a stale instance during rollout.
+            await new Promise((resolve) => setTimeout(resolve, 250));
+
+            const retryResponse = await fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
+                headers: getAuthHeaders(undefined, token),
+            });
+            return retryResponse.status !== 401;
+        })
         .catch(() => true)
         .finally(() => {
             sessionValidationPromise = null;
@@ -163,11 +175,9 @@ export async function handleUnauthorizedResponse(
         return 'ignored';
     }
 
-    if (!url.includes(AUTH_ME_PATH)) {
-        const sessionStillValid = await validateCurrentSession(activeToken);
-        if (sessionStillValid) {
-            return 'ignored';
-        }
+    const sessionStillValid = await validateCurrentSession(activeToken);
+    if (sessionStillValid) {
+        return 'ignored';
     }
 
     return handleUnauthorizedSession({
