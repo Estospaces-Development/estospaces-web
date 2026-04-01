@@ -185,6 +185,37 @@ test('handleUnauthorizedResponse retries core auth validation before expiring th
     }
 });
 
+test('handleUnauthorizedResponse tolerates repeated transient auth 401s before expiring the session', async () => {
+    resetAuthExpiryState();
+    const env = installBrowserEnv('token-a');
+    const originalFetch = globalThis.fetch;
+    const statuses: number[] = [];
+
+    globalThis.fetch = async () => {
+        const status = statuses.length < 2 ? 401 : 200;
+        statuses.push(status);
+        return new Response('{}', {
+            status,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    };
+
+    try {
+        const state = await handleUnauthorizedResponse(
+            'http://localhost:8080/api/v1/auth/me',
+            'token-a',
+        );
+
+        assert.equal(state, 'ignored');
+        assert.deepEqual(statuses, [401, 401, 200]);
+        assert.equal(localStorage.getItem('esto_token'), 'token-a');
+        assert.equal(env.dispatchedEvents.length, 0);
+    } finally {
+        globalThis.fetch = originalFetch;
+        env.restore();
+    }
+});
+
 test('handleUnauthorizedResponse expires the session when core auth also rejects the token', async () => {
     resetAuthExpiryState();
     const env = installBrowserEnv('token-a');

@@ -128,6 +128,8 @@ function isAuthEndpoint(url: string) {
 }
 
 const AUTH_ME_PATH = '/api/v1/auth/me';
+const SESSION_VALIDATION_ATTEMPTS = 3;
+const SESSION_VALIDATION_RETRY_DELAY_MS = 250;
 
 export type UnauthorizedResponseState = 'session-expired' | 'ignored' | 'unhandled';
 
@@ -144,22 +146,24 @@ async function validateCurrentSession(token: string) {
     }
 
     sessionValidationToken = token;
-    sessionValidationPromise = fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
-        headers: getAuthHeaders(undefined, token),
-    })
-        .then(async (response) => {
+    sessionValidationPromise = (async () => {
+        for (let attempt = 0; attempt < SESSION_VALIDATION_ATTEMPTS; attempt += 1) {
+            const response = await fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
+                headers: getAuthHeaders(undefined, token),
+            });
+
             if (response.status !== 401) {
                 return true;
             }
 
-            // Shared dev can briefly serve a stale instance during rollout.
-            await new Promise((resolve) => setTimeout(resolve, 250));
+            if (attempt < SESSION_VALIDATION_ATTEMPTS - 1) {
+                // Shared dev can briefly serve a stale instance during rollout.
+                await new Promise((resolve) => setTimeout(resolve, SESSION_VALIDATION_RETRY_DELAY_MS * (attempt + 1)));
+            }
+        }
 
-            const retryResponse = await fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
-                headers: getAuthHeaders(undefined, token),
-            });
-            return retryResponse.status !== 401;
-        })
+        return false;
+    })()
         .catch(() => true)
         .finally(() => {
             sessionValidationPromise = null;
