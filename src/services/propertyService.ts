@@ -8,6 +8,11 @@ import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement
 
 const CORE_URL = () => getServiceUrl('core');
 
+interface PropertyMutationOptions {
+    suppressErrorToast?: boolean;
+    throwOnError?: boolean;
+}
+
 export interface Property {
     id: string;
     manager_id?: string;
@@ -290,17 +295,24 @@ export const getAdminPropertyById = async (id: string): Promise<{ data: Property
  * Create a new property
  * POST /api/v1/properties (core-service, manager/admin)
  */
-export const createProperty = async (propertyData: Partial<Property>): Promise<{ data: Property | null; error: string | null }> => {
+export const createProperty = async (
+    propertyData: Partial<Property>,
+    options: PropertyMutationOptions = {},
+): Promise<{ data: Property | null; error: string | null }> => {
     try {
         const data = await apiFetch<Property>(
             `${CORE_URL()}/api/v1/properties`,
             {
                 method: 'POST',
                 body: JSON.stringify(propertyData),
+                suppressErrorToast: options.suppressErrorToast,
             },
         );
         return { data, error: null };
     } catch (error: any) {
+        if (options.throwOnError) {
+            throw error;
+        }
         return { data: null, error: getErrorMessage(error) };
     }
 };
@@ -309,17 +321,25 @@ export const createProperty = async (propertyData: Partial<Property>): Promise<{
  * Update a property
  * PUT /api/v1/properties/:id (core-service, owner/admin)
  */
-export const updateProperty = async (id: string, propertyData: Partial<Property>): Promise<{ data: Property | null; error: string | null }> => {
+export const updateProperty = async (
+    id: string,
+    propertyData: Partial<Property>,
+    options: PropertyMutationOptions = {},
+): Promise<{ data: Property | null; error: string | null }> => {
     try {
         const data = await apiFetch<Property>(
             `${CORE_URL()}/api/v1/properties/${id}`,
             {
                 method: 'PUT',
                 body: JSON.stringify(propertyData),
+                suppressErrorToast: options.suppressErrorToast,
             },
         );
         return { data, error: null };
     } catch (error: any) {
+        if (options.throwOnError) {
+            throw error;
+        }
         return { data: null, error: getErrorMessage(error) };
     }
 };

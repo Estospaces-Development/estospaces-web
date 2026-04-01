@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useMemo, ReactNode, use
 import * as propertyService from '../services/propertyService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { uploadMediaFile } from '@/services/mediaService';
+import { getErrorMessage } from '@/lib/apiUtils';
 
 // Type definitions
 export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'INR' | 'AED' | 'CAD' | 'AUD' | 'JPY' | 'CNY' | 'SGD';
@@ -229,8 +230,8 @@ interface PropertyContextType {
     error: string | null;
 
     fetchProperties: () => Promise<void>;
-    addProperty: (property: Partial<Property>) => Promise<Property | null>;
-    updateProperty: (id: string, property: Partial<Property>) => Promise<Property | null>;
+    addProperty: (property: Partial<Property>, options?: PropertyMutationOptions) => Promise<Property | null>;
+    updateProperty: (id: string, property: Partial<Property>, options?: PropertyMutationOptions) => Promise<Property | null>;
     deleteProperty: (id: string) => Promise<void>;
     deleteProperties: (ids: string[]) => Promise<void>;
     duplicateProperty: (id: string) => Promise<Property | null>;
@@ -257,6 +258,11 @@ interface PropertyContextType {
     formatPrice: (price: PriceInfo | undefined) => string;
     formatArea: (area: number, unit: AreaUnit) => string;
     getPropertyStats: () => { total: number; available: number; sold: number; rented: number; pending: number };
+}
+
+interface PropertyMutationOptions {
+    suppressErrorToast?: boolean;
+    throwOnError?: boolean;
 }
 
 const PropertyContext = createContext<PropertyContextType | undefined>(undefined);
@@ -611,12 +617,11 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
             loading,
             error,
             fetchProperties,
-            addProperty: async (propertyData: Partial<Property>) => {
+            addProperty: async (propertyData: Partial<Property>, options?: PropertyMutationOptions) => {
                 setLoading(true);
                 try {
                     const mappedData = mapContextToServiceProperty(propertyData);
-                    // removed console.log
-                    const { data, error } = await propertyService.createProperty(mappedData);
+                    const { data, error } = await propertyService.createProperty(mappedData, options);
                     if (error) throw new Error(error);
                     if (data) {
                         const newProp = mapServiceToContextProperty(data);
@@ -626,18 +631,20 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
                     return null;
                 } catch (err: any) {
                     console.error('[PropertyContext] addProperty error:', err);
-                    setError(err.message);
+                    setError(getErrorMessage(err));
+                    if (options?.throwOnError) {
+                        throw err;
+                    }
                     return null;
                 } finally {
                     setLoading(false);
                 }
             },
-            updateProperty: async (id: string, propertyData: Partial<Property>) => {
+            updateProperty: async (id: string, propertyData: Partial<Property>, options?: PropertyMutationOptions) => {
                 setLoading(true);
                 try {
                     const mappedData = mapContextToServiceProperty(propertyData);
-                    // removed console.log
-                    const { data, error } = await propertyService.updateProperty(id, mappedData);
+                    const { data, error } = await propertyService.updateProperty(id, mappedData, options);
                     if (error) throw new Error(error);
                     if (data) {
                         const updatedProp = mapServiceToContextProperty(data);
@@ -647,7 +654,10 @@ export const PropertyProvider = ({ children, scope = 'public' }: { children: Rea
                     return null;
                 } catch (err: any) {
                     console.error('[PropertyContext] updateProperty error:', err);
-                    setError(err.message);
+                    setError(getErrorMessage(err));
+                    if (options?.throwOnError) {
+                        throw err;
+                    }
                     return null;
                 } finally {
                     setLoading(false);

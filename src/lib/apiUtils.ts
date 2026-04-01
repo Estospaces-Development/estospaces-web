@@ -79,12 +79,14 @@ export const AUTH_EXPIRED_EVENT = 'esto-auth-expired';
 export class ApiRequestError extends Error {
     status?: number;
     userMessage: string;
+    fieldErrors?: Record<string, string>;
 
-    constructor(message: string, userMessage: string, status?: number) {
+    constructor(message: string, userMessage: string, status?: number, fieldErrors?: Record<string, string>) {
         super(message);
         this.name = 'ApiRequestError';
         this.status = status;
         this.userMessage = userMessage;
+        this.fieldErrors = fieldErrors;
     }
 }
 
@@ -267,9 +269,13 @@ export async function apiFetchEnvelope<T>(
 
     if (!response.ok) {
         let errorMsg = `API error: ${response.status}`;
+        let fieldErrors: Record<string, string> | undefined;
         try {
             const errorJson = await parseJsonResponse<any>(response);
             errorMsg = errorJson.error || errorJson.message || errorMsg;
+            if (errorJson.field_errors && typeof errorJson.field_errors === 'object') {
+                fieldErrors = errorJson.field_errors as Record<string, string>;
+            }
         } catch {
             // No JSON body
         }
@@ -286,6 +292,7 @@ export async function apiFetchEnvelope<T>(
                 ? AUTH_EXPIRED_MESSAGE
                 : getToastPayload(response.status).message,
             response.status,
+            fieldErrors,
         );
     }
 

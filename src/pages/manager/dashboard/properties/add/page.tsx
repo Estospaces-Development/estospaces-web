@@ -57,8 +57,10 @@ import AddressSection, { AddressFormData } from '@/components/ui/AddressSection'
 import Toast from '@/components/ui/Toast';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { reassignMediaEntity } from '@/services/mediaService';
+import { ApiRequestError } from '@/lib/apiUtils';
 import { getManagerPropertySubmissionBlocker } from '@/lib/managerPropertySubmission';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { isValidUkPostcode, mapPropertyMutationFieldErrors } from '@/lib/propertyValidationErrors';
 
 // Mode type for clear distinction
 type FormMode = 'create' | 'edit';
@@ -585,6 +587,23 @@ export default function AddPropertyPage() {
     };
 
     const hasValidPhoneNumber = (value: string) => value.replace(/\D/g, '').length >= 7;
+    const shouldValidateUkPostcode = formData.countryCode === 'GB' || !formData.countryCode;
+
+    const applyServerValidationErrors = (error: unknown) => {
+        if (!(error instanceof ApiRequestError)) {
+            return false;
+        }
+
+        const mappedErrors = mapPropertyMutationFieldErrors(error.fieldErrors);
+        if (Object.keys(mappedErrors).length === 0) {
+            return false;
+        }
+
+        setErrors(mappedErrors);
+        setCurrentStep(getFirstErrorStep(mappedErrors));
+        showToast('Please correct the highlighted fields before continuing.', 'error');
+        return true;
+    };
 
     const validateStep = (step: number): boolean => {
         const newErrors: Record<string, string> = {};
@@ -598,6 +617,7 @@ export default function AddPropertyPage() {
             if (!formData.stateId && !formData.state?.trim()) newErrors.state = 'State/Province is required';
             if (!formData.cityId && !formData.city?.trim()) newErrors.city = 'City is required';
             if (!formData.postalCode?.trim()) newErrors.postalCode = 'Postal code is required';
+            else if (shouldValidateUkPostcode && !isValidUkPostcode(formData.postalCode)) newErrors.postalCode = 'Please enter a valid UK postcode';
         } else if (step === 3) {
             if (formData.totalArea <= 0) newErrors.totalArea = 'Area is required';
             if (formData.bedrooms < 0) newErrors.bedrooms = 'Invalid bedrooms';
@@ -657,6 +677,7 @@ export default function AddPropertyPage() {
         if (!formData.stateId && !formData.state?.trim()) allErrors.state = 'State/Province is required';
         if (!formData.cityId && !formData.city?.trim()) allErrors.city = 'City is required';
         if (!formData.postalCode?.trim()) allErrors.postalCode = 'Postal code is required';
+        else if (shouldValidateUkPostcode && !isValidUkPostcode(formData.postalCode)) allErrors.postalCode = 'Please enter a valid UK postcode';
 
         // Step 3 validation
         if (formData.totalArea <= 0) allErrors.totalArea = 'Area is required';
@@ -1044,10 +1065,17 @@ export default function AddPropertyPage() {
             const propertyData = await buildPropertyData();
 
             if (mode === 'edit' && idValue) {
-                const result = await updateProperty(idValue, { ...propertyData, status: 'draft', draft: true, published: false });
+                const result = await updateProperty(
+                    idValue,
+                    { ...propertyData, status: 'draft', draft: true, published: false },
+                    { suppressErrorToast: true, throwOnError: true },
+                );
                 if (!result) throw new Error('Failed to save property');
             } else {
-                const result = await addProperty({ ...propertyData, status: 'draft', draft: true, published: false });
+                const result = await addProperty(
+                    { ...propertyData, status: 'draft', draft: true, published: false },
+                    { suppressErrorToast: true, throwOnError: true },
+                );
                 if (!result) throw new Error('Failed to save property');
                 const mediaFinalizeError = await finalizeMediaEntity(result.id);
                 setIsDirty(false);
@@ -1061,6 +1089,9 @@ export default function AddPropertyPage() {
             showToast('Property saved as draft successfully!', 'success');
             setTimeout(() => navigate('/manager/dashboard/properties'), 1500);
         } catch (error: any) {
+            if (applyServerValidationErrors(error)) {
+                return;
+            }
             showToast(`Failed to save draft: ${error?.message || 'Unknown error'}`, 'error');
         } finally {
             setSaving(false);
@@ -1106,7 +1137,11 @@ export default function AddPropertyPage() {
 
             if (mode === 'edit' && idValue) {
                 const nextStatus = isEditSubmission ? 'pending_approval' : formData.status;
-                const result = await updateProperty(idValue, { ...propertyData, status: nextStatus });
+                const result = await updateProperty(
+                    idValue,
+                    { ...propertyData, status: nextStatus },
+                    { suppressErrorToast: true, throwOnError: true },
+                );
                 if (!result) throw new Error('Failed to save property');
                 setFormData(prev => ({ ...prev, status: result.status }));
                 setIsDirty(false);
@@ -1117,7 +1152,10 @@ export default function AddPropertyPage() {
                     'success',
                 );
             } else {
-                const result = await addProperty({ ...propertyData, status: 'pending_approval', draft: false, published: false });
+                const result = await addProperty(
+                    { ...propertyData, status: 'pending_approval', draft: false, published: false },
+                    { suppressErrorToast: true, throwOnError: true },
+                );
                 if (!result) throw new Error('Failed to submit property for admin approval');
                 const mediaFinalizeError = await finalizeMediaEntity(result.id);
                 setIsDirty(false);
@@ -1130,6 +1168,9 @@ export default function AddPropertyPage() {
             }
             setTimeout(() => navigate('/manager/dashboard/properties'), 1500);
         } catch (error: any) {
+            if (applyServerValidationErrors(error)) {
+                return;
+            }
             const actionWord = isEditSubmission || mode === 'create' ? 'submit' : 'save';
             showToast(`Failed to ${actionWord} property: ${error?.message || 'Unknown error'}`, 'error');
         } finally {
