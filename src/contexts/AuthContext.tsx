@@ -110,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
         } catch (err) {
-            if (err instanceof ApiRequestError && err.status === 401) {
+            if (err instanceof ApiRequestError && err.status === 401 && err.unauthorizedState === 'session-expired') {
                 localStorage.removeItem('esto_token');
                 localStorage.removeItem('esto_user');
                 setUser(null);

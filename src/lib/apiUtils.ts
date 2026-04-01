@@ -80,13 +80,21 @@ export class ApiRequestError extends Error {
     status?: number;
     userMessage: string;
     fieldErrors?: Record<string, string>;
+    unauthorizedState?: UnauthorizedResponseState;
 
-    constructor(message: string, userMessage: string, status?: number, fieldErrors?: Record<string, string>) {
+    constructor(
+        message: string,
+        userMessage: string,
+        status?: number,
+        fieldErrors?: Record<string, string>,
+        unauthorizedState?: UnauthorizedResponseState,
+    ) {
         super(message);
         this.name = 'ApiRequestError';
         this.status = status;
         this.userMessage = userMessage;
         this.fieldErrors = fieldErrors;
+        this.unauthorizedState = unauthorizedState;
     }
 }
 
@@ -274,6 +282,8 @@ export async function apiFetchEnvelope<T>(
         throw new ApiRequestError(
             error?.message || 'Network request failed',
             SYSTEM_ERROR_MESSAGE,
+            undefined,
+            undefined,
         );
     }
 
@@ -303,6 +313,7 @@ export async function apiFetchEnvelope<T>(
                 : getToastPayload(response.status).message,
             response.status,
             fieldErrors,
+            unauthorizedState,
         );
     }
 
@@ -322,6 +333,8 @@ export async function apiFetchEnvelope<T>(
         throw new ApiRequestError(
             json.error || json.message || 'API operation failed',
             SYSTEM_ERROR_MESSAGE,
+            undefined,
+            undefined,
         );
     }
 
