@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { isCurrentAuthRoute } from '@/lib/authUtils';
 import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 
@@ -73,6 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const token = localStorage.getItem('esto_token');
         if (!token) {
             setUser(null);
+            if (isCurrentAuthRoute()) {
+                setError(null);
+            }
             setLoading(false);
             return;
         }
@@ -110,10 +114,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
         } catch (err) {
-            if (err instanceof ApiRequestError && err.status === 401 && err.unauthorizedState === 'session-expired') {
+            if (err instanceof ApiRequestError && err.status === 401 && (
+                err.unauthorizedState === 'session-expired' || err.unauthorizedState === 'cleared-on-auth-page'
+            )) {
                 localStorage.removeItem('esto_token');
                 localStorage.removeItem('esto_user');
                 setUser(null);
+                if (err.unauthorizedState === 'cleared-on-auth-page') {
+                    setError(null);
+                }
             } else {
                 const cachedUser = getCachedUser();
                 if (cachedUser?.isAuthenticated) {
@@ -134,6 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const handleAuthExpired = () => {
             setUser(null);
             setLoading(false);
+            if (isCurrentAuthRoute()) {
+                setError(null);
+                return;
+            }
             setError('Your session has expired. Please log in again.');
         };
 

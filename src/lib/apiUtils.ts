@@ -4,9 +4,11 @@
  */
 
 import { emitErrorToast } from '@/lib/apiToastBus';
+import { isCurrentAuthRoute } from '@/lib/authUtils';
 import {
     AUTH_EXPIRED_MESSAGE,
     handleUnauthorizedSession,
+    resetAuthExpiryState,
     syncAuthExpiryState,
 } from '@/lib/authExpiry';
 
@@ -131,7 +133,7 @@ const AUTH_ME_PATH = '/api/v1/auth/me';
 const SESSION_VALIDATION_ATTEMPTS = 3;
 const SESSION_VALIDATION_RETRY_DELAY_MS = 250;
 
-export type UnauthorizedResponseState = 'session-expired' | 'ignored' | 'unhandled';
+export type UnauthorizedResponseState = 'session-expired' | 'cleared-on-auth-page' | 'ignored' | 'unhandled';
 
 let sessionValidationPromise: Promise<boolean> | null = null;
 let sessionValidationToken: string | null = null;
@@ -190,6 +192,13 @@ export async function handleUnauthorizedResponse(
     const sessionStillValid = await validateCurrentSession(activeToken);
     if (sessionStillValid) {
         return 'ignored';
+    }
+
+    if (isCurrentAuthRoute()) {
+        localStorage.removeItem('esto_token');
+        localStorage.removeItem('esto_user');
+        resetAuthExpiryState();
+        return 'cleared-on-auth-page';
     }
 
     return handleUnauthorizedSession({
@@ -312,7 +321,7 @@ export async function apiFetchEnvelope<T>(
         }
         throw new ApiRequestError(
             errorMsg,
-            unauthorizedState === 'session-expired'
+            unauthorizedState === 'session-expired' || unauthorizedState === 'cleared-on-auth-page'
                 ? AUTH_EXPIRED_MESSAGE
                 : getToastPayload(response.status).message,
             response.status,

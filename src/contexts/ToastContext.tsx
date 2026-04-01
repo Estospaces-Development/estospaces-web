@@ -1,9 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import Toast from '@/components/ui/Toast';
 import { registerErrorToastHandler } from '@/lib/apiToastBus';
+import { isAuthRoutePath } from '@/lib/authUtils';
+import { AUTH_EXPIRED_MESSAGE } from '@/lib/authExpiry';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -43,6 +46,7 @@ const ToastActionsContext = createContext<ToastActionsContextType | undefined>(u
 const ToastStateContext = createContext<ToastStateContextType | undefined>(undefined);
 
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
+    const location = useLocation();
     const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
     const showToast = useCallback((message: string, options: ToastOptions = {}) => {
@@ -52,6 +56,10 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
             duration = 5000,
             position = 'top-right',
         } = options;
+
+        if (isAuthRoutePath(location.pathname) && title === 'Session expired' && message === AUTH_EXPIRED_MESSAGE) {
+            return '';
+        }
 
         const id = uuidv4();
         const newToast: ToastMessage = {
@@ -66,7 +74,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 
         setToasts((prev) => [...prev, newToast]);
         return id;
-    }, []);
+    }, [location.pathname]);
 
     const removeToast = useCallback((id: string) => {
         setToasts((prev) => prev.filter((toast) => toast.id !== id));
@@ -113,6 +121,16 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     );
 
     useEffect(() => registerErrorToastHandler(error), [error]);
+
+    useEffect(() => {
+        if (!isAuthRoutePath(location.pathname)) {
+            return;
+        }
+
+        setToasts((prev) => prev.filter((toast) => {
+            return !(toast.title === 'Session expired' && toast.message === AUTH_EXPIRED_MESSAGE);
+        }));
+    }, [location.pathname]);
 
     return (
         <ToastActionsContext.Provider value={actionsValue}>

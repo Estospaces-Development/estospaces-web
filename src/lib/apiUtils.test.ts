@@ -6,6 +6,7 @@ import {
     getAuthHeaders,
     handleUnauthorizedResponse,
 } from './apiUtils';
+import { isAuthRoutePath } from './authUtils';
 import { resetAuthExpiryState } from './authExpiry';
 
 type BrowserEnv = {
@@ -13,7 +14,7 @@ type BrowserEnv = {
     restore: () => void;
 };
 
-function installBrowserEnv(initialToken: string | null): BrowserEnv {
+function installBrowserEnv(initialToken: string | null, pathname = '/'): BrowserEnv {
     const originalWindow = globalThis.window;
     const originalLocalStorage = globalThis.localStorage;
     const storage = new Map<string, string>();
@@ -41,6 +42,9 @@ function installBrowserEnv(initialToken: string | null): BrowserEnv {
 
     Object.defineProperty(globalThis, 'window', {
         value: {
+            location: {
+                pathname,
+            },
             dispatchEvent(event: Event) {
                 dispatchedEvents.push(event);
                 return true;
@@ -88,6 +92,18 @@ test('getAuthHeaders omits the Authorization header when there is no token', () 
     } finally {
         env.restore();
     }
+});
+
+test('isAuthRoutePath matches the auth entry routes only', () => {
+    assert.equal(isAuthRoutePath('/login'), true);
+    assert.equal(isAuthRoutePath('/register'), true);
+    assert.equal(isAuthRoutePath('/forgot-password'), true);
+    assert.equal(isAuthRoutePath('/reset-password'), true);
+    assert.equal(isAuthRoutePath('/verify-email'), true);
+    assert.equal(isAuthRoutePath('/login/'), true);
+    assert.equal(isAuthRoutePath('/user/dashboard'), false);
+    assert.equal(isAuthRoutePath('/manager/dashboard'), false);
+    assert.equal(isAuthRoutePath('/terms'), false);
 });
 
 test('handleUnauthorizedResponse ignores stale 401 responses from a previous session', async () => {
@@ -209,6 +225,37 @@ test('handleUnauthorizedResponse tolerates repeated transient auth 401s before e
         assert.equal(state, 'ignored');
         assert.deepEqual(statuses, [401, 401, 200]);
         assert.equal(localStorage.getItem('esto_token'), 'token-a');
+        assert.equal(env.dispatchedEvents.length, 0);
+    } finally {
+        globalThis.fetch = originalFetch;
+        env.restore();
+    }
+});
+
+test('handleUnauthorizedResponse clears stale auth silently on auth pages', async () => {
+    resetAuthExpiryState();
+    const env = installBrowserEnv('token-a', '/login');
+    const originalFetch = globalThis.fetch;
+    const statuses: number[] = [];
+
+    globalThis.fetch = async () => {
+        statuses.push(401);
+        return new Response('{}', {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    };
+
+    try {
+        const state = await handleUnauthorizedResponse(
+            'http://localhost:8080/api/v1/auth/me',
+            'token-a',
+        );
+
+        assert.equal(state, 'cleared-on-auth-page');
+        assert.deepEqual(statuses, [401, 401, 401]);
+        assert.equal(localStorage.getItem('esto_token'), null);
+        assert.equal(localStorage.getItem('esto_user'), null);
         assert.equal(env.dispatchedEvents.length, 0);
     } finally {
         globalThis.fetch = originalFetch;
