@@ -32,6 +32,7 @@ import { bookingsService, type ViewingAvailability } from '@/services/bookingsSe
 import { messagesService } from '@/services/messagesService';
 import PropertyContactInfo from '@/components/dashboard/PropertyContactInfo';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
+import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import {
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
@@ -255,10 +256,12 @@ const UserPropertyDetail = () => {
     const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
+    const { toggleProperty, isPropertySaved } = useSavedProperties();
 
     const [property, setProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isUpdatingSavedProperty, setIsUpdatingSavedProperty] = useState(false);
     const [isStartingFastTrack, setIsStartingFastTrack] = useState(false);
     const [isCreatingConversation, setIsCreatingConversation] = useState(false);
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
@@ -317,6 +320,7 @@ const UserPropertyDetail = () => {
     }, [property]);
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
+    const isSaved = id ? isPropertySaved(id) : false;
     const propertyAddress = property?.address_line_1
         ? [property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ')
         : [property?.city, property?.postcode].filter(Boolean).join(', ');
@@ -798,6 +802,27 @@ const UserPropertyDetail = () => {
         return false;
     };
 
+    const handleSaveToggle = async () => {
+        if (!property || !id || !ensureAuthenticated()) {
+            return;
+        }
+
+        setIsUpdatingSavedProperty(true);
+        try {
+            const result = await toggleProperty(id);
+            if (result?.success) {
+                toast.success(isSaved ? 'Property removed from your saved list.' : 'Property saved successfully.');
+                return;
+            }
+
+            toast.error(result?.error || 'Unable to update your saved properties.');
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to update your saved properties.');
+        } finally {
+            setIsUpdatingSavedProperty(false);
+        }
+    };
+
     const openFastTrackDashboard = () => {
         if (activeFastTrackCase?.caseId) {
             navigate(`/user/dashboard/fast-track?case=${activeFastTrackCase.caseId}`);
@@ -1051,10 +1076,21 @@ const UserPropertyDetail = () => {
                 </button>
                 <button
                     type="button"
-                    className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-orange-300 hover:text-orange-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-400"
+                    onClick={() => void handleSaveToggle()}
+                    disabled={isUpdatingSavedProperty}
+                    aria-pressed={isSaved}
+                    className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
+                        isSaved
+                            ? 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:text-orange-800 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:border-orange-800 dark:hover:text-orange-200'
+                            : 'border-stone-200 bg-white text-gray-700 hover:border-orange-300 hover:text-orange-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-400'
+                    }`}
                 >
-                    <Heart size={16} className="text-gray-400 group-hover:text-orange-500" />
-                    <span>Save</span>
+                    {isUpdatingSavedProperty ? (
+                        <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                        <Heart size={16} className={isSaved ? 'fill-current' : 'text-gray-400 group-hover:text-orange-500'} />
+                    )}
+                    <span>{isUpdatingSavedProperty ? 'Saving...' : (isSaved ? 'Saved' : 'Save')}</span>
                 </button>
             </div>
 
