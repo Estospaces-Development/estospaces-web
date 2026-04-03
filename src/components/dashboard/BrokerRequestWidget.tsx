@@ -48,6 +48,7 @@ import {
     useWorkflowWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { isValidUkPostcode } from '@/lib/propertyValidationErrors';
 
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
     if (!deadline) {
@@ -173,6 +174,18 @@ const mapListingTypeToFastTrackPropertyType = (listingType?: string) => {
     return 'rent' as const;
 };
 
+const normalizePostcode = (value?: string | null) => String(value || '').trim().toUpperCase();
+
+const formatUkPostcode = (value?: string | null) => {
+    const normalized = normalizePostcode(value);
+    if (!normalized || !isValidUkPostcode(normalized)) {
+        return '';
+    }
+
+    const compact = normalized.replace(/\s+/g, '');
+    return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+};
+
 const BrokerRequestWidget = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -186,6 +199,7 @@ const BrokerRequestWidget = () => {
     const [fastTrackEnabled, setFastTrackEnabled] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [postcodeError, setPostcodeError] = useState<string | null>(null);
     const [nearbyBrokers, setNearbyBrokers] = useState<LeadBrokerSummary[]>([]);
     const [isRankingLoading, setIsRankingLoading] = useState(false);
     const [activeRequest, setActiveRequest] = useState<BrokerRequestRecord | null>(null);
@@ -262,9 +276,24 @@ const BrokerRequestWidget = () => {
     }, [loadActiveRequest]);
 
     useEffect(() => {
-        const trimmedPostcode = locationPostcode.trim();
+        const trimmedPostcode = normalizePostcode(locationPostcode);
         if (!trimmedPostcode) {
             setNearbyBrokers([]);
+            setIsRankingLoading(false);
+            setPostcodeError(null);
+            return;
+        }
+
+        if (!isValidUkPostcode(trimmedPostcode)) {
+            setNearbyBrokers([]);
+            setIsRankingLoading(false);
+            return;
+        }
+
+        const formattedPostcode = formatUkPostcode(trimmedPostcode);
+        if (!formattedPostcode) {
+            setNearbyBrokers([]);
+            setIsRankingLoading(false);
             return;
         }
 
@@ -273,7 +302,7 @@ const BrokerRequestWidget = () => {
             setIsRankingLoading(true);
             try {
                 const { data } = await getNearbyAvailableBrokers({
-                    postcode: trimmedPostcode,
+                    postcode: formattedPostcode,
                     fastTrack: fastTrackEnabled,
                     limit: 5,
                 }, { suppressErrorToast: true });
@@ -504,14 +533,21 @@ const BrokerRequestWidget = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        const trimmedPostcode = normalizePostcode(locationPostcode);
+        if (trimmedPostcode && !isValidUkPostcode(trimmedPostcode)) {
+            setPostcodeError('Enter a full UK postcode like SW1A 1AA. Area codes such as SD are not enough.');
+            return;
+        }
+
         setLoading(true);
         setError(null);
+        setPostcodeError(null);
 
         try {
             const { success, data, error: requestError } = await createBrokerRequest({
                 requestType,
                 location,
-                locationPostcode,
+                locationPostcode: formatUkPostcode(locationPostcode),
                 budget,
                 details,
                 fastTrackEnabled,
@@ -1161,10 +1197,22 @@ const BrokerRequestWidget = () => {
                         <input
                             type="text"
                             value={locationPostcode}
-                            onChange={(e) => setLocationPostcode(e.target.value.toUpperCase())}
+                            onChange={(e) => {
+                                const nextValue = e.target.value.toUpperCase();
+                                setLocationPostcode(nextValue);
+                                if (postcodeError) {
+                                    const trimmedNextValue = normalizePostcode(nextValue);
+                                    if (!trimmedNextValue || isValidUkPostcode(trimmedNextValue)) {
+                                        setPostcodeError(null);
+                                    }
+                                }
+                            }}
                             placeholder="e.g. SW1A 1AA"
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                         />
+                        {postcodeError && (
+                            <p className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
+                        )}
                     </div>
 
                     <div>

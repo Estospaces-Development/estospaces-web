@@ -20,7 +20,7 @@ const formatUkPostcode = (value?: string | null) => {
     }
 
     if (!isValidUkPostcode(normalized)) {
-        return normalized;
+        return '';
     }
 
     const compact = normalized.replace(/\s+/g, '');
