@@ -1,11 +1,13 @@
 "use client";
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X } from 'lucide-react';
 
 // Components
@@ -15,8 +17,10 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import TopProperties from '@/components/dashboard/TopProperties';
 import TabBar from '@/components/dashboard/TabBar';
 import BrokerResponseWidget from '@/components/dashboard/BrokerResponseWidget';
+import Avatar from '@/components/ui/Avatar';
 import PaginationBar from '@/components/ui/PaginationBar';
 import ManagerPropertyCard from '@/components/dashboard/ManagerPropertyCard';
+import ManualFastTrackModal from '@/components/manager/FastTrack/ManualFastTrackModal';
 
 const MANAGER_PROPERTIES_PAGE_SIZE = 6;
 
@@ -50,6 +54,7 @@ function DashboardContent() {
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
+  const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
   const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
@@ -59,59 +64,100 @@ function DashboardContent() {
   const [propertyTotalPages, setPropertyTotalPages] = useState(1);
   const [propertyError, setPropertyError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [analyticsRes, fastTrackRes] = await Promise.all([
-          analyticsService.getManagerAnalytics(),
-          getFastTrackCases(),
-        ]);
+  const fetchDashboardData = useCallback(async (forceRefresh = false, silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
 
-        if (analyticsRes.data) {
-          setAnalytics(analyticsRes.data);
-        }
-        if (fastTrackRes.data) {
-          setFastTrackCases(fastTrackRes.data);
-        }
-      } finally {
+    try {
+      if (forceRefresh) {
+        analyticsService.invalidateAnalyticsCache('manager_analytics');
+      }
+
+      const [analyticsRes, fastTrackRes] = await Promise.all([
+        analyticsService.getManagerAnalytics(forceRefresh),
+        getFastTrackCases({ suppressErrorToast: silent }),
+      ]);
+
+      if (analyticsRes.data) {
+        setAnalytics(analyticsRes.data);
+      }
+      if (fastTrackRes.data) {
+        setFastTrackCases(fastTrackRes.data);
+      }
+    } finally {
+      if (!silent) {
         setIsLoading(false);
       }
-    };
-    void fetchData();
+    }
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(async () => {
+  const fetchManagerProperties = useCallback(async (silent = false) => {
+    if (!silent) {
       setIsLoading(true);
       setPropertyError(null);
+    }
 
-      try {
-        const response = await getUserProperties({
-          page: propertyPage,
-          limit: MANAGER_PROPERTIES_PAGE_SIZE,
-          search: propertySearchQuery.trim() || undefined,
-          propertyType: propertyTypeFilter !== 'all' ? propertyTypeFilter : undefined,
-          status: propertyStatusFilter !== 'all' ? propertyStatusFilter : undefined,
-        });
+    try {
+      const response = await getUserProperties({
+        page: propertyPage,
+        limit: MANAGER_PROPERTIES_PAGE_SIZE,
+        search: propertySearchQuery.trim() || undefined,
+        propertyType: propertyTypeFilter !== 'all' ? propertyTypeFilter : undefined,
+        status: propertyStatusFilter !== 'all' ? propertyStatusFilter : undefined,
+      });
 
-        if (response.error) {
-          setPropertyError(response.error.message);
-          setProperties([]);
-          setPropertyTotal(0);
-          setPropertyTotalPages(1);
-          return;
-        }
+      if (response.error) {
+        setPropertyError(response.error.message);
+        setProperties([]);
+        setPropertyTotal(0);
+        setPropertyTotalPages(1);
+        return;
+      }
 
-        setProperties(response.data || []);
-        setPropertyTotal(response.pagination?.total || 0);
-        setPropertyTotalPages(response.pagination?.totalPages || 1);
-      } finally {
+      setProperties(response.data || []);
+      setPropertyTotal(response.pagination?.total || 0);
+      setPropertyTotalPages(response.pagination?.totalPages || 1);
+    } finally {
+      if (!silent) {
         setIsLoading(false);
       }
+    }
+  }, [propertyPage, propertySearchQuery, propertyStatusFilter, propertyTypeFilter]);
+
+  useEffect(() => {
+    void fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchManagerProperties();
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [propertyPage, propertySearchQuery, propertyStatusFilter, propertyTypeFilter]);
+  }, [fetchManagerProperties]);
+
+  useDashboardWorkspaceRefresh({
+    tags: [
+      WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+      WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+      WORKSPACE_SYNC_TAGS.MANAGER_ANALYTICS,
+      WORKSPACE_SYNC_TAGS.PROPERTIES,
+      WORKSPACE_SYNC_TAGS.MANAGER_PROPERTIES,
+      WORKSPACE_SYNC_TAGS.LEADS,
+      WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+      WORKSPACE_SYNC_TAGS.FAST_TRACK,
+      WORKSPACE_SYNC_TAGS.APPLICATIONS,
+      WORKSPACE_SYNC_TAGS.VIEWINGS,
+      WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+    ],
+    refresh: async () => {
+      await Promise.all([
+        fetchDashboardData(true, true),
+        fetchManagerProperties(true),
+      ]);
+    },
+  });
 
   const fastTrackQueueItems = fastTrackCases
     .filter((caseItem) => caseItem.finalStatus === 'in_progress')
@@ -190,6 +236,11 @@ function DashboardContent() {
     setPropertyPage(1);
   };
 
+  const handleManualFastTrackCreated = async (createdCase: FastTrackCase) => {
+    void fetchDashboardData(true, true);
+    navigate(`/manager/fast-track?case=${createdCase.caseId}`);
+  };
+
   const hasPropertyFilters = propertySearchQuery.trim() || propertyTypeFilter !== 'all' || propertyStatusFilter !== 'all';
   const propertyPageStart = propertyTotal === 0 ? 0 : ((propertyPage - 1) * MANAGER_PROPERTIES_PAGE_SIZE) + 1;
   const propertyPageEnd = Math.min(propertyPage * MANAGER_PROPERTIES_PAGE_SIZE, propertyTotal);
@@ -260,13 +311,22 @@ function DashboardContent() {
                 </div>
               </div>
 
-              <button
-                onClick={() => navigate('/manager/fast-track')}
-                className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 shadow-lg shadow-orange-500/20 transition-all"
-              >
-                Open fast-track queue
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => setIsManualFastTrackOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 transition-all hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add 24h case
+                </button>
+                <button
+                  onClick={() => navigate('/manager/fast-track')}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 shadow-lg shadow-orange-500/20 transition-all"
+                >
+                  Open fast-track queue
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -296,7 +356,14 @@ function DashboardContent() {
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div>
                       <p className="text-sm font-bold text-gray-900 dark:text-white">{item.propertyTitle}</p>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.clientName}</p>
+                      <div className="mt-2 flex items-center gap-3">
+                        <Avatar
+                          userId={item.clientId}
+                          name={item.clientName}
+                          size="sm"
+                        />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{item.clientName}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${item.statusTone}`}>
@@ -310,7 +377,14 @@ function DashboardContent() {
                 </button>
               )) : (
                 <div className="rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 px-5 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                  Active fast-track cases will appear here automatically.
+                  <p>Active fast-track cases will appear here automatically.</p>
+                  <button
+                    onClick={() => setIsManualFastTrackOpen(true)}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add 24h case manually
+                  </button>
                 </div>
               )}
             </div>
@@ -500,6 +574,13 @@ function DashboardContent() {
           </div>
         </div>
       )}
+
+      <ManualFastTrackModal
+        open={isManualFastTrackOpen}
+        existingCases={fastTrackCases}
+        onClose={() => setIsManualFastTrackOpen(false)}
+        onCreated={handleManualFastTrackCreated}
+      />
     </div>
   );
 }

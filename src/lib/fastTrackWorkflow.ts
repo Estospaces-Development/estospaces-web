@@ -1,4 +1,4 @@
-export type FastTrackDocStatus = 'pending' | 'verified';
+export type FastTrackDocStatus = 'pending' | 'uploaded' | 'reupload_required' | 'verified';
 
 export interface FastTrackDocumentsLike {
     identityProof: FastTrackDocStatus;
@@ -8,6 +8,7 @@ export interface FastTrackDocumentsLike {
 export interface UserDocumentLike {
     document_category: string;
     status: string;
+    lead_id?: string | null;
     file_name?: string | null;
     reject_reason?: string | null;
     reviewed_at?: string | null;
@@ -41,6 +42,8 @@ export interface FastTrackCaseLike {
     journeyType?: 'rent' | 'buy';
     jurisdiction?: string;
     liveStage?: string;
+    documentPhase?: FastTrackDocumentPhase;
+    documentPhaseReason?: string;
 }
 
 export interface FastTrackLinkedJourneyLike {
@@ -52,6 +55,13 @@ export interface FastTrackLinkedJourneyLike {
     invoices?: Array<{ status?: string | null; payment_type?: string | null }>;
     liveStage?: string | null;
 }
+
+export type FastTrackDocumentPhase =
+    | 'not_requested'
+    | 'waiting_for_upload'
+    | 'uploaded_under_review'
+    | 'replacement_required'
+    | 'verified';
 
 export type CanonicalFastTrackStep =
     | 'property_selected'
@@ -219,7 +229,35 @@ export const normalizeCanonicalFastTrackStep = (value?: string | null): Canonica
         case 'payment_ready':
             return 'ready_for_contract';
         default:
-            return 'documents_requested';
+            return 'property_selected';
+    }
+};
+
+export const normalizeFastTrackDocumentPhase = (
+    value?: string | null,
+    currentStep?: string | null,
+): FastTrackDocumentPhase => {
+    switch (String(value || '').trim()) {
+        case 'waiting_for_upload':
+            return 'waiting_for_upload';
+        case 'uploaded_under_review':
+            return 'uploaded_under_review';
+        case 'replacement_required':
+            return 'replacement_required';
+        case 'verified':
+            return 'verified';
+        case 'not_requested':
+            return 'not_requested';
+        default: {
+            const normalizedStep = normalizeCanonicalFastTrackStep(currentStep);
+            if (normalizedStep === 'documents_verified' || getFastTrackStepIndex(normalizedStep) > getFastTrackStepIndex('documents_verified')) {
+                return 'verified';
+            }
+            if (normalizedStep === 'documents_requested') {
+                return 'waiting_for_upload';
+            }
+            return 'not_requested';
+        }
     }
 };
 
@@ -249,10 +287,14 @@ export const buildDocumentsFromVerification = (
         return existingDocuments;
     }
 
-    return {
-        identityProof: verificationInfo.has_identity_doc ? 'verified' : 'pending',
-        addressProof: verificationInfo.has_address_doc ? 'verified' : 'pending',
-    };
+    if (verificationInfo.documents_verified) {
+        return {
+            identityProof: 'verified',
+            addressProof: 'verified',
+        };
+    }
+
+    return existingDocuments;
 };
 
 const getDocumentTimestamp = (document: UserDocumentLike) => {
@@ -296,6 +338,18 @@ export const getLatestFastTrackReviewDocuments = <T extends UserDocumentLike>(do
         .filter((document): document is T => Boolean(document));
 };
 
+export const filterDocumentsForLead = <T extends UserDocumentLike>(
+    documents: T[] = [],
+    leadID?: string | null,
+) => {
+    const normalizedLeadID = String(leadID || '').trim();
+    if (!normalizedLeadID) {
+        return [] as T[];
+    }
+
+    return documents.filter((document) => String(document.lead_id || '').trim() === normalizedLeadID);
+};
+
 export const canCompleteFastTrackVerification = (documents: UserDocumentLike[] = []) => {
     const latest = latestDocumentByCategory(documents);
 
@@ -324,6 +378,14 @@ const toFastTrackDocumentStatus = (
 
     if (fallbackStatus === 'verified') {
         return 'verified';
+    }
+
+    if (fallbackStatus === 'reupload_required') {
+        return 'reupload_required';
+    }
+
+    if (fallbackStatus === 'uploaded') {
+        return 'uploaded';
     }
 
     return 'missing';
@@ -434,6 +496,51 @@ export const getLeadNeedsReupload = (documents: UserDocumentLike[] = []) => {
     return Array.from(latest.values()).some((document) => REUPLOAD_STATUSES.has(String(document.status || '').toLowerCase()));
 };
 
+export const deriveLiveFastTrackDocumentPhase = (
+    documents: UserDocumentLike[] = [],
+    fallback: FastTrackDocumentsLike = {
+        identityProof: 'pending',
+        addressProof: 'pending',
+    },
+    options: {
+        currentStep?: string | null;
+        backendPhase?: string | null;
+    } = {},
+): FastTrackDocumentPhase => {
+    const latest = latestDocumentByCategory(documents);
+    const latestDocuments = Array.from(latest.values());
+    const normalizedStep = normalizeCanonicalFastTrackStep(options.currentStep);
+    const backendPhase = normalizeFastTrackDocumentPhase(options.backendPhase, normalizedStep);
+    const liveDocuments = buildDocumentsFromDetails(documents, fallback);
+    const documentsVerified = (
+        liveDocuments.identityProof === 'verified'
+        && liveDocuments.addressProof === 'verified'
+    );
+
+    if (
+        documentsVerified
+        || backendPhase === 'verified'
+        || normalizedStep === 'documents_verified'
+        || getFastTrackStepIndex(normalizedStep) > getFastTrackStepIndex('documents_verified')
+    ) {
+        return 'verified';
+    }
+
+    if (latestDocuments.some((document) => REUPLOAD_STATUSES.has(String(document.status || '').toLowerCase()))) {
+        return 'replacement_required';
+    }
+
+    if (latestDocuments.length > 0) {
+        return 'uploaded_under_review';
+    }
+
+    if (backendPhase === 'waiting_for_upload' || normalizedStep === 'documents_requested') {
+        return 'waiting_for_upload';
+    }
+
+    return 'not_requested';
+};
+
 export const resolveLeadStage = (
     lead: LeadLike | null | undefined,
     documents: UserDocumentLike[] = [],
@@ -450,6 +557,9 @@ export const resolveLeadStage = (
         return 'expired';
     }
     if (lead?.documents_verified) {
+        return 'approved';
+    }
+    if (canCompleteFastTrackVerification(documents)) {
         return 'approved';
     }
 
@@ -498,10 +608,22 @@ export const buildDocumentsFromDetails = (
     const items = buildFastTrackDocumentItems(documents, fallback);
     const identity = items.find((item) => item.id === 'identity');
     const address = items.find((item) => item.id === 'address');
+    const toStoredStatus = (item: FastTrackDocumentItem | undefined): FastTrackDocStatus => {
+        switch (item?.status) {
+            case 'verified':
+                return 'verified';
+            case 'reupload_required':
+                return 'reupload_required';
+            case 'uploaded':
+                return 'uploaded';
+            default:
+                return 'pending';
+        }
+    };
 
     return {
-        identityProof: identity?.status === 'verified' ? 'verified' : 'pending',
-        addressProof: address?.status === 'verified' ? 'verified' : 'pending',
+        identityProof: toStoredStatus(identity),
+        addressProof: toStoredStatus(address),
     };
 };
 
@@ -654,11 +776,21 @@ export const buildVerificationSummary = (
         return 'Address verified. Waiting for identity proof.';
     }
 
-    if (matchingLead?.documents_uploaded || verificationInfo?.has_identity_doc || verificationInfo?.has_address_doc) {
+    if (
+        matchingLead?.documents_uploaded
+        || documents.identityProof === 'uploaded'
+        || documents.addressProof === 'uploaded'
+        || documents.identityProof === 'reupload_required'
+        || documents.addressProof === 'reupload_required'
+    ) {
         return 'Files uploaded and awaiting review';
     }
 
-    return 'Awaiting user uploads';
+    if (matchingLead?.documents_requested) {
+        return 'Documents requested. Waiting for user uploads.';
+    }
+
+    return 'Documents not requested yet';
 };
 
 export const getFastTrackStartAction = (

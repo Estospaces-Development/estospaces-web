@@ -1,13 +1,25 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
+import Avatar from '@/components/ui/Avatar';
 import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
 const FILTERS = [
     { value: 'all', label: 'All' },
@@ -88,9 +100,11 @@ function getStatusBadge(status: Viewing['status']) {
 
 export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [appointments, setAppointments] = useState<Viewing[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
@@ -98,6 +112,7 @@ export default function ManagerAppointmentsPage() {
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
     const [verificationTarget, setVerificationTarget] = useState<Viewing | null>(null);
+    const removedCaseNoticeRef = useRef<string | null>(null);
     const [rescheduleForm, setRescheduleForm] = useState({
         requested_date: '',
         requested_time: '10:00',
@@ -108,8 +123,12 @@ export default function ManagerAppointmentsPage() {
         setLoading(true);
         setError(null);
         try {
-            const data = await bookingsService.getViewings();
-            setAppointments(data);
+            const [viewingsData, fastTrackCasesResult] = await Promise.all([
+                bookingsService.getViewings(),
+                getFastTrackCases({ suppressErrorToast: true }),
+            ]);
+            setAppointments(viewingsData);
+            setFastTrackCases(fastTrackCasesResult.data || []);
         } catch (fetchError: any) {
             setError(fetchError?.message || 'Failed to load appointments');
             setAppointments([]);
@@ -122,10 +141,39 @@ export default function ManagerAppointmentsPage() {
         fetchAppointments();
     }, []);
 
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+        ],
+        refresh: fetchAppointments,
+    });
+
+    const rawCaseId = searchParams.get('case');
+    const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+
+    useEffect(() => {
+        if (loading || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [loading, removedCaseId, setSearchParams, toast]);
+
     const focusedAppointmentId = resolveFocusedViewing(appointments, {
         viewingId: searchParams.get('viewing'),
         applicationId: searchParams.get('application'),
-        caseId: searchParams.get('case'),
+        caseId: sanitizedCaseId,
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
     })?.id || null;
@@ -174,8 +222,26 @@ export default function ManagerAppointmentsPage() {
     const runAction = async (appointmentID: string, action: () => Promise<void>, successMessage: string) => {
         setActingID(appointmentID);
         try {
+            const appointment = appointments.find((item) => item.id === appointmentID);
             await action();
             toast.success(successMessage);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.VIEWINGS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                ],
+                reason: successMessage,
+                ids: {
+                    viewingId: appointmentID,
+                    applicationId: appointment?.application_id,
+                    caseId: appointment?.fast_track_case_id,
+                    leadId: appointment?.lead_id,
+                    propertyId: appointment?.property_id,
+                },
+            });
             await fetchAppointments();
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to update this appointment.');
@@ -337,8 +403,17 @@ export default function ManagerAppointmentsPage() {
                                             <div className="grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Client</p>
-                                                    <p className="mt-1 font-medium text-gray-900 dark:text-white">{getClientName(appointment)}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{appointment.client_email || appointment.client_phone || 'No direct contact saved'}</p>
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <Avatar
+                                                            userId={appointment.user_id}
+                                                            name={getClientName(appointment)}
+                                                            size="md"
+                                                        />
+                                                        <div>
+                                                            <p className="font-medium text-gray-900 dark:text-white">{getClientName(appointment)}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{appointment.client_email || appointment.client_phone || 'No direct contact saved'}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Scheduled</p>

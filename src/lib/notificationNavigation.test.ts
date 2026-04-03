@@ -64,7 +64,7 @@ test('admin message notifications preserve the conversation id in support chat',
         },
     }, 'admin');
 
-    assert.equal(path, '/admin/chat?conversation=conversation-5');
+    assert.equal(path, '/admin/help?conversation=conversation-5');
 });
 
 test('payment notifications deep-link the user into the exact payments workspace', () => {
@@ -121,6 +121,28 @@ test('user verification submitted notifications open the manager verification qu
     }, 'manager');
 
     assert.equal(path, '/manager/user-verifications');
+});
+
+test('user verification submitted notifications deep-link admins into the user queue entry', () => {
+    const path = getNotificationNavigationPath({
+        type: 'user_verification_submitted',
+        data: {
+            subject_user_id: 'user-42',
+        },
+    }, 'admin');
+
+    assert.equal(path, '/admin/verifications?entity=user&userId=user-42');
+});
+
+test('manager verification submitted notifications deep-link admins into the manager queue entry', () => {
+    const path = getNotificationNavigationPath({
+        type: 'manager_verification_submitted',
+        data: {
+            subject_user_id: 'manager-42',
+        },
+    }, 'admin');
+
+    assert.equal(path, '/admin/verifications?entity=manager&managerId=manager-42');
 });
 
 test('saved-property notifications without a property id fall back to the real saved route', () => {

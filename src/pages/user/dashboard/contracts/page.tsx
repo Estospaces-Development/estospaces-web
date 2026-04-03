@@ -24,11 +24,23 @@ import { useToast } from '@/contexts/ToastContext';
 import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
 import { getApplications, type Application } from '@/services/applicationsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    resolveExactFastTrackCase,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
 
 export default function ContractsPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const toast = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [applications, setApplications] = useState<Application[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
@@ -37,6 +49,7 @@ export default function ContractsPage() {
     const [signingId, setSigningId] = useState<string | null>(null);
     const [viewContract, setViewContract] = useState<Contract | null>(null);
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const removedCaseNoticeRef = React.useRef<string | null>(null);
     const hasWorkspaceFocusRequest = Boolean(
         searchParams.get('contract')
         || searchParams.get('application')
@@ -66,9 +79,38 @@ export default function ContractsPage() {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+        ],
+        refresh: fetchData,
+    });
+
     useEffect(() => {
         setHasAppliedRouteFocus(false);
     }, [searchParams]);
+
+    const rawCaseId = searchParams.get('case');
+    const { caseId: sanitizedCaseId, removedCaseId } = React.useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+
+    useEffect(() => {
+        if (isLoading || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [isLoading, removedCaseId, setSearchParams, toast]);
 
     const handleSign = async (id: string) => {
         setSigningId(id);
@@ -78,6 +120,23 @@ export default function ContractsPage() {
         } else if (data) {
             toast.success('Contract signed successfully!');
             setContracts(prev => prev.map(c => c.id === id ? data : c));
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.CONTRACTS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.PAYMENTS,
+                ],
+                reason: 'User signed contract',
+                ids: {
+                    contractId: data.id,
+                    applicationId: data.application_id,
+                    caseId: data.fast_track_case_id,
+                    leadId: data.lead_id,
+                    propertyId: data.property_id,
+                },
+            });
         }
         setSigningId(null);
     };
@@ -116,21 +175,20 @@ export default function ContractsPage() {
         {
             contractId: searchParams.get('contract'),
             applicationId: searchParams.get('application'),
-            caseId: searchParams.get('case'),
+            caseId: sanitizedCaseId,
             leadId: searchParams.get('lead'),
             propertyId: searchParams.get('property'),
         },
     );
-    const focusedFastTrackCase = fastTrackCases.find((caseItem) => (
-        caseItem.caseId === (searchParams.get('case') || focusedApplication?.fast_track_case_id || '')
-        || (searchParams.get('lead') ? caseItem.leadId === searchParams.get('lead') : false)
-        || (searchParams.get('property') ? caseItem.propertyId === searchParams.get('property') : false)
-        || (focusedApplication?.property_id ? caseItem.propertyId === focusedApplication.property_id : false)
-    )) || null;
+    const focusedFastTrackCase = resolveExactFastTrackCase(
+        fastTrackCases,
+        sanitizedCaseId,
+        focusedApplication?.fast_track_case_id,
+    );
     const focusedJourneyType = focusedFastTrackCase?.journeyType || (focusedApplication?.listing_type === 'sale' ? 'buy' : 'rent');
     const applicationsWorkspacePath = buildWorkspacePath('/user/applications', {
         applicationId: searchParams.get('application') || focusedApplication?.id,
-        caseId: searchParams.get('case') || focusedFastTrackCase?.caseId,
+        caseId: sanitizedCaseId || focusedFastTrackCase?.caseId,
         leadId: searchParams.get('lead') || focusedApplication?.lead_id || focusedFastTrackCase?.leadId,
         propertyId: searchParams.get('property') || focusedApplication?.property_id || focusedFastTrackCase?.propertyId,
     });

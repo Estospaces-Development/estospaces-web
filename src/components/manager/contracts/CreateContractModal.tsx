@@ -3,17 +3,19 @@ import { createPortal } from 'react-dom';
 import { X, FileText, Calendar, DollarSign, AlertCircle } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { createContract, CreateContractRequest } from '@/services/contractsService';
+import type { Contract } from '@/types/booking';
 
 interface CreateContractModalProps {
     applicationId: string;
     propertyPrice: number;
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess: (contract: Contract) => Promise<void> | void;
 }
 
 export default function CreateContractModal({ applicationId, propertyPrice, onClose, onSuccess }: CreateContractModalProps) {
-    const { success: toastSuccess, error: toastError } = useToast();
+    const { success: toastSuccess } = useToast();
     const [isLoading, setIsLoading] = useState(false);
+    const [submitError, setSubmitError] = useState('');
     const [formData, setFormData] = useState<CreateContractRequest>({
         application_id: applicationId,
         start_date: '',
@@ -25,18 +27,42 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitError('');
+
+        if (!Number.isFinite(formData.monthly_rent) || formData.monthly_rent < 0) {
+            setSubmitError('Monthly rent must be a valid amount.');
+            return;
+        }
+        if (!Number.isFinite(formData.deposit_amount) || formData.deposit_amount < 0) {
+            setSubmitError('Security deposit must be a valid amount.');
+            return;
+        }
+        if (formData.start_date && formData.end_date && formData.end_date < formData.start_date) {
+            setSubmitError('End date must be after the start date.');
+            return;
+        }
+
         setIsLoading(true);
 
         const { data, error } = await createContract(formData);
 
         if (error) {
-            toastError(error);
+            setSubmitError(error);
+            setIsLoading(false);
+            return;
+        }
+        if (!data) {
+            setSubmitError('Unable to create the contract right now.');
             setIsLoading(false);
             return;
         }
 
         toastSuccess('Contract drafted successfully');
-        onSuccess();
+        try {
+            await Promise.resolve(onSuccess(data));
+        } catch {
+            // The contract already exists at this point; avoid trapping the user in the modal on refresh failures.
+        }
         onClose();
     };
 
@@ -68,7 +94,10 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                                         required
                                         min="0"
                                         value={formData.monthly_rent}
-                                        onChange={(e) => setFormData({ ...formData, monthly_rent: parseFloat(e.target.value) })}
+                                        onChange={(e) => {
+                                            setSubmitError('');
+                                            setFormData({ ...formData, monthly_rent: parseFloat(e.target.value) });
+                                        }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
@@ -83,7 +112,10 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                                         required
                                         min="0"
                                         value={formData.deposit_amount}
-                                        onChange={(e) => setFormData({ ...formData, deposit_amount: parseFloat(e.target.value) })}
+                                        onChange={(e) => {
+                                            setSubmitError('');
+                                            setFormData({ ...formData, deposit_amount: parseFloat(e.target.value) });
+                                        }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
@@ -98,7 +130,10 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                                         type="date"
                                         required
                                         value={formData.start_date}
-                                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                        onChange={(e) => {
+                                            setSubmitError('');
+                                            setFormData({ ...formData, start_date: e.target.value });
+                                        }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
@@ -111,7 +146,10 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                                     <input
                                         type="date"
                                         value={formData.end_date}
-                                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                        onChange={(e) => {
+                                            setSubmitError('');
+                                            setFormData({ ...formData, end_date: e.target.value });
+                                        }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
@@ -124,7 +162,10 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                             <textarea
                                 rows={6}
                                 value={formData.terms_and_conditions}
-                                onChange={(e) => setFormData({ ...formData, terms_and_conditions: e.target.value })}
+                                onChange={(e) => {
+                                    setSubmitError('');
+                                    setFormData({ ...formData, terms_and_conditions: e.target.value });
+                                }}
                                 className="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white resize-none"
                                 placeholder="Enter any specific clauses or terms..."
                             />
@@ -137,6 +178,12 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                                 You will need to countersign after they have signed.
                             </p>
                         </div>
+
+                        {submitError && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                                {submitError}
+                            </div>
+                        )}
                     </form>
                 </div>
 

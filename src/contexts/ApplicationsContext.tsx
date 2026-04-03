@@ -19,6 +19,8 @@ import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, isSaleProgressionRecord } from '@/lib/saleJourney';
 import { findLinkedSaleProgression } from '@/lib/workspaceLinks';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
+import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -421,6 +423,7 @@ const mapSaleProgression = (
 
 export const ApplicationsProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -428,6 +431,14 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     const [statusFilter, setStatusFilter] = useState('all');
     const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
     const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+    const syncTags = useMemo(() => [
+        WORKSPACE_SYNC_TAGS.APPLICATIONS,
+        WORKSPACE_SYNC_TAGS.VIEWINGS,
+        WORKSPACE_SYNC_TAGS.FAST_TRACK,
+        WORKSPACE_SYNC_TAGS.CASE_FILE,
+        WORKSPACE_SYNC_TAGS.CONTRACTS,
+        WORKSPACE_SYNC_TAGS.PAYMENTS,
+    ], []);
 
     const fetchApplications = async () => {
         if (!user) {
@@ -562,6 +573,12 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         setIsLoading(false);
     }, [user]);
 
+    useWorkspaceRefresh({
+        tags: syncTags,
+        refresh: fetchApplications,
+        enabled: Boolean(user),
+    });
+
     const createApplication = async (data: any) => {
         const propertyId = data.property_id || data.propertyId;
         const managerId = data.manager_id || data.managerId;
@@ -610,6 +627,18 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         await fetchApplications();
+        publishWorkspaceSync({
+            key: `applications:create:${application.id}`,
+            source: 'mutation',
+            tags: syncTags,
+            reason: 'application-created',
+            ids: {
+                applicationId: application.id,
+                propertyId: application.property_id,
+                leadId: application.lead_id,
+                caseId: application.fast_track_case_id,
+            },
+        });
         return { success: true };
     };
 
@@ -626,6 +655,13 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         await fetchApplications();
+        publishWorkspaceSync({
+            key: `applications:withdraw:${id}`,
+            source: 'mutation',
+            tags: syncTags,
+            reason: 'application-withdrawn',
+            ids: { applicationId: id },
+        });
         return { success: true };
     };
 
@@ -651,6 +687,18 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             }
 
             await fetchApplications();
+            publishWorkspaceSync({
+                key: `applications:progression:${progressionTarget.id}:${stage}`,
+                source: 'mutation',
+                tags: syncTags,
+                reason: 'sale-progression-updated',
+                ids: {
+                    applicationId: application?.id,
+                    caseId: progressionTarget.fastTrackCaseId,
+                    leadId: progressionTarget.leadId,
+                    propertyId: progressionTarget.propertyId,
+                },
+            });
             return { success: true };
         }
 
@@ -665,6 +713,13 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         await fetchApplications();
+        publishWorkspaceSync({
+            key: `applications:update:${id}:${status}`,
+            source: 'mutation',
+            tags: syncTags,
+            reason: 'application-status-updated',
+            ids: { applicationId: id },
+        });
         return { success: true };
     };
 

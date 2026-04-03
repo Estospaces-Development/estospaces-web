@@ -8,6 +8,17 @@ import { useSearchParams } from 'react-router-dom';
 import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
 import { getApplications, type Application } from '@/services/applicationsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    resolveExactFastTrackCase,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
 
 type Tab = 'all' | 'draft' | 'pending' | 'active' | 'terminated';
@@ -21,7 +32,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: React.Rea
 };
 
 export default function ManagerContractsPage() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [applications, setApplications] = useState<Application[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
@@ -31,8 +42,10 @@ export default function ManagerContractsPage() {
     const [createContractTarget, setCreateContractTarget] = useState<Application | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const { success, error: toastError } = useToast();
+    const { success, error: toastError, info } = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const removedCaseNoticeRef = React.useRef<string | null>(null);
     const hasWorkspaceFocusRequest = Boolean(
         searchParams.get('contract')
         || searchParams.get('application')
@@ -62,9 +75,38 @@ export default function ManagerContractsPage() {
 
     useEffect(() => { fetchContracts(); }, [fetchContracts]);
 
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+        ],
+        refresh: fetchContracts,
+    });
+
     useEffect(() => {
         setHasAppliedRouteFocus(false);
     }, [searchParams]);
+
+    const rawCaseId = searchParams.get('case');
+    const { caseId: sanitizedCaseId, removedCaseId } = React.useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+
+    useEffect(() => {
+        if (loading || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [info, loading, removedCaseId, setSearchParams]);
 
     const handleCountersign = async (id: string) => {
         setSigningId(id);
@@ -76,6 +118,23 @@ export default function ManagerContractsPage() {
             // Update in list
             setContracts(prev => prev.map(c => c.id === id ? data : c));
             if (viewContract?.id === id) setViewContract(data);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.CONTRACTS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.PAYMENTS,
+                ],
+                reason: 'Manager countersigned contract',
+                ids: {
+                    contractId: data.id,
+                    applicationId: data.application_id,
+                    caseId: data.fast_track_case_id,
+                    leadId: data.lead_id,
+                    propertyId: data.property_id,
+                },
+            });
         }
         setSigningId(null);
     };
@@ -86,21 +145,20 @@ export default function ManagerContractsPage() {
         {
             contractId: searchParams.get('contract'),
             applicationId: searchParams.get('application'),
-            caseId: searchParams.get('case'),
+            caseId: sanitizedCaseId,
             leadId: searchParams.get('lead'),
             propertyId: searchParams.get('property'),
         },
     );
-    const focusedFastTrackCase = fastTrackCases.find((caseItem) => (
-        caseItem.caseId === (searchParams.get('case') || focusedApplication?.fast_track_case_id || '')
-        || (searchParams.get('lead') ? caseItem.leadId === searchParams.get('lead') : false)
-        || (searchParams.get('property') ? caseItem.propertyId === searchParams.get('property') : false)
-        || (focusedApplication?.property_id ? caseItem.propertyId === focusedApplication.property_id : false)
-    )) || null;
+    const focusedFastTrackCase = resolveExactFastTrackCase(
+        fastTrackCases,
+        sanitizedCaseId,
+        focusedApplication?.fast_track_case_id,
+    );
     const focusedJourneyType = focusedFastTrackCase?.journeyType || (focusedApplication?.listing_type === 'sale' ? 'buy' : 'rent');
     const applicationsWorkspacePath = buildWorkspacePath('/manager/applications', {
         applicationId: searchParams.get('application') || focusedApplication?.id,
-        caseId: searchParams.get('case') || focusedFastTrackCase?.caseId,
+        caseId: sanitizedCaseId || focusedFastTrackCase?.caseId,
         leadId: searchParams.get('lead') || focusedApplication?.lead_id || focusedFastTrackCase?.leadId,
         propertyId: searchParams.get('property') || focusedApplication?.property_id || focusedFastTrackCase?.propertyId,
     });

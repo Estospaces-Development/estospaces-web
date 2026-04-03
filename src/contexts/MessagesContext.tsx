@@ -3,6 +3,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as messagesService from '@/services/messagesService';
 import { useAuth } from './AuthContext';
+import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 interface Message {
     id: string;
@@ -18,6 +20,7 @@ interface Message {
 
 interface Conversation {
     id: string;
+    isSupportConversation: boolean;
     agentId: string;
     agentName: string;
     contactName: string;
@@ -148,6 +151,7 @@ const buildConversationContext = (
 
 export const MessagesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
     const [filter, setFilter] = useState('all');
@@ -174,10 +178,13 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         existingConversation?: Conversation,
     ): Conversation => {
         const metadata = parseMetadata(backendConversation.metadata);
+        const isSupportConversation = backendConversation.type === 'support';
         const lastMessage = backendConversation.last_message
             ? mapBackendMessage(backendConversation.last_message)
             : existingConversation?.messages[existingConversation.messages.length - 1];
-        const contactName =
+        const contactName = isSupportConversation
+            ? 'Estospaces Support'
+            :
             backendConversation.counterpart_name ||
             metadata?.recipient_name ||
             metadata?.recipientName ||
@@ -186,13 +193,20 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
 
         return {
             id: backendConversation.id,
-            agentId: backendConversation.counterpart_id || metadata?.agentId || '',
+            isSupportConversation,
+            agentId: isSupportConversation ? 'support' : (backendConversation.counterpart_id || metadata?.agentId || ''),
             agentName: contactName,
             contactName,
-            agentAgency: backendConversation.counterpart_agency || metadata?.recipient_agency || metadata?.recipientAgency || metadata?.agentAgency || '',
+            agentAgency: isSupportConversation
+                ? 'Estospaces Team'
+                : (backendConversation.counterpart_agency || metadata?.recipient_agency || metadata?.recipientAgency || metadata?.agentAgency || ''),
             agentAvatar: null,
-            agentEmail: backendConversation.counterpart_email || metadata?.recipient_email || metadata?.recipientEmail || metadata?.agentEmail || '',
-            agentPhone: backendConversation.counterpart_phone || metadata?.recipient_phone || metadata?.recipientPhone || metadata?.agentPhone || '',
+            agentEmail: isSupportConversation
+                ? ''
+                : (backendConversation.counterpart_email || metadata?.recipient_email || metadata?.recipientEmail || metadata?.agentEmail || ''),
+            agentPhone: isSupportConversation
+                ? ''
+                : (backendConversation.counterpart_phone || metadata?.recipient_phone || metadata?.recipientPhone || metadata?.agentPhone || ''),
             isOnline: false,
             propertyId: backendConversation.property_id || metadata?.property_id || metadata?.propertyId || null,
             propertyTitle: backendConversation.property_title || metadata?.property_title || metadata?.propertyTitle || null,
@@ -266,6 +280,17 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             // Keep the existing local state if message fetch fails.
         }
     }, [mapBackendMessage]);
+
+    useWorkspaceRefresh({
+        tags: [WORKSPACE_SYNC_TAGS.MESSAGES, WORKSPACE_SYNC_TAGS.SUPPORT],
+        refresh: async () => {
+            await loadConversations(true);
+            if (selectedConversationId) {
+                await loadConversationMessages(selectedConversationId);
+            }
+        },
+        enabled: Boolean(user),
+    });
 
     useEffect(() => {
         if (user) {
@@ -402,13 +427,20 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             await refreshConversations();
             await loadConversationMessages(conversation.id);
             setSelectedConversationId(conversation.id);
+            publishWorkspaceSync({
+                key: `messages:create:${conversation.id}`,
+                source: 'mutation',
+                tags: [WORKSPACE_SYNC_TAGS.MESSAGES],
+                reason: 'conversation-created',
+                ids: { conversationId: conversation.id, propertyId: propertyData?.id },
+            });
             return conversation.id;
         } catch {
             return '';
         } finally {
             setIsLoading(false);
         }
-    }, [loadConversationMessages, refreshConversations, user]);
+    }, [loadConversationMessages, publishWorkspaceSync, refreshConversations, user]);
 
     const sendMessage = useCallback(async (conversationId: string, text: string, attachments: any[] = []) => {
         if (!text.trim() && attachments.length === 0) {
@@ -442,11 +474,18 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 loadConversations(true),
                 loadConversationMessages(conversationId),
             ]);
+            publishWorkspaceSync({
+                key: `messages:send:${conversationId}:${sentMessage.id}`,
+                source: 'mutation',
+                tags: [WORKSPACE_SYNC_TAGS.MESSAGES],
+                reason: 'message-sent',
+                ids: { conversationId, messageId: sentMessage.id },
+            });
         } catch {
             // Surface the error at the caller level.
             throw new Error('Failed to send message');
         }
-    }, [loadConversationMessages, loadConversations, mapBackendMessage]);
+    }, [loadConversationMessages, loadConversations, mapBackendMessage, publishWorkspaceSync]);
 
     const markAsRead = useCallback(async (conversationId: string) => {
         try {

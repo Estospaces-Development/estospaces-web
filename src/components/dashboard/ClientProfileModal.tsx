@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, User, Phone, Mail, MapPin, Calendar, Home } from 'lucide-react';
+import { X, Phone, Mail, MapPin, Calendar, Home } from 'lucide-react';
+import Avatar from '@/components/ui/Avatar';
 
 interface ClientProfileModalProps {
     isOpen: boolean;
@@ -22,7 +23,7 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({
     onClose,
     clientName,
     avatar,
-    clientId = '1',
+    clientId,
     email,
     phone,
     location,
@@ -59,14 +60,15 @@ const ClientProfileModal: React.FC<ClientProfileModalProps> = ({
                 <div className="px-6 pb-6 mt-[-3rem]">
                     <div className="flex flex-col items-center">
                         {/* Avatar */}
-                        <div className="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900 overflow-hidden bg-gray-100 mb-4">
-                            {avatar ? (
-                                <img src={avatar} alt={clientName} className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800 text-gray-500">
-                                    <User className="w-10 h-10" />
-                                </div>
-                            )}
+                        <div className="mb-4 rounded-full border-4 border-white dark:border-gray-900 shadow-lg">
+                            <Avatar
+                                userId={clientId}
+                                src={avatar}
+                                name={clientName}
+                                alt={clientName}
+                                size="xl"
+                                className="block"
+                            />
                         </div>
 
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">{clientName}</h2>

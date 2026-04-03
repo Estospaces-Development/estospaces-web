@@ -9,14 +9,26 @@ import {
 } from 'lucide-react';
 import ManagerReviewModal from '@/components/admin/ManagerReviewModal';
 import UserVerificationQueue from '@/components/verification/UserVerificationQueue';
-import { getManagers, ManagerProfile } from '@/services/managerVerificationService';
+import Avatar from '@/components/ui/Avatar';
+import { getManagerDisplayName, getManagers, ManagerProfile } from '@/services/managerVerificationService';
+import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { formatDistanceToNow } from 'date-fns';
 
 type TabType = 'all' | 'pending' | 'review' | 'approved' | 'rejected';
 
+const getInitialEntityTab = (searchParams: URLSearchParams): 'user' | 'manager' => {
+  const entity = searchParams.get('entity');
+  if (entity === 'manager' || searchParams.get('managerId')) {
+    return 'manager';
+  }
+
+  return 'user';
+};
+
 function VerificationsContent() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [entityTab, setEntityTab] = useState<'user' | 'manager'>('user');
+  const [entityTab, setEntityTab] = useState<'user' | 'manager'>(() => getInitialEntityTab(searchParams));
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
@@ -43,15 +55,31 @@ function VerificationsContent() {
     fetchManagers();
   }, [fetchManagers]);
 
+  useWorkflowWorkspaceRefresh({
+    tags: [
+      WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+      WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
+      WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,
+      WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+    ],
+    refresh: fetchManagers,
+  });
+
   useEffect(() => {
     const entity = searchParams.get('entity');
+    const managerId = searchParams.get('managerId');
     if (entity === 'user' || entity === 'manager') {
       setEntityTab(entity);
+    } else if (managerId) {
+      setEntityTab('manager');
+    } else {
+      setEntityTab('user');
     }
 
-    const managerId = searchParams.get('managerId');
-    if (entity === 'manager' && managerId) {
+    if (managerId) {
       setSelectedManagerId(managerId);
+    } else {
+      setSelectedManagerId(null);
     }
   }, [searchParams]);
 
@@ -122,10 +150,12 @@ function VerificationsContent() {
     }
     
     const searchLower = searchQuery.toLowerCase();
-    const nameMatch = (m.company_name || m.authorized_representative_name || '').toLowerCase().includes(searchLower);
+    const displayName = getManagerDisplayName(m);
+    const nameMatch = displayName.toLowerCase().includes(searchLower);
+    const companyMatch = (m.company_name || '').toLowerCase().includes(searchLower);
     const emailMatch = (m.authorized_representative_email || '').toLowerCase().includes(searchLower);
     
-    return !searchQuery || nameMatch || emailMatch;
+    return !searchQuery || nameMatch || companyMatch || emailMatch;
   });
 
   return (
@@ -248,19 +278,24 @@ function VerificationsContent() {
              </div>
           ) : filteredManagers.length > 0 ? (
             <div className="grid grid-cols-1 gap-6">
-              {filteredManagers.map((manager) => (
+              {filteredManagers.map((manager) => {
+                const displayName = getManagerDisplayName(manager);
+                return (
                 <div
                   key={manager.id}
                   className="group p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-100 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl"
                 >
                   <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl shadow-lg ${manager.profile_type === 'broker' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
-                      }`}>
-                      {(manager.company_name || manager.authorized_representative_name || '?').charAt(0)}
-                    </div>
+                    <Avatar
+                      userId={manager.id}
+                      name={displayName}
+                      size="xl"
+                      shape="rounded"
+                      fallbackClassName={manager.profile_type === 'broker' ? 'from-blue-500 to-indigo-600' : 'from-orange-500 to-amber-600'}
+                    />
                     <div>
                       <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{manager.company_name || manager.authorized_representative_name}</h3>
+                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{displayName}</h3>
                         <div className={`w-2 h-2 rounded-full ${isPending(manager.verification_status) ? 'bg-amber-500' :
                           isReview(manager.verification_status) ? 'bg-blue-500' : 
                           isApproved(manager.verification_status) ? 'bg-green-500' : 'bg-red-500'
@@ -302,7 +337,8 @@ function VerificationsContent() {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="py-20 text-center text-gray-400 font-bold">

@@ -117,6 +117,12 @@ export interface ManagerVerificationDetails {
     userInfo: { email?: string; full_name?: string } | null;
 }
 
+const PLACEHOLDER_MANAGER_COMPANY_NAMES = new Set([
+    'pending broker profile',
+    'pending company profile',
+    'pending profile',
+]);
+
 const REQUIRED_DOCUMENTS: Record<ManagerProfileType, ManagerDocumentType[]> = {
     broker: ['government_id', 'broker_license'],
     company: ['company_registration', 'business_license', 'tax_certificate', 'representative_id'],
@@ -138,6 +144,26 @@ export const getRequiredDocuments = (type: ManagerProfileType): ManagerDocumentT
 
 export const getManagerDocumentTypeName = (type: ManagerDocumentType): string => {
     return DOCUMENT_TYPE_NAMES[type] || type;
+};
+
+export const isPlaceholderManagerCompanyName = (value?: string): boolean => {
+    return PLACEHOLDER_MANAGER_COMPANY_NAMES.has(String(value || '').trim().toLowerCase());
+};
+
+export const getManagerDisplayName = (
+    profile: Pick<ManagerProfile, 'company_name' | 'authorized_representative_name'>,
+): string => {
+    const companyName = String(profile.company_name || '').trim();
+    if (companyName && !isPlaceholderManagerCompanyName(companyName)) {
+        return companyName;
+    }
+
+    const representativeName = String(profile.authorized_representative_name || '').trim();
+    if (representativeName) {
+        return representativeName;
+    }
+
+    return companyName || 'Unnamed manager';
 };
 
 const normalizeProfileType = (value?: string): ManagerProfileType => {
@@ -220,6 +246,9 @@ const mapUserFullName = (user: any): string | undefined => {
 };
 
 const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
+    const backendVerificationStatus = String(data.verification_status || '').trim();
+    const submittedStatuses = new Set(['pending', 'submitted', 'documents_submitted', 'under_review']);
+
     return {
         id: data.user_id || data.id || '',
         profile_type: normalizeProfileType(data.profile_type),
@@ -252,12 +281,21 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         agency_verification_reason: data.agency_verification_reason || undefined,
         rejection_reason: data.verification_status === 'rejected' ? data.admin_notes || undefined : undefined,
         revision_notes: data.admin_notes || undefined,
-        submitted_at: data.created_at || undefined,
+        submitted_at: data.submitted_at || (submittedStatuses.has(backendVerificationStatus) ? data.updated_at : data.created_at) || undefined,
         approved_at: data.verified_at || undefined,
         approved_by: data.verified_by || undefined,
         created_at: data.created_at || new Date().toISOString(),
         updated_at: data.updated_at || data.created_at || new Date().toISOString(),
     };
+};
+
+const fetchManagersPage = async (status: string | undefined, page: number, limit: number) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status && status !== 'all') {
+        query.append('status', status);
+    }
+
+    return apiFetchEnvelope<any[]>(`${CORE_URL()}/api/v1/brokers?${query.toString()}`);
 };
 
 const mapManagerDocument = (document: any): ManagerDocument => {
@@ -319,22 +357,36 @@ export const getManagerProfile = async (userId: string): Promise<{ data: Manager
     }
 };
 
-export const getManagers = async (status?: string, page = 1, limit = 20): Promise<{ data: ManagerProfile[]; total: number; error: string | null }> => {
+export const getManagers = async (status?: string, page = 1, limit = 50): Promise<{ data: ManagerProfile[]; total: number; error: string | null }> => {
     try {
-        const query = new URLSearchParams({ page: String(page), limit: String(limit) });
-        if (status && status !== 'all') {
-            query.append('status', status);
+        const firstPage = await fetchManagersPage(status, page, limit);
+        let brokers = firstPage.data || [];
+        const total = firstPage.pagination?.total || brokers.length;
+
+        if (page === 1 && total > brokers.length) {
+            const remainingPageCount = Math.ceil(total / limit) - 1;
+            const remainingPages = await Promise.all(
+                Array.from({ length: remainingPageCount }, (_, index) => fetchManagersPage(status, index + 2, limit)),
+            );
+
+            for (const response of remainingPages) {
+                brokers = brokers.concat(response.data || []);
+            }
         }
 
-        const response = await apiFetchEnvelope<any[]>(`${CORE_URL()}/api/v1/brokers?${query.toString()}`);
-        const brokers = response.data || [];
         const userInfoEntries = await Promise.all(
             brokers.map(async (broker) => [broker.user_id, await getUserInfo(broker.user_id)] as const),
         );
         const userInfoById = new Map(userInfoEntries);
 
-        const profiles = brokers.map((broker) => mapManagerProfile(broker, userInfoById.get(broker.user_id)));
-        return { data: profiles, total: response.pagination?.total || profiles.length, error: null };
+        const profiles = brokers
+            .map((broker) => mapManagerProfile(broker, userInfoById.get(broker.user_id)))
+            .sort((left, right) => (
+                new Date(right.submitted_at || right.updated_at || right.created_at).getTime()
+                - new Date(left.submitted_at || left.updated_at || left.created_at).getTime()
+            ));
+
+        return { data: profiles, total, error: null };
     } catch (error: any) {
         return { data: [], total: 0, error: getErrorMessage(error) };
     }

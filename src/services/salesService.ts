@@ -1,7 +1,9 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyState, JourneyStateFields } from '@/types/journey';
 
 const BOOKING_URL = () => getServiceUrl('booking');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 export interface Offer {
     id: string;
@@ -47,9 +49,11 @@ export interface SaleProgression extends JourneyStateFields {
     nextActions?: JourneyAction[];
 }
 
-export const getSaleProgressions = async (): Promise<{ data: SaleProgression[] | null; error: string | null }> => {
+export const getSaleProgressions = async (
+    options: ServiceRequestOptions = {},
+): Promise<{ data: SaleProgression[] | null; error: string | null }> => {
     try {
-        const data = await apiFetch<SaleProgression[]>(`${BOOKING_URL()}/api/v1/sale-progressions`);
+        const data = await apiFetch<SaleProgression[]>(`${BOOKING_URL()}/api/v1/sale-progressions`, options);
         return { data: data?.map(normalizeSaleProgression) || [], error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };

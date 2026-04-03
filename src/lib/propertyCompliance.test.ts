@@ -8,6 +8,7 @@ import {
     getOfferReadinessRequirements,
     getPropertyComplianceStatusLabel,
     isPropertyOfferReady,
+    isPropertyContractReady,
 } from './propertyCompliance';
 
 test('offer-readiness helpers only expose seller-side offer requirements and blockers', () => {
@@ -107,4 +108,11 @@ test('offer readiness is gated by the seller pack status', () => {
     assert.equal(isPropertyOfferReady({ status: 'offer_ready' } as any), true);
     assert.equal(isPropertyOfferReady({ status: 'attention_required' } as any), false);
     assert.equal(isPropertyOfferReady(null), false);
+});
+
+test('contract readiness only unlocks when the property pack is contract-ready or move-in-ready', () => {
+    assert.equal(isPropertyContractReady({ status: 'contract_ready' } as any), true);
+    assert.equal(isPropertyContractReady({ status: 'move_in_ready' } as any), true);
+    assert.equal(isPropertyContractReady({ status: 'offer_ready' } as any), false);
+    assert.equal(isPropertyContractReady(null), false);
 });

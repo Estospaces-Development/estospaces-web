@@ -6,6 +6,7 @@ import { useLocation, Link, useNavigate } from 'react-router-dom';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import { useAuth } from '../../contexts/AuthContext';
+import Avatar from '../ui/Avatar';
 
 const ADMIN_PAGES = [
     { label: 'Dashboard', path: '/admin/dashboard' },
@@ -14,7 +15,7 @@ const ADMIN_PAGES = [
     { label: 'Verifications', path: '/admin/verifications' },
     { label: 'Properties', path: '/admin/properties' },
     { label: 'Fast Track', path: '/admin/fast-track' },
-    { label: 'Support Chat', path: '/admin/chat' },
+    { label: 'Help & Support', path: '/admin/help' },
     { label: 'Reviews', path: '/admin/reviews' },
     { label: 'Analytics', path: '/admin/analytics' },
     { label: 'Profile', path: '/admin/profile' },
@@ -43,7 +44,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         if (pathname?.includes('/users')) return 'User Management';
         if (pathname?.includes('/verifications')) return 'Verifications';
         if (pathname?.includes('/properties')) return 'Properties';
-        if (pathname?.includes('/chat')) return 'Support Chat';
+        if (pathname?.includes('/chat') || pathname?.includes('/help')) return 'Help & Support';
         if (pathname?.includes('/reviews')) return 'Reviews';
         if (pathname?.includes('/profile')) return 'Admin Profile';
         if (pathname?.includes('/settings')) return 'System Settings';
@@ -97,10 +98,6 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         }
     };
 
-    const initials = user?.name
-        ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
-        : 'A';
-
     return (
         <>
             <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
@@ -141,10 +138,15 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
                         <Link
                             to="/admin/profile"
-                            className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-700 dark:text-orange-400 font-bold border border-orange-200 dark:border-orange-800 hover:ring-2 hover:ring-orange-500/30 transition-all"
+                            className="rounded-full hover:ring-2 hover:ring-orange-500/30 transition-all"
                             title="Admin Profile"
                         >
-                            {initials}
+                            <Avatar
+                                userId={user?.id}
+                                src={user?.avatar || user?.avatar_url}
+                                name={user?.name || user?.email || 'Admin'}
+                                size="md"
+                            />
                         </Link>
                     </div>
                 </div>

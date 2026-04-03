@@ -23,6 +23,10 @@
 /dist-verify*
 /output/
 /.playwright-cli/
+build_output*.txt
+build_error*.txt
+typescript_errors*.txt
+.vite-*.log
 
 # misc
 .DS_Store

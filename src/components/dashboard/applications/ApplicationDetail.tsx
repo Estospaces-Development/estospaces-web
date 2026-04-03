@@ -33,6 +33,7 @@ import { getUserContracts } from '@/services/contractsService';
 import { messagesService } from '@/services/messagesService';
 import { type Contract } from '@/types/booking';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import Avatar from '@/components/ui/Avatar';
 import {
     canWithdrawApplicationRecord,
     getNextSaleJourneyActions,
@@ -440,9 +441,11 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         Agent Information
                                     </h3>
                                     <div className="flex items-start gap-4">
-                                        <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                                            {application.agentName?.charAt(0)?.toUpperCase() || 'A'}
-                                        </div>
+                                        <Avatar
+                                            userId={application.managerId}
+                                            name={application.agentName}
+                                            size="lg"
+                                        />
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-semibold text-gray-900 dark:text-white">
                                                 {application.agentName}

@@ -8,6 +8,7 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
+import Avatar from '../ui/Avatar';
 
 interface HeaderProps {
     onMenuToggle?: () => void;
@@ -161,9 +162,12 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                             className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                         >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold shadow-sm">
-                                {getDisplayName().charAt(0).toUpperCase()}
-                            </div>
+                            <Avatar
+                                userId={user?.id}
+                                src={user?.avatar || user?.avatar_url}
+                                name={getDisplayName()}
+                                size="sm"
+                            />
                         </button>
 
                         {isProfileOpen && (

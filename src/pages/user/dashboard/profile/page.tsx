@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateProfile } from '@/services/authService';
+import { uploadMediaFile } from '@/services/mediaService';
 import { leadsService } from '@/services/leadsService';
 import { bookingsService } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
@@ -24,7 +25,7 @@ import VerificationSection from '@/components/dashboard/VerificationSection';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const { user: currentUser, refreshUser, loading: authLoading, isAuthenticated } = useAuth();
+    const { user: currentUser, refreshUser, mergeCurrentUserProfile, loading: authLoading, isAuthenticated } = useAuth();
     const { savedCount } = useSavedProperties();
     const toast = useToast();
     const [formData, setFormData] = useState({
@@ -42,6 +43,8 @@ export default function ProfilePage() {
     });
 
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
+    const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -79,7 +82,10 @@ export default function ProfilePage() {
             address: currentUser.address || '',
             postcode: currentUser.postcode || '',
         });
-        setProfileImagePreview(currentUser.avatar_url || currentUser.avatar || null);
+        const existingAvatar = currentUser.avatar_url || currentUser.avatar || null;
+        setProfileImagePreview(existingAvatar);
+        setStoredAvatarValue(existingAvatar);
+        setSelectedAvatarFile(null);
         fetchStats();
     }, [authLoading, currentUser, fetchStats, isAuthenticated, navigate]);
 
@@ -91,13 +97,30 @@ export default function ProfilePage() {
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        e.target.value = '';
         if (!file) return;
 
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please choose a valid image file.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Profile picture must be smaller than 5 MB.');
+            return;
+        }
+
         setUploadingImage(true);
+        setSaveSuccess(false);
         const reader = new FileReader();
         reader.onloadend = () => {
             setProfileImagePreview(reader.result as string);
+            setSelectedAvatarFile(file);
             setUploadingImage(false);
+        };
+        reader.onerror = () => {
+            setUploadingImage(false);
+            toast.error('Failed to read the selected image.');
         };
         reader.readAsDataURL(file);
     };
@@ -105,20 +128,42 @@ export default function ProfilePage() {
     const handleSaveProfile = async () => {
         try {
             setSavingProfile(true);
-            const { error } = await updateProfile({
+            let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
+
+            if (selectedAvatarFile && currentUser?.id) {
+                const uploadedAvatar = await uploadMediaFile(
+                    selectedAvatarFile,
+                    'user',
+                    currentUser.id,
+                    `${formData.fullName || 'User'} profile photo`,
+                    true,
+                );
+                avatarValue = uploadedAvatar.file_url;
+            }
+
+            const { data, error } = await updateProfile({
                 first_name: formData.fullName.split(' ')[0],
                 last_name: formData.fullName.split(' ').slice(1).join(' '),
                 phone: formData.phone,
                 address: formData.address,
                 postcode: formData.postcode,
-                avatar: profileImagePreview || undefined,
+                avatar: avatarValue,
             });
 
             if (error) throw new Error(error);
 
+            if (data) {
+                mergeCurrentUserProfile(data);
+            }
+
+            setProfileImagePreview(avatarValue || null);
+            setStoredAvatarValue(avatarValue || null);
+            setSelectedAvatarFile(null);
             setSaveSuccess(true);
             toast.success('Profile updated successfully');
-            await refreshUser();
+            setTimeout(() => {
+                void refreshUser();
+            }, 0);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error: any) {
             toast.error(error.message || 'Failed to update profile');

@@ -19,6 +19,13 @@ export interface AgencyResponse {
     error: string | null;
 }
 
+export interface UserProfileSummary {
+    id: string;
+    display_name: string;
+    avatar?: string;
+    role: string;
+}
+
 export const userService = {
     getAgencies: async (limit: number = 5): Promise<AgencyResponse> => {
         try {
@@ -48,6 +55,18 @@ export const userService = {
             return { data, error: null };
         } catch (error: any) {
             return { data: null, error: getErrorMessage(error) };
+        }
+    },
+
+    getUserSummaries: async (ids: string[]): Promise<{ data: UserProfileSummary[]; error: string | null }> => {
+        try {
+            const data = await apiFetch<UserProfileSummary[]>(`${CORE_URL()}/api/v1/users/summaries`, {
+                method: 'POST',
+                body: JSON.stringify({ ids }),
+            });
+            return { data: data || [], error: null };
+        } catch (error: any) {
+            return { data: [], error: getErrorMessage(error) };
         }
     },
 

@@ -32,6 +32,7 @@ import {
 } from '@/lib/fastTrackLinkedJourney';
 import { getNextSaleJourneyActions, saleProgressionStageForStatus } from '@/lib/saleJourney';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import Avatar from '@/components/ui/Avatar';
 import FastTrackActions from './FastTrackActions';
 import FastTrackDocuments from './FastTrackDocuments';
 import FastTrackProgress from './FastTrackProgress';
@@ -142,6 +143,26 @@ const toTimeInputValue = (value?: string | null) => {
     }
 
     return parsed.toISOString().slice(11, 16);
+};
+
+const toSaleProgressionStage = (
+    stage: NonNullable<ReturnType<typeof saleProgressionStageForStatus>>,
+): Parameters<typeof updateSaleProgression>[1] | null => {
+    switch (stage) {
+        case 'offer':
+            return 'offer_submitted';
+        case 'offer_submitted':
+        case 'offer_under_review':
+        case 'offer_accepted':
+        case 'sale_agreed':
+        case 'memorandum_issued':
+        case 'conveyancing':
+        case 'exchange':
+        case 'completion':
+            return stage;
+        default:
+            return null;
+    }
 };
 
 const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
@@ -258,6 +279,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const isDocumentsVerified = typeof isDocumentsVerifiedOverride === 'boolean'
         ? isDocumentsVerifiedOverride
         : Object.values(caseData.documents).every((status) => status === 'verified');
+    const documentPhase = caseData.documentPhase || (isDocumentsVerified ? 'verified' : caseData.currentStep === 'documents_requested' ? 'waiting_for_upload' : 'not_requested');
     const englandRentJourney = caseData.journeyType !== 'buy' && isEnglandJurisdiction(caseData.jurisdiction || caseData.propertyCountry);
     const pendingRentFinanceTasks = caseData.journeyType === 'buy'
         ? []
@@ -566,10 +588,16 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             return;
         }
 
+        const progressionStage = toSaleProgressionStage(nextStage);
+        if (!progressionStage) {
+            toast.error('This sale stage must be progressed from the purchase workspace instead.');
+            return;
+        }
+
         await runSaleProgressionAction(
-            nextStage,
+            progressionStage,
             async () => {
-                const result = await updateSaleProgression(linkedJourney.saleProgression!.id, nextStage);
+                const result = await updateSaleProgression(linkedJourney.saleProgression!.id, progressionStage);
                 if (result.error || !result.data) {
                     throw new Error(result.error || 'Unable to update the purchase stage right now.');
                 }
@@ -744,7 +772,39 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     )}
                                 </div>
                                 <div className="space-y-3">
-                                    {onOpenVerificationReview ? (
+                                    {isDocumentsVerified && linkedJourney?.viewing ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(appointmentsWorkspacePath)}
+                                            className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
+                                        >
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents verified</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Open the appointments workspace to confirm, reschedule, or complete the live viewing from the same fast-track case.
+                                            </p>
+                                        </button>
+                                    ) : isDocumentsVerified && canScheduleViewing ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setScheduleModalOpen(true)}
+                                            className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
+                                        >
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents verified</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Verification is complete. Schedule the viewing now so the case moves into the next live workflow stage without leaving fast-track.
+                                            </p>
+                                        </button>
+                                    ) : isDocumentsVerified ? (
+                                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents verified</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Verification is complete. The case is ready for the next live workflow handoff.
+                                            </p>
+                                        </div>
+                                    ) : documentPhase === 'uploaded_under_review' && onOpenVerificationReview ? (
                                         <button
                                             type="button"
                                             onClick={onOpenVerificationReview}
@@ -756,6 +816,34 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                                 Open the tenant verification workspace, approve files, or request replacements without leaving the fast-track flow.
                                             </p>
                                         </button>
+                                    ) : documentPhase === 'replacement_required' && onOpenVerificationReview ? (
+                                        <button
+                                            type="button"
+                                            onClick={onOpenVerificationReview}
+                                            className="w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-left transition hover:border-red-300 hover:bg-red-100 dark:border-red-900/40 dark:bg-red-900/10 dark:hover:bg-red-900/20"
+                                        >
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-500">Action</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Request replacement</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                A document needs a replacement. Open the review workspace to confirm what still needs to be re-uploaded.
+                                            </p>
+                                        </button>
+                                    ) : documentPhase === 'waiting_for_upload' ? (
+                                        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 dark:border-blue-900/40 dark:bg-blue-900/10">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-500">Waiting</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Waiting for user upload</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Documents have been requested. The next stage starts automatically once the user uploads the files for review.
+                                            </p>
+                                        </div>
+                                    ) : documentPhase === 'not_requested' ? (
+                                        <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Verification</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents not requested yet</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                Keep the case at property selected until you explicitly request the user’s verification documents.
+                                            </p>
+                                        </div>
                                     ) : (
                                         <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
                                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Admin verification</p>
@@ -794,7 +882,14 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                             </div>
                             <div className="mt-4 rounded-2xl bg-gray-50 dark:bg-zinc-900/40 border border-gray-100 dark:border-zinc-800 p-4">
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Client</p>
-                                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{caseData.clientName}</p>
+                                <div className="mt-3 flex items-center gap-3">
+                                    <Avatar
+                                        userId={caseData.clientId}
+                                        name={caseData.clientName}
+                                        size="lg"
+                                    />
+                                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{caseData.clientName}</p>
+                                </div>
                                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                     Use the real message thread instead of the old placeholder actions, so all follow-up stays traceable.
                                 </p>

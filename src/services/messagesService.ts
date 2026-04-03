@@ -1,13 +1,15 @@
-/**
- * Messages Service
- * Handles live chat and support tickets via the messaging-service backend.
- */
-
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 
 const MESSAGING_URL = () => getServiceUrl('messaging');
 
-// ── Types ──────────────────────────────────────────────────────────────────
+export interface MessageAttachment {
+    id?: string;
+    file_url: string;
+    file_name: string;
+    mime_type?: string;
+    file_size?: number;
+    storage_path?: string;
+}
 
 export interface Message {
     id: string;
@@ -19,15 +21,6 @@ export interface Message {
     is_read: boolean;
     read_at?: string;
     created_at: string;
-}
-
-export interface MessageAttachment {
-    id?: string;
-    file_url: string;
-    file_name: string;
-    mime_type?: string;
-    file_size?: number;
-    storage_path?: string;
 }
 
 export interface Conversation {
@@ -55,16 +48,46 @@ export interface Conversation {
     property_price?: number;
 }
 
-export interface SupportTicket {
+export interface SupportRequesterContext {
+    role?: string;
+    name?: string;
+    email?: string;
+    page?: string;
+    module?: string;
+}
+
+export interface SupportConversationSummary {
+    id: string;
+    type: 'support' | 'direct' | 'group';
+    title?: string;
+    updated_at: string;
+    unread_count: number;
+    last_message?: Message | null;
+    requester_context?: SupportRequesterContext | null;
+}
+
+export interface SupportTicketSummary {
     id: string;
     user_id: string;
+    requester_role: 'user' | 'manager' | 'admin' | 'support' | string;
     conversation_id: string;
     subject: string;
     category: string;
     priority: 'low' | 'medium' | 'high' | 'urgent';
     status: 'open' | 'in_progress' | 'resolved' | 'closed';
+    assignee_id?: string;
     created_at: string;
     updated_at: string;
+    last_message_at: string;
+    resolved_at?: string | null;
+    closed_at?: string | null;
+    unread_count: number;
+    last_message?: Message | null;
+    requester_context?: SupportRequesterContext | null;
+}
+
+export interface SupportTicketDetail extends SupportTicketSummary {
+    conversation: SupportConversationSummary;
 }
 
 export interface SendMessageParams {
@@ -81,15 +104,33 @@ export interface CreateTicketParams {
     message: string;
     category?: string;
     priority?: string;
+    attachments?: MessageAttachment[];
+    requester_context?: SupportRequesterContext;
+}
+
+export interface UpdateTicketParams {
+    status?: SupportTicketSummary['status'];
+    priority?: SupportTicketSummary['priority'];
+    assignee_id?: string;
+}
+
+export interface GetTicketsParams {
+    status?: string;
+    priority?: string;
+    requester_role?: string;
+    assignee?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
 }
 
 export interface ConversationContext {
-    propertyId?: string;
-    propertyTitle?: string;
-    propertyAddress?: string;
-    propertyImage?: string;
-    listingType?: string;
-    propertyPrice?: number;
+    propertyId?: string | null;
+    propertyTitle?: string | null;
+    propertyAddress?: string | null;
+    propertyImage?: string | null;
+    listingType?: string | null;
+    propertyPrice?: number | null;
     senderName?: string;
     senderEmail?: string;
     senderPhone?: string;
@@ -100,7 +141,26 @@ export interface ConversationContext {
     recipientAgency?: string;
 }
 
-// ── API Functions ───────────────────────────────────────────────────────────
+const mapConversationContext = (context?: ConversationContext) => (
+    context
+        ? {
+            property_id: context.propertyId,
+            property_title: context.propertyTitle,
+            property_address: context.propertyAddress,
+            property_image: context.propertyImage,
+            listing_type: context.listingType,
+            property_price: context.propertyPrice,
+            sender_name: context.senderName,
+            sender_email: context.senderEmail,
+            sender_phone: context.senderPhone,
+            sender_agency: context.senderAgency,
+            recipient_name: context.recipientName,
+            recipient_email: context.recipientEmail,
+            recipient_phone: context.recipientPhone,
+            recipient_agency: context.recipientAgency,
+        }
+        : undefined
+);
 
 export async function getConversations(): Promise<Conversation[]> {
     return apiFetch<Conversation[]>(`${MESSAGING_URL()}/api/v1/conversations`, {
@@ -121,24 +181,7 @@ export async function sendMessage(params: SendMessageParams): Promise<Message> {
             content: params.content,
             type: params.type || 'text',
             attachments: params.attachments || [],
-            context: params.context
-                ? {
-                    property_id: params.context.propertyId,
-                    property_title: params.context.propertyTitle,
-                    property_address: params.context.propertyAddress,
-                    property_image: params.context.propertyImage,
-                    listing_type: params.context.listingType,
-                    property_price: params.context.propertyPrice,
-                    sender_name: params.context.senderName,
-                    sender_email: params.context.senderEmail,
-                    sender_phone: params.context.senderPhone,
-                    sender_agency: params.context.senderAgency,
-                    recipient_name: params.context.recipientName,
-                    recipient_email: params.context.recipientEmail,
-                    recipient_phone: params.context.recipientPhone,
-                    recipient_agency: params.context.recipientAgency,
-                }
-                : undefined,
+            context: mapConversationContext(params.context),
         }),
     });
 }
@@ -151,24 +194,7 @@ export async function upsertDirectConversation(
         method: 'POST',
         body: JSON.stringify({
             recipient_id: recipientId,
-            context: context
-                ? {
-                    property_id: context.propertyId,
-                    property_title: context.propertyTitle,
-                    property_address: context.propertyAddress,
-                    property_image: context.propertyImage,
-                    listing_type: context.listingType,
-                    property_price: context.propertyPrice,
-                    sender_name: context.senderName,
-                    sender_email: context.senderEmail,
-                    sender_phone: context.senderPhone,
-                    sender_agency: context.senderAgency,
-                    recipient_name: context.recipientName,
-                    recipient_email: context.recipientEmail,
-                    recipient_phone: context.recipientPhone,
-                    recipient_agency: context.recipientAgency,
-                }
-                : undefined,
+            context: mapConversationContext(context),
         }),
     });
 }
@@ -189,35 +215,57 @@ export async function updateConversationPreferences(
     });
 }
 
-export async function createTicket(params: CreateTicketParams): Promise<SupportTicket> {
-    return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets`, {
+export async function createTicket(params: CreateTicketParams): Promise<SupportTicketDetail> {
+    return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets`, {
         method: 'POST',
         body: JSON.stringify(params),
     });
 }
 
-export async function getTickets(): Promise<SupportTicket[]> {
-    return apiFetch<SupportTicket[]>(`${MESSAGING_URL()}/api/v1/tickets`);
+export async function getTickets(params: GetTicketsParams = {}): Promise<SupportTicketSummary[]> {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            searchParams.set(key, String(value));
+        }
+    });
+
+    const queryString = searchParams.toString();
+    return apiFetch<SupportTicketSummary[]>(`${MESSAGING_URL()}/api/v1/tickets${queryString ? `?${queryString}` : ''}`);
 }
 
-export async function getTicket(ticketId: string): Promise<SupportTicket> {
-    return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`);
+export async function getTicket(ticketId: string): Promise<SupportTicketDetail> {
+    return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`);
 }
 
-/**
- * Update the status of a support ticket (admin)
- */
+export async function updateTicket(ticketId: string, params: UpdateTicketParams): Promise<SupportTicketDetail> {
+    return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(params),
+    });
+}
+
 export async function updateTicketStatus(
     ticketId: string,
-    status: SupportTicket['status'],
-): Promise<SupportTicket> {
-    return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}/status`, {
+    status: SupportTicketSummary['status'],
+): Promise<SupportTicketDetail> {
+    return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}/status`, {
         method: 'PUT',
         body: JSON.stringify({ status }),
     });
 }
 
-// ── Default Export ──────────────────────────────────────────────────────────
+export async function getSupportAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${attachmentId}/access-url`);
+}
+
+export async function openSupportAttachment(attachmentId: string): Promise<void> {
+    const data = await getSupportAttachmentAccessUrl(attachmentId);
+    if (!data.access_url) {
+        throw new Error('Attachment access URL is unavailable.');
+    }
+    window.open(data.access_url, '_blank', 'noopener,noreferrer');
+}
 
 export const messagesService = {
     getConversations,
@@ -229,5 +277,8 @@ export const messagesService = {
     createTicket,
     getTickets,
     getTicket,
+    updateTicket,
     updateTicketStatus,
+    getSupportAttachmentAccessUrl,
+    openSupportAttachment,
 };

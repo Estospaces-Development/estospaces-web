@@ -13,7 +13,7 @@ export interface UserFastTrackSelectionCase {
 export interface UserFastTrackDocumentItem {
     id: 'identity' | 'address';
     title: string;
-    status: 'requested' | 'uploaded' | 'verified' | 'reupload_required';
+    status: 'not_requested' | 'requested' | 'uploaded' | 'verified' | 'reupload_required';
     statusLabel: string;
     fileName: string | null;
     reason: string | null;
@@ -62,7 +62,11 @@ export const resolveUserFastTrackSelection = (
 export const buildUserFastTrackDocumentItems = (
     documents: FastTrackDocumentsLike,
     userDocuments: UserDocumentLike[] = [],
+    options: {
+        requestActive?: boolean;
+    } = {},
 ): UserFastTrackDocumentItem[] => {
+    const requestActive = options.requestActive ?? true;
     const resolvedDocuments = buildDocumentsFromDetails(userDocuments, documents);
     const items = buildFastTrackDocumentItems(userDocuments, resolvedDocuments);
 
@@ -75,14 +79,18 @@ export const buildUserFastTrackDocumentItems = (
         actionLabel: item.status === 'reupload_required'
             ? 'Upload replacement'
             : item.status === 'missing'
-                ? 'Upload now'
+                ? (requestActive ? 'Upload now' : 'Waiting for request')
                 : 'Replace file',
-        status: item.status === 'missing' ? 'requested' : item.status,
-        statusLabel: item.status === 'missing' ? 'Requested' : item.statusLabel,
+        status: item.status === 'missing'
+            ? (requestActive ? 'requested' : 'not_requested')
+            : item.status,
+        statusLabel: item.status === 'missing'
+            ? (requestActive ? 'Requested' : 'Not requested')
+            : item.statusLabel,
     }));
 };
 
 export const getOutstandingDocumentNames = (items: UserFastTrackDocumentItem[]) =>
     items
-        .filter((item) => item.status !== 'verified')
+        .filter((item) => item.status !== 'verified' && item.status !== 'not_requested')
         .map((item) => item.title);

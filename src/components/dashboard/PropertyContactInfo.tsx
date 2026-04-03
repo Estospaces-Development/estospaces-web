@@ -5,6 +5,7 @@ import { Mail, Phone, Building, MapPin, Calendar, MessageCircle, Loader2 } from 
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import Avatar from '@/components/ui/Avatar';
 
 interface Property {
     id: string;
@@ -111,9 +112,13 @@ ${contactForm.message}
                 <div className="mt-6 space-y-3">
                     <div className="min-h-[5.5rem] rounded-[1.45rem] border border-stone-200/80 bg-stone-50 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-950">
                         <div className="flex items-start gap-3">
-                            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
-                                <Building size={18} />
-                            </div>
+                            <Avatar
+                                userId={property.manager_id}
+                                name={property.agent_name || property.agent_company || 'Agent'}
+                                size="md"
+                                shape="rounded"
+                                fallbackClassName="from-orange-500 to-orange-600"
+                            />
                             <div className="min-w-0">
                                 <p className="font-medium text-gray-900 dark:text-gray-100">
                                     {property.agent_company || 'Real Estate Agent'}

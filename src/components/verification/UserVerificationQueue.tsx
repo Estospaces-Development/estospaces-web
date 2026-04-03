@@ -25,6 +25,9 @@ import {
     getVerificationLevelLabel,
 } from '@/services/userVerificationService';
 import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
+import Avatar from '@/components/ui/Avatar';
+import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 type TabType = 'all' | 'unverified' | 'pending_docs' | 'verified';
 
@@ -94,6 +97,21 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
+
+    useWorkflowWorkspaceRefresh({
+        tags: scope === 'admin'
+            ? [
+                WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
+                WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+            ]
+            : [
+                WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                WORKSPACE_SYNC_TAGS.USER_VERIFICATIONS,
+                WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,
+            ],
+        refresh: fetchUsers,
+    });
 
     useEffect(() => {
         if (initialSelectedUserId) {
@@ -274,9 +292,14 @@ const UserVerificationCard: React.FC<{
     return (
         <div className="p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl">
             <div className="flex items-center gap-6">
-                <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center font-black text-xl text-white shadow-lg ${isAdmin ? 'bg-gradient-to-br from-orange-500 to-amber-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
-                    {user.full_name.charAt(0).toUpperCase()}
-                </div>
+                <Avatar
+                    userId={user.user_id}
+                    src={user.avatar}
+                    name={user.full_name}
+                    size="xl"
+                    shape="rounded"
+                    fallbackClassName={isAdmin ? 'from-orange-500 to-amber-600' : 'from-blue-500 to-indigo-600'}
+                />
                 <div>
                     <div className="flex items-center gap-3 mb-1">
                         <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{user.full_name}</h3>

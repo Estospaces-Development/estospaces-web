@@ -26,6 +26,11 @@ import { sortBrokerRequestsByPriority } from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useToast } from '@/contexts/ToastContext';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const formatOfferSummary = (dispatchStatus?: string, matchedBrokerName?: string | null) => {
     if (matchedBrokerName) {
@@ -115,6 +120,7 @@ const BrokerResponseWidget: React.FC = () => {
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
     const [availabilityBlockedReason, setAvailabilityBlockedReason] = useState<string | null>(null);
     const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+    const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const fetchRequests = useCallback(async (silent: boolean = false) => {
         if (!silent) {
@@ -137,6 +143,11 @@ const BrokerResponseWidget: React.FC = () => {
                 requestKind: 'lead' as const,
                 propertyName: lead.property?.title || lead.propertyInterested || lead.property_name || 'Unknown Property',
                 brokerName: lead.name || lead.email || 'Interested client',
+                userId: lead.user_id,
+                email: lead.email,
+                phone: lead.phone,
+                location: [lead.property?.address_line_1, lead.property?.city, lead.property?.postcode].filter(Boolean).join(', ') || lead.propertyInterested || 'Location not available',
+                interestedIn: lead.property?.title || lead.propertyInterested || lead.property_name || 'Property enquiry',
                 distance: lead.property?.city || lead.property?.postcode || 'UK',
                 timestamp: new Date(lead.created_at),
                 status: resolveLeadStage(lead) === 'matching'
@@ -170,6 +181,11 @@ const BrokerResponseWidget: React.FC = () => {
                     requestKind: 'offer' as const,
                 propertyName: `${(offer.request_type || 'broker').replace(/\b\w/g, (character) => character.toUpperCase())} request${offer.location ? ` - ${offer.location}` : ''}`,
                 brokerName: offer.requester_name || offer.requester_email || 'Marketplace client',
+                userId: offer.user_id,
+                email: offer.requester_email,
+                phone: offer.requester_phone,
+                location: [offer.location, offer.location_postcode].filter(Boolean).join(' - ') || 'Location not available',
+                interestedIn: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
                 distance: offer.location_postcode || offer.location || 'UK',
                 timestamp: new Date(offer.created_at || offer.dispatch_started_at || new Date().toISOString()),
                 status: offer.dispatch_status === 'broker_matched'
@@ -182,6 +198,7 @@ const BrokerResponseWidget: React.FC = () => {
                 dispatchStatus: offer.dispatch_status,
                     primaryActionLabel: 'Accept Offer',
                     secondaryActionLabel: offer.dispatch_status === 'broker_matched' ? workspaceAction.label : 'Open leads',
+                    secondaryActionPath: workspaceAction.path,
                     statusReason: offer.status_reason,
                     nextAction: offer.dispatch_status === 'broker_matched'
                         ? workspaceAction.label
@@ -230,13 +247,16 @@ const BrokerResponseWidget: React.FC = () => {
         void fetchRequests();
     }, [fetchRequests]);
 
-    useEffect(() => {
-        const interval = window.setInterval(() => {
-            void fetchRequests(true);
-        }, 5000);
-
-        return () => window.clearInterval(interval);
-    }, [fetchRequests]);
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.MANAGER_PROPERTIES,
+        ],
+        refresh: () => fetchRequests(true),
+    });
 
     useEffect(() => {
         setShareSelections((previous) => {
@@ -281,6 +301,19 @@ const BrokerResponseWidget: React.FC = () => {
                 : await respondToLead(id, 'message', 'Thank you for your inquiry. Let me assist you with this property.');
 
             if (response.data) {
+                publishWorkspaceSync({
+                    source: 'mutation',
+                    tags: [
+                        WORKSPACE_SYNC_TAGS.LEADS,
+                        WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                        WORKSPACE_SYNC_TAGS.MESSAGES,
+                        WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                    ],
+                    reason: 'Manager responded from dashboard tracker',
+                    ids: {
+                        leadId: selectedRequest.requestKind === 'lead' ? id : undefined,
+                    },
+                });
                 await fetchRequests(true);
             }
         } catch (error) {
@@ -347,6 +380,19 @@ const BrokerResponseWidget: React.FC = () => {
             }
 
             toast.success('Property shortlist shared with the matched client.');
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                ],
+                reason: 'Manager shared broker-request shortlist',
+                ids: {
+                    leadId: requestId,
+                },
+            });
             await fetchRequests(true);
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to share the shortlist right now.');
@@ -378,6 +424,15 @@ const BrokerResponseWidget: React.FC = () => {
         if (response.data) {
             setAvailableForFastResponse(response.data.available_for_fast_response);
             setAvailabilityBlockedReason(response.data.blocked_reason || null);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                ],
+                reason: 'Manager toggled broker availability',
+            });
         }
     };
 
@@ -503,6 +558,7 @@ const BrokerResponseWidget: React.FC = () => {
                             const selectedIds = shareSelections[request.id] || [];
                             const sharedCount = request.property_shares?.length || 0;
                             const selectedProperty = request.selected_property;
+                            const selectedWorkspaceAction = getManagerWorkspaceAction(request);
                             const isSaving = shareSavingRequestId === request.id;
 
                             return (
@@ -588,10 +644,10 @@ const BrokerResponseWidget: React.FC = () => {
                                                     </p>
                                                     <div className="mt-4 flex flex-wrap gap-3">
                                                         <button
-                                                            onClick={() => navigate('/manager/leads')}
+                                                            onClick={() => navigate(selectedWorkspaceAction.path || '/manager/leads')}
                                                             className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
                                                         >
-                                                            Open lead workflow
+                                                            {selectedWorkspaceAction.label}
                                                             <ArrowRight className="h-4 w-4" />
                                                         </button>
                                                         <button

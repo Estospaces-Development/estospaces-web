@@ -10,10 +10,13 @@ import {
 } from 'lucide-react';
 
 import { userService } from '@/services/userService';
-import { getPlatformAnalytics } from '@/services/analyticsService';
+import { getPlatformAnalytics, invalidateAnalyticsCache } from '@/services/analyticsService';
 import { User } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
+import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import PaginationBar from '@/components/ui/PaginationBar';
+import Avatar from '@/components/ui/Avatar';
 
 function UserManagementContent() {
     const navigate = useNavigate();
@@ -54,6 +57,20 @@ function UserManagementContent() {
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
+
+    useDashboardWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.ADMIN_ANALYTICS,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
+        ],
+        refresh: async () => {
+            invalidateAnalyticsCache('platform_analytics');
+            await fetchUsers();
+        },
+    });
 
     const handleReviewVerification = (user: User) => {
         if (user.role === 'admin') {
@@ -234,13 +251,14 @@ function UserManagementContent() {
                                 <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">
-                                            {(user.avatar_url || user.avatar) ? (
-                                                <img src={user.avatar_url || user.avatar} alt="" className="w-12 h-12 rounded-xl object-cover" />
-                                            ) : (
-                                                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center font-black text-lg">
-                                                    {user.first_name?.charAt(0) || user.email.charAt(0)}
-                                                </div>
-                                            )}
+                                            <Avatar
+                                                userId={user.id}
+                                                src={user.avatar_url || user.avatar}
+                                                name={user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.full_name || user.email}
+                                                size="lg"
+                                                shape="rounded"
+                                                fallbackClassName="from-emerald-500 to-teal-600"
+                                            />
                                             <div>
                                                 <p className="font-black text-gray-900 dark:text-white text-sm">
                                                     {user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.full_name || 'No Name'}

@@ -1,8 +1,10 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
 export type VerificationScope = 'admin' | 'manager';
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 export type UserVerificationLevel = 'basic' | 'verified' | 'fully_verified';
 
 export interface UserVerificationInfo {
@@ -35,6 +37,7 @@ export interface UserDocument {
     reject_reason?: string;
     reviewed_by?: string;
     reviewed_at?: string;
+    lead_id?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -58,10 +61,12 @@ const getScopeBasePath = (scope: VerificationScope): string => (
 
 export const getPendingUserVerifications = async (
     scope: VerificationScope,
+    options: ServiceRequestOptions = {},
 ): Promise<{ data: UserVerificationInfo[]; error: string | null }> => {
     try {
         const response = await apiFetchEnvelope<UserVerificationInfo[]>(
             `${getScopeBasePath(scope)}/users/pending-verification`,
+            options,
         );
         return { data: response.data || [], error: null };
     } catch (error: any) {

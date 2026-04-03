@@ -4,13 +4,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY estospaces-web/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source code
-COPY . .
+COPY estospaces-web/ .
 
 # Build-time env vars (baked into the Vite bundle)
 ARG VITE_CORE_SERVICE_URL=http://localhost:8080
@@ -37,6 +37,14 @@ RUN echo 'server { \
   index index.html; \
   location / { \
   try_files $uri $uri/ /index.html; \
+  } \
+  location = /index.html { \
+  expires -1; \
+  add_header Cache-Control "no-store, no-cache, must-revalidate"; \
+  } \
+  location ~* \.html$ { \
+  expires -1; \
+  add_header Cache-Control "no-store, no-cache, must-revalidate"; \
   } \
   location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
   expires 1y; \

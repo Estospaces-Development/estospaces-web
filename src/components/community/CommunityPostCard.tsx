@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Heart, MessageCircle, Pin, Eye, EyeOff, MoreVertical } from 'lucide-react';
 import { CommunityPost } from '@/services/communityService';
 import { formatDistanceToNow } from 'date-fns';
+import Avatar from '@/components/ui/Avatar';
 
 interface CommunityPostCardProps {
     post: CommunityPost;
@@ -55,9 +56,11 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-semibold text-sm">{post.authorName.charAt(0)}</span>
-                    </div>
+                    <Avatar
+                        userId={post.authorId}
+                        name={post.authorName}
+                        size="md"
+                    />
                     <div>
                         <div className="flex items-center gap-2">
                             <h4 className="font-semibold text-gray-900 dark:text-white">{post.authorName}</h4>

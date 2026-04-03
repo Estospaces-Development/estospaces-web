@@ -5,7 +5,9 @@ import {
     BarChart3, Users, Eye, RefreshCw,
     Activity, Zap, Globe2, Loader2
 } from 'lucide-react';
-import { getPlatformAnalytics, type AnalyticsData } from '../../../services/analyticsService';
+import { getPlatformAnalytics, invalidateAnalyticsCache, type AnalyticsData } from '../../../services/analyticsService';
+import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 function AnalyticsContent() {
     const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +37,23 @@ function AnalyticsContent() {
     useEffect(() => {
         fetchAnalytics();
     }, [fetchAnalytics]);
+
+    useDashboardWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.ADMIN_ANALYTICS,
+            WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+            WORKSPACE_SYNC_TAGS.PROPERTIES,
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+        ],
+        refresh: () => {
+            invalidateAnalyticsCache('platform_analytics');
+            return fetchAnalytics(true);
+        },
+    });
 
     const handleRefresh = () => {
         fetchAnalytics(true);

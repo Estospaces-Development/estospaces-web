@@ -18,6 +18,8 @@ import {
     type Notification,
 } from '../services/notificationsService';
 import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
+import { useWorkspaceSync } from './WorkspaceSyncContext';
+import { normalizeNotificationToWorkspaceSyncEvent } from '@/lib/workspaceSync';
 
 interface NotificationsContextType {
     notifications: Notification[];
@@ -86,6 +88,7 @@ const showBrowserNotification = (notification: Notification, role: string) => {
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
     const toast = useToast();
+    const { publishMany } = useWorkspaceSync();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -135,6 +138,13 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
                     showBrowserNotification(notification, user?.role || 'user');
                 });
+
+                const syncEvents = freshNotifications
+                    .map((notification) => normalizeNotificationToWorkspaceSyncEvent(notification, user?.role || 'user'))
+                    .filter((event): event is NonNullable<typeof event> => Boolean(event));
+                if (syncEvents.length > 0) {
+                    publishMany(syncEvents);
+                }
             }
 
             previousUnreadIDsRef.current = nextUnreadIDs;
@@ -148,7 +158,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                 setLoading(false);
             }
         }
-    }, [toast, user]);
+    }, [publishMany, toast, user]);
 
     const fetchNotifications = useCallback(async () => {
         await loadNotifications(false);

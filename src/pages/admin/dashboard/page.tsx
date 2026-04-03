@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Activity,
@@ -17,8 +17,10 @@ import {
     FileText,
     Info
 } from 'lucide-react';
-import { getPlatformAnalytics, AnalyticsData } from '@/services/analyticsService';
+import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNotificationNavigationPath,
     isPropertyWorkflowNotification,
@@ -74,25 +76,53 @@ export default function AdminDashboard() {
         markAsRead,
     } = useNotifications();
 
-    useEffect(() => {
-        const fetchAnalytics = async () => {
+    const fetchAnalytics = useCallback(async (forceRefresh = false, silent = false) => {
+        if (!silent) {
             setLoading(true);
-            try {
-                const result = await getPlatformAnalytics();
-                if (result.data) {
-                    setData(result.data);
-                } else {
-                    setError(result.error);
-                }
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
+        }
+
+        try {
+            if (forceRefresh) {
+                invalidateAnalyticsCache('platform_analytics');
+            }
+
+            const result = await getPlatformAnalytics(forceRefresh);
+            if (result.data) {
+                setData(result.data);
+                setError(null);
+            } else {
+                setError(result.error);
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            if (!silent) {
                 setLoading(false);
             }
-        };
-
-        fetchAnalytics();
+        }
     }, []);
+
+    useEffect(() => {
+        void fetchAnalytics();
+    }, [fetchAnalytics]);
+
+    useDashboardWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+            WORKSPACE_SYNC_TAGS.ADMIN_ANALYTICS,
+            WORKSPACE_SYNC_TAGS.PROPERTIES,
+            WORKSPACE_SYNC_TAGS.ADMIN_PROPERTIES,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.MESSAGES,
+            WORKSPACE_SYNC_TAGS.SUPPORT,
+        ],
+        refresh: () => fetchAnalytics(true, true),
+    });
 
     if (loading) {
         return (
@@ -317,7 +347,7 @@ export default function AdminDashboard() {
                             </button>
 
                             <button
-                                onClick={() => navigate('/admin/chat')}
+                                onClick={() => navigate('/admin/help')}
                                 className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-purple-900/10 border border-transparent hover:border-purple-100 dark:hover:border-purple-900/30 transition-all text-left flex items-center justify-between"
                             >
                                 <div className="flex items-center gap-4">
@@ -325,8 +355,8 @@ export default function AdminDashboard() {
                                         <MessageSquare size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors">Support Chat</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600/70 dark:group-hover:text-purple-400/70">Monitoring Active</p>
+                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors">Help & Support</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600/70 dark:group-hover:text-purple-400/70">Ticket queue and live replies</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-purple-500">

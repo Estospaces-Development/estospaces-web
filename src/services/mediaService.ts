@@ -56,3 +56,9 @@ export const reassignMediaEntity = async (
         }),
     });
 };
+
+export const deleteMediaFile = async (mediaId: string): Promise<void> => {
+    await apiFetch(`${MEDIA_URL()}/api/v1/media/${mediaId}`, {
+        method: 'DELETE',
+    });
+};

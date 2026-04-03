@@ -60,7 +60,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
         { icon: Building2, label: 'Properties', path: '/admin/properties' },
         { icon: Zap, label: 'Fast Track', path: '/admin/fast-track' },
-        { icon: MessageSquare, label: 'Support Chat', path: '/admin/chat' },
+        { icon: MessageSquare, label: 'Help & Support', path: '/admin/help' },
         { icon: Star, label: 'Reviews', path: '/admin/reviews' },
         { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
         { icon: User, label: 'Profile', path: '/admin/profile' },

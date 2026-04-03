@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TrendingUp, Building2, Users, Target, ArrowUpRight, Calendar, Filter, Download, Clock, Zap, CheckCircle2, AlertTriangle } from 'lucide-react';
 import BarChart from '@/components/ui/BarChart';
 import PieChart from '@/components/ui/PieChart';
@@ -8,8 +8,10 @@ import LineChart from '@/components/ui/LineChart';
 import BackButton from '@/components/ui/BackButton';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useLeads } from '@/contexts/LeadContext';
-import { getManagerAnalytics, AnalyticsData } from '@/services/analyticsService';
+import { getManagerAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { getApplications, Application } from '@/services/applicationsService';
+import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const Analytics = () => {
     const { properties } = useProperties();
@@ -19,28 +21,52 @@ const Analytics = () => {
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [analyticsResult, applicationsResult] = await Promise.all([
-                    getManagerAnalytics(),
-                    getApplications()
-                ]);
+    const fetchData = useCallback(async (forceRefresh = false, silent = false) => {
+        if (!silent) {
+            setLoading(true);
+        }
 
-                if (analyticsResult.data) {
-                    setAnalyticsData(analyticsResult.data);
-                }
+        try {
+            if (forceRefresh) {
+                invalidateAnalyticsCache('manager_analytics');
+            }
 
-                if (applicationsResult.data) {
-                    setApplications(applicationsResult.data);
-                }
-            } finally {
+            const [analyticsResult, applicationsResult] = await Promise.all([
+                getManagerAnalytics(forceRefresh),
+                getApplications({ suppressErrorToast: silent })
+            ]);
+
+            if (analyticsResult.data) {
+                setAnalyticsData(analyticsResult.data);
+            }
+
+            if (applicationsResult.data) {
+                setApplications(applicationsResult.data);
+            }
+        } finally {
+            if (!silent) {
                 setLoading(false);
             }
-        };
-
-        fetchData();
+        }
     }, []);
+
+    useEffect(() => {
+        void fetchData();
+    }, [fetchData]);
+
+    useDashboardWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.MANAGER_ANALYTICS,
+            WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+            WORKSPACE_SYNC_TAGS.PROPERTIES,
+            WORKSPACE_SYNC_TAGS.MANAGER_PROPERTIES,
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+        ],
+        refresh: () => fetchData(true, true),
+    });
 
     // Use service data or fallbacks
     const applicationsList = applications.length > 0 ? applications : [];

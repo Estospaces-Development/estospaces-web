@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -18,11 +18,20 @@ import {
 } from 'lucide-react';
 import { buildWorkspacePath, resolvePaymentsWorkspaceContext } from '@/lib/workspaceLinks';
 import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
+import {
     getInvoices,
     getPayments,
     type Invoice,
     type Payment,
 } from '@/services/paymentsService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import { useToast } from '@/contexts/ToastContext';
+import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 type TabType = 'payments' | 'invoices';
 
@@ -90,13 +99,16 @@ const getInvoiceStatusStyle = (status: string) => {
 
 export default function PaymentsPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const toast = useToast();
     const [activeTab, setActiveTab] = useState<TabType>('payments');
     const [payments, setPayments] = useState<Payment[]>([]);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const removedCaseNoticeRef = useRef<string | null>(null);
 
     const workspaceContext = useMemo(() => ({
         paymentId: searchParams.get('payment'),
@@ -132,13 +144,15 @@ export default function PaymentsPage() {
         setError(null);
 
         try {
-            const [paymentsResult, invoicesResult] = await Promise.all([
+            const [paymentsResult, invoicesResult, fastTrackCasesResult] = await Promise.all([
                 getPayments(),
                 getInvoices(),
+                getFastTrackCases({ suppressErrorToast: true }),
             ]);
 
             setPayments(Array.isArray(paymentsResult.data) ? paymentsResult.data : []);
             setInvoices(Array.isArray(invoicesResult.data) ? invoicesResult.data : []);
+            setFastTrackCases(fastTrackCasesResult.data || []);
         } catch {
             setError('Failed to load payment data');
         } finally {
@@ -150,30 +164,63 @@ export default function PaymentsPage() {
         void fetchData();
     }, [fetchData]);
 
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+            WORKSPACE_SYNC_TAGS.BILLING,
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+        ],
+        refresh: fetchData,
+    });
+
+    const rawCaseId = workspaceContext.caseId;
+    const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+
+    useEffect(() => {
+        if (isLoading || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [isLoading, removedCaseId, setSearchParams, toast]);
+
     const { payment: focusedPayment, invoice: focusedInvoice } = resolvePaymentsWorkspaceContext(
         payments,
         invoices,
-        workspaceContext,
+        {
+            ...workspaceContext,
+            caseId: sanitizedCaseId,
+        },
     );
 
     const linkedApplicationID = workspaceContext.applicationId || focusedPayment?.application_id || focusedInvoice?.application_id || '';
     const linkedContractID = workspaceContext.contractId || focusedPayment?.contract_id || focusedInvoice?.contract_id || '';
     const linkedFastTrackPath = buildWorkspacePath('/user/dashboard/fast-track', {
         applicationId: linkedApplicationID,
-        caseId: workspaceContext.caseId,
+        caseId: sanitizedCaseId,
         leadId: workspaceContext.leadId,
         propertyId: workspaceContext.propertyId,
     });
     const linkedApplicationsPath = buildWorkspacePath('/user/applications', {
         applicationId: linkedApplicationID,
-        caseId: workspaceContext.caseId,
+        caseId: sanitizedCaseId,
         leadId: workspaceContext.leadId,
         propertyId: workspaceContext.propertyId,
     });
     const linkedContractsPath = buildWorkspacePath('/user/dashboard/contracts', {
         applicationId: linkedApplicationID,
         contractId: linkedContractID,
-        caseId: workspaceContext.caseId,
+        caseId: sanitizedCaseId,
         leadId: workspaceContext.leadId,
         propertyId: workspaceContext.propertyId,
     });

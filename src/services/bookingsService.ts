@@ -4,9 +4,11 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 import { Contract, ContractTemplate } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -122,8 +124,8 @@ export async function createViewing(request: CreateViewingRequest): Promise<View
 /**
  * Get viewings for the current user
  */
-export async function getViewings(): Promise<Viewing[]> {
-    return apiFetch<Viewing[]>(`${BOOKING_URL()}/api/v1/viewings`);
+export async function getViewings(options: ServiceRequestOptions = {}): Promise<Viewing[]> {
+    return apiFetch<Viewing[]>(`${BOOKING_URL()}/api/v1/viewings`, options);
 }
 
 export async function getViewingAvailability(propertyId: string): Promise<ViewingAvailability> {

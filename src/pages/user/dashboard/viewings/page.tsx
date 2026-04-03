@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Calendar,
@@ -14,29 +14,47 @@ import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
+import Avatar from '@/components/ui/Avatar';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyById } from '@/services/propertyService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
 
 export default function ViewingsPage() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [viewings, setViewings] = useState<any[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all'); // all, upcoming, past, cancelled
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [viewingToCancel, setViewingToCancel] = useState<string | null>(null);
+    const removedCaseNoticeRef = useRef<string | null>(null);
 
     const fetchViewings = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await bookingsService.getViewings();
+            const [data, fastTrackCasesResult] = await Promise.all([
+                bookingsService.getViewings(),
+                getFastTrackCases({ suppressErrorToast: true }),
+            ]);
             const propertyIDsNeedingImages = Array.from(
                 new Set(
                     data
@@ -70,6 +88,7 @@ export default function ViewingsPage() {
                 agentPhone: viewing.agent_phone || '',
             }));
             setViewings(mappedViewings);
+            setFastTrackCases(fastTrackCasesResult.data || []);
         } catch (err: any) {
             toast.error('Failed to load viewings');
         } finally {
@@ -81,10 +100,38 @@ export default function ViewingsPage() {
         fetchViewings();
     }, [fetchViewings]);
 
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+        ],
+        refresh: fetchViewings,
+    });
+
+    const rawCaseId = searchParams.get('case');
+    const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+
+    useEffect(() => {
+        if (loading || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [loading, removedCaseId, setSearchParams, toast]);
+
     const focusedViewingId = resolveFocusedViewing(viewings, {
         viewingId: searchParams.get('viewing'),
         applicationId: searchParams.get('application'),
-        caseId: searchParams.get('case'),
+        caseId: sanitizedCaseId,
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
     })?.id || null;
@@ -143,6 +190,22 @@ export default function ViewingsPage() {
                     'Cancelled by you'
                 );
             }
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.VIEWINGS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                ],
+                reason: 'User cancelled viewing',
+                ids: {
+                    viewingId,
+                    applicationId: viewing?.application_id,
+                    caseId: viewing?.fast_track_case_id,
+                    leadId: viewing?.lead_id,
+                    propertyId: viewing?.property_id,
+                },
+            });
             toast.success('Viewing appointment cancelled successfully.');
         } catch (err) {
             toast.error('Failed to cancel viewing. Please try again.');
@@ -327,9 +390,11 @@ export default function ViewingsPage() {
 
                                         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center font-bold text-orange-600">
-                                                    {viewing.agentName.charAt(0)}
-                                                </div>
+                                                <Avatar
+                                                    userId={viewing.manager_id}
+                                                    name={viewing.agentName}
+                                                    size="md"
+                                                />
                                                 <div>
                                                     <p className="text-sm font-bold text-gray-900 dark:text-white">{viewing.agentName}</p>
                                                     <p className="text-xs text-gray-500">{viewing.agentPhone}</p>

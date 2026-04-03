@@ -14,7 +14,7 @@ import {
     Shield,
     Upload,
 } from 'lucide-react';
-import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
+import { FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
 import { BrokerRequestRecord, Lead, getUserBrokerRequests, getUserDocuments, getUserLeads, uploadDocument, UserDocument } from '@/services/leadsService';
 import { getApplications, type Application } from '@/services/applicationsService';
 import { getViewings, type Viewing } from '@/services/bookingsService';
@@ -24,10 +24,11 @@ import { getSaleProgressions, type SaleProgression } from '@/services/salesServi
 import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress';
 import {
     buildFastTrackVerificationContent,
+    deriveLiveFastTrackDocumentPhase,
     deriveLiveFastTrackCurrentStep,
+    filterDocumentsForLead,
     isEnglandJurisdiction,
     normalizeWorkspaceDocuments,
-    resolveLeadStage,
 } from '@/lib/fastTrackWorkflow';
 import {
     buildUserFastTrackDocumentItems,
@@ -38,6 +39,7 @@ import {
     selectPrimaryBrokerRequestBy,
 } from '@/lib/brokerRequestSelection';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import { DELETED_FAST_TRACK_CASE_MESSAGE } from '@/lib/fastTrackCaseContext';
 import {
     resolveFastTrackLinkedJourney,
     resolveFastTrackPrimaryLaneLabel,
@@ -47,7 +49,12 @@ import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import type { Contract } from '@/types/booking';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
 import { messagesService } from '@/services/messagesService';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: string; note: string }> = {
     in_progress: {
@@ -72,16 +79,17 @@ const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: st
     },
 };
 
-const formatLeadStage = (value?: string) => {
-    if (!value) {
-        return 'Matching nearby brokers';
+const toStoredFastTrackDocumentStatus = (status: 'missing' | 'uploaded' | 'verified' | 'reupload_required') => {
+    switch (status) {
+        case 'verified':
+            return 'verified';
+        case 'uploaded':
+            return 'uploaded';
+        case 'reupload_required':
+            return 'reupload_required';
+        default:
+            return 'pending';
     }
-
-    return value
-        .replace(/[_-]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
 const formatDeadlineLabel = (deadline?: string) => {
@@ -144,6 +152,8 @@ export default function UserFastTrackPage() {
     const [openingConversation, setOpeningConversation] = useState(false);
     const identityUploadInputRef = useRef<HTMLInputElement | null>(null);
     const addressUploadInputRef = useRef<HTMLInputElement | null>(null);
+    const removedCaseNoticeRef = useRef<string | null>(null);
+    const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const fetchCases = useCallback(async (silent: boolean = false) => {
         if (!silent) {
@@ -226,26 +236,29 @@ export default function UserFastTrackPage() {
         void fetchCases();
     }, [fetchCases]);
 
-    useEffect(() => {
-        const refreshCases = () => {
-            void fetchCases(true);
-        };
-
-        const interval = window.setInterval(refreshCases, 5000);
-        window.addEventListener('focus', refreshCases);
-        document.addEventListener('visibilitychange', refreshCases);
-
-        return () => {
-            window.clearInterval(interval);
-            window.removeEventListener('focus', refreshCases);
-            document.removeEventListener('visibilitychange', refreshCases);
-        };
-    }, [fetchCases]);
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.CASE_FILE,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+            WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+            WORKSPACE_SYNC_TAGS.MESSAGES,
+        ],
+        refresh: () => fetchCases(true),
+    });
 
     useEffect(() => {
         if (!selectedCaseId) {
             if (!searchParams.get('case')) {
                 return;
+            }
+            const removedCaseId = searchParams.get('case');
+            if (removedCaseId && removedCaseNoticeRef.current !== removedCaseId) {
+                removedCaseNoticeRef.current = removedCaseId;
+                toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
             }
             setSearchParams((previous) => {
                 const next = new URLSearchParams(previous);
@@ -368,6 +381,13 @@ export default function UserFastTrackPage() {
         || selectedLead?.property?.listing_type
         || selectedConversationRequest?.selected_property?.listing_type
         || (selectedCase?.journeyType === 'buy' || selectedConversationRequest?.request_type === 'buy' ? 'sale' : 'rent');
+    const selectedCaseLeadDocuments = useMemo(
+        () => filterDocumentsForLead(
+            userDocuments,
+            selectedCase?.leadId || selectedLead?.id,
+        ),
+        [selectedCase?.leadId, selectedLead?.id, userDocuments],
+    );
 
     const handleOpenMessages = useCallback(async () => {
         if (!selectedConversationRecipientId || !user) {
@@ -421,8 +441,25 @@ export default function UserFastTrackPage() {
         () => buildUserFastTrackDocumentItems(selectedCase?.documents || {
             identityProof: 'pending',
             addressProof: 'pending',
-        }, userDocuments),
-        [selectedCase?.documents, userDocuments],
+        }, selectedCaseLeadDocuments, {
+            requestActive: Boolean(
+                (selectedCase?.documentPhase && selectedCase.documentPhase !== 'not_requested')
+                || selectedCase?.currentStep === 'documents_requested'
+                || selectedCase?.currentStep === 'documents_verified'
+                || selectedLead?.documents_requested
+                || selectedLead?.documents_uploaded
+                || selectedLead?.documents_verified
+            ),
+        }),
+        [
+            selectedCase?.currentStep,
+            selectedCase?.documentPhase,
+            selectedCase?.documents,
+            selectedCaseLeadDocuments,
+            selectedLead?.documents_requested,
+            selectedLead?.documents_uploaded,
+            selectedLead?.documents_verified,
+        ],
     );
     const liveDocumentsRequirementLabel = 'Identity and legal compliance cleared';
     const liveDocumentsRequirementComplete = useMemo(
@@ -467,7 +504,6 @@ export default function UserFastTrackPage() {
         ),
         [requestedDocumentItems],
     );
-    const selectedLeadStage = formatLeadStage(resolveLeadStage(selectedLead, userDocuments));
     const selectedLeadDeadline = formatDeadlineLabel(selectedLead?.response_deadline_at || selectedLead?.sla_deadline);
     const selectedLeadBroker = selectedLead?.matched_broker?.name || selectedLead?.matched_broker?.company_name || selectedLead?.matched_broker_id || 'No broker matched yet';
     const uploadActionItems = useMemo(
@@ -483,7 +519,7 @@ export default function UserFastTrackPage() {
         () => selectedCase
             ? deriveLiveFastTrackCurrentStep(
                 selectedCase.currentStep,
-                userDocuments,
+                selectedCaseLeadDocuments,
                 selectedCase.documents || {
                     identityProof: 'pending',
                     addressProof: 'pending',
@@ -497,7 +533,23 @@ export default function UserFastTrackPage() {
                 },
             )
             : null,
-        [selectedCase, selectedLinkedJourney, userDocuments],
+        [selectedCase, selectedCaseLeadDocuments, selectedLinkedJourney],
+    );
+    const selectedCaseDocumentPhase = useMemo(
+        () => selectedCase
+            ? deriveLiveFastTrackDocumentPhase(
+                selectedCaseLeadDocuments,
+                selectedCase.documents || {
+                    identityProof: 'pending',
+                    addressProof: 'pending',
+                },
+                {
+                    currentStep: selectedCaseCurrentStep || selectedCase.currentStep,
+                    backendPhase: selectedCase.documentPhase,
+                },
+            )
+            : 'not_requested',
+        [selectedCase, selectedCaseCurrentStep, selectedCaseLeadDocuments],
     );
     const waitingForDocumentReview = useMemo(
         () => !allRequestedDocumentsVerified
@@ -511,19 +563,29 @@ export default function UserFastTrackPage() {
     );
     const selectedLeadDocuments = allRequestedDocumentsVerified
         ? 'All required documents approved'
-        : selectedLead?.documents_requested || selectedLead?.documents_uploaded || selectedLead?.documents_verified
+        : selectedCaseDocumentPhase === 'uploaded_under_review'
+            ? 'Uploaded and awaiting review'
+            : selectedCaseDocumentPhase === 'replacement_required'
+                ? 'Replacement requested'
+                : selectedCaseDocumentPhase === 'waiting_for_upload'
+                    ? 'Waiting for uploads'
+                    : selectedLead?.documents_requested || selectedLead?.documents_uploaded || selectedLead?.documents_verified
             ? verificationContent.documentsLabel
             : 'No pending document request';
     const documentRequestLabel = outstandingDocumentNames.length > 0
         ? outstandingDocumentNames.join(', ')
         : 'Identity proof and address proof';
-    const showActiveDocumentRequest = Boolean(selectedLead?.documents_requested && !allRequestedDocumentsVerified);
+    const showActiveDocumentRequest = Boolean(
+        selectedCaseDocumentPhase !== 'not_requested'
+        && selectedCaseDocumentPhase !== 'verified'
+        && !allRequestedDocumentsVerified,
+    );
     const showRequestedDocumentsPanel = Boolean(
         selectedCase && (
-            selectedLead?.documents_requested
+            selectedCaseDocumentPhase !== 'not_requested'
+            || selectedLead?.documents_requested
             || selectedLead?.documents_uploaded
             || selectedLead?.documents_verified
-            || selectedCase.finalStatus === 'in_progress'
         ),
     );
     const selectedCaseStatusReason = useMemo(() => {
@@ -542,8 +604,22 @@ export default function UserFastTrackPage() {
                     : 'Identity and address checks are complete. The next live step is the viewing appointment, then referencing and compliance review.';
         }
 
+        if (selectedCaseCurrentStep === 'property_selected') {
+            return 'The property is selected and the 24-hour case is active. The manager needs to request your verification documents before the review stage begins.';
+        }
+
+        if (selectedCaseCurrentStep === 'documents_requested') {
+            if (selectedCaseDocumentPhase === 'uploaded_under_review') {
+                return 'Your uploaded documents are waiting for review.';
+            }
+            if (selectedCaseDocumentPhase === 'replacement_required') {
+                return 'One of your uploaded documents needs to be replaced before the case can be verified.';
+            }
+            return 'The manager has requested your verification documents. Upload them here to keep the case moving.';
+        }
+
         return selectedCase.journeyStatusReason || selectedLinkedJourney?.primarySummary || selectedCase.statusReason || statusMeta[selectedCase.finalStatus].note;
-    }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedLinkedJourney?.primarySummary]);
+    }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedCaseDocumentPhase, selectedLinkedJourney?.primarySummary]);
     const selectedCaseNextAction = useMemo(() => {
         if (!selectedCase) {
             return null;
@@ -560,12 +636,26 @@ export default function UserFastTrackPage() {
                     : 'Watch for the viewing schedule, then complete referencing and compliance review.';
         }
 
+        if (selectedCaseCurrentStep === 'property_selected') {
+            return 'Wait for the manager to request documents';
+        }
+
+        if (selectedCaseCurrentStep === 'documents_requested') {
+            if (selectedCaseDocumentPhase === 'uploaded_under_review') {
+                return 'Wait for document review';
+            }
+            if (selectedCaseDocumentPhase === 'replacement_required') {
+                return 'Upload the requested replacement';
+            }
+            return 'Upload the requested documents';
+        }
+
         return selectedCase.nextActions?.[0]?.description
             || selectedCase.nextActions?.[0]?.label
             || selectedLinkedJourney?.nextStep
             || selectedCase.nextAction
             || 'Open the live workspace';
-    }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedLinkedJourney?.nextStep]);
+    }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedCaseDocumentPhase, selectedLinkedJourney?.nextStep]);
     const linkedApplicationLabel = selectedCase && selectedLinkedJourney
         ? resolveFastTrackPrimaryLaneLabel(selectedCase.journeyType, selectedLinkedJourney)
         : 'Not created yet';
@@ -696,15 +786,63 @@ export default function UserFastTrackPage() {
             return;
         }
 
+        if (selectedCase) {
+            const currentDocumentStates = new Map(
+                requestedDocumentItems.map((item) => [item.uploadType, item.status] as const),
+            );
+            const nextDocuments = {
+                identityProof: toStoredFastTrackDocumentStatus(
+                    type === 'identity'
+                        ? 'uploaded'
+                        : currentDocumentStates.get('identity') || 'missing',
+                ),
+                addressProof: toStoredFastTrackDocumentStatus(
+                    type === 'address'
+                        ? 'uploaded'
+                        : currentDocumentStates.get('address') || 'missing',
+                ),
+            };
+
+            const { error: syncError } = await updateFastTrackCase(selectedCase.caseId, {
+                current_step: 'documents_requested',
+                documents: nextDocuments,
+            });
+            if (syncError) {
+                toast.warning('Upload succeeded, but the fast-track stage could not refresh automatically.');
+            }
+        }
+
+        publishWorkspaceSync({
+            source: 'mutation',
+            tags: [
+                WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                WORKSPACE_SYNC_TAGS.CASE_FILE,
+                WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+            ],
+            reason: 'User uploaded fast-track document',
+            ids: {
+                caseId: selectedCase?.caseId,
+                leadId: selectedLead.id,
+                propertyId: selectedCase?.propertyId,
+                applicationId: selectedLinkedJourney?.application?.id,
+                contractId: selectedLinkedJourney?.contract?.id,
+            },
+        });
         await fetchCases(true);
     }, [
         fetchCases,
+        publishWorkspaceSync,
+        requestedDocumentItems,
         selectedCase?.caseId,
         selectedCase?.managerId,
         selectedCase?.propertyId,
+        selectedCase,
         selectedLead?.id,
         selectedLinkedJourney?.application?.id,
         selectedLinkedJourney?.contract?.id,
+        toast,
     ]);
 
     const handleBannerUpload = useCallback(async (
@@ -931,8 +1069,8 @@ export default function UserFastTrackPage() {
                                             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{selectedLeadDeadline}</p>
                                         </div>
                                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Stage</p>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{selectedLeadStage}</p>
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Fast-track stage</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">{formatWorkflowStatusLabel(selectedCaseCurrentStep || selectedCase.currentStep)}</p>
                                         </div>
                                         <div className="rounded-2xl border border-gray-100 dark:border-gray-700 p-4">
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">Matched broker</p>
@@ -1180,24 +1318,31 @@ export default function UserFastTrackPage() {
                                     <div className="mt-5 space-y-3">
                                         {requestedDocumentItems.map((item) => {
                                             const isUploading = uploadingType === item.uploadType;
+                                            const canUpload = item.status !== 'not_requested' && Boolean(selectedLead?.id) && !isUploading;
                                             const badgeTone = item.status === 'verified'
                                                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300'
                                                 : item.status === 'reupload_required'
                                                     ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300'
                                                     : item.status === 'uploaded'
                                                         ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/30 dark:bg-blue-950/20 dark:text-blue-300'
+                                                        : item.status === 'not_requested'
+                                                            ? 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-300'
                                                         : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300';
 
                                             return (
                                                 <label
                                                     key={item.id}
-                                                    className="block cursor-pointer rounded-2xl border border-gray-100 bg-gray-50 p-4 transition hover:border-orange-200 hover:bg-orange-50/60 dark:border-gray-700 dark:bg-gray-900/50 dark:hover:border-orange-900/40"
+                                                    className={`block rounded-2xl border border-gray-100 bg-gray-50 p-4 transition dark:border-gray-700 dark:bg-gray-900/50 ${
+                                                        canUpload
+                                                            ? 'cursor-pointer hover:border-orange-200 hover:bg-orange-50/60 dark:hover:border-orange-900/40'
+                                                            : 'cursor-default opacity-80'
+                                                    }`}
                                                 >
                                                     <input
                                                         type="file"
                                                         accept="image/*,.pdf"
                                                         className="hidden"
-                                                        disabled={!selectedLead?.id || isUploading}
+                                                        disabled={!canUpload}
                                                         onChange={async (event) => {
                                                             const file = event.target.files?.[0];
                                                             event.currentTarget.value = '';
@@ -1232,8 +1377,12 @@ export default function UserFastTrackPage() {
                                                             {isUploading ? <Loader2 size={13} className="animate-spin" /> : item.statusLabel}
                                                         </span>
                                                     </div>
-                                                    <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-orange-600 dark:text-orange-300">
-                                                        <Upload size={15} />
+                                                    <div className={`mt-4 inline-flex items-center gap-2 text-sm font-semibold ${
+                                                        canUpload
+                                                            ? 'text-orange-600 dark:text-orange-300'
+                                                            : 'text-gray-500 dark:text-gray-400'
+                                                    }`}>
+                                                        {canUpload ? <Upload size={15} /> : <Clock size={15} />}
                                                         <span>{item.actionLabel}</span>
                                                     </div>
                                                 </label>

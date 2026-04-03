@@ -52,7 +52,7 @@ export interface User {
     first_name?: string;
     last_name?: string;
     full_name?: string; // Calculated or from legacy
-    role: 'user' | 'manager' | 'admin';
+    role: 'user' | 'manager' | 'admin' | 'support';
     phone?: string;
     avatar_url?: string;
     avatar?: string; // Backend field

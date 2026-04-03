@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Building2,
     MapPin,
@@ -30,11 +30,19 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import ApplicationCard from '@/components/dashboard/applications/ApplicationCard';
 import ApplicationCardSkeleton from '@/components/dashboard/applications/ApplicationCardSkeleton';
 import ApplicationFilters from '@/components/dashboard/applications/ApplicationFilters';
 import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
 import { messagesService } from '@/services/messagesService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNextSaleJourneyActions,
     getSaleJourneySummary,
@@ -281,28 +289,83 @@ export default function ApplicationsPage() {
         fetchApplications
     } = useApplications();
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showFilters, setShowFilters] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
+    const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
+    const removedCaseNoticeRef = useRef<string | null>(null);
+    const rawCaseId = searchParams.get('case');
+    const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
     const hasWorkspaceFocusRequest = Boolean(
         searchParams.get('application')
-        || searchParams.get('case')
+        || sanitizedCaseId
         || searchParams.get('lead')
         || searchParams.get('property'),
     );
     const focusedApplicationFromRoute = resolveFocusedApplication(applications, {
         applicationId: searchParams.get('application'),
-        caseId: searchParams.get('case'),
+        caseId: sanitizedCaseId,
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
     });
 
     useEffect(() => {
+        let cancelled = false;
+
+        const loadFastTrackCases = async () => {
+            const result = await getFastTrackCases({ suppressErrorToast: true });
+            if (cancelled) {
+                return;
+            }
+            setFastTrackCases(result.data || []);
+            setFastTrackCasesReady(true);
+        };
+
+        void loadFastTrackCases();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+        ],
+        refresh: async () => {
+            const result = await getFastTrackCases({ suppressErrorToast: true });
+            setFastTrackCases(result.data || []);
+            setFastTrackCasesReady(true);
+        },
+    });
+
+    useEffect(() => {
         setHasAppliedRouteFocus(false);
     }, [searchParams]);
+
+    useEffect(() => {
+        if (!fastTrackCasesReady || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [fastTrackCasesReady, removedCaseId, setSearchParams, toast]);
 
     useEffect(() => {
         if (hasAppliedRouteFocus || !focusedApplicationFromRoute) {

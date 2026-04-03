@@ -291,3 +291,37 @@ test('resolveFastTrackLinkedJourney falls back to property and user matching whe
     assert.equal(linked.application?.id, 'app-current');
     assert.match(linked.primaryHeadline, /Referencing|Application/i);
 });
+
+test('resolveFastTrackLinkedJourney prefers exact fast-track matches over newer loose property matches', () => {
+    const linked = resolveFastTrackLinkedJourney(rentCase, {
+        applications: [
+            {
+                id: 'app-exact',
+                property_id: 'property-1',
+                user_id: 'user-1',
+                manager_id: 'manager-1',
+                fast_track_case_id: 'case-rent-1',
+                status: 'documents_requested',
+                move_in_date: '2026-04-05',
+                created_at: '2026-03-25T08:00:00Z',
+                updated_at: '2026-03-25T09:00:00Z',
+                liveStage: 'documents_requested',
+            } as any,
+            {
+                id: 'app-loose-newer',
+                property_id: 'property-1',
+                user_id: 'user-1',
+                manager_id: 'manager-1',
+                fast_track_case_id: 'case-rent-2',
+                status: 'submitted',
+                move_in_date: '2026-04-06',
+                created_at: '2026-03-25T08:30:00Z',
+                updated_at: '2026-03-25T10:00:00Z',
+                liveStage: 'property_selected',
+            } as any,
+        ],
+    });
+
+    assert.equal(linked.application?.id, 'app-exact');
+    assert.equal(resolveFastTrackPrimaryLaneLabel(rentCase.journeyType, linked), 'Documents requested');
+});

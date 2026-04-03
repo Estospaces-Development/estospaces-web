@@ -76,6 +76,15 @@ export interface ManagerAnalyticsResponse {
 // Basic in-memory cache to prevent pounding the API
 const CACHE_TTL = 30000; // 30 seconds
 const analyticsCache: Record<string, { data: any; timestamp: number }> = {};
+const ANALYTICS_CACHE_KEYS = ['platform_analytics', 'manager_analytics'] as const;
+export type AnalyticsCacheKey = typeof ANALYTICS_CACHE_KEYS[number];
+
+export const invalidateAnalyticsCache = (...keys: AnalyticsCacheKey[]) => {
+    const targets = keys.length > 0 ? keys : ANALYTICS_CACHE_KEYS;
+    targets.forEach((key) => {
+        delete analyticsCache[key];
+    });
+};
 
 /**
  * Fetch analytics data from the core-service backend (Admin Platform Stats)

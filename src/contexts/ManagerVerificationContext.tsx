@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode,
 import { useAuth } from './AuthContext';
 import * as managerVerificationService from '../services/managerVerificationService';
 import { getManagerPropertySubmissionBlocker } from '../lib/managerPropertySubmission';
+import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import type {
     ManagerProfile,
     ManagerDocument,
@@ -53,6 +55,7 @@ const ManagerVerificationContext = createContext<ManagerVerificationContextValue
 
 export const ManagerVerificationProvider = ({ children }: { children: ReactNode }) => {
     const { user, isAuthenticated } = useAuth(); // Removed getRole as it might not be in the new AuthContext yet
+    const publishWorkspaceSync = usePublishWorkspaceSync();
 
     // State
     const [managerProfile, setManagerProfile] = useState<ManagerProfile | null>(null);
@@ -94,6 +97,11 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         verificationStatus !== 'approved';
     const propertySubmissionBlocker = getManagerPropertySubmissionBlocker(managerProfile);
     const isPropertySubmissionReady = propertySubmissionBlocker === null;
+    const syncTags = [
+        WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+        WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,
+        WORKSPACE_SYNC_TAGS.MANAGER_PROPERTIES,
+    ];
 
     // ========================================================================
     // Fetch Data
@@ -139,6 +147,12 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         };
     }, [fetchData]);
 
+    useWorkspaceRefresh({
+        tags: syncTags,
+        refresh: fetchData,
+        enabled: isAuthenticated && Boolean(user?.id),
+    });
+
     // ========================================================================
     // Actions
     // ========================================================================
@@ -157,9 +171,17 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
             verification_status: 'incomplete',
         });
         if (result.error) return { error: result.error };
-        if (result.data && mountedRef.current) setManagerProfile(result.data);
+        if (result.data && mountedRef.current) {
+            setManagerProfile(result.data);
+            publishWorkspaceSync({
+                key: `manager-verification:create-profile:${user.id}`,
+                source: 'mutation',
+                tags: syncTags,
+                reason: 'manager-profile-created',
+            });
+        }
         return { error: null };
-    }, [user?.id]);
+    }, [publishWorkspaceSync, syncTags, user?.id]);
 
     const updateProfile = useCallback(async (
         data: Partial<ManagerProfile>
@@ -167,9 +189,17 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         if (!user?.id) return { error: 'Not authenticated' };
         const result = await managerVerificationService.updateManagerProfile(user.id, data);
         if (result.error) return { error: result.error };
-        if (result.data && mountedRef.current) setManagerProfile(result.data);
+        if (result.data && mountedRef.current) {
+            setManagerProfile(result.data);
+            publishWorkspaceSync({
+                key: `manager-verification:update-profile:${user.id}`,
+                source: 'mutation',
+                tags: syncTags,
+                reason: 'manager-profile-updated',
+            });
+        }
         return { error: null };
-    }, [user?.id]);
+    }, [publishWorkspaceSync, syncTags, user?.id]);
 
     const uploadDocument = useCallback(async (
         file: File,
@@ -181,8 +211,14 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         if (result.error) return { error: result.error };
 
         await refetch();
+        publishWorkspaceSync({
+            key: `manager-verification:upload:${user.id}:${documentType}`,
+            source: 'mutation',
+            tags: syncTags,
+            reason: 'manager-document-uploaded',
+        });
         return { error: null };
-    }, [user?.id, refetch]);
+    }, [publishWorkspaceSync, refetch, syncTags, user?.id]);
 
     const deleteDocument = useCallback(async (
         documentType: ManagerDocumentType
@@ -191,16 +227,30 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         const result = await managerVerificationService.deleteManagerDocument(user.id, documentType);
         if (result.error) return { error: result.error };
         await refetch();
+        publishWorkspaceSync({
+            key: `manager-verification:delete:${user.id}:${documentType}`,
+            source: 'mutation',
+            tags: syncTags,
+            reason: 'manager-document-deleted',
+        });
         return { error: null };
-    }, [user?.id, refetch]);
+    }, [publishWorkspaceSync, refetch, syncTags, user?.id]);
 
     const submitForVerification = useCallback(async (): Promise<{ error: string | null }> => {
         if (!user?.id) return { error: 'Not authenticated' };
         const result = await managerVerificationService.submitForVerification(user.id);
         if (result.error) return { error: result.error };
-        if (result.data && mountedRef.current) setManagerProfile(result.data);
+        if (result.data && mountedRef.current) {
+            setManagerProfile(result.data);
+            publishWorkspaceSync({
+                key: `manager-verification:submit:${user.id}`,
+                source: 'mutation',
+                tags: syncTags,
+                reason: 'manager-verification-submitted',
+            });
+        }
         return { error: null };
-    }, [user?.id]);
+    }, [publishWorkspaceSync, syncTags, user?.id]);
 
     // ========================================================================
     // Helpers

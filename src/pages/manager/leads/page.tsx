@@ -5,12 +5,18 @@ import { AlertTriangle, Clock3, Loader2, MessageSquare, RefreshCw, ShieldCheck, 
 import { useNavigate } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
 import Modal from '@/components/ui/Modal';
+import Avatar from '@/components/ui/Avatar';
 import LeadActionMap from '@/components/manager/LeadActionMap';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
 import { getBrokerLeads, respondToLead, type Lead } from '@/services/leadsService';
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { canRequestLeadDocuments, formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 
 const STATUS_FILTERS = [
@@ -148,6 +154,7 @@ export default function ManagerLeadsPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const { user } = useAuth();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -197,13 +204,17 @@ export default function ManagerLeadsPage() {
         void fetchLeads(statusFilter);
     }, [fetchLeads, statusFilter]);
 
-    useEffect(() => {
-        const interval = window.setInterval(() => {
-            void fetchLeads(statusFilter, { silent: true });
-        }, 5000);
-
-        return () => window.clearInterval(interval);
-    }, [fetchLeads, statusFilter]);
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+        ],
+        refresh: () => fetchLeads(statusFilter, { silent: true }),
+    });
 
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -312,6 +323,21 @@ export default function ManagerLeadsPage() {
             }
 
             await sendLeadMessage(lead, requestMessage);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                    WORKSPACE_SYNC_TAGS.MESSAGES,
+                ],
+                reason: 'Manager requested lead documents',
+                ids: {
+                    leadId: lead.id,
+                    propertyId: lead.property_id,
+                },
+            });
             toast.success('Document request sent to the user and the chat thread is live.');
             await fetchLeads(statusFilter, { silent: true });
         } catch (actionError: any) {
@@ -319,7 +345,7 @@ export default function ManagerLeadsPage() {
         } finally {
             setActingLeadID(null);
         }
-    }, [fetchLeads, sendLeadMessage, statusFilter, toast]);
+    }, [fetchLeads, publishWorkspaceSync, sendLeadMessage, statusFilter, toast]);
 
     const handleRespondAndOpenMessages = useCallback(async (lead: Lead) => {
         if (!lead.user_id) {
@@ -344,6 +370,20 @@ export default function ManagerLeadsPage() {
 
             const conversation = await sendLeadMessage(lead, responseMessage);
 
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.MESSAGES,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                ],
+                reason: 'Manager responded to lead',
+                ids: {
+                    leadId: lead.id,
+                    propertyId: lead.property_id,
+                },
+            });
             await fetchLeads(statusFilter, { silent: true });
             toast.success('Lead responded to. Opening the conversation thread.');
             navigate(`/manager/messages?conversation=${conversation.id}`);
@@ -396,6 +436,20 @@ export default function ManagerLeadsPage() {
             });
 
             setScheduleLead(null);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.VIEWINGS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                ],
+                reason: 'Manager scheduled viewing from lead',
+                ids: {
+                    leadId: scheduleLead.id,
+                    propertyId: scheduleLead.property_id,
+                },
+            });
             toast.success('Viewing created successfully. The appointment and linked application are now in sync.');
             await fetchLeads(statusFilter, { silent: true });
         } catch (scheduleError: any) {
@@ -532,8 +586,17 @@ export default function ManagerLeadsPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Client</p>
-                                                    <p className="mt-1 font-medium text-gray-900 dark:text-white">{getLeadClientName(lead)}</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{getLeadClientContact(lead)}</p>
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <Avatar
+                                                            userId={lead.user_id}
+                                                            name={getLeadClientName(lead)}
+                                                            size="md"
+                                                        />
+                                                        <div>
+                                                            <p className="font-medium text-gray-900 dark:text-white">{getLeadClientName(lead)}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{getLeadClientContact(lead)}</p>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Property Address</p>

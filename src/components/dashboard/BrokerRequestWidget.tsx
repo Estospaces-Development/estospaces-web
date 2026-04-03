@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -43,6 +43,11 @@ import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
     if (!deadline) {
@@ -190,6 +195,7 @@ const BrokerRequestWidget = () => {
     const [rematching, setRematching] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
     const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
         ? searchParams.get('request')?.trim() || null
         : null;
@@ -215,55 +221,45 @@ const BrokerRequestWidget = () => {
         return () => window.clearTimeout(timeout);
     }, [workspacePulse]);
 
-    useEffect(() => {
-        let cancelled = false;
-
-        const loadActiveRequest = async () => {
-            if (requestedWorkspaceRequestId) {
-                const { data } = await getBrokerRequestById(requestedWorkspaceRequestId, { suppressErrorToast: true });
-                if (cancelled) {
-                    return;
-                }
-
-                if (data) {
-                    setActiveRequest(data);
-                    publishBrokerRequestWorkspaceSelection(data.id);
-                    setRequestType(data.request_type || 'buy');
-                    setLocationPostcode(data.location_postcode || '');
-                    setLocation(data.location || '');
-                    setBudget(data.budget || '');
-                    setDetails(data.details || '');
-                    setFastTrackEnabled(data.fast_track_enabled !== false);
-                    return;
-                }
-            }
-
-            const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
-            if (cancelled || !data || data.length === 0) {
+    const loadActiveRequest = useCallback(async () => {
+        if (requestedWorkspaceRequestId) {
+            const { data } = await getBrokerRequestById(requestedWorkspaceRequestId, { suppressErrorToast: true });
+            if (data) {
+                setActiveRequest(data);
+                publishBrokerRequestWorkspaceSelection(data.id);
+                setRequestType(data.request_type || 'buy');
+                setLocationPostcode(data.location_postcode || '');
+                setLocation(data.location || '');
+                setBudget(data.budget || '');
+                setDetails(data.details || '');
+                setFastTrackEnabled(data.fast_track_enabled !== false);
                 return;
             }
+        }
 
-            const latestRequest = selectPrimaryBrokerRequest(data);
-            if (!latestRequest) {
-                return;
-            }
+        const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
+        if (!data || data.length === 0) {
+            return;
+        }
 
-            setActiveRequest(latestRequest);
-            publishBrokerRequestWorkspaceSelection(latestRequest.id);
-            setRequestType(latestRequest.request_type || 'buy');
-            setLocationPostcode(latestRequest.location_postcode || '');
-            setLocation(latestRequest.location || '');
-            setBudget(latestRequest.budget || '');
-            setDetails(latestRequest.details || '');
-            setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
-        };
+        const latestRequest = selectPrimaryBrokerRequest(data);
+        if (!latestRequest) {
+            return;
+        }
 
-        void loadActiveRequest();
-
-        return () => {
-            cancelled = true;
-        };
+        setActiveRequest(latestRequest);
+        publishBrokerRequestWorkspaceSelection(latestRequest.id);
+        setRequestType(latestRequest.request_type || 'buy');
+        setLocationPostcode(latestRequest.location_postcode || '');
+        setLocation(latestRequest.location || '');
+        setBudget(latestRequest.budget || '');
+        setDetails(latestRequest.details || '');
+        setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
     }, [requestedWorkspaceRequestId]);
+
+    useEffect(() => {
+        void loadActiveRequest();
+    }, [loadActiveRequest]);
 
     useEffect(() => {
         const trimmedPostcode = locationPostcode.trim();
@@ -302,31 +298,7 @@ const BrokerRequestWidget = () => {
         };
     }, [fastTrackEnabled, locationPostcode]);
 
-    useEffect(() => {
-        if (!activeRequest?.id) {
-            return;
-        }
-
-        const handoffStatus = String(activeRequest.handoff_status || '').trim().toLowerCase();
-        const isTerminal = activeRequest.status === 'expired'
-            || activeRequest.status === 'cancelled'
-            || handoffStatus === 'archived'
-            || Boolean(activeRequest.selected_fast_track_case_id);
-        if (isTerminal) {
-            return;
-        }
-
-        const interval = window.setInterval(async () => {
-            const { data } = await getBrokerRequestById(activeRequest.id, { suppressErrorToast: true });
-            if (data) {
-                setActiveRequest(data);
-            }
-        }, 5000);
-
-        return () => window.clearInterval(interval);
-    }, [activeRequest?.dispatch_status, activeRequest?.id, activeRequest?.status]);
-
-    const refreshActiveRequest = async () => {
+    const refreshActiveRequest = useCallback(async () => {
         if (!activeRequest?.id) {
             return;
         }
@@ -336,7 +308,16 @@ const BrokerRequestWidget = () => {
             setActiveRequest(data);
             publishBrokerRequestWorkspaceSelection(data.id);
         }
-    };
+    }, [activeRequest?.id]);
+
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.MESSAGES,
+        ],
+        refresh: () => activeRequest?.id ? refreshActiveRequest() : loadActiveRequest(),
+    });
 
     const handleRematch = async () => {
         if (!activeRequest?.id) {
@@ -353,6 +334,20 @@ const BrokerRequestWidget = () => {
             }
 
             setActiveRequest(data);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                ],
+                reason: 'User rematched broker request',
+                ids: {
+                    leadId: data.id,
+                    propertyId: data.selected_property_id || undefined,
+                    caseId: data.selected_fast_track_case_id || undefined,
+                },
+            });
             toast.success('Broker rematch started. Nearby brokers are being pinged again.');
         } catch (actionError: any) {
             const message = actionError?.message || 'Unable to restart the live dispatch right now.';
@@ -422,6 +417,21 @@ const BrokerRequestWidget = () => {
             }
 
             toast.success('Property selected. Your 24-hour fast-track is now live.');
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.PROPERTIES,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                ],
+                reason: 'User selected broker-request property',
+                ids: {
+                    leadId: resolvedRequest.id,
+                    propertyId,
+                    caseId: nextFastTrackCaseId || undefined,
+                },
+            });
             navigate(`/user/properties/${propertyId}?${params.toString()}`);
         } catch (actionError: any) {
             const message = actionError?.message || 'Unable to select this property right now.';
@@ -519,6 +529,20 @@ const BrokerRequestWidget = () => {
 
                 setActiveRequest(resolvedRequest);
                 publishBrokerRequestWorkspaceSelection(resolvedRequest.id);
+                publishWorkspaceSync({
+                    source: 'mutation',
+                    tags: [
+                        WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+                        WORKSPACE_SYNC_TAGS.LEADS,
+                        WORKSPACE_SYNC_TAGS.USER_DASHBOARD,
+                    ],
+                    reason: 'User created broker request',
+                    ids: {
+                        leadId: resolvedRequest.id,
+                        propertyId: resolvedRequest.selected_property_id || undefined,
+                        caseId: resolvedRequest.selected_fast_track_case_id || undefined,
+                    },
+                });
                 navigate(buildBrokerRequestWorkspacePath(resolvedRequest.id), { replace: true });
             }
         } catch (err: any) {

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, AlertCircle, MapPin, User, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, MapPin, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ClientProfileModal from './ClientProfileModal';
+import Avatar from '@/components/ui/Avatar';
 
 export type RequestStatus = 'pending' | 'responded' | 'expired';
 
@@ -13,6 +14,12 @@ export interface BrokerRequest {
     propertyName: string;
     brokerName: string;
     brokerAvatar?: string;
+    userId?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    memberSince?: string;
+    interestedIn?: string;
     distance: string;
     timestamp: Date;
     status: RequestStatus;
@@ -21,6 +28,7 @@ export interface BrokerRequest {
     dispatchStatus?: string;
     primaryActionLabel?: string;
     secondaryActionLabel?: string;
+    secondaryActionPath?: string;
     statusReason?: string;
     nextAction?: string;
 }
@@ -87,6 +95,10 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
 
     const handleViewProperty = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (request.secondaryActionPath) {
+            navigate(request.secondaryActionPath);
+            return;
+        }
         if (onSecondaryAction) {
             onSecondaryAction(request.id);
             return;
@@ -145,13 +157,13 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
                         <div className="relative">
-                            {request.brokerAvatar ? (
-                                <img src={request.brokerAvatar} alt={request.brokerName} className="w-10 h-10 rounded-full object-cover border border-gray-100 dark:border-gray-700" />
-                            ) : (
-                                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-600">
-                                    <User className="w-5 h-5" />
-                                </div>
-                            )}
+                            <Avatar
+                                userId={request.userId}
+                                src={request.brokerAvatar}
+                                name={request.brokerName}
+                                alt={request.brokerName}
+                                size="md"
+                            />
                             <div className="absolute -bottom-1 -right-1 bg-white dark:bg-black rounded-full p-0.5">
                                 <div className={`w-3 h-3 rounded-full border-2 border-white dark:border-black ${currentStatus === 'responded' ? 'bg-green-500' : currentStatus === 'pending' ? 'bg-yellow-500' : 'bg-gray-400'
                                     }`}></div>
@@ -238,7 +250,13 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 clientName={request.brokerName}
+                clientId={request.userId}
                 avatar={request.brokerAvatar}
+                email={request.email}
+                phone={request.phone}
+                location={request.location || request.distance}
+                memberSince={request.memberSince}
+                interestedIn={request.interestedIn || request.propertyName}
             />
         </>
     );

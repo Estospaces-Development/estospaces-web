@@ -30,6 +30,7 @@ import {
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
+import Avatar from '../ui/Avatar';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -78,7 +79,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     const managerMenuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/manager/dashboard' },
         { icon: Zap, label: 'Fast Track 24h', path: '/manager/fast-track' },
-        { icon: Users, label: 'Brokers Community', path: '/manager/community' },
+        // { icon: Users, label: 'Brokers Community', path: '/manager/community' },
         { icon: Building2, label: 'Properties', path: '/manager/dashboard/properties' },
         { icon: Users, label: 'Leads & Clients', path: '/manager/leads' },
         { icon: Shield, label: 'User Verifications', path: '/manager/user-verifications' },
@@ -162,9 +163,12 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
             {/* User Info (Collapsed/Expanded) */}
             <div className="p-4 border-b border-gray-100 dark:border-gray-800">
                 <div className={`flex items-center gap-3 ${!isOpen && 'justify-center'}`}>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold shadow-lg flex-shrink-0">
-                        {getDisplayName().charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                        userId={user?.id}
+                        src={user?.avatar || user?.avatar_url}
+                        name={getDisplayName()}
+                        size="md"
+                    />
 
                     <div className={`overflow-hidden transition-all duration-300 ${isOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
                         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">

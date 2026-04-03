@@ -1,16 +1,18 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { isCurrentAuthRoute } from '@/lib/authUtils';
 import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 
-interface User {
+export interface User {
     id: string;
     email: string;
     name: string;
     role: string;
     isAuthenticated: boolean;
+    first_name?: string;
+    last_name?: string;
     avatar_url?: string;
     avatar?: string;
     phone?: string;
@@ -18,6 +20,7 @@ interface User {
     postcode?: string;
     user_metadata?: {
         full_name?: string;
+        phone?: string;
         [key: string]: any;
     };
 }
@@ -38,6 +41,7 @@ interface AuthContextType {
     ) => Promise<{ success: boolean; error?: string }>;
     signOut: () => void;
     refreshUser: () => Promise<void>;
+    mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
     getRole: () => string;
     getDisplayName: () => string;
 }
@@ -45,13 +49,98 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+const AUTH_STORAGE_KEY = 'esto_user';
+const AUTH_TOKEN_KEY = 'esto_token';
+
+const parseMetadata = (value: unknown): Record<string, any> => {
+    if (!value) {
+        return {};
+    }
+
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, any> : {};
+        } catch {
+            return {};
+        }
+    }
+
+    if (typeof value === 'object') {
+        return value as Record<string, any>;
+    }
+
+    return {};
+};
+
+const getEmailPrefix = (email?: string) => {
+    const normalizedEmail = String(email || '').trim();
+    if (!normalizedEmail) {
+        return 'User';
+    }
+
+    const [prefix] = normalizedEmail.split('@');
+    return prefix || normalizedEmail;
+};
+
+const buildFullName = (
+    firstName?: string,
+    lastName?: string,
+    fallbackName?: string,
+    fallbackEmail?: string,
+) => {
+    const combinedName = `${String(firstName || '').trim()} ${String(lastName || '').trim()}`.trim();
+    if (combinedName) {
+        return combinedName;
+    }
+
+    const normalizedFallbackName = String(fallbackName || '').trim();
+    if (normalizedFallbackName) {
+        return normalizedFallbackName;
+    }
+
+    return getEmailPrefix(fallbackEmail);
+};
+
+const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User => {
+    const metadata = {
+        ...parseMetadata(rawUser.metadata),
+        ...parseMetadata(rawUser.user_metadata),
+    };
+    const email = String(rawUser.email || fallbackEmail || '').trim();
+    const firstName = String(rawUser.first_name || '').trim();
+    const lastName = String(rawUser.last_name || '').trim();
+    const fullName = buildFullName(firstName, lastName, rawUser.name || metadata.full_name, email);
+    const avatar = rawUser.avatar || rawUser.avatar_url || '';
+    const phone = rawUser.phone || metadata.phone || '';
+
+    return {
+        id: String(rawUser.id || ''),
+        email,
+        name: fullName,
+        role: String(rawUser.role || 'user'),
+        isAuthenticated: true,
+        first_name: firstName || undefined,
+        last_name: lastName || undefined,
+        avatar_url: avatar || undefined,
+        avatar: avatar || undefined,
+        phone: phone || undefined,
+        address: rawUser.address || undefined,
+        postcode: rawUser.postcode || undefined,
+        user_metadata: {
+            ...metadata,
+            full_name: fullName,
+            phone: phone || undefined,
+        },
+    };
+};
 
 function getCachedUser(): User | null {
     if (typeof window === 'undefined') {
         return null;
     }
 
-    const rawUser = localStorage.getItem('esto_user');
+    const rawUser = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!rawUser) {
         return null;
     }
@@ -63,6 +152,28 @@ function getCachedUser(): User | null {
     }
 }
 
+const persistUser = (nextUser: User | null) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    if (!nextUser) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        return;
+    }
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
+};
+
+const clearStoredAuth = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -71,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isAuthenticated = !!user?.isAuthenticated;
 
     const refreshUser = useCallback(async () => {
-        const token = localStorage.getItem('esto_token');
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
         if (!token) {
             setUser(null);
             if (isCurrentAuthRoute()) {
@@ -84,41 +195,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const data = await apiFetch<any>(`${CORE_SERVICE_URL}/api/v1/auth/me`, { suppressErrorToast: true });
             const userData = data.user || data.data || data;
+            const userObj = buildStoredUser(userData, userData?.email);
 
-            let metadata = {};
-            if (userData.metadata) {
-                try {
-                    metadata = typeof userData.metadata === 'string' ? JSON.parse(userData.metadata) : userData.metadata;
-                } catch (e) {
-                    console.error('Failed to parse user metadata:', e);
-                }
-            }
-
-            const userObj: User = {
-                id: userData.id,
-                email: userData.email,
-                name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : userData.name || userData.email.split('@')[0],
-                role: userData.role || 'user',
-                isAuthenticated: true,
-                avatar_url: userData.avatar_url || userData.avatar,
-                avatar: userData.avatar || userData.avatar_url,
-                phone: userData.phone,
-                address: userData.address,
-                postcode: userData.postcode,
-                user_metadata: {
-                    full_name: userData.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : userData.name,
-                    phone: userData.phone,
-                    ...metadata
-                },
-            };
-            localStorage.setItem('esto_user', JSON.stringify(userObj));
+            persistUser(userObj);
             setUser(userObj);
         } catch (err) {
             if (err instanceof ApiRequestError && err.status === 401 && (
                 err.unauthorizedState === 'session-expired' || err.unauthorizedState === 'cleared-on-auth-page'
             )) {
-                localStorage.removeItem('esto_token');
-                localStorage.removeItem('esto_user');
+                clearStoredAuth();
                 setUser(null);
                 if (err.unauthorizedState === 'cleared-on-auth-page') {
                     setError(null);
@@ -134,7 +219,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // Check for existing session on mount
+    const mergeCurrentUserProfile = useCallback((updatedProfile: Record<string, any>) => {
+        setUser((currentUser) => {
+            if (!currentUser) {
+                return currentUser;
+            }
+
+            const mergedMetadata = {
+                ...(currentUser.user_metadata || {}),
+                ...parseMetadata(updatedProfile.metadata),
+                ...parseMetadata(updatedProfile.user_metadata),
+            };
+            const mergedRaw = {
+                ...currentUser,
+                ...updatedProfile,
+                id: updatedProfile.id || currentUser.id,
+                email: updatedProfile.email || currentUser.email,
+                role: updatedProfile.role || currentUser.role,
+                first_name: updatedProfile.first_name ?? currentUser.first_name,
+                last_name: updatedProfile.last_name ?? currentUser.last_name,
+                avatar: updatedProfile.avatar ?? updatedProfile.avatar_url ?? currentUser.avatar ?? currentUser.avatar_url,
+                avatar_url: updatedProfile.avatar_url ?? updatedProfile.avatar ?? currentUser.avatar_url ?? currentUser.avatar,
+                phone: updatedProfile.phone ?? currentUser.phone,
+                address: updatedProfile.address ?? currentUser.address,
+                postcode: updatedProfile.postcode ?? currentUser.postcode,
+                metadata: mergedMetadata,
+                user_metadata: mergedMetadata,
+            };
+            const nextUser = buildStoredUser(mergedRaw, currentUser.email);
+            persistUser(nextUser);
+            return nextUser;
+        });
+    }, []);
+
     useEffect(() => {
         refreshUser();
     }, [refreshUser]);
@@ -164,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password }),
                     suppressErrorToast: true,
-                }
+                },
             );
 
             if (!data) {
@@ -173,44 +290,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const token = data.token || data.data?.token;
             const userData = data.user || data.data?.user || { email };
+            const userObj = buildStoredUser(userData, email);
 
-            // Build name from first_name + last_name (backend field names)
-            const firstName = userData.first_name || '';
-            const lastName = userData.last_name || '';
-            const fullName = `${firstName} ${lastName}`.trim() || userData.name || email.split('@')[0];
-
-            let metadata = {};
-            if (userData.metadata) {
-                try {
-                    metadata = typeof userData.metadata === 'string' ? JSON.parse(userData.metadata) : userData.metadata;
-                } catch (e) { /* ignore */ }
-            }
-
-            const userObj: User = {
-                id: userData.id || '',
-                email: userData.email || email,
-                name: fullName,
-                role: userData.role || 'user',
-                isAuthenticated: true,
-                avatar_url: userData.avatar_url || userData.avatar,
-                avatar: userData.avatar || userData.avatar_url,
-                phone: userData.phone,
-                address: userData.address,
-                postcode: userData.postcode,
-                user_metadata: {
-                    full_name: fullName,
-                    phone: userData.phone,
-                    ...metadata,
-                },
-            };
-
-            localStorage.setItem('esto_token', token);
-            localStorage.setItem('esto_user', JSON.stringify(userObj));
+            localStorage.setItem(AUTH_TOKEN_KEY, token);
+            persistUser(userObj);
             resetAuthExpiryState();
             setUser(userObj);
 
-            // Refresh from /auth/me to get complete user data
-            setTimeout(() => refreshUser(), 100);
+            setTimeout(() => {
+                void refreshUser();
+            }, 100);
 
             return { success: true, role: userObj.role };
         } catch (err: any) {
@@ -249,7 +338,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         accepted_terms_at: termsAcceptance.acceptedAt,
                     }),
                     suppressErrorToast: true,
-                }
+                },
             );
 
             if (!data) {
@@ -258,30 +347,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const token = data.token || data.data?.token;
-            const userData = data.user || data.data?.user || { email, name, role };
-
-            const regFirstName = userData.first_name || first_name;
-            const regLastName = userData.last_name || last_name;
-            const fullName = `${regFirstName} ${regLastName}`.trim() || name;
-
-            const userObj: User = {
-                id: userData.id || '',
-                email: userData.email || email,
-                name: fullName,
-                role: userData.role || role,
-                isAuthenticated: true,
-                phone: userData.phone,
-                address: userData.address,
-                postcode: userData.postcode,
-                user_metadata: {
-                    full_name: fullName,
-                    phone: userData.phone,
-                },
-            };
+            const userData = data.user || data.data?.user || { email, first_name, last_name, role };
+            const userObj = buildStoredUser(userData, email);
 
             if (token) {
-                localStorage.setItem('esto_token', token);
-                localStorage.setItem('esto_user', JSON.stringify(userObj));
+                localStorage.setItem(AUTH_TOKEN_KEY, token);
+                persistUser(userObj);
                 resetAuthExpiryState();
                 setUser(userObj);
             }
@@ -295,8 +366,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signOut = useCallback(() => {
-        localStorage.removeItem('esto_token');
-        localStorage.removeItem('esto_user');
+        clearStoredAuth();
         resetAuthExpiryState();
         setUser(null);
         setError(null);
@@ -321,6 +391,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             register,
             signOut,
             refreshUser,
+            mergeCurrentUserProfile,
             getRole,
             getDisplayName,
         }}>
@@ -336,5 +407,3 @@ export function useAuth() {
     }
     return context;
 }
-
-

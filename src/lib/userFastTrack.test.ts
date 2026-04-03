@@ -73,3 +73,48 @@ test('buildUserFastTrackDocumentItems exposes requested document names and statu
 
     assert.deepEqual(getOutstandingDocumentNames(items), ['Address proof']);
 });
+
+test('buildUserFastTrackDocumentItems keeps missing files inactive until documents are requested', () => {
+    const items = buildUserFastTrackDocumentItems(
+        {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        },
+        [],
+        {
+            requestActive: false,
+        },
+    );
+
+    assert.deepEqual(
+        items,
+        [
+            {
+                id: 'identity',
+                title: 'Identity proof',
+                status: 'not_requested',
+                statusLabel: 'Not requested',
+                fileName: null,
+                reason: null,
+                reviewedAt: null,
+                hint: 'Passport, driver licence, or national ID',
+                uploadType: 'identity',
+                actionLabel: 'Waiting for request',
+            },
+            {
+                id: 'address',
+                title: 'Address proof',
+                status: 'not_requested',
+                statusLabel: 'Not requested',
+                fileName: null,
+                reason: null,
+                reviewedAt: null,
+                hint: 'Bank statement, utility bill, or tenancy proof',
+                uploadType: 'address',
+                actionLabel: 'Waiting for request',
+            },
+        ],
+    );
+
+    assert.deepEqual(getOutstandingDocumentNames(items), []);
+});

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { FastTrackCase, getFastTrackCases, updateFastTrackCase } from '../../../services/fastTrackService';
+import { FastTrackCase, getFastTrackCases, updateFastTrackCase, type DocStatus } from '../../../services/fastTrackService';
 import { Lead, getBrokerLeads, respondToLead } from '../../../services/leadsService';
 import { getApplications, type Application } from '../../../services/applicationsService';
 import { getViewings, type Viewing } from '../../../services/bookingsService';
@@ -17,12 +17,18 @@ import {
 } from '../../../services/userVerificationService';
 import FastTrackCaseCard from '../../../components/manager/FastTrack/FastTrackCaseCard';
 import FastTrackCaseDetail from '../../../components/manager/FastTrack/FastTrackCaseDetail';
+import ManualFastTrackModal from '../../../components/manager/FastTrack/ManualFastTrackModal';
 import UserVerificationReviewModal from '../../../components/verification/UserVerificationReviewModal';
-import { Zap, Clock, CheckCircle2, AlertOctagon, RefreshCw, FileUp, Search } from 'lucide-react';
+import { Zap, Clock, CheckCircle2, AlertOctagon, RefreshCw, FileUp, Search, Plus } from 'lucide-react';
 import BackButton from '../../../components/ui/BackButton';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '../../../contexts/WorkspaceSyncContext';
 import { messagesService } from '../../../services/messagesService';
+import { WORKSPACE_SYNC_TAGS } from '../../../lib/workspaceSync';
 import {
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
@@ -31,8 +37,10 @@ import {
     buildDocumentsFromVerification,
     buildVerificationSummary,
     canRequestLeadDocuments,
+    deriveLiveFastTrackDocumentPhase,
     deriveLiveFastTrackCurrentStep,
     FAST_TRACK_STEP_META,
+    filterDocumentsForLead,
     formatLeadStage,
     needsFastTrackCaseAttention,
     resolveLeadStage,
@@ -41,6 +49,7 @@ import {
     buildManagerFastTrackSearchParams,
     resolveManagerFastTrackSelection,
 } from '../../../lib/managerFastTrack';
+import { DELETED_FAST_TRACK_CASE_MESSAGE } from '../../../lib/fastTrackCaseContext';
 import { resolveFastTrackLinkedJourney, type FastTrackLinkedJourney } from '../../../lib/fastTrackLinkedJourney';
 import type { Contract } from '../../../types/booking';
 
@@ -51,6 +60,40 @@ type ManagerFastTrackCase = FastTrackCase & {
     leadStatusLabel: string;
     documentsReady: boolean;
     linkedJourney: FastTrackLinkedJourney;
+};
+
+const toStoredFastTrackDocumentStatus = (status: 'missing' | 'uploaded' | 'verified' | 'reupload_required'): DocStatus => {
+    switch (status) {
+        case 'verified':
+            return 'verified';
+        case 'uploaded':
+            return 'uploaded';
+        case 'reupload_required':
+            return 'reupload_required';
+        default:
+            return 'pending';
+    }
+};
+
+const buildFastTrackCaseDocumentUpdate = (
+    caseItem: FastTrackCase,
+    documents: UserVerificationDetails['documents'] = [],
+) => {
+    const items = buildFastTrackDocumentItems(documents, caseItem.documents);
+    const nextDocuments = {
+        identityProof: toStoredFastTrackDocumentStatus(items.find((item) => item.id === 'identity')?.status || 'missing'),
+        addressProof: toStoredFastTrackDocumentStatus(items.find((item) => item.id === 'address')?.status || 'missing'),
+    };
+    const nextStep = items.every((item) => item.status === 'verified')
+        ? 'documents_verified'
+        : items.some((item) => item.status === 'uploaded' || item.status === 'reupload_required') || caseItem.currentStep === 'documents_requested'
+            ? 'documents_requested'
+            : 'property_selected';
+
+    return {
+        current_step: nextStep,
+        documents: nextDocuments,
+    };
 };
 
 const safeLoad = async <T,>(loader: () => Promise<T>) => {
@@ -71,139 +114,172 @@ const FastTrackDashboard = () => {
     const [selectedVerificationDetails, setSelectedVerificationDetails] = useState<UserVerificationDetails | null>(null);
     const [requestingLeadId, setRequestingLeadId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isRefreshingCases, setIsRefreshingCases] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
+    const fetchInFlightRef = useRef(false);
+    const queuedSilentRefreshRef = useRef(false);
+    const manualModalWasOpenRef = useRef(false);
+    const removedCaseNoticeRef = useRef<string | null>(null);
+    const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const fetchCases = useCallback(async (silent: boolean = false) => {
-        if (!silent) {
-            setLoading(true);
-            setError(null);
-        }
-
-        const [casesResult, leadsResult, verificationResult] = await Promise.all([
-            getFastTrackCases(),
-            getBrokerLeads(),
-            getPendingUserVerifications('manager'),
-        ]);
-        const [
-            applicationsResult,
-            viewingsResult,
-            contractsResult,
-            saleProgressionsResult,
-            paymentsResult,
-            invoicesResult,
-        ] = await Promise.all([
-            getApplications({ suppressErrorToast: true }),
-            safeLoad(() => getViewings()),
-            safeLoad(async () => {
-                const result = await getUserContracts();
-                if (result.error) {
-                    throw new Error(result.error);
-                }
-
-                return result.data || [];
-            }),
-            getSaleProgressions(),
-            safeLoad(async () => {
-                const result = await getManagerPayments();
-                return Array.isArray(result?.data) ? result.data : [];
-            }),
-            safeLoad(async () => {
-                const result = await getManagerInvoices();
-                return Array.isArray(result?.data) ? result.data : [];
-            }),
-        ]);
-
-        if (casesResult.error || leadsResult.error || verificationResult.error) {
-            if (!silent) {
-                setError(casesResult.error || leadsResult.error || verificationResult.error || 'Failed to fetch cases');
-            }
-            if (!silent) {
-                setLoading(false);
+        if (fetchInFlightRef.current) {
+            if (silent) {
+                queuedSilentRefreshRef.current = true;
             }
             return;
         }
 
-        const leads = leadsResult.data || [];
-        const verificationInfos = verificationResult.data || [];
-        const applications = applicationsResult.data || [];
-        const viewings = viewingsResult.data || [];
-        const contracts = contractsResult.data || [];
-        const saleProgressions = saleProgressionsResult.data || [];
-        const payments = paymentsResult.data || [];
-        const invoices = invoicesResult.data || [];
-        const leadById = new Map<string, Lead>();
-        const leadByCaseKey = new Map<string, Lead>();
-        const verificationByUserId = new Map<string, UserVerificationInfo>();
-
-        leads.forEach((lead) => {
-            leadById.set(lead.id, lead);
-
-            const key = buildCaseKey(lead.property_id, lead.user_id);
-            const existing = leadByCaseKey.get(key);
-            if (!existing || new Date(existing.updated_at).getTime() < new Date(lead.updated_at).getTime()) {
-                leadByCaseKey.set(key, lead);
-            }
-        });
-
-        verificationInfos.forEach((entry) => {
-            verificationByUserId.set(entry.user_id, entry);
-        });
-
-        const nextCases = (casesResult.data || []).map((caseItem) => {
-            const matchingLead = caseItem.leadId
-                ? (leadById.get(caseItem.leadId) || null)
-                : (leadByCaseKey.get(buildCaseKey(caseItem.propertyId, caseItem.clientId)) || null);
-            const verificationInfo = verificationByUserId.get(caseItem.clientId) || null;
-            const documents = matchingLead?.documents_verified
-                ? {
-                    identityProof: 'verified' as const,
-                    addressProof: 'verified' as const,
-                }
-                : buildDocumentsFromVerification(verificationInfo, caseItem.documents);
-            const linkedJourney = resolveFastTrackLinkedJourney(caseItem, {
-                applications: applications as Application[],
-                viewings: viewings as Viewing[],
-                contracts: contracts as Contract[],
-                saleProgressions: saleProgressions as SaleProgression[],
-                payments,
-                invoices,
-            });
-            const liveCurrentStep = deriveLiveFastTrackCurrentStep(
-                caseItem.currentStep,
-                [],
-                documents,
-                {
-                    finalStatus: caseItem.finalStatus,
-                    journeyType: caseItem.journeyType,
-                    jurisdiction: caseItem.jurisdiction,
-                    linkedJourney,
-                    liveStage: caseItem.liveStage,
-                },
-            );
-            const liveMeta = FAST_TRACK_STEP_META[liveCurrentStep];
-            const preferredAction = caseItem.nextActions?.[0] || linkedJourney.nextActions?.[0] || null;
-
-            return {
-                ...caseItem,
-                currentStep: liveCurrentStep,
-                documents,
-                matchingLead,
-                verificationInfo,
-                verificationSummary: buildVerificationSummary(verificationInfo, matchingLead, documents),
-                leadStatusLabel: formatLeadStage(resolveLeadStage(matchingLead)),
-                documentsReady: Object.values(documents).every((status) => status === 'verified'),
-                nextAction: preferredAction?.label || linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
-                statusReason: caseItem.journeyStatusReason || linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
-                linkedJourney,
-            };
-        });
-
-        setCases(nextCases);
-        setError(null);
+        fetchInFlightRef.current = true;
+        setIsRefreshingCases(true);
 
         if (!silent) {
-            setLoading(false);
+            setLoading(true);
+            setError(null);
+        }
+        try {
+            const requestOptions = silent ? { suppressErrorToast: true } : {};
+            const [casesResult, leadsResult, verificationResult] = await Promise.all([
+                getFastTrackCases(requestOptions),
+                getBrokerLeads(undefined, requestOptions),
+                getPendingUserVerifications('manager', requestOptions),
+            ]);
+            const [
+                applicationsResult,
+                viewingsResult,
+                contractsResult,
+                saleProgressionsResult,
+                paymentsResult,
+                invoicesResult,
+            ] = await Promise.all([
+                getApplications(requestOptions),
+                safeLoad(() => getViewings(requestOptions)),
+                safeLoad(async () => {
+                    const result = await getUserContracts(requestOptions);
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
+
+                    return result.data || [];
+                }),
+                getSaleProgressions(requestOptions),
+                safeLoad(async () => {
+                    const result = await getManagerPayments(requestOptions);
+                    return Array.isArray(result?.data) ? result.data : [];
+                }),
+                safeLoad(async () => {
+                    const result = await getManagerInvoices(requestOptions);
+                    return Array.isArray(result?.data) ? result.data : [];
+                }),
+            ]);
+
+            if (casesResult.error || leadsResult.error || verificationResult.error) {
+                if (!silent) {
+                    setError(casesResult.error || leadsResult.error || verificationResult.error || 'Failed to fetch cases');
+                }
+                return;
+            }
+
+            const leads = leadsResult.data || [];
+            const verificationInfos = verificationResult.data || [];
+            const applications = applicationsResult.data || [];
+            const viewings = viewingsResult.data || [];
+            const contracts = contractsResult.data || [];
+            const saleProgressions = saleProgressionsResult.data || [];
+            const payments = paymentsResult.data || [];
+            const invoices = invoicesResult.data || [];
+            const leadById = new Map<string, Lead>();
+            const leadByCaseKey = new Map<string, Lead>();
+            const verificationByUserId = new Map<string, UserVerificationInfo>();
+
+            leads.forEach((lead) => {
+                leadById.set(lead.id, lead);
+
+                const key = buildCaseKey(lead.property_id, lead.user_id);
+                const existing = leadByCaseKey.get(key);
+                if (!existing || new Date(existing.updated_at).getTime() < new Date(lead.updated_at).getTime()) {
+                    leadByCaseKey.set(key, lead);
+                }
+            });
+
+            verificationInfos.forEach((entry) => {
+                verificationByUserId.set(entry.user_id, entry);
+            });
+
+            const nextCases = (casesResult.data || []).map((caseItem) => {
+                const matchingLead = caseItem.leadId
+                    ? (leadById.get(caseItem.leadId) || null)
+                    : (leadByCaseKey.get(buildCaseKey(caseItem.propertyId, caseItem.clientId)) || null);
+                const verificationInfo = verificationByUserId.get(caseItem.clientId) || null;
+                const documents = matchingLead?.documents_verified
+                    ? {
+                        identityProof: 'verified' as const,
+                        addressProof: 'verified' as const,
+                    }
+                    : buildDocumentsFromVerification(null, caseItem.documents);
+                const documentsReady = Object.values(documents).every((status) => status === 'verified');
+                const stageLead = documentsReady && matchingLead
+                    ? { ...matchingLead, documents_verified: true }
+                    : matchingLead;
+                const linkedJourney = resolveFastTrackLinkedJourney(caseItem, {
+                    applications: applications as Application[],
+                    viewings: viewings as Viewing[],
+                    contracts: contracts as Contract[],
+                    saleProgressions: saleProgressions as SaleProgression[],
+                    payments,
+                    invoices,
+                });
+                const liveCurrentStep = deriveLiveFastTrackCurrentStep(
+                    caseItem.currentStep,
+                    [],
+                    documents,
+                    {
+                        finalStatus: caseItem.finalStatus,
+                        journeyType: caseItem.journeyType,
+                        jurisdiction: caseItem.jurisdiction,
+                        linkedJourney,
+                        liveStage: caseItem.liveStage,
+                    },
+                );
+                const documentPhase = deriveLiveFastTrackDocumentPhase([], documents, {
+                    currentStep: liveCurrentStep,
+                    backendPhase: caseItem.documentPhase,
+                });
+                const liveMeta = FAST_TRACK_STEP_META[liveCurrentStep];
+                const preferredAction = caseItem.nextActions?.[0] || linkedJourney.nextActions?.[0] || null;
+
+                return {
+                    ...caseItem,
+                    currentStep: liveCurrentStep,
+                    documents,
+                    documentPhase,
+                    matchingLead,
+                    verificationInfo,
+                    verificationSummary: buildVerificationSummary(verificationInfo, stageLead, documents),
+                    leadStatusLabel: formatLeadStage(resolveLeadStage(stageLead)),
+                    documentsReady,
+                    nextAction: preferredAction?.label || linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
+                    statusReason: caseItem.journeyStatusReason || linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
+                    linkedJourney,
+                };
+            });
+
+            setCases(nextCases);
+            setError(null);
+        } finally {
+            fetchInFlightRef.current = false;
+            setIsRefreshingCases(false);
+
+            if (!silent) {
+                setLoading(false);
+            }
+
+            if (queuedSilentRefreshRef.current) {
+                queuedSilentRefreshRef.current = false;
+                void fetchCases(true);
+            }
         }
     }, []);
 
@@ -211,13 +287,33 @@ const FastTrackDashboard = () => {
         void fetchCases();
     }, [fetchCases]);
 
-    useEffect(() => {
-        const interval = window.setInterval(() => {
-            void fetchCases(true);
-        }, 5000);
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.CASE_FILE,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+        ],
+        refresh: () => fetchCases(true),
+        enabled: !isManualFastTrackOpen,
+    });
 
-        return () => window.clearInterval(interval);
-    }, [fetchCases]);
+    useEffect(() => {
+        if (isManualFastTrackOpen) {
+            manualModalWasOpenRef.current = true;
+            return;
+        }
+
+        if (manualModalWasOpenRef.current) {
+            manualModalWasOpenRef.current = false;
+            void fetchCases(true);
+        }
+    }, [fetchCases, isManualFastTrackOpen]);
 
     useEffect(() => {
         setSelectedCaseId((previous) => resolveManagerFastTrackSelection(
@@ -228,33 +324,157 @@ const FastTrackDashboard = () => {
         ));
     }, [cases, searchParams]);
 
+    useEffect(() => {
+        if (!selectedCaseId) {
+            return;
+        }
+
+        const requestedCaseId = searchParams.get('case');
+        const requestedLeadId = searchParams.get('lead');
+        if (requestedCaseId === selectedCaseId && !requestedLeadId) {
+            return;
+        }
+
+        setSearchParams((previous) => buildManagerFastTrackSearchParams(previous, selectedCaseId));
+    }, [searchParams, selectedCaseId, setSearchParams]);
+
+    useEffect(() => {
+        const requestedCaseId = searchParams.get('case');
+        if (loading || !requestedCaseId || selectedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== requestedCaseId) {
+            removedCaseNoticeRef.current = requestedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => {
+            const next = new URLSearchParams(previous);
+            next.delete('case');
+            return next;
+        });
+    }, [loading, searchParams, selectedCaseId, setSearchParams, toast]);
+
     const selectedCase = useMemo(
         () => cases.find((caseItem) => caseItem.caseId === selectedCaseId) || null,
         [cases, selectedCaseId],
     );
+    const selectedCaseVerificationDocuments = useMemo(
+        () => filterDocumentsForLead(
+            selectedVerificationDetails?.documents || [],
+            selectedCase?.leadId || selectedCase?.matchingLead?.id,
+        ),
+        [selectedCase?.leadId, selectedCase?.matchingLead?.id, selectedVerificationDetails?.documents],
+    );
     const selectedCaseDocuments = useMemo(
         () => selectedCase
-            ? buildDocumentsFromDetails(selectedVerificationDetails?.documents || [], selectedCase.documents)
+            ? buildDocumentsFromDetails(
+                selectedCaseVerificationDocuments,
+                selectedCase.documents,
+            )
             : null,
-        [selectedCase, selectedVerificationDetails?.documents],
+        [selectedCase, selectedCaseVerificationDocuments],
     );
     const selectedCaseDocumentItems = useMemo(
-        () => buildFastTrackDocumentItems(selectedVerificationDetails?.documents || [], selectedCaseDocuments || {
-            identityProof: 'pending',
-            addressProof: 'pending',
-        }),
-        [selectedCaseDocuments, selectedVerificationDetails?.documents],
+        () => buildFastTrackDocumentItems(
+            selectedCaseVerificationDocuments,
+            selectedCaseDocuments || {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        [selectedCaseDocuments, selectedCaseVerificationDocuments],
     );
     const selectedCaseVerificationContent = useMemo(
         () => buildFastTrackVerificationContent(selectedCaseDocumentItems),
         [selectedCaseDocumentItems],
     );
-    const selectedCaseLeadStatusLabel = useMemo(
-        () => selectedCase
-            ? formatLeadStage(resolveLeadStage(selectedCase.matchingLead, selectedVerificationDetails?.documents || []))
-            : '',
-        [selectedCase, selectedVerificationDetails?.documents],
-    );
+    const selectedCaseDetail = useMemo(() => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        const documents = selectedCaseDocuments || selectedCase.documents;
+        const documentsReady = Object.values(documents).every((status) => status === 'verified');
+        const leadForStage = documentsReady && selectedCase.matchingLead
+            ? { ...selectedCase.matchingLead, documents_verified: true }
+            : selectedCase.matchingLead;
+        const currentStep = deriveLiveFastTrackCurrentStep(
+            selectedCase.currentStep,
+            selectedCaseVerificationDocuments,
+            documents,
+            {
+                finalStatus: selectedCase.finalStatus,
+                journeyType: selectedCase.journeyType,
+                jurisdiction: selectedCase.jurisdiction,
+                linkedJourney: selectedCase.linkedJourney,
+                liveStage: selectedCase.liveStage,
+            },
+        );
+        const documentPhase = deriveLiveFastTrackDocumentPhase(
+            selectedCaseVerificationDocuments,
+            documents,
+            {
+                currentStep,
+                backendPhase: selectedCase.documentPhase,
+            },
+        );
+        const liveMeta = FAST_TRACK_STEP_META[currentStep];
+        const preferredAction = selectedCase.nextActions?.[0] || selectedCase.linkedJourney.nextActions?.[0] || null;
+        let nextAction = preferredAction?.label || selectedCase.linkedJourney.nextStep || selectedCase.nextAction || liveMeta.label;
+        let statusReason = selectedCase.journeyStatusReason || selectedCase.linkedJourney.primarySummary || selectedCase.statusReason || liveMeta.description;
+
+        if (currentStep === 'documents_verified') {
+            nextAction = selectedCase.linkedJourney.viewing ? 'Open appointments workspace' : 'Schedule viewing';
+            statusReason = selectedCase.linkedJourney.viewing
+                ? 'Verification documents are approved and the live viewing should now be managed from appointments.'
+                : liveMeta.description;
+        } else if (currentStep === 'documents_requested') {
+            if (documentPhase === 'uploaded_under_review') {
+                nextAction = 'Review uploaded documents';
+                statusReason = 'The user has uploaded the requested documents. Review the latest files and approve or request replacements.';
+            } else if (documentPhase === 'replacement_required') {
+                nextAction = 'Review replacement request';
+                statusReason = 'At least one uploaded document needs a replacement before the case can be verified.';
+            } else {
+                nextAction = 'Waiting for user uploads';
+                statusReason = 'Verification documents have been requested and the case is waiting for the user to upload them.';
+            }
+        } else if (currentStep === 'property_selected') {
+            nextAction = canRequestLeadDocuments(selectedCase.matchingLead, selectedCaseVerificationDocuments)
+                ? 'Request documents'
+                : selectedCase.nextAction || 'Open the live workspace';
+            statusReason = 'The property is selected and the 24-hour case is active, but verification documents have not been requested yet.';
+        } else if (currentStep === 'viewing_scheduled' && selectedCase.linkedJourney.viewing) {
+            nextAction = 'Open appointments workspace';
+            statusReason = selectedCase.linkedJourney.primarySummary || 'The viewing is booked. Manage confirmations and follow-up from the appointments workspace.';
+        }
+
+        return {
+            ...selectedCase,
+            currentStep,
+            documents,
+            documentPhase,
+            documentsReady,
+            verificationSummary: selectedVerificationDetails
+                ? currentStep === 'property_selected'
+                    ? 'Documents not requested yet'
+                    : currentStep === 'documents_requested' && documentPhase === 'waiting_for_upload'
+                        ? 'Documents requested. Waiting for user uploads.'
+                        : selectedCaseVerificationContent.summary
+                : buildVerificationSummary(selectedCase.verificationInfo, leadForStage, documents),
+            leadStatusLabel: formatLeadStage(resolveLeadStage(leadForStage, selectedCaseVerificationDocuments)),
+            nextAction,
+            statusReason,
+        };
+    }, [
+        selectedCase,
+        selectedCaseDocuments,
+        selectedCaseVerificationDocuments,
+        selectedCaseVerificationContent.summary,
+        selectedVerificationDetails,
+    ]);
 
     useEffect(() => {
         if (!selectedCase?.clientId) {
@@ -282,6 +502,27 @@ const FastTrackDashboard = () => {
         setSearchParams((previous) => buildManagerFastTrackSearchParams(previous, caseId));
     }, [setSearchParams]);
 
+    const handleManualFastTrackCreated = useCallback(async (createdCase: FastTrackCase) => {
+        publishWorkspaceSync({
+            source: 'mutation',
+            tags: [
+                WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                WORKSPACE_SYNC_TAGS.LEADS,
+                WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+            ],
+            reason: 'Manager created fast-track case',
+            ids: {
+                caseId: createdCase.caseId,
+                leadId: createdCase.leadId,
+                propertyId: createdCase.propertyId,
+                applicationId: createdCase.applicationId,
+            },
+        });
+        await fetchCases(true);
+        handleSelectCase(createdCase.caseId);
+    }, [fetchCases, handleSelectCase, publishWorkspaceSync]);
+
     const handleUpdateCase = async (updatedCase: FastTrackCase) => {
         setCases((previous) => previous.map((caseItem) => (
             caseItem.caseId === updatedCase.caseId
@@ -293,6 +534,8 @@ const FastTrackDashboard = () => {
                     nextAction: updatedCase.nextAction,
                     nextActionTarget: updatedCase.nextActionTarget,
                     statusReason: updatedCase.statusReason,
+                    documentPhase: updatedCase.documentPhase,
+                    documentPhaseReason: updatedCase.documentPhaseReason,
                     pendingRequirements: updatedCase.pendingRequirements,
                     completedRequirements: updatedCase.completedRequirements,
                     overrideReason: updatedCase.overrideReason,
@@ -316,6 +559,27 @@ const FastTrackDashboard = () => {
             return;
         }
 
+        publishWorkspaceSync({
+            source: 'mutation',
+            tags: [
+                WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                WORKSPACE_SYNC_TAGS.CASE_FILE,
+                WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                WORKSPACE_SYNC_TAGS.VIEWINGS,
+                WORKSPACE_SYNC_TAGS.CONTRACTS,
+                WORKSPACE_SYNC_TAGS.PAYMENTS,
+                WORKSPACE_SYNC_TAGS.LEADS,
+            ],
+            reason: 'Manager updated fast-track case',
+            ids: {
+                caseId: updatedCase.caseId,
+                leadId: updatedCase.leadId,
+                propertyId: updatedCase.propertyId,
+                applicationId: updatedCase.applicationId,
+                viewingId: updatedCase.viewingId,
+                contractId: updatedCase.contractId,
+            },
+        });
         toast.success('Case updated successfully');
         void fetchCases(true);
     };
@@ -336,7 +600,11 @@ const FastTrackDashboard = () => {
             active: cases.filter((caseItem) => caseItem.finalStatus === 'in_progress').length,
             completedToday: cases.filter((caseItem) => caseItem.finalStatus === 'completed').length,
             attention: cases.filter((caseItem) => needsFastTrackCaseAttention(caseItem)).length,
-            reviewQueue: cases.filter((caseItem) => caseItem.finalStatus === 'in_progress' && !caseItem.documentsReady && caseItem.verificationSummary !== 'Awaiting user uploads').length,
+            reviewQueue: cases.filter((caseItem) => (
+                caseItem.finalStatus === 'in_progress'
+                && !caseItem.documentsReady
+                && ['uploaded_under_review', 'replacement_required'].includes(caseItem.documentPhase || 'not_requested')
+            )).length,
         };
     }, [cases]);
 
@@ -355,7 +623,7 @@ const FastTrackDashboard = () => {
             toast.error('This fast-track case does not have a live user lead yet.');
             return;
         }
-        if (!canRequestLeadDocuments(caseItem.matchingLead, selectedVerificationDetails?.documents || [])) {
+        if (!canRequestLeadDocuments(caseItem.matchingLead, selectedCaseVerificationDocuments)) {
             toast.error('This case has already moved beyond the live document-request stage.');
             return;
         }
@@ -386,6 +654,33 @@ const FastTrackDashboard = () => {
                 type: 'text',
             });
 
+            const { error: syncError } = await updateFastTrackCase(caseItem.id, {
+                current_step: 'documents_requested',
+                documents: {
+                    identityProof: 'pending',
+                    addressProof: 'pending',
+                },
+            });
+            if (syncError) {
+                toast.warning('Document request sent, but the fast-track stage could not refresh automatically.');
+            }
+
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                    WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                    WORKSPACE_SYNC_TAGS.CASE_FILE,
+                    WORKSPACE_SYNC_TAGS.MESSAGES,
+                ],
+                reason: 'Manager requested fast-track documents',
+                ids: {
+                    caseId: caseItem.caseId,
+                    leadId: caseItem.matchingLead.id,
+                    propertyId: caseItem.propertyId,
+                },
+            });
             toast.success('Document request sent and synced with the live case.');
             await fetchCases(true);
         } catch (error: any) {
@@ -393,30 +688,30 @@ const FastTrackDashboard = () => {
         } finally {
             setRequestingLeadId(null);
         }
-    }, [fetchCases, selectedVerificationDetails?.documents, toast, user]);
+    }, [fetchCases, publishWorkspaceSync, selectedCaseVerificationDocuments, toast, user]);
 
-    if (selectedCase) {
+    if (selectedCase && selectedCaseDetail) {
         return (
             <>
                 <div className="h-[calc(100vh-100px)] min-h-0 overflow-hidden animate-in slide-in-from-right duration-300">
                     <FastTrackCaseDetail
-                        caseData={selectedCaseDocuments ? { ...selectedCase, documents: selectedCaseDocuments } : selectedCase}
+                        caseData={selectedCaseDetail}
                         onClose={handleCloseSelectedCase}
                         onUpdate={handleUpdateCase}
-                        verificationSummary={selectedVerificationDetails ? selectedCaseVerificationContent.summary : selectedCase.verificationSummary}
+                        verificationSummary={selectedCaseDetail.verificationSummary}
                         verificationReasonLines={selectedVerificationDetails ? selectedCaseVerificationContent.reasonLines : []}
-                        leadStatusLabel={selectedVerificationDetails ? selectedCaseLeadStatusLabel : selectedCase.leadStatusLabel}
-                        linkedJourney={selectedCase.linkedJourney}
+                        leadStatusLabel={selectedCaseDetail.leadStatusLabel}
+                        linkedJourney={selectedCaseDetail.linkedJourney}
                         onOpenVerificationReview={selectedCase.clientId ? () => setSelectedVerificationUserId(selectedCase.clientId) : undefined}
                         onRequestDocuments={selectedCase.matchingLead ? () => {
                             void handleRequestDocuments(selectedCase);
                         } : undefined}
                         onRefresh={() => fetchCases(true)}
-                        canRequestDocuments={canRequestLeadDocuments(selectedCase.matchingLead, selectedVerificationDetails?.documents || [])}
+                        canRequestDocuments={canRequestLeadDocuments(selectedCase.matchingLead, selectedCaseVerificationDocuments)}
                         isRequestingDocuments={requestingLeadId === selectedCase.matchingLead?.id}
                         isDocumentsVerifiedOverride={selectedVerificationDetails
                             ? selectedCaseDocumentItems.every((item) => item.status === 'verified')
-                            : selectedCase.documentsReady}
+                            : selectedCaseDetail.documentsReady}
                     />
                 </div>
                 {selectedVerificationUserId && (
@@ -425,11 +720,33 @@ const FastTrackDashboard = () => {
                         userId={selectedVerificationUserId}
                         variant="fast_track"
                         onUpdated={async () => {
-                            await fetchCases(true);
                             if (selectedCase.clientId) {
                                 const { data } = await getUserVerificationDetails('manager', selectedCase.clientId);
                                 setSelectedVerificationDetails(data);
+                                if (data?.documents) {
+                                    const scopedDocuments = filterDocumentsForLead(data.documents, selectedCase.leadId || selectedCase.matchingLead?.id);
+                                    const { error: syncError } = await updateFastTrackCase(selectedCase.caseId, buildFastTrackCaseDocumentUpdate(selectedCase, scopedDocuments));
+                                    if (syncError) {
+                                        toast.warning('Verification was saved, but the fast-track stage could not refresh automatically.');
+                                    }
+                                    publishWorkspaceSync({
+                                        source: 'mutation',
+                                        tags: [
+                                            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                                            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                                            WORKSPACE_SYNC_TAGS.CASE_FILE,
+                                            WORKSPACE_SYNC_TAGS.LEADS,
+                                        ],
+                                        reason: 'Manager reviewed fast-track verification',
+                                        ids: {
+                                            caseId: selectedCase.caseId,
+                                            leadId: selectedCase.leadId,
+                                            propertyId: selectedCase.propertyId,
+                                        },
+                                    });
+                                }
                             }
+                            await fetchCases(true);
                         }}
                         onClose={() => {
                             setSelectedVerificationUserId(null);
@@ -457,17 +774,27 @@ const FastTrackDashboard = () => {
                             </div>
                         </div>
 
-                        <div className="relative w-full md:w-80">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search size={18} className="text-gray-400" />
+                        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center">
+                            <button
+                                onClick={() => setIsManualFastTrackOpen(true)}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                <Plus size={16} />
+                                Add 24h case
+                            </button>
+
+                            <div className="relative w-full md:w-80">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={18} className="text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Search by client or property..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
+                                />
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Search by client or property..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
-                            />
                         </div>
                     </div>
                 </div>
@@ -554,10 +881,27 @@ const FastTrackDashboard = () => {
                                     ? `We couldn't find any cases matching "${searchQuery}".`
                                     : "There are currently no fast track cases assigned to you. When new cases are created, they will appear here in the priority queue."}
                             </p>
+                            {!searchQuery && (
+                                <button
+                                    onClick={() => setIsManualFastTrackOpen(true)}
+                                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                                >
+                                    <Plus size={16} />
+                                    Add 24h case manually
+                                </button>
+                            )}
                         </div>
                     ) : null}
                 </div>
             </div>
+
+            <ManualFastTrackModal
+                open={isManualFastTrackOpen}
+                existingCases={cases}
+                backgroundBusy={isRefreshingCases}
+                onClose={() => setIsManualFastTrackOpen(false)}
+                onCreated={handleManualFastTrackCreated}
+            />
         </div>
     );
 };

@@ -28,6 +28,7 @@ import {
 } from '@/services/userVerificationService';
 import { openDocumentAccessUrl } from '@/services/documentAccessService';
 import { useToast } from '@/contexts/ToastContext';
+import Avatar from '@/components/ui/Avatar';
 import {
     canCompleteFastTrackVerification,
     getLatestFastTrackReviewDocuments,
@@ -87,6 +88,47 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         ? canCompleteFastTrackVerification(details?.documents || [])
         : latestDocuments.has('identity') && latestDocuments.has('address');
 
+    const getDocumentReviewSuccessMessage = (
+        status: 'approved' | 'reupload_required',
+    ) => {
+        if (isFastTrackReview) {
+            return status === 'approved'
+                ? 'Document approved. Fast-track status has been refreshed.'
+                : 'Replacement requested. The fast-track case now reflects the requested re-upload.';
+        }
+
+        return status === 'approved'
+            ? 'Document approved successfully.'
+            : 'Replacement requested successfully.';
+    };
+
+    const getVerificationSuccessMessage = (status: 'verified' | 'rejected') => {
+        if (isFastTrackReview) {
+            return status === 'verified'
+                ? 'Fast-track verification completed successfully.'
+                : 'Fast-track verification revoked successfully.';
+        }
+
+        return status === 'verified'
+            ? 'User verification approved successfully.'
+            : 'User verification revoked successfully.';
+    };
+
+    const refreshAfterSuccessfulAction = useCallback(async () => {
+        await fetchDetails();
+
+        if (!onUpdated) {
+            return;
+        }
+
+        try {
+            await onUpdated();
+        } catch (refreshError) {
+            console.error('Verification review refresh failed after a successful action.', refreshError);
+            toast.warning('Saved successfully, but the fast-track view could not refresh automatically. Please reopen the review if the status looks stale.');
+        }
+    }, [fetchDetails, onUpdated, toast]);
+
     const handleDocumentReview = async (
         documentId: string,
         status: 'approved' | 'reupload_required',
@@ -101,8 +143,8 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             return;
         }
 
-        await fetchDetails();
-        await onUpdated?.();
+        toast.success(getDocumentReviewSuccessMessage(status));
+        await refreshAfterSuccessfulAction();
     };
 
     const handleVerificationUpdate = async (status: 'verified' | 'rejected') => {
@@ -115,7 +157,8 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             return;
         }
 
-        await onUpdated?.();
+        toast.success(getVerificationSuccessMessage(status));
+        await refreshAfterSuccessfulAction();
         onClose();
     };
 
@@ -162,9 +205,14 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         <ModalWrapper onClose={onClose}>
             <div className="p-6 border-b border-gray-100 dark:border-gray-700">
                 <div className="flex items-center gap-4">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl text-white ${isAdmin ? 'bg-gradient-to-br from-orange-500 to-amber-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
-                        {details.user.full_name.charAt(0).toUpperCase()}
-                    </div>
+                    <Avatar
+                        userId={details.user.user_id}
+                        src={details.user.avatar}
+                        name={details.user.full_name}
+                        size="xl"
+                        shape="rounded"
+                        fallbackClassName={isAdmin ? 'from-orange-500 to-amber-600' : 'from-blue-500 to-indigo-600'}
+                    />
                     <div className="flex-1">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                             {isFastTrackReview ? `Fast-track review for ${details.user.full_name}` : details.user.full_name}

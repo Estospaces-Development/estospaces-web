@@ -10,6 +10,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 // --- Types & Interfaces ---
 
@@ -140,6 +141,8 @@ const buildJourneyKey = (payload: {
     return `property:${payload.propertyId || 'unknown'}:user:${payload.userId || 'unknown'}`;
 };
 
+const TIMELINE_PAGE_SIZE = 4;
+
 
 
 // --- Subcomponents ---
@@ -213,6 +216,8 @@ const ApplicationTimelineWidget = () => {
     const [loading, setLoading] = useState(true);
     const [applications, setApplications] = useState<ApplicationItem[]>([]);
     const [listings, setListings] = useState<ApplicationItem[]>([]);
+    const [applicationsPage, setApplicationsPage] = useState(1);
+    const [listingsPage, setListingsPage] = useState(1);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -495,7 +500,41 @@ const ApplicationTimelineWidget = () => {
         fetchData();
     }, []);
 
+    useEffect(() => {
+        const applicationsTotalPages = Math.max(1, Math.ceil(applications.length / TIMELINE_PAGE_SIZE));
+        const listingsTotalPages = Math.max(1, Math.ceil(listings.length / TIMELINE_PAGE_SIZE));
+
+        if (applicationsPage > applicationsTotalPages) {
+            setApplicationsPage(applicationsTotalPages);
+        }
+
+        if (listingsPage > listingsTotalPages) {
+            setListingsPage(listingsTotalPages);
+        }
+    }, [applications.length, applicationsPage, listings.length, listingsPage]);
+
     const dataToShow = activeTab === 'applications' ? applications : listings;
+    const activePage = activeTab === 'applications' ? applicationsPage : listingsPage;
+    const totalPages = Math.max(1, Math.ceil(dataToShow.length / TIMELINE_PAGE_SIZE));
+    const currentPageItems = dataToShow.slice(
+        (activePage - 1) * TIMELINE_PAGE_SIZE,
+        activePage * TIMELINE_PAGE_SIZE,
+    );
+
+    const handleTabChange = (tab: 'applications' | 'listings') => {
+        setActiveTab(tab);
+        setExpandedId(null);
+    };
+
+    const handlePageChange = (page: number) => {
+        setExpandedId(null);
+        if (activeTab === 'applications') {
+            setApplicationsPage(page);
+            return;
+        }
+
+        setListingsPage(page);
+    };
 
     const getStageColor = (status: string | undefined, color: string) => {
         if (status === 'completed') return 'bg-green-500 border-green-500 text-white';
@@ -536,10 +575,10 @@ const ApplicationTimelineWidget = () => {
                     </div>
 
                     <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1.5">
-                        <button onClick={() => setActiveTab('applications')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'applications' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+                        <button onClick={() => handleTabChange('applications')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'applications' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
                             My Applications ({applications.length})
                         </button>
-                        <button onClick={() => setActiveTab('listings')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'listings' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+                        <button onClick={() => handleTabChange('listings')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'listings' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
                             My Listings ({listings.length})
                         </button>
                     </div>
@@ -559,103 +598,118 @@ const ApplicationTimelineWidget = () => {
                         <p className="text-gray-500 dark:text-gray-400 mb-4">Start your property journey today</p>
                     </div>
                 ) : (
-                    dataToShow.map((item) => (
-                        <div key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                            <div className="px-6 py-5 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-                                <div className="flex items-start gap-5">
-                                    <div className="relative flex-shrink-0">
-                                        {item.property.image_urls[0] ? (
-                                            <img src={item.property.image_urls[0]} alt={item.property.title} className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700" />
-                                        ) : (
-                                            <div className="w-20 h-20 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
-                                                <FileText size={24} />
-                                            </div>
-                                        )}
-                                        <span className={`absolute -bottom-1 -left-1 px-2 py-0.5 text-[10px] font-bold rounded-md uppercase shadow-sm ${item.type === 'buy' ? 'bg-blue-500' : item.type === 'rent' ? 'bg-purple-500' : 'bg-green-500'} text-white`}>
-                                            {item.type}
-                                        </span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <div>
-                                                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{item.property.title}</h3>
-                                                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-bold text-xl text-gray-900 dark:text-white">
-                                                    {item.property.priceLabel || formatPropertyPrice(item.property.price)}
-                                                </p>
-                                                <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 mt-3">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
-                                                        {item.progress >= 75 ? <CheckCircle2 size={14} /> : <Clock size={14} />}
-                                                    </div>
-                                                    <span className="font-semibold text-gray-900 dark:text-white">{item.currentStage}</span>
-                                                    <span className="text-sm text-gray-400">Step {item.currentStageNumber} of {item.totalStages}</span>
-                                                </div>
-                                                <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                    <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500" style={{ width: `${item.progress}%` }} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <ChevronDown size={20} className={`text-gray-400 transition-transform duration-200 ${expandedId === item.id ? 'rotate-180' : ''}`} />
-                                </div>
-                            </div>
-
-                            {expandedId === item.id && (
-                                <div className="px-6 pb-6 animate-fadeIn">
-                                    <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 mb-5">
-                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-orange-500" /> Complete Journey Progress</h4>
-                                        <div className="relative space-y-4">
-                                            <div className="absolute left-5 top-4 bottom-4 w-0.5 bg-gray-200 dark:bg-gray-700" />
-                                            {item.stages?.map((stage, idx) => (
-                                                <div key={idx} className="relative flex items-start gap-4">
-                                                    <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-gray-900 ring-4 ring-gray-50 dark:ring-gray-800 ${getStageColor(stage.status, stage.color)}`}>
-                                                        <StageIcon stage={stage} size={16} />
-                                                    </div>
-                                                    <div className="flex-1 pb-2">
-                                                        <h5 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h5>
-                                                        <p className="text-sm text-gray-600 dark:text-gray-400">{stage.description}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {item.timeline && (
-                                        <div className="mb-5">
-                                            <button onClick={(e) => { e.stopPropagation(); setShowTimeline(prev => ({ ...prev, [item.id]: !prev[item.id] })); }} className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                <span className="text-sm font-semibold flex items-center gap-2 text-gray-700 dark:text-gray-300"><Clock size={16} /> Activity Timeline</span>
-                                                <ChevronDown size={16} className={showTimeline[item.id] ? 'rotate-180' : ''} />
-                                            </button>
-                                            {showTimeline[item.id] && (
-                                                <div className="mt-3 space-y-2 pl-2">
-                                                    {item.timeline.map((event, idx) => <TimelineEvent key={idx} event={event} />)}
+                    <>
+                        {currentPageItems.map((item) => (
+                            <div key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+                                <div className="px-6 py-5 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                                    <div className="flex items-start gap-5">
+                                        <div className="relative flex-shrink-0">
+                                            {item.property.image_urls[0] ? (
+                                                <img src={item.property.image_urls[0]} alt={item.property.title} className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700" />
+                                            ) : (
+                                                <div className="w-20 h-20 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
+                                                    <FileText size={24} />
                                                 </div>
                                             )}
+                                            <span className={`absolute -bottom-1 -left-1 px-2 py-0.5 text-[10px] font-bold rounded-md uppercase shadow-sm ${item.type === 'buy' ? 'bg-blue-500' : item.type === 'rent' ? 'bg-purple-500' : 'bg-green-500'} text-white`}>
+                                                {item.type}
+                                            </span>
                                         </div>
-                                    )}
-
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => navigate(item.primaryActionPath || `/user/properties/${item.property.id}`)}
-                                            className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
-                                        >
-                                            {item.primaryActionLabel || 'View Property'} <ExternalLink size={14} />
-                                        </button>
-                                        {item.source !== 'broker_request' && (
-                                            <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
-                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div>
+                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{item.property.title}</h3>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold text-xl text-gray-900 dark:text-white">
+                                                        {item.property.priceLabel || formatPropertyPrice(item.property.price)}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-4 mt-3">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${item.progress >= 75 ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'}`}>
+                                                            {item.progress >= 75 ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                                                        </div>
+                                                        <span className="font-semibold text-gray-900 dark:text-white">{item.currentStage}</span>
+                                                        <span className="text-sm text-gray-400">Step {item.currentStageNumber} of {item.totalStages}</span>
+                                                    </div>
+                                                    <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                                        <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500" style={{ width: `${item.progress}%` }} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <ChevronDown size={20} className={`text-gray-400 transition-transform duration-200 ${expandedId === item.id ? 'rotate-180' : ''}`} />
                                     </div>
                                 </div>
-                            )}
+
+                                {expandedId === item.id && (
+                                    <div className="px-6 pb-6 animate-fadeIn">
+                                        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 mb-5">
+                                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-orange-500" /> Complete Journey Progress</h4>
+                                            <div className="relative space-y-4">
+                                                <div className="absolute left-5 top-4 bottom-4 w-0.5 bg-gray-200 dark:bg-gray-700" />
+                                                {item.stages?.map((stage, idx) => (
+                                                    <div key={idx} className="relative flex items-start gap-4">
+                                                        <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-gray-900 ring-4 ring-gray-50 dark:ring-gray-800 ${getStageColor(stage.status, stage.color)}`}>
+                                                            <StageIcon stage={stage} size={16} />
+                                                        </div>
+                                                        <div className="flex-1 pb-2">
+                                                            <h5 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h5>
+                                                            <p className="text-sm text-gray-600 dark:text-gray-400">{stage.description}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {item.timeline && (
+                                            <div className="mb-5">
+                                                <button onClick={(e) => { e.stopPropagation(); setShowTimeline(prev => ({ ...prev, [item.id]: !prev[item.id] })); }} className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <span className="text-sm font-semibold flex items-center gap-2 text-gray-700 dark:text-gray-300"><Clock size={16} /> Activity Timeline</span>
+                                                    <ChevronDown size={16} className={showTimeline[item.id] ? 'rotate-180' : ''} />
+                                                </button>
+                                                {showTimeline[item.id] && (
+                                                    <div className="mt-3 space-y-2 pl-2">
+                                                        {item.timeline.map((event, idx) => <TimelineEvent key={idx} event={event} />)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => navigate(item.primaryActionPath || `/user/properties/${item.property.id}`)}
+                                                className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2"
+                                            >
+                                                {item.primaryActionLabel || 'View Property'} <ExternalLink size={14} />
+                                            </button>
+                                            {item.source !== 'broker_request' && (
+                                                <button className="px-5 py-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold flex items-center gap-2"><MessageCircle size={14} /> Send Message</button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        <div className="bg-gradient-to-r from-orange-50/50 via-white to-orange-50/50 px-6 py-5 dark:from-orange-950/10 dark:via-gray-900 dark:to-orange-950/10">
+                            <PaginationBar
+                                currentPage={activePage}
+                                totalPages={totalPages}
+                                onPageChange={handlePageChange}
+                                totalItems={dataToShow.length}
+                                pageSize={TIMELINE_PAGE_SIZE}
+                                currentItemCount={currentPageItems.length}
+                                itemLabel={activeTab === 'applications' ? 'live journeys' : 'listings'}
+                                className="border-orange-100/80 bg-white/90 shadow-lg shadow-orange-100/40 dark:border-orange-900/20 dark:bg-gray-900/90 dark:shadow-none"
+                            />
                         </div>
-                    ))
+                    </>
                 )}
             </div>
         </div>

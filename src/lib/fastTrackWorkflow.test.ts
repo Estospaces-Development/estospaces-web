@@ -2,17 +2,22 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
     buildFastTrackDocumentItems,
+    buildDocumentsFromDetails,
     buildFastTrackVerificationContent,
     buildDocumentsFromVerification,
+    buildVerificationSummary,
     canRequestLeadDocuments,
     canCompleteFastTrackVerification,
+    deriveLiveFastTrackDocumentPhase,
     deriveLiveFastTrackCurrentStep,
+    filterDocumentsForLead,
     formatLeadStage,
     getLatestFastTrackReviewDocuments,
     getFastTrackStartAction,
     isFastTrackCaseOverdue,
     getLeadNeedsReupload,
     needsFastTrackCaseAttention,
+    normalizeFastTrackDocumentPhase,
     normalizeWorkspaceDocuments,
     resolveLeadStage,
     shouldBlockFastTrackWorkspaceRefresh,
@@ -34,8 +39,8 @@ test('manager fast-track document summaries reflect individually approved docume
             existingDocuments,
         ),
         {
-            identityProof: 'verified',
-            addressProof: 'verified',
+            identityProof: 'pending',
+            addressProof: 'pending',
         },
     );
 
@@ -64,9 +69,112 @@ test('manager fast-track document summaries reflect individually approved docume
             existingDocuments,
         ),
         {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        },
+    );
+
+    assert.deepEqual(
+        buildDocumentsFromVerification(
+            null,
+            {
+                identityProof: 'verified',
+                addressProof: 'pending',
+            },
+        ),
+        {
             identityProof: 'verified',
             addressProof: 'pending',
         },
+    );
+});
+
+test('unknown fast-track steps and phases stay at property-selected defaults', () => {
+    assert.equal(normalizeFastTrackDocumentPhase(undefined, undefined), 'not_requested');
+    assert.equal(normalizeFastTrackDocumentPhase(undefined, 'documents_requested'), 'waiting_for_upload');
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'unexpected_stage',
+            [],
+            {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        'property_selected',
+    );
+});
+
+test('document phase distinguishes not requested, waiting, uploaded, replacement, and verified states', () => {
+    assert.equal(
+        deriveLiveFastTrackDocumentPhase([], {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, {
+            currentStep: 'property_selected',
+            backendPhase: 'not_requested',
+        }),
+        'not_requested',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackDocumentPhase([], {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, {
+            currentStep: 'documents_requested',
+            backendPhase: 'waiting_for_upload',
+        }),
+        'waiting_for_upload',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackDocumentPhase([
+            {
+                document_category: 'identity',
+                status: 'under_review',
+            },
+        ], {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, {
+            currentStep: 'documents_requested',
+        }),
+        'uploaded_under_review',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackDocumentPhase([
+            {
+                document_category: 'identity',
+                status: 'reupload_required',
+            },
+        ], {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, {
+            currentStep: 'documents_requested',
+        }),
+        'replacement_required',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackDocumentPhase([
+            {
+                document_category: 'identity',
+                status: 'approved',
+            },
+            {
+                document_category: 'address',
+                status: 'approved',
+            },
+        ], {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, {
+            currentStep: 'documents_requested',
+        }),
+        'verified',
     );
 });
 
@@ -181,7 +289,7 @@ test('lead stage resolves live workflow states from documents and response state
                 { document_category: 'address', status: 'approved' },
             ],
         ),
-        'docs_uploaded',
+        'approved',
     );
 
     assert.equal(formatLeadStage('broker_matched'), 'Broker Matched');
@@ -228,6 +336,115 @@ test('document requests are only allowed while the lead is still in the live res
             ],
         ),
         false,
+    );
+});
+
+test('verification summary distinguishes not-requested and requested-without-uploads states', () => {
+    assert.equal(
+        buildVerificationSummary(
+            null,
+            {
+                documents_requested: false,
+                documents_uploaded: false,
+                documents_verified: false,
+            },
+            {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        'Documents not requested yet',
+    );
+
+    assert.equal(
+        buildVerificationSummary(
+            {
+                has_identity_doc: true,
+                has_address_doc: true,
+                documents_verified: true,
+            },
+            {
+                documents_requested: false,
+                documents_uploaded: false,
+                documents_verified: false,
+            },
+            {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        'Documents not requested yet',
+    );
+
+    assert.equal(
+        buildVerificationSummary(
+            null,
+            {
+                documents_requested: true,
+                documents_uploaded: false,
+                documents_verified: false,
+            },
+            {
+                identityProof: 'pending',
+                addressProof: 'pending',
+            },
+        ),
+        'Documents requested. Waiting for user uploads.',
+    );
+});
+
+test('lead-scoped document helpers ignore files from older fast-track cases', () => {
+    const allDocuments = [
+        {
+            document_category: 'identity',
+            status: 'approved',
+            lead_id: 'older-lead',
+            file_name: 'old-id.png',
+            created_at: '2026-04-01T10:00:00.000Z',
+            updated_at: '2026-04-01T10:00:00.000Z',
+        },
+        {
+            document_category: 'address',
+            status: 'approved',
+            lead_id: 'older-lead',
+            file_name: 'old-address.png',
+            created_at: '2026-04-01T10:05:00.000Z',
+            updated_at: '2026-04-01T10:05:00.000Z',
+        },
+        {
+            document_category: 'identity',
+            status: 'under_review',
+            lead_id: 'current-lead',
+            file_name: 'current-id.png',
+            created_at: '2026-04-02T10:00:00.000Z',
+            updated_at: '2026-04-02T10:00:00.000Z',
+        },
+    ];
+
+    const currentLeadDocuments = filterDocumentsForLead(allDocuments, 'current-lead');
+    assert.equal(currentLeadDocuments.length, 1);
+    assert.equal(currentLeadDocuments[0]?.file_name, 'current-id.png');
+
+    assert.deepEqual(
+        buildDocumentsFromDetails(currentLeadDocuments, {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }),
+        {
+            identityProof: 'uploaded',
+            addressProof: 'pending',
+        },
+    );
+
+    assert.equal(
+        deriveLiveFastTrackDocumentPhase(currentLeadDocuments, {
+            identityProof: 'pending',
+            addressProof: 'pending',
+        }, {
+            currentStep: 'property_selected',
+            backendPhase: 'not_requested',
+        }),
+        'uploaded_under_review',
     );
 });
 

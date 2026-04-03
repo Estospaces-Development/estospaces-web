@@ -1,8 +1,10 @@
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 import { normalizeContract } from '@/lib/contractStatus';
 import { Contract } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 export interface CreateContractRequest {
     application_id: string;
@@ -22,6 +24,7 @@ export const createContract = async (data: CreateContractRequest): Promise<{ dat
         const response = await apiFetch<Contract>(`${BOOKING_URL()}/api/v1/contracts`, {
             method: 'POST',
             body: JSON.stringify(data),
+            suppressErrorToast: true,
         });
         return { data: normalizeContract(response), error: null };
     } catch (error: any) {
@@ -38,9 +41,11 @@ export const getContract = async (id: string): Promise<{ data: Contract | null; 
     }
 };
 
-export const getUserContracts = async (): Promise<{ data: Contract[] | null; error: string | null }> => {
+export const getUserContracts = async (
+    options: ServiceRequestOptions = {},
+): Promise<{ data: Contract[] | null; error: string | null }> => {
     try {
-        const response = await apiFetch<Contract[]>(`${BOOKING_URL()}/api/v1/contracts/mine`);
+        const response = await apiFetch<Contract[]>(`${BOOKING_URL()}/api/v1/contracts/mine`, options);
         return { data: response.map(normalizeContract), error: null };
     } catch (error: any) {
         return { data: null, error: error.message || 'Failed to fetch contracts' };

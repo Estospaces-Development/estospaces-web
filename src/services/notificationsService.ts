@@ -44,6 +44,9 @@ export const NOTIFICATION_TYPES = {
     // Messages
     MESSAGE_RECEIVED: 'message_received',
     TICKET_RESPONSE: 'ticket_response',
+    SUPPORT_TICKET_CREATED: 'support_ticket_created',
+    SUPPORT_TICKET_STATUS_UPDATED: 'support_ticket_status_updated',
+    SUPPORT_TICKET_ASSIGNED: 'support_ticket_assigned',
 
     // Properties
     PROPERTY_SAVED: 'property_saved',

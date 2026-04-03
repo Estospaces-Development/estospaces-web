@@ -104,6 +104,20 @@ const matchesFastTrackWorkflow = (record: WorkflowLike, fastTrackCase: FastTrack
     )
 );
 
+const matchesFastTrackWorkflowExact = (record: WorkflowLike, fastTrackCase: FastTrackCase) => (
+    sameId(record.fast_track_case_id, fastTrackCase.caseId)
+    || sameId(record.lead_id, fastTrackCase.leadId)
+);
+
+const filterPreferredWorkflowMatches = <T extends WorkflowLike>(records: T[], fastTrackCase: FastTrackCase) => {
+    const exactMatches = records.filter((record) => matchesFastTrackWorkflowExact(record, fastTrackCase));
+    if (exactMatches.length > 0) {
+        return exactMatches;
+    }
+
+    return records.filter((record) => matchesFastTrackWorkflow(record, fastTrackCase));
+};
+
 const formatLabel = (value?: string | null) => {
     if (!value) {
         return 'Not started';
@@ -391,7 +405,7 @@ export const resolveFastTrackLinkedJourney = (
         invoices?: Invoice[];
     },
 ): FastTrackLinkedJourney => {
-    const applications = (input.applications || []).filter((item) => matchesFastTrackWorkflow(item, fastTrackCase));
+    const applications = filterPreferredWorkflowMatches(input.applications || [], fastTrackCase);
     const application = pickLatest(applications);
 
     const viewings = (input.viewings || []).filter((item) => (
@@ -406,7 +420,7 @@ export const resolveFastTrackLinkedJourney = (
     ));
     const contract = pickLatest(contracts);
 
-    const saleProgressions = (input.saleProgressions || []).filter((item) => matchesFastTrackWorkflow(item, fastTrackCase));
+    const saleProgressions = filterPreferredWorkflowMatches(input.saleProgressions || [], fastTrackCase);
     const saleProgression = pickLatest(saleProgressions);
 
     const payments = (input.payments || [])

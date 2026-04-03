@@ -18,7 +18,13 @@ export type FastTrackStep =
 
 export type PropertyType = 'rent' | 'lease' | 'buy' | 'sale';
 
-export type DocStatus = 'pending' | 'verified';
+export type DocStatus = 'pending' | 'uploaded' | 'reupload_required' | 'verified';
+export type FastTrackDocumentPhase =
+    | 'not_requested'
+    | 'waiting_for_upload'
+    | 'uploaded_under_review'
+    | 'replacement_required'
+    | 'verified';
 
 export interface FastTrackDocuments {
     identityProof: DocStatus;
@@ -64,6 +70,8 @@ interface BackendFastTrackCase extends JourneyStateFields {
     expires_at?: string;
     updated_at: string;
     hours_remaining: number;
+    document_phase?: FastTrackDocumentPhase;
+    document_phase_reason?: string;
 }
 
 // Frontend Model structure (matching existing components)
@@ -85,6 +93,8 @@ export interface FastTrackCase {
     hoursRemaining: number;
     currentStep: FastTrackStep;
     documents: FastTrackDocuments;
+    documentPhase?: FastTrackDocumentPhase;
+    documentPhaseReason?: string;
     finalStatus: 'in_progress' | 'completed' | 'expired' | 'rejected';
     journeyType?: 'rent' | 'buy';
     journeySource?: 'direct_property' | 'broker_request_selection';
@@ -156,7 +166,31 @@ const normalizeFastTrackStep = (step?: string): FastTrackStep => {
         case 'payment_ready':
             return 'ready_for_contract';
         default:
-            return 'documents_requested';
+            return 'property_selected';
+    }
+};
+
+const normalizeFastTrackDocumentPhase = (
+    phase?: string,
+    step?: string,
+): FastTrackDocumentPhase => {
+    switch (String(phase || '').trim()) {
+        case 'waiting_for_upload':
+            return 'waiting_for_upload';
+        case 'uploaded_under_review':
+            return 'uploaded_under_review';
+        case 'replacement_required':
+            return 'replacement_required';
+        case 'verified':
+            return 'verified';
+        case 'not_requested':
+            return 'not_requested';
+        default:
+            return normalizeFastTrackStep(step) === 'documents_requested'
+                ? 'waiting_for_upload'
+                : normalizeFastTrackStep(step) === 'documents_verified'
+                    ? 'verified'
+                    : 'not_requested';
     }
 };
 
@@ -165,6 +199,12 @@ const normalizeDocStatus = (value: unknown): DocStatus => {
         const normalized = value.trim().toLowerCase();
         if (normalized === 'verified' || normalized === 'approved') {
             return 'verified';
+        }
+        if (normalized === 'uploaded' || normalized === 'under_review' || normalized === 'pending_review') {
+            return 'uploaded';
+        }
+        if (normalized === 'reupload_required' || normalized === 'rejected') {
+            return 'reupload_required';
         }
     }
 
@@ -196,6 +236,8 @@ const mapBackendToFrontend = (apiCase: BackendFastTrackCase): FastTrackCase => (
     hoursRemaining: apiCase.hours_remaining,
     currentStep: normalizeFastTrackStep(apiCase.live_stage || apiCase.current_step),
     documents: normalizeDocuments(apiCase.documents),
+    documentPhase: normalizeFastTrackDocumentPhase(apiCase.document_phase, apiCase.live_stage || apiCase.current_step),
+    documentPhaseReason: apiCase.document_phase_reason,
     finalStatus: apiCase.final_status,
     journeyType: apiCase.journey_type,
     journeySource: apiCase.journey_source,
@@ -273,11 +315,15 @@ export const getFastTrackCaseById = async (id: string) => {
     }
 };
 
-export const createFastTrackCase = async (req: CreateFastTrackRequest) => {
+export const createFastTrackCase = async (
+    req: CreateFastTrackRequest,
+    options: ServiceRequestOptions = {},
+) => {
     try {
         const result = await apiFetch<BackendFastTrackCase>(`${BOOKING_URL()}/api/v1/fast-track`, {
             method: 'POST',
-            body: JSON.stringify(req)
+            body: JSON.stringify(req),
+            ...options,
         });
         if (result) {
             return { data: mapBackendToFrontend(result), error: null };
@@ -301,5 +347,17 @@ export const updateFastTrackCase = async (id: string, req: UpdateFastTrackReques
         return { data: null, error: 'Failed to update case' };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const deleteFastTrackCase = async (id: string, options: ServiceRequestOptions = {}) => {
+    try {
+        await apiFetch(`${BOOKING_URL()}/api/v1/fast-track/${id}`, {
+            method: 'DELETE',
+            ...options,
+        });
+        return { error: null };
+    } catch (error: any) {
+        return { error: getErrorMessage(error) };
     }
 };

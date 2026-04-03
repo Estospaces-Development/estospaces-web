@@ -4,9 +4,11 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 import type { JourneyDeadline } from '@/types/journey';
 
 const PAYMENT_URL = () => getServiceUrl('payment');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 export interface Payment {
     id: string;
@@ -102,8 +104,8 @@ export interface CreateInvoiceInput {
 
 const withSuccess = <T>(data: T) => ({ success: true, data });
 
-export async function getPayments(): Promise<{ success: boolean; data: Payment[] }> {
-    const data = await apiFetch<Payment[]>(`${PAYMENT_URL()}/api/v1/payments`);
+export async function getPayments(options: ServiceRequestOptions = {}): Promise<{ success: boolean; data: Payment[] }> {
+    const data = await apiFetch<Payment[]>(`${PAYMENT_URL()}/api/v1/payments`, options);
     return withSuccess(Array.isArray(data) ? data : []);
 }
 
@@ -112,8 +114,8 @@ export async function getPayment(paymentID: string): Promise<{ success: boolean;
     return withSuccess(data);
 }
 
-export async function getManagerPayments(): Promise<{ success: boolean; data: Payment[] }> {
-    const data = await apiFetch<Payment[]>(`${PAYMENT_URL()}/api/v1/manager/payments`);
+export async function getManagerPayments(options: ServiceRequestOptions = {}): Promise<{ success: boolean; data: Payment[] }> {
+    const data = await apiFetch<Payment[]>(`${PAYMENT_URL()}/api/v1/manager/payments`, options);
     return withSuccess(Array.isArray(data) ? data : []);
 }
 
@@ -143,13 +145,13 @@ export async function refundPayment(
     return withSuccess(data);
 }
 
-export async function getInvoices(): Promise<{ success: boolean; data: Invoice[] }> {
-    const data = await apiFetch<Invoice[]>(`${PAYMENT_URL()}/api/v1/invoices`);
+export async function getInvoices(options: ServiceRequestOptions = {}): Promise<{ success: boolean; data: Invoice[] }> {
+    const data = await apiFetch<Invoice[]>(`${PAYMENT_URL()}/api/v1/invoices`, options);
     return withSuccess(Array.isArray(data) ? data : []);
 }
 
-export async function getManagerInvoices(): Promise<{ success: boolean; data: Invoice[] }> {
-    const data = await apiFetch<Invoice[]>(`${PAYMENT_URL()}/api/v1/manager/invoices`);
+export async function getManagerInvoices(options: ServiceRequestOptions = {}): Promise<{ success: boolean; data: Invoice[] }> {
+    const data = await apiFetch<Invoice[]>(`${PAYMENT_URL()}/api/v1/manager/invoices`, options);
     return withSuccess(Array.isArray(data) ? data : []);
 }
 

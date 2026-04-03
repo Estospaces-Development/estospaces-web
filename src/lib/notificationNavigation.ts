@@ -13,6 +13,15 @@ const readString = (data: NotificationNavigationData, ...keys: string[]) => {
     return '';
 };
 
+const buildSupportPath = (basePath: string, ticketId: string, conversationId: string) => {
+    const params = new URLSearchParams({
+        ...(ticketId ? { ticket: ticketId } : {}),
+        ...(conversationId ? { conversation: conversationId } : {}),
+    });
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+};
+
 export function getNotificationNavigationPath(
     notification: { type: string; data?: NotificationNavigationData },
     role: string = 'user',
@@ -25,6 +34,7 @@ export function getNotificationNavigationPath(
     }
 
     const conversationID = readString(data, 'conversation_id', 'conversationId');
+    const ticketId = readString(data, 'ticket_id', 'ticketId');
     const applicationId = readString(data, 'applicationId', 'application_id');
     const viewingId = readString(data, 'viewingId', 'viewing_id');
     const contractId = readString(data, 'contractId', 'contract_id');
@@ -107,15 +117,18 @@ export function getNotificationNavigationPath(
     const managerUserVerificationPath = subjectUserId
         ? `/manager/user-verifications?user=${encodeURIComponent(subjectUserId)}`
         : '/manager/user-verifications';
-    const adminVerificationPath = subjectUserId
-        ? `/admin/verifications?user=${encodeURIComponent(subjectUserId)}`
-        : '/admin/verifications';
+    const adminUserVerificationPath = subjectUserId
+        ? `/admin/verifications?entity=user&userId=${encodeURIComponent(subjectUserId)}`
+        : '/admin/verifications?entity=user';
+    const adminManagerVerificationPath = subjectUserId
+        ? `/admin/verifications?entity=manager&managerId=${encodeURIComponent(subjectUserId)}`
+        : '/admin/verifications?entity=manager';
 
     switch (notification.type) {
         case 'user_verification_submitted':
-            return role === 'manager' ? managerUserVerificationPath : adminVerificationPath;
+            return role === 'manager' ? managerUserVerificationPath : adminUserVerificationPath;
         case 'manager_verification_submitted':
-            return adminVerificationPath;
+            return adminManagerVerificationPath;
         case 'user_verification_reupload_requested':
             return '/user/dashboard/profile';
         case 'manager_verification_reupload_requested':
@@ -148,9 +161,20 @@ export function getNotificationNavigationPath(
                 return conversationID ? `/manager/messages?conversation=${conversationID}` : '/manager/messages';
             }
             if (role === 'admin') {
-                return conversationID ? `/admin/chat?conversation=${conversationID}` : '/admin/chat';
+                return buildSupportPath('/admin/help', ticketId, conversationID);
             }
             return conversationID ? `/user/dashboard/messages?conversation=${conversationID}` : '/user/dashboard/messages';
+        case 'support_ticket_created':
+        case 'ticket_response':
+        case 'support_ticket_status_updated':
+        case 'support_ticket_assigned':
+            if (role === 'manager') {
+                return buildSupportPath('/manager/help', ticketId, conversationID);
+            }
+            if (role === 'admin') {
+                return buildSupportPath('/admin/help', ticketId, conversationID);
+            }
+            return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
         case 'property_saved':
         case 'price_drop':
         case 'new_property_match':

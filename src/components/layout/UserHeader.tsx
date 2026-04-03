@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, ChevronDown, Loader2, LogOut, Settings, HelpCircle } from 'lucide-react';
+import { ChevronDown, Loader2, LogOut, Settings, HelpCircle } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
+import Avatar from '../ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHost } from '@/lib/utils/hostUtils';
 
@@ -14,13 +15,13 @@ interface UserHeaderProps {
 
 const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     const navigate = useNavigate();
-    const { user, signOut } = useAuth();
+    const { user, signOut, getDisplayName } = useAuth();
     const { currentApp } = useHost();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
 
     // Get user display name and email
-    const displayName = user?.name || (user?.email?.split('@')[0] || 'User');
+    const displayName = getDisplayName();
     const userEmail = user?.email || '';
 
     const handleSignOut = async () => {
@@ -97,9 +98,13 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
                             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
-                            <div className="w-8 h-8 bg-white/20 dark:bg-gray-700 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 dark:border-gray-600">
-                                <User size={18} className="text-white dark:text-gray-200" />
-                            </div>
+                            <Avatar
+                                userId={user?.id}
+                                src={user?.avatar || user?.avatar_url}
+                                name={displayName}
+                                alt={`${displayName} avatar`}
+                                size="sm"
+                            />
                             <ChevronDown
                                 size={16}
                                 className={`text-white dark:text-gray-200 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}

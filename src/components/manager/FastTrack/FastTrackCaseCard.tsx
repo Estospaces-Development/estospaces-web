@@ -4,6 +4,7 @@ import FastTrackProgress from './FastTrackProgress';
 import FastTrackDocuments from './FastTrackDocuments';
 import { Clock, AlertTriangle, AlertCircle, BadgeCheck, FileClock } from 'lucide-react';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import Avatar from '@/components/ui/Avatar';
 
 interface FastTrackCaseCardProps {
     caseData: FastTrackCase;
@@ -111,7 +112,14 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                     <h3 className="font-semibold text-gray-800 dark:text-gray-100 line-clamp-1" title={caseData.propertyTitle}>
                         {caseData.propertyTitle}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Client: {caseData.clientName}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                        <Avatar
+                            userId={caseData.clientId}
+                            name={caseData.clientName}
+                            size="sm"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Client: {caseData.clientName}</p>
+                    </div>
                 </div>
 
                 {timeLeft && (

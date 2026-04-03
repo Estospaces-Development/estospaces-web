@@ -4,6 +4,8 @@ import { Zap } from 'lucide-react';
 import { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import * as leadsService from '@/services/leadsService';
 import { getUserProperties } from '@/services/userPropertiesService';
+import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 const SatelliteMap = lazy(() => import('./SatelliteMap'));
 
@@ -74,13 +76,14 @@ const RecentActivity = () => {
         void fetchActivities();
     }, [fetchActivities]);
 
-    useEffect(() => {
-        const interval = window.setInterval(() => {
-            void fetchActivities(true);
-        }, 10000);
-
-        return () => window.clearInterval(interval);
-    }, [fetchActivities]);
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.LEADS,
+            WORKSPACE_SYNC_TAGS.PROPERTIES,
+            WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+        ],
+        refresh: () => fetchActivities(true),
+    });
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6 relative overflow-hidden group transition-all duration-300 hover:shadow-xl hover:scale-[1.01] hover:brightness-105 dark:hover:brightness-110">

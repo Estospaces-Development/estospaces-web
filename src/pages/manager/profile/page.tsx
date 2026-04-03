@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 
 export default function ManagerProfilePage() {
-    const { user, refreshUser } = useAuth();
+    const { user, refreshUser, mergeCurrentUserProfile } = useAuth();
     const {
         managerProfile,
         verificationStatus,
@@ -19,6 +20,11 @@ export default function ManagerProfilePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
+    const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -73,6 +79,10 @@ export default function ManagerProfilePage() {
             licenseNumber: managerProfile?.company_registration_number || managerProfile?.license_number || prev.licenseNumber || '',
             taxId: managerProfile?.tax_id || prev.taxId || '',
         }));
+        const existingAvatar = user?.avatar_url || user?.avatar || null;
+        setProfileImagePreview(existingAvatar);
+        setStoredAvatarValue(existingAvatar);
+        setSelectedAvatarFile(null);
     }, [user, managerProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -82,6 +92,46 @@ export default function ManagerProfilePage() {
         }));
         setIsSaved(false);
         setSaveError('');
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setSaveError('Please choose a valid image file.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setSaveError('Profile picture must be smaller than 5 MB.');
+            return;
+        }
+
+        setUploadingImage(true);
+        setSaveError('');
+        setIsSaved(false);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setProfileImagePreview(typeof reader.result === 'string' ? reader.result : null);
+            setSelectedAvatarFile(file);
+            setUploadingImage(false);
+        };
+        reader.onerror = () => {
+            setUploadingImage(false);
+            setSaveError('Failed to read the selected image.');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const openAvatarPicker = () => {
+        if (uploadingImage) {
+            return;
+        }
+        avatarInputRef.current?.click();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -97,6 +147,18 @@ export default function ManagerProfilePage() {
             const companyAddress = formData.companyAddress.trim();
             const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
             const isBrokerProfile = managerProfile?.profile_type !== 'company';
+            let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
+
+            if (selectedAvatarFile && user?.id) {
+                const uploadedAvatar = await uploadMediaFile(
+                    selectedAvatarFile,
+                    'user',
+                    user.id,
+                    `${fullName || 'Manager'} profile photo`,
+                    true,
+                );
+                avatarValue = uploadedAvatar.file_url;
+            }
             
             const payload: any = {
                 first_name: formData.firstName,
@@ -104,6 +166,7 @@ export default function ManagerProfilePage() {
                 phone: formData.phone,
                 address: formData.address,
                 postcode: formData.postcode,
+                avatar: avatarValue,
                 metadata: {
                     bio: formData.bio,
                     website: formData.website,
@@ -135,16 +198,20 @@ export default function ManagerProfilePage() {
                 throw new Error(error);
             }
 
-            // Short delay to ensure DB persistence before refresh
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            // Refresh contexts to reflect changes instantly
-            await refreshUser();
-            if (isManager) {
-                await refetchManagerData();
+            if (data) {
+                mergeCurrentUserProfile(data);
             }
 
+            setProfileImagePreview(avatarValue || null);
+            setStoredAvatarValue(avatarValue || null);
+            setSelectedAvatarFile(null);
             setIsSaved(true);
+            setTimeout(() => {
+                void refreshUser();
+                if (isManager) {
+                    void refetchManagerData();
+                }
+            }, 0);
             setTimeout(() => setIsSaved(false), 3000);
         } catch (err) {
             setSaveError((err as Error).message || 'Failed to update your profile.');
@@ -181,16 +248,57 @@ export default function ManagerProfilePage() {
                 {/* Profile Card */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 flex flex-col items-center text-center">
-                        <div className="relative mb-4 group cursor-pointer">
-                            <div className="w-32 h-32 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md overflow-hidden">
-                                <span className="text-4xl font-bold text-orange-600 dark:text-orange-400">
-                                    {(formData.firstName[0] || 'M')}{(formData.lastName[0] || 'P')}
-                                </span>
-                            </div>
-                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Upload className="text-white" size={24} />
-                            </div>
+                        <div className="mb-4 flex flex-col items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={openAvatarPicker}
+                                disabled={uploadingImage}
+                                className="group relative rounded-full focus:outline-none focus:ring-4 focus:ring-orange-200 dark:focus:ring-orange-900/40 disabled:cursor-wait"
+                                aria-label="Upload manager profile picture"
+                            >
+                                <div className="w-32 h-32 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md overflow-hidden transition-transform duration-200 group-hover:scale-[1.02]">
+                                    {profileImagePreview ? (
+                                        <img
+                                            src={profileImagePreview}
+                                            alt={`${formData.firstName} ${formData.lastName}`.trim() || 'Manager profile'}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-4xl font-bold text-orange-600 dark:text-orange-400">
+                                            {(formData.firstName[0] || 'M')}{(formData.lastName[0] || 'P')}
+                                        </span>
+                                    )}
+                                    {uploadingImage && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/45">
+                                            <Loader2 className="h-7 w-7 animate-spin text-white" />
+                                        </div>
+                                    )}
+                                    <div className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg transition-all duration-200 group-hover:bg-orange-600">
+                                        <Upload size={18} />
+                                    </div>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openAvatarPicker}
+                                disabled={uploadingImage}
+                                className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-70 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
+                            >
+                                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={16} />}
+                                {uploadingImage ? 'Preparing image...' : 'Upload profile photo'}
+                            </button>
+                            <input
+                                id="manager-avatar-upload"
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                ref={avatarInputRef}
+                                onChange={handleImageSelect}
+                            />
                         </div>
+                        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                            Click the profile image to upload a JPG, PNG, or WebP under 5 MB.
+                        </p>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{formData.firstName} {formData.lastName}</h2>
                         <p className="text-orange-600 dark:text-orange-400 font-medium text-sm mb-1">
                             {isVerified
@@ -440,10 +548,12 @@ export default function ManagerProfilePage() {
                                     Profile Updated
                                 </span>
                             )}
-                            <button type="submit" disabled={isLoading}
-                                className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-medium rounded-lg transition-colors shadow-sm">
+                            <button type="submit" disabled={isLoading || uploadingImage}
+                                className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors shadow-sm">
                                 {isLoading ? (
                                     <><Loader2 size={18} className="animate-spin" /> Saving...</>
+                                ) : uploadingImage ? (
+                                    <><Loader2 size={18} className="animate-spin" /> Preparing image...</>
                                 ) : (
                                     <><Save size={18} /> Save Changes</>
                                 )}

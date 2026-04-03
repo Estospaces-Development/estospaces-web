@@ -30,6 +30,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as managerVerificationService from '@/services/managerVerificationService';
 import { openDocumentAccessUrl } from '@/services/documentAccessService';
+import Avatar from '@/components/ui/Avatar';
 import {
     ManagerProfile,
     ManagerDocument,
@@ -280,15 +281,18 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                             {/* Premium Avatar */}
-                            <div className={`relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl ${isBroker
-                                ? 'bg-gradient-to-br from-orange-400 to-red-500'
-                                : 'bg-gradient-to-br from-blue-400 to-indigo-500'
-                                }`}>
-                                {isBroker ? (
-                                    <User className="text-white" size={28} />
-                                ) : (
-                                    <Building2 className="text-white" size={28} />
-                                )}
+                            <div className="relative">
+                                <Avatar
+                                    userId={managerId}
+                                    name={
+                                        userInfo?.full_name ||
+                                        userInfo?.email?.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) ||
+                                        'Unknown Manager'
+                                    }
+                                    size="xl"
+                                    shape="rounded"
+                                    fallbackClassName={isBroker ? 'from-orange-400 to-red-500' : 'from-blue-400 to-indigo-500'}
+                                />
                                 {/* Status indicator */}
                                 <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${statusConfig.dotColor}`}>
                                     <statusConfig.icon size={10} className="text-white" />

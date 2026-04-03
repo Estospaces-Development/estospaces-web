@@ -91,6 +91,7 @@ const VerifyEmailPage = lazyPage(() => import('./pages/auth/verify-email/page'))
 const AdminDashboard = lazyPage(() => import('./pages/admin/dashboard/page'));
 const AdminAnalytics = lazyPage(() => import('./pages/admin/analytics/page'));
 const AdminChat = lazyPage(() => import('./pages/admin/chat/page'));
+const AdminHelp = lazyPage(() => import('./pages/admin/help/page'));
 const AdminFastTrack = lazyPage(() => import('./pages/admin/fast-track/page'));
 const AdminNotifications = lazyPage(() => import('./pages/admin/notifications/page'));
 const AdminProperties = lazyPage(() => import('./pages/admin/properties/page'));
@@ -131,7 +132,7 @@ const UserApplications = lazyPage(() => import('./pages/user/applications/page')
 const UserBookings = lazyPage(() => import('./pages/user/bookings/page'));
 const UserDocs = lazyPage(() => import('./pages/user/docs/page'));
 const UserFavorites = lazyPage(() => import('./pages/user/favorites/page'));
-const UserProfile = lazyPage(() => import('./pages/user/profile/page'));
+const UserProfile = lazyPage(() => import('./pages/user/dashboard/profile/page'));
 const UserSaved = lazyPage(() => import('./pages/user/saved/page'));
 const UserSearch = lazyPage(() => import('./pages/user/search/page'));
 const UserPropertyDetail = lazyPage(() => import('./pages/user/properties/[id]/page'));
@@ -147,7 +148,6 @@ const UserMessages = lazyPage(() => import('./pages/user/dashboard/messages/page
 const UserNotifications = lazyPage(() => import('./pages/user/dashboard/notifications/page'));
 const UserOverseas = lazyPage(() => import('./pages/user/dashboard/overseas/page'));
 const UserPayments = lazyPage(() => import('./pages/user/dashboard/payments/page'));
-const UserProfileDash = lazyPage(() => import('./pages/user/dashboard/profile/page'));
 const UserReviews = lazyPage(() => import('./pages/user/dashboard/reviews/page'));
 const UserSettingsDash = lazyPage(() => import('./pages/user/dashboard/settings/page'));
 const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page'));
@@ -193,6 +193,7 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="chat" element={<AdminChat />} />
+            <Route path="help" element={<AdminHelp />} />
             <Route path="fast-track" element={<AdminFastTrack />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="properties" element={<AdminProperties />} />
@@ -244,7 +245,7 @@ const App: React.FC = () => {
             <Route path="dashboard/notifications" element={<UserNotifications />} />
             <Route path="dashboard/overseas" element={<UserOverseas />} />
             <Route path="dashboard/payments" element={<UserPayments />} />
-            <Route path="dashboard/profile" element={<UserProfileDash />} />
+            <Route path="dashboard/profile" element={<UserProfile />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
             <Route path="dashboard/settings" element={<UserSettingsDash />} />
             <Route path="dashboard/viewings" element={<UserViewings />} />
@@ -252,7 +253,7 @@ const App: React.FC = () => {
             <Route path="bookings" element={<UserBookings />} />
             <Route path="docs" element={<UserDocs />} />
             <Route path="favorites" element={<UserSaved />} />
-            <Route path="profile" element={<UserProfileDash />} />
+            <Route path="profile" element={<UserProfile />} />
             <Route path="saved" element={<UserSaved />} />
             <Route path="search" element={<UserSearch />} />
             <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />

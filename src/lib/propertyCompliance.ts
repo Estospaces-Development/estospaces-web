@@ -68,6 +68,13 @@ export const findRequirementBlocker = (
 export const isPropertyOfferReady = (readiness: PropertyComplianceReadiness | null | undefined) =>
     String(readiness?.status || '').trim() === 'offer_ready';
 
+export const isPropertyContractReady = (
+    readiness: PropertyComplianceReadiness | null | undefined,
+) => {
+    const status = String(readiness?.status || '').trim();
+    return status === 'contract_ready' || status === 'move_in_ready';
+};
+
 export const createPropertyComplianceDrafts = (
     requirements: JourneyRequirement[],
     evidenceMap: Map<string, PropertyComplianceEvidence>,

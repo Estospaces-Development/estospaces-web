@@ -14,12 +14,14 @@ import {
     X,
 } from 'lucide-react';
 import { FastTrackCase } from '@/services/fastTrackService';
-import { Lead } from '@/services/leadsService';
+import { Lead, UserDocument } from '@/services/leadsService';
 import FastTrackProgress from '@/components/manager/FastTrack/FastTrackProgress';
 import {
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
+    deriveLiveFastTrackDocumentPhase,
     deriveLiveFastTrackCurrentStep,
+    filterDocumentsForLead,
     resolveLeadStage,
     shouldBlockFastTrackWorkspaceRefresh,
 } from '@/lib/fastTrackWorkflow';
@@ -154,8 +156,29 @@ const buildRoadmap = (
     hasIdentityDocument: boolean,
     hasAddressDocument: boolean,
 ) => {
+    const documentPhase = fastTrackCase?.documentPhase || (
+        lead?.documents_verified
+            ? 'verified'
+            : lead?.documents_requested || fastTrackCase?.currentStep === 'documents_requested'
+                ? 'waiting_for_upload'
+                : 'not_requested'
+    );
+    const documentRequestStarted = (
+        documentPhase !== 'not_requested'
+        || lead?.documents_requested
+        || lead?.documents_uploaded
+        || lead?.documents_verified
+    );
+    const hasUploadedDocuments = (
+        documentPhase === 'uploaded_under_review'
+        || documentPhase === 'replacement_required'
+        || lead?.documents_uploaded
+        || hasIdentityDocument
+        || hasAddressDocument
+    );
     const documentsCleared = (
         lead?.documents_verified
+        || documentPhase === 'verified'
         || fastTrackCase?.currentStep === 'documents_verified'
         || fastTrackCase?.currentStep === 'viewing_scheduled'
         || fastTrackCase?.currentStep === 'viewing_completed'
@@ -180,9 +203,8 @@ const buildRoadmap = (
             fastTrackCase?.currentStep === 'viewing_scheduled'
             || fastTrackCase?.currentStep === 'documents_verified'
             || fastTrackCase?.currentStep === 'documents_requested'
-            || lead?.documents_uploaded
-            || hasIdentityDocument
-            || hasAddressDocument
+            || hasUploadedDocuments
+            || documentRequestStarted
         ) {
             return 2;
         }
@@ -226,9 +248,11 @@ const buildRoadmap = (
             title: 'Documents and identity',
             description: documentsCleared
                 ? 'Identity and legal compliance evidence is verified.'
-                : lead?.documents_uploaded || hasIdentityDocument || hasAddressDocument
+                : hasUploadedDocuments
                     ? 'Supporting files are uploaded and waiting for review.'
-                    : 'Upload ID and address proof to keep the case moving smoothly.',
+                    : documentRequestStarted
+                        ? 'Upload ID and address proof to keep the case moving smoothly.'
+                        : 'The manager will request verification documents when this selected property moves into document review.',
         },
         {
             title: 'Viewing and review',
@@ -266,15 +290,19 @@ export default function PropertyFastTrackModal({
     onOpenDashboard,
     onOpenMessages,
 }: PropertyFastTrackModalProps) {
+    const leadScopedDocuments = useMemo(
+        () => filterDocumentsForLead(userDocuments, fastTrackCase?.leadId || lead?.id),
+        [fastTrackCase?.leadId, lead?.id, userDocuments],
+    );
     const documentItems = useMemo(
         () => buildFastTrackDocumentItems(
-            userDocuments,
+            leadScopedDocuments,
             fastTrackCase?.documents || {
                 identityProof: 'pending',
                 addressProof: 'pending',
             },
         ),
-        [fastTrackCase?.documents, userDocuments],
+        [fastTrackCase?.documents, leadScopedDocuments],
     );
     const verificationContent = useMemo(
         () => buildFastTrackVerificationContent(documentItems),
@@ -285,8 +313,8 @@ export default function PropertyFastTrackModal({
         address: documentItems.find((item) => item.id === 'address') || null,
     }), [documentItems]);
     const resolvedLeadStage = useMemo(
-        () => resolveLeadStage(lead, userDocuments),
-        [lead, userDocuments],
+        () => resolveLeadStage(lead, leadScopedDocuments),
+        [lead, leadScopedDocuments],
     );
     const liveFastTrackCase = useMemo(
         () => fastTrackCase
@@ -294,15 +322,26 @@ export default function PropertyFastTrackModal({
                 ...fastTrackCase,
                 currentStep: deriveLiveFastTrackCurrentStep(
                     fastTrackCase.currentStep,
-                    userDocuments,
+                    leadScopedDocuments,
                     fastTrackCase.documents || {
                         identityProof: 'pending',
                         addressProof: 'pending',
                     },
                 ),
+                documentPhase: deriveLiveFastTrackDocumentPhase(
+                    leadScopedDocuments,
+                    fastTrackCase.documents || {
+                        identityProof: 'pending',
+                        addressProof: 'pending',
+                    },
+                    {
+                        currentStep: fastTrackCase.currentStep,
+                        backendPhase: fastTrackCase.documentPhase,
+                    },
+                ),
             }
             : null,
-        [fastTrackCase, userDocuments],
+        [fastTrackCase, leadScopedDocuments],
     );
 
     const roadmap = useMemo(
@@ -330,13 +369,17 @@ export default function PropertyFastTrackModal({
 
         return formatWindowLabel(lead, liveFastTrackCase);
     })();
-    const verificationLabel = verificationContent.verificationLabel;
+    const verificationLabel = liveFastTrackCase?.documentPhase === 'not_requested'
+        ? 'Not requested'
+        : verificationContent.verificationLabel;
     const matchedBrokerLabel = lead?.matched_broker?.name || lead?.matched_broker?.company_name || lead?.matched_broker_id || 'No broker matched yet';
     const dispatchLabel = formatLeadStage(
         lead?.dispatch_status || (lead?.matched_broker || lead?.matched_broker_id ? 'broker_matched' : 'matching'),
     );
-    const documentsLabel = verificationContent.documentsLabel;
-    const showBlockingRefresh = isRefreshing && shouldBlockFastTrackWorkspaceRefresh(lead, fastTrackCase, userDocuments);
+    const documentsLabel = liveFastTrackCase?.documentPhase === 'not_requested'
+        ? 'Documents not requested yet'
+        : verificationContent.documentsLabel;
+    const showBlockingRefresh = isRefreshing && shouldBlockFastTrackWorkspaceRefresh(lead, fastTrackCase, leadScopedDocuments);
 
     if (!open) {
         return null;

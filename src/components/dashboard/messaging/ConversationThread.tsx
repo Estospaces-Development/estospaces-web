@@ -41,7 +41,9 @@ export default function ConversationThread({ conversationId }: ConversationThrea
                             key={message.id}
                             message={message}
                             isUser={isUser}
+                            isSupportConversation={conversation?.isSupportConversation}
                             showAvatar={showAvatar}
+                            agentUserId={conversation?.isSupportConversation ? undefined : conversation?.agentId}
                             agentName={conversation?.agentName || conversation?.contactName || 'Agent'}
                             agentAvatar={conversation?.agentAvatar || undefined}
                         />
