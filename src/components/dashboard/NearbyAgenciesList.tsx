@@ -10,8 +10,22 @@ import {
     readBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
+import { isValidUkPostcode } from '@/lib/propertyValidationErrors';
 
 const normalizePostcode = (value?: string | null) => String(value || '').trim().toUpperCase();
+const formatUkPostcode = (value?: string | null) => {
+    const normalized = normalizePostcode(value);
+    if (!normalized) {
+        return '';
+    }
+
+    if (!isValidUkPostcode(normalized)) {
+        return normalized;
+    }
+
+    const compact = normalized.replace(/\s+/g, '');
+    return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+};
 
 const NearbyAgenciesList = () => {
     const [searchParams] = useSearchParams();
@@ -27,7 +41,7 @@ const NearbyAgenciesList = () => {
         ? searchParams.get('request')?.trim() || null
         : null;
 
-    const liveRequestPostcode = normalizePostcode(activeRequest?.location_postcode);
+    const liveRequestPostcode = formatUkPostcode(activeRequest?.location_postcode);
     const effectivePostcode = manualPostcode || liveRequestPostcode;
     const isManualSearchActive = Boolean(manualPostcode);
     const showSearchForm = isSearchOpen || isManualSearchActive || !liveRequestPostcode;
@@ -78,7 +92,7 @@ const NearbyAgenciesList = () => {
             return;
         }
 
-        if (!postcodeInput.trim() || normalizePostcode(postcodeInput) === liveRequestPostcode) {
+        if (!postcodeInput.trim() || normalizePostcode(postcodeInput) === normalizePostcode(liveRequestPostcode)) {
             setPostcodeInput(liveRequestPostcode);
         }
     }, [liveRequestPostcode, manualPostcode, postcodeInput]);
@@ -121,12 +135,18 @@ const NearbyAgenciesList = () => {
 
         const trimmedPostcode = normalizePostcode(postcodeInput);
         if (!trimmedPostcode) {
-            setSearchError('Enter a postcode to rank nearby brokers.');
+            setSearchError('Enter a full UK postcode like SW1A 1AA.');
             return;
         }
 
-        setManualPostcode(trimmedPostcode);
-        setPostcodeInput(trimmedPostcode);
+        if (!isValidUkPostcode(trimmedPostcode)) {
+            setSearchError('Enter a full UK postcode like SW1A 1AA. Area codes such as SD are not enough.');
+            return;
+        }
+
+        const formattedPostcode = formatUkPostcode(trimmedPostcode);
+        setManualPostcode(formattedPostcode);
+        setPostcodeInput(formattedPostcode);
         setSearchError(null);
         setIsSearchOpen(true);
     };
@@ -183,7 +203,7 @@ const NearbyAgenciesList = () => {
                             <p className="font-semibold text-gray-900 dark:text-white">{effectivePostcode}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {isManualSearchActive
-                                    ? 'Showing brokers ranked nearest to this postcode.'
+                                    ? 'Showing brokers ranked nearest to this full postcode.'
                                     : 'Showing brokers ranked for your active live request.'}
                             </p>
                         </div>
@@ -273,7 +293,7 @@ const NearbyAgenciesList = () => {
                         <div>
                             <p className="text-sm font-semibold text-gray-900 dark:text-white">Find broker by postcode</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Enter a UK postcode to rank available brokers nearest that area.
+                                Enter a full UK postcode to rank available brokers nearest that area.
                             </p>
                         </div>
                         {liveRequestPostcode && (
