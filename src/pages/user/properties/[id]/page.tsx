@@ -36,6 +36,7 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import {
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
+    filterDocumentsForLead,
     getFastTrackStartAction,
     isLeadActive,
     normalizeWorkspaceDocuments,
@@ -825,7 +826,7 @@ const UserPropertyDetail = () => {
 
     const openFastTrackDashboard = () => {
         if (activeFastTrackCase?.caseId) {
-            navigate(`/user/dashboard/fast-track?case=${activeFastTrackCase.caseId}`);
+            navigate(`/user/dashboard/fast-track?case=${activeFastTrackCase.caseId}&section=documents`);
             return;
         }
 
@@ -836,22 +837,26 @@ const UserPropertyDetail = () => {
 
         navigate('/user/dashboard/fast-track');
     };
+    const leadScopedDocuments = useMemo(
+        () => filterDocumentsForLead(userDocuments, activeFastTrackCase?.leadId || activeLead?.id),
+        [activeFastTrackCase?.leadId, activeLead?.id, userDocuments],
+    );
 
     const liveDocumentItems = useMemo(
         () => buildFastTrackDocumentItems(
-            userDocuments,
+            leadScopedDocuments,
             activeFastTrackCase?.documents || {
                 identityProof: 'pending',
                 addressProof: 'pending',
             },
         ),
-        [activeFastTrackCase?.documents, userDocuments],
+        [activeFastTrackCase?.documents, leadScopedDocuments],
     );
     const liveVerificationContent = useMemo(
         () => buildFastTrackVerificationContent(liveDocumentItems),
         [liveDocumentItems],
     );
-    const liveLeadStageLabel = formatLeadStage(resolveLeadStage(activeLead, userDocuments));
+    const liveLeadStageLabel = formatLeadStage(resolveLeadStage(activeLead, leadScopedDocuments));
     const liveLeadDeadlineLabel = formatMinutesRemaining(activeLead?.response_deadline_at || activeLead?.sla_deadline);
     const liveLeadBrokerLabel =
         activeLead?.matched_broker?.name ||
@@ -868,7 +873,10 @@ const UserPropertyDetail = () => {
         setUploadingFastTrackDocumentType(type);
         try {
             const result = await uploadDocument(type, file, {
-                leadId: activeLead?.id,
+                leadId: activeLead?.id || activeFastTrackCase?.leadId,
+                fastTrackCaseId: activeFastTrackCase?.id,
+                managerId: activeFastTrackCase?.managerId || activeLead?.broker_id || property?.manager_id,
+                propertyId: property?.id,
             });
             if (!result.success || result.error) {
                 throw new Error(result.error || 'Unable to upload the supporting file.');

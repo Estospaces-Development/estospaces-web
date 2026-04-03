@@ -83,7 +83,12 @@ const NotificationDropdown = () => {
             case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
                 return <FileText size={18} className="text-purple-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+                return <Shield size={18} className="text-red-500" />;
             case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
             case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
             case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:

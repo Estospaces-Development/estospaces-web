@@ -32,6 +32,10 @@ export const NOTIFICATION_TYPES = {
     FAST_TRACK_STARTED: 'fast_track_started',
     FAST_TRACK_UPDATED: 'fast_track_updated',
     FAST_TRACK_COMPLETED: 'fast_track_completed',
+    CASE_FILE_DOCUMENT_REQUESTED: 'case_file_document_requested',
+    CASE_FILE_DOCUMENT_UPLOADED: 'case_file_document_uploaded',
+    CASE_FILE_DOCUMENT_REVIEWED: 'case_file_document_reviewed',
+    CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED: 'case_file_document_reupload_requested',
 
     // Verification
     DOCUMENT_VERIFIED: 'document_verified',

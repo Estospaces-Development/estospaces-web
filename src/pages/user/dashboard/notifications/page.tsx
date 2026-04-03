@@ -63,6 +63,10 @@ export default function NotificationsPage() {
                         NOTIFICATION_TYPES.APPLICATION_SUBMITTED,
                         NOTIFICATION_TYPES.APPLICATION_APPROVED,
                         NOTIFICATION_TYPES.DOCUMENTS_REQUESTED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED,
                         NOTIFICATION_TYPES.FAST_TRACK_STARTED,
                         NOTIFICATION_TYPES.FAST_TRACK_UPDATED,
                         NOTIFICATION_TYPES.FAST_TRACK_COMPLETED,
@@ -104,6 +108,13 @@ export default function NotificationsPage() {
                 return <AlertCircle size={20} className="text-red-500" />;
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
                 return <FileText size={20} className="text-blue-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+                return <FileText size={20} className="text-blue-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+                return <Shield size={20} className="text-green-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+                return <AlertCircle size={20} className="text-red-500" />;
             case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
             case NOTIFICATION_TYPES.PROFILE_VERIFIED:
             case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
@@ -146,11 +157,16 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
             case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
             case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
             case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
             case 'viewing_booked':
                 return 'bg-blue-50 dark:bg-blue-900/20';
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+                return 'bg-red-50 dark:bg-red-900/20';
             case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             case NOTIFICATION_TYPES.TICKET_RESPONSE:
                 return 'bg-purple-50 dark:bg-purple-900/20';

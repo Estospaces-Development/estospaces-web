@@ -152,6 +152,25 @@ export function getNotificationNavigationPath(
         case 'fast_track_updated':
         case 'fast_track_completed':
             return role === 'manager' ? managerFastTrackPath : userFastTrackPath;
+        case 'case_file_document_requested':
+        case 'case_file_document_uploaded':
+        case 'case_file_document_reviewed':
+        case 'case_file_document_reupload_requested':
+            return role === 'manager'
+                ? buildWorkspacePath('/manager/case-files', {
+                    applicationId,
+                    caseId: fastTrackCaseId,
+                    leadId,
+                    propertyId,
+                    contractId,
+                })
+                : buildWorkspacePath('/user/dashboard/case-file', {
+                    applicationId,
+                    caseId: fastTrackCaseId,
+                    leadId,
+                    propertyId,
+                    contractId,
+                });
         case 'documents_requested':
             return role === 'manager'
                 ? buildWorkspacePath('/manager/leads', { caseId: fastTrackCaseId, leadId, propertyId })
