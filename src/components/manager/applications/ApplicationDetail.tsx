@@ -481,15 +481,6 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     };
   }, [application?.id, application?.fastTrackCaseId, isRentApplication]);
 
-  useEffect(() => {
-    if (!pendingOfferFocus || !offerLaneReady) {
-      return;
-    }
-
-    scrollToWorkflowSection("offer");
-    setPendingOfferFocus(false);
-  }, [offerLaneReady, pendingOfferFocus]);
-
   if (!application) {
     return (
       <div className="min-h-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center font-outfit">
@@ -591,6 +582,16 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   );
   const propertyOfferReady = isPropertyOfferReady(propertyComplianceReadiness);
   const offerLaneReady = purchaseOfferReady && propertyOfferReady;
+
+  useEffect(() => {
+    if (!pendingOfferFocus || !offerLaneReady) {
+      return;
+    }
+
+    scrollToWorkflowSection("offer");
+    setPendingOfferFocus(false);
+  }, [offerLaneReady, pendingOfferFocus]);
+
   const purchaseWorkspaceState = !qualificationComplete
     ? {
         tone: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300",
