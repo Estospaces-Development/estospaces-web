@@ -4,13 +4,13 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY estospaces-web/package*.json ./
+COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source code
-COPY estospaces-web/ .
+COPY . .
 
 # Build-time env vars (baked into the Vite bundle)
 ARG VITE_CORE_SERVICE_URL=http://localhost:8080
