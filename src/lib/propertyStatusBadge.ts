@@ -1,6 +1,44 @@
 const formatTitleCase = (value: string) =>
     value.replace(/\b\w/g, (char) => char.toUpperCase());
 
+const normalizeInteger = (value?: number | null) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return 0;
+    }
+    return Math.max(0, Math.trunc(value));
+};
+
+export const getPropertyInventoryState = (totalFloors?: number | null, occupiedUnits?: number | null) => {
+    const rawTotalFloors = normalizeInteger(totalFloors);
+    const hasMultipleUnits = rawTotalFloors > 1;
+    const totalUnits = hasMultipleUnits ? rawTotalFloors : 1;
+    const occupied = Math.min(normalizeInteger(occupiedUnits), totalUnits);
+    const available = Math.max(totalUnits - occupied, 0);
+
+    return {
+        totalUnits,
+        occupiedUnits: occupied,
+        availableUnits: available,
+        hasMultipleUnits,
+        isPartiallyOccupied: occupied > 0 && occupied < totalUnits,
+        isFullyOccupied: occupied >= totalUnits,
+    };
+};
+
+export const formatPropertyInventoryCaption = (totalFloors?: number | null, occupiedUnits?: number | null) => {
+    const inventory = getPropertyInventoryState(totalFloors, occupiedUnits);
+    if (!inventory.hasMultipleUnits) {
+        return null;
+    }
+    if (inventory.isFullyOccupied) {
+        return `Fully occupied across ${inventory.totalUnits} floors`;
+    }
+    if (inventory.isPartiallyOccupied) {
+        return `${inventory.occupiedUnits} of ${inventory.totalUnits} floors occupied`;
+    }
+    return `${inventory.totalUnits} floors available`;
+};
+
 export const formatPropertyStatusLabel = (status?: string) => {
     const normalizedStatus = status?.trim().toLowerCase();
 

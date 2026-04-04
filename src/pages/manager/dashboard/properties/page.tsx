@@ -14,9 +14,9 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
 import PaginationBar from '@/components/ui/PaginationBar';
-import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
-const PropertyCard = lazy(() => import('@/components/dashboard/PropertyCard'));
+const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
 import {
     Plus, Edit, Trash2, Filter, Download, Search, Grid, List, Map as MapIcon,
@@ -484,20 +484,13 @@ function PropertiesContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {tabFilteredProperties.map((property) => (
                         <div key={property.id} className="relative group">
-                            <PropertyCard
+                            <ManagerPropertyCard
                                 property={property}
-                                onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}
-                                showStatusBadge
+                                onEdit={(id) => navigate(`/manager/dashboard/properties/edit/${id}`)}
+                                onView={(id) => navigate(`/manager/dashboard/properties/${id}`)}
                             />
                             {/* Quick Actions Overlay (visible on hover) */}
                             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
-                                    className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    title="Edit"
-                                >
-                                    <Edit className="w-4 h-4" />
-                                </button>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -540,6 +533,10 @@ function PropertiesContent() {
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {tabFilteredProperties.map((property) => {
                                 const statusBadge = getManagerPropertyStatusBadge(property.status);
+                                const inventoryCaption = formatPropertyInventoryCaption(
+                                    property.dimensions?.totalFloors ?? property.total_floors,
+                                    property.dimensions?.occupiedUnits ?? property.occupied_units,
+                                );
 
                                 return (
                                     <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}>
@@ -547,6 +544,11 @@ function PropertiesContent() {
                                             <div>
                                                 <div className="font-medium text-gray-900 dark:text-white">{property.title}</div>
                                                 <div className="text-sm text-gray-500">{property.address || property.location?.city}</div>
+                                                {inventoryCaption && (
+                                                    <div className="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">
+                                                        {inventoryCaption}
+                                                    </div>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">

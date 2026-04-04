@@ -171,6 +171,7 @@ export interface Property {
     floors?: number;
     floorNumber?: number;
     totalFloors?: number;
+    occupiedUnits?: number;
   };
   area?: number;
 
@@ -566,6 +567,10 @@ export const PropertyProvider = ({
         totalArea: p.property_size_sqft || 0,
         carpetArea: p.carpet_area || 0,
         areaUnit: "sqft",
+        floors: p.total_floors || 1,
+        floorNumber: p.floor_number || 0,
+        totalFloors: p.total_floors || 1,
+        occupiedUnits: p.occupied_units || 0,
       },
       amenities: parsedAmenities,
       features: featuresList,
@@ -694,6 +699,10 @@ export const PropertyProvider = ({
       serviceProps.property_size_sqft = p.dimensions.totalArea;
     if (p.dimensions?.carpetArea !== undefined && p.dimensions.carpetArea > 0)
       serviceProps.carpet_area = p.dimensions.carpetArea;
+    if (p.dimensions?.floorNumber !== undefined)
+      serviceProps.floor_number = p.dimensions.floorNumber;
+    if (p.dimensions?.totalFloors !== undefined)
+      serviceProps.total_floors = p.dimensions.totalFloors;
     if (p.yearBuilt !== undefined) serviceProps.year_built = p.yearBuilt;
     if (p.furnishing !== undefined)
       serviceProps.furnished = p.furnishing === "furnished";

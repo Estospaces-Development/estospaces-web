@@ -3,7 +3,7 @@
 import React from 'react';
 import { Star, Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye, Filter } from 'lucide-react';
 ;
-import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 interface ManagerPropertyCardProps {
     property: {
@@ -21,6 +21,12 @@ interface ManagerPropertyCardProps {
         images?: string[] | any[];
         image?: string;
         media?: any;
+        dimensions?: {
+            totalFloors?: number;
+            occupiedUnits?: number;
+        };
+        total_floors?: number;
+        occupied_units?: number;
         rating?: number;
         reviews?: number;
         created_at?: string;
@@ -49,6 +55,10 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const imageUrl = getImage();
 
     const statusConfig = getManagerPropertyStatusBadge(property.status);
+    const inventoryCaption = formatPropertyInventoryCaption(
+        property.dimensions?.totalFloors ?? property.total_floors,
+        property.dimensions?.occupiedUnits ?? property.occupied_units,
+    );
 
     return (
         <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
@@ -97,6 +107,12 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     <MapPin size={14} className="flex-shrink-0 text-gray-400" />
                     {address}
                 </p>
+
+                {inventoryCaption && (
+                    <div className="mb-4 inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                        {inventoryCaption}
+                    </div>
+                )}
 
                 <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-5 py-3">
                     <div className="flex items-center gap-1.5" title="Bedrooms">
