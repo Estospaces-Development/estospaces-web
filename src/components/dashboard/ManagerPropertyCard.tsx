@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Star, Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye, Filter } from 'lucide-react';
-;
+import { Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye } from 'lucide-react';
+import type { ListingType, PriceInfo } from '@/contexts/PropertyContext';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 interface ManagerPropertyCardProps {
@@ -11,8 +11,11 @@ interface ManagerPropertyCardProps {
         title?: string;
         name?: string;
         address?: string;
-        location?: any; // could be object or string in some contexts
-        price?: number;
+        location?: any;
+        price?: PriceInfo | number | string;
+        priceString?: string;
+        listingType?: ListingType;
+        type?: string;
         bedrooms?: number;
         bathrooms?: number;
         area?: number;
@@ -27,8 +30,6 @@ interface ManagerPropertyCardProps {
         };
         total_floors?: number;
         occupied_units?: number;
-        rating?: number;
-        reviews?: number;
         created_at?: string;
         view_count?: number;
     };
@@ -37,28 +38,71 @@ interface ManagerPropertyCardProps {
 }
 
 const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onEdit, onView }) => {
-    // Safe accessors
     const title = property.title || property.name || 'Untitled Property';
-    const address = property.address || (typeof property.location === 'string' ? property.location : property.location?.addressLine1) || 'No Address';
+    const address =
+        property.address ||
+        (typeof property.location === 'string'
+            ? property.location
+            : property.location?.addressLine1) ||
+        'No Address';
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
     const size = property.area || property.sqft || 0;
 
-    // Image logic
     const getImage = () => {
-        if (property.images && Array.isArray(property.images) && property.images.length > 0) return property.images[0];
-        if (property.image) return property.image;
-        // Handle specific media structure if present
-        if (property.media?.images?.[0]?.url) return property.media.images[0].url;
+        if (property.images && Array.isArray(property.images) && property.images.length > 0) {
+            return property.images[0];
+        }
+        if (property.image) {
+            return property.image;
+        }
+        if (property.media?.images?.[0]?.url) {
+            return property.media.images[0].url;
+        }
         return null;
     };
-    const imageUrl = getImage();
 
+    const formatPrice = (price?: PriceInfo | number | string) => {
+        const isRentalListing =
+            property.listingType === 'rent' ||
+            property.type?.toLowerCase() === 'rent';
+
+        if (property.priceString) {
+            return isRentalListing ? `${property.priceString}/month` : property.priceString;
+        }
+
+        if (typeof price === 'object' && price !== null && 'amount' in price) {
+            const formatted = new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: price.currency || 'GBP',
+                maximumFractionDigits: 0,
+            }).format(price.amount);
+            return isRentalListing ? `${formatted}/month` : formatted;
+        }
+
+        if (typeof price === 'number') {
+            const formatted = new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: 'GBP',
+                maximumFractionDigits: 0,
+            }).format(price);
+            return isRentalListing ? `${formatted}/month` : formatted;
+        }
+
+        if (typeof price === 'string' && price.trim()) {
+            return price;
+        }
+
+        return null;
+    };
+
+    const imageUrl = getImage();
     const statusConfig = getManagerPropertyStatusBadge(property.status);
     const inventoryCaption = formatPropertyInventoryCaption(
         property.dimensions?.totalFloors ?? property.total_floors,
         property.dimensions?.occupiedUnits ?? property.occupied_units,
     );
+    const formattedPrice = formatPrice(property.price);
 
     return (
         <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
@@ -67,7 +111,6 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     <img
                         src={imageUrl}
                         alt={title}
-
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : (
@@ -76,7 +119,6 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     </div>
                 )}
 
-                {/* Status Badge */}
                 <div className="absolute top-3 left-3">
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm ring-1 ring-inset backdrop-blur-sm ${statusConfig.badgeClassName}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotClassName}`} />
@@ -84,7 +126,6 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     </span>
                 </div>
 
-                {/* View Count */}
                 {property.view_count !== undefined && (
                     <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
                         <Eye size={12} />
@@ -94,11 +135,11 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
             </div>
 
             <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate flex-1 pr-2">{title}</h3>
-                    {property.price !== undefined && (
+                <div className="flex justify-between items-start mb-2 gap-2">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate flex-1">{title}</h3>
+                    {formattedPrice && (
                         <p className="font-display font-bold text-lg text-orange-600 dark:text-orange-500 whitespace-nowrap">
-                            £{property.price.toLocaleString()}
+                            {formattedPrice}
                         </p>
                     )}
                 </div>
@@ -153,4 +194,3 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
 };
 
 export default ManagerPropertyCard;
-
