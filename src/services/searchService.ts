@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '../lib/apiUtils';
+import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
 
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
@@ -6,14 +7,15 @@ const SEARCH_SERVICE_COOLDOWN_MS = 2 * 60 * 1000;
 
 let primarySearchFallbackUntil = 0;
 
-const isLocalBrowserRuntime = () =>
-    typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const isStableCoreSearchRuntime = () =>
+    typeof window !== 'undefined' &&
+    (isLocalhostHost(window.location.hostname) || isSingleOriginHostedHost(window.location.hostname));
 
 const shouldBypassPrimarySearchService = () =>
-    isLocalBrowserRuntime() || Date.now() < primarySearchFallbackUntil;
+    isStableCoreSearchRuntime() || Date.now() < primarySearchFallbackUntil;
 
 const markPrimarySearchServiceUnavailable = () => {
-    if (isLocalBrowserRuntime()) {
+    if (isStableCoreSearchRuntime()) {
         return;
     }
 
