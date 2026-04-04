@@ -200,6 +200,7 @@ const App: React.FC = () => {
             <Route path="properties/:id" element={<AdminPropertyDetail />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="user-management" element={<AdminUsers />} />
             <Route path="verifications" element={<AdminVerifications />} />
             <Route path="reviews" element={<AdminReviews />} />
             <Route path="profile" element={<AdminProfile />} />
