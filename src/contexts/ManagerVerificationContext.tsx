@@ -103,6 +103,7 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         pathname.startsWith('/manager/verification')
         || pathname.startsWith('/manager/profile')
         || pathname.startsWith('/manager/dashboard/properties/add')
+        || pathname.startsWith('/manager/dashboard/properties/edit')
     ), [pathname]);
     const syncTags = [
         WORKSPACE_SYNC_TAGS.VERIFICATIONS,

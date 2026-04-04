@@ -56,6 +56,15 @@ import {
 import AddressSection, {
   AddressFormData,
 } from "@/components/ui/AddressSection";
+import {
+  getCitiesByState,
+  getStatesByCountry,
+  resolveAddressToIds,
+} from "@/services/addressService";
+import {
+  getPropertyById,
+  type Property as ServiceProperty,
+} from "@/services/propertyService";
 import Toast from "@/components/ui/Toast";
 import { useManagerVerification } from "@/contexts/ManagerVerificationContext";
 import { reassignMediaEntity } from "@/services/mediaService";
@@ -465,6 +474,23 @@ const resolveCountryCurrency = (countryCode: string): CurrencyCode => {
   return country?.currency || "USD";
 };
 
+const normalizeDateInputValue = (value?: string): string => {
+  if (!value) {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  return parsed.toISOString().split("T")[0];
+};
+
 export default function AddPropertyPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -534,6 +560,229 @@ export default function AddPropertyPage() {
     setToast((prev) => ({ ...prev, visible: false }));
   }, []);
 
+  const parseServiceList = useCallback((value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.filter(
+        (entry): entry is string =>
+          typeof entry === "string" && entry.trim().length > 0,
+      );
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return [];
+      }
+
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (entry): entry is string =>
+              typeof entry === "string" && entry.trim().length > 0,
+          );
+        }
+      } catch {
+        return trimmed
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      }
+    }
+
+    return [];
+  }, []);
+
+  const buildAmenityBuckets = useCallback(
+    (rawAmenities: unknown) => {
+      const selected = new Set(parseServiceList(rawAmenities));
+      return {
+        interior: amenitiesGroups.interior
+          .map((entry) => entry.id)
+          .filter((id) => selected.has(id)),
+        exterior: amenitiesGroups.exterior
+          .map((entry) => entry.id)
+          .filter((id) => selected.has(id)),
+        community: amenitiesGroups.community
+          .map((entry) => entry.id)
+          .filter((id) => selected.has(id)),
+        security: amenitiesGroups.security
+          .map((entry) => entry.id)
+          .filter((id) => selected.has(id)),
+        utilities: amenitiesGroups.utilities
+          .map((entry) => entry.id)
+          .filter((id) => selected.has(id)),
+      };
+    },
+    [parseServiceList],
+  );
+
+  const applyLoadedFormData = useCallback((loadedFormData: FormData) => {
+    setFormData(loadedFormData);
+    setOriginalFormData(loadedFormData);
+
+    const imageUrls = loadedFormData.images.filter(
+      (entry): entry is string => typeof entry === "string",
+    );
+    const videoUrls = loadedFormData.videos.filter(
+      (entry): entry is string => typeof entry === "string",
+    );
+
+    setImagePreviews(imageUrls);
+    setVideoPreviews(videoUrls);
+    hasInitializedRef.current = true;
+    setLoadingProperty(false);
+    setIsDirty(false);
+  }, []);
+
+  const hydrateLoadedAddressFields = useCallback(
+    async (loadedFormData: FormData): Promise<FormData> => {
+      const shouldResolveAddress =
+        Boolean(loadedFormData.country || loadedFormData.countryCode) &&
+        (!loadedFormData.countryId ||
+          !loadedFormData.stateId ||
+          !loadedFormData.cityId);
+
+      if (!shouldResolveAddress) {
+        return loadedFormData;
+      }
+
+      const {
+        countryId,
+        stateId,
+        cityId,
+      } = await resolveAddressToIds(
+        loadedFormData.country,
+        loadedFormData.countryCode,
+        loadedFormData.state,
+        loadedFormData.city,
+      );
+
+      const resolvedCountryId = loadedFormData.countryId || countryId || "";
+      const resolvedStateId = loadedFormData.stateId || stateId || "";
+      const resolvedCityId = loadedFormData.cityId || cityId || "";
+
+      let resolvedStateName = loadedFormData.state;
+      let resolvedStateCode = loadedFormData.stateCode;
+      let resolvedCityName = loadedFormData.city;
+
+      if (resolvedCountryId && resolvedStateId) {
+        const { data: statesData } = await getStatesByCountry(resolvedCountryId);
+        const resolvedState = (statesData || []).find(
+          (entry) => entry.id === resolvedStateId,
+        );
+        if (resolvedState) {
+          resolvedStateName = resolvedStateName || resolvedState.name;
+          resolvedStateCode = resolvedStateCode || resolvedState.code || "";
+        }
+
+        if (resolvedCityId) {
+          const { data: citiesData } = await getCitiesByState(resolvedStateId);
+          const resolvedCity = (citiesData || []).find(
+            (entry) => entry.id === resolvedCityId,
+          );
+          if (resolvedCity) {
+            resolvedCityName = resolvedCityName || resolvedCity.name;
+          }
+        }
+      }
+
+      return {
+        ...loadedFormData,
+        countryId: resolvedCountryId,
+        stateId: resolvedStateId,
+        state: resolvedStateName,
+        stateCode: resolvedStateCode,
+        cityId: resolvedCityId,
+        city: resolvedCityName,
+      };
+    },
+    [],
+  );
+
+  const buildLoadedFormDataFromServiceProperty = useCallback(
+    (property: ServiceProperty): FormData => {
+      const currentYear = new Date().getFullYear();
+      const resolvedCountryCode =
+        (property as any).country_code ||
+        (property.country?.toLowerCase() === "united kingdom" ? "GB" : "");
+
+      return {
+        title: property.title || "",
+        propertyType: (property.property_type as PropertyType) || "apartment",
+        listingType: property.listing_type || "sale",
+        status: (property.status || "draft") as PropertyStatus,
+
+        priceAmount: property.price || 0,
+        currency: (property.currency as CurrencyCode) || "GBP",
+        negotiable: false,
+
+        addressLine1: property.address_line_1 || "",
+        addressLine2: property.address_line_2 || "",
+        city: property.city || "",
+        cityId: ((property as any).city_id as string) || "",
+        state: ((property as any).state as string) || "",
+        stateId: ((property as any).state_id as string) || "",
+        stateCode: ((property as any).state_code as string) || "",
+        postalCode: property.postcode || "",
+        country: property.country || "",
+        countryCode: resolvedCountryCode,
+        countryId: ((property as any).country_id as string) || "",
+        neighborhood: ((property as any).neighborhood as string) || "",
+        landmark: ((property as any).landmark as string) || "",
+        latitude:
+          property.latitude !== undefined ? String(property.latitude) : "",
+        longitude:
+          property.longitude !== undefined ? String(property.longitude) : "",
+
+        totalArea: property.property_size_sqft || 0,
+        carpetArea: property.carpet_area || 0,
+        areaUnit: "sqft",
+        bedrooms: property.bedrooms || 1,
+        bathrooms: property.bathrooms || 1,
+        balconies: ((property as any).balconies as number) || 0,
+        parkingSpaces: property.parking_spaces || 0,
+        floors: property.total_floors || 1,
+        floorNumber: property.floor_number || 0,
+        totalFloors: property.total_floors || 1,
+
+        yearBuilt: property.year_built || currentYear,
+        furnishing: property.furnished ? "furnished" : "unfurnished",
+        condition:
+          (property.condition as PropertyCondition) || "good",
+        facing: (property.facing as FacingDirection) || "north",
+        amenities: buildAmenityBuckets(property.amenities),
+
+        description: property.description || "",
+        shortDescription: ((property as any).short_description as string) || "",
+
+        images: parseServiceList(property.image_urls),
+        videos: parseServiceList(property.video_urls),
+        virtualTourUrl: property.virtual_tour_url || "",
+
+        contactName: property.agent_name || "",
+        contactEmail: property.agent_email || "",
+        contactPhone: property.agent_phone || "",
+        alternatePhone: property.alternate_phone || "",
+        preferredContactMethod: property.preferred_contact_method || "any",
+        company: property.agent_company || "",
+        licenseNumber: property.license_number || "",
+
+        availableFrom: normalizeDateInputValue(property.available_from),
+        minimumLease: property.minimum_lease || 12,
+        deposit: property.deposit_amount || 0,
+        maintenanceCharges: property.maintenance_charges || 0,
+        inclusions: property.inclusions || "",
+        exclusions: property.exclusions || "",
+
+        featured: property.featured || false,
+        published: ["published", "active", "online"].includes(property.status),
+        draft: property.status === "draft",
+      };
+    },
+    [buildAmenityBuckets, parseServiceList],
+  );
+
   useEffect(() => {
     if (isEditMode) return;
     if (formData.countryCode) return;
@@ -594,8 +843,18 @@ export default function AddPropertyPage() {
       // Try to get property from context first
       let property = getProperty(idValue);
 
-      // If not found in context, try fetching fresh data
+      // Fresh loads can arrive before the context cache hydrates, so fetch
+      // the record directly instead of relying on a just-triggered state update.
       if (!property) {
+        const { data, error } = await getPropertyById(idValue);
+        if (data && !error) {
+          const hydratedFormData = await hydrateLoadedAddressFields(
+            buildLoadedFormDataFromServiceProperty(data),
+          );
+          applyLoadedFormData(hydratedFormData);
+          return;
+        }
+
         await fetchProperties();
         property = getProperty(idValue);
       }
@@ -680,8 +939,7 @@ export default function AddPropertyPage() {
         company: property.contact?.company || "",
         licenseNumber: property.contact?.licenseNumber || "",
 
-        availableFrom:
-          property.availableFrom || new Date().toISOString().split("T")[0],
+        availableFrom: normalizeDateInputValue(property.availableFrom),
         minimumLease: property.minimumLease || 12,
         deposit: property.financial?.deposit || 0,
         maintenanceCharges: property.financial?.maintenanceCharges || 0,
@@ -693,24 +951,21 @@ export default function AddPropertyPage() {
         draft: property.draft ?? true,
       };
 
-      setFormData(loadedFormData);
-      setOriginalFormData(loadedFormData); // Store original for dirty comparison
-
-      // Load image previews
-      if (property.images?.length) {
-        const previews = property.images.filter(
-          (img): img is string => typeof img === "string",
-        );
-        setImagePreviews(previews);
-      }
-
-      hasInitializedRef.current = true;
-      setLoadingProperty(false);
-      setIsDirty(false); // Reset dirty state after loading
+      const hydratedFormData = await hydrateLoadedAddressFields(loadedFormData);
+      applyLoadedFormData(hydratedFormData);
     };
 
     loadPropertyForEdit();
-  }, [idValue, isEditMode, getProperty, fetchProperties, showToast]);
+  }, [
+    applyLoadedFormData,
+    buildLoadedFormDataFromServiceProperty,
+    idValue,
+    hydrateLoadedAddressFields,
+    isEditMode,
+    getProperty,
+    fetchProperties,
+    showToast,
+  ]);
 
   const steps = [
     { number: 1, title: "Basic Info", icon: <Home className="w-5 h-5" /> },

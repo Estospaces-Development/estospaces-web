@@ -90,7 +90,7 @@ const AddressSection = ({
             setLoadingCountries(false);
 
             // Auto-select if only one country
-            if (loaded.length === 1 && !value.countryId) {
+            if (loaded.length === 1 && !value.countryId && !initialCountry && !initialCountryCode) {
                 const c = loaded[0];
                 onChange({
                     ...value,
