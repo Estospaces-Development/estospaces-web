@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { isCurrentAuthRoute } from '@/lib/authUtils';
-import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage } from '@/lib/apiUtils';
+import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
 
 export interface User {
@@ -48,7 +48,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+const CORE_SERVICE_URL = () => getServiceUrl('core');
 const AUTH_STORAGE_KEY = 'esto_user';
 const AUTH_TOKEN_KEY = 'esto_token';
 
@@ -193,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            const data = await apiFetch<any>(`${CORE_SERVICE_URL}/api/v1/auth/me`, { suppressErrorToast: true });
+            const data = await apiFetch<any>(`${CORE_SERVICE_URL()}/api/v1/auth/me`, { suppressErrorToast: true });
             const userData = data.user || data.data || data;
             const userObj = buildStoredUser(userData, userData?.email);
 
@@ -275,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setError(null);
         try {
             const data = await apiFetch<any>(
-                `${CORE_SERVICE_URL}/api/v1/auth/login`,
+                `${CORE_SERVICE_URL()}/api/v1/auth/login`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -323,7 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : first_name;
 
             const data = await apiFetch<any>(
-                `${CORE_SERVICE_URL}/api/v1/auth/register`,
+                `${CORE_SERVICE_URL()}/api/v1/auth/register`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

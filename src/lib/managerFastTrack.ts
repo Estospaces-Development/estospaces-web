@@ -10,7 +10,7 @@ export const resolveManagerFastTrackSelection = (
     cases: ManagerFastTrackSelectionCase[],
     requestedCaseId?: string | null,
     requestedLeadId?: string | null,
-    _previousSelectedCaseId?: string | null,
+    previousSelectedCaseId?: string | null,
 ) => {
     if (cases.length === 0) {
         return null;
@@ -33,6 +33,11 @@ export const resolveManagerFastTrackSelection = (
         if (requestedLeadCase) {
             return requestedLeadCase.caseId;
         }
+    }
+
+    const normalizedPreviousSelection = normalize(previousSelectedCaseId);
+    if (normalizedPreviousSelection && cases.some((caseItem) => caseItem.caseId === normalizedPreviousSelection)) {
+        return normalizedPreviousSelection;
     }
 
     return null;

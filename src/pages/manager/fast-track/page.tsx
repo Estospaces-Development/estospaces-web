@@ -30,6 +30,7 @@ import {
 import { messagesService } from '../../../services/messagesService';
 import { WORKSPACE_SYNC_TAGS } from '../../../lib/workspaceSync';
 import {
+    buildCaseDocumentsFromVerification,
     buildFastTrackDocumentItems,
     buildFastTrackVerificationContent,
     buildCaseKey,
@@ -50,7 +51,9 @@ import {
     resolveManagerFastTrackSelection,
 } from '../../../lib/managerFastTrack';
 import { DELETED_FAST_TRACK_CASE_MESSAGE } from '../../../lib/fastTrackCaseContext';
+import { hasPendingRentFinanceTasks, resolveFastTrackStageGuidance } from '../../../lib/fastTrackStageGuidance';
 import { resolveFastTrackLinkedJourney, type FastTrackLinkedJourney } from '../../../lib/fastTrackLinkedJourney';
+import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
 import type { Contract } from '../../../types/booking';
 
 type ManagerFastTrackCase = FastTrackCase & {
@@ -213,12 +216,15 @@ const FastTrackDashboard = () => {
                     ? (leadById.get(caseItem.leadId) || null)
                     : (leadByCaseKey.get(buildCaseKey(caseItem.propertyId, caseItem.clientId)) || null);
                 const verificationInfo = verificationByUserId.get(caseItem.clientId) || null;
-                const documents = matchingLead?.documents_verified
-                    ? {
-                        identityProof: 'verified' as const,
-                        addressProof: 'verified' as const,
-                    }
-                    : buildDocumentsFromVerification(null, caseItem.documents);
+                const documents = buildCaseDocumentsFromVerification(
+                    caseItem,
+                    matchingLead?.documents_verified ? {
+                        has_identity_doc: true,
+                        has_address_doc: true,
+                        documents_verified: true,
+                    } : verificationInfo,
+                    buildDocumentsFromVerification(null, caseItem.documents),
+                );
                 const documentsReady = Object.values(documents).every((status) => status === 'verified');
                 const stageLead = documentsReady && matchingLead
                     ? { ...matchingLead, documents_verified: true }
@@ -249,6 +255,13 @@ const FastTrackDashboard = () => {
                 });
                 const liveMeta = FAST_TRACK_STEP_META[liveCurrentStep];
                 const preferredAction = caseItem.nextActions?.[0] || linkedJourney.nextActions?.[0] || null;
+                const stageGuidance = resolveFastTrackStageGuidance({
+                    currentStep: liveCurrentStep,
+                    journeyType: caseItem.journeyType,
+                    linkedJourney,
+                    canScheduleViewing: caseItem.finalStatus === 'in_progress' && documentsReady && !linkedJourney.viewing,
+                    hasPendingFinanceTasks: caseItem.journeyType !== 'buy' && hasPendingRentFinanceTasks(linkedJourney),
+                });
 
                 return {
                     ...caseItem,
@@ -260,8 +273,8 @@ const FastTrackDashboard = () => {
                     verificationSummary: buildVerificationSummary(verificationInfo, stageLead, documents),
                     leadStatusLabel: formatLeadStage(resolveLeadStage(stageLead)),
                     documentsReady,
-                    nextAction: preferredAction?.label || linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
-                    statusReason: caseItem.journeyStatusReason || linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
+                    nextAction: stageGuidance?.actionLabel || preferredAction?.label || linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
+                    statusReason: stageGuidance?.description || caseItem.journeyStatusReason || linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
                     linkedJourney,
                 };
             });
@@ -344,6 +357,10 @@ const FastTrackDashboard = () => {
             return;
         }
 
+        if (cases.some((caseItem) => caseItem.caseId === requestedCaseId)) {
+            return;
+        }
+
         if (removedCaseNoticeRef.current !== requestedCaseId) {
             removedCaseNoticeRef.current = requestedCaseId;
             toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
@@ -354,7 +371,7 @@ const FastTrackDashboard = () => {
             next.delete('case');
             return next;
         });
-    }, [loading, searchParams, selectedCaseId, setSearchParams, toast]);
+    }, [cases, loading, searchParams, selectedCaseId, setSearchParams, toast]);
 
     const selectedCase = useMemo(
         () => cases.find((caseItem) => caseItem.caseId === selectedCaseId) || null,
@@ -422,14 +439,19 @@ const FastTrackDashboard = () => {
         );
         const liveMeta = FAST_TRACK_STEP_META[currentStep];
         const preferredAction = selectedCase.nextActions?.[0] || selectedCase.linkedJourney.nextActions?.[0] || null;
+        const stageGuidance = resolveFastTrackStageGuidance({
+            currentStep,
+            journeyType: selectedCase.journeyType,
+            linkedJourney: selectedCase.linkedJourney,
+            canScheduleViewing: selectedCase.finalStatus === 'in_progress' && documentsReady && !selectedCase.linkedJourney.viewing,
+            hasPendingFinanceTasks: selectedCase.journeyType !== 'buy' && hasPendingRentFinanceTasks(selectedCase.linkedJourney),
+        });
         let nextAction = preferredAction?.label || selectedCase.linkedJourney.nextStep || selectedCase.nextAction || liveMeta.label;
         let statusReason = selectedCase.journeyStatusReason || selectedCase.linkedJourney.primarySummary || selectedCase.statusReason || liveMeta.description;
 
-        if (currentStep === 'documents_verified') {
-            nextAction = selectedCase.linkedJourney.viewing ? 'Open appointments workspace' : 'Schedule viewing';
-            statusReason = selectedCase.linkedJourney.viewing
-                ? 'Verification documents are approved and the live viewing should now be managed from appointments.'
-                : liveMeta.description;
+        if (stageGuidance) {
+            nextAction = stageGuidance.actionLabel || nextAction;
+            statusReason = stageGuidance.description;
         } else if (currentStep === 'documents_requested') {
             if (documentPhase === 'uploaded_under_review') {
                 nextAction = 'Review uploaded documents';
@@ -446,9 +468,6 @@ const FastTrackDashboard = () => {
                 ? 'Request documents'
                 : selectedCase.nextAction || 'Open the live workspace';
             statusReason = 'The property is selected and the 24-hour case is active, but verification documents have not been requested yet.';
-        } else if (currentStep === 'viewing_scheduled' && selectedCase.linkedJourney.viewing) {
-            nextAction = 'Open appointments workspace';
-            statusReason = selectedCase.linkedJourney.primarySummary || 'The viewing is booked. Manage confirmations and follow-up from the appointments workspace.';
         }
 
         return {
@@ -516,7 +535,6 @@ const FastTrackDashboard = () => {
                 caseId: createdCase.caseId,
                 leadId: createdCase.leadId,
                 propertyId: createdCase.propertyId,
-                applicationId: createdCase.applicationId,
             },
         });
         await fetchCases(true);
@@ -575,9 +593,6 @@ const FastTrackDashboard = () => {
                 caseId: updatedCase.caseId,
                 leadId: updatedCase.leadId,
                 propertyId: updatedCase.propertyId,
-                applicationId: updatedCase.applicationId,
-                viewingId: updatedCase.viewingId,
-                contractId: updatedCase.contractId,
             },
         });
         toast.success('Case updated successfully');
@@ -702,6 +717,7 @@ const FastTrackDashboard = () => {
                         verificationReasonLines={selectedVerificationDetails ? selectedCaseVerificationContent.reasonLines : []}
                         leadStatusLabel={selectedCaseDetail.leadStatusLabel}
                         linkedJourney={selectedCaseDetail.linkedJourney}
+                        workspaceSection={resolveWorkspaceSection(searchParams.get('section'), 'overview')}
                         onOpenVerificationReview={selectedCase.clientId ? () => setSelectedVerificationUserId(selectedCase.clientId) : undefined}
                         onRequestDocuments={selectedCase.matchingLead ? () => {
                             void handleRequestDocuments(selectedCase);

@@ -6,6 +6,7 @@
 import {
   apiFetch,
   apiFetchEnvelope,
+  buildApiUrl,
   getErrorMessage,
   getServiceUrl,
 } from "@/lib/apiUtils";
@@ -332,7 +333,7 @@ export const getBrokerLeads = async (
   options: ServiceRequestOptions = {},
 ): Promise<{ data: Lead[] | null; error: string | null }> => {
   try {
-    const url = new URL(`${CORE_URL()}/api/v1/leads/broker`);
+    const url = buildApiUrl(CORE_URL(), "/api/v1/leads/broker");
     if (status) url.searchParams.append("status", status);
 
     const data = await apiFetch<Lead[]>(url.toString(), options);
@@ -617,7 +618,7 @@ export const getNearbyAvailableBrokers = async (
   options: ServiceRequestOptions = {},
 ): Promise<{ data: LeadBrokerSummary[] | null; error: string | null }> => {
   try {
-    const url = new URL(`${CORE_URL()}/api/v1/leads/nearby-brokers`);
+    const url = buildApiUrl(CORE_URL(), "/api/v1/leads/nearby-brokers");
     if (params.postcode) url.searchParams.set("postcode", params.postcode);
     if (typeof params.latitude === "number")
       url.searchParams.set("latitude", String(params.latitude));

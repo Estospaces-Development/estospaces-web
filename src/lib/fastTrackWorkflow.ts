@@ -297,6 +297,30 @@ export const buildDocumentsFromVerification = (
     return existingDocuments;
 };
 
+export const shouldReuseCaseVerificationDocuments = (
+    fastTrackCase: Pick<FastTrackCaseLike, 'finalStatus' | 'documentPhase' | 'liveStage'> & { currentStep?: string | null },
+) => {
+    if (fastTrackCase.finalStatus && fastTrackCase.finalStatus !== 'in_progress') {
+        return true;
+    }
+
+    const currentStep = fastTrackCase.liveStage || fastTrackCase.currentStep;
+    const normalizedStep = normalizeCanonicalFastTrackStep(currentStep);
+    const normalizedPhase = normalizeFastTrackDocumentPhase(fastTrackCase.documentPhase, currentStep);
+
+    return normalizedStep !== 'property_selected' || normalizedPhase !== 'not_requested';
+};
+
+export const buildCaseDocumentsFromVerification = (
+    fastTrackCase: Pick<FastTrackCaseLike, 'finalStatus' | 'documentPhase' | 'liveStage'> & { currentStep?: string | null },
+    verificationInfo: UserVerificationInfoLike | null | undefined,
+    existingDocuments: FastTrackDocumentsLike,
+): FastTrackDocumentsLike => (
+    shouldReuseCaseVerificationDocuments(fastTrackCase)
+        ? buildDocumentsFromVerification(verificationInfo, existingDocuments)
+        : existingDocuments
+);
+
 const getDocumentTimestamp = (document: UserDocumentLike) => {
     const candidates = [document.updated_at, document.reviewed_at, document.created_at];
 

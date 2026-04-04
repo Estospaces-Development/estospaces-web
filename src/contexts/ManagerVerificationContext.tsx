@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useRef, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import * as managerVerificationService from '../services/managerVerificationService';
 import { getManagerPropertySubmissionBlocker } from '../lib/managerPropertySubmission';
@@ -55,6 +56,7 @@ const ManagerVerificationContext = createContext<ManagerVerificationContextValue
 
 export const ManagerVerificationProvider = ({ children }: { children: ReactNode }) => {
     const { user, isAuthenticated } = useAuth(); // Removed getRole as it might not be in the new AuthContext yet
+    const { pathname } = useLocation();
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     // State
@@ -97,6 +99,11 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
         verificationStatus !== 'approved';
     const propertySubmissionBlocker = getManagerPropertySubmissionBlocker(managerProfile);
     const isPropertySubmissionReady = propertySubmissionBlocker === null;
+    const shouldFetchVerificationSummary = useMemo(() => (
+        pathname.startsWith('/manager/verification')
+        || pathname.startsWith('/manager/profile')
+        || pathname.startsWith('/manager/dashboard/properties/add')
+    ), [pathname]);
     const syncTags = [
         WORKSPACE_SYNC_TAGS.VERIFICATIONS,
         WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,
@@ -108,7 +115,13 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
     // ========================================================================
 
     const fetchData = useCallback(async () => {
-        if (!user?.id || !isAuthenticated || fetchingRef.current) return;
+        if (!user?.id || !isAuthenticated || fetchingRef.current || !shouldFetchVerificationSummary) {
+            if (!shouldFetchVerificationSummary && mountedRef.current) {
+                setIsLoading(false);
+                setError(null);
+            }
+            return;
+        }
 
         fetchingRef.current = true;
         setIsLoading(true);
@@ -135,22 +148,27 @@ export const ManagerVerificationProvider = ({ children }: { children: ReactNode 
                 fetchingRef.current = false;
             }
         }
-    }, [user?.id, isAuthenticated]);
+    }, [isAuthenticated, shouldFetchVerificationSummary, user?.id]);
 
     // Initial fetch
     useEffect(() => {
         mountedRef.current = true;
-        fetchData();
+        if (shouldFetchVerificationSummary) {
+            void fetchData();
+        } else {
+            setIsLoading(false);
+            setError(null);
+        }
 
         return () => {
             mountedRef.current = false;
         };
-    }, [fetchData]);
+    }, [fetchData, shouldFetchVerificationSummary]);
 
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchData,
-        enabled: isAuthenticated && Boolean(user?.id),
+        enabled: isAuthenticated && Boolean(user?.id) && shouldFetchVerificationSummary,
     });
 
     // ========================================================================

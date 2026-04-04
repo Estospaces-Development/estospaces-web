@@ -6,6 +6,7 @@
 import {
   apiFetch,
   apiFetchEnvelope,
+  buildApiUrl,
   getErrorMessage,
   getServiceUrl,
 } from "@/lib/apiUtils";
@@ -236,7 +237,7 @@ const fetchPropertyList = async (
   error: string | null;
 }> => {
   try {
-    const url = new URL(`${CORE_URL()}${endpoint}`);
+    const url = buildApiUrl(CORE_URL(), endpoint);
     Object.keys(filters).forEach((key) => {
       const param = FILTER_PARAM_MAP[key] || key;
       const value = normalizeFilterValue(filters[key]);

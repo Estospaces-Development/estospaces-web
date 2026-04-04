@@ -557,42 +557,26 @@ export default function PropertyFastTrackModal({
                                 <section className="rounded-[1.9rem] border border-stone-200/80 bg-[#faf7f2] px-5 py-5 shadow-sm">
                                     <div className="flex items-start justify-between gap-4">
                                         <div>
-                                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Upload lane</p>
-                                            <h3 className="mt-2 text-lg font-semibold text-gray-900">Add supporting files here</h3>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Shared workspace</p>
+                                            <h3 className="mt-2 text-lg font-semibold text-gray-900">Finish documents from the live case</h3>
                                             <p className="mt-2 text-sm leading-6 text-gray-500">
-                                                Upload image or PDF proofs directly from this dialog. The lead updates after the files land.
+                                                This modal now keeps the status visible, but the actual uploads and review steps live in the main fast-track workspace so there is only one document flow to follow.
                                             </p>
                                         </div>
                                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/20">
-                                            <Upload size={18} />
+                                            <ArrowUpRight size={18} />
                                         </div>
                                     </div>
 
                                     <div className="mt-5 space-y-3">
                                         {documentItems.map((item) => {
                                             const status = formatDocumentStatus(item.status);
-                                            const isUploading = uploadingType === item.id;
 
                                             return (
-                                                <label
+                                                <div
                                                     key={item.id}
-                                                    className="block cursor-pointer rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm transition hover:border-orange-300"
+                                                    className="rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 shadow-sm"
                                                 >
-                                                    <input
-                                                        type="file"
-                                                        accept="image/*,.pdf"
-                                                        className="hidden"
-                                                        disabled={isUploading}
-                                                        onChange={async (event) => {
-                                                            const file = event.target.files?.[0];
-                                                            event.currentTarget.value = '';
-                                                            if (!file) {
-                                                                return;
-                                                            }
-
-                                                            await onUploadDocument(item.id, file);
-                                                        }}
-                                                    />
                                                     <div className="flex items-start justify-between gap-3">
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-2">
@@ -618,26 +602,25 @@ export default function PropertyFastTrackModal({
                                                             )}
                                                         </div>
                                                         <div className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-xs font-semibold ${status.className}`}>
-                                                            {isUploading ? <Loader2 size={13} className="animate-spin" /> : status.label}
+                                                            {status.label}
                                                         </div>
                                                     </div>
-                                                    <div className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-orange-600">
-                                                        <Upload size={16} />
-                                                        <span>
-                                                            {item.status === 'reupload_required'
-                                                                ? 'Upload replacement'
-                                                                : item.fileName
-                                                                    ? 'Replace file'
-                                                                    : 'Upload image or PDF'}
-                                                        </span>
-                                                    </div>
-                                                </label>
+                                                </div>
                                             );
                                         })}
                                     </div>
 
+                                    <button
+                                        type="button"
+                                        onClick={onOpenDashboard}
+                                        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-[1.4rem] bg-orange-500 px-4 py-4 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+                                    >
+                                        <Upload size={16} />
+                                        Open shared document workspace
+                                    </button>
+
                                     <div className="mt-4 rounded-[1.4rem] border border-stone-200/80 bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-sm">
-                                            Uploading the requested identity and legal compliance evidence helps the fast-track team verify the case faster.
+                                        Uploading the requested identity and legal compliance evidence still helps the fast-track team verify the case faster, but now it all happens from the same live workspace.
                                     </div>
                                 </section>
                             </div>

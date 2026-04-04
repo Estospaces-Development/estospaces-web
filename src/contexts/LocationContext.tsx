@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getUserLocation, extractPostcodeFromAddress } from '../services/locationService';
 import { useAuth } from './AuthContext';
 
@@ -28,8 +29,14 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
     const [userLocation, setUserLocation] = useState<any>(null);
     const [searchLocation, setSearchLocation] = useState<any>(null);
     const { user } = useAuth();
+    const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const normalizedPath = location.pathname.replace(/^\/user/, '');
+    const shouldAutoDetectLocation =
+        normalizedPath === '/dashboard' ||
+        normalizedPath === '/dashboard/' ||
+        normalizedPath.startsWith('/dashboard/discover');
 
     // Get user profile location
     const getUserProfileLocation = useCallback(async () => {
@@ -40,6 +47,13 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
     // Detect user location on mount
     useEffect(() => {
+        if (!shouldAutoDetectLocation) {
+            setUserLocation(null);
+            setError(null);
+            setLoading(false);
+            return;
+        }
+
         const detectLocation = async () => {
             setLoading(true);
             setError(null);
@@ -62,7 +76,7 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
         };
 
         detectLocation();
-    }, [getUserProfileLocation]);
+    }, [getUserProfileLocation, shouldAutoDetectLocation]);
 
     // Update location from search
     const updateLocationFromSearch = useCallback(async (searchInput: string) => {

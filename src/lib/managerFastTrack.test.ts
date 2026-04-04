@@ -35,7 +35,7 @@ test('resolveManagerFastTrackSelection can match a requested lead through matchi
     );
 });
 
-test('resolveManagerFastTrackSelection stays on the list page without a requested case or lead', () => {
+test('resolveManagerFastTrackSelection keeps the previous selection when the route is temporarily between cases', () => {
     assert.equal(
         resolveManagerFastTrackSelection(
             [
@@ -45,6 +45,21 @@ test('resolveManagerFastTrackSelection stays on the list page without a requeste
             null,
             null,
             'case-a',
+        ),
+        'case-a',
+    );
+});
+
+test('resolveManagerFastTrackSelection stays on the list page without a requested case, lead, or previous selection', () => {
+    assert.equal(
+        resolveManagerFastTrackSelection(
+            [
+                { caseId: 'case-a', leadId: 'lead-a' },
+                { caseId: 'case-b', leadId: 'lead-b' },
+            ],
+            null,
+            null,
+            null,
         ),
         null,
     );

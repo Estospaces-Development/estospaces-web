@@ -14,10 +14,12 @@ import {
     useWorkflowWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import { getBrokerLeads, respondToLead, type Lead } from '@/services/leadsService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { canRequestLeadDocuments, formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { buildWorkspacePath } from '@/lib/workspaceLinks';
 
 const STATUS_FILTERS = [
     { value: 'all', label: 'All Leads' },
@@ -156,6 +158,7 @@ export default function ManagerLeadsPage() {
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [leads, setLeads] = useState<Lead[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -183,11 +186,15 @@ export default function ManagerLeadsPage() {
             setError(null);
         }
         try {
-            const result = await getBrokerLeads(selectedStatus === 'all' ? undefined : selectedStatus);
+            const [result, fastTrackCasesResult] = await Promise.all([
+                getBrokerLeads(selectedStatus === 'all' ? undefined : selectedStatus),
+                getFastTrackCases({ suppressErrorToast: true }),
+            ]);
             if (result.error) {
                 throw new Error(result.error);
             }
             setLeads(result.data || []);
+            setFastTrackCases(fastTrackCasesResult.data || []);
         } catch (fetchError: any) {
             if (!options.silent) {
                 setError(fetchError?.message || 'Failed to load leads');
@@ -260,6 +267,17 @@ export default function ManagerLeadsPage() {
             breached,
         };
     }, [leads, now]);
+    const fastTrackCaseByLeadId = useMemo(() => {
+        const mapping = new Map<string, FastTrackCase>();
+
+        fastTrackCases.forEach((caseItem) => {
+            if (caseItem.leadId) {
+                mapping.set(caseItem.leadId, caseItem);
+            }
+        });
+
+        return mapping;
+    }, [fastTrackCases]);
 
     const openConversation = useCallback(async (lead: Lead) => {
         if (!lead.user_id) {
@@ -561,6 +579,27 @@ export default function ManagerLeadsPage() {
                             const canRequestDocuments = canRequestLeadDocuments(lead);
                             const canScheduleViewing = canScheduleLeadViewing(lead);
                             const isBusy = actingLeadID === lead.id;
+                            const linkedCase = fastTrackCaseByLeadId.get(lead.id)
+                                || fastTrackCases.find((caseItem) => (
+                                    caseItem.propertyId === lead.property_id
+                                ))
+                                || null;
+                            const leadWorkspacePath = linkedCase
+                                ? buildWorkspacePath('/manager/fast-track', {
+                                    caseId: linkedCase.caseId,
+                                    leadId: lead.id,
+                                    propertyId: lead.property_id,
+                                    section: 'overview',
+                                })
+                                : null;
+                            const leadDocumentsPath = linkedCase
+                                ? buildWorkspacePath('/manager/fast-track', {
+                                    caseId: linkedCase.caseId,
+                                    leadId: lead.id,
+                                    propertyId: lead.property_id,
+                                    section: 'documents',
+                                })
+                                : null;
 
                             return (
                                 <div key={lead.id} className="p-6">
@@ -656,6 +695,22 @@ export default function ManagerLeadsPage() {
                                         </div>
 
                                         <div className="flex flex-col gap-3 xl:min-w-[240px]">
+                                            {leadWorkspacePath ? (
+                                                <button
+                                                    onClick={() => navigate(leadWorkspacePath)}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                                                >
+                                                    Open Live Workspace
+                                                </button>
+                                            ) : null}
+                                            {leadDocumentsPath ? (
+                                                <button
+                                                    onClick={() => navigate(leadDocumentsPath)}
+                                                    className="rounded-2xl border border-orange-200 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-900/40 dark:text-orange-300 dark:hover:bg-orange-950/20"
+                                                >
+                                                    Open Documents
+                                                </button>
+                                            ) : null}
                                             {isAwaitingResponse ? (
                                                 <>
                                                     <button

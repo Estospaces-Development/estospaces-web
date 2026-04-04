@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   filterReusableDocumentsForRequest,
   inferCaseFileUploadDescriptor,
+  matchCaseFileRequestForFileName,
   summarizeCaseFileDocuments,
 } from "./caseFileDocuments";
 
@@ -194,4 +195,40 @@ test("reusable document filtering accepts top-level user-document payloads from 
     }).map((item) => item.id),
     ["doc-1"],
   );
+});
+
+test("request matching can infer the most likely case-file request from the uploaded filename", () => {
+  const match = matchCaseFileRequestForFileName("alice-proof-of-funds-bank-statement.pdf", [
+    {
+      id: "request-1",
+      title: "Proof of funds / MIP",
+      requirement_codes: ["proof_of_funds", "mortgage_in_principle"],
+    },
+    {
+      id: "request-2",
+      title: "Passport copy",
+      requirement_codes: ["identity_proof"],
+    },
+  ]);
+
+  assert.equal(match.request?.id, "request-1");
+  assert.equal(match.ambiguous, false);
+});
+
+test("request matching leaves the upload for manual review when multiple requests look equally likely", () => {
+  const match = matchCaseFileRequestForFileName("supporting-document.pdf", [
+    {
+      id: "request-1",
+      title: "Additional evidence",
+      requirement_codes: ["custom_supporting_item"],
+    },
+    {
+      id: "request-2",
+      title: "Further supporting evidence",
+      requirement_codes: ["supporting_document"],
+    },
+  ]);
+
+  assert.equal(match.request, null);
+  assert.equal(match.ambiguous, true);
 });

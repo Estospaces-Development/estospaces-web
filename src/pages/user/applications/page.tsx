@@ -122,6 +122,7 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
         caseId: application.fastTrackCaseId,
         leadId: application.leadId,
         propertyId: application.propertyId,
+        section: 'documents',
     });
 
     return (
@@ -289,6 +290,7 @@ export default function ApplicationsPage() {
         fetchApplications
     } = useApplications();
     const navigate = useNavigate();
+    const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');

@@ -85,9 +85,17 @@ import {
   type PropertyComplianceEvidenceDraft,
 } from "@/lib/propertyCompliance";
 import { summarizeCaseFileDocuments } from "@/lib/caseFileDocuments";
-import { getManagerRentNextAction } from "@/lib/managerRentWorkflow";
+import {
+  getManagerRentNextAction,
+  type ManagerRentNextActionPanel,
+} from "@/lib/managerRentWorkflow";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import CaseFileWorkspace from "@/components/case-file/CaseFileWorkspace";
+import {
+  resolveManagerApplicationOverviewFocus,
+  resolveManagerApplicationTab,
+} from "@/lib/managerApplicationWorkspace";
+import type { WorkspaceSection } from "@/lib/liveCaseWorkspace";
 
 interface ApplicationDetailProps {
   applicationId: string;
@@ -97,13 +105,27 @@ interface ApplicationDetailProps {
     id: string,
     status: ApplicationStatus,
   ) => Promise<void> | void;
+  requestedSection?: WorkspaceSection;
 }
+
+const managerRentPanelLabels: Record<
+  ManagerRentNextActionPanel,
+  string
+> = {
+  documents: "Shared documents",
+  referencing: "Referencing",
+  compliance: "Compliance",
+  approval: "Approval",
+  property_readiness: "Property readiness",
+  appointments: "Appointments",
+};
 
 const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   applicationId,
   application: initialApplication,
   onClose,
   onUpdateStatus,
+  requestedSection,
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -116,7 +138,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() =>
+    resolveManagerApplicationTab(requestedSection),
+  );
   const [openingConversation, setOpeningConversation] = useState(false);
   const [buyerQualification, setBuyerQualification] =
     useState<BuyerQualification | null>(null);
@@ -161,6 +185,15 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const [rentWorkflowAction, setRentWorkflowAction] = useState<string | null>(
     null,
   );
+  const agentInfoSectionRef = useRef<HTMLElement | null>(null);
+  const purchaseWorkspaceSectionRef = useRef<HTMLElement | null>(null);
+  const liveJourneySectionRef = useRef<HTMLElement | null>(null);
+  const rentWorkspaceSectionRef = useRef<HTMLElement | null>(null);
+  const rentDocumentsSectionRef = useRef<HTMLElement | null>(null);
+  const rentReferencingSectionRef = useRef<HTMLElement | null>(null);
+  const rentComplianceSectionRef = useRef<HTMLElement | null>(null);
+  const rentPropertyReadinessSectionRef = useRef<HTMLElement | null>(null);
+  const rentActionSectionRef = useRef<HTMLElement | null>(null);
   const buyerQualificationSectionRef = useRef<HTMLElement | null>(null);
   const amlSectionRef = useRef<HTMLElement | null>(null);
   const sellerReadinessSectionRef = useRef<HTMLElement | null>(null);
@@ -221,6 +254,74 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       }, 180);
     }
   };
+
+  const scrollToRentPanel = (panel: ManagerRentNextActionPanel) => {
+    switch (panel) {
+      case "documents":
+        setActiveTab("documents");
+        return;
+      case "referencing":
+        rentReferencingSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      case "compliance":
+        rentComplianceSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      case "property_readiness":
+        rentPropertyReadinessSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      case "approval":
+        rentActionSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        return;
+      case "appointments":
+        handleOpenRentWorkspace("/manager/appointments");
+        return;
+      default:
+        return;
+    }
+  };
+
+  const overviewFocus = resolveManagerApplicationOverviewFocus(requestedSection);
+  const overviewTab = resolveManagerApplicationTab(requestedSection);
+
+  useEffect(() => {
+    setActiveTab(overviewTab);
+  }, [applicationId, overviewTab]);
+
+  useEffect(() => {
+    if (activeTab !== "overview" || !overviewFocus) {
+      return;
+    }
+
+    const target =
+      overviewFocus === "messages"
+        ? agentInfoSectionRef.current
+        : isPurchaseApplication
+          ? purchaseWorkspaceSectionRef.current ||
+            liveJourneySectionRef.current
+          : rentWorkspaceSectionRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, isPurchaseApplication, overviewFocus]);
 
   const loadManagedPurchaseWorkflow = async (
     targetApplication: Application,
@@ -379,6 +480,15 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       cancelled = true;
     };
   }, [application?.id, application?.fastTrackCaseId, isRentApplication]);
+
+  useEffect(() => {
+    if (!pendingOfferFocus || !offerLaneReady) {
+      return;
+    }
+
+    scrollToWorkflowSection("offer");
+    setPendingOfferFocus(false);
+  }, [offerLaneReady, pendingOfferFocus]);
 
   if (!application) {
     return (
@@ -574,14 +684,194 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     (rightToRentCheck?.status === "completed" ||
       rightToRentCheck?.status === "not_required");
 
-  useEffect(() => {
-    if (!pendingOfferFocus || !offerLaneReady) {
-      return;
-    }
+  const renderGuidedProgressRail = (
+    steps: Array<{
+      key: string;
+      label: string;
+      description: string;
+      complete: boolean;
+      active: boolean;
+      onClick?: () => void;
+    }>,
+  ) => (
+    <div
+      className={`mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4 ${
+        steps.length > 4 ? "2xl:grid-cols-5" : ""
+      }`}
+    >
+      {steps.map((step, index) => {
+        const statusClass = step.complete
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/25 dark:text-emerald-300"
+          : step.active
+            ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300"
+            : "border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400";
+        const badgeClass = step.complete
+          ? "bg-emerald-500 text-white"
+          : step.active
+            ? "bg-orange-500 text-white"
+            : "bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
+        const statusLabel = step.complete
+          ? "Done"
+          : step.active
+            ? "Now"
+            : "Upcoming";
+        const cardClassName = `rounded-2xl border px-4 py-4 text-left shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${
+          step.onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""
+        } ${statusClass}`;
 
-    scrollToWorkflowSection("offer");
-    setPendingOfferFocus(false);
-  }, [offerLaneReady, pendingOfferFocus]);
+        return step.onClick ? (
+          <button
+            key={step.key}
+            type="button"
+            onClick={step.onClick}
+            className={cardClassName}
+          >
+            <div className="flex items-start gap-3">
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${badgeClass}`}
+              >
+                {step.complete ? <CheckCircle size={14} /> : index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {step.label}
+                  </span>
+                  <span className="rounded-full border border-current/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                    {statusLabel}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  {step.description}
+                </p>
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div key={step.key} className={cardClassName}>
+            <div className="flex items-start gap-3">
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${badgeClass}`}
+              >
+                {step.complete ? <CheckCircle size={14} /> : index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {step.label}
+                  </span>
+                  <span className="rounded-full border border-current/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                    {statusLabel}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  {step.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const purchaseGuidedSteps = [
+    {
+      key: "buyer",
+      label: "Buyer qualification",
+      description:
+        "Check proof of funds or a mortgage in principle before anything else moves.",
+      complete: qualificationComplete,
+      active: purchaseWorkspaceState.targetSection === "buyer",
+      onClick: () => scrollToWorkflowSection("buyer"),
+    },
+    {
+      key: "aml",
+      label: "AML review",
+      description:
+        "Finish identity and source-of-funds review so the offer lane can open.",
+      complete: amlComplete,
+      active: purchaseWorkspaceState.targetSection === "aml",
+      onClick: () => scrollToWorkflowSection("aml"),
+    },
+    {
+      key: "seller",
+      label: "Seller readiness",
+      description:
+        "Clear the property compliance pack before the first offer is recorded.",
+      complete: propertyOfferReady,
+      active: purchaseWorkspaceState.targetSection === "seller",
+      onClick: () => scrollToWorkflowSection("seller"),
+    },
+    {
+      key: "offer",
+      label: "Record first offer",
+      description:
+        "Record the buyer's first offer and open the live sale progression.",
+      complete: Boolean(showsLiveSaleJourney),
+      active: purchaseWorkspaceState.targetSection === "offer",
+      onClick: () => scrollToWorkflowSection("offer"),
+    },
+  ];
+
+  const rentDocumentsComplete = Boolean(
+    rentCaseFileSummary &&
+      rentCaseFileSummary.totalRequestCount > 0 &&
+      rentCaseFileSummary.openRequestCount === 0 &&
+      rentCaseFileSummary.pendingReviewCount === 0 &&
+      rentCaseFileSummary.reuploadCount === 0,
+  );
+  const rentGuidedSteps = [
+    {
+      key: "documents",
+      label: "Documents",
+      description:
+        "Open the shared case file and keep client uploads in sync here.",
+      complete: rentDocumentsComplete,
+      active: managerRentNextAction?.panel === "documents",
+      onClick: () => setActiveTab("documents"),
+    },
+    {
+      key: "referencing",
+      label: "Referencing",
+      description:
+        "Run referencing after the viewing and mark it complete on this page.",
+      complete: referencingCheck?.status === "completed",
+      active: managerRentNextAction?.panel === "referencing",
+      onClick: () => scrollToRentPanel("referencing"),
+    },
+    {
+      key: "compliance",
+      label: "Compliance",
+      description:
+        "Complete the right-to-rent or equivalent jurisdiction check here.",
+      complete:
+        rightToRentCheck?.status === "completed" ||
+        rightToRentCheck?.status === "not_required",
+      active: managerRentNextAction?.panel === "compliance",
+      onClick: () => scrollToRentPanel("compliance"),
+    },
+    {
+      key: "approval",
+      label: "Approval",
+      description:
+        "Approve once referencing and compliance are both clear.",
+      complete: application.status === APPLICATION_STATUS.APPROVED,
+      active: managerRentNextAction?.panel === "approval",
+      onClick: () => scrollToRentPanel("approval"),
+    },
+    {
+      key: "contract",
+      label: "Contract",
+      description:
+        "Create or open the contract after the property pack is ready.",
+      complete: Boolean(rentCaseFile?.contract_id),
+      active:
+        managerRentNextAction?.id === "open_create_contract" ||
+        Boolean(rentCaseFile?.contract_id),
+      onClick: () => handleRentContractAction(),
+    },
+  ];
 
   const refreshManagedPurchaseWorkflow = async () => {
     if (!application || !supportsManagedPurchaseWorkflow) {
@@ -623,6 +913,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       }
 
       await refreshRentWorkflow();
+      scrollToRentPanel(
+        status === "completed" ? "compliance" : "referencing",
+      );
       toast.success(
         status === "completed"
           ? "Referencing marked complete."
@@ -660,6 +953,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       }
 
       await refreshRentWorkflow();
+      scrollToRentPanel(
+        status === "completed" || status === "not_required"
+          ? "approval"
+          : "compliance",
+      );
       toast.success(
         status === "completed"
           ? "Compliance check marked complete."
@@ -693,6 +991,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       }
 
       await refreshRentWorkflow();
+      scrollToRentPanel(rentContractReady ? "approval" : "property_readiness");
       toast.success("Application approved and moved into the contract stage.");
     } catch (error: any) {
       toast.error(
@@ -737,7 +1036,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         rentPropertyComplianceReadiness?.status_reason ||
           "The property compliance pack still needs to be contract-ready before the contract can be created.",
       );
-      navigate(`/manager/dashboard/property/${application.propertyId}`);
+      scrollToRentPanel("property_readiness");
       return;
     }
 
@@ -749,38 +1048,37 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
-    switch (managerRentNextAction.id) {
-      case "request_documents":
-      case "upload_for_client":
-      case "review_documents":
-      case "request_replacement":
+    switch (managerRentNextAction.panel) {
+      case "documents":
         setActiveTab("documents");
         return;
-      case "open_appointment":
+      case "appointments":
         handleOpenRentWorkspace("/manager/appointments");
         return;
-      case "complete_referencing":
+      case "referencing":
         await handleReferencingStatusUpdate(
           referencingCheck?.status === "in_progress"
             ? "completed"
             : "in_progress",
         );
         return;
-      case "complete_right_to_rent":
+      case "compliance":
         await handleRightToRentStatusUpdate(
           rightToRentCheck?.status === "in_progress"
             ? "completed"
             : "in_progress",
         );
         return;
-      case "approve_application":
+      case "property_readiness":
+        handleRentContractAction();
+        return;
+      case "approval":
+        if (managerRentNextAction.id === "open_create_contract") {
+          handleRentContractAction();
+          return;
+        }
+
         await handleApproveRentApplication();
-        return;
-      case "open_create_contract":
-        handleRentContractAction();
-        return;
-      case "review_property_readiness":
-        handleRentContractAction();
         return;
       default:
         return;
@@ -810,6 +1108,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
       setPendingOfferFocus(buyerQualificationReady);
       await refreshManagedPurchaseWorkflow();
+      scrollToWorkflowSection(buyerQualificationReady ? "aml" : "buyer");
       toast.success(
         buyerQualificationReady
           ? "Buyer qualification completed."
@@ -844,6 +1143,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
       setPendingOfferFocus(amlReviewReady);
       await refreshManagedPurchaseWorkflow();
+      scrollToWorkflowSection(amlReviewReady ? "seller" : "aml");
       toast.success(
         amlReviewReady
           ? "AML review completed."
@@ -984,6 +1284,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         draft.status === "completed" || draft.status === "waived",
       );
       await refreshManagedPurchaseWorkflow();
+      if (!(draft.status === "completed" || draft.status === "waived")) {
+        scrollToWorkflowSection("seller");
+      }
       toast.success(`${requirementLabel} saved.`);
     } catch (error: any) {
       toast.error(
@@ -1249,7 +1552,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                 <button
                   onClick={() =>
                     navigate(
-                      `/manager/dashboard/property/${application.propertyId}`,
+                      `/manager/dashboard/properties/${application.propertyId}`,
                     )
                   }
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
@@ -1341,7 +1644,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             {activeTab === "overview" && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Agent Information */}
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800">
+                <div
+                  ref={agentInfoSectionRef}
+                  className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800"
+                >
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <User size={20} className="text-orange-500" />
                     Agent Information
@@ -1437,11 +1743,14 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                 </div>
 
                 {showsLiveSaleJourney && (
-                  <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+                  <div
+                    ref={liveJourneySectionRef}
+                    className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
+                  >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="max-w-3xl">
                         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
-                          Purchase Journey
+                          Live sale journey
                         </p>
                         <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                           {application.journeyLabel ||
@@ -1491,14 +1800,17 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                 )}
 
                 {supportsManagedPurchaseWorkflow && !isSaleProgression && (
-                  <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+                  <div
+                    ref={purchaseWorkspaceSectionRef}
+                    className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
+                  >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="max-w-3xl">
                         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
-                          Purchase Journey
+                          Guided purchase workspace
                         </p>
                         <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                          {purchaseStageLabel}
+                          Next step
                         </h3>
                         <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
                           {purchaseJourneySummary}
@@ -1509,9 +1821,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           ? "Qualification, AML, and seller readiness are cleared. Record the first buyer offer to open the live sale progression."
                           : purchaseOfferReady
                             ? "Buyer qualification and AML are clear. Finish the seller readiness pack here to open the offer lane."
-                            : "Clear buyer qualification, AML, and seller readiness from here so the offer lane can open without leaving this case."}
+                          : "Clear buyer qualification, AML, and seller readiness from here so the offer lane can open without leaving this case."}
                       </div>
                     </div>
+
+                    {renderGuidedProgressRail(purchaseGuidedSteps)}
 
                     {application.blockers &&
                       application.blockers.length > 0 && (
@@ -2008,11 +2322,17 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
                 {/* Next Steps & Approved Message */}
                 {isRentApplication && (
-                  <div className="lg:col-span-2 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 dark:border-orange-800/50 dark:from-orange-900/10 dark:to-gray-900">
+                  <div
+                    ref={rentWorkspaceSectionRef}
+                    className="lg:col-span-2 rounded-xl border border-orange-200 bg-gradient-to-br from-orange-50 to-white p-6 dark:border-orange-800/50 dark:from-orange-900/10 dark:to-gray-900"
+                  >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
+                      <div className="max-w-3xl">
+                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
+                          Guided rent workspace
+                        </p>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                          Manager next action
+                          Next step
                         </h3>
                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                           Keep the rent journey moving from one place. The next
@@ -2040,7 +2360,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     {managerRentNextAction ? (
                       <div className="mt-5 rounded-xl border border-orange-200 bg-white/80 p-5 dark:border-orange-800/50 dark:bg-gray-950/40">
                         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300">
-                          Priority
+                          {managerRentPanelLabels[managerRentNextAction.panel]}
                         </p>
                         <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
                           {managerRentNextAction.title}
@@ -2051,8 +2371,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       </div>
                     ) : null}
 
-                    <div className="mt-5 grid gap-4 md:grid-cols-3">
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40">
+                    {renderGuidedProgressRail(rentGuidedSteps)}
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                      <div
+                        ref={rentDocumentsSectionRef}
+                        className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40"
+                      >
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
                           Shared case file
                         </p>
@@ -2076,7 +2401,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         </button>
                       </div>
 
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40">
+                      <div
+                        ref={rentReferencingSectionRef}
+                        className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40"
+                      >
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
                           Referencing
                         </p>
@@ -2118,7 +2446,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         </div>
                       </div>
 
-                      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40">
+                      <div
+                        ref={rentComplianceSectionRef}
+                        className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40"
+                      >
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
                           Compliance
                         </p>
@@ -2177,9 +2508,62 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           ) : null}
                         </div>
                       </div>
+
+                      <div
+                        ref={rentPropertyReadinessSectionRef}
+                        className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                          Property readiness
+                        </p>
+                        <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">
+                          {rentContractReady
+                            ? "Contract ready"
+                            : rentPropertyComplianceReadiness?.status?.replace(
+                                /_/g,
+                                " ",
+                              ) ||
+                              "Pending"}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                          {rentPropertyComplianceReadiness?.status_reason ||
+                            "Review the live readiness pack here before creating the tenancy contract."}
+                        </p>
+                        {rentPropertyComplianceReadiness?.blockers &&
+                        rentPropertyComplianceReadiness.blockers.length > 0 ? (
+                          <div className="mt-4 space-y-2">
+                            {rentPropertyComplianceReadiness.blockers
+                              .slice(0, 3)
+                              .map((blocker) => (
+                                <div
+                                  key={blocker.code}
+                                  className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300"
+                                >
+                                  <p className="font-semibold text-gray-900 dark:text-white">
+                                    {blocker.title}
+                                  </p>
+                                  {"description" in blocker &&
+                                  blocker.description ? (
+                                    <p className="mt-1 leading-5">
+                                      {blocker.description}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ))}
+                          </div>
+                        ) : (
+                          <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                            The readiness pack will appear here as soon as the
+                            property compliance records are available.
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="mt-5 flex flex-wrap gap-3">
+                    <div
+                      ref={rentActionSectionRef}
+                      className="mt-5 flex flex-wrap gap-3"
+                    >
                       <button
                         type="button"
                         onClick={() => void handleApproveRentApplication()}
@@ -2212,8 +2596,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       </button>
                     </div>
 
-                    {application.status === APPLICATION_STATUS.APPROVED &&
-                    !rentContractReady ? (
+                    {!rentContractReady &&
+                    (application.status === APPLICATION_STATUS.APPROVED ||
+                      managerRentNextAction?.id ===
+                        "review_property_readiness" ||
+                      managerRentNextAction?.id === "open_create_contract") ? (
                       <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                         {rentPropertyComplianceReadiness?.status_reason ||
                           "The property compliance pack still has blockers before the contract can be issued or move-in can proceed."}
@@ -2366,19 +2753,27 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                               </span>
                             </button>
 
-                            {application.listingType === "rent" && (
-                              <button
-                                onClick={handleRentContractAction}
-                                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors shadow-sm"
-                              >
-                                <FileText size={18} />
-                                <span>
-                                  {rentCaseFile?.contract_id
-                                    ? "Open Contract"
-                                    : "Draft Contract"}
-                                </span>
-                              </button>
-                            )}
+                    {application.listingType === "rent" && (
+                      <button
+                        onClick={handleRentContractAction}
+                        disabled={
+                          rentWorkflowAction !== null ||
+                          (!rentCaseFile?.contract_id &&
+                            application.status !==
+                              APPLICATION_STATUS.APPROVED)
+                        }
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+                      >
+                        <FileText size={18} />
+                        <span>
+                          {rentCaseFile?.contract_id
+                            ? "Open Contract"
+                            : rentContractReady
+                              ? "Create contract"
+                              : "Review property readiness"}
+                        </span>
+                      </button>
+                    )}
 
                             <button
                               onClick={() => setShowCompleteConfirm(true)}
@@ -2435,7 +2830,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     role="manager"
                     caseId={application.fastTrackCaseId}
                     embedded
+                    appearance="manager"
                     initialTab="documents"
+                    requestedSection="documents"
                   />
                 ) : (
                   <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800">

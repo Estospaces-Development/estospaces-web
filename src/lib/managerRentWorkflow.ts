@@ -12,11 +12,20 @@ export type ManagerRentNextActionId =
   | "review_property_readiness"
   | "open_create_contract";
 
+export type ManagerRentNextActionPanel =
+  | "documents"
+  | "referencing"
+  | "compliance"
+  | "approval"
+  | "property_readiness"
+  | "appointments";
+
 export interface ManagerRentNextAction {
   id: ManagerRentNextActionId;
   label: string;
   title: string;
   description: string;
+  panel: ManagerRentNextActionPanel;
 }
 
 interface ManagerRentNextActionInput {
@@ -74,6 +83,7 @@ export const getManagerRentNextAction = ({
       title: "Start the shared document lane",
       description:
         "Create the checklist items here first so both the manager and the client can work from the same case file.",
+      panel: "documents",
     };
   }
 
@@ -84,6 +94,7 @@ export const getManagerRentNextAction = ({
       title: "A document still needs a corrected upload",
       description:
         "Open the shared case file, review the rejected document, and ask for a clearer or newer replacement.",
+      panel: "documents",
     };
   }
 
@@ -94,6 +105,7 @@ export const getManagerRentNextAction = ({
       title: "A client file is waiting for review",
       description:
         "Approve the uploaded files or request a replacement so the case can move forward without delay.",
+      panel: "documents",
     };
   }
 
@@ -104,6 +116,7 @@ export const getManagerRentNextAction = ({
       title: "The checklist is open but the file is still missing",
       description:
         "Upload the document on behalf of the client or open the shared case file and guide them to upload it.",
+      panel: "documents",
     };
   }
 
@@ -113,7 +126,8 @@ export const getManagerRentNextAction = ({
       label: "Review property readiness",
       title: "The application is approved, but the property pack is not contract-ready",
       description:
-        "Open the property page and clear the England compliance blockers before creating the contract or move-in documents.",
+        "Review the inline property readiness panel and clear the England compliance blockers before creating the contract or move-in documents.",
+      panel: "property_readiness",
     };
   }
 
@@ -124,6 +138,7 @@ export const getManagerRentNextAction = ({
       title: "The tenancy is approved and ready for paperwork",
       description:
         "Open the contract workspace or create the tenancy agreement directly from this application.",
+      panel: "approval",
     };
   }
 
@@ -141,6 +156,7 @@ export const getManagerRentNextAction = ({
       title: "Referencing is clear, but compliance is still pending",
       description:
         "Finish the jurisdiction-specific right-to-rent or equivalent compliance check before approval.",
+      panel: "compliance",
     };
   }
 
@@ -160,6 +176,7 @@ export const getManagerRentNextAction = ({
       title: "The viewing is done and referencing should start now",
       description:
         "Move the referencing check forward here so the application can reach the approval lane.",
+      panel: "referencing",
     };
   }
 
@@ -173,6 +190,7 @@ export const getManagerRentNextAction = ({
       title: "All rent checks are complete",
       description:
         "The application can now be approved and handed into the contract stage.",
+      panel: "approval",
     };
   }
 
@@ -182,5 +200,6 @@ export const getManagerRentNextAction = ({
     title: "Documents are clear and the case can move to the viewing stage",
     description:
       "Open the appointments workspace to schedule or manage the next viewing step for this rent journey.",
+    panel: "appointments",
   };
 };

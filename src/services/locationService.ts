@@ -223,8 +223,7 @@ export const getUserLocation = async ({
                 source: 'browser_geolocation',
             };
             return location;
-        } catch (error) {
-            console.warn('Geolocation not available:', error);
+        } catch {
         }
     }
 

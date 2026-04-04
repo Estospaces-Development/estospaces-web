@@ -28,9 +28,62 @@ const SERVICE_URLS = {
 
 export type ServiceName = keyof typeof SERVICE_URLS;
 
+const LOCAL_DEV_PROXY_PREFIXES: Record<ServiceName, string> = {
+    core: '/__dev_proxy/core',
+    booking: '/__dev_proxy/booking',
+    notification: '/__dev_proxy/notification',
+    payment: '/__dev_proxy/payment',
+    search: '/__dev_proxy/search',
+    media: '/__dev_proxy/media',
+    messaging: '/__dev_proxy/messaging',
+};
+
+const LOCAL_DEV_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
+
+function isAbsoluteServiceUrl(value: string) {
+    return /^https?:\/\//i.test(value);
+}
+
+function resolveServiceUrl(service: ServiceName, configuredUrl: string) {
+    if (typeof window === 'undefined' || VITE_ENV.DEV !== true) {
+        return configuredUrl;
+    }
+
+    const hostname = String(window.location?.hostname || '').toLowerCase();
+    const origin = String(window.location?.origin || '').trim();
+    if (!LOCAL_DEV_HOSTNAMES.has(hostname) || !origin || !isAbsoluteServiceUrl(configuredUrl)) {
+        return configuredUrl;
+    }
+
+    try {
+        if (new URL(configuredUrl).origin === origin) {
+            return configuredUrl;
+        }
+    } catch {
+        return configuredUrl;
+    }
+
+    return LOCAL_DEV_PROXY_PREFIXES[service];
+}
+
 /** Returns the base URL for a given backend service. */
 export function getServiceUrl(service: ServiceName): string {
-    return SERVICE_URLS[service];
+    return resolveServiceUrl(service, SERVICE_URLS[service]);
+}
+
+export function buildApiUrl(baseUrl: string, path: string) {
+    const nextPath = path.startsWith('/') ? path : `/${path}`;
+    const nextUrl = `${baseUrl}${nextPath}`;
+
+    if (isAbsoluteServiceUrl(baseUrl)) {
+        return new URL(nextUrl);
+    }
+
+    const origin = typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost';
+
+    return new URL(nextUrl, origin);
 }
 
 // ── Auth Header Helper ──────────────────────────────────────────────────────
@@ -150,7 +203,7 @@ async function validateCurrentSession(token: string) {
     sessionValidationToken = token;
     sessionValidationPromise = (async () => {
         for (let attempt = 0; attempt < SESSION_VALIDATION_ATTEMPTS; attempt += 1) {
-            const response = await fetch(`${SERVICE_URLS.core}${AUTH_ME_PATH}`, {
+            const response = await fetch(`${getServiceUrl('core')}${AUTH_ME_PATH}`, {
                 headers: getAuthHeaders(undefined, token),
             });
 

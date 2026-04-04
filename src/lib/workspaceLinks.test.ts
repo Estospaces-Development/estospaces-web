@@ -133,6 +133,25 @@ test('buildWorkspacePath includes payment and invoice ids when present', () => {
     assert.equal(path, '/user/dashboard/payments?application=application-1&payment=payment-1&invoice=invoice-1');
 });
 
+test('buildWorkspacePath preserves the requested workspace section for deep links', () => {
+    const path = buildWorkspacePath('/manager/fast-track', {
+        caseId: 'case-1',
+        leadId: 'lead-1',
+        section: 'documents',
+    });
+
+    assert.equal(path, '/manager/fast-track?case=case-1&lead=lead-1&section=documents');
+});
+
+test('buildWorkspacePath preserves the requested manager application section', () => {
+    const path = buildWorkspacePath('/manager/applications', {
+        applicationId: 'application-1',
+        section: 'activity',
+    });
+
+    assert.equal(path, '/manager/applications?application=application-1&section=activity');
+});
+
 test('resolveFocusedApplication keeps a direct application match when no linked sale progression exists', () => {
     const focused = resolveFocusedApplication(applications, {
         applicationId: 'application-2',

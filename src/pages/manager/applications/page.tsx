@@ -19,6 +19,7 @@ import ApplicationCard from '@/components/manager/applications/ApplicationCard';
 import ApplicationDetail from '@/components/manager/applications/ApplicationDetail';
 import ApplicationFilters from '@/components/manager/applications/ApplicationFilters';
 import { resolveFocusedApplication } from '@/lib/workspaceLinks';
+import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -56,6 +57,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
     const removedCaseNoticeRef = useRef<string | null>(null);
     const rawCaseId = searchParams.get('case');
+    const requestedSection = resolveWorkspaceSection(searchParams.get('section'), 'overview');
     const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
         () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
         [fastTrackCases, rawCaseId],
@@ -64,7 +66,8 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
         searchParams.get('application')
         || sanitizedCaseId
         || searchParams.get('lead')
-        || searchParams.get('property'),
+        || searchParams.get('property')
+        || requestedSection !== 'overview',
     );
     const focusedApplicationFromRoute = resolveFocusedApplication(allApplications, {
         applicationId: searchParams.get('application'),
@@ -187,9 +190,11 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     if (view === 'detail' && selectedId) {
         return (
             <ApplicationDetail
+                key={selectedId}
                 applicationId={selectedId}
                 onClose={handleCloseDetail}
                 onUpdateStatus={handleUpdateStatus}
+                requestedSection={requestedSection}
             />
         );
     }

@@ -2,8 +2,16 @@ const formatTitleCase = (value: string) =>
     value.replace(/\b\w/g, (char) => char.toUpperCase());
 
 export const formatPropertyStatusLabel = (status?: string) => {
-    if (status?.trim().toLowerCase() === 'pending_approval') {
+    const normalizedStatus = status?.trim().toLowerCase();
+
+    if (normalizedStatus === 'pending_approval') {
         return 'Admin Approval Pending';
+    }
+    if (normalizedStatus === 'published' || normalizedStatus === 'online' || normalizedStatus === 'active' || normalizedStatus === 'available') {
+        return 'Available';
+    }
+    if (normalizedStatus === 'let' || normalizedStatus === 'rented') {
+        return 'Rented';
     }
 
     const normalized = (status || 'draft').trim().replace(/_/g, ' ');

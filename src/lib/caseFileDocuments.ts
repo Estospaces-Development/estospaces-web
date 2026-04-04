@@ -32,12 +32,37 @@ export interface CaseFileSummary {
   totalRequestCount: number;
 }
 
+export interface CaseFileRequestMatch<TRequest = CaseFileRequestLike> {
+  request: TRequest | null;
+  ambiguous: boolean;
+}
+
 const CLIENT_REUSABLE = "client_reusable";
 const CASE_TRANSACTIONAL = "case_transactional";
 const SHARED_WITH_USER = "shared_with_user";
+const GENERIC_FILE_TOKENS = new Set([
+  "additional",
+  "copy",
+  "document",
+  "documents",
+  "evidence",
+  "file",
+  "files",
+  "further",
+  "supporting",
+]);
 
 const includesToken = (haystack: string, tokens: string[]) =>
   tokens.some((token) => haystack.includes(token));
+
+const tokenize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 3);
 
 export const inferCaseFileUploadDescriptor = (
   request?: CaseFileRequestLike | null,
@@ -154,6 +179,91 @@ export const inferCaseFileUploadDescriptor = (
   };
 };
 
+export const matchCaseFileRequestForFileName = <
+  TRequest extends CaseFileRequestLike,
+>(
+  fileName: string,
+  requests: TRequest[] = [],
+): CaseFileRequestMatch<TRequest> => {
+  if (requests.length === 0) {
+    return {
+      request: null,
+      ambiguous: false,
+    };
+  }
+
+  const fileTokens = tokenize(fileName);
+  const scored = requests
+    .map((request) => {
+      const descriptor = inferCaseFileUploadDescriptor(request);
+      const requestTokens = tokenize(
+        `${request.title || ""} ${(request.requirement_codes || []).join(" ")}`,
+      );
+      const overlap = requestTokens.filter((token) => fileTokens.includes(token));
+      const strongOverlap = overlap.filter(
+        (token) => !GENERIC_FILE_TOKENS.has(token),
+      );
+      const descriptorMatches = tokenize(
+        `${descriptor.documentCategory} ${descriptor.documentType} ${descriptor.uploadType}`,
+      ).filter(
+        (token) =>
+          fileTokens.includes(token) && !GENERIC_FILE_TOKENS.has(token),
+      );
+      const score = strongOverlap.length * 4 + descriptorMatches.length * 2;
+
+      return {
+        request,
+        score,
+        onlyGeneric: score === 0 && overlap.length > 0,
+      };
+    })
+    .sort((left, right) => right.score - left.score);
+
+  const strongest = scored[0];
+  if (!strongest) {
+    return {
+      request: null,
+      ambiguous: false,
+    };
+  }
+
+  const hasUsefulScore = strongest.score > 0;
+  const nextStrongest = scored[1];
+
+  if (!hasUsefulScore) {
+    if (requests.length === 1) {
+      return {
+        request: requests[0],
+        ambiguous: false,
+      };
+    }
+
+    return {
+      request: null,
+      ambiguous: true,
+    };
+  }
+
+  if (strongest.onlyGeneric && requests.length > 1) {
+    return {
+      request: null,
+      ambiguous: true,
+    };
+  }
+
+  if (nextStrongest && nextStrongest.score === strongest.score) {
+    return {
+      request: null,
+      ambiguous: true,
+    };
+  }
+
+  return {
+    request: strongest.request,
+    ambiguous: false,
+  };
+};
+
 export const summarizeCaseFileDocuments = (
   documents: CaseFileDocumentLike[] = [],
   requests: Array<{ status?: string }> = [],
@@ -176,8 +286,10 @@ export const summarizeCaseFileDocuments = (
   totalRequestCount: requests.length,
 });
 
-export const filterReusableDocumentsForRequest = (
-  documents: CaseFileDocumentLike[] = [],
+export const filterReusableDocumentsForRequest = <
+  TDocument extends CaseFileDocumentLike,
+>(
+  documents: TDocument[] = [],
   request?: CaseFileRequestLike | null,
 ) => {
   const descriptor = inferCaseFileUploadDescriptor(request);

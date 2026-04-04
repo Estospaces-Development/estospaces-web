@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,9 +30,16 @@ import {
     formatWorkflowStatusLabel,
     resolveFastTrackPrimaryLaneLabel,
 } from '@/lib/fastTrackLinkedJourney';
+import {
+    getPurchaseWorkspaceLabel,
+    hasPendingRentFinanceTasks,
+    resolveFastTrackStageGuidance,
+} from '@/lib/fastTrackStageGuidance';
 import { getNextSaleJourneyActions, saleProgressionStageForStatus } from '@/lib/saleJourney';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import type { WorkspaceSection } from '@/lib/liveCaseWorkspace';
 import Avatar from '@/components/ui/Avatar';
+import CaseFileWorkspace from '@/components/case-file/CaseFileWorkspace';
 import FastTrackActions from './FastTrackActions';
 import FastTrackDocuments from './FastTrackDocuments';
 import FastTrackProgress from './FastTrackProgress';
@@ -46,6 +53,7 @@ interface FastTrackCaseDetailProps {
     verificationReasonLines?: string[];
     leadStatusLabel?: string;
     linkedJourney?: FastTrackLinkedJourney;
+    workspaceSection?: WorkspaceSection;
     onOpenVerificationReview?: () => void;
     onRequestDocuments?: () => void;
     canRequestDocuments?: boolean;
@@ -174,6 +182,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     verificationReasonLines = [],
     leadStatusLabel,
     linkedJourney,
+    workspaceSection = 'overview',
     onOpenVerificationReview,
     onRequestDocuments,
     canRequestDocuments = false,
@@ -212,10 +221,18 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
     });
+    const fastTrackDocumentsPath = buildWorkspacePath('/manager/fast-track', {
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+        applicationId: linkedJourney?.application?.id,
+        section: 'documents',
+    });
     const caseFileWorkspacePath = buildWorkspacePath('/manager/case-files', {
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
+        section: 'documents',
     });
     const contractsWorkspacePath = buildWorkspacePath('/manager/contracts', {
         contractId: linkedJourney?.contract?.id,
@@ -281,20 +298,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         : Object.values(caseData.documents).every((status) => status === 'verified');
     const documentPhase = caseData.documentPhase || (isDocumentsVerified ? 'verified' : caseData.currentStep === 'documents_requested' ? 'waiting_for_upload' : 'not_requested');
     const englandRentJourney = caseData.journeyType !== 'buy' && isEnglandJurisdiction(caseData.jurisdiction || caseData.propertyCountry);
-    const pendingRentFinanceTasks = caseData.journeyType === 'buy'
-        ? []
-        : [
-            ...(linkedJourney?.payments || []).filter((item) => {
-                const type = String(item.payment_type || '').toLowerCase();
-                const status = String(item.status || '').toLowerCase();
-                return (type.includes('deposit') || type.includes('rent')) && ['pending', 'failed'].includes(status);
-            }),
-            ...(linkedJourney?.invoices || []).filter((item) => {
-                const type = String(item.payment_type || '').toLowerCase();
-                const status = String(item.status || '').toLowerCase();
-                return (type.includes('deposit') || type.includes('rent')) && ['draft', 'open', 'uncollectible'].includes(status);
-            }),
-        ];
+    const hasPendingFinanceTasks = caseData.journeyType !== 'buy' && hasPendingRentFinanceTasks(linkedJourney);
     const stepMeta = (() => {
         const base = stepCopy[caseData.currentStep];
 
@@ -334,7 +338,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         }
 
         if (caseData.currentStep === 'ready_for_contract') {
-            if (pendingRentFinanceTasks.length > 0) {
+            if (hasPendingFinanceTasks) {
                 return {
                     label: 'Deposit and first-rent tasks',
                     description: 'The tenancy agreement is in place, and the remaining live blockers are deposit protection and first-rent tasks.',
@@ -421,13 +425,23 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const canCompleteViewing = !viewingLocked && viewingStatus === 'confirmed';
     const canCancelViewing = !viewingLocked && ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus);
     const rentJourney = caseData.journeyType !== 'buy';
-    const purchaseWorkspaceLabel = linkedJourney?.saleProgression
-        ? 'Open sale progression workspace'
-        : linkedJourney?.liveStage === 'buyer_qualification'
-            ? 'Open buyer qualification workspace'
-            : linkedJourney?.liveStage === 'offer'
-                ? 'Open offer workspace'
-                : 'Open purchase workspace';
+    const purchaseWorkspaceLabel = getPurchaseWorkspaceLabel(linkedJourney);
+    const nextStageGuidance = resolveFastTrackStageGuidance({
+        currentStep: caseData.currentStep,
+        journeyType: caseData.journeyType,
+        linkedJourney,
+        canScheduleViewing,
+        hasPendingFinanceTasks,
+    });
+    const nextStageWorkspacePath = nextStageGuidance?.target === 'appointments'
+        ? appointmentsWorkspacePath
+        : nextStageGuidance?.target === 'applications'
+            ? applicationsWorkspacePath
+            : nextStageGuidance?.target === 'contracts'
+                ? contractsWorkspacePath
+                : nextStageGuidance?.target === 'billing'
+                    ? billingWorkspacePath
+                    : null;
     const saleProgressionActions = !rentJourney && linkedJourney?.saleProgression
         ? getNextSaleJourneyActions(linkedJourney.saleProgression.current_stage).reduce<Array<{
             status: string;
@@ -663,7 +677,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     </span>
                                 </div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                    Case {caseData.caseId} · Submitted {submittedLabel}
+                                    Case {caseData.caseId} - Submitted {submittedLabel}
                                 </p>
                             </div>
                         </div>
@@ -687,7 +701,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 space-y-6">
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+                <div className="grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_440px]">
                     <div className="space-y-6">
                         <section className="bg-gray-50 dark:bg-zinc-900/40 rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
                             <div className="flex items-center gap-2 text-gray-900 dark:text-white">
@@ -728,10 +742,10 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                         <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
                             <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                                 <Shield className="text-orange-500" size={20} />
-                                <h3 className="text-lg font-semibold">Document checklist</h3>
+                                <h3 className="text-lg font-semibold">Document summary</h3>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                Uploaded files are reviewed from the real verification workspace. This panel mirrors the live checklist only.
+                                This snapshot stays useful for quick triage, and the full shared case workspace now sits directly below it for live document work.
                             </p>
                             {caseData.overrideReason ? (
                                 <div className="mt-4 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 dark:border-orange-900/40 dark:bg-orange-950/20">
@@ -772,36 +786,36 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     )}
                                 </div>
                                 <div className="space-y-3">
-                                    {isDocumentsVerified && linkedJourney?.viewing ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate(appointmentsWorkspacePath)}
-                                            className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
-                                        >
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
-                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents verified</p>
-                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                Open the appointments workspace to confirm, reschedule, or complete the live viewing from the same fast-track case.
-                                            </p>
-                                        </button>
-                                    ) : isDocumentsVerified && canScheduleViewing ? (
+                                    {nextStageGuidance?.target === 'schedule_viewing' ? (
                                         <button
                                             type="button"
                                             onClick={() => setScheduleModalOpen(true)}
                                             className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
                                         >
                                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
-                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents verified</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{nextStageGuidance.title}</p>
                                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                Verification is complete. Schedule the viewing now so the case moves into the next live workflow stage without leaving fast-track.
+                                                {nextStageGuidance.description}
                                             </p>
                                         </button>
-                                    ) : isDocumentsVerified ? (
+                                    ) : nextStageWorkspacePath ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(nextStageWorkspacePath)}
+                                            className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-900/40 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
+                                        >
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{nextStageGuidance.title}</p>
+                                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                                {nextStageGuidance.description}
+                                            </p>
+                                        </button>
+                                    ) : nextStageGuidance ? (
                                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 dark:border-emerald-900/40 dark:bg-emerald-900/10">
                                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">Next stage</p>
-                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents verified</p>
+                                            <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{nextStageGuidance.title}</p>
                                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                Verification is complete. The case is ready for the next live workflow handoff.
+                                                {nextStageGuidance.description}
                                             </p>
                                         </div>
                                     ) : documentPhase === 'uploaded_under_review' && onOpenVerificationReview ? (
@@ -841,7 +855,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Verification</p>
                                             <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">Documents not requested yet</p>
                                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                                Keep the case at property selected until you explicitly request the user’s verification documents.
+                                                Keep the case at property selected until you explicitly request the user's verification documents.
                                             </p>
                                         </div>
                                     ) : (
@@ -870,6 +884,49 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                         </button>
                                     ) : null}
                                 </div>
+                            </div>
+                        </section>
+                        <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+                                        <Shield className="text-orange-500" size={20} />
+                                        <h3 className="text-lg font-semibold">Shared case workspace</h3>
+                                    </div>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        Requests, uploads, review controls, tasks, and case activity now stay in this fast-track workspace so the manager can work the case end to end from one place.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(fastTrackDocumentsPath)}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-orange-700"
+                                    >
+                                        <FileText size={18} />
+                                        Open documents here
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(caseFileWorkspacePath)}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                                    >
+                                        <FileText size={18} />
+                                        Open secondary case-file page
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-6">
+                                <CaseFileWorkspace
+                                    role="manager"
+                                    caseId={caseData.caseId}
+                                    embedded
+                                    appearance="manager"
+                                    layout="stacked"
+                                    initialTab="documents"
+                                    requestedSection={workspaceSection === 'activity' ? 'activity' : workspaceSection === 'journey' ? 'journey' : 'documents'}
+                                />
                             </div>
                         </section>
                     </div>
@@ -939,41 +996,6 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     </div>
                                 ))}
                             </div>
-                            {(journeyBlockers.length > 0 || journeyDeadlines.length > 0) ? (
-                                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                    {journeyBlockers.length > 0 ? (
-                                        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-900/30 dark:bg-orange-950/20">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">Active blockers</p>
-                                            <div className="mt-3 space-y-2">
-                                                {journeyBlockers.slice(0, 3).map((item) => (
-                                                    <div key={item.code} className="rounded-xl border border-orange-200 bg-white px-3 py-2 text-sm text-orange-700 dark:border-orange-900/30 dark:bg-black dark:text-orange-200">
-                                                        <p className="font-semibold">{item.title}</p>
-                                                        {item.description ? (
-                                                            <p className="mt-1 text-xs text-orange-600 dark:text-orange-300">{item.description}</p>
-                                                        ) : null}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                    {journeyDeadlines.length > 0 ? (
-                                        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/30 dark:bg-blue-950/20">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">Compliance deadlines</p>
-                                            <div className="mt-3 space-y-2">
-                                                {journeyDeadlines.slice(0, 3).map((item) => (
-                                                    <div key={item.code} className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-blue-700 dark:border-blue-900/30 dark:bg-black dark:text-blue-200">
-                                                        <p className="font-semibold">{item.label}</p>
-                                                        <p className="mt-1 text-xs text-blue-600 dark:text-blue-300">
-                                                            {item.due_at ? new Date(item.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Deadline pending'}
-                                                            {item.status ? ` · ${item.status.replace(/_/g, ' ')}` : ''}
-                                                        </p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : null}
                             <div className="mt-4 grid gap-3">
                                 <button
                                     type="button"
@@ -1019,6 +1041,79 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 </button>
                             </div>
                         </section>
+
+                        {(journeyBlockers.length > 0 || journeyDeadlines.length > 0) ? (
+                            <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                                <div className="flex items-start gap-3 text-gray-900 dark:text-white">
+                                    <AlertTriangle className="mt-0.5 text-orange-500" size={20} />
+                                    <div>
+                                        <h3 className="text-lg font-semibold">Case watchlist</h3>
+                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                            Keep blockers and deadline signals readable here instead of squeezing them into narrow side cards.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 space-y-4">
+                                    {journeyBlockers.length > 0 ? (
+                                        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5 dark:border-orange-900/30 dark:bg-orange-950/20">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-600 dark:text-orange-300">Active blockers</p>
+                                                <span className="inline-flex min-w-[2.25rem] items-center justify-center rounded-full border border-orange-300 bg-white px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-900/40 dark:bg-black dark:text-orange-200">
+                                                    {journeyBlockers.length}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 space-y-3">
+                                                {journeyBlockers.slice(0, 3).map((item) => (
+                                                    <div key={item.code} className="rounded-2xl border border-orange-200 bg-white px-4 py-4 dark:border-orange-900/30 dark:bg-black">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-200">
+                                                                <AlertTriangle size={16} />
+                                                            </span>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-base font-semibold leading-6 text-orange-700 dark:text-orange-100">{item.title}</p>
+                                                                {item.description ? (
+                                                                    <p className="mt-2 text-sm leading-6 text-orange-600 dark:text-orange-300">{item.description}</p>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {journeyDeadlines.length > 0 ? (
+                                        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900/30 dark:bg-blue-950/20">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600 dark:text-blue-300">Compliance deadlines</p>
+                                                <span className="inline-flex min-w-[2.25rem] items-center justify-center rounded-full border border-blue-300 bg-white px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-900/40 dark:bg-black dark:text-blue-200">
+                                                    {journeyDeadlines.length}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 space-y-3">
+                                                {journeyDeadlines.slice(0, 3).map((item) => (
+                                                    <div key={item.code} className="rounded-2xl border border-blue-200 bg-white px-4 py-4 dark:border-blue-900/30 dark:bg-black">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-200">
+                                                                <Clock size={16} />
+                                                            </span>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-base font-semibold leading-6 text-blue-700 dark:text-blue-100">{item.label}</p>
+                                                                <p className="mt-2 text-sm leading-6 text-blue-600 dark:text-blue-300">
+                                                                    {item.due_at ? new Date(item.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Deadline pending'}
+                                                                    {item.status ? ` - ${item.status.replace(/_/g, ' ')}` : ''}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </section>
+                        ) : null}
 
                         <section className="bg-white dark:bg-black rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
                             <div className="flex items-center gap-2 text-gray-900 dark:text-white">
@@ -1305,3 +1400,4 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
 };
 
 export default FastTrackCaseDetail;
+

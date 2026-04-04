@@ -9,10 +9,12 @@ import {
   ReactNode,
   useCallback,
 } from "react";
+import { useLocation } from "react-router-dom";
 import * as propertyService from "../services/propertyService";
 import { getUserProperties } from "@/services/userPropertiesService";
 import { uploadMediaFile } from "@/services/mediaService";
 import { getErrorMessage } from "@/lib/apiUtils";
+import { isAuthRoutePath } from "@/lib/authUtils";
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from "@/contexts/WorkspaceSyncContext";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
 
@@ -396,6 +398,7 @@ export const PropertyProvider = ({
   children: ReactNode;
   scope?: "public" | "manager" | "admin";
 }) => {
+  const location = useLocation();
   const publishWorkspaceSync = usePublishWorkspaceSync();
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
@@ -412,6 +415,7 @@ export const PropertyProvider = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isAuthRoute = isAuthRoutePath(location.pathname);
   const syncTags = useMemo(() => {
     const tags = [WORKSPACE_SYNC_TAGS.PROPERTIES];
     if (scope === "manager") {
@@ -775,6 +779,14 @@ export const PropertyProvider = ({
   );
 
   const fetchProperties = useCallback(async () => {
+    if (isAuthRoute) {
+      setError(null);
+      setLoading(false);
+      setProperties([]);
+      setPagination((prev) => ({ ...prev, total: 0, totalPages: 1 }));
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -829,7 +841,7 @@ export const PropertyProvider = ({
     } finally {
       setLoading(false);
     }
-  }, [buildPropertyQuery, pagination.limit, pagination.page, scope]);
+  }, [buildPropertyQuery, isAuthRoute, pagination.limit, pagination.page, scope]);
 
   useEffect(() => {
     fetchProperties();
@@ -838,7 +850,7 @@ export const PropertyProvider = ({
   useWorkspaceRefresh({
     tags: syncTags,
     refresh: fetchProperties,
-    enabled: true,
+    enabled: !isAuthRoute,
   });
 
   const filteredProperties = properties;
@@ -1153,7 +1165,11 @@ export const PropertyProvider = ({
         getPropertyStats: () => ({
           total: properties.length,
           available: properties.filter(
-            (p) => p.status === "available" || p.status === "active",
+            (p) =>
+              p.status === "available" ||
+              p.status === "published" ||
+              p.status === "online" ||
+              p.status === "active",
           ).length,
           sold: properties.filter((p) => p.status === "sold").length,
           rented: properties.filter(

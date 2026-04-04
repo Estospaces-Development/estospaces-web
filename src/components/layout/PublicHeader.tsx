@@ -17,25 +17,26 @@ const PublicHeader = () => {
     const isActive = (path: string) => pathname === path;
 
     return (
-        <header className="fixed w-full bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
-            <nav className="container mx-auto px-6 h-16 flex items-center justify-between">
-                {/* Logo */}
-                <Link to="/" className="flex items-center gap-2 group">
-                    <div className="p-2 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-lg group-hover:shadow-lg group-hover:shadow-indigo-500/20 transition-all duration-300">
-                        <Building2 className="w-5 h-5 text-white" />
+        <header className="fixed inset-x-0 top-0 z-50 border-b border-[var(--border-soft)] bg-white/82 backdrop-blur-xl dark:bg-black/80">
+            <nav className="page-shell flex h-[72px] items-center justify-between">
+                <Link to="/" className="group flex items-center gap-3">
+                    <div className="rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] p-2.5 shadow-[var(--shadow-brand)] transition-transform duration-200 group-hover:scale-[1.03]">
+                        <Building2 className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-xl font-bold text-gray-900 tracking-tight">EstoSpaces</span>
+                    <div className="flex flex-col">
+                        <span className="text-base font-semibold tracking-[-0.02em] text-[var(--text-strong)]">Estospaces</span>
+                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">Property platform</span>
+                    </div>
                 </Link>
 
-                {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center gap-8">
+                <div className="hidden md:flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 shadow-[var(--shadow-card)]">
                     {navLinks.map((link) => (
                         <Link
                             key={link.href}
                             to={link.href}
-                            className={`text-sm font-medium transition-colors ${isActive(link.href)
-                                ? 'text-indigo-600'
-                                : 'text-gray-600 hover:text-gray-900'
+                            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive(link.href)
+                                ? 'bg-[var(--accent-soft)] text-[var(--accent-emphasis)]'
+                                : 'text-[var(--text-muted)] hover:text-[var(--text-strong)]'
                                 }`}
                         >
                             {link.label}
@@ -43,57 +44,57 @@ const PublicHeader = () => {
                     ))}
                 </div>
 
-                {/* Auth Buttons */}
-                <div className="hidden md:flex items-center gap-4">
+                <div className="hidden md:flex items-center gap-3">
                     <Link
                         to="/login"
-                        className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                        className="rounded-full px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]"
                     >
                         Sign In
                     </Link>
                     <Link
                         to="/register"
-                        className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-gray-900/20"
+                        className="rounded-full bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-brand)] transition-transform duration-200 hover:-translate-y-px"
                     >
                         Get Started
                     </Link>
                 </div>
 
-                {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-gray-600"
+                    className="rounded-xl p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] md:hidden"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    aria-label="Toggle navigation"
                 >
                     {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </nav>
 
-            {/* Mobile Menu */}
             {isMenuOpen && (
-                <div className="md:hidden absolute top-16 left-0 w-full bg-white border-b border-gray-100 animate-in slide-in-from-top-2 duration-200">
-                    <div className="p-4 space-y-4">
+                <div className="absolute left-0 top-[72px] w-full border-b border-[var(--border-soft)] bg-[var(--surface-base)] shadow-[var(--shadow-floating)] md:hidden">
+                    <div className="page-shell space-y-4 py-5">
                         {navLinks.map((link) => (
                             <Link
                                 key={link.href}
                                 to={link.href}
-                                className={`block text-sm font-medium ${isActive(link.href) ? 'text-indigo-600' : 'text-gray-600'
+                                className={`block rounded-2xl px-4 py-3 text-sm font-medium ${isActive(link.href)
+                                    ? 'bg-[var(--accent-soft)] text-[var(--accent-emphasis)]'
+                                    : 'text-[var(--text-muted)]'
                                     }`}
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 {link.label}
                             </Link>
                         ))}
-                        <div className="pt-4 border-t border-gray-100 space-y-3">
+                        <div className="space-y-3 border-t border-[var(--border-soft)] pt-4">
                             <Link
                                 to="/login"
-                                className="block text-center text-sm font-medium text-gray-600 hover:text-gray-900"
+                                className="block rounded-2xl border border-[var(--border-soft)] px-4 py-3 text-center text-sm font-medium text-[var(--text-strong)]"
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 Sign In
                             </Link>
                             <Link
                                 to="/register"
-                                className="block text-center px-4 py-3 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-black"
+                                className="block rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] px-4 py-3 text-center text-sm font-semibold text-white"
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 Get Started
@@ -107,4 +108,3 @@ const PublicHeader = () => {
 };
 
 export default PublicHeader;
-

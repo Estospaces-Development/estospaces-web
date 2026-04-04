@@ -24,46 +24,47 @@ const Footer: React.FC = () => {
     };
 
     return (
-        <footer className="bg-gray-950 text-gray-300 border-t border-gray-800">
-            <div className="max-w-7xl mx-auto px-6 py-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-                    {/* Brand */}
+        <footer className="border-t border-[var(--border-soft)] bg-[#14110f] text-gray-300">
+            <div className="page-shell py-14">
+                <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
                     <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <div className="p-2 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-lg">
-                                <Building2 className="w-5 h-5 text-white" />
+                        <div className="mb-5 flex items-center gap-3">
+                            <div className="rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] p-2.5 shadow-[var(--shadow-brand)]">
+                                <Building2 className="h-5 w-5 text-white" />
                             </div>
-                            <span className="text-lg font-bold text-white">EstoSpaces</span>
+                            <div>
+                                <span className="block text-lg font-semibold text-white">Estospaces</span>
+                                <span className="text-xs uppercase tracking-[0.18em] text-orange-200/70">Property platform</span>
+                            </div>
                         </div>
-                        <p className="text-sm text-gray-400 leading-relaxed mb-6">
-                            Premium property platform connecting buyers, sellers, and brokers across the UK.
+                        <p className="mb-6 max-w-sm text-sm leading-relaxed text-gray-400">
+                            Premium property journeys for discovery, fast-track progression, contracts, and completion across the UK.
                         </p>
                         <div className="space-y-2 text-sm">
                             <div className="flex items-center gap-2">
-                                <Mail className="w-4 h-4 text-gray-500" />
+                                <Mail className="h-4 w-4 text-orange-300/70" />
                                 <span>hello@estospaces.co.uk</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Phone className="w-4 h-4 text-gray-500" />
+                                <Phone className="h-4 w-4 text-orange-300/70" />
                                 <span>+44 20 7123 4567</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <MapPin className="w-4 h-4 text-gray-500" />
+                                <MapPin className="h-4 w-4 text-orange-300/70" />
                                 <span>London, United Kingdom</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Link Sections */}
                     {Object.entries(footerLinks).map(([title, links]) => (
                         <div key={title}>
-                            <h3 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">{title}</h3>
+                            <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.18em] text-white/90">{title}</h3>
                             <ul className="space-y-2.5">
                                 {links.map((link) => (
                                     <li key={link.label}>
                                         <Link
                                             to={link.href}
-                                            className="text-sm text-gray-400 hover:text-white transition-colors"
+                                            className="text-sm text-gray-400 transition-colors hover:text-orange-200"
                                         >
                                             {link.label}
                                         </Link>
@@ -74,15 +75,14 @@ const Footer: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Bottom */}
-                <div className="mt-12 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 md:flex-row">
                     <p className="text-xs text-gray-500">
-                        © {currentYear} EstoSpaces. All rights reserved.
+                        Copyright {currentYear} Estospaces. All rights reserved.
                     </p>
                     <div className="flex items-center gap-6 text-xs text-gray-500">
-                        <Link to="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-                        <Link to="/terms" className="hover:text-white transition-colors">Terms</Link>
-                        <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
+                        <Link to="/privacy" className="transition-colors hover:text-orange-200">Privacy</Link>
+                        <Link to="/terms" className="transition-colors hover:text-orange-200">Terms</Link>
+                        <Link to="/contact" className="transition-colors hover:text-orange-200">Contact</Link>
                     </div>
                 </div>
             </div>
@@ -91,4 +91,3 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
-

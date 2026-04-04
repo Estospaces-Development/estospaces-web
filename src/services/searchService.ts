@@ -2,6 +2,27 @@ import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '../l
 
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
+const SEARCH_SERVICE_COOLDOWN_MS = 2 * 60 * 1000;
+
+let primarySearchFallbackUntil = 0;
+
+const isLocalBrowserRuntime = () =>
+    typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+const shouldBypassPrimarySearchService = () =>
+    isLocalBrowserRuntime() || Date.now() < primarySearchFallbackUntil;
+
+const markPrimarySearchServiceUnavailable = () => {
+    if (isLocalBrowserRuntime()) {
+        return;
+    }
+
+    primarySearchFallbackUntil = Date.now() + SEARCH_SERVICE_COOLDOWN_MS;
+};
+
+const clearPrimarySearchServiceFallback = () => {
+    primarySearchFallbackUntil = 0;
+};
 
 type CoreProperty = {
     id: string;
@@ -194,6 +215,51 @@ const coreSearchFallback = async (
     };
 };
 
+const buildAutocompleteFallback = async (query: string): Promise<AutocompleteSuggestion[]> => {
+    const fallback = await coreSearchFallback(query, { page: 1, limit: 10 });
+    const suggestions: AutocompleteSuggestion[] = [];
+    const seen = new Set<string>();
+
+    for (const property of fallback.data) {
+        if (property.title) {
+            const key = `property:${property.title.toLowerCase()}`;
+            if (!seen.has(key)) {
+                suggestions.push({
+                    id: property.id,
+                    text: property.title,
+                    title: property.title,
+                    city: property.city,
+                    type: 'property',
+                });
+                seen.add(key);
+            }
+        }
+
+        if (property.city) {
+            const key = `city:${property.city.toLowerCase()}`;
+            if (!seen.has(key)) {
+                suggestions.push({
+                    text: property.city,
+                    city: property.city,
+                    type: 'city',
+                });
+                seen.add(key);
+            }
+        }
+
+        if (suggestions.length >= 10) {
+            break;
+        }
+    }
+
+    return suggestions;
+};
+
+const buildFiltersFallback = async (): Promise<FilterOptions | null> => {
+    const fallback = await coreSearchFallback('', { page: 1, limit: 100 });
+    return buildFallbackFilters(fallback.data);
+};
+
 const buildFallbackFilters = (properties: SearchResult[]): FilterOptions => {
     const propertyTypes = new Set<string>();
     const listingTypes = new Set<string>();
@@ -372,6 +438,22 @@ export const searchService = {
         query: string,
         filters: Record<string, any> = {}
     ): Promise<SearchResponse> => {
+        if (shouldBypassPrimarySearchService()) {
+            try {
+                return await coreSearchFallback(query, filters);
+            } catch {
+                return {
+                    success: false,
+                    data: [],
+                    pagination: {
+                        total: 0,
+                        page: Number(filters.page || 1),
+                        limit: Number(filters.limit || 10),
+                    },
+                };
+            }
+        }
+
         try {
             const params = new URLSearchParams();
             if (query) params.append('q', query);
@@ -400,6 +482,8 @@ export const searchService = {
                 return await coreSearchFallback(query, filters);
             }
 
+            clearPrimarySearchServiceFallback();
+
             return {
                 success: true,
                 data: response.data || [],
@@ -410,6 +494,8 @@ export const searchService = {
                 },
             };
         } catch {
+            markPrimarySearchServiceUnavailable();
+
             try {
                 return await coreSearchFallback(query, filters);
             } catch {
@@ -431,6 +517,15 @@ export const searchService = {
      */
     autocomplete: async (query: string): Promise<AutocompleteSuggestion[]> => {
         if (!query || query.length < 2) return [];
+
+        if (shouldBypassPrimarySearchService()) {
+            try {
+                return await buildAutocompleteFallback(query);
+            } catch {
+                return [];
+            }
+        }
+
         try {
             const data = await apiFetch<{ suggestions: AutocompleteSuggestion[] }>(
                 `${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`,
@@ -440,46 +535,15 @@ export const searchService = {
             if (looksLikePlaceholderSuggestions(suggestions)) {
                 throw new Error('placeholder search suggestions');
             }
+
+            clearPrimarySearchServiceFallback();
+
             return suggestions;
         } catch {
+            markPrimarySearchServiceUnavailable();
+
             try {
-                const fallback = await coreSearchFallback(query, { page: 1, limit: 10 });
-                const suggestions: AutocompleteSuggestion[] = [];
-                const seen = new Set<string>();
-
-                for (const property of fallback.data) {
-                    if (property.title) {
-                        const key = `property:${property.title.toLowerCase()}`;
-                        if (!seen.has(key)) {
-                            suggestions.push({
-                                id: property.id,
-                                text: property.title,
-                                title: property.title,
-                                city: property.city,
-                                type: 'property',
-                            });
-                            seen.add(key);
-                        }
-                    }
-
-                    if (property.city) {
-                        const key = `city:${property.city.toLowerCase()}`;
-                        if (!seen.has(key)) {
-                            suggestions.push({
-                                text: property.city,
-                                city: property.city,
-                                type: 'city',
-                            });
-                            seen.add(key);
-                        }
-                    }
-
-                    if (suggestions.length >= 10) {
-                        break;
-                    }
-                }
-
-                return suggestions;
+                return await buildAutocompleteFallback(query);
             } catch {
                 return [];
             }
@@ -505,6 +569,14 @@ export const searchService = {
      * Get available search dynamic filters
      */
     getFilters: async (): Promise<FilterOptions | null> => {
+        if (shouldBypassPrimarySearchService()) {
+            try {
+                return await buildFiltersFallback();
+            } catch {
+                return null;
+            }
+        }
+
         try {
             const data = await apiFetch<FilterOptions>(
                 `${API_URL}/api/v1/search/filters`,
@@ -513,11 +585,15 @@ export const searchService = {
             if (looksLikePlaceholderFilters(data || null)) {
                 throw new Error('placeholder search filters');
             }
+
+            clearPrimarySearchServiceFallback();
+
             return data || null;
         } catch {
+            markPrimarySearchServiceUnavailable();
+
             try {
-                const fallback = await coreSearchFallback('', { page: 1, limit: 100 });
-                return buildFallbackFilters(fallback.data);
+                return await buildFiltersFallback();
             } catch {
                 return null;
             }

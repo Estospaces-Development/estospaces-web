@@ -89,15 +89,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const usesDynamicFilters = variant !== 'compact';
 
     // Fetch dynamic filters
     useEffect(() => {
+        if (!usesDynamicFilters) {
+            setFilterOptions(null);
+            return;
+        }
+
         const loadFilters = async () => {
             const opts = await searchService.getFilters();
             if (opts) setFilterOptions(opts);
         };
         loadFilters();
-    }, []);
+    }, [usesDynamicFilters]);
 
     // Sync with initialFilters anytime they change substantially
     useEffect(() => {

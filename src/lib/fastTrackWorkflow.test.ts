@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+    buildCaseDocumentsFromVerification,
     buildFastTrackDocumentItems,
     buildDocumentsFromDetails,
     buildFastTrackVerificationContent,
@@ -20,6 +21,7 @@ import {
     normalizeFastTrackDocumentPhase,
     normalizeWorkspaceDocuments,
     resolveLeadStage,
+    shouldReuseCaseVerificationDocuments,
     shouldBlockFastTrackWorkspaceRefresh,
 } from './fastTrackWorkflow';
 
@@ -85,6 +87,65 @@ test('manager fast-track document summaries reflect individually approved docume
         {
             identityProof: 'verified',
             addressProof: 'pending',
+        },
+    );
+});
+
+test('case verification only auto-reuses verified documents after the case reaches the document stage', () => {
+    const pendingDocuments = {
+        identityProof: 'pending',
+        addressProof: 'pending',
+    } as const;
+    const verificationInfo = {
+        has_identity_doc: true,
+        has_address_doc: true,
+        documents_verified: true,
+    };
+
+    assert.equal(
+        shouldReuseCaseVerificationDocuments({
+            currentStep: 'property_selected',
+            documentPhase: 'not_requested',
+            finalStatus: 'in_progress',
+        }),
+        false,
+    );
+
+    assert.deepEqual(
+        buildCaseDocumentsFromVerification(
+            {
+                currentStep: 'property_selected',
+                documentPhase: 'not_requested',
+                finalStatus: 'in_progress',
+            },
+            verificationInfo,
+            pendingDocuments,
+        ),
+        pendingDocuments,
+    );
+
+    assert.equal(
+        shouldReuseCaseVerificationDocuments({
+            currentStep: 'documents_requested',
+            documentPhase: 'waiting_for_upload',
+            finalStatus: 'in_progress',
+        }),
+        true,
+    );
+
+    assert.deepEqual(
+        buildCaseDocumentsFromVerification(
+            {
+                currentStep: 'documents_requested',
+                documentPhase: 'waiting_for_upload',
+                finalStatus: 'in_progress',
+            },
+            verificationInfo,
+            pendingDocuments,
+        ),
+        {
+            identityProof: 'verified',
+            addressProof: 'verified',
         },
     );
 });

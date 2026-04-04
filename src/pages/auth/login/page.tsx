@@ -127,8 +127,10 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="w-full">
                 {/* Email Input */}
                 <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                 <input
+                    id="email"
+                    name="email"
                     type="email"
                     placeholder="Enter your email"
                     value={email}
@@ -144,9 +146,11 @@ export default function LoginPage() {
 
                 {/* Password Input */}
                 <div className="mb-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Password</label>
                 <div className="relative">
                     <input
+                    id="password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Enter your password"
                     value={password}
@@ -170,7 +174,7 @@ export default function LoginPage() {
 
                 {/* Forgot Password Link */}
                 <div className="text-right mb-6">
-                <Link to="/forgot-password" university-theme-primary className="text-primary text-sm font-medium hover:underline">
+                <Link to="/forgot-password" className="text-primary text-sm font-medium hover:underline">
                     Forgot Password?
                 </Link>
                 </div>

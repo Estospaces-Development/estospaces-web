@@ -525,12 +525,14 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   initialTab = "overview",
   layout = "tabs",
   requestedSection,
-  appearance = "default",
+  appearance,
 }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
   const resolvedCaseId = caseId || searchParams.get("case") || "";
+  const resolvedAppearance =
+    appearance ?? (role === "manager" ? "manager" : "default");
   const routeRequestedSection = resolveWorkspaceSection(
     requestedSection || searchParams.get("section"),
     caseFileTabToWorkspaceSection(initialTab),
@@ -572,6 +574,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     activity: null,
   });
   const publishWorkspaceSync = usePublishWorkspaceSync();
+  const managerAppearance = resolvedAppearance === "manager";
+  const compactManagerEmbeddedLayout = managerAppearance && embedded;
 
   const loadCaseFile = useCallback(
     async (silent: boolean = false) => {
@@ -1339,7 +1343,6 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   }
 
   const workflow = caseFile.workflow || null;
-  const managerAppearance = appearance === "manager";
   const stackedHeroClass = managerAppearance
     ? "relative overflow-hidden rounded-[32px] border border-[#30231a] bg-[#0b0b0b] p-6 shadow-[0_28px_90px_-60px_rgba(249,115,22,0.4)]"
     : "relative overflow-hidden rounded-[32px] border border-orange-100/80 bg-gradient-to-br from-white via-orange-50/80 to-amber-50/70 p-6 shadow-[0_24px_70px_-50px_rgba(249,115,22,0.45)] dark:border-zinc-800 dark:bg-black";
@@ -1355,27 +1358,47 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const stackedInactiveTabClass = managerAppearance
     ? "border border-[#38322d] bg-[#121212] text-[#ddd4ca] hover:border-orange-400/50 hover:bg-[#191919] hover:text-white"
     : "border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900";
+  const stackedHeroMetricsGridClass = compactManagerEmbeddedLayout
+    ? "mt-5 grid gap-3 lg:grid-cols-3"
+    : "mt-5 grid gap-3 sm:grid-cols-3";
+  const overviewGridClass = compactManagerEmbeddedLayout
+    ? "grid items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]"
+    : "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1.3fr)_340px]";
+  const workspaceLinksGridClass = compactManagerEmbeddedLayout
+    ? "mt-4 grid gap-3 sm:grid-cols-2"
+    : "mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1";
   const documentsPanelClass = managerAppearance
     ? "rounded-3xl border border-[#262626] bg-[#050505] p-6 shadow-[0_24px_80px_-56px_rgba(0,0,0,0.92)]"
     : "rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black";
   const documentsGridClass = managerAppearance
-    ? "mt-6 grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_320px]"
+    ? compactManagerEmbeddedLayout
+      ? "mt-6 grid items-start gap-5 2xl:grid-cols-[minmax(0,1.55fr)_320px]"
+      : "mt-6 grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_320px]"
     : "mt-6 grid items-start gap-4 xl:grid-cols-[minmax(0,1.45fr)_340px]";
   const checklistPanelClass = managerAppearance
     ? "relative self-start overflow-hidden rounded-[28px] border border-[#35261a] bg-[#101010] p-5 shadow-[0_26px_90px_-64px_rgba(249,115,22,0.55)]"
     : "self-start rounded-[28px] border border-orange-100 bg-gradient-to-br from-orange-50/70 via-white to-white p-5 dark:border-orange-900/20 dark:bg-zinc-900/40";
   const checklistBadgeClass = managerAppearance
-    ? "max-w-[240px] rounded-2xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-sm font-semibold leading-5 text-orange-200 shadow-[0_16px_40px_-30px_rgba(249,115,22,0.8)]"
+    ? "inline-flex max-w-full shrink-0 items-center rounded-2xl border border-orange-500/25 bg-orange-500/10 px-4 py-3 text-sm font-semibold leading-5 text-orange-200 shadow-[0_16px_40px_-30px_rgba(249,115,22,0.8)]"
     : "inline-flex items-center rounded-full border border-orange-200 bg-white px-3 py-2 text-xs font-semibold text-orange-700 shadow-sm dark:border-orange-900/30 dark:bg-black/40 dark:text-orange-300";
   const checklistEmptyClass = managerAppearance
     ? "mt-5 rounded-2xl border border-dashed border-[#4a3f35] bg-[#171717]/90 px-4 py-5 text-sm leading-6 text-[#b7aea5]"
     : "mt-5 rounded-2xl border border-dashed border-gray-200 bg-white/80 px-4 py-5 text-sm text-gray-500 dark:border-zinc-700 dark:bg-black/20 dark:text-gray-400";
+  const checklistHeaderClass = compactManagerEmbeddedLayout
+    ? "flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"
+    : "flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between";
+  const checklistItemsGridClass = compactManagerEmbeddedLayout
+    ? "mt-5 grid gap-3 xl:grid-cols-2"
+    : "mt-5 grid gap-3 md:grid-cols-2";
   const progressPanelClass = managerAppearance
     ? "self-start rounded-[28px] border border-[#252525] bg-[#0c0c0c] p-5 shadow-[0_18px_60px_-44px_rgba(0,0,0,0.92)]"
     : "self-start rounded-[28px] border border-gray-100 bg-gray-50/80 p-5 dark:border-zinc-800 dark:bg-zinc-900/40";
   const progressStatCardClass = managerAppearance
     ? "rounded-2xl border border-[#252525] bg-[#111111] p-4"
     : "rounded-2xl border border-white/80 bg-white/90 p-4 dark:border-zinc-700 dark:bg-black/30";
+  const progressStatsGridClass = compactManagerEmbeddedLayout
+    ? "mt-4 grid gap-3 sm:grid-cols-3"
+    : "mt-4 grid gap-3";
   const progressGuideClass = managerAppearance
     ? "mt-4 rounded-2xl border border-[#3a2d22] bg-[#13110f] p-4"
     : "mt-4 rounded-2xl border border-orange-100 bg-white/90 p-4 dark:border-orange-900/20 dark:bg-black/30";
@@ -1418,6 +1441,14 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       : reviewDialog?.status === "reupload_required"
         ? "border border-red-200 text-red-700 hover:bg-red-50 dark:border-red-900/30 dark:text-red-300 dark:hover:bg-red-950/20"
         : "border border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-950/20";
+  const checklistBadgeCopy =
+    requestChecklistItems.length === 0
+      ? "No open requests yet"
+      : requestChecklistSummary.actionNeeded > 0
+        ? `${requestChecklistSummary.actionNeeded} item${requestChecklistSummary.actionNeeded === 1 ? "" : "s"} waiting on upload`
+        : requestChecklistSummary.inFlight > 0
+          ? `${requestChecklistSummary.inFlight} item${requestChecklistSummary.inFlight === 1 ? "" : "s"} in review`
+          : "Everything is uploaded or approved";
 
   return (
     <div className={embedded ? "space-y-6" : "space-y-8"}>
@@ -1463,7 +1494,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             </button>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className={stackedHeroMetricsGridClass}>
             <div className={stackedHeroMetricCardClass}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
                 Live stage
@@ -1602,7 +1633,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           }}
           className="space-y-6"
         >
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1.3fr)_340px]">
+          <div className={overviewGridClass}>
             <div className="space-y-6">
               {(workflow?.blockers || []).length > 0 ? (
                 <div className="rounded-3xl border border-orange-200 bg-orange-50 p-6 dark:border-orange-900/30 dark:bg-orange-950/20">
@@ -1697,7 +1728,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 <FolderOpen className="h-5 w-5 text-orange-500" />
                 <h2 className="text-lg font-semibold">Connected workspaces</h2>
               </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className={workspaceLinksGridClass}>
                 {workspaceLinks.map((item) => (
                   <button
                     key={item.label}
@@ -1760,7 +1791,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   </>
                 ) : null}
                 <div className="relative">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className={checklistHeaderClass}>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
                       Upload checklist
@@ -1773,14 +1804,12 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     </p>
                   </div>
                   <div className={checklistBadgeClass}>
-                    {requestChecklistSummary.actionNeeded > 0
-                      ? `${requestChecklistSummary.actionNeeded} item${requestChecklistSummary.actionNeeded === 1 ? "" : "s"} still need action`
-                      : "All requested items are already in motion"}
+                    {checklistBadgeCopy}
                   </div>
                 </div>
 
                 {requestChecklistItems.length > 0 ? (
-                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  <div className={checklistItemsGridClass}>
                     {requestChecklistItems.map((item) => {
                       const cardTone =
                         item.state === "approved"
@@ -1877,7 +1906,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
                   Progress at a glance
                 </p>
-                <div className="mt-4 grid gap-3">
+                <div className={progressStatsGridClass}>
                   <div className={progressStatCardClass}>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Approved

@@ -3,7 +3,7 @@
  * Fetches user's own properties from core-service backend
  */
 
-import { apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetchEnvelope, buildApiUrl, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -92,7 +92,7 @@ const normalizeFilterValue = (value: unknown) => {
  */
 export const getUserProperties = async (filters: UserPropertyFilters = {}) => {
     try {
-        const url = new URL(`${CORE_URL()}/api/v1/properties/mine`);
+        const url = buildApiUrl(CORE_URL(), '/api/v1/properties/mine');
 
         Object.entries(filters).forEach(([key, rawValue]) => {
             const param = FILTER_PARAM_MAP[key] || key;

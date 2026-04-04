@@ -21,6 +21,7 @@ test("manager rent next action starts with requesting documents when the shared 
       title: "Start the shared document lane",
       description:
         "Create the checklist items here first so both the manager and the client can work from the same case file.",
+      panel: "documents",
     },
   );
 });
@@ -85,6 +86,14 @@ test("manager rent next action advances from documents to referencing, complianc
     })?.id,
     "open_appointment",
   );
+  assert.equal(
+    getManagerRentNextAction({
+      listingType: "rent",
+      applicationStatus: "viewing_scheduled",
+      caseFileSummary: clearDocuments,
+    })?.panel,
+    "appointments",
+  );
 
   assert.equal(
     getManagerRentNextAction({
@@ -94,6 +103,15 @@ test("manager rent next action advances from documents to referencing, complianc
       referencingStatus: "pending",
     })?.id,
     "complete_referencing",
+  );
+  assert.equal(
+    getManagerRentNextAction({
+      listingType: "rent",
+      applicationStatus: "viewing_completed",
+      caseFileSummary: clearDocuments,
+      referencingStatus: "pending",
+    })?.panel,
+    "referencing",
   );
 
   assert.equal(
@@ -105,6 +123,16 @@ test("manager rent next action advances from documents to referencing, complianc
       rightToRentStatus: "pending",
     })?.id,
     "complete_right_to_rent",
+  );
+  assert.equal(
+    getManagerRentNextAction({
+      listingType: "rent",
+      applicationStatus: "referencing",
+      caseFileSummary: clearDocuments,
+      referencingStatus: "completed",
+      rightToRentStatus: "pending",
+    })?.panel,
+    "compliance",
   );
 
   assert.equal(
@@ -118,6 +146,17 @@ test("manager rent next action advances from documents to referencing, complianc
     })?.id,
     "approve_application",
   );
+  assert.equal(
+    getManagerRentNextAction({
+      listingType: "rent",
+      applicationStatus: "right_to_rent_pending",
+      caseFileSummary: clearDocuments,
+      referencingStatus: "completed",
+      rightToRentStatus: "completed",
+      propertyContractReady: true,
+    })?.panel,
+    "approval",
+  );
 
   assert.equal(
     getManagerRentNextAction({
@@ -129,6 +168,17 @@ test("manager rent next action advances from documents to referencing, complianc
       propertyContractReady: true,
     })?.id,
     "open_create_contract",
+  );
+  assert.equal(
+    getManagerRentNextAction({
+      listingType: "rent",
+      applicationStatus: "approved",
+      caseFileSummary: clearDocuments,
+      referencingStatus: "completed",
+      rightToRentStatus: "completed",
+      propertyContractReady: true,
+    })?.panel,
+    "approval",
   );
 });
 
@@ -150,5 +200,16 @@ test("manager rent next action redirects to property readiness before contract c
       propertyContractReady: false,
     })?.id,
     "review_property_readiness",
+  );
+  assert.equal(
+    getManagerRentNextAction({
+      listingType: "rent",
+      applicationStatus: "approved",
+      caseFileSummary: clearDocuments,
+      referencingStatus: "completed",
+      rightToRentStatus: "completed",
+      propertyContractReady: false,
+    })?.panel,
+    "property_readiness",
   );
 });

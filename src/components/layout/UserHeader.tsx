@@ -50,29 +50,15 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     };
 
     return (
-        <header className="h-16 gradient-header sticky top-0 z-30 shadow-lg shadow-primary/15 border-b border-primary/10 bg-black text-white">
-            {/* Added bg-black text-white to mimic gradient-header roughly until refined */}
+        <header className="sticky top-0 z-30 h-16 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
             <div className="h-full px-4 lg:px-6 flex items-center justify-between">
-                {/* Left side - Logo - Clickable to go to dashboard */}
                 <div className="flex items-center gap-6">
                     <Link
                         to={getLinkPath('/user/dashboard')}
                         className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
                         aria-label="Navigate to dashboard"
                     >
-                        {/* 
-            <img
-              ref={logoRef}
-              src={logoIcon.src}
-              alt="Estospaces Logo"
-              className="h-8 w-auto object-contain transition-all duration-300"
-              style={{
-                filter: 'brightness(0) invert(1)',
-                WebkitFilter: 'brightness(0) invert(1)'
-              }}
-            /> 
-            */}
-                        <span className="text-xl font-bold text-white dark:text-orange-500 transition-colors duration-300 hover:text-white/90" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+                        <span className="text-xl font-bold text-white transition-colors duration-300 hover:text-white/90" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
                             Estospaces
                         </span>
                     </Link>
@@ -84,19 +70,13 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                     <SearchBar variant="compact" searchPath={getLinkPath('/user/search')} />
                 </div>
 
-                {/* Right side - Notifications, User */}
                 <div className="flex items-center gap-4">
-                    {/* Notifications */}
                     <NotificationDropdown />
 
-                    {/* User menu */}
                     <div className="relative">
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
-                            className="flex items-center gap-2 p-2 rounded-lg transition-colors"
-                            style={{ backgroundColor: 'transparent' }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-white/10"
                         >
                             <Avatar
                                 userId={user?.id}
@@ -111,7 +91,6 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                             />
                         </button>
 
-                        {/* User dropdown */}
                         {userMenuOpen && (
                             <>
                                 <div
@@ -119,13 +98,11 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                     onClick={() => setUserMenuOpen(false)}
                                 />
                                 <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
-                                    {/* User Info */}
                                     <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                                         <div className="font-semibold text-gray-900 dark:text-gray-100">{displayName}</div>
                                         <div className="text-sm text-gray-500 dark:text-gray-400 truncate">{userEmail}</div>
                                     </div>
 
-                                    {/* Menu Items */}
                                     <div className="p-2">
                                         <button
                                             onClick={() => {
@@ -149,7 +126,6 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                         </button>
                                     </div>
 
-                                    {/* Sign Out */}
                                     <div className="border-t border-gray-100 dark:border-gray-700 p-2">
                                         <button
                                             onClick={handleSignOut}

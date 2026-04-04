@@ -2,6 +2,7 @@ import type { Application } from '@/contexts/ApplicationsContext';
 import type { Viewing } from '@/services/bookingsService';
 import type { Invoice, Payment } from '@/services/paymentsService';
 import type { Contract } from '@/types/booking';
+import type { WorkspaceSection } from '@/lib/liveCaseWorkspace';
 
 type MaybeString = string | null | undefined;
 
@@ -14,6 +15,7 @@ export interface WorkspaceLinkOptions {
     caseId?: MaybeString;
     leadId?: MaybeString;
     propertyId?: MaybeString;
+    section?: WorkspaceSection | MaybeString;
 }
 
 const normalizeId = (value: MaybeString) => String(value || '').trim();
@@ -102,6 +104,9 @@ export const buildWorkspacePath = (basePath: string, options: WorkspaceLinkOptio
     }
     if (normalizeId(options.propertyId)) {
         searchParams.set('property', normalizeId(options.propertyId));
+    }
+    if (normalizeId(options.section)) {
+        searchParams.set('section', normalizeId(options.section));
     }
 
     const query = searchParams.toString();
