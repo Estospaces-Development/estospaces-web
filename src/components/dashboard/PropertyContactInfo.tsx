@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Mail, Phone, Building, MapPin, Calendar, MessageCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import Avatar from '@/components/ui/Avatar';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Property {
     id: string;
@@ -32,6 +33,7 @@ interface PropertyContactInfoProps {
 
 const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
     const { success: showToastSuccess, error: showToastError } = useToast();
+    const { user } = useAuth();
     const [showContactForm, setShowContactForm] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [contactForm, setContactForm] = useState({
@@ -40,6 +42,25 @@ const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
         phone: '',
         message: '',
     });
+    const defaultContactForm = useMemo(() => ({
+        name: user?.user_metadata?.full_name || user?.name || '',
+        email: user?.email || '',
+        phone: user?.phone || user?.user_metadata?.phone || '',
+        message: '',
+    }), [user]);
+
+    useEffect(() => {
+        if (!showContactForm) {
+            return;
+        }
+
+        setContactForm((current) => ({
+            ...current,
+            name: current.name || defaultContactForm.name,
+            email: current.email || defaultContactForm.email,
+            phone: current.phone || defaultContactForm.phone,
+        }));
+    }, [defaultContactForm, showContactForm]);
 
     const handleContactSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,7 +102,7 @@ ${contactForm.message}
 
             showToastSuccess('Your message has been sent to the agent.');
             setShowContactForm(false);
-            setContactForm({ name: '', email: '', phone: '', message: '' });
+            setContactForm(defaultContactForm);
         } catch (err: any) {
             showToastError('Failed to send message. Please try again later.');
         } finally {
