@@ -5,6 +5,11 @@ import * as messagesService from '@/services/messagesService';
 import { useAuth } from './AuthContext';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    createUnavailableConversationThreadIssue,
+    isUnavailableConversationThreadError,
+    type ConversationThreadIssue,
+} from '@/lib/messagesInbox';
 
 interface Message {
     id: string;
@@ -53,7 +58,10 @@ interface MessagesContextType {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
     isLoading: boolean;
+    hasLoadedConversations: boolean;
     totalUnreadCount: number;
+    conversationThreadIssue: ConversationThreadIssue | null;
+    clearConversationThreadIssue: () => void;
     createConversation: (agentData: any, propertyData: any) => Promise<string>;
     sendMessage: (conversationId: string, text: string, attachments?: any[]) => Promise<void>;
     markAsRead: (conversationId: string) => Promise<void>;
@@ -153,10 +161,12 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+    const [selectedConversationIdState, setSelectedConversationIdState] = useState<string | null>(null);
     const [filter, setFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
+    const [conversationThreadIssue, setConversationThreadIssue] = useState<ConversationThreadIssue | null>(null);
 
     const mapBackendMessage = useCallback((message: messagesService.Message): Message => {
         const isMine = message.sender_id === user?.id;
@@ -223,10 +233,45 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         };
     }, [mapBackendMessage]);
 
+    const setSelectedConversationId = useCallback((id: string | null) => {
+        setConversationThreadIssue(null);
+        setSelectedConversationIdState(id);
+    }, []);
+
+    const clearConversationThreadIssue = useCallback(() => {
+        setConversationThreadIssue(null);
+    }, []);
+
+    const clearConversationMessages = useCallback((conversationId: string) => {
+        setConversations((previous) =>
+            previous.map((conversation) =>
+                conversation.id === conversationId
+                    ? {
+                        ...conversation,
+                        messages: [],
+                    }
+                    : conversation,
+            ),
+        );
+    }, []);
+
+    const handleUnavailableConversationThread = useCallback((conversationId: string, error: unknown) => {
+        if (!isUnavailableConversationThreadError(error)) {
+            return false;
+        }
+
+        clearConversationMessages(conversationId);
+        setConversationThreadIssue(createUnavailableConversationThreadIssue(conversationId));
+        setSelectedConversationIdState((current) => (current === conversationId ? null : current));
+        return true;
+    }, [clearConversationMessages]);
+
     const loadConversations = useCallback(async (silent: boolean) => {
         if (!user) {
             setConversations([]);
-            setSelectedConversationId(null);
+            setSelectedConversationIdState(null);
+            setConversationThreadIssue(null);
+            setHasLoadedConversations(false);
             return;
         }
 
@@ -249,6 +294,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         } finally {
             if (!silent) {
                 setIsLoading(false);
+                setHasLoadedConversations(true);
             }
         }
     }, [mapBackendConversation, user]);
@@ -276,17 +322,23 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                         : conversation,
                 ),
             );
-        } catch {
-            // Keep the existing local state if message fetch fails.
+            return true;
+        } catch (error) {
+            if (handleUnavailableConversationThread(conversationId, error)) {
+                return false;
+            }
+
+            // Keep the existing local state if a non-fatal polling request fails.
+            return false;
         }
-    }, [mapBackendMessage]);
+    }, [handleUnavailableConversationThread, mapBackendMessage]);
 
     useWorkspaceRefresh({
         tags: [WORKSPACE_SYNC_TAGS.MESSAGES, WORKSPACE_SYNC_TAGS.SUPPORT],
         refresh: async () => {
             await loadConversations(true);
-            if (selectedConversationId) {
-                await loadConversationMessages(selectedConversationId);
+            if (selectedConversationIdState) {
+                await loadConversationMessages(selectedConversationIdState);
             }
         },
         enabled: Boolean(user),
@@ -299,7 +351,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         }
 
         setConversations([]);
-        setSelectedConversationId(null);
+        setSelectedConversationIdState(null);
+        setConversationThreadIssue(null);
+        setHasLoadedConversations(false);
     }, [loadConversations, user]);
 
     useEffect(() => {
@@ -308,6 +362,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         }
 
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             void loadConversations(true);
         }, CONVERSATION_POLL_INTERVAL_MS);
 
@@ -315,15 +372,30 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     }, [loadConversations, user]);
 
     useEffect(() => {
-        if (!selectedConversationId) {
+        if (!selectedConversationIdState) {
             return;
         }
 
-        loadConversationMessages(selectedConversationId);
-        messagesService.markAsRead(selectedConversationId).catch(() => undefined);
+        let isActive = true;
+
+        void (async () => {
+            const didLoadMessages = await loadConversationMessages(selectedConversationIdState);
+            if (!isActive || !didLoadMessages) {
+                return;
+            }
+
+            try {
+                await messagesService.markAsRead(selectedConversationIdState);
+            } catch (error) {
+                if (isActive) {
+                    handleUnavailableConversationThread(selectedConversationIdState, error);
+                }
+            }
+        })();
+
         setConversations((previous) =>
             previous.map((conversation) =>
-                conversation.id === selectedConversationId
+                conversation.id === selectedConversationIdState
                     ? {
                         ...conversation,
                         unreadCount: 0,
@@ -332,47 +404,54 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                     : conversation,
             ),
         );
-    }, [loadConversationMessages, selectedConversationId]);
+
+        return () => {
+            isActive = false;
+        };
+    }, [handleUnavailableConversationThread, loadConversationMessages, selectedConversationIdState]);
 
     useEffect(() => {
-        if (!selectedConversationId) {
+        if (!selectedConversationIdState) {
             return;
         }
 
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             void Promise.all([
                 loadConversations(true),
-                loadConversationMessages(selectedConversationId),
+                loadConversationMessages(selectedConversationIdState),
             ]);
         }, MESSAGE_POLL_INTERVAL_MS);
 
         return () => window.clearInterval(interval);
-    }, [loadConversations, loadConversationMessages, selectedConversationId]);
+    }, [loadConversations, loadConversationMessages, selectedConversationIdState]);
 
     useEffect(() => {
-        if (!selectedConversationId) {
+        if (!selectedConversationIdState) {
             return;
         }
 
-        const hasConversation = conversations.some((conversation) => conversation.id === selectedConversationId);
+        const hasConversation = conversations.some((conversation) => conversation.id === selectedConversationIdState);
         if (conversations.length === 0) {
             return;
         }
         if (!hasConversation) {
-            setSelectedConversationId(null);
+            setSelectedConversationIdState(null);
         }
-    }, [conversations, selectedConversationId]);
+    }, [conversations, selectedConversationIdState]);
 
     useEffect(() => {
-        if (!selectedConversationId) {
+        if (!selectedConversationIdState) {
             return;
         }
 
-        const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationId);
+        const selectedConversation = conversations.find((conversation) => conversation.id === selectedConversationIdState);
         if (selectedConversation && selectedConversation.messages.length === 0) {
-            void loadConversationMessages(selectedConversationId);
+            void loadConversationMessages(selectedConversationIdState);
         }
-    }, [conversations, loadConversationMessages, selectedConversationId]);
+    }, [conversations, loadConversationMessages, selectedConversationIdState]);
 
     const totalUnreadCount = conversations.reduce((sum, conversation) => {
         return sum + (conversation.isArchived ? 0 : conversation.unreadCount);
@@ -440,7 +519,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         } finally {
             setIsLoading(false);
         }
-    }, [loadConversationMessages, publishWorkspaceSync, refreshConversations, user]);
+    }, [loadConversationMessages, publishWorkspaceSync, refreshConversations, setSelectedConversationId, user]);
 
     const sendMessage = useCallback(async (conversationId: string, text: string, attachments: any[] = []) => {
         if (!text.trim() && attachments.length === 0) {
@@ -560,10 +639,10 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
 
     const deleteConversation = useCallback((conversationId: string) => {
         setConversations((previous) => previous.filter((conversation) => conversation.id !== conversationId));
-        if (selectedConversationId === conversationId) {
-            setSelectedConversationId(null);
+        if (selectedConversationIdState === conversationId) {
+            setSelectedConversationIdState(null);
         }
-    }, [selectedConversationId]);
+    }, [selectedConversationIdState]);
 
     const getConversation = useCallback((conversationId: string) => {
         return conversations.find((conversation) => conversation.id === conversationId);
@@ -572,14 +651,17 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const value = {
         conversations: getFilteredConversations(),
         allConversations: conversations,
-        selectedConversationId,
+        selectedConversationId: selectedConversationIdState,
         setSelectedConversationId,
         filter,
         setFilter,
         searchQuery,
         setSearchQuery,
         isLoading,
+        hasLoadedConversations,
         totalUnreadCount,
+        conversationThreadIssue,
+        clearConversationThreadIssue,
         createConversation,
         sendMessage,
         markAsRead,

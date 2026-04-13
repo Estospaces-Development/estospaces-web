@@ -38,6 +38,11 @@ import {
 import { getNextSaleJourneyActions, saleProgressionStageForStatus } from '@/lib/saleJourney';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import type { WorkspaceSection } from '@/lib/liveCaseWorkspace';
+import {
+    getManagerSaleProgressionGuard,
+    getManagerViewingActionGuard,
+    type ManagerWorkflowActionGuard,
+} from '@/lib/managerWorkflowGuards';
 import Avatar from '@/components/ui/Avatar';
 import CaseFileWorkspace from '@/components/case-file/CaseFileWorkspace';
 import FastTrackActions from './FastTrackActions';
@@ -59,6 +64,7 @@ interface FastTrackCaseDetailProps {
     canRequestDocuments?: boolean;
     isRequestingDocuments?: boolean;
     isDocumentsVerifiedOverride?: boolean;
+    isRefreshing?: boolean;
 }
 
 const stepCopy: Record<FastTrackStep, { label: string; description: string }> = {
@@ -188,6 +194,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     canRequestDocuments = false,
     isRequestingDocuments = false,
     isDocumentsVerifiedOverride,
+    isRefreshing = false,
 }) => {
     const navigate = useNavigate();
     const toast = useToast();
@@ -198,6 +205,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
     const [actingViewingAction, setActingViewingAction] = useState<string | null>(null);
     const [actingSaleAction, setActingSaleAction] = useState<string | null>(null);
+    const isAdminWorkspace = user?.role === 'admin';
     const [scheduleForm, setScheduleForm] = useState({
         requested_date: toDateInputValue(),
         requested_time: '10:00',
@@ -208,40 +216,40 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         requested_time: toTimeInputValue(linkedJourney?.viewing?.scheduled_at),
         manager_notes: linkedJourney?.viewing?.manager_notes || '',
     });
-    const applicationsWorkspacePath = buildWorkspacePath('/manager/applications', {
+    const applicationsWorkspacePath = !isAdminWorkspace ? buildWorkspacePath('/manager/applications', {
         applicationId: linkedJourney?.application?.id,
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
-    });
-    const appointmentsWorkspacePath = buildWorkspacePath('/manager/appointments', {
+    }) : null;
+    const appointmentsWorkspacePath = !isAdminWorkspace ? buildWorkspacePath('/manager/appointments', {
         viewingId: linkedJourney?.viewing?.id,
         applicationId: linkedJourney?.application?.id,
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
-    });
-    const fastTrackDocumentsPath = buildWorkspacePath('/manager/fast-track', {
+    }) : null;
+    const fastTrackDocumentsPath = buildWorkspacePath(isAdminWorkspace ? '/admin/fast-track' : '/manager/fast-track', {
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
         applicationId: linkedJourney?.application?.id,
         section: 'documents',
     });
-    const caseFileWorkspacePath = buildWorkspacePath('/manager/case-files', {
+    const caseFileWorkspacePath = !isAdminWorkspace ? buildWorkspacePath('/manager/case-files', {
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
         section: 'documents',
-    });
-    const contractsWorkspacePath = buildWorkspacePath('/manager/contracts', {
+    }) : null;
+    const contractsWorkspacePath = !isAdminWorkspace ? buildWorkspacePath('/manager/contracts', {
         contractId: linkedJourney?.contract?.id,
         applicationId: linkedJourney?.application?.id,
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
-    });
-    const billingWorkspacePath = buildWorkspacePath('/manager/billing', {
+    }) : null;
+    const billingWorkspacePath = !isAdminWorkspace ? buildWorkspacePath('/manager/billing', {
         applicationId: linkedJourney?.application?.id,
         contractId: linkedJourney?.contract?.id,
         paymentId: linkedJourney?.payments[0]?.id,
@@ -249,7 +257,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         caseId: caseData.caseId,
         leadId: caseData.leadId,
         propertyId: caseData.propertyId,
-    });
+    }) : null;
 
     useEffect(() => {
         setOverrideReasonDraft(caseData.overrideReason || '');
@@ -368,6 +376,10 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const displayWindowNote = isOverdue
         ? 'The timer is now an attention signal only. Managers can still continue the workflow from this screen.'
         : 'SLA visibility stays tied to the actual 24-hour countdown from submission time.';
+    const currentStageDescription = linkedJourney?.primarySummary
+        || caseData.statusReason
+        || caseData.journeyStatusReason
+        || stepMeta.description;
     const journeyBlockers = linkedJourney?.blockers?.length
         ? linkedJourney.blockers
         : (caseData.blockers || []);
@@ -419,11 +431,63 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     }, [caseData.journeyType, linkedJourney]);
     const viewingStatus = String(linkedJourney?.viewing?.status || '').toLowerCase();
     const viewingLocked = Boolean(linkedJourney?.viewing?.workflow_locked);
-    const canScheduleViewing = !isClosed && isDocumentsVerified && !linkedJourney?.viewing;
-    const canConfirmViewing = !viewingLocked && ['pending', 'rescheduled'].includes(viewingStatus);
-    const canRescheduleViewing = !viewingLocked && ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus);
-    const canCompleteViewing = !viewingLocked && viewingStatus === 'confirmed';
-    const canCancelViewing = !viewingLocked && ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus);
+    const scheduleViewingGuard = getManagerViewingActionGuard({
+        action: 'schedule_viewing',
+        documentsVerified: isDocumentsVerified,
+        hasViewing: Boolean(linkedJourney?.viewing),
+        isClosed,
+        isRefreshing,
+        blockers: linkedJourney?.blockers,
+    });
+    const confirmViewingGuard = getManagerViewingActionGuard({
+        action: 'confirm_viewing',
+        documentsVerified: isDocumentsVerified,
+        hasViewing: Boolean(linkedJourney?.viewing),
+        viewingLocked,
+        viewingLockReason: linkedJourney?.viewing?.workflow_lock_reason,
+        viewingStatus,
+        isClosed,
+        isRefreshing,
+        blockers: linkedJourney?.blockers,
+    });
+    const rescheduleViewingGuard = getManagerViewingActionGuard({
+        action: 'reschedule_viewing',
+        documentsVerified: isDocumentsVerified,
+        hasViewing: Boolean(linkedJourney?.viewing),
+        viewingLocked,
+        viewingLockReason: linkedJourney?.viewing?.workflow_lock_reason,
+        viewingStatus,
+        isClosed,
+        isRefreshing,
+        blockers: linkedJourney?.blockers,
+    });
+    const completeViewingGuard = getManagerViewingActionGuard({
+        action: 'complete_viewing',
+        documentsVerified: isDocumentsVerified,
+        hasViewing: Boolean(linkedJourney?.viewing),
+        viewingLocked,
+        viewingLockReason: linkedJourney?.viewing?.workflow_lock_reason,
+        viewingStatus,
+        isClosed,
+        isRefreshing,
+        blockers: linkedJourney?.blockers,
+    });
+    const cancelViewingGuard = getManagerViewingActionGuard({
+        action: 'cancel_viewing',
+        documentsVerified: isDocumentsVerified,
+        hasViewing: Boolean(linkedJourney?.viewing),
+        viewingLocked,
+        viewingLockReason: linkedJourney?.viewing?.workflow_lock_reason,
+        viewingStatus,
+        isClosed,
+        isRefreshing,
+        blockers: linkedJourney?.blockers,
+    });
+    const canScheduleViewing = scheduleViewingGuard.canRun;
+    const canConfirmViewing = confirmViewingGuard.canRun;
+    const canRescheduleViewing = rescheduleViewingGuard.canRun;
+    const canCompleteViewing = completeViewingGuard.canRun;
+    const canCancelViewing = cancelViewingGuard.canRun;
     const rentJourney = caseData.journeyType !== 'buy';
     const purchaseWorkspaceLabel = getPurchaseWorkspaceLabel(linkedJourney);
     const nextStageGuidance = resolveFastTrackStageGuidance({
@@ -456,6 +520,77 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
             return accumulator;
         }, [])
         : [];
+    const primaryViewingGuard = linkedJourney?.viewing
+        ? (viewingStatus === 'confirmed'
+            ? completeViewingGuard
+            : ['pending', 'rescheduled'].includes(viewingStatus)
+                ? confirmViewingGuard
+                : rescheduleViewingGuard)
+        : scheduleViewingGuard;
+    const saleProgressionGuard = getManagerSaleProgressionGuard({
+        hasSaleProgression: Boolean(linkedJourney?.saleProgression),
+        canProgressFromFastTrack: saleProgressionActions.length > 0,
+        isRefreshing,
+        blockers: linkedJourney?.blockers,
+    });
+    const managerWorkflowRequestOptions = { suppressErrorToast: true } as const;
+
+    const resolveWorkflowGuardPath = (guard: ManagerWorkflowActionGuard) => {
+        switch (guard.target) {
+            case 'appointments':
+                return appointmentsWorkspacePath;
+            case 'applications':
+                return applicationsWorkspacePath;
+            case 'documents':
+                return fastTrackDocumentsPath;
+            default:
+                return null;
+        }
+    };
+
+    const renderWorkflowGuardBanner = (guard: ManagerWorkflowActionGuard, key: string) => {
+        if (guard.status === 'ready') {
+            return null;
+        }
+
+        const targetPath = resolveWorkflowGuardPath(guard);
+        return (
+            <div
+                key={key}
+                className={`rounded-2xl border p-4 ${
+                    guard.status === 'unavailable'
+                        ? 'border-red-200 bg-red-50/80 dark:border-red-900/40 dark:bg-red-950/20'
+                        : 'border-amber-200 bg-amber-50/80 dark:border-amber-900/40 dark:bg-amber-950/20'
+                }`}
+            >
+                <p className={`text-sm font-semibold ${
+                    guard.status === 'unavailable'
+                        ? 'text-red-700 dark:text-red-200'
+                        : 'text-amber-700 dark:text-amber-200'
+                }`}
+                >
+                    {guard.title}
+                </p>
+                <p className={`mt-2 text-sm leading-6 ${
+                    guard.status === 'unavailable'
+                        ? 'text-red-600 dark:text-red-300'
+                        : 'text-amber-700 dark:text-amber-300'
+                }`}
+                >
+                    {guard.description}
+                </p>
+                {targetPath ? (
+                    <button
+                        type="button"
+                        onClick={() => navigate(targetPath)}
+                        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-black dark:text-gray-200 dark:hover:bg-zinc-900"
+                    >
+                        {guard.actionLabel || 'Open workspace'}
+                    </button>
+                ) : null}
+            </div>
+        );
+    };
 
     const runViewingAction = async (actionKey: string, action: () => Promise<void>, successMessage: string) => {
         setActingViewingAction(actionKey);
@@ -504,6 +639,11 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     };
 
     const handleScheduleViewing = async () => {
+        if (!scheduleViewingGuard.canRun) {
+            toast.error(scheduleViewingGuard.description);
+            return;
+        }
+
         const managerId = caseData.managerId || user?.id;
         if (!managerId) {
             toast.error('This case does not have a manager assigned for scheduling yet.');
@@ -528,7 +668,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                     requested_date: scheduleForm.requested_date,
                     requested_time: scheduleForm.requested_time,
                     user_notes: scheduleForm.user_notes,
-                });
+                }, managerWorkflowRequestOptions);
                 setScheduleModalOpen(false);
             },
             'Viewing scheduled successfully.',
@@ -539,16 +679,24 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         if (!linkedJourney?.viewing?.id) {
             return;
         }
+        if (!confirmViewingGuard.canRun) {
+            toast.error(confirmViewingGuard.description);
+            return;
+        }
 
         await runViewingAction(
             'confirm',
-            () => bookingsService.confirmViewing(linkedJourney.viewing!.id),
+            () => bookingsService.confirmViewing(linkedJourney.viewing!.id, managerWorkflowRequestOptions),
             'Viewing confirmed successfully.',
         );
     };
 
     const handleRescheduleViewing = async () => {
         if (!linkedJourney?.viewing?.id) {
+            return;
+        }
+        if (!rescheduleViewingGuard.canRun) {
+            toast.error(rescheduleViewingGuard.description);
             return;
         }
         if (!rescheduleForm.requested_date || !rescheduleForm.requested_time) {
@@ -563,7 +711,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                     requested_date: rescheduleForm.requested_date,
                     requested_time: rescheduleForm.requested_time,
                     manager_notes: rescheduleForm.manager_notes,
-                });
+                }, managerWorkflowRequestOptions);
                 setRescheduleModalOpen(false);
             },
             'Viewing rescheduled successfully.',
@@ -574,10 +722,18 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         if (!linkedJourney?.viewing?.id) {
             return;
         }
+        if (!completeViewingGuard.canRun) {
+            toast.error(completeViewingGuard.description);
+            return;
+        }
 
         await runViewingAction(
             'complete',
-            () => bookingsService.updateViewing(linkedJourney.viewing!.id, { status: 'completed' }).then(() => undefined),
+            () => bookingsService.updateViewing(
+                linkedJourney.viewing!.id,
+                { status: 'completed' },
+                managerWorkflowRequestOptions,
+            ).then(() => undefined),
             'Viewing marked as completed.',
         );
     };
@@ -586,10 +742,18 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         if (!linkedJourney?.viewing?.id) {
             return;
         }
+        if (!cancelViewingGuard.canRun) {
+            toast.error(cancelViewingGuard.description);
+            return;
+        }
 
         await runViewingAction(
             'cancel',
-            () => bookingsService.cancelViewing(linkedJourney.viewing!.id, 'Cancelled by manager'),
+            () => bookingsService.cancelViewing(
+                linkedJourney.viewing!.id,
+                'Cancelled by manager',
+                managerWorkflowRequestOptions,
+            ),
             'Viewing cancelled successfully.',
         );
     };
@@ -603,15 +767,30 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         }
 
         const progressionStage = toSaleProgressionStage(nextStage);
+        const nextStageGuard = getManagerSaleProgressionGuard({
+            hasSaleProgression: Boolean(linkedJourney?.saleProgression),
+            canProgressFromFastTrack: Boolean(progressionStage),
+            isRefreshing,
+            blockers: linkedJourney?.blockers,
+        });
         if (!progressionStage) {
-            toast.error('This sale stage must be progressed from the purchase workspace instead.');
+            toast.error(nextStageGuard.description);
+            return;
+        }
+        if (!nextStageGuard.canRun) {
+            toast.error(nextStageGuard.description);
             return;
         }
 
         await runSaleProgressionAction(
             progressionStage,
             async () => {
-                const result = await updateSaleProgression(linkedJourney.saleProgression!.id, progressionStage);
+                const result = await updateSaleProgression(
+                    linkedJourney.saleProgression!.id,
+                    progressionStage,
+                    undefined,
+                    managerWorkflowRequestOptions,
+                );
                 if (result.error || !result.data) {
                     throw new Error(result.error || 'Unable to update the purchase stage right now.');
                 }
@@ -718,7 +897,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
                                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
                                     <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{stepMeta.label}</p>
-                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{caseData.journeyStatusReason || caseData.statusReason || stepMeta.description}</p>
+                                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{currentStageDescription}</p>
                                 </div>
                                 <div className="rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-zinc-800 p-4">
                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Documents</p>
@@ -798,7 +977,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                                 {nextStageGuidance.description}
                                             </p>
                                         </button>
-                                    ) : nextStageWorkspacePath ? (
+                                    ) : nextStageGuidance && nextStageWorkspacePath ? (
                                         <button
                                             type="button"
                                             onClick={() => navigate(nextStageWorkspacePath)}
@@ -906,14 +1085,16 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                         <FileText size={18} />
                                         Open documents here
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(caseFileWorkspacePath)}
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
-                                    >
-                                        <FileText size={18} />
-                                        Open secondary case-file page
-                                    </button>
+                                    {caseFileWorkspacePath ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(caseFileWorkspacePath)}
+                                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                                        >
+                                            <FileText size={18} />
+                                            Open secondary case-file page
+                                        </button>
+                                    ) : null}
                                 </div>
                             </div>
 
@@ -926,6 +1107,8 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                     layout="stacked"
                                     initialTab="documents"
                                     requestedSection={workspaceSection === 'activity' ? 'activity' : workspaceSection === 'journey' ? 'journey' : 'documents'}
+                                    workflowStageOverride={caseData.currentStep}
+                                    workflowSummaryOverride={currentStageDescription}
                                 />
                             </div>
                         </section>
@@ -997,31 +1180,37 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 ))}
                             </div>
                             <div className="mt-4 grid gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(applicationsWorkspacePath)}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                >
-                                    <FileText size={18} />
-                                    {rentJourney ? 'Open applications workspace' : purchaseWorkspaceLabel}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(caseFileWorkspacePath)}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                >
-                                    <FileText size={18} />
-                                    Open shared case file
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(appointmentsWorkspacePath)}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                >
-                                    <CalendarClock size={18} />
-                                    Open appointments workspace
-                                </button>
-                                {caseData.journeyType !== 'buy' ? (
+                                {applicationsWorkspacePath ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(applicationsWorkspacePath)}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                    >
+                                        <FileText size={18} />
+                                        {rentJourney ? 'Open applications workspace' : purchaseWorkspaceLabel}
+                                    </button>
+                                ) : null}
+                                {caseFileWorkspacePath ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(caseFileWorkspacePath)}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                    >
+                                        <FileText size={18} />
+                                        Open shared case file
+                                    </button>
+                                ) : null}
+                                {appointmentsWorkspacePath ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(appointmentsWorkspacePath)}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                    >
+                                        <CalendarClock size={18} />
+                                        Open appointments workspace
+                                    </button>
+                                ) : null}
+                                {caseData.journeyType !== 'buy' && contractsWorkspacePath ? (
                                     <button
                                         type="button"
                                         onClick={() => navigate(contractsWorkspacePath)}
@@ -1031,14 +1220,16 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                         Open contracts workspace
                                     </button>
                                 ) : null}
-                                <button
-                                    type="button"
-                                    onClick={() => navigate(billingWorkspacePath)}
-                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                >
-                                    <Shield size={18} />
-                                    Open billing workspace
-                                </button>
+                                {billingWorkspacePath ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(billingWorkspacePath)}
+                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                    >
+                                        <Shield size={18} />
+                                        Open billing workspace
+                                    </button>
+                                ) : null}
                             </div>
                         </section>
 
@@ -1124,11 +1315,12 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 Move the case only when the checklist and decision state match the real record.
                             </p>
                             <div className="mt-4 grid gap-3">
+                                {renderWorkflowGuardBanner(primaryViewingGuard, 'viewing-guard')}
                                 {canScheduleViewing ? (
                                     <button
                                         type="button"
                                         onClick={() => setScheduleModalOpen(true)}
-                                        disabled={actingViewingAction !== null}
+                                        disabled={actingViewingAction !== null || !scheduleViewingGuard.canRun}
                                         className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {actingViewingAction === 'schedule' ? <Loader2 size={18} className="animate-spin" /> : <CalendarClock size={18} />}
@@ -1137,19 +1329,21 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 ) : null}
                                 {linkedJourney?.viewing ? (
                                     <div className="grid gap-3 md:grid-cols-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => navigate(appointmentsWorkspacePath)}
-                                            className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
-                                        >
-                                            <CalendarClock size={18} />
-                                            Open appointment
-                                        </button>
+                                        {appointmentsWorkspacePath ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(appointmentsWorkspacePath)}
+                                                className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
+                                            >
+                                                <CalendarClock size={18} />
+                                                Open appointment
+                                            </button>
+                                        ) : null}
                                         {canConfirmViewing ? (
                                             <button
                                                 type="button"
                                                 onClick={() => void handleConfirmViewing()}
-                                                disabled={actingViewingAction !== null}
+                                                disabled={actingViewingAction !== null || !confirmViewingGuard.canRun}
                                                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                                             >
                                                 {actingViewingAction === 'confirm' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
@@ -1160,7 +1354,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                             <button
                                                 type="button"
                                                 onClick={() => setRescheduleModalOpen(true)}
-                                                disabled={actingViewingAction !== null}
+                                                disabled={actingViewingAction !== null || !rescheduleViewingGuard.canRun}
                                                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
                                             >
                                                 <CalendarClock size={18} />
@@ -1171,7 +1365,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                             <button
                                                 type="button"
                                                 onClick={() => void handleCompleteViewing()}
-                                                disabled={actingViewingAction !== null}
+                                                disabled={actingViewingAction !== null || !completeViewingGuard.canRun}
                                                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-200 px-4 py-3 font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-900/40 dark:text-blue-300 dark:hover:bg-blue-950/20"
                                             >
                                                 {actingViewingAction === 'complete' ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
@@ -1182,7 +1376,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                             <button
                                                 type="button"
                                                 onClick={() => void handleCancelViewing()}
-                                                disabled={actingViewingAction !== null}
+                                                disabled={actingViewingAction !== null || !cancelViewingGuard.canRun}
                                                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-3 font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-950/20"
                                             >
                                                 {actingViewingAction === 'cancel' ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
@@ -1193,6 +1387,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 ) : null}
                                 {!rentJourney && linkedJourney?.saleProgression ? (
                                     <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4 dark:border-violet-900/40 dark:bg-violet-950/20">
+                                        {renderWorkflowGuardBanner(saleProgressionGuard, 'sale-guard')}
                                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-300">Purchase stage controls</p>
                                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">
                                             {formatWorkflowStatusLabel(linkedJourney.saleProgression.current_stage)}
@@ -1207,7 +1402,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                                         key={action.stage}
                                                         type="button"
                                                         onClick={() => void handleSaleProgressionUpdate(action.stage, `${action.label} saved.`)}
-                                                        disabled={actingSaleAction !== null}
+                                                        disabled={actingSaleAction !== null || !saleProgressionGuard.canRun}
                                                         className="rounded-xl border border-violet-200 bg-white px-4 py-4 text-left transition-colors hover:border-violet-300 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-violet-900/40 dark:bg-black dark:hover:bg-violet-950/20"
                                                     >
                                                         <div className="flex items-center justify-between gap-3">
@@ -1280,7 +1475,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                         <button
                             type="button"
                             onClick={() => void handleScheduleViewing()}
-                            disabled={actingViewingAction !== null}
+                            disabled={actingViewingAction !== null || !scheduleViewingGuard.canRun}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {actingViewingAction === 'schedule' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -1349,7 +1544,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                         <button
                             type="button"
                             onClick={() => void handleRescheduleViewing()}
-                            disabled={actingViewingAction !== null}
+                            disabled={actingViewingAction !== null || !rescheduleViewingGuard.canRun}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {actingViewingAction === 'reschedule' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

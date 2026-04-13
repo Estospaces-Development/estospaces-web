@@ -227,7 +227,7 @@ function PropertyManagementContent() {
                     </div>
                     <button
                         type="button"
-                        onClick={() => navigate('/manager/dashboard/properties/add')}
+                        onClick={() => showWarningToast('Property creation stays in manager workspaces. Admin can review submissions here, but new listings need to be created from a manager account.')}
                         className="flex items-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-xs font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-105 active:scale-95 dark:bg-white dark:text-gray-900"
                     >
                         <Plus size={18} /> Add Property

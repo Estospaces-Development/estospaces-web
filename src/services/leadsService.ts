@@ -312,12 +312,14 @@ export interface DocumentUploadOptions {
  * Fetch leads for the logged-in user
  * GET /api/v1/leads/mine (core-service)
  */
-export const getUserLeads = async (): Promise<{
+export const getUserLeads = async (
+  options: ServiceRequestOptions = {},
+): Promise<{
   data: Lead[] | null;
   error: string | null;
 }> => {
   try {
-    const data = await apiFetch<Lead[]>(`${CORE_URL()}/api/v1/leads/mine`);
+    const data = await apiFetch<Lead[]>(`${CORE_URL()}/api/v1/leads/mine`, options);
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
@@ -850,7 +852,9 @@ export const uploadDocument = async (
   }
 };
 
-export const getUserDocuments = async (): Promise<{
+export const getUserDocuments = async (
+  options: ServiceRequestOptions = {},
+): Promise<{
   data: UserDocument[];
   verificationLevel: string | null;
   error: string | null;
@@ -859,7 +863,7 @@ export const getUserDocuments = async (): Promise<{
     const response = await apiFetch<{
       documents?: UserDocument[];
       verification_level?: string;
-    }>(`${CORE_URL()}/api/v1/documents`);
+    }>(`${CORE_URL()}/api/v1/documents`, options);
 
     return {
       data: response.documents || [],

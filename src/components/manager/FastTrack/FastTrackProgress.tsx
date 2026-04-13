@@ -6,9 +6,10 @@ import { CanonicalFastTrackStep, getFastTrackStepIndex } from '@/lib/fastTrackWo
 interface FastTrackProgressProps {
     currentStep: FastTrackStep;
     journeyType?: 'rent' | 'buy';
+    compact?: boolean;
 }
 
-const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep, journeyType }) => {
+const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep, journeyType, compact = false }) => {
     const currentIndex = getFastTrackStepIndex(currentStep);
     const steps: { id: CanonicalFastTrackStep; label: string; icon: React.ElementType }[] = [
         { id: 'property_selected', label: 'Property', icon: Home },
@@ -29,10 +30,35 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep, jour
         { id: 'completed', label: 'Done', icon: BadgeCheck },
     ];
 
+    const getDisplayLabel = (stepId: CanonicalFastTrackStep, label: string) => {
+        if (!compact) {
+            return label;
+        }
+
+        switch (stepId) {
+            case 'property_selected':
+                return 'Prop';
+            case 'documents_requested':
+                return 'Docs';
+            case 'documents_verified':
+                return 'Verify';
+            case 'viewing_scheduled':
+                return 'View';
+            case 'viewing_completed':
+                return 'Visit';
+            case 'application_in_review':
+                return journeyType === 'buy' ? 'Offer' : 'Check';
+            case 'ready_for_contract':
+                return journeyType === 'buy' ? 'Legal' : 'Lease';
+            default:
+                return label;
+        }
+    };
+
     return (
-        <div className="w-full relative mt-4 mb-2">
-            <div className="absolute top-4 left-0 w-full h-[2px] bg-gray-100 dark:bg-zinc-800 -z-10" />
-            <div className="flex justify-between items-start w-full px-2">
+        <div className="relative mb-2 mt-4 w-full">
+            <div className="absolute top-4 left-0 -z-10 h-[2px] w-full bg-gray-100 dark:bg-zinc-800" />
+            <div className="grid w-full grid-cols-8 items-start justify-items-center gap-1 px-1 sm:px-2">
                 {steps.map((step, index) => {
                     let status: 'completed' | 'current' | 'upcoming' = 'upcoming';
                     if (index < currentIndex) status = 'completed';
@@ -41,7 +67,7 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep, jour
                     const Icon = step.icon;
 
                     return (
-                        <div key={step.id} className="flex flex-col items-center relative">
+                        <div key={step.id} className="relative flex w-full min-w-0 flex-col items-center text-center">
                             <div
                                 className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 z-10
                   ${status === 'completed' ? 'bg-green-500 border-green-500 text-white' : ''}
@@ -52,13 +78,17 @@ const FastTrackProgress: React.FC<FastTrackProgressProps> = ({ currentStep, jour
                                 <Icon className="w-4 h-4" />
                             </div>
                             <span
-                                className={`text-[10px] sm:text-xs mt-2 font-medium tracking-tight transition-colors duration-300
+                                className={`mt-2 w-full ${
+                                    compact
+                                        ? 'block overflow-hidden text-ellipsis whitespace-nowrap px-0 text-[8px] font-semibold leading-tight tracking-normal sm:text-[9px]'
+                                        : 'break-words px-0.5 text-[9px] font-medium leading-tight tracking-tight sm:text-xs'
+                                } transition-colors duration-300
                   ${status === 'current' ? 'text-orange-600 dark:text-orange-400 font-bold' : ''}
                   ${status === 'completed' ? 'text-green-600 dark:text-green-500' : ''}
                   ${status === 'upcoming' ? 'text-gray-300 dark:text-gray-600' : ''}
                 `}
                             >
-                                {step.label}
+                                {getDisplayLabel(step.id, step.label)}
                             </span>
                         </div>
                     );

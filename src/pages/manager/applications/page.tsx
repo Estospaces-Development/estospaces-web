@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     FileText, Clock, CheckCircle, XCircle, FileCheck, Plus, Filter,
     Search, Eye, Edit, Trash2, Mail, Phone, Download, Share2,
@@ -31,6 +31,7 @@ interface ApplicationsContentProps {
 }
 
 function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps) {
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
@@ -212,7 +213,11 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-md active:scale-95">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/manager/leads')}
+                        className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-md active:scale-95"
+                    >
                         <Plus size={18} /> New Application
                     </button>
                 </div>

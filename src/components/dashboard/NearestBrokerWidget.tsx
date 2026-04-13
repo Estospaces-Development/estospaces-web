@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, CheckCircle, Loader2 } from 'lucide-react';
+import { MapPin, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -20,17 +20,20 @@ const NearestBrokerWidget = () => {
 
     useEffect(() => {
         if (status === 'connecting') {
-            const interval = setInterval(() => {
+            const interval = window.setInterval(() => {
+                if (document.visibilityState !== 'visible') {
+                    return;
+                }
                 setProgress((prev) => {
                     if (prev >= 100) {
-                        clearInterval(interval);
+                        window.clearInterval(interval);
                         setStatus('connected');
                         return 100;
                     }
                     return prev + 2;
                 });
             }, 50);
-            return () => clearInterval(interval);
+            return () => window.clearInterval(interval);
         }
     }, [status]);
 
@@ -125,7 +128,7 @@ const NearestBrokerWidget = () => {
                                 Call
                             </button>
                             <button
-                                onClick={() => navigate(`/user/dashboard/messages?newConversationWith=${encodeURIComponent(broker.name)}`)}
+                                onClick={() => navigate('/user/dashboard/discover')}
                                 className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium text-xs transition-colors shadow-sm"
                             >
                                 Message

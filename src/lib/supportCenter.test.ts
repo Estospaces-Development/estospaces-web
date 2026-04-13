@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { finalizeCreatedSupportTicket, getAutoSelectedSupportTicketId, hasPrefilledSupportComposerContext } from '@/lib/supportCenter';
+import {
+    buildPrefilledSupportComposer,
+    finalizeCreatedSupportTicket,
+    getAutoSelectedSupportTicketId,
+    hasPrefilledSupportComposerContext,
+    normalizeSupportTicketCategory,
+    resolveSupportComposerCategory,
+} from '@/lib/supportCenter';
 
 const tickets = [
     {
@@ -77,4 +84,41 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 
     assert.equal(warning, '');
     assert.equal(finalizeCalled, false);
+});
+
+test('support category normalization maps UI-only labels to backend-safe values', () => {
+    assert.equal(normalizeSupportTicketCategory('Buying Help'), 'general inquiry');
+    assert.equal(normalizeSupportTicketCategory('Billing'), 'payments');
+    assert.equal(normalizeSupportTicketCategory('Technical Issue'), 'technical issue');
+});
+
+test('support composer resolves backend category values to the nearest visible label', () => {
+    assert.equal(
+        resolveSupportComposerCategory(
+            'general inquiry',
+            ['General Inquiry', 'Buying Help', 'Fast Track'],
+            'General Inquiry',
+        ),
+        'General Inquiry',
+    );
+});
+
+test('support composer prefill builds the visible draft from query params', () => {
+    const composer = buildPrefilledSupportComposer({
+        searchParams: new URLSearchParams({
+            category: 'technical issue',
+            subject: 'Need help cancelling a viewing',
+            message: 'How do I cancel my viewing?',
+        }),
+        availableCategories: ['General Inquiry', 'Technical Issue', 'Fast Track'],
+        fallbackCategory: 'General Inquiry',
+        priority: 'medium',
+    });
+
+    assert.deepEqual(composer, {
+        category: 'Technical Issue',
+        subject: 'Need help cancelling a viewing',
+        message: 'How do I cancel my viewing?',
+        priority: 'medium',
+    });
 });

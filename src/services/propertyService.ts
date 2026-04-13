@@ -488,6 +488,7 @@ export const getPropertySections = async (
 
 export const getPropertyComplianceReadiness = async (
   propertyId: string,
+  options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
 ): Promise<{
   data: PropertyComplianceReadiness | null;
   error: string | null;
@@ -495,6 +496,7 @@ export const getPropertyComplianceReadiness = async (
   try {
     const data = await apiFetch<PropertyComplianceReadiness>(
       `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-readiness`,
+      { suppressErrorToast: options.suppressErrorToast },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -504,6 +506,7 @@ export const getPropertyComplianceReadiness = async (
 
 export const getPropertyComplianceEvidence = async (
   propertyId: string,
+  options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
 ): Promise<{
   data: PropertyComplianceEvidenceEnvelope | null;
   error: string | null;
@@ -511,6 +514,7 @@ export const getPropertyComplianceEvidence = async (
   try {
     const data = await apiFetch<PropertyComplianceEvidenceEnvelope>(
       `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-evidence`,
+      { suppressErrorToast: options.suppressErrorToast },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -522,6 +526,7 @@ export const upsertPropertyComplianceEvidence = async (
   propertyId: string,
   category: string,
   payload: PropertyComplianceEvidencePayload,
+  options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
 ): Promise<{
   data: PropertyComplianceEvidenceEnvelope | null;
   error: string | null;
@@ -532,6 +537,7 @@ export const upsertPropertyComplianceEvidence = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data, error: null };

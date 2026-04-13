@@ -217,6 +217,9 @@ const BrokerRequestWidget = () => {
 
     useEffect(() => {
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             setClockNow(Date.now());
         }, 1000);
 

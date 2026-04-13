@@ -39,7 +39,7 @@ interface AuthContextType {
         role: string,
         termsAcceptance: { acceptedAt: string; version: string },
     ) => Promise<{ success: boolean; error?: string }>;
-    signOut: () => void;
+    signOut: () => Promise<void>;
     refreshUser: () => Promise<void>;
     mergeCurrentUserProfile: (updatedProfile: Record<string, any>) => void;
     getRole: () => string;
@@ -174,20 +174,50 @@ const clearStoredAuth = () => {
     localStorage.removeItem(AUTH_STORAGE_KEY);
 };
 
+const resolveSignedOutError = () => {
+    return isCurrentAuthRoute() ? null : 'Your session has expired. Please log in again.';
+};
+
+const getStoredAuthToken = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+};
+
+const getInitialAuthState = () => {
+    const token = getStoredAuthToken();
+    const cachedUser = token ? getCachedUser() : null;
+
+    return {
+        user: cachedUser?.isAuthenticated ? cachedUser : null,
+        loading: !!token,
+    };
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(() => getInitialAuthState().user);
+    const [loading, setLoading] = useState(() => getInitialAuthState().loading);
     const [error, setError] = useState<string | null>(null);
 
     const isAuthenticated = !!user?.isAuthenticated;
 
+    const applySignedOutState = useCallback((nextError?: string | null) => {
+        clearStoredAuth();
+        resetAuthExpiryState();
+        setUser(null);
+        setLoading(false);
+        setError(nextError === undefined ? resolveSignedOutError() : nextError);
+    }, []);
+
     const refreshUser = useCallback(async () => {
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        const token = getStoredAuthToken();
         if (!token) {
+            clearStoredAuth();
+            resetAuthExpiryState();
             setUser(null);
-            if (isCurrentAuthRoute()) {
-                setError(null);
-            }
+            setError(null);
             setLoading(false);
             return;
         }
@@ -199,15 +229,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             persistUser(userObj);
             setUser(userObj);
+            setError(null);
         } catch (err) {
-            if (err instanceof ApiRequestError && err.status === 401 && (
-                err.unauthorizedState === 'session-expired' || err.unauthorizedState === 'cleared-on-auth-page'
-            )) {
-                clearStoredAuth();
-                setUser(null);
-                if (err.unauthorizedState === 'cleared-on-auth-page') {
-                    setError(null);
-                }
+            if (err instanceof ApiRequestError && err.status === 401) {
+                applySignedOutState();
             } else {
                 const cachedUser = getCachedUser();
                 if (cachedUser?.isAuthenticated) {
@@ -217,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [applySignedOutState]);
 
     const mergeCurrentUserProfile = useCallback((updatedProfile: Record<string, any>) => {
         setUser((currentUser) => {
@@ -258,18 +283,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const handleAuthExpired = () => {
-            setUser(null);
-            setLoading(false);
-            if (isCurrentAuthRoute()) {
-                setError(null);
-                return;
-            }
-            setError('Your session has expired. Please log in again.');
+            applySignedOutState();
         };
 
         window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
         return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
-    }, []);
+    }, [applySignedOutState]);
+
+    useEffect(() => {
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.storageArea !== localStorage) {
+                return;
+            }
+
+            if (event.key !== AUTH_TOKEN_KEY && event.key !== AUTH_STORAGE_KEY) {
+                return;
+            }
+
+            const nextToken = getStoredAuthToken();
+            if (!nextToken) {
+                applySignedOutState(null);
+                return;
+            }
+
+            if (event.key === AUTH_TOKEN_KEY && event.newValue !== event.oldValue) {
+                setLoading(true);
+                void refreshUser();
+                return;
+            }
+
+            if (event.key === AUTH_STORAGE_KEY && event.newValue !== event.oldValue) {
+                const cachedUser = getCachedUser();
+                if (cachedUser?.isAuthenticated) {
+                    setUser(cachedUser);
+                    setError(null);
+                }
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [applySignedOutState, refreshUser]);
 
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
@@ -355,6 +409,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 persistUser(userObj);
                 resetAuthExpiryState();
                 setUser(userObj);
+                setError(null);
+                setTimeout(() => {
+                    void refreshUser();
+                }, 100);
             }
 
             return { success: true };
@@ -363,14 +421,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setError(errorMessage);
             return { success: false, error: errorMessage };
         }
-    }, []);
+    }, [refreshUser]);
 
-    const signOut = useCallback(() => {
-        clearStoredAuth();
-        resetAuthExpiryState();
-        setUser(null);
-        setError(null);
-    }, []);
+    const signOut = useCallback(async () => {
+        const token = getStoredAuthToken();
+        if (token) {
+            try {
+                await apiFetch(`${CORE_SERVICE_URL()}/api/v1/auth/logout`, {
+                    method: 'POST',
+                    suppressErrorToast: true,
+                });
+            } catch {
+                // Local auth state must still be cleared if token revocation fails.
+            }
+        }
+
+        applySignedOutState(null);
+    }, [applySignedOutState]);
 
     const getRole = useCallback(() => {
         return user?.role || 'user';

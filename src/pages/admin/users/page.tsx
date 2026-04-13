@@ -181,7 +181,7 @@ function UserManagementContent() {
                         />
                     </div>
                     <button
-                        onClick={() => navigate('/auth/register')}
+                        onClick={() => navigate('/register')}
                         className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
                     >
                         <UserPlus size={18} /> Add User

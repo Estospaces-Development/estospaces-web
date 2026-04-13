@@ -2,10 +2,13 @@
 
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
+import { formatPropertyStatusLabel } from '@/lib/propertyStatusBadge';
 
 interface TopProperty {
     id: string;
+    propertyId?: string;
     name: string;
     price: string;
     views: number;
@@ -19,18 +22,20 @@ interface TopPropertiesProps {
 }
 
 const TopProperties = ({ analytics, loading: externalLoading = false }: TopPropertiesProps) => {
+    const navigate = useNavigate();
     const [topProperties, setTopProperties] = useState<TopProperty[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (analytics !== undefined) {
             const mapped = analytics?.propertyPerformance?.map((p) => ({
-                id: p.property,
+                id: p.property_id || p.property,
+                propertyId: p.property_id,
                 name: p.property,
                 price: '',
                 views: p.views,
                 inquiries: p.applications,
-                status: 'Online'
+                status: formatPropertyStatusLabel(p.status || 'available'),
             })) || [];
             setTopProperties(mapped.slice(0, 3));
             setLoading(externalLoading);
@@ -43,12 +48,13 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
                 const res = await analyticsService.getManagerAnalytics();
                 if (res.data && res.data.propertyPerformance) {
                     const mapped = res.data.propertyPerformance.map(p => ({
-                        id: p.property, // Analytics returns property name/id
+                        id: p.property_id || p.property,
+                        propertyId: p.property_id,
                         name: p.property,
-                        price: '', // Hide price if not available in analytics
+                        price: '',
                         views: p.views,
-                        inquiries: p.applications, // Using applications as proxy for inquiries
-                        status: 'Online'
+                        inquiries: p.applications,
+                        status: formatPropertyStatusLabel(p.status || 'available'),
                     }));
                     setTopProperties(mapped.slice(0, 3));
                 } else {
@@ -84,14 +90,22 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
                 </div>
             ) : topProperties.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <p>No properties found. Add properties to see top performers here.</p>
+                    <p>No approved listings found. Publish a property to see top performers here.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
                     {topProperties.map((property) => (
-                        <div
+                        <button
                             key={property.id}
-                            className="rounded-lg p-4 bg-white dark:bg-black shadow-sm"
+                            type="button"
+                            onClick={() => {
+                                if (property.propertyId) {
+                                    navigate(`/manager/dashboard/properties/${property.propertyId}`);
+                                }
+                            }}
+                            className={`w-full rounded-lg p-4 bg-white dark:bg-black shadow-sm text-left ${
+                                property.propertyId ? 'transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/70' : ''
+                            }`}
                         >
                             <div className="flex items-start justify-between mb-2">
                                 <h4 className="body-text font-semibold text-gray-800 dark:text-white">{property.name}</h4>
@@ -104,7 +118,7 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
                                 <span>{property.views} {property.views === 1 ? 'view' : 'views'}</span>
                                 <span>{property.inquiries} {property.inquiries === 1 ? 'Inquiry' : 'Inquiries'}</span>
                             </div>
-                        </div>
+                        </button>
                     ))}
                 </div>
             )}

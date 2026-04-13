@@ -37,6 +37,8 @@ export interface LeadLike {
 }
 
 export interface FastTrackCaseLike {
+    backendCurrentStep?: string;
+    currentStep?: string;
     finalStatus?: string;
     hoursRemaining?: number;
     journeyType?: 'rent' | 'buy';
@@ -232,6 +234,13 @@ export const normalizeCanonicalFastTrackStep = (value?: string | null): Canonica
             return 'property_selected';
     }
 };
+
+export const hasFastTrackReachedCompletion = (
+    fastTrackCase?: Pick<FastTrackCaseLike, 'backendCurrentStep' | 'currentStep' | 'finalStatus'> | null,
+) => (
+    normalizeCanonicalFastTrackStep(fastTrackCase?.backendCurrentStep || fastTrackCase?.currentStep) === 'completed'
+    || String(fastTrackCase?.finalStatus || '').trim() === 'completed'
+);
 
 export const normalizeFastTrackDocumentPhase = (
     value?: string | null,
@@ -675,6 +684,11 @@ export const deriveLiveFastTrackCurrentStep = (
     const journeyType = options.journeyType === 'buy' ? 'buy' : 'rent';
     const linkedJourney = options.linkedJourney || null;
     const viewingStatus = String(linkedJourney?.viewing?.status || '').trim().toLowerCase();
+    const viewingCheckpointStep = viewingStatus === 'completed'
+        ? 'viewing_completed'
+        : ['pending', 'confirmed', 'rescheduled'].includes(viewingStatus)
+            ? 'viewing_scheduled'
+            : null;
     const hasCompletedViewingCheckpoint = (
         viewingStatus === 'completed'
         || getFastTrackStepIndex(normalizedStep) >= getFastTrackStepIndex('viewing_completed')
@@ -739,9 +753,11 @@ export const deriveLiveFastTrackCurrentStep = (
     const rawApplicationStatus = String(linkedJourney?.application?.liveStage || linkedJourney?.application?.status || '').trim();
     switch (rawApplicationStatus) {
         case 'viewing_scheduled':
-            return 'viewing_scheduled';
         case 'viewing_completed':
-            return 'viewing_completed';
+            if (viewingCheckpointStep) {
+                return viewingCheckpointStep;
+            }
+            return rawApplicationStatus === 'viewing_completed' ? 'viewing_completed' : 'viewing_scheduled';
         case 'approved':
         case 'ready_for_contract':
             if (journeyType === 'rent' && hasCompletedViewingCheckpoint) {
@@ -763,11 +779,8 @@ export const deriveLiveFastTrackCurrentStep = (
             break;
     }
 
-    if (viewingStatus === 'completed') {
-        return 'viewing_completed';
-    }
-    if (['pending', 'confirmed', 'rescheduled'].includes(viewingStatus)) {
-        return 'viewing_scheduled';
+    if (viewingCheckpointStep) {
+        return viewingCheckpointStep;
     }
 
     if (

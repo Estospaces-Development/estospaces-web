@@ -227,8 +227,8 @@ const ApplicationTimelineWidget = () => {
                     getApplications({ suppressErrorToast: true }),
                     getUserBrokerRequests({ suppressErrorToast: true }),
                     getUserProperties({ limit: 50 }),
-                    getSaleProgressions(),
-                    getViewings().catch(() => []),
+                    getSaleProgressions({ suppressErrorToast: true }),
+                    getViewings({ suppressErrorToast: true }).catch(() => []),
                 ]);
 
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];

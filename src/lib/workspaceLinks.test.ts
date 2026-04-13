@@ -187,6 +187,30 @@ test('resolveFocusedViewing can focus a viewing from the linked application id',
     assert.equal(focused?.id, 'viewing-1');
 });
 
+test('resolveFocusedViewing prefers the latest matching viewing when a case has historical appointments', () => {
+    const focused = resolveFocusedViewing([
+        ...viewings,
+        {
+            id: 'viewing-2',
+            property_id: 'property-1',
+            user_id: 'user-1',
+            manager_id: 'manager-1',
+            lead_id: 'lead-1',
+            fast_track_case_id: 'case-1',
+            application_id: 'application-1',
+            scheduled_at: '2026-03-27T09:00:00Z',
+            duration_minutes: 30,
+            viewing_type: 'in_person',
+            status: 'rescheduled',
+            created_at: '2026-03-26T08:15:00Z',
+        },
+    ], {
+        caseId: 'case-1',
+    });
+
+    assert.equal(focused?.id, 'viewing-2');
+});
+
 test('resolveFocusedContract falls back to the fast-track case id when the direct contract id is absent', () => {
     const focused = resolveFocusedContract(contracts, {
         caseId: 'case-1',

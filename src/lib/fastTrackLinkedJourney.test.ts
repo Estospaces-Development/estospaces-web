@@ -292,6 +292,49 @@ test('resolveFastTrackLinkedJourney falls back to property and user matching whe
     assert.match(linked.primaryHeadline, /Referencing|Application/i);
 });
 
+test('resolveFastTrackLinkedJourney lets the real viewing outcome override stale application viewing copy', () => {
+    const linked = resolveFastTrackLinkedJourney({
+        ...rentCase,
+        currentStep: 'viewing_scheduled',
+    }, {
+        applications: [
+            {
+                id: 'app-viewing-stale',
+                property_id: 'property-1',
+                user_id: 'user-1',
+                manager_id: 'manager-1',
+                fast_track_case_id: 'case-rent-1',
+                status: 'viewing_scheduled',
+                liveStage: 'viewing_scheduled',
+                journeyStatusReason: 'A live viewing is booked and still needs an outcome before the regulated tenancy lane can continue.',
+                created_at: '2026-03-25T09:00:00Z',
+                updated_at: '2026-03-25T10:00:00Z',
+            } as any,
+        ],
+        viewings: [
+            {
+                id: 'viewing-completed',
+                property_id: 'property-1',
+                user_id: 'user-1',
+                manager_id: 'manager-1',
+                fast_track_case_id: 'case-rent-1',
+                application_id: 'app-viewing-stale',
+                scheduled_at: '2026-03-26T09:00:00Z',
+                duration_minutes: 30,
+                viewing_type: 'in_person',
+                status: 'completed',
+                created_at: '2026-03-25T09:30:00Z',
+            },
+        ],
+    });
+
+    assert.equal(linked.liveStage, 'viewing_completed');
+    assert.equal(resolveFastTrackPrimaryLaneLabel(rentCase.journeyType, linked), 'Viewing completed');
+    assert.match(linked.primaryHeadline, /Referencing and Right to Rent/i);
+    assert.match(linked.primarySummary, /viewing is complete/i);
+    assert.match(linked.nextStep, /applications workspace/i);
+});
+
 test('resolveFastTrackLinkedJourney prefers exact fast-track matches over newer loose property matches', () => {
     const linked = resolveFastTrackLinkedJourney(rentCase, {
         applications: [

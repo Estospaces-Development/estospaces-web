@@ -93,7 +93,12 @@ function MapController({ center }: { center: [number, number] }) {
     const map = useMap();
 
     useEffect(() => {
-        map.setView(center, map.getZoom());
+        try {
+            map.closePopup();
+            map.setView(center, map.getZoom());
+        } catch {
+            // Ignore transient Leaflet teardown errors during view resets.
+        }
     }, [center, map]);
 
     return null;
@@ -135,6 +140,7 @@ const SatelliteMap = () => {
     const allLocations = [...propertyLocations];
 
     const filteredLocations = allLocations.filter(loc => activeFilters.includes(loc.type));
+    const mapKey = [mapCenter.join(':'), ...filteredLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`)].join('|');
 
     const getIconForType = (type: string) => {
         const filter = filterOptions.find(f => f.id === type);
@@ -239,11 +245,15 @@ const SatelliteMap = () => {
 
             {/* Map Container */}
             <MapContainer
+                key={mapKey}
                 center={mapCenter}
                 zoom={13}
                 style={{ height: '100%', width: '100%', zIndex: 0, borderRadius: '0.75rem' }}
                 zoomControl={true}
                 scrollWheelZoom={true}
+                fadeAnimation={false}
+                markerZoomAnimation={false}
+                zoomAnimation={false}
             >
                 <MapController center={mapCenter} />
 

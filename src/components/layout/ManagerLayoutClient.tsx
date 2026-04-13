@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
@@ -11,6 +11,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
+import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -20,24 +21,19 @@ interface ManagerLayoutClientProps {
 export default function ManagerLayoutClient({ children, isSubdomain = false }: ManagerLayoutClientProps) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const { user, loading, isAuthenticated } = useAuth();
-    const navigate = useNavigate();
+    const hasManagerAccess = user?.role === 'manager' || user?.role === 'broker';
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
 
-    useEffect(() => {
-        if (!loading) {
-            if (!isAuthenticated) {
-                navigate('/login');
-            } else if (user?.role !== 'manager') {
-                navigate('/login');
-            }
-        }
-    }, [isAuthenticated, loading, navigate, user]);
-
-    if (loading) {
+    if (shouldWaitForSession) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
-    if (!isAuthenticated || user?.role !== 'manager') {
-        return null;
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (!hasManagerAccess) {
+        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
     }
 
     return (

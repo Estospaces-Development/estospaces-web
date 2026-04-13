@@ -26,6 +26,8 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const role = getRole();
+    const workspaceRole = role === 'broker' ? 'manager' : role;
 
     const profileRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +59,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     const getVerificationBadge = () => {
-        if (getRole() !== 'manager') return null;
+        if (role !== 'manager' && role !== 'broker') return null;
 
         if (isVerificationLoading) {
             return <div className="w-20 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>;
@@ -174,11 +176,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                             <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 animate-in fade-in slide-in-from-top-2">
                                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{getDisplayName()}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{getRole()}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{role}</p>
                                 </div>
                                 <div className="py-1">
                                     <Link
-                                        to={`/${getRole()}/profile`}
+                                        to={`/${workspaceRole}/profile`}
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                         onClick={() => setIsProfileOpen(false)}
                                     >
@@ -186,7 +188,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                                         Profile
                                     </Link>
                                     <Link
-                                        to="/settings"
+                                        to="/manager/profile"
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                         onClick={() => setIsProfileOpen(false)}
                                     >

@@ -21,6 +21,7 @@ import ManualFastTrackModal from '../../../components/manager/FastTrack/ManualFa
 import UserVerificationReviewModal from '../../../components/verification/UserVerificationReviewModal';
 import { Zap, Clock, CheckCircle2, AlertOctagon, RefreshCw, FileUp, Search, Plus } from 'lucide-react';
 import BackButton from '../../../components/ui/BackButton';
+import PaginationBar from '@/components/ui/PaginationBar';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../contexts/ToastContext';
 import {
@@ -65,6 +66,8 @@ type ManagerFastTrackCase = FastTrackCase & {
     linkedJourney: FastTrackLinkedJourney;
 };
 
+const PRIORITY_QUEUE_PAGE_SIZE = 6;
+
 const toStoredFastTrackDocumentStatus = (status: 'missing' | 'uploaded' | 'verified' | 'reupload_required'): DocStatus => {
     switch (status) {
         case 'verified':
@@ -107,6 +110,17 @@ const safeLoad = async <T,>(loader: () => Promise<T>) => {
     }
 };
 
+const buildSupplementalWorkflowWarning = (errors: Array<string | null | undefined>) => {
+    const messages = errors
+        .map((message) => String(message || '').trim())
+        .filter((message) => message.length > 0);
+    if (messages.length === 0) {
+        return null;
+    }
+
+    return `Some linked workflow data is temporarily unavailable. Cases remain visible, but one or more lanes may show unavailable until retry. ${messages[0]}`;
+};
+
 const FastTrackDashboard = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
@@ -120,7 +134,9 @@ const FastTrackDashboard = () => {
     const [isRefreshingCases, setIsRefreshingCases] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
+    const [supplementalWarning, setSupplementalWarning] = useState<string | null>(null);
     const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
+    const [priorityQueuePage, setPriorityQueuePage] = useState(1);
     const fetchInFlightRef = useRef(false);
     const queuedSilentRefreshRef = useRef(false);
     const manualModalWasOpenRef = useRef(false);
@@ -143,7 +159,7 @@ const FastTrackDashboard = () => {
             setError(null);
         }
         try {
-            const requestOptions = silent ? { suppressErrorToast: true } : {};
+            const requestOptions = { suppressErrorToast: true };
             const [casesResult, leadsResult, verificationResult] = await Promise.all([
                 getFastTrackCases(requestOptions),
                 getBrokerLeads(undefined, requestOptions),
@@ -178,12 +194,24 @@ const FastTrackDashboard = () => {
                 }),
             ]);
 
-            if (casesResult.error || leadsResult.error || verificationResult.error) {
+            if (casesResult.error) {
+                setSupplementalWarning(null);
                 if (!silent) {
-                    setError(casesResult.error || leadsResult.error || verificationResult.error || 'Failed to fetch cases');
+                    setError(casesResult.error || 'Failed to fetch cases');
                 }
                 return;
             }
+
+            setSupplementalWarning(buildSupplementalWorkflowWarning([
+                leadsResult.error,
+                verificationResult.error,
+                applicationsResult.error,
+                viewingsResult.error,
+                contractsResult.error,
+                saleProgressionsResult.error,
+                paymentsResult.error,
+                invoicesResult.error,
+            ]));
 
             const leads = leadsResult.data || [];
             const verificationInfos = verificationResult.data || [];
@@ -262,6 +290,15 @@ const FastTrackDashboard = () => {
                     canScheduleViewing: caseItem.finalStatus === 'in_progress' && documentsReady && !linkedJourney.viewing,
                     hasPendingFinanceTasks: caseItem.journeyType !== 'buy' && hasPendingRentFinanceTasks(linkedJourney),
                 });
+                const journeyStatusReason = linkedJourney.primarySummary
+                    || caseItem.journeyStatusReason
+                    || caseItem.statusReason
+                    || liveMeta.description;
+                const statusReason = stageGuidance?.description
+                    || linkedJourney.primarySummary
+                    || caseItem.statusReason
+                    || caseItem.journeyStatusReason
+                    || liveMeta.description;
 
                 return {
                     ...caseItem,
@@ -274,7 +311,8 @@ const FastTrackDashboard = () => {
                     leadStatusLabel: formatLeadStage(resolveLeadStage(stageLead)),
                     documentsReady,
                     nextAction: stageGuidance?.actionLabel || preferredAction?.label || linkedJourney.nextStep || caseItem.nextAction || liveMeta.label,
-                    statusReason: stageGuidance?.description || caseItem.journeyStatusReason || linkedJourney.primarySummary || caseItem.statusReason || liveMeta.description,
+                    statusReason,
+                    journeyStatusReason,
                     linkedJourney,
                 };
             });
@@ -447,7 +485,14 @@ const FastTrackDashboard = () => {
             hasPendingFinanceTasks: selectedCase.journeyType !== 'buy' && hasPendingRentFinanceTasks(selectedCase.linkedJourney),
         });
         let nextAction = preferredAction?.label || selectedCase.linkedJourney.nextStep || selectedCase.nextAction || liveMeta.label;
-        let statusReason = selectedCase.journeyStatusReason || selectedCase.linkedJourney.primarySummary || selectedCase.statusReason || liveMeta.description;
+        const journeyStatusReason = selectedCase.linkedJourney.primarySummary
+            || selectedCase.journeyStatusReason
+            || selectedCase.statusReason
+            || liveMeta.description;
+        let statusReason = selectedCase.linkedJourney.primarySummary
+            || selectedCase.statusReason
+            || selectedCase.journeyStatusReason
+            || liveMeta.description;
 
         if (stageGuidance) {
             nextAction = stageGuidance.actionLabel || nextAction;
@@ -486,6 +531,7 @@ const FastTrackDashboard = () => {
             leadStatusLabel: formatLeadStage(resolveLeadStage(leadForStage, selectedCaseVerificationDocuments)),
             nextAction,
             statusReason,
+            journeyStatusReason,
         };
     }, [
         selectedCase,
@@ -633,6 +679,34 @@ const FastTrackDashboard = () => {
         );
     }, [cases, searchQuery]);
 
+    const priorityQueueTotalPages = useMemo(
+        () => Math.max(1, Math.ceil(filteredCases.length / PRIORITY_QUEUE_PAGE_SIZE)),
+        [filteredCases.length],
+    );
+
+    const visiblePriorityCases = useMemo(() => {
+        const start = (priorityQueuePage - 1) * PRIORITY_QUEUE_PAGE_SIZE;
+        return filteredCases.slice(start, start + PRIORITY_QUEUE_PAGE_SIZE);
+    }, [filteredCases, priorityQueuePage]);
+
+    useEffect(() => {
+        setPriorityQueuePage((currentPage) => Math.min(Math.max(currentPage, 1), priorityQueueTotalPages));
+    }, [priorityQueueTotalPages]);
+
+    useEffect(() => {
+        if (!selectedCaseId) {
+            return;
+        }
+
+        const selectedIndex = filteredCases.findIndex((caseItem) => caseItem.caseId === selectedCaseId);
+        if (selectedIndex < 0) {
+            return;
+        }
+
+        const nextPage = Math.floor(selectedIndex / PRIORITY_QUEUE_PAGE_SIZE) + 1;
+        setPriorityQueuePage((currentPage) => (currentPage === nextPage ? currentPage : nextPage));
+    }, [filteredCases, selectedCaseId]);
+
     const handleRequestDocuments = useCallback(async (caseItem: ManagerFastTrackCase) => {
         if (!caseItem.matchingLead?.id || !caseItem.matchingLead?.user_id) {
             toast.error('This fast-track case does not have a live user lead yet.');
@@ -728,6 +802,7 @@ const FastTrackDashboard = () => {
                         isDocumentsVerifiedOverride={selectedVerificationDetails
                             ? selectedCaseDocumentItems.every((item) => item.status === 'verified')
                             : selectedCaseDetail.documentsReady}
+                        isRefreshing={isRefreshingCases}
                     />
                 </div>
                 {selectedVerificationUserId && (
@@ -862,8 +937,21 @@ const FastTrackDashboard = () => {
                         Priority Queue
                     </h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredCases.map((caseItem) => (
+                    {supplementalWarning ? (
+                        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-5 py-4 text-sm text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+                            <p className="font-semibold">Linked workflow lanes are partially unavailable</p>
+                            <p className="mt-1">{supplementalWarning}</p>
+                            <button
+                                onClick={() => void fetchCases()}
+                                className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-50 dark:border-amber-900/40 dark:bg-black dark:text-amber-300 dark:hover:bg-amber-950/20"
+                            >
+                                Retry linked workflows
+                            </button>
+                        </div>
+                    ) : null}
+
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                        {visiblePriorityCases.map((caseItem) => (
                             <div key={caseItem.caseId} onClick={() => handleSelectCase(caseItem.caseId)} className="cursor-pointer transition-transform hover:scale-[1.02]">
                                 <FastTrackCaseCard
                                     caseData={caseItem}
@@ -874,6 +962,20 @@ const FastTrackDashboard = () => {
                             </div>
                         ))}
                     </div>
+
+                    {!loading && !error && filteredCases.length > PRIORITY_QUEUE_PAGE_SIZE && (
+                        <div className="mt-6">
+                            <PaginationBar
+                                currentPage={priorityQueuePage}
+                                totalPages={priorityQueueTotalPages}
+                                onPageChange={setPriorityQueuePage}
+                                totalItems={filteredCases.length}
+                                pageSize={PRIORITY_QUEUE_PAGE_SIZE}
+                                currentItemCount={visiblePriorityCases.length}
+                                itemLabel="cases"
+                            />
+                        </div>
+                    )}
 
                     {loading ? (
                         <div className="flex justify-center items-center py-20">

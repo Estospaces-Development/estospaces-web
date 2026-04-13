@@ -18,6 +18,7 @@ import { useUserLocation } from '@/contexts/LocationContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
 import ApplicationTimelineWidget from '@/components/dashboard/ApplicationTimelineWidget';
 import NearbyAgenciesList from '@/components/dashboard/NearbyAgenciesList';
@@ -27,11 +28,15 @@ import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import ProfileCompletionCard from '@/components/dashboard/ProfileCompletionCard';
+import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
 import SearchBar, { SearchFilters as DashboardSearchFilters } from '@/components/ui/SearchBar';
 
 import { searchService, SearchResult } from '@/services/searchService';
+import { getFastTrackCases } from '@/services/fastTrackService';
+import { hasFastTrackReachedCompletion } from '@/lib/fastTrackWorkflow';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
+const MAX_TRACKED_COMPLETED_FAST_TRACK_CASES = 24;
 
 const dashboardFilterOptions = [
   { id: 'recently_added', label: 'Recently Added' },
@@ -57,12 +62,17 @@ const parsePositivePage = (value: string | null, fallback = 1) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-const mapSearchParamsToDashboardType = (value: string | null): 'buy' | 'rent' | 'sold' => {
+const mapSearchParamsToDashboardType = (
+  typeValue: string | null,
+  statusValue: string | null,
+): 'buy' | 'rent' | 'sold' => {
+  if (statusValue === 'sold') {
+    return 'sold';
+  }
+
+  const value = typeValue;
   if (value === 'rent') {
     return 'rent';
-  }
-  if (value === 'sold') {
-    return 'sold';
   }
   return 'buy';
 };
@@ -129,6 +139,45 @@ const applyDashboardFilterOrdering = (results: SearchResult[], filters: string[]
   return ordered;
 };
 
+const buildCompletedFastTrackStorageKey = (userId: string) => `estospaces.fast-track.completed-seen:${userId}`;
+
+const readSeenCompletedFastTrackCaseIds = (userId?: string | null): string[] | null => {
+  if (!userId || typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(buildCompletedFastTrackStorageKey(userId));
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return Array.from(new Set(parsed.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)))
+      .slice(-MAX_TRACKED_COMPLETED_FAST_TRACK_CASES);
+  } catch {
+    return [];
+  }
+};
+
+const writeSeenCompletedFastTrackCaseIds = (userId: string, caseIds: string[]) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    const nextValue = Array.from(new Set(caseIds.filter((value) => value.trim().length > 0)))
+      .slice(-MAX_TRACKED_COMPLETED_FAST_TRACK_CASES);
+    window.localStorage.setItem(buildCompletedFastTrackStorageKey(userId), JSON.stringify(nextValue));
+  } catch {
+    // Ignore local storage write failures so the dashboard stays usable.
+  }
+};
+
 const buildDiscoverParams = (
   selectedPropertyType: 'buy' | 'rent' | 'sold',
   selectedFilters: string[],
@@ -175,14 +224,17 @@ const buildDiscoverParams = (
 
 const DashboardClient = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const toast = useToast();
   const { activeLocation, loading: locationLoading } = useUserLocation();
   const { setActiveTab } = usePropertyFilter();
   const { savedProperties } = useSavedProperties();
+  const dashboardCelebrateRequested = searchParams.get('celebrate') === '1';
+  const dashboardCelebrateCaseId = searchParams.get('fastTrackCase');
 
   const [selectedPropertyType, setSelectedPropertyType] = useState<'buy' | 'rent' | 'sold'>(() => (
-    mapSearchParamsToDashboardType(searchParams.get('type'))
+    mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'))
   ));
   const [selectedFilters, setSelectedFilters] = useState<string[]>(() => {
     const filterParam = searchParams.get('filter');
@@ -198,17 +250,20 @@ const DashboardClient = () => {
   const [showFilteredResults, setShowFilteredResults] = useState(() => {
     const filters = buildDashboardSearchFiltersFromParams(searchParams);
     const activeFilters = searchParams.get('filter');
-    return hasActiveDashboardSearch(filters) || Boolean(activeFilters);
+    return hasActiveDashboardSearch(filters) || Boolean(activeFilters) || searchParams.get('status') === 'sold';
   });
   const [filteredCount, setFilteredCount] = useState(0);
   const [filteredTotalPages, setFilteredTotalPages] = useState(0);
   const [currentFilteredPage, setCurrentFilteredPage] = useState(() => parsePositivePage(searchParams.get('page')));
   const [nearbyProperties, setNearbyProperties] = useState<SearchResult[]>([]);
   const [nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
+  const [showFastTrackCelebration, setShowFastTrackCelebration] = useState(false);
+  const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
   const brokerRequestWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const celebratedDashboardCaseIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const nextDashboardType = mapSearchParamsToDashboardType(searchParams.get('type'));
+    const nextDashboardType = mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'));
     const nextFilters = searchParams.get('filter')
       ? searchParams.get('filter')!.split(',').filter(Boolean)
       : [];
@@ -219,10 +274,17 @@ const DashboardClient = () => {
     setSelectedFilters(nextFilters);
     setDashboardSearchFilters(nextSearchFilters);
     setCurrentFilteredPage(nextPage);
-    setShowFilteredResults(hasActiveDashboardSearch(nextSearchFilters) || nextFilters.length > 0);
+    setShowFilteredResults(
+      hasActiveDashboardSearch(nextSearchFilters)
+      || nextFilters.length > 0
+      || nextDashboardType === 'sold',
+    );
   }, [searchParams]);
 
-  const shouldFetchFilteredResults = hasActiveDashboardSearch(dashboardSearchFilters) || selectedFilters.length > 0;
+  const shouldFetchFilteredResults =
+    hasActiveDashboardSearch(dashboardSearchFilters)
+    || selectedFilters.length > 0
+    || selectedPropertyType === 'sold';
 
   useEffect(() => {
     if (selectedPropertyType === 'rent') {
@@ -277,6 +339,80 @@ const DashboardClient = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    let active = true;
+
+    const loadCompletedFastTrackCases = async () => {
+      const result = await getFastTrackCases({ suppressErrorToast: true });
+      if (!active || !result.data) {
+        return;
+      }
+
+      const completedCases = result.data
+        .filter((caseItem) => hasFastTrackReachedCompletion(caseItem))
+        .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
+      const completedCaseIds = completedCases.map((caseItem) => caseItem.caseId);
+      const seenCaseIds = readSeenCompletedFastTrackCaseIds(user.id);
+      const clearCelebrateQuery = () => {
+        if (!dashboardCelebrateRequested) {
+          return;
+        }
+
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete('celebrate');
+          next.delete('fastTrackCase');
+          return next;
+        });
+      };
+
+      if (dashboardCelebrateRequested) {
+        const forcedCelebrationCase = dashboardCelebrateCaseId
+          ? completedCases.find((caseItem) => caseItem.caseId === dashboardCelebrateCaseId) || null
+          : completedCases[0] || null;
+
+        celebratedDashboardCaseIdRef.current = forcedCelebrationCase?.caseId || dashboardCelebrateCaseId || '__dashboard-success__';
+        setCelebrationPropertyTitle(forcedCelebrationCase?.propertyTitle || null);
+        setShowFastTrackCelebration(true);
+        toast.success(
+          forcedCelebrationCase?.propertyTitle
+            ? `Fast-track complete for ${forcedCelebrationCase.propertyTitle}.`
+            : 'Fast-track complete.',
+        );
+        writeSeenCompletedFastTrackCaseIds(user.id, completedCaseIds);
+        clearCelebrateQuery();
+        return;
+      }
+
+      if (seenCaseIds === null) {
+        writeSeenCompletedFastTrackCaseIds(user.id, completedCaseIds);
+        return;
+      }
+
+      const unseenCompletedCase = completedCases.find((caseItem) => !seenCaseIds.includes(caseItem.caseId));
+      writeSeenCompletedFastTrackCaseIds(user.id, [...seenCaseIds, ...completedCaseIds]);
+
+      if (!unseenCompletedCase || celebratedDashboardCaseIdRef.current === unseenCompletedCase.caseId) {
+        return;
+      }
+
+      celebratedDashboardCaseIdRef.current = unseenCompletedCase.caseId;
+      setCelebrationPropertyTitle(unseenCompletedCase.propertyTitle);
+      setShowFastTrackCelebration(true);
+      toast.success(`Fast-track complete for ${unseenCompletedCase.propertyTitle}.`);
+    };
+
+    void loadCompletedFastTrackCases();
+
+    return () => {
+      active = false;
+    };
+  }, [dashboardCelebrateCaseId, dashboardCelebrateRequested, setSearchParams, toast, user?.id]);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -314,6 +450,7 @@ const DashboardClient = () => {
           minBedrooms: dashboardSearchFilters.minBedrooms ?? undefined,
           minBathrooms: dashboardSearchFilters.minBathrooms ?? undefined,
           listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
+          status: selectedPropertyType === 'sold' ? 'sold' : undefined,
           sortBy: buildDashboardSortValue(selectedFilters),
           page: currentFilteredPage,
           limit: FILTERED_RESULTS_PAGE_SIZE,
@@ -365,8 +502,12 @@ const DashboardClient = () => {
     setCurrentFilteredPage(1);
     setError(null);
     setLocationMessage(null);
-    setShowFilteredResults(hasActiveDashboardSearch(nextFilters) || selectedFilters.length > 0);
-  }, [selectedFilters.length]);
+    setShowFilteredResults(
+      hasActiveDashboardSearch(nextFilters)
+      || selectedFilters.length > 0
+      || selectedPropertyType === 'sold',
+    );
+  }, [selectedFilters.length, selectedPropertyType]);
 
   const toggleQuickFilter = (filterId: string) => {
     setSelectedFilters((current) => {
@@ -375,13 +516,18 @@ const DashboardClient = () => {
         : [filterId];
 
       setCurrentFilteredPage(1);
-      setShowFilteredResults(hasActiveDashboardSearch(dashboardSearchFilters) || nextFilters.length > 0);
+      setShowFilteredResults(
+        hasActiveDashboardSearch(dashboardSearchFilters)
+        || nextFilters.length > 0
+        || selectedPropertyType === 'sold',
+      );
       return nextFilters;
     });
   };
 
   const clearFilteredResults = () => {
     setSelectedFilters([]);
+    setSelectedPropertyType((current) => (current === 'rent' ? 'rent' : 'buy'));
     setDashboardSearchFilters({
       ...defaultDashboardSearchFilters,
       listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
@@ -398,7 +544,11 @@ const DashboardClient = () => {
   const mapLocation = activeLocation || null;
   const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
   const mapProperties = useMemo(() => (
-    activeMapProperties.filter((property) => property && property.latitude && property.longitude)
+    activeMapProperties.filter((property) => (
+      property
+      && typeof property.latitude === 'number'
+      && typeof property.longitude === 'number'
+    ))
   ), [activeMapProperties]);
 
   const resultHeading = selectedFilters.includes('recently_added')
@@ -417,6 +567,14 @@ const DashboardClient = () => {
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto dark:bg-[#0a0a0a] min-h-screen transition-all duration-300">
+      <FastTrackCelebrationOverlay
+        active={showFastTrackCelebration}
+        title="Fast-Track Complete"
+        subtitle={celebrationPropertyTitle
+          ? `${celebrationPropertyTitle} has completed fast-track and is ready for the next step.`
+          : 'Your fast-track journey has completed and is ready for the next step.'}
+        onComplete={() => setShowFastTrackCelebration(false)}
+      />
       <div id="greeting-section" className="flex items-center justify-between animate-fadeIn">
         <div>
           <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">

@@ -64,21 +64,27 @@ function LeadMapAutoFit({ leads }: { leads: Lead[] }) {
     const map = useMap();
 
     useEffect(() => {
-        const points = leads
-            .filter((lead) => typeof lead.property?.latitude === 'number' && typeof lead.property?.longitude === 'number')
-            .map((lead) => [lead.property?.latitude as number, lead.property?.longitude as number] as [number, number]);
+        try {
+            const points = leads
+                .filter((lead) => typeof lead.property?.latitude === 'number' && typeof lead.property?.longitude === 'number')
+                .map((lead) => [lead.property?.latitude as number, lead.property?.longitude as number] as [number, number]);
 
-        if (points.length === 0) {
-            map.setView([54.5, -3], 5);
-            return;
+            map.closePopup();
+
+            if (points.length === 0) {
+                map.setView([54.5, -3], 5);
+                return;
+            }
+
+            if (points.length === 1) {
+                map.setView(points[0], 14);
+                return;
+            }
+
+            map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
+        } catch {
+            // Ignore transient Leaflet teardown errors during route or data changes.
         }
-
-        if (points.length === 1) {
-            map.setView(points[0], 14);
-            return;
-        }
-
-        map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
     }, [leads, map]);
 
     return null;
@@ -121,13 +127,17 @@ export default function LeadActionMap({
         () => leadsWithCoordinates.find((lead) => lead.id === selectedLeadID) || null,
         [leadsWithCoordinates, selectedLeadID],
     );
+    const mapKey = useMemo(() => (
+        leadsWithCoordinates.map((lead) => `${lead.id}:${lead.property?.latitude}:${lead.property?.longitude}`).join('|')
+    ), [leadsWithCoordinates]);
+    const resolveAssignedBrokerId = (lead: Lead) => lead.broker_id || lead.matched_broker_id || null;
     const canRequestDocumentsForLead = (lead: Lead) => (
         canRequestDocuments ? canRequestDocuments(lead) : Boolean(lead.user_id)
     );
     const canScheduleSelectedLead = Boolean(
         selectedLead?.user_id
         && selectedLead?.property_id
-        && selectedLead?.broker_id
+        && resolveAssignedBrokerId(selectedLead)
         && !['completed', 'expired', 'rejected', 'withdrawn'].includes(resolveLeadStage(selectedLead))
         && !['closed_won', 'closed_lost', 'cancelled'].includes(selectedLead?.status || ''),
     );
@@ -162,10 +172,14 @@ export default function LeadActionMap({
                 <div className="relative h-[460px] bg-slate-100 dark:bg-slate-950">
                     {isMounted ? (
                         <MapContainer
+                            key={mapKey}
                             center={[54.5, -3]}
                             zoom={6}
                             style={{ height: '100%', width: '100%' }}
                             scrollWheelZoom
+                            fadeAnimation={false}
+                            markerZoomAnimation={false}
+                            zoomAnimation={false}
                         >
                             <LeadMapAutoFit leads={leadsWithCoordinates} />
                             <TileLayer
@@ -179,7 +193,7 @@ export default function LeadActionMap({
                                 const canScheduleViewing = Boolean(
                                     lead.user_id
                                     && lead.property_id
-                                    && lead.broker_id
+                                    && resolveAssignedBrokerId(lead)
                                     && !['completed', 'expired', 'rejected', 'withdrawn'].includes(stage)
                                     && !['closed_won', 'closed_lost', 'cancelled'].includes(lead.status || ''),
                                 );

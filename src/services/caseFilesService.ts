@@ -1,4 +1,5 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
 import type { JourneyState } from '@/types/journey';
 import type { PropertyComplianceReadiness } from '@/services/propertyService';
 import type { Application } from '@/services/applicationsService';
@@ -11,6 +12,7 @@ import type { Contract } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
 const CORE_URL = () => getServiceUrl('core');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 export interface CaseFileDocument {
     id: string;
@@ -143,9 +145,9 @@ export interface CaseFileDocumentReviewPayload {
     reject_reason?: string;
 }
 
-export const getCaseFile = async (caseId: string): Promise<{ data: CaseFile | null; error: string | null }> => {
+export const getCaseFile = async (caseId: string, options: ServiceRequestOptions = {}): Promise<{ data: CaseFile | null; error: string | null }> => {
     try {
-        const data = await apiFetch<CaseFile>(`${BOOKING_URL()}/api/v1/case-files/${caseId}`);
+        const data = await apiFetch<CaseFile>(`${BOOKING_URL()}/api/v1/case-files/${caseId}`, options);
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };

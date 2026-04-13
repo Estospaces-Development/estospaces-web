@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Home, Layers, Globe } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -55,9 +55,14 @@ function MapAutoCenter({ houses }: { houses: any[] }) {
     const map = useMap();
 
     useEffect(() => {
-        if (houses.length > 0) {
-            const bounds = L.latLngBounds(houses.map(h => [h.lat, h.lng]));
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        try {
+            map.closePopup();
+            if (houses.length > 0) {
+                const bounds = L.latLngBounds(houses.map(h => [h.lat, h.lng]));
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+            }
+        } catch {
+            // Keep the page usable when Leaflet tears down during route churn.
         }
     }, [houses, map]);
 
@@ -84,6 +89,11 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
     // Filter out items without coordinates
     const validHouses = houses.filter(h => h.lat != null && h.lng != null);
     const validAgencies = agencies.filter(a => a.lat != null && a.lng != null);
+    const mapKey = useMemo(() => [
+        mapStyle,
+        ...validHouses.map((house) => `house:${house.id}:${house.lat}:${house.lng}`),
+        ...validAgencies.map((agency) => `agency:${agency.id}:${agency.lat}:${agency.lng}`),
+    ].join('|'), [mapStyle, validAgencies, validHouses]);
 
     // Center on London by default if no houses
     const defaultCenter: [number, number] = [51.5074, -0.1278];
@@ -115,10 +125,14 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
             </div>
 
             <MapContainer
+                key={mapKey}
                 center={defaultCenter}
                 zoom={12}
                 style={{ height: '100%', width: '100%', zIndex: 0 }}
                 scrollWheelZoom={true}
+                fadeAnimation={false}
+                markerZoomAnimation={false}
+                zoomAnimation={false}
             >
                 <MapAutoCenter houses={validHouses} />
 

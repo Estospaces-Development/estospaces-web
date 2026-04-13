@@ -40,7 +40,7 @@ export interface FastTrackLinkedJourney {
 
 export const resolveFastTrackPrimaryLaneLabel = (
     journeyType: FastTrackCase['journeyType'],
-    linkedJourney: Pick<FastTrackLinkedJourney, 'application' | 'saleProgression'>,
+    linkedJourney: Pick<FastTrackLinkedJourney, 'application' | 'saleProgression' | 'viewing'>,
 ) => {
     if (journeyType === 'buy') {
         if (linkedJourney.saleProgression) {
@@ -48,6 +48,11 @@ export const resolveFastTrackPrimaryLaneLabel = (
         }
 
         if (linkedJourney.application) {
+            const applicationStage = String(linkedJourney.application.liveStage || linkedJourney.application.status || '').trim();
+            const viewingStage = normalizeViewingJourneyStage(linkedJourney.viewing?.status);
+            if (viewingStage && (applicationStage === 'viewing_scheduled' || applicationStage === 'viewing_completed')) {
+                return liveStageLabel(viewingStage, journeyType);
+            }
             return liveStageLabel(linkedJourney.application.liveStage || linkedJourney.application.status, journeyType);
         }
 
@@ -55,6 +60,11 @@ export const resolveFastTrackPrimaryLaneLabel = (
     }
 
     if (linkedJourney.application) {
+        const applicationStage = String(linkedJourney.application.liveStage || linkedJourney.application.status || '').trim();
+        const viewingStage = normalizeViewingJourneyStage(linkedJourney.viewing?.status);
+        if (viewingStage && (applicationStage === 'viewing_scheduled' || applicationStage === 'viewing_completed')) {
+            return liveStageLabel(viewingStage, journeyType);
+        }
         return liveStageLabel(linkedJourney.application.liveStage || linkedJourney.application.status, journeyType);
     }
 
@@ -173,6 +183,19 @@ const liveStageLabel = (value?: string | null, journeyType?: FastTrackCase['jour
     }
 };
 
+const normalizeViewingJourneyStage = (status?: string | null) => {
+    switch (String(status || '').trim().toLowerCase()) {
+        case 'completed':
+            return 'viewing_completed';
+        case 'pending':
+        case 'confirmed':
+        case 'rescheduled':
+            return 'viewing_scheduled';
+        default:
+            return null;
+    }
+};
+
 const extractJourneyState = (record: JourneyStateFields | null | undefined) => ({
     liveStage: record?.live_stage || (record as any)?.liveStage || record?.journey_state?.live_stage || null,
     stageGroup: record?.stage_group || (record as any)?.stageGroup || record?.journey_state?.stage_group || null,
@@ -221,6 +244,20 @@ const getRentFinanceTasks = (payments: Payment[], invoices: Invoice[]) => {
     };
 };
 
+const buildRentViewingSummary = (viewing: Viewing, englandJourney: boolean) => ({
+    primaryHeadline: viewing.status === 'completed'
+        ? (englandJourney ? 'Referencing and Right to Rent' : 'Referencing and compliance')
+        : `Viewing: ${formatLabel(viewing.status)}`,
+    primarySummary: viewing.status === 'completed'
+        ? (englandJourney
+            ? 'The viewing is complete, so the next regulated rent step is referencing and the England Right to Rent check.'
+            : 'The viewing is complete, so the next regulated rent step is referencing and jurisdiction-specific compliance review.')
+        : 'The viewing exists, but the tenancy application has not been surfaced yet.',
+    nextStep: viewing.status === 'completed'
+        ? 'Open the applications workspace to continue referencing and approval.'
+        : 'Open the viewings workspace to confirm the appointment and keep the case moving.',
+});
+
 const buildRentJourneySummary = (
     application: Application | null,
     viewing: Viewing | null,
@@ -232,6 +269,7 @@ const buildRentJourneySummary = (
     const contractStatus = normalizeContractStatus(contract?.status);
     const rentFinanceTasks = getRentFinanceTasks(payments, invoices);
     const englandJourney = isEnglandJurisdiction(jurisdiction);
+    const applicationStatus = String(application?.liveStage || application?.status || '').trim();
 
     if (contract && rentFinanceTasks.pendingTasks.length > 0) {
         return {
@@ -265,11 +303,15 @@ const buildRentJourneySummary = (
     }
 
     if (application) {
-        const normalizedStatus = String(application.status || '').trim();
+        const normalizedStatus = applicationStatus;
         const statusLabel = formatLabel(normalizedStatus);
         const viewingSummary = viewing
             ? ` A viewing is currently ${formatLabel(viewing.status).toLowerCase()}.`
             : '';
+
+        if (viewing && (normalizedStatus === 'viewing_scheduled' || normalizedStatus === 'viewing_completed')) {
+            return buildRentViewingSummary(viewing, englandJourney);
+        }
 
         if (normalizedStatus === 'right_to_rent_pending') {
             return {
@@ -309,19 +351,7 @@ const buildRentJourneySummary = (
     }
 
     if (viewing) {
-        return {
-            primaryHeadline: viewing.status === 'completed'
-                ? (englandJourney ? 'Referencing and Right to Rent' : 'Referencing and compliance')
-                : `Viewing: ${formatLabel(viewing.status)}`,
-            primarySummary: viewing.status === 'completed'
-                ? (englandJourney
-                    ? 'The viewing is complete, so the next regulated rent step is referencing and the England Right to Rent check.'
-                    : 'The viewing is complete, so the next regulated rent step is referencing and jurisdiction-specific compliance review.')
-                : 'The viewing exists, but the tenancy application has not been surfaced yet.',
-            nextStep: viewing.status === 'completed'
-                ? 'Open the applications workspace to continue referencing and approval.'
-                : 'Open the viewings workspace to confirm the appointment and keep the case moving.',
-        };
+        return buildRentViewingSummary(viewing, englandJourney);
     }
 
     return {
@@ -452,11 +482,24 @@ export const resolveFastTrackLinkedJourney = (
             || candidate.nextActions.length > 0
             || candidate.deadlines.length > 0
         )) || extractJourneyState(fastTrackCase);
-    const primaryHeadline = journeyState.liveStage
-        ? liveStageLabel(journeyState.liveStage, fastTrackCase.journeyType, fastTrackCase.jurisdiction)
-        : fallbackSummary.primaryHeadline;
-    const primarySummary = journeyState.journeyStatusReason || fallbackSummary.primarySummary;
-    const nextStep = journeyState.nextActions[0]?.description || journeyState.nextActions[0]?.label || fallbackSummary.nextStep;
+    const liveViewingStage = normalizeViewingJourneyStage(viewing?.status);
+    const shouldUseViewingFallback = Boolean(
+        liveViewingStage
+        && ['viewing_scheduled', 'viewing_completed'].includes(String(journeyState.liveStage || '').trim())
+        && liveViewingStage !== journeyState.liveStage,
+    );
+    const resolvedLiveStage = shouldUseViewingFallback ? liveViewingStage : journeyState.liveStage;
+    const primaryHeadline = shouldUseViewingFallback
+        ? fallbackSummary.primaryHeadline
+        : resolvedLiveStage
+            ? liveStageLabel(resolvedLiveStage, fastTrackCase.journeyType, fastTrackCase.jurisdiction)
+            : fallbackSummary.primaryHeadline;
+    const primarySummary = shouldUseViewingFallback
+        ? fallbackSummary.primarySummary
+        : journeyState.journeyStatusReason || fallbackSummary.primarySummary;
+    const nextStep = shouldUseViewingFallback
+        ? fallbackSummary.nextStep
+        : journeyState.nextActions[0]?.description || journeyState.nextActions[0]?.label || fallbackSummary.nextStep;
 
     return {
         application,
@@ -465,7 +508,7 @@ export const resolveFastTrackLinkedJourney = (
         saleProgression,
         payments,
         invoices,
-        liveStage: journeyState.liveStage,
+        liveStage: resolvedLiveStage,
         stageGroup: journeyState.stageGroup,
         blockers: journeyState.blockers,
         deadlines: journeyState.deadlines,

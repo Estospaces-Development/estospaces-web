@@ -53,6 +53,8 @@ import {
   type CaseFileUploadDescriptor,
 } from "@/lib/caseFileDocuments";
 import { getCaseFileWaitingCopy } from "@/lib/caseFileWorkflow";
+import { resolveFastTrackLinkedJourney } from "@/lib/fastTrackLinkedJourney";
+import { deriveLiveFastTrackCurrentStep } from "@/lib/fastTrackWorkflow";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import {
   caseFileTabToWorkspaceSection,
@@ -114,7 +116,51 @@ interface CaseFileWorkspaceProps {
   layout?: "tabs" | "stacked";
   requestedSection?: WorkspaceSection | null;
   appearance?: "default" | "manager";
+  workflowStageOverride?: string | null;
+  workflowSummaryOverride?: string | null;
 }
+
+const normalizeNestedFastTrackCase = (fastTrackCase: CaseFile["fast_track_case"]) => {
+  if (!fastTrackCase) {
+    return null;
+  }
+
+  const source = fastTrackCase as Record<string, any>;
+  return {
+    ...source,
+    caseId: source.caseId || source.id,
+    currentStep:
+      source.currentStep ||
+      source.liveStage ||
+      source.live_stage ||
+      source.current_step ||
+      "property_selected",
+    finalStatus: source.finalStatus || source.final_status || "in_progress",
+    journeyType: source.journeyType || source.journey_type,
+    liveStage: source.liveStage || source.live_stage,
+    journeyStatusReason:
+      source.journeyStatusReason || source.journey_status_reason,
+    documentPhase: source.documentPhase || source.document_phase,
+    propertyId: source.propertyId || source.property_id,
+    propertyCountry: source.propertyCountry || source.property_country,
+    brokerRequestId: source.brokerRequestId || source.broker_request_id,
+    leadId: source.leadId || source.lead_id,
+    managerId: source.managerId || source.manager_id,
+    clientId: source.clientId || source.client_id,
+    propertyTitle: source.propertyTitle || source.property_title,
+    propertyType: source.propertyType || source.property_type,
+    listingType: source.listingType || source.listing_type,
+    startedFrom: source.startedFrom || source.started_from,
+    clientName: source.clientName || source.client_name,
+    submittedAt: source.submittedAt || source.submitted_at,
+    expiresAt: source.expiresAt || source.expires_at,
+    hoursRemaining: source.hoursRemaining || source.hours_remaining || 0,
+    documents: source.documents || {
+      identityProof: "pending",
+      addressProof: "pending",
+    },
+  };
+};
 
 const tabOrder: Array<{ key: CaseFileTab; label: string }> = [
   { key: "overview", label: "Overview" },
@@ -379,7 +425,9 @@ const buildRequestChecklistSummary = ({
 };
 
 const canUploadAgainstRequest = (request?: CaseFileRequest | null) =>
-  !["approved", "waived"].includes(String(request?.status || "").trim());
+  !["approved", "waived", "uploaded", "under_review"].includes(
+    String(request?.status || "").trim(),
+  );
 
 const buildDescriptorFromPreset = (
   presetKey: string,
@@ -457,7 +505,10 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
         role === "manager"
           ? "Open applications workspace"
           : "Open applications",
-      path: buildWorkspacePath(`${base}/applications`, shared),
+      path: buildWorkspacePath(
+        role === "manager" ? "/manager/applications" : "/user/applications",
+        shared,
+      ),
     },
     {
       label:
@@ -526,6 +577,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   layout = "tabs",
   requestedSection,
   appearance,
+  workflowStageOverride,
+  workflowSummaryOverride,
 }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -576,6 +629,66 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const publishWorkspaceSync = usePublishWorkspaceSync();
   const managerAppearance = resolvedAppearance === "manager";
   const compactManagerEmbeddedLayout = managerAppearance && embedded;
+  const liveFastTrackCase = useMemo(
+    () => normalizeNestedFastTrackCase(caseFile?.fast_track_case || null),
+    [caseFile?.fast_track_case],
+  );
+  const linkedJourney = useMemo(
+    () =>
+      liveFastTrackCase
+        ? resolveFastTrackLinkedJourney(liveFastTrackCase, {
+            applications: caseFile?.application ? [caseFile.application] : [],
+            viewings: caseFile?.viewing ? [caseFile.viewing] : [],
+            contracts: caseFile?.contract ? [caseFile.contract] : [],
+            saleProgressions: caseFile?.sale_progression
+              ? [caseFile.sale_progression]
+              : [],
+            payments: [],
+            invoices: caseFile?.invoices || [],
+          })
+        : null,
+    [
+      caseFile?.application,
+      caseFile?.contract,
+      caseFile?.invoices,
+      caseFile?.sale_progression,
+      caseFile?.viewing,
+      liveFastTrackCase,
+    ],
+  );
+  const normalizedWorkflowStage = useMemo(() => {
+    if (workflowStageOverride) {
+      return workflowStageOverride;
+    }
+
+    if (!liveFastTrackCase) {
+      return caseFile?.workflow?.live_stage || "";
+    }
+
+    return deriveLiveFastTrackCurrentStep(
+      liveFastTrackCase.currentStep,
+      [],
+      liveFastTrackCase.documents,
+      {
+        finalStatus: liveFastTrackCase.finalStatus,
+        journeyType: liveFastTrackCase.journeyType,
+        jurisdiction: liveFastTrackCase.jurisdiction,
+        linkedJourney: linkedJourney || undefined,
+        liveStage: liveFastTrackCase.liveStage,
+      },
+    );
+  }, [
+    caseFile?.workflow?.live_stage,
+    linkedJourney,
+    liveFastTrackCase,
+    workflowStageOverride,
+  ]);
+  const normalizedWorkflowSummary =
+    workflowSummaryOverride ||
+    linkedJourney?.primarySummary ||
+    liveFastTrackCase?.journeyStatusReason ||
+    caseFile?.workflow?.journey_status_reason ||
+    "The journey state is synced from the backend workflow.";
 
   const loadCaseFile = useCallback(
     async (silent: boolean = false) => {
@@ -721,7 +834,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     () =>
       (caseFile?.requests || []).filter(
         (item) =>
-          !["approved", "waived"].includes(String(item.status || "").trim()),
+          !["approved", "waived", "uploaded", "under_review"].includes(
+            String(item.status || "").trim(),
+          ),
       ),
     [caseFile?.requests],
   );
@@ -1500,7 +1615,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 Live stage
               </p>
               <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                {formatLabel(workflow?.live_stage)}
+                {formatLabel(normalizedWorkflowStage)}
               </p>
             </div>
             <div className={stackedHeroMetricCardClass}>
@@ -1572,11 +1687,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 Live stage
               </p>
               <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
-                {formatLabel(workflow?.live_stage)}
+                {formatLabel(normalizedWorkflowStage)}
               </p>
               <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                {workflow?.journey_status_reason ||
-                  "The journey state is synced from the backend workflow."}
+                {normalizedWorkflowSummary}
               </p>
             </div>
             <ActorWaitingCard caseFile={caseFile} />

@@ -38,12 +38,27 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
     const statusOptions = [
         { value: 'all', label: 'All Statuses' },
         { value: APPLICATION_STATUS.DRAFT, label: 'Draft' },
+        { value: APPLICATION_STATUS.PENDING, label: 'Pending Review' },
         { value: APPLICATION_STATUS.SUBMITTED, label: 'Submitted' },
+        { value: APPLICATION_STATUS.APPOINTMENT_BOOKED, label: 'Appointment Booked' },
+        { value: APPLICATION_STATUS.VIEWING_SCHEDULED, label: 'Viewing Scheduled' },
+        { value: APPLICATION_STATUS.VIEWING_COMPLETED, label: 'Viewing Completed' },
         { value: APPLICATION_STATUS.UNDER_REVIEW, label: 'Under Review' },
         { value: APPLICATION_STATUS.DOCUMENTS_REQUESTED, label: 'Documents Requested' },
+        { value: APPLICATION_STATUS.VERIFICATION_IN_PROGRESS, label: 'Verification In Progress' },
+        { value: APPLICATION_STATUS.BUYER_QUALIFICATION, label: 'Buyer Qualification' },
+        { value: APPLICATION_STATUS.OFFER_READY, label: 'Offer Ready' },
+        { value: APPLICATION_STATUS.OFFER_SUBMITTED, label: 'Offer Submitted' },
+        { value: APPLICATION_STATUS.OFFER_UNDER_REVIEW, label: 'Offer Under Review' },
+        { value: APPLICATION_STATUS.OFFER_ACCEPTED, label: 'Offer Accepted' },
+        { value: APPLICATION_STATUS.SALE_AGREED, label: 'Sale Agreed' },
+        { value: APPLICATION_STATUS.MEMORANDUM_ISSUED, label: 'Memorandum Issued' },
+        { value: APPLICATION_STATUS.CONVEYANCING, label: 'Conveyancing' },
+        { value: APPLICATION_STATUS.EXCHANGE, label: 'Exchange' },
         { value: APPLICATION_STATUS.APPROVED, label: 'Approved' },
         { value: APPLICATION_STATUS.REJECTED, label: 'Rejected' },
         { value: APPLICATION_STATUS.WITHDRAWN, label: 'Withdrawn' },
+        { value: APPLICATION_STATUS.COMPLETED, label: 'Completed' },
     ];
 
     const propertyTypeOptions = [

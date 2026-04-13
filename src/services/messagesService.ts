@@ -169,12 +169,15 @@ export async function getConversations(): Promise<Conversation[]> {
 }
 
 export async function getMessages(conversationId: string, page = 1, limit = 50): Promise<Message[]> {
-    return apiFetch<Message[]>(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/messages?page=${page}&limit=${limit}`);
+    return apiFetch<Message[]>(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/messages?page=${page}&limit=${limit}`, {
+        suppressErrorToast: true,
+    });
 }
 
 export async function sendMessage(params: SendMessageParams): Promise<Message> {
     return apiFetch<Message>(`${MESSAGING_URL()}/api/v1/messages`, {
         method: 'POST',
+        suppressErrorToast: true,
         body: JSON.stringify({
             conversation_id: params.conversationId,
             recipient_id: params.recipientId,
@@ -192,6 +195,7 @@ export async function upsertDirectConversation(
 ): Promise<Conversation> {
     return apiFetch<Conversation>(`${MESSAGING_URL()}/api/v1/conversations/direct`, {
         method: 'POST',
+        suppressErrorToast: true,
         body: JSON.stringify({
             recipient_id: recipientId,
             context: mapConversationContext(context),
@@ -202,6 +206,7 @@ export async function upsertDirectConversation(
 export async function markAsRead(conversationId: string): Promise<void> {
     await apiFetch(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/read`, {
         method: 'PUT',
+        suppressErrorToast: true,
     });
 }
 
@@ -218,6 +223,7 @@ export async function updateConversationPreferences(
 export async function createTicket(params: CreateTicketParams): Promise<SupportTicketDetail> {
     return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets`, {
         method: 'POST',
+        suppressErrorToast: true,
         body: JSON.stringify(params),
     });
 }
@@ -231,16 +237,21 @@ export async function getTickets(params: GetTicketsParams = {}): Promise<Support
     });
 
     const queryString = searchParams.toString();
-    return apiFetch<SupportTicketSummary[]>(`${MESSAGING_URL()}/api/v1/tickets${queryString ? `?${queryString}` : ''}`);
+    return apiFetch<SupportTicketSummary[]>(`${MESSAGING_URL()}/api/v1/tickets${queryString ? `?${queryString}` : ''}`, {
+        suppressErrorToast: true,
+    });
 }
 
 export async function getTicket(ticketId: string): Promise<SupportTicketDetail> {
-    return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`);
+    return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`, {
+        suppressErrorToast: true,
+    });
 }
 
 export async function updateTicket(ticketId: string, params: UpdateTicketParams): Promise<SupportTicketDetail> {
     return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`, {
         method: 'PATCH',
+        suppressErrorToast: true,
         body: JSON.stringify(params),
     });
 }
@@ -251,12 +262,15 @@ export async function updateTicketStatus(
 ): Promise<SupportTicketDetail> {
     return apiFetch<SupportTicketDetail>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}/status`, {
         method: 'PUT',
+        suppressErrorToast: true,
         body: JSON.stringify({ status }),
     });
 }
 
 export async function getSupportAttachmentAccessUrl(attachmentId: string): Promise<{ access_url: string; expires_at: string }> {
-    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${attachmentId}/access-url`);
+    return apiFetch<{ access_url: string; expires_at: string }>(`${MESSAGING_URL()}/api/v1/support/attachments/${attachmentId}/access-url`, {
+        suppressErrorToast: true,
+    });
 }
 
 export async function openSupportAttachment(attachmentId: string): Promise<void> {

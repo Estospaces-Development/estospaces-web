@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getRedirectPath } from '@/lib/authUtils';
@@ -111,6 +111,7 @@ function TermsAcceptanceModal({
 export default function RegisterPage() {
     const navigate = useNavigate();
     const { isAuthenticated, loading: authLoading, getRole, register, signOut, user: authUser } = useAuth();
+    const resendCooldownTimerRef = useRef<number | null>(null);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -142,6 +143,12 @@ export default function RegisterPage() {
         : '';
 
     const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
+
+    useEffect(() => () => {
+        if (resendCooldownTimerRef.current !== null) {
+            window.clearInterval(resendCooldownTimerRef.current);
+        }
+    }, []);
 
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);
@@ -246,8 +253,8 @@ export default function RegisterPage() {
                         Continue to Dashboard
                     </button>
                     <button
-                        onClick={() => {
-                            signOut();
+                        onClick={async () => {
+                            await signOut();
                             navigate('/register?switch=true');
                         }}
                         className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
@@ -297,10 +304,16 @@ export default function RegisterPage() {
                             await axios.post(`${API_URL}/api/v1/auth/resend-verification`, { email });
                             setResendMessage('Verification email resent! Check your inbox.');
                             setResendCooldown(60);
-                            const timer = setInterval(() => {
+                            if (resendCooldownTimerRef.current !== null) {
+                                window.clearInterval(resendCooldownTimerRef.current);
+                            }
+                            resendCooldownTimerRef.current = window.setInterval(() => {
                                 setResendCooldown((prev) => {
                                     if (prev <= 1) {
-                                        clearInterval(timer);
+                                        if (resendCooldownTimerRef.current !== null) {
+                                            window.clearInterval(resendCooldownTimerRef.current);
+                                            resendCooldownTimerRef.current = null;
+                                        }
                                         return 0;
                                     }
                                     return prev - 1;

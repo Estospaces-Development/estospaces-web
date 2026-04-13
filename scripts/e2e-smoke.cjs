@@ -6,9 +6,39 @@ const crashPattern = /toast is not defined|unexpected application error|somethin
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
 const routeSettleMs = Number(process.env.E2E_ROUTE_SETTLE_MS || "1500");
 
+function readFrontendUrlFromEnvFile(filename) {
+  const filePath = path.join(process.cwd(), filename);
+  if (!fs.existsSync(filePath)) {
+    return "";
+  }
+
+  const content = fs.readFileSync(filePath, "utf8");
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const [key, ...valueParts] = line.split("=");
+    if (key === "FRONTEND_URL") {
+      return valueParts.join("=").trim();
+    }
+  }
+
+  return "";
+}
+
+function resolveDevBaseUrl() {
+  return (
+    process.env.E2E_DEV_BASE_URL
+    || readFrontendUrlFromEnvFile(".env.development")
+    || readFrontendUrlFromEnvFile(".env.gcp-dev")
+    || "http://localhost:4173"
+  );
+}
+
 const targets = {
   dev: {
-    baseUrl: process.env.E2E_DEV_BASE_URL || "http://localhost:4173",
+    baseUrl: resolveDevBaseUrl(),
     caseId: process.env.E2E_DEV_FAST_TRACK_CASE_ID || "",
   },
   local: {
@@ -59,6 +89,25 @@ const roles = [
       "/manager/docs",
       "/manager/help",
       "/manager/case-files",
+    ],
+  },
+  {
+    name: "admin",
+    email: process.env.E2E_ADMIN_EMAIL || "admin@estospaces.com",
+    password: process.env.E2E_ADMIN_PASSWORD || "admin123",
+    dashboard: "/admin/dashboard",
+    routes: [
+      "/admin/dashboard",
+      "/admin/analytics",
+      "/admin/fast-track",
+      "/admin/help",
+      "/admin/notifications",
+      "/admin/profile",
+      "/admin/properties",
+      "/admin/reviews",
+      "/admin/settings",
+      "/admin/users",
+      "/admin/verifications",
     ],
   },
 ];

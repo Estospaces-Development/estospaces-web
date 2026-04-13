@@ -5,6 +5,10 @@ import type { User } from '@/types';
 
 const SUPPORT_DRAFT_ENTITY = 'support_ticket_draft';
 const SUPPORT_TICKET_ENTITY = 'support_ticket';
+const SUPPORT_TRANSCRIPT_PAGE_SIZE = 50;
+const SUPPORT_AGENT_PAGE_SIZE = 100;
+const SUPPORT_TICKET_PAGE_SIZE = 100;
+const MAX_SUPPORT_PAGES = 25;
 
 export interface SupportAttachmentDraft extends MessageAttachment {
     local_id: string;
@@ -20,6 +24,26 @@ export const supportService = {
         return messagesService.getTickets(params);
     },
 
+    async getAllTickets(params: GetTicketsParams = {}) {
+        const tickets: SupportTicketSummary[] = [];
+        const pageSize = params.limit || SUPPORT_TICKET_PAGE_SIZE;
+
+        for (let page = 1; page <= MAX_SUPPORT_PAGES; page += 1) {
+            const pageData = await messagesService.getTickets({
+                ...params,
+                page,
+                limit: pageSize,
+            });
+            tickets.push(...pageData);
+
+            if (pageData.length < pageSize) {
+                break;
+            }
+        }
+
+        return tickets;
+    },
+
     async getTicket(ticketId: string) {
         return messagesService.getTicket(ticketId);
     },
@@ -33,7 +57,18 @@ export const supportService = {
     },
 
     async getTranscript(conversationId: string) {
-        return messagesService.getMessages(conversationId);
+        const transcript: Awaited<ReturnType<typeof messagesService.getMessages>> = [];
+
+        for (let page = 1; page <= MAX_SUPPORT_PAGES; page += 1) {
+            const pageMessages = await messagesService.getMessages(conversationId, page, SUPPORT_TRANSCRIPT_PAGE_SIZE);
+            transcript.push(...pageMessages);
+
+            if (pageMessages.length < SUPPORT_TRANSCRIPT_PAGE_SIZE) {
+                break;
+            }
+        }
+
+        return transcript;
     },
 
     async sendReply(conversationId: string, content: string, attachments: MessageAttachment[] = []) {
@@ -78,8 +113,28 @@ export const supportService = {
     },
 
     async getSupportAgents(): Promise<User[]> {
-        const { data } = await userService.getAllUsers(1, 100);
-        return data.filter((user) => user.role === 'admin' || user.role === 'support');
+        const agents: User[] = [];
+        const seen = new Set<string>();
+
+        for (let page = 1; page <= MAX_SUPPORT_PAGES; page += 1) {
+            const { data, pagination } = await userService.getAllUsers(page, SUPPORT_AGENT_PAGE_SIZE);
+            for (const user of data) {
+                if ((user.role === 'admin' || user.role === 'support') && !seen.has(user.id)) {
+                    seen.add(user.id);
+                    agents.push(user);
+                }
+            }
+
+            const totalPages = Number(pagination?.total_pages || 0);
+            if (totalPages > 0 && page >= totalPages) {
+                break;
+            }
+            if (data.length < SUPPORT_AGENT_PAGE_SIZE) {
+                break;
+            }
+        }
+
+        return agents;
     },
 
     async findResumableTicket(params: { requesterRole?: string } = {}): Promise<SupportTicketSummary | null> {

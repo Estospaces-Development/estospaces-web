@@ -65,7 +65,10 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
             return;
         }
 
-        const timer = setInterval(() => {
+        const timer = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             setSecondsRemaining((prev) => {
                 if (prev <= 1) {
                     setCurrentStatus('expired');
@@ -75,7 +78,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
             });
         }, 1000);
 
-        return () => clearInterval(timer);
+        return () => window.clearInterval(timer);
     }, [secondsRemaining, currentStatus]);
 
     useEffect(() => {

@@ -7,7 +7,6 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { useHost } from '@/lib/utils/hostUtils';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -16,7 +15,6 @@ interface UserHeaderProps {
 const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     const navigate = useNavigate();
     const { user, signOut, getDisplayName } = useAuth();
-    const { currentApp } = useHost();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -36,18 +34,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
         }
     };
 
-    const getLinkPath = (path: string) => {
-        if (!useSubdomain) return path;
-
-        if (currentApp === 'admin') {
-            return path.replace(/^\/admin/, '') || '/';
-        }
-        if (currentApp === 'app') {
-            // Strip both /user and /manager as they are top-level on app subdomain
-            return path.replace(/^\/user/, '').replace(/^\/manager/, '') || '/';
-        }
-        return path;
-    };
+    const getLinkPath = (path: string) => path;
 
     return (
         <header className="sticky top-0 z-30 h-16 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">

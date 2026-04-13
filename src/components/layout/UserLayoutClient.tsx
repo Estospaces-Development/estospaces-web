@@ -1,7 +1,7 @@
 "use client";
 
-import React, { Suspense, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { Navigate } from 'react-router-dom';
 import UserHeader from '../../components/layout/UserHeader';
 import HorizontalNavigation from '../../components/layout/HorizontalNavigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,6 +13,7 @@ import { NotificationsProvider } from '../../contexts/NotificationsContext';
 import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
+import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface UserLayoutClientProps {
     children: React.ReactNode;
@@ -21,24 +22,18 @@ interface UserLayoutClientProps {
 
 export default function UserLayoutClient({ children, isSubdomain = false }: UserLayoutClientProps) {
     const { user, loading, isAuthenticated } = useAuth();
-    const navigate = useNavigate();
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
 
-    useEffect(() => {
-        if (!loading) {
-            if (!isAuthenticated) {
-                navigate('/login');
-            } else if (user?.role !== 'user') {
-                navigate('/login');
-            }
-        }
-    }, [isAuthenticated, loading, navigate, user]);
-
-    if (loading) {
+    if (shouldWaitForSession) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
-    if (!isAuthenticated || user?.role !== 'user') {
-        return null;
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (user?.role !== 'user') {
+        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
     }
 
     return (

@@ -26,6 +26,7 @@ import {
     deriveLiveFastTrackDocumentPhase,
     deriveLiveFastTrackCurrentStep,
     filterDocumentsForLead,
+    hasFastTrackReachedCompletion,
     isEnglandJurisdiction,
     normalizeWorkspaceDocuments,
     type FastTrackDocumentItem,
@@ -57,6 +58,7 @@ import {
 import { messagesService } from '@/services/messagesService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import CaseFileWorkspace from '@/components/case-file/CaseFileWorkspace';
+import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
 
 const statusMeta: Record<FastTrackCase['finalStatus'], { label: string; tone: string; note: string }> = {
     in_progress: {
@@ -137,82 +139,91 @@ export default function UserFastTrackPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [openingConversation, setOpeningConversation] = useState(false);
+    const [showSuccessCelebration, setShowSuccessCelebration] = useState(false);
     const removedCaseNoticeRef = useRef<string | null>(null);
+    const previousSelectedCaseCompletionRef = useRef<{ caseId: string; completed: boolean } | null>(null);
+    const celebratedCaseIdRef = useRef<string | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
+    const celebrateRequested = searchParams.get('celebrate') === '1';
 
     const fetchCases = useCallback(async (silent: boolean = false) => {
         if (!silent) {
             setLoading(true);
             setError(null);
         }
+        try {
+            const [casesResult, leadsResult, documentsResult, brokerRequestsResult] = await Promise.all([
+                getFastTrackCases({ suppressErrorToast: true }),
+                getUserLeads({ suppressErrorToast: true }),
+                getUserDocuments({ suppressErrorToast: true }),
+                getUserBrokerRequests({ suppressErrorToast: true }),
+            ]);
+            const [
+                applicationsResult,
+                viewingsResult,
+                contractsResult,
+                saleProgressionsResult,
+                paymentsResult,
+                invoicesResult,
+            ] = await Promise.all([
+                getApplications({ suppressErrorToast: true }),
+                safeLoad(() => getViewings({ suppressErrorToast: true })),
+                safeLoad(async () => {
+                    const result = await getUserContracts({ suppressErrorToast: true });
+                    if (result.error) {
+                        throw new Error(result.error);
+                    }
 
-        const [casesResult, leadsResult, documentsResult, brokerRequestsResult] = await Promise.all([
-            getFastTrackCases(),
-            getUserLeads(),
-            getUserDocuments(),
-            getUserBrokerRequests({ suppressErrorToast: true }),
-        ]);
-        const [
-            applicationsResult,
-            viewingsResult,
-            contractsResult,
-            saleProgressionsResult,
-            paymentsResult,
-            invoicesResult,
-        ] = await Promise.all([
-            getApplications({ suppressErrorToast: true }),
-            safeLoad(() => getViewings()),
-            safeLoad(async () => {
-                const result = await getUserContracts();
-                if (result.error) {
-                    throw new Error(result.error);
-                }
+                    return result.data || [];
+                }),
+                getSaleProgressions({ suppressErrorToast: true }),
+                safeLoad(async () => {
+                    const result = await getPayments({ suppressErrorToast: true });
+                    return Array.isArray(result?.data) ? result.data : [];
+                }),
+                safeLoad(async () => {
+                    const result = await getInvoices({ suppressErrorToast: true });
+                    return Array.isArray(result?.data) ? result.data : [];
+                }),
+            ]);
 
-                return result.data || [];
-            }),
-            getSaleProgressions(),
-            safeLoad(async () => {
-                const result = await getPayments();
-                return Array.isArray(result?.data) ? result.data : [];
-            }),
-            safeLoad(async () => {
-                const result = await getInvoices();
-                return Array.isArray(result?.data) ? result.data : [];
-            }),
-        ]);
+            if (casesResult.data) {
+                setCases(casesResult.data);
+            }
 
-        if (casesResult.data) {
-            setCases(casesResult.data);
-        }
+            if (leadsResult.data) {
+                setLeads(leadsResult.data);
+            }
 
-        if (leadsResult.data) {
-            setLeads(leadsResult.data);
-        }
+            setUserDocuments(normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error));
+            setBrokerRequests(brokerRequestsResult.data || []);
+            setApplications(applicationsResult.data || []);
+            setViewings(viewingsResult.data || []);
+            setContracts(contractsResult.data || []);
+            setSaleProgressions(saleProgressionsResult.data || []);
+            setPayments(paymentsResult.data || []);
+            setInvoices(invoicesResult.data || []);
 
-        setUserDocuments(normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error));
-        setBrokerRequests(brokerRequestsResult.data || []);
-        setApplications(applicationsResult.data || []);
-        setViewings(viewingsResult.data || []);
-        setContracts(contractsResult.data || []);
-        setSaleProgressions(saleProgressionsResult.data || []);
-        setPayments(paymentsResult.data || []);
-        setInvoices(invoicesResult.data || []);
-
-        const requestError = casesResult.error || leadsResult.error || documentsResult.error || brokerRequestsResult.error;
-        if (casesResult.data || leadsResult.data) {
-            setError(null);
-            setSelectedCaseId((previous) => resolveUserFastTrackSelection(
-                casesResult.data || [],
-                searchParams.get('case'),
-                searchParams.get('lead'),
-                previous,
-            ));
-        } else if (!silent) {
-            setError(requestError || 'Unable to load your fast-track cases.');
-        }
-
-        if (!silent) {
-            setLoading(false);
+            const requestError = casesResult.error || leadsResult.error || documentsResult.error || brokerRequestsResult.error;
+            if (casesResult.data || leadsResult.data) {
+                setError(null);
+                setSelectedCaseId((previous) => resolveUserFastTrackSelection(
+                    casesResult.data || [],
+                    searchParams.get('case'),
+                    searchParams.get('lead'),
+                    previous,
+                ));
+            } else if (!silent) {
+                setError(requestError || 'Unable to load your fast-track cases.');
+            }
+        } catch (fetchError: any) {
+            if (!silent) {
+                setError(fetchError?.message || 'Unable to load your fast-track cases.');
+            }
+        } finally {
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, [searchParams]);
 
@@ -269,8 +280,56 @@ export default function UserFastTrackPage() {
         [cases, selectedCaseId],
     );
 
+    useEffect(() => {
+        if (!selectedCase) {
+            previousSelectedCaseCompletionRef.current = null;
+            return;
+        }
+
+        const previousSelection = previousSelectedCaseCompletionRef.current;
+        const shouldCelebrateFromQuery = celebrateRequested;
+        const selectedCaseCompleted = hasFastTrackReachedCompletion(selectedCase);
+        const justCompleted = previousSelection !== null
+            && previousSelection.caseId === selectedCase.caseId
+            && !previousSelection.completed
+            && selectedCaseCompleted;
+
+        if (
+            selectedCaseCompleted
+            && (shouldCelebrateFromQuery || justCompleted)
+            && celebratedCaseIdRef.current !== selectedCase.caseId
+        ) {
+            celebratedCaseIdRef.current = selectedCase.caseId;
+            setShowSuccessCelebration(true);
+            toast.success('Fast-track complete. Everything is ready for the next step.');
+
+            if (shouldCelebrateFromQuery) {
+                setSearchParams((previous) => {
+                    const next = new URLSearchParams(previous);
+                    next.delete('celebrate');
+                    return next;
+                });
+            }
+        }
+
+        previousSelectedCaseCompletionRef.current = {
+            caseId: selectedCase.caseId,
+            completed: selectedCaseCompleted,
+        };
+    }, [celebrateRequested, selectedCase, setSearchParams, toast]);
+
     const selectedLead = useMemo(
-        () => leads.find((item) => item.id === selectedCase?.leadId || item.property_id === selectedCase?.propertyId) || null,
+        () => {
+            if (!selectedCase) {
+                return null;
+            }
+
+            if (selectedCase.leadId) {
+                return leads.find((item) => item.id === selectedCase.leadId) || null;
+            }
+
+            return leads.find((item) => item.property_id === selectedCase.propertyId) || null;
+        },
         [leads, selectedCase?.leadId, selectedCase?.propertyId],
     );
     const selectedLinkedJourney = useMemo(
@@ -606,7 +665,10 @@ export default function UserFastTrackPage() {
             return 'The manager has requested your verification documents. Upload them here to keep the case moving.';
         }
 
-        return selectedCase.journeyStatusReason || selectedLinkedJourney?.primarySummary || selectedCase.statusReason || statusMeta[selectedCase.finalStatus].note;
+        return selectedLinkedJourney?.primarySummary
+            || selectedCase.statusReason
+            || selectedCase.journeyStatusReason
+            || statusMeta[selectedCase.finalStatus].note;
     }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedCaseDocumentPhase, selectedLinkedJourney?.primarySummary]);
     const selectedCaseNextAction = useMemo(() => {
         if (!selectedCase) {
@@ -638,9 +700,9 @@ export default function UserFastTrackPage() {
             return 'Upload the requested documents';
         }
 
-        return selectedCase.nextActions?.[0]?.description
+        return selectedLinkedJourney?.nextStep
+            || selectedCase.nextActions?.[0]?.description
             || selectedCase.nextActions?.[0]?.label
-            || selectedLinkedJourney?.nextStep
             || selectedCase.nextAction
             || 'Open the live workspace';
     }, [englandRentJourney, selectedCase, selectedCaseCurrentStep, selectedCaseDocumentPhase, selectedLinkedJourney?.nextStep]);
@@ -764,13 +826,33 @@ export default function UserFastTrackPage() {
             selectedLinkedJourney?.contract?.id,
         ],
     );
+    const dashboardReturnPath = useMemo(() => {
+        if (selectedCase && hasFastTrackReachedCompletion(selectedCase) && celebratedCaseIdRef.current === selectedCase.caseId) {
+            const params = new URLSearchParams({
+                celebrate: '1',
+                fastTrackCase: selectedCase.caseId,
+            });
+
+            return `/user/dashboard?${params.toString()}`;
+        }
+
+        return '/user/dashboard';
+    }, [selectedCase, showSuccessCelebration]);
 
     return (
         <div className="relative min-h-screen overflow-x-clip bg-gradient-to-b from-orange-50/70 via-white to-gray-50 pb-16 dark:bg-gray-900">
+            <FastTrackCelebrationOverlay
+                active={showSuccessCelebration}
+                title="Fast-Track Complete"
+                subtitle={selectedCase
+                    ? `${selectedCase.propertyTitle} is now through the fast-track journey and ready for the next handoff.`
+                    : 'Your fast-track journey is complete and ready for the next handoff.'}
+                onComplete={() => setShowSuccessCelebration(false)}
+            />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_34%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.12),_transparent_28%)] opacity-90 dark:hidden" />
             <div className="relative mx-auto max-w-[94rem] px-4 py-8 lg:px-8">
                 <button
-                    onClick={() => navigate('/user/dashboard')}
+                    onClick={() => navigate(dashboardReturnPath)}
                     className="mb-6 flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors group"
                 >
                     <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />

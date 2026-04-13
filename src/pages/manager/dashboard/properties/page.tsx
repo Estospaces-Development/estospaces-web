@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     useProperties,
     PropertyStatus,
@@ -14,6 +14,14 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
 import PaginationBar from '@/components/ui/PaginationBar';
+import {
+    MANAGER_LIVE_LISTINGS_STATUS_FILTER,
+    MANAGER_LIVE_LISTINGS_VIEW,
+    buildManagerPropertySearchParams,
+    getManagerPropertyStatusFilters,
+    managerPropertyStatusFiltersEqual,
+    normalizeManagerPropertyStatusFilters,
+} from '@/lib/managerPropertyDashboard';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
 const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
@@ -90,6 +98,7 @@ function PropertiesContent() {
     useEffect(() => setIsMounted(true), []);
 
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const {
         filteredProperties,
@@ -136,17 +145,110 @@ function PropertiesContent() {
     const [selectedBedrooms, setSelectedBedrooms] = useState<number | undefined>(filters.bedroomsMin);
     const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<PropertyType[]>(filters.propertyType || []);
     const [selectedStatuses, setSelectedStatuses] = useState<(PropertyStatus | string)[]>(filters.status || []);
+    const searchParamStatuses = useMemo(
+        () => getManagerPropertyStatusFilters(searchParams),
+        [searchParams],
+    );
+    const isLiveListingsPreset = searchParams.get('view') === MANAGER_LIVE_LISTINGS_VIEW;
+
+    useEffect(() => {
+        if (isLiveListingsPreset) {
+            const presetStatuses = searchParamStatuses.length > 0
+                ? searchParamStatuses
+                : [MANAGER_LIVE_LISTINGS_STATUS_FILTER];
+
+            if (searchQuery) {
+                setSearchQuery('');
+            }
+            if (selectedPriceRange !== 0) {
+                setSelectedPriceRange(0);
+            }
+            if (selectedBedrooms !== undefined) {
+                setSelectedBedrooms(undefined);
+            }
+            if (selectedPropertyTypes.length > 0) {
+                setSelectedPropertyTypes([]);
+            }
+            if (!managerPropertyStatusFiltersEqual(selectedStatuses, presetStatuses)) {
+                setSelectedStatuses(presetStatuses);
+            }
+
+            const needsPresetSync = filters.search !== undefined
+                || filters.priceMin !== undefined
+                || filters.priceMax !== undefined
+                || filters.bedroomsMin !== undefined
+                || (filters.propertyType?.length ?? 0) > 0
+                || !managerPropertyStatusFiltersEqual(filters.status, presetStatuses);
+
+            if (needsPresetSync) {
+                setFilters({
+                    ...filters,
+                    search: undefined,
+                    priceMin: undefined,
+                    priceMax: undefined,
+                    bedroomsMin: undefined,
+                    propertyType: undefined,
+                    status: presetStatuses,
+                });
+            }
+            return;
+        }
+
+        if (searchParamStatuses.length > 0) {
+            if (!managerPropertyStatusFiltersEqual(selectedStatuses, searchParamStatuses)) {
+                setSelectedStatuses(searchParamStatuses);
+            }
+            if (!managerPropertyStatusFiltersEqual(filters.status, searchParamStatuses)) {
+                setFilters({
+                    ...filters,
+                    status: searchParamStatuses,
+                });
+            }
+            return;
+        }
+
+        if (selectedStatuses.length > 0) {
+            setSelectedStatuses([]);
+        }
+        if ((filters.status?.length ?? 0) > 0) {
+            setFilters({
+                ...filters,
+                status: undefined,
+            });
+        }
+    }, [
+        filters,
+        isLiveListingsPreset,
+        searchParamStatuses,
+        searchQuery,
+        selectedBedrooms,
+        selectedPriceRange,
+        selectedPropertyTypes,
+        selectedStatuses,
+        setFilters,
+    ]);
 
     // Debounced search
     useEffect(() => {
         const timer = setTimeout(() => {
-            setFilters({ ...filters, search: searchQuery || undefined });
+            const nextSearch = searchQuery.trim() || undefined;
+            if (filters.search === nextSearch) {
+                return;
+            }
+
+            setFilters({ ...filters, search: nextSearch });
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, setFilters]);
+    }, [filters, searchQuery, setFilters]);
 
     const handleApplyFilters = () => {
         const priceRange = priceRanges[selectedPriceRange];
+        const normalizedStatuses = normalizeManagerPropertyStatusFilters(selectedStatuses);
+
+        setSearchParams(
+            buildManagerPropertySearchParams(searchParams, normalizedStatuses),
+            { replace: true },
+        );
         setFilters({
             ...filters,
             search: searchQuery || undefined,
@@ -154,7 +256,7 @@ function PropertiesContent() {
             priceMax: priceRange.max,
             bedroomsMin: selectedBedrooms,
             propertyType: selectedPropertyTypes.length > 0 ? selectedPropertyTypes : undefined,
-            status: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+            status: normalizedStatuses.length > 0 ? normalizedStatuses : undefined,
         });
         setShowFilters(false);
     };
@@ -165,6 +267,7 @@ function PropertiesContent() {
         setSelectedBedrooms(undefined);
         setSelectedPropertyTypes([]);
         setSelectedStatuses([]);
+        setSearchParams(buildManagerPropertySearchParams(searchParams, []), { replace: true });
         clearFilters();
     };
 

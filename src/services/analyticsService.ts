@@ -9,6 +9,8 @@ const CORE_URL = () => getServiceUrl('core');
 
 export interface PropertyPerformance {
     property: string;
+    property_id?: string;
+    status?: string;
     views: number;
     applications: number;
     conversionRate: number;

@@ -35,6 +35,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
+    const formattedPropertyPrice = new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0,
+    }).format(application.propertyPrice || 0);
     const saleDisplayStage = application.listingType !== 'rent'
         ? resolveSaleJourneyDisplayStage(application)
         : null;
@@ -449,10 +454,10 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 dark:border-gray-700">
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
-                                £{application.propertyPrice?.toLocaleString()}
+                                {formattedPropertyPrice}
                             </span>
                             <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
-                                {application.propertyType === 'rent' ? '/month' : ''}
+                                {application.listingType === 'rent' || application.listingType === 'lease' ? '/month' : ''}
                             </span>
                         </div>
 

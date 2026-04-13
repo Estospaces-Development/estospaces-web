@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
+import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface AdminLayoutClientProps {
     children: React.ReactNode;
@@ -16,24 +17,18 @@ interface AdminLayoutClientProps {
 export default function AdminLayoutClient({ children, isSubdomain = false }: AdminLayoutClientProps) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const { user, loading, isAuthenticated } = useAuth();
-    const navigate = useNavigate();
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
 
-    useEffect(() => {
-        if (!loading) {
-            if (!isAuthenticated) {
-                navigate('/login');
-            } else if (user?.role !== 'admin') {
-                navigate('/login'); // Or unauthorized page
-            }
-        }
-    }, [isAuthenticated, loading, user, navigate]);
-
-    if (loading) {
+    if (shouldWaitForSession) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
-    if (!isAuthenticated || user?.role !== 'admin') {
-        return null; // Prevent flash of content
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (user?.role !== 'admin') {
+        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
     }
 
     return (

@@ -4,11 +4,13 @@ import assert from 'node:assert/strict';
 import {
     buildLatestPropertyComplianceEvidenceMap,
     createPropertyComplianceDrafts,
+    dedupeJourneyBlockers,
     getOfferReadinessBlockers,
     getOfferReadinessRequirements,
     getPropertyComplianceStatusLabel,
     isPropertyOfferReady,
     isPropertyContractReady,
+    normalizePropertyComplianceCode,
 } from './propertyCompliance';
 
 test('offer-readiness helpers only expose seller-side offer requirements and blockers', () => {
@@ -32,6 +34,37 @@ test('offer-readiness helpers only expose seller-side offer requirements and blo
     assert.deepEqual(
         getOfferReadinessBlockers(readiness as any).map((item) => item.code),
         ['seller_instruction_record'],
+    );
+});
+
+test('journey blocker helpers collapse repeated readiness errors before rendering', () => {
+    const blockers = [
+        {
+            code: 'property_property_readiness_unavailable',
+            scope: 'contract_readiness',
+            severity: 'high',
+            title: 'Property readiness unavailable',
+            description: 'property compliance readiness returned 429: Too many requests. Please try again later.',
+        },
+        {
+            code: 'property_property_readiness_unavailable',
+            scope: 'contract_readiness',
+            severity: 'high',
+            title: 'Property readiness unavailable',
+            description: 'property compliance readiness returned 429: Too many requests. Please try again later.',
+        },
+        {
+            code: 'property_gas_safety_record',
+            scope: 'contract_readiness',
+            severity: 'high',
+            title: 'Gas safety record is still required',
+            description: 'Track the current gas safety evidence where gas appliances exist.',
+        },
+    ];
+
+    assert.deepEqual(
+        dedupeJourneyBlockers(blockers as any).map((item) => item.code),
+        ['property_property_readiness_unavailable', 'property_gas_safety_record'],
     );
 });
 
@@ -102,6 +135,36 @@ test('drafts normalize satisfied statuses into editable purchase-workflow values
     assert.equal(getPropertyComplianceStatusLabel('approved'), 'Completed');
     assert.equal(getPropertyComplianceStatusLabel('waived'), 'Waived');
     assert.equal(getPropertyComplianceStatusLabel('missing'), 'Pending');
+});
+
+test('property-prefixed readiness codes normalize onto the backend evidence category', () => {
+    const requirements = [
+        { code: 'property_tenancy_support_pack', label: 'Tenancy support pack', status: 'missing', scope: 'contract_issue' },
+    ];
+    const evidenceMap = buildLatestPropertyComplianceEvidenceMap([
+        {
+            id: 'evidence-1',
+            property_id: 'property-1',
+            category: 'tenancy_support_pack',
+            jurisdiction: 'england',
+            status: 'approved',
+            reference_number: 'PACK-101',
+            review_notes: 'Pack ready',
+            created_by: 'manager-1',
+            updated_by: 'manager-1',
+            created_at: '2026-03-28T09:00:00Z',
+            updated_at: '2026-03-28T10:00:00Z',
+        },
+    ] as any);
+
+    const drafts = createPropertyComplianceDrafts(requirements as any, evidenceMap);
+
+    assert.equal(normalizePropertyComplianceCode('property_tenancy_support_pack'), 'tenancy_support_pack');
+    assert.deepEqual(drafts.property_tenancy_support_pack, {
+        status: 'completed',
+        referenceNumber: 'PACK-101',
+        reviewNotes: 'Pack ready',
+    });
 });
 
 test('offer readiness is gated by the seller pack status', () => {

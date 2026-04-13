@@ -7,13 +7,14 @@ import {
     Bed, Bath, Car, Maximize, Building, DollarSign, CheckCircle, X,
     Phone, Mail, Globe, Shield, Star, TrendingUp, Eye, MessageCircle,
     ChevronLeft, ChevronRight, Clock, User, FileText, Verified, Settings,
-    Send, Video
+    Send, Video, ExternalLink
 } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
 import VirtualTourRequestPanel from '@/components/virtual-tour/VirtualTourRequestPanel';
+import { getPropertyMapState } from '@/lib/propertyMaps';
 
 // Helper for currency formatting
 const formatPrice = (price: any) => {
@@ -225,6 +226,10 @@ export default function PropertyDetailPage() {
     // Get videos from the property  
     const videos = property.media?.videos?.map(vid => vid.url) ||
         property.videos?.filter((vid): vid is string => typeof vid === 'string') || [];
+    const propertyMapState = getPropertyMapState(property, {
+        userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
+    });
+    const propertyMapAddress = propertyMapState.displayAddress;
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 font-sans p-4 lg:p-6 pb-8">
@@ -692,16 +697,87 @@ export default function PropertyDetailPage() {
                             <Globe className="text-orange-600" size={20} />
                             <h3 className="font-bold text-gray-900 dark:text-white">Location</h3>
                         </div>
+                        {propertyMapState.externalUrl && (
+                            <a
+                                href={propertyMapState.externalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:border-blue-200 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-900 dark:text-blue-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/30"
+                            >
+                                <span>Open in Maps</span>
+                                <ExternalLink size={15} />
+                            </a>
+                        )}
                     </div>
-                    <div className="aspect-video relative bg-gray-100 dark:bg-gray-900">
-                        <iframe
-                            width="100%"
-                            height="100%"
-                            frameBorder="0"
-                            style={{ border: 0 }}
-                            src={`https://maps.google.com/maps?q=${property.location?.latitude || 51.505},${property.location?.longitude || -0.09}&z=14&output=embed`}
-                            allowFullScreen
-                        ></iframe>
+                    <div className="p-4">
+                        {propertyMapState.hasCoordinates && propertyMapState.embedUrl && propertyMapState.externalUrl ? (
+                            <a
+                                href={propertyMapState.externalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="group block"
+                                aria-label={`Open ${property.title} in Maps`}
+                            >
+                                <div className="aspect-video relative overflow-hidden rounded-xl border border-gray-200 bg-gray-100 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                                    <iframe
+                                        src={propertyMapState.embedUrl}
+                                        title={`Map preview for ${property.title}`}
+                                        className="pointer-events-none h-full w-full border-0"
+                                        allowFullScreen
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent transition-opacity group-hover:opacity-95" />
+                                    <div className="absolute left-4 top-4 rounded-lg bg-white/95 px-3 py-2 text-sm font-semibold text-blue-700 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 dark:text-blue-300">
+                                        <span className="inline-flex items-center gap-2">
+                                            <span>Open in Maps</span>
+                                            <ExternalLink size={15} />
+                                        </span>
+                                    </div>
+                                    <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
+                                            {propertyMapState.statusTitle}
+                                        </p>
+                                        {propertyMapAddress && (
+                                            <p className="mt-2 text-sm font-medium text-white">
+                                                {propertyMapAddress}
+                                            </p>
+                                        )}
+                                        <p className="mt-1 text-sm text-white/80">
+                                            {propertyMapState.statusDescription}
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+                        ) : (
+                            <div className="aspect-video rounded-xl border border-dashed border-gray-300 bg-gradient-to-br from-gray-50 to-white p-6 dark:border-gray-700 dark:from-gray-950 dark:to-gray-900">
+                                <div className="flex h-full flex-col items-center justify-center text-center">
+                                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/20 dark:text-orange-300">
+                                        <MapPin size={24} />
+                                    </div>
+                                    <h4 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+                                        {propertyMapState.statusTitle}
+                                    </h4>
+                                    <p className="mt-2 max-w-xl text-sm text-gray-600 dark:text-gray-400">
+                                        {propertyMapState.statusDescription}
+                                    </p>
+                                    {propertyMapAddress && (
+                                        <div className="mt-4 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                                            {propertyMapAddress}
+                                        </div>
+                                    )}
+                                    {propertyMapState.externalUrl && (
+                                        <a
+                                            href={propertyMapState.externalUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                                        >
+                                            <span>Open in Maps</span>
+                                            <ExternalLink size={15} />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

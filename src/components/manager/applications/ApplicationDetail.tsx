@@ -76,12 +76,14 @@ import {
 import {
   buildLatestPropertyComplianceEvidenceMap,
   createPropertyComplianceDrafts,
+  dedupeJourneyBlockers,
   findRequirementBlocker,
   getOfferReadinessBlockers,
   getOfferReadinessRequirements,
   getPropertyComplianceStatusLabel,
   isPropertyOfferReady,
   isPropertyContractReady,
+  normalizePropertyComplianceCode,
   type PropertyComplianceEvidenceDraft,
 } from "@/lib/propertyCompliance";
 import { summarizeCaseFileDocuments } from "@/lib/caseFileDocuments";
@@ -96,6 +98,10 @@ import {
   resolveManagerApplicationTab,
 } from "@/lib/managerApplicationWorkspace";
 import type { WorkspaceSection } from "@/lib/liveCaseWorkspace";
+import {
+  getManagerCreateContractGuard,
+  getManagerOfferGuard,
+} from "@/lib/managerWorkflowGuards";
 
 interface ApplicationDetailProps {
   applicationId: string;
@@ -229,6 +235,21 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     });
   }, [application?.id, application?.propertyPrice]);
 
+  const managerWorkflowRequestOptions = { suppressErrorToast: true } as const;
+
+  const resetManagedPurchaseWorkflowState = () => {
+    setBuyerQualification(null);
+    setAmlReview(null);
+    setPropertyComplianceReadiness(null);
+    setPropertyComplianceDrafts({});
+  };
+
+  const resetManagedRentWorkflowState = () => {
+    setRentCaseFile(null);
+    setReferencingCheck(null);
+    setRightToRentCheck(null);
+  };
+
   const scrollToWorkflowSection = (
     section: "buyer" | "aml" | "seller" | "offer",
   ) => {
@@ -327,7 +348,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     targetApplication: Application,
   ) => {
     const compliancePromise = targetApplication.propertyId
-      ? getPropertyComplianceEvidence(targetApplication.propertyId)
+      ? getPropertyComplianceEvidence(
+          targetApplication.propertyId,
+          managerWorkflowRequestOptions,
+        )
       : Promise.resolve({
           data: { evidence: [], readiness: null },
           error: null,
@@ -335,8 +359,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
     const [qualificationResult, amlResult, complianceResult] =
       await Promise.all([
-        getBuyerQualification(targetApplication.id),
-        getAMLReview(targetApplication.id),
+        getBuyerQualification(targetApplication.id, managerWorkflowRequestOptions),
+        getAMLReview(targetApplication.id, managerWorkflowRequestOptions),
         compliancePromise,
       ]);
 
@@ -379,14 +403,14 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const loadRentWorkflow = async (targetApplication: Application) => {
     const caseFilePromise = targetApplication.fastTrackCaseId
-      ? getCaseFile(targetApplication.fastTrackCaseId)
+      ? getCaseFile(targetApplication.fastTrackCaseId, managerWorkflowRequestOptions)
       : Promise.resolve({ data: null, error: null });
 
     const [caseFileResult, referencingResult, rightToRentResult] =
       await Promise.all([
         caseFilePromise,
-        getReferencingCheck(targetApplication.id),
-        getRightToRentCheck(targetApplication.id),
+        getReferencingCheck(targetApplication.id, managerWorkflowRequestOptions),
+        getRightToRentCheck(targetApplication.id, managerWorkflowRequestOptions),
       ]);
 
     if (caseFileResult.error) {
@@ -407,10 +431,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   useEffect(() => {
     if (!application || !supportsManagedPurchaseWorkflow) {
-      setBuyerQualification(null);
-      setAmlReview(null);
-      setPropertyComplianceReadiness(null);
-      setPropertyComplianceDrafts({});
+      resetManagedPurchaseWorkflowState();
       setPurchaseWorkflowError(null);
       setPendingOfferFocus(false);
       return;
@@ -421,6 +442,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     const loadPurchaseWorkflow = async () => {
       setIsLoadingPurchaseWorkflow(true);
       setPurchaseWorkflowError(null);
+      resetManagedPurchaseWorkflowState();
       try {
         await loadManagedPurchaseWorkflow(application);
         if (!cancelled) {
@@ -428,6 +450,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         }
       } catch (error: any) {
         if (!cancelled) {
+          resetManagedPurchaseWorkflowState();
           setPurchaseWorkflowError(
             error?.message ||
               "Unable to load the live purchase workflow right now.",
@@ -446,9 +469,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   useEffect(() => {
     if (!application || !isRentApplication) {
-      setRentCaseFile(null);
-      setReferencingCheck(null);
-      setRightToRentCheck(null);
+      resetManagedRentWorkflowState();
       setRentWorkflowError(null);
       return;
     }
@@ -458,6 +479,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     const loadCurrentRentWorkflow = async () => {
       setIsLoadingRentWorkflow(true);
       setRentWorkflowError(null);
+      resetManagedRentWorkflowState();
       try {
         await loadRentWorkflow(application);
         if (!cancelled) {
@@ -465,6 +487,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         }
       } catch (error: any) {
         if (!cancelled) {
+          resetManagedRentWorkflowState();
           setRentWorkflowError(
             error?.message ||
               "Unable to load the live rent workflow right now.",
@@ -480,33 +503,6 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       cancelled = true;
     };
   }, [application?.id, application?.fastTrackCaseId, isRentApplication]);
-
-  if (!application) {
-    return (
-      <div className="min-h-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center font-outfit">
-        <div className="text-center p-8">
-          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileText className="w-8 h-8 text-gray-400" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Application Not Found
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            This application may have been removed or doesn't exist.
-          </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
-          >
-            Back to Applications
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const canWithdraw = canWithdrawApplicationRecord(application);
-  const saleNextActions = getNextSaleJourneyActions(application.status);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -558,13 +554,6 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     );
   };
 
-  const purchaseStageLabel = purchaseDisplayStage
-    ? getSaleJourneyStageLabel(purchaseDisplayStage)
-    : "Purchase journey";
-  const purchaseJourneySummary = getSaleJourneySummary(
-    purchaseDisplayStage || application.status,
-    application.journeySummary || application.journeyStatusReason,
-  );
   const buyerQualificationReady =
     buyerQualificationDraft.mortgageInPrincipleVerified ||
     buyerQualificationDraft.proofOfFundsVerified;
@@ -581,7 +570,20 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     propertyComplianceReadiness,
   );
   const propertyOfferReady = isPropertyOfferReady(propertyComplianceReadiness);
-  const offerLaneReady = purchaseOfferReady && propertyOfferReady;
+  const offerAmountValue = Number(offerDraft.amount);
+  const recordOfferGuard = getManagerOfferGuard({
+    hasManagerLink: Boolean(application?.managerId),
+    hasPropertyLink: Boolean(application?.propertyId),
+    workflowError: purchaseWorkflowError,
+    isRefreshing: isLoadingPurchaseWorkflow,
+    qualificationComplete,
+    amlComplete,
+    propertyOfferReady,
+    propertyReadinessReason: propertyComplianceReadiness?.status_reason,
+    propertyReadinessBlockers: offerReadinessBlockers,
+    hasValidAmount: Number.isFinite(offerAmountValue) && offerAmountValue > 0,
+  });
+  const offerLaneReady = recordOfferGuard.canRun;
 
   useEffect(() => {
     if (!pendingOfferFocus || !offerLaneReady) {
@@ -592,48 +594,103 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     setPendingOfferFocus(false);
   }, [offerLaneReady, pendingOfferFocus]);
 
-  const purchaseWorkspaceState = !qualificationComplete
+  if (!application) {
+    return (
+      <div className="min-h-full bg-gray-50 dark:bg-gray-900 flex items-center justify-center font-outfit">
+        <div className="text-center p-8">
+          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FileText className="w-8 h-8 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Application Not Found
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            This application may have been removed or doesn't exist.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+          >
+            Back to Applications
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const canWithdraw = canWithdrawApplicationRecord(application);
+  const saleNextActions = getNextSaleJourneyActions(application.status);
+  const purchaseStageLabel = purchaseDisplayStage
+    ? getSaleJourneyStageLabel(purchaseDisplayStage)
+    : "Purchase journey";
+  const purchaseJourneySummary = getSaleJourneySummary(
+    purchaseDisplayStage || application.status,
+    application.journeySummary || application.journeyStatusReason,
+  );
+
+  const purchaseWorkspaceState = isLoadingPurchaseWorkflow
     ? {
-        tone: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300",
-        badge: "Buyer qualification needed",
-        title: "Finish buyer qualification to keep the purchase moving.",
+        tone: "border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300",
+        badge: "Refreshing workflow",
+        title: "Refreshing the live purchase workflow.",
         description:
-          "Verify proof of funds or a mortgage in principle first. As soon as that is saved, we will keep this case in sync and point you to the next required step.",
-        actionLabel: "Open buyer qualification",
-        targetSection: "buyer" as const,
+          "Waiting for the latest buyer qualification, AML, and seller-readiness records before the offer lane is evaluated again.",
+        actionLabel: "Open offer lane",
+        targetSection: "offer" as const,
       }
-    : !amlComplete
+    : recordOfferGuard.status === "ready"
+    ? {
+        tone: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
+        badge: "Offer lane unlocked",
+        title: "Everything is ready. Record the first buyer offer now.",
+        description:
+          "Buyer qualification, AML, and seller readiness are all complete. Stay on this case and record the first offer to open the live sale progression.",
+        actionLabel: "Jump to record first offer",
+        targetSection: "offer" as const,
+      }
+    : recordOfferGuard.status === "unavailable"
       ? {
-          tone: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300",
-          badge: "AML review needed",
-          title:
-            "Buyer qualification is done. AML is the last buyer-side check.",
-          description:
-            "Complete identity and source-of-funds review here so the offer lane can unlock without leaving this workspace.",
-          actionLabel: "Open AML review",
-          targetSection: "aml" as const,
+          tone: "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300",
+          badge: "Workflow unavailable",
+          title: recordOfferGuard.title,
+          description: recordOfferGuard.description,
+          actionLabel: recordOfferGuard.actionLabel || "Open seller readiness",
+          targetSection: (recordOfferGuard.target || "seller") as
+            | "offer"
+            | "seller",
         }
-      : !propertyOfferReady
-        ? {
-            tone: "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300",
-            badge: "Seller readiness needed",
-            title:
-              "Buyer checks are complete. The seller pack is now the only blocker.",
-            description:
-              propertyComplianceReadiness?.status_reason ||
-              "Finish the seller readiness items below and the first-offer action will unlock immediately on this page.",
-            actionLabel: "Open seller readiness",
-            targetSection: "seller" as const,
-          }
-        : {
-            tone: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300",
-            badge: "Offer lane unlocked",
-            title: "Everything is ready. Record the first buyer offer now.",
-            description:
-              "Buyer qualification, AML, and seller readiness are all complete. Stay on this case and record the first offer to open the live sale progression.",
-            actionLabel: "Jump to record first offer",
-            targetSection: "offer" as const,
-          };
+      : {
+          tone:
+            recordOfferGuard.target === "aml"
+              ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+              : recordOfferGuard.target === "offer"
+                ? "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/30 dark:text-violet-300"
+                : "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300",
+          badge:
+            recordOfferGuard.target === "buyer"
+              ? "Buyer qualification needed"
+              : recordOfferGuard.target === "aml"
+                ? "AML review needed"
+                : recordOfferGuard.target === "offer"
+                  ? "Offer details needed"
+                  : "Seller readiness needed",
+          title: recordOfferGuard.title,
+          description: recordOfferGuard.description,
+          actionLabel:
+            recordOfferGuard.actionLabel ||
+            (recordOfferGuard.target === "buyer"
+              ? "Open buyer qualification"
+              : recordOfferGuard.target === "aml"
+                ? "Open AML review"
+                : recordOfferGuard.target === "offer"
+                  ? "Open offer details"
+                  : "Open seller readiness"),
+          targetSection: (recordOfferGuard.target || "seller") as
+            | "aml"
+            | "buyer"
+            | "offer"
+            | "seller",
+        };
   const displayStatusLabel =
     isPurchaseApplication && purchaseDisplayStage
       ? purchaseStageLabel
@@ -666,9 +723,25 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     : null;
   const rentPropertyComplianceReadiness =
     rentCaseFile?.property_compliance_readiness || null;
+  const rentPropertyReadinessBlockers = dedupeJourneyBlockers(
+    rentPropertyComplianceReadiness?.blockers,
+  );
+  const visibleApplicationBlockers = dedupeJourneyBlockers(
+    application?.blockers,
+  );
   const rentContractReady = isPropertyContractReady(
     rentPropertyComplianceReadiness,
   );
+  const createContractGuard = getManagerCreateContractGuard({
+    hasContract: Boolean(rentCaseFile?.contract_id),
+    applicationApproved: application?.status === APPLICATION_STATUS.APPROVED,
+    hasPropertyLink: Boolean(application?.propertyId),
+    workflowError: rentWorkflowError,
+    isRefreshing: isLoadingRentWorkflow,
+    rentContractReady,
+    propertyReadinessReason: rentPropertyComplianceReadiness?.status_reason,
+    propertyReadinessBlockers: rentPropertyReadinessBlockers,
+  });
   const managerRentNextAction =
     isLoadingRentWorkflow && application?.fastTrackCaseId
       ? null
@@ -879,10 +952,23 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
-    await Promise.all([
-      loadManagedPurchaseWorkflow(application),
-      fetchApplications(),
-    ]);
+    setIsLoadingPurchaseWorkflow(true);
+    setPurchaseWorkflowError(null);
+    resetManagedPurchaseWorkflowState();
+    try {
+      await Promise.all([
+        loadManagedPurchaseWorkflow(application),
+        fetchApplications(),
+      ]);
+    } catch (error: any) {
+      resetManagedPurchaseWorkflowState();
+      setPurchaseWorkflowError(
+        error?.message || "Unable to refresh the live purchase workflow right now.",
+      );
+      throw error;
+    } finally {
+      setIsLoadingPurchaseWorkflow(false);
+    }
   };
 
   const refreshRentWorkflow = async () => {
@@ -890,7 +976,20 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
-    await Promise.all([loadRentWorkflow(application), fetchApplications()]);
+    setIsLoadingRentWorkflow(true);
+    setRentWorkflowError(null);
+    resetManagedRentWorkflowState();
+    try {
+      await Promise.all([loadRentWorkflow(application), fetchApplications()]);
+    } catch (error: any) {
+      resetManagedRentWorkflowState();
+      setRentWorkflowError(
+        error?.message || "Unable to refresh the live rent workflow right now.",
+      );
+      throw error;
+    } finally {
+      setIsLoadingRentWorkflow(false);
+    }
   };
 
   const handleReferencingStatusUpdate = async (
@@ -908,7 +1007,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
           status === "completed"
             ? "Referencing completed from the manager application workflow."
             : "Referencing started from the manager application workflow.",
-      });
+      }, managerWorkflowRequestOptions);
       if (result.error) {
         throw new Error(result.error);
       }
@@ -948,7 +1047,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
               : "Right-to-rent check started from the manager application workflow.",
         checked_at:
           status === "completed" ? new Date().toISOString() : undefined,
-      });
+      }, managerWorkflowRequestOptions);
       if (result.error) {
         throw new Error(result.error);
       }
@@ -986,6 +1085,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         application.id,
         "approved",
         "Approved from the manager application workflow.",
+        managerWorkflowRequestOptions,
       );
       if (result.error) {
         throw new Error(result.error);
@@ -1025,19 +1125,18 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
-    if (!rentContractReady) {
-      if (!application?.propertyId) {
-        toast.error(
-          "This rent application is missing the property link needed to review readiness.",
-        );
-        return;
+    if (!createContractGuard.canRun) {
+      if (createContractGuard.target === "property_readiness") {
+        scrollToRentPanel("property_readiness");
+      } else if (createContractGuard.target === "approval") {
+        scrollToRentPanel("approval");
       }
 
-      toast.warning(
-        rentPropertyComplianceReadiness?.status_reason ||
-          "The property compliance pack still needs to be contract-ready before the contract can be created.",
-      );
-      scrollToRentPanel("property_readiness");
+      if (createContractGuard.status === "unavailable") {
+        toast.error(createContractGuard.description);
+      } else {
+        toast.warning(createContractGuard.description);
+      }
       return;
     }
 
@@ -1102,7 +1201,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         mortgage_in_principle_verified:
           buyerQualificationDraft.mortgageInPrincipleVerified,
         proof_of_funds_verified: buyerQualificationDraft.proofOfFundsVerified,
-      });
+      }, managerWorkflowRequestOptions);
       if (result.error) {
         throw new Error(result.error);
       }
@@ -1137,7 +1236,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         verified_at: amlReviewReady ? new Date().toISOString() : undefined,
         identity_status: amlReviewDraft.identityStatus,
         source_of_funds_status: amlReviewDraft.sourceOfFundsStatus,
-      });
+      }, managerWorkflowRequestOptions);
       if (result.error) {
         throw new Error(result.error);
       }
@@ -1158,64 +1257,59 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   };
 
   const handleCreateOffer = async () => {
-    if (!application?.propertyId || !application.managerId) {
-      toast.error(
-        "This purchase application is missing the manager or property link needed for an offer.",
-      );
-      return;
-    }
+    if (!recordOfferGuard.canRun) {
+      if (recordOfferGuard.target === "buyer") {
+        scrollToWorkflowSection("buyer");
+      } else if (recordOfferGuard.target === "aml") {
+        scrollToWorkflowSection("aml");
+      } else if (recordOfferGuard.target === "seller") {
+        scrollToWorkflowSection("seller");
+      } else if (recordOfferGuard.target === "offer") {
+        scrollToWorkflowSection("offer");
+      }
 
-    const offerAmount = Number(offerDraft.amount);
-    if (!Number.isFinite(offerAmount) || offerAmount <= 0) {
-      toast.error("Enter a valid buyer offer amount before continuing.");
+      toast.error(recordOfferGuard.description);
       return;
     }
 
     setPurchaseWorkflowAction("create_offer");
     try {
+      const propertyId = application.propertyId!;
+      const managerId = application.managerId!;
       const offerResult = await createOffer({
         application_id: application.id,
-        property_id: application.propertyId,
-        manager_id: application.managerId,
+        property_id: propertyId,
+        manager_id: managerId,
         lead_id: application.leadId,
         fast_track_case_id: application.fastTrackCaseId,
-        amount: offerAmount,
+        amount: offerAmountValue,
         notes: offerDraft.notes,
-      });
+      }, { suppressErrorToast: true });
       if (offerResult.error || !offerResult.data) {
         throw new Error(
           offerResult.error || "Unable to create the offer record.",
         );
       }
 
-      const progressionsResult = await getSaleProgressions();
-      if (progressionsResult.error) {
-        throw new Error(progressionsResult.error);
-      }
-
-      await fetchApplications();
-
-      const linkedProgression = (progressionsResult.data || []).find(
-        (progression) =>
-          progression.offer_id === offerResult.data?.id ||
-          (application.fastTrackCaseId &&
-            progression.fast_track_case_id === application.fastTrackCaseId) ||
-          (application.leadId && progression.lead_id === application.leadId) ||
-          (progression.property_id === application.propertyId &&
-            progression.user_id === application.userId &&
-            progression.manager_id === application.managerId),
+      const refreshResults = await Promise.allSettled([
+        getSaleProgressions({ suppressErrorToast: true }),
+        fetchApplications(),
+      ]);
+      const refreshHadError = refreshResults.some(
+        (result) => result.status === "rejected",
       );
 
       navigate(
         buildWorkspacePath("/manager/applications", {
-          applicationId: linkedProgression?.id,
           caseId: application.fastTrackCaseId,
           leadId: application.leadId,
           propertyId: application.propertyId,
         }),
       );
       toast.success(
-        "Buyer offer recorded and the live sale progression is now open.",
+        refreshHadError
+          ? "Buyer offer recorded. The applications workspace is refreshing in the background."
+          : "Buyer offer recorded and the live sale progression is now open.",
       );
     } catch (error: any) {
       if (String(error?.message || "").includes("seller property pack")) {
@@ -1267,15 +1361,18 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
     setPurchaseWorkflowAction(`property_compliance:${requirementCode}`);
     try {
+      const normalizedRequirementCode =
+        normalizePropertyComplianceCode(requirementCode);
       const result = await upsertPropertyComplianceEvidence(
         application.propertyId,
-        requirementCode,
+        normalizedRequirementCode,
         {
           status: draft.status,
           jurisdiction: propertyComplianceReadiness?.jurisdiction_profile,
           reference_number: draft.referenceNumber.trim() || undefined,
           review_notes: draft.reviewNotes.trim() || undefined,
         },
+        managerWorkflowRequestOptions,
       );
       if (result.error) {
         throw new Error(result.error);
@@ -1828,10 +1925,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
                     {renderGuidedProgressRail(purchaseGuidedSteps)}
 
-                    {application.blockers &&
-                      application.blockers.length > 0 && (
+                    {visibleApplicationBlockers.length > 0 && (
                         <div className="mt-6 grid gap-3 md:grid-cols-2">
-                          {application.blockers.map((blocker) => (
+                          {visibleApplicationBlockers.map((blocker) => (
                             <div
                               key={blocker.code}
                               className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300"
@@ -2530,10 +2626,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           {rentPropertyComplianceReadiness?.status_reason ||
                             "Review the live readiness pack here before creating the tenancy contract."}
                         </p>
-                        {rentPropertyComplianceReadiness?.blockers &&
-                        rentPropertyComplianceReadiness.blockers.length > 0 ? (
+                        {rentPropertyReadinessBlockers.length > 0 ? (
                           <div className="mt-4 space-y-2">
-                            {rentPropertyComplianceReadiness.blockers
+                            {rentPropertyReadinessBlockers
                               .slice(0, 3)
                               .map((blocker) => (
                                 <div
@@ -2582,29 +2677,39 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         type="button"
                         onClick={handleRentContractAction}
                         disabled={
-                          rentWorkflowAction !== null ||
-                          !rentCaseFile?.contract_id &&
-                          application.status !== APPLICATION_STATUS.APPROVED
+                          rentWorkflowAction !== null
+                          || (!rentCaseFile?.contract_id
+                            && createContractGuard.status === "unavailable")
                         }
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                       >
                         <FileText size={16} />
                         {rentCaseFile?.contract_id
                           ? "Open contracts workspace"
-                          : rentContractReady
+                          : isLoadingRentWorkflow
+                            ? "Refreshing workflow"
+                          : createContractGuard.canRun
                             ? "Create contract"
-                            : "Review property readiness"}
+                            : createContractGuard.target === "property_readiness"
+                              ? "Review property readiness"
+                              : "Review contract blockers"}
                       </button>
                     </div>
 
-                    {!rentContractReady &&
+                    {!isLoadingRentWorkflow &&
+                    !rentCaseFile?.contract_id &&
+                    createContractGuard.status !== "ready" &&
                     (application.status === APPLICATION_STATUS.APPROVED ||
                       managerRentNextAction?.id ===
                         "review_property_readiness" ||
                       managerRentNextAction?.id === "open_create_contract") ? (
-                      <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-                        {rentPropertyComplianceReadiness?.status_reason ||
-                          "The property compliance pack still has blockers before the contract can be issued or move-in can proceed."}
+                      <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${
+                        createContractGuard.status === "unavailable"
+                          ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+                          : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+                      }`}>
+                        <p className="font-semibold">{createContractGuard.title}</p>
+                        <p className="mt-1">{createContractGuard.description}</p>
                       </div>
                     ) : null}
 
@@ -2760,8 +2865,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         disabled={
                           rentWorkflowAction !== null ||
                           (!rentCaseFile?.contract_id &&
-                            application.status !==
-                              APPLICATION_STATUS.APPROVED)
+                            createContractGuard.status === "unavailable")
                         }
                         className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors shadow-sm"
                       >
@@ -2769,9 +2873,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         <span>
                           {rentCaseFile?.contract_id
                             ? "Open Contract"
-                            : rentContractReady
+                            : isLoadingRentWorkflow
+                              ? "Refreshing workflow"
+                            : createContractGuard.canRun
                               ? "Create contract"
-                              : "Review property readiness"}
+                              : createContractGuard.target === "property_readiness"
+                                ? "Review property readiness"
+                                : "Review contract blockers"}
                         </span>
                       </button>
                     )}

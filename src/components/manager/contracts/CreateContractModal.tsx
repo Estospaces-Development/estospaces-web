@@ -16,6 +16,8 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
     const { success: toastSuccess } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [submitError, setSubmitError] = useState('');
+    const [monthlyRentInput, setMonthlyRentInput] = useState(String(propertyPrice || 0));
+    const [depositAmountInput, setDepositAmountInput] = useState(String((propertyPrice || 0) * 1.2));
     const [formData, setFormData] = useState<CreateContractRequest>({
         application_id: applicationId,
         start_date: '',
@@ -29,11 +31,14 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
         e.preventDefault();
         setSubmitError('');
 
-        if (!Number.isFinite(formData.monthly_rent) || formData.monthly_rent < 0) {
+        const monthlyRent = Number.parseFloat(monthlyRentInput);
+        const depositAmount = Number.parseFloat(depositAmountInput);
+
+        if (!Number.isFinite(monthlyRent) || monthlyRent < 0) {
             setSubmitError('Monthly rent must be a valid amount.');
             return;
         }
-        if (!Number.isFinite(formData.deposit_amount) || formData.deposit_amount < 0) {
+        if (!Number.isFinite(depositAmount) || depositAmount < 0) {
             setSubmitError('Security deposit must be a valid amount.');
             return;
         }
@@ -44,7 +49,11 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
 
         setIsLoading(true);
 
-        const { data, error } = await createContract(formData);
+        const { data, error } = await createContract({
+            ...formData,
+            monthly_rent: monthlyRent,
+            deposit_amount: depositAmount,
+        });
 
         if (error) {
             setSubmitError(error);
@@ -86,17 +95,17 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Rent & Deposit */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent (£)</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent (GBP)</label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input
                                         type="number"
                                         required
                                         min="0"
-                                        value={formData.monthly_rent}
+                                        value={monthlyRentInput}
                                         onChange={(e) => {
                                             setSubmitError('');
-                                            setFormData({ ...formData, monthly_rent: parseFloat(e.target.value) });
+                                            setMonthlyRentInput(e.target.value);
                                         }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                                     />
@@ -104,17 +113,17 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit (£)</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit (GBP)</label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input
                                         type="number"
                                         required
                                         min="0"
-                                        value={formData.deposit_amount}
+                                        value={depositAmountInput}
                                         onChange={(e) => {
                                             setSubmitError('');
-                                            setFormData({ ...formData, deposit_amount: parseFloat(e.target.value) });
+                                            setDepositAmountInput(e.target.value);
                                         }}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
                                     />

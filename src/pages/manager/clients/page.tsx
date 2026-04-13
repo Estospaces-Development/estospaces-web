@@ -2,23 +2,37 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Users, Search, Plus, Filter, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import UserCard from '../../../components/dashboard/UserCard';
 import Select from '../../../components/ui/Select';
 import BackButton from '../../../components/ui/BackButton';
-import { getUserLeads, Lead } from '@/services/leadsService';
+import { getBrokerLeads, Lead } from '@/services/leadsService';
+
+const mapLeadStatusToClientStatus = (status: string): 'active' | 'pending' | 'suspended' => {
+    if (['closed_lost', 'cancelled', 'rejected', 'withdrawn'].includes(status)) {
+        return 'suspended';
+    }
+
+    if (['pending_broker_response', 'matching'].includes(status)) {
+        return 'pending';
+    }
+
+    return 'active';
+};
 
 const ClientsPage = () => {
+    const navigate = useNavigate();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-    const [roleFilter, setRoleFilter] = useState('');
 
     const fetchLeads = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
-            const { data, error: err } = await getUserLeads();
+            const { data, error: err } = await getBrokerLeads(undefined, { suppressErrorToast: true });
             if (err) throw new Error(err);
             if (data) setLeads(data);
         } catch (err: any) {
@@ -37,7 +51,7 @@ const ClientsPage = () => {
             const name = l.name || l.email || '';
             const email = l.email || '';
             if (query && !name.toLowerCase().includes(query.toLowerCase()) && !email.toLowerCase().includes(query.toLowerCase())) return false;
-            if (statusFilter && l.status !== statusFilter) return false;
+            if (statusFilter && mapLeadStatusToClientStatus(l.status) !== statusFilter) return false;
             return true;
         });
     }, [leads, query, statusFilter]);
@@ -55,7 +69,11 @@ const ClientsPage = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">{loading ? '...' : leads.length} leads registered</p>
                     </div>
                 </div>
-                <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-lg transition-colors shadow-md">
+                <button
+                    type="button"
+                    onClick={() => navigate('/manager/leads')}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-lg transition-colors shadow-md"
+                >
                     <Plus className="w-4 h-4" /> Add Client
                 </button>
             </div>
@@ -85,6 +103,12 @@ const ClientsPage = () => {
                 />
             </div>
 
+            {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300">
+                    {error}
+                </div>
+            )}
+
             {/* Client List */}
             {loading ? (
                 <div className="flex justify-center py-20">
@@ -105,8 +129,8 @@ const ClientsPage = () => {
                             email={l.email || ''}
                             phone={l.phone || ''}
                             role="user"
-                            verified={true}
-                            status={(l.status === 'active' || l.status === 'pending' || l.status === 'suspended') ? l.status : 'active'}
+                            verified={Boolean(l.documents_verified)}
+                            status={mapLeadStatusToClientStatus(l.status)}
                             joinedDate={new Date(l.created_at).toLocaleDateString()}
                         />
                     ))}

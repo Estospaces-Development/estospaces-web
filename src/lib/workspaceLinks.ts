@@ -37,6 +37,12 @@ const pickLatestApplication = (applications: Application[]) => (
     ))[0] || null
 );
 
+const pickLatestViewing = (viewings: Viewing[]) => (
+    [...viewings].sort((left, right) => (
+        toTimestamp(right.scheduled_at || right.created_at) - toTimestamp(left.scheduled_at || left.created_at)
+    ))[0] || null
+);
+
 const isSaleProgressionApplication = (application?: Application | null) =>
     application?.source === 'sale_progression';
 
@@ -175,28 +181,28 @@ export const resolveFocusedViewing = (
     }
 
     if (normalizeId(options.applicationId)) {
-        const applicationMatch = viewings.find((viewing) => sameId(viewing.application_id, options.applicationId));
+        const applicationMatch = pickLatestViewing(viewings.filter((viewing) => sameId(viewing.application_id, options.applicationId)));
         if (applicationMatch) {
             return applicationMatch;
         }
     }
 
     if (normalizeId(options.caseId)) {
-        const caseMatch = viewings.find((viewing) => sameId(viewing.fast_track_case_id, options.caseId));
+        const caseMatch = pickLatestViewing(viewings.filter((viewing) => sameId(viewing.fast_track_case_id, options.caseId)));
         if (caseMatch) {
             return caseMatch;
         }
     }
 
     if (normalizeId(options.leadId)) {
-        const leadMatch = viewings.find((viewing) => sameId(viewing.lead_id, options.leadId));
+        const leadMatch = pickLatestViewing(viewings.filter((viewing) => sameId(viewing.lead_id, options.leadId)));
         if (leadMatch) {
             return leadMatch;
         }
     }
 
     if (normalizeId(options.propertyId)) {
-        return viewings.find((viewing) => sameId(viewing.property_id, options.propertyId)) || null;
+        return pickLatestViewing(viewings.filter((viewing) => sameId(viewing.property_id, options.propertyId)));
     }
 
     return null;

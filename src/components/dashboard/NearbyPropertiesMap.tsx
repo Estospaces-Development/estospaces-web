@@ -78,29 +78,35 @@ function MapAutoFit({
     const map = useMap();
 
     useEffect(() => {
-        const points: [number, number][] = [];
+        try {
+            const points: [number, number][] = [];
 
-        if (userLocation?.latitude && userLocation?.longitude) {
-            points.push([userLocation.latitude, userLocation.longitude]);
-        }
+            map.closePopup();
 
-        properties.forEach((property) => {
-            if (typeof property.latitude === 'number' && typeof property.longitude === 'number') {
-                points.push([property.latitude, property.longitude]);
+            if (userLocation?.latitude && userLocation?.longitude) {
+                points.push([userLocation.latitude, userLocation.longitude]);
             }
-        });
 
-        if (points.length === 0) {
-            map.setView([54.5, -3], 5);
-            return;
+            properties.forEach((property) => {
+                if (typeof property.latitude === 'number' && typeof property.longitude === 'number') {
+                    points.push([property.latitude, property.longitude]);
+                }
+            });
+
+            if (points.length === 0) {
+                map.setView([54.5, -3], 5);
+                return;
+            }
+
+            if (points.length === 1) {
+                map.setView(points[0], 14);
+                return;
+            }
+
+            map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
+        } catch {
+            // Ignore transient Leaflet teardown errors during route or data changes.
         }
-
-        if (points.length === 1) {
-            map.setView(points[0], 14);
-            return;
-        }
-
-        map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
     }, [map, properties, userLocation]);
 
     return null;
@@ -197,6 +203,11 @@ const NearbyPropertiesMap = ({
         () => propertiesWithCoords.find((property) => property.id === selectedPropertyID) || null,
         [propertiesWithCoords, selectedPropertyID],
     );
+    const mapKey = useMemo(() => [
+        userLocation?.latitude ?? 'none',
+        userLocation?.longitude ?? 'none',
+        ...propertiesWithCoords.map((property) => `${property.id}:${property.latitude}:${property.longitude}`),
+    ].join('|'), [propertiesWithCoords, userLocation?.latitude, userLocation?.longitude]);
 
     const hasMapData = Boolean(
         (userLocation?.latitude && userLocation?.longitude) || propertiesWithCoords.length > 0,
@@ -264,10 +275,14 @@ const NearbyPropertiesMap = ({
     return (
         <div className="relative h-full w-full overflow-hidden rounded-lg bg-white dark:bg-gray-800">
             <MapContainer
+                key={mapKey}
                 center={[54.5, -3]}
                 zoom={6}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom
+                fadeAnimation={false}
+                markerZoomAnimation={false}
+                zoomAnimation={false}
             >
                 <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} />
                 <TileLayer

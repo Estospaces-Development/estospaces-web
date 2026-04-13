@@ -59,6 +59,33 @@ function AnalyticsContent() {
         fetchAnalytics(true);
     };
 
+    const handleExportReport = useCallback(() => {
+        const rows = data?.propertyPerformance || [];
+        if (rows.length === 0) {
+            return;
+        }
+
+        const csv = [
+            ['Property', 'Views', 'Applications', 'Conversion Rate'],
+            ...rows.map((row) => [
+                row.property,
+                String(row.views),
+                String(row.applications),
+                String(row.conversionRate),
+            ]),
+        ]
+            .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `platform-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        window.URL.revokeObjectURL(downloadUrl);
+    }, [data]);
+
     const stats = [
         { 
             label: 'Total Leads', 
@@ -155,7 +182,14 @@ function AnalyticsContent() {
                     <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
                         <BarChart3 className="text-indigo-500" /> Top Performing Paths
                     </h2>
-                    <button className="text-xs font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600">Export Report</button>
+                    <button
+                        type="button"
+                        onClick={handleExportReport}
+                        disabled={!data?.propertyPerformance?.length}
+                        className="text-xs font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 disabled:cursor-not-allowed disabled:text-indigo-300"
+                    >
+                        Export Report
+                    </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">

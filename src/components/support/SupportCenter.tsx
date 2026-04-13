@@ -10,7 +10,13 @@ import { SupportComposer } from '@/components/support/SupportComposer';
 import { SupportFilters, type SupportFilterState } from '@/components/support/SupportFilters';
 import { SupportTicketList } from '@/components/support/SupportTicketList';
 import { SupportTranscript } from '@/components/support/SupportTranscript';
-import { finalizeCreatedSupportTicket, getAutoSelectedSupportTicketId, hasPrefilledSupportComposerContext } from '@/lib/supportCenter';
+import {
+    buildPrefilledSupportComposer,
+    finalizeCreatedSupportTicket,
+    getAutoSelectedSupportTicketId,
+    hasPrefilledSupportComposerContext,
+    normalizeSupportTicketCategory,
+} from '@/lib/supportCenter';
 import { supportService, type SupportAttachmentDraft } from '@/services/supportService';
 import type { Message, SupportTicketDetail, SupportTicketSummary } from '@/services/messagesService';
 import type { User } from '@/types';
@@ -67,12 +73,15 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const [submitting, setSubmitting] = useState(false);
     const [adminUsers, setAdminUsers] = useState<User[]>([]);
     const [filters, setFilters] = useState<SupportFilterState>({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
-    const [composer, setComposer] = useState({
-        category: searchParams.get('category') || ROLE_COPY[role].categories[0],
-        subject: searchParams.get('subject') || '',
-        message: searchParams.get('message') || '',
-        priority: 'medium' as SupportTicketSummary['priority'],
-    });
+    const [composer, setComposer] = useState(() => buildPrefilledSupportComposer({
+        searchParams,
+        availableCategories: ROLE_COPY[role].categories,
+        fallbackCategory: ROLE_COPY[role].categories[0],
+        priority: 'medium',
+    }));
+    const prefilledCategory = searchParams.get('category') || '';
+    const prefilledSubject = searchParams.get('subject') || '';
+    const prefilledMessage = searchParams.get('message') || '';
 
     const isAdmin = role === 'admin';
     const selectedTicketId = searchParams.get('ticket');
@@ -83,14 +92,17 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const fetchTickets = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const data = await supportService.getTickets({
+            const requestParams = {
                 search: filters.search,
                 status: filters.status,
                 priority: filters.priority,
                 requester_role: isAdmin ? filters.requesterRole : undefined,
                 assignee: isAdmin ? filters.assignee : undefined,
-                limit: isAdmin ? 50 : 20,
-            });
+                limit: isAdmin ? 100 : 20,
+            };
+            const data = isAdmin
+                ? await supportService.getAllTickets(requestParams)
+                : await supportService.getTickets(requestParams);
             setTickets(data);
             const targetTicketId = getAutoSelectedSupportTicketId({
                 selectedTicketId: selectedTicketId || '',
@@ -148,7 +160,44 @@ export function SupportCenter({ role }: SupportCenterProps) {
     }, [selectedTicketId]);
 
     useEffect(() => {
+        if (isAdmin || !hasPrefilledComposerContext) {
+            return;
+        }
+
+        const nextComposer = buildPrefilledSupportComposer({
+            searchParams: new URLSearchParams({
+                ...(prefilledCategory ? { category: prefilledCategory } : {}),
+                ...(prefilledSubject ? { subject: prefilledSubject } : {}),
+                ...(prefilledMessage ? { message: prefilledMessage } : {}),
+            }),
+            availableCategories: ROLE_COPY[role].categories,
+            fallbackCategory: ROLE_COPY[role].categories[0],
+            priority: composer.priority,
+        });
+
+        setComposer((current) => {
+            if (
+                current.category === nextComposer.category
+                && current.subject === nextComposer.subject
+                && current.message === nextComposer.message
+            ) {
+                return current;
+            }
+
+            return {
+                ...current,
+                category: nextComposer.category,
+                subject: nextComposer.subject,
+                message: nextComposer.message,
+            };
+        });
+    }, [composer.priority, hasPrefilledComposerContext, isAdmin, prefilledCategory, prefilledMessage, prefilledSubject, role]);
+
+    useEffect(() => {
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             void fetchTickets(true);
             if (selectedTicketId) {
                 void loadDetail(selectedTicketId, true);
@@ -223,7 +272,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
             const created = await supportService.createTicket({
                 subject: composer.subject.trim(),
                 message: composer.message.trim(),
-                category: composer.category,
+                category: normalizeSupportTicketCategory(composer.category, ROLE_COPY[role].categories[0]),
                 priority: composer.priority,
                 attachments: ticketAttachments,
                 requester_context: {

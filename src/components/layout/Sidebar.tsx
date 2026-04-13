@@ -55,12 +55,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     } catch (error) {}
   };
 
-  const getLinkPath = (path: string) => {
-    if (!useSubdomain) return path;
-    // Strip the role prefix from the path
-    const newPath = path.replace(/^\/(manager|user|admin)/, "");
-    return newPath || "/"; // If empty (was just /manager), return /
-  };
+  const getLinkPath = (path: string) => path;
 
   const isActive = (path: string) => {
     const checkPath = getLinkPath(path);
@@ -126,8 +121,9 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     { icon: Settings, label: "System Settings", path: "/admin/settings" },
   ];
 
+  const isManagerRole = role === "manager" || role === "broker";
   let menuItems = userMenuItems;
-  if (role === "manager") menuItems = managerMenuItems;
+  if (isManagerRole) menuItems = managerMenuItems;
   if (role === "admin") menuItems = adminMenuItems;
 
   return (
@@ -197,19 +193,19 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
               <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                 {role}
               </span>
-              {role === "manager" &&
+              {isManagerRole &&
                 !isVerificationLoading &&
                 isVerified &&
                 isPropertySubmissionReady && (
                   <Shield size={12} className="text-green-500" />
                 )}
-              {role === "manager" &&
+              {isManagerRole &&
                 !isVerificationLoading &&
                 isVerified &&
                 !isPropertySubmissionReady && (
                   <AlertCircle size={12} className="text-amber-500" />
                 )}
-              {role === "manager" && !isVerificationLoading && !isVerified && (
+              {isManagerRole && !isVerificationLoading && !isVerified && (
                 <Shield size={12} className="text-gray-400" />
               )}
             </div>

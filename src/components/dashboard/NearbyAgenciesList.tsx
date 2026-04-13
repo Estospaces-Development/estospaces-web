@@ -76,6 +76,9 @@ const NearbyAgenciesList = () => {
 
         void syncActiveRequest();
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             void syncActiveRequest();
         }, 5000);
         window.addEventListener(BROKER_REQUEST_WORKSPACE_EVENT, handleWorkspaceSelection);

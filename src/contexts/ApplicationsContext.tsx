@@ -16,7 +16,7 @@ import { getFastTrackCases } from '@/services/fastTrackService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { findRelatedViewing } from '@/lib/applicationWorkflow';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
-import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, isSaleProgressionRecord } from '@/lib/saleJourney';
+import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, shouldUseSaleProgressionStatusUpdate, isSaleProgressionRecord } from '@/lib/saleJourney';
 import { findLinkedSaleProgression } from '@/lib/workspaceLinks';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
@@ -455,7 +455,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         const [applicationsResult, viewingsResult, saleProgressionsResult] = await Promise.all([
             getBackendApplications({ suppressErrorToast: true }),
             getViewings().catch(() => [] as Viewing[]),
-            getSaleProgressions(),
+            getSaleProgressions({ suppressErrorToast: true }),
         ]);
 
         if (applicationsResult.error) {
@@ -671,7 +671,9 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         const application = applications.find((item) => item.id === id);
-        const stage = saleProgressionStageForStatus(status);
+        const stage = shouldUseSaleProgressionStatusUpdate(application, status)
+            ? saleProgressionStageForStatus(status)
+            : null;
         const progressionTarget = isSaleProgressionRecord(application)
             ? application
             : (application && stage ? findLinkedSaleProgression(applications, application) : null);

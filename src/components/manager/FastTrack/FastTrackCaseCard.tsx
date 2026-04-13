@@ -49,8 +49,13 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
         };
 
         calculateTimeLeft();
-        const timer = setInterval(calculateTimeLeft, 60000);
-        return () => clearInterval(timer);
+        const timer = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+            calculateTimeLeft();
+        }, 60000);
+        return () => window.clearInterval(timer);
     }, [caseData.expiresAt, caseData.submittedAt, caseData.finalStatus]);
 
     const isOverdue = isFastTrackCaseOverdue(caseData) || Boolean(
@@ -82,9 +87,9 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 : 'border-gray-100 dark:border-zinc-800'}
     `}>
             {/* Header */}
-            <div className="flex justify-between items-start mb-3">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
+            <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                <div className="min-w-0">
+                    <div className="mb-1 flex flex-wrap items-center gap-2 pr-2">
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${getTypeColor(caseData.propertyType)}`}>
                             {caseData.propertyType}
                         </span>
@@ -109,7 +114,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                             </span>
                         )}
                     </div>
-                    <h3 className="font-semibold text-gray-800 dark:text-gray-100 line-clamp-1" title={caseData.propertyTitle}>
+                    <h3 className="line-clamp-1 font-semibold text-gray-800 dark:text-gray-100" title={caseData.propertyTitle}>
                         {caseData.propertyTitle}
                     </h3>
                     <div className="mt-2 flex items-center gap-2">
@@ -123,7 +128,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 </div>
 
                 {timeLeft && (
-                    <div className={`flex flex-col items-end ${isAtRisk ? 'text-orange-600' : 'text-gray-600'}`}>
+                    <div className={`ml-2 shrink-0 text-right ${isAtRisk ? 'text-orange-600' : 'text-gray-600'}`}>
                         <div className="flex items-center gap-1 font-mono font-bold text-lg leading-none">
                             <Clock className="w-4 h-4" />
                             {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}
@@ -133,7 +138,7 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
                 )}
             </div>
 
-            <FastTrackProgress currentStep={caseData.currentStep} journeyType={caseData.journeyType} />
+            <FastTrackProgress currentStep={caseData.currentStep} journeyType={caseData.journeyType} compact />
 
             {(verificationSummary || leadStatusLabel) && (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">

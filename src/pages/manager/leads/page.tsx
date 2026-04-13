@@ -95,7 +95,7 @@ function canScheduleLeadViewing(lead: Lead) {
     return Boolean(
         lead.user_id &&
         lead.property_id &&
-        lead.broker_id &&
+        (lead.broker_id || lead.matched_broker_id) &&
         !['completed', 'expired', 'rejected', 'withdrawn'].includes(stage) &&
         !['closed_won', 'closed_lost', 'cancelled'].includes(lead.status),
     );
@@ -173,7 +173,12 @@ export default function ManagerLeadsPage() {
     });
 
     useEffect(() => {
-        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        const timer = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+            setNow(Date.now());
+        }, 1000);
         return () => window.clearInterval(timer);
     }, []);
 
@@ -422,7 +427,8 @@ export default function ManagerLeadsPage() {
     }, []);
 
     const handleScheduleViewing = useCallback(async () => {
-        if (!scheduleLead?.property_id || !scheduleLead.user_id || !scheduleLead.broker_id) {
+        const assignedManagerId = scheduleLead?.broker_id || scheduleLead?.matched_broker_id;
+        if (!scheduleLead?.property_id || !scheduleLead.user_id || !assignedManagerId) {
             toast.error('This lead is missing the property, user, or manager link required for scheduling.');
             return;
         }
@@ -435,7 +441,7 @@ export default function ManagerLeadsPage() {
         try {
             await bookingsService.createViewing({
                 property_id: scheduleLead.property_id,
-                manager_id: scheduleLead.broker_id,
+                manager_id: assignedManagerId,
                 lead_id: scheduleLead.id,
                 client_name: getLeadClientName(scheduleLead),
                 client_email: scheduleLead.email || '',

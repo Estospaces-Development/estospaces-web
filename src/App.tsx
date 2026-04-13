@@ -153,6 +153,7 @@ const UserSettingsDash = lazyPage(() => import('./pages/user/dashboard/settings/
 const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page'));
 
 import SubdomainRouter from './components/routing/SubdomainRouter';
+import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
 
 const App: React.FC = () => {
@@ -166,8 +167,9 @@ const App: React.FC = () => {
     <Suspense fallback={<Loading />}>
       <SubdomainRouter>
         <PageErrorBoundary>
-          <Routes>
-          <Route path="/" element={<StartupRedirect />} />
+          <RouteAccessBoundary>
+            <Routes>
+            <Route path="/" element={<StartupRedirect />} />
 
           {/* Public Routes */}
           <Route element={<PublicLayout />}>
@@ -253,19 +255,20 @@ const App: React.FC = () => {
             <Route path="applications" element={<UserApplications />} />
             <Route path="bookings" element={<UserBookings />} />
             <Route path="docs" element={<UserDocs />} />
-            <Route path="favorites" element={<UserSaved />} />
+            <Route path="favorites" element={<UserFavorites />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="saved" element={<UserSaved />} />
             <Route path="search" element={<UserSearch />} />
             <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />
             <Route path="dashboard/properties/:id" element={<UserPropertyDetail />} />
             <Route path="properties/:id" element={<UserPropertyDetail />} />
-            <Route path="settings" element={<UserSettingsDash />} />
+            <Route path="settings" element={<UserSettings />} />
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<StartupRedirect />} />
-          </Routes>
+            <Route path="*" element={<StartupRedirect />} />
+            </Routes>
+          </RouteAccessBoundary>
         </PageErrorBoundary>
       </SubdomainRouter>
     </Suspense>

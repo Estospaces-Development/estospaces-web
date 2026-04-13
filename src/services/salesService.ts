@@ -64,6 +64,7 @@ export const updateSaleProgression = async (
     progressionId: string,
     currentStage: SaleProgression['current_stage'],
     notes?: string,
+    options: ServiceRequestOptions = {},
 ): Promise<{ data: SaleProgression | null; error: string | null }> => {
     try {
         const data = await apiFetch<SaleProgression>(`${BOOKING_URL()}/api/v1/sale-progressions/${progressionId}`, {
@@ -72,6 +73,7 @@ export const updateSaleProgression = async (
                 current_stage: currentStage,
                 notes,
             }),
+            suppressErrorToast: options.suppressErrorToast,
         });
         return { data: data ? normalizeSaleProgression(data) : null, error: null };
     } catch (error: any) {
@@ -88,11 +90,12 @@ export const createOffer = async (payload: {
     amount: number;
     currency?: string;
     notes?: string;
-}): Promise<{ data: Offer | null; error: string | null }> => {
+}, options: ServiceRequestOptions = {}): Promise<{ data: Offer | null; error: string | null }> => {
     try {
         const data = await apiFetch<Offer>(`${BOOKING_URL()}/api/v1/offers`, {
             method: 'POST',
             body: JSON.stringify(payload),
+            suppressErrorToast: options.suppressErrorToast,
         });
         return { data, error: null };
     } catch (error: any) {

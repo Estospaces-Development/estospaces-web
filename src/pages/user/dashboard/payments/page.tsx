@@ -145,8 +145,8 @@ export default function PaymentsPage() {
 
         try {
             const [paymentsResult, invoicesResult, fastTrackCasesResult] = await Promise.all([
-                getPayments(),
-                getInvoices(),
+                getPayments({ suppressErrorToast: true }),
+                getInvoices({ suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
 

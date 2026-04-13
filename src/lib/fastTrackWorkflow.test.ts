@@ -15,6 +15,7 @@ import {
     formatLeadStage,
     getLatestFastTrackReviewDocuments,
     getFastTrackStartAction,
+    hasFastTrackReachedCompletion,
     isFastTrackCaseOverdue,
     getLeadNeedsReupload,
     needsFastTrackCaseAttention,
@@ -254,6 +255,41 @@ test('existing active lead without case creates the missing case', () => {
             { finalStatus: 'in_progress' },
         ),
         'resume_existing_case',
+    );
+});
+
+test('fast-track completion helper accepts both final status and completed journey steps', () => {
+    assert.equal(
+        hasFastTrackReachedCompletion({
+            currentStep: 'ready_for_contract',
+            finalStatus: 'completed',
+        }),
+        true,
+    );
+
+    assert.equal(
+        hasFastTrackReachedCompletion({
+            backendCurrentStep: 'completed',
+            currentStep: 'viewing_completed',
+            finalStatus: 'in_progress',
+        }),
+        true,
+    );
+
+    assert.equal(
+        hasFastTrackReachedCompletion({
+            currentStep: 'completed',
+            finalStatus: 'in_progress',
+        }),
+        true,
+    );
+
+    assert.equal(
+        hasFastTrackReachedCompletion({
+            currentStep: 'ready_for_contract',
+            finalStatus: 'in_progress',
+        }),
+        false,
     );
 });
 
@@ -759,6 +795,44 @@ test('live fast-track step follows linked viewing, rent contract, and payment re
             },
         ),
         'application_in_review',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'viewing_scheduled',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                linkedJourney: {
+                    application: { status: 'viewing_scheduled' },
+                    viewing: { status: 'completed' },
+                },
+            },
+        ),
+        'viewing_completed',
+    );
+
+    assert.equal(
+        deriveLiveFastTrackCurrentStep(
+            'viewing_completed',
+            [],
+            {
+                identityProof: 'verified',
+                addressProof: 'verified',
+            },
+            {
+                journeyType: 'rent',
+                linkedJourney: {
+                    application: { status: 'viewing_completed' },
+                    viewing: { status: 'rescheduled' },
+                },
+            },
+        ),
+        'viewing_scheduled',
     );
 
     assert.equal(

@@ -78,6 +78,7 @@ function DiscoverContent() {
     const [total, setTotal] = useState(0);
     const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || searchParams.get('keyword') || '');
     const [locationQuery, setLocationQuery] = useState(() => searchParams.get('location') || '');
+    const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || '');
     const [propertyType, setPropertyType] = useState(() => searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
     const [priceRange, setPriceRange] = useState(() => ({
         min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
@@ -106,6 +107,7 @@ function DiscoverContent() {
     useEffect(() => {
         setSearchQuery(searchParams.get('q') || searchParams.get('keyword') || '');
         setLocationQuery(searchParams.get('location') || '');
+        setStatusFilter(searchParams.get('status') || '');
         setPropertyType(searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
         setPriceRange({
             min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
@@ -139,6 +141,7 @@ function DiscoverContent() {
                     minBedrooms: beds ? parseInt(beds) : undefined,
                     minBathrooms: baths ? parseInt(baths) : undefined,
                     listingType: activeTab === 'buy' ? 'sale' : activeTab === 'rent' ? 'rent' : 'all',
+                    status: statusFilter || undefined,
                     location: locationQuery.trim() ? locationQuery.trim() : undefined,
                     sortBy: mapDashboardFilterToSearchSort(dashboardFilter),
                     page: currentPage,
@@ -169,7 +172,7 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter]);
 
     // Autocomplete location suggestions
     useEffect(() => {
@@ -201,6 +204,7 @@ function DiscoverContent() {
     const handleClearFilters = () => {
         setSearchQuery('');
         setLocationQuery('');
+        setStatusFilter('');
         setPropertyType('all');
         setPriceRange({ min: '', max: '' });
         setBeds('');
@@ -217,7 +221,11 @@ function DiscoverContent() {
                 title: p.title,
                 lat: p.latitude as number,
                 lng: p.longitude as number,
-                price: `£${p.price.toLocaleString()}`,
+                price: new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: 'GBP',
+                    maximumFractionDigits: 0,
+                }).format(p.price || 0),
                 address: p.location || p.city || 'Unknown Location'
             }));
     };
@@ -239,7 +247,13 @@ function DiscoverContent() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Discover Properties</h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            {activeTab === 'buy' ? 'Showing properties for sale' : activeTab === 'rent' ? 'Showing properties for rent' : 'Find your next home across the UK'}
+                            {statusFilter === 'sold'
+                                ? 'Showing sold properties'
+                                : activeTab === 'buy'
+                                    ? 'Showing properties for sale'
+                                    : activeTab === 'rent'
+                                        ? 'Showing properties for rent'
+                                        : 'Find your next home across the UK'}
                         </p>
                     </div>
 
@@ -303,6 +317,7 @@ function DiscoverContent() {
                                                         navigate(`/user/properties/${suggestion.id}`);
                                                     } else {
                                                         setSearchQuery(suggestion.text);
+                                                        setLocationQuery(suggestion.city || suggestion.text);
                                                     }
                                                     setCurrentPage(1);
                                                     setShowSuggestions(false);

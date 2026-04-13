@@ -8,6 +8,12 @@ interface StreetViewViewerProps {
     longitude: number;
 }
 
+const formatCoordinate = (
+    value: number,
+    positiveHemisphere: string,
+    negativeHemisphere: string,
+) => `${Math.abs(value).toFixed(4)}°${value >= 0 ? positiveHemisphere : negativeHemisphere}`;
+
 const StreetViewViewer = ({ streetViewUrl, address, latitude, longitude }: StreetViewViewerProps) => {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
@@ -73,7 +79,7 @@ const StreetViewViewer = ({ streetViewUrl, address, latitude, longitude }: Stree
                     <span className="text-sm font-medium truncate">{address}</span>
                 </div>
                 <div className="text-xs text-white/70 mt-1 ml-6">
-                    {latitude.toFixed(4)}°N, {longitude.toFixed(4)}°E
+                    {formatCoordinate(latitude, 'N', 'S')}, {formatCoordinate(longitude, 'E', 'W')}
                 </div>
             </div>
         </div>

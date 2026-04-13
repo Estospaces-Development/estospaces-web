@@ -80,10 +80,7 @@ const HorizontalNavigation = ({
     { icon: HelpCircle, label: "Help & Support", path: "/user/dashboard/help" },
   ];
 
-  const getLinkPath = (path: string) => {
-    if (!useSubdomain) return path;
-    return path.replace(/^\/user/, "") || "/";
-  };
+  const getLinkPath = (path: string) => path;
 
   const isActive = (path: string) => {
     const checkPath = getLinkPath(path);
@@ -96,9 +93,7 @@ const HorizontalNavigation = ({
 
   // Check if Buy or Rent is active based on URL
   const isBuyActive = () => {
-    const path = useSubdomain
-      ? "/dashboard/discover"
-      : "/user/dashboard/discover";
+    const path = "/user/dashboard/discover";
     if (pathname === path) {
       const type = searchParams.get("type");
       return type === "buy" || !type; // Default is buy if no type specified on discover
@@ -107,9 +102,7 @@ const HorizontalNavigation = ({
   };
 
   const isRentActive = () => {
-    const path = useSubdomain
-      ? "/dashboard/discover"
-      : "/user/dashboard/discover";
+    const path = "/user/dashboard/discover";
     if (pathname === path) {
       const type = searchParams.get("type");
       return type === "rent";

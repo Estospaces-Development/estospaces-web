@@ -215,6 +215,7 @@ export const updateApplicationStatus = async (
   applicationId: string,
   status: string,
   reviewNotes?: string,
+  options: ServiceRequestOptions = {},
 ): Promise<ApplicationResponse> => {
   try {
     const data = await apiFetch<Application>(
@@ -222,6 +223,7 @@ export const updateApplicationStatus = async (
       {
         method: "PUT",
         body: JSON.stringify({ status, review_notes: reviewNotes }),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data: data ? normalizeApplication(data) : null, error: null };
@@ -271,10 +273,12 @@ export const reviewApplication = async (
 
 export const getBuyerQualification = async (
   applicationId: string,
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<BuyerQualification>> => {
   try {
     const data = await apiFetch<BuyerQualification>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/buyer-qualification`,
+      options,
     );
     return { data, error: null };
   } catch (error: any) {
@@ -291,6 +295,7 @@ export const updateBuyerQualification = async (
     mortgage_in_principle_verified?: boolean;
     proof_of_funds_verified?: boolean;
   },
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<BuyerQualification>> => {
   try {
     const data = await apiFetch<BuyerQualification>(
@@ -298,6 +303,7 @@ export const updateBuyerQualification = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data, error: null };
@@ -308,10 +314,12 @@ export const updateBuyerQualification = async (
 
 export const getAMLReview = async (
   applicationId: string,
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<AMLReview>> => {
   try {
     const data = await apiFetch<AMLReview>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/aml-review`,
+      options,
     );
     return { data, error: null };
   } catch (error: any) {
@@ -321,10 +329,12 @@ export const getAMLReview = async (
 
 export const getReferencingCheck = async (
   applicationId: string,
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<ReferencingCheck>> => {
   try {
     const data = await apiFetch<ReferencingCheck>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/referencing`,
+      options,
     );
     return { data, error: null };
   } catch (error: any) {
@@ -338,6 +348,7 @@ export const updateReferencingCheck = async (
     status: string;
     review_notes?: string;
   },
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<ReferencingCheck>> => {
   try {
     const data = await apiFetch<ReferencingCheck>(
@@ -345,6 +356,7 @@ export const updateReferencingCheck = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data, error: null };
@@ -355,10 +367,12 @@ export const updateReferencingCheck = async (
 
 export const getRightToRentCheck = async (
   applicationId: string,
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<RightToRentCheck>> => {
   try {
     const data = await apiFetch<RightToRentCheck>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/right-to-rent`,
+      options,
     );
     return { data, error: null };
   } catch (error: any) {
@@ -376,6 +390,7 @@ export const updateRightToRentCheck = async (
     follow_up_due_at?: string;
     time_limited?: boolean;
   },
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<RightToRentCheck>> => {
   try {
     const data = await apiFetch<RightToRentCheck>(
@@ -383,6 +398,7 @@ export const updateRightToRentCheck = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data, error: null };
@@ -400,6 +416,7 @@ export const updateAMLReview = async (
     identity_status?: string;
     source_of_funds_status?: string;
   },
+  options: ServiceRequestOptions = {},
 ): Promise<WorkflowRecordResponse<AMLReview>> => {
   try {
     const data = await apiFetch<AMLReview>(
@@ -407,6 +424,7 @@ export const updateAMLReview = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data, error: null };

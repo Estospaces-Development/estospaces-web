@@ -177,7 +177,6 @@ export default function ManagerContractsPage() {
             return;
         }
 
-        setViewContract(focusedContract);
         setHasAppliedRouteFocus(true);
     }, [focusedContract, hasAppliedRouteFocus]);
 
@@ -345,7 +344,7 @@ export default function ManagerContractsPage() {
                     )}
                     {focusedContract && (
                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
-                            The contract linked to your fast-track case is pinned first and opened automatically so you can countersign without searching manually.
+                            The contract linked to your fast-track case is pinned first so you can countersign without searching manually.
                         </div>
                     )}
                     {filteredContracts.map(contract => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader, RefreshCw } from 'lucide-react';
 import axios from 'axios';
@@ -8,6 +8,7 @@ const API_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080'
 export default function VerifyEmailPage() {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
+    const resendCooldownTimerRef = useRef<number | null>(null);
 
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('');
@@ -15,6 +16,12 @@ export default function VerifyEmailPage() {
     const [resending, setResending] = useState(false);
     const [resendMessage, setResendMessage] = useState('');
     const [resendCooldown, setResendCooldown] = useState(0);
+
+    useEffect(() => () => {
+        if (resendCooldownTimerRef.current !== null) {
+            window.clearInterval(resendCooldownTimerRef.current);
+        }
+    }, []);
 
     useEffect(() => {
         if (!token) {
@@ -56,9 +63,18 @@ export default function VerifyEmailPage() {
             await axios.post(`${API_URL}/api/v1/auth/resend-verification`, { email: resendEmail });
             setResendMessage('If an unverified account exists for this email, a new verification link has been sent.');
             setResendCooldown(60);
-            const timer = setInterval(() => {
+            if (resendCooldownTimerRef.current !== null) {
+                window.clearInterval(resendCooldownTimerRef.current);
+            }
+            resendCooldownTimerRef.current = window.setInterval(() => {
                 setResendCooldown((prev) => {
-                    if (prev <= 1) { clearInterval(timer); return 0; }
+                    if (prev <= 1) {
+                        if (resendCooldownTimerRef.current !== null) {
+                            window.clearInterval(resendCooldownTimerRef.current);
+                            resendCooldownTimerRef.current = null;
+                        }
+                        return 0;
+                    }
                     return prev - 1;
                 });
             }, 1000);

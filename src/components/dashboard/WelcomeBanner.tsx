@@ -85,7 +85,7 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {loading ? '...' : `${stats.activeProperties} Active Properties`}
+                        {loading ? '...' : `${stats.activeProperties} Active Listings`}
                     </span>
                 </div>
                 <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>

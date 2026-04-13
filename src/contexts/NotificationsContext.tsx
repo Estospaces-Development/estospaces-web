@@ -251,6 +251,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     useEffect(() => {
         if (!user) return;
         const refreshNotifications = () => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             void loadNotifications(true);
         };
 

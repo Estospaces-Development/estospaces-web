@@ -9,6 +9,7 @@ test('startup route sends logged-out users to login', () => {
 test('startup route sends authenticated users to their role dashboard', () => {
     assert.equal(resolveStartupPath(true, 'user'), '/user/dashboard');
     assert.equal(resolveStartupPath(true, 'manager'), '/manager/dashboard');
+    assert.equal(resolveStartupPath(true, 'broker'), '/manager/dashboard');
     assert.equal(resolveStartupPath(true, 'admin'), '/admin/dashboard');
 });
 

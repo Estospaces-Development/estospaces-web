@@ -6,6 +6,7 @@ import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import { buildManagerActiveListingsPath, isManagerLivePropertyStatus } from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X } from 'lucide-react';
@@ -63,6 +64,7 @@ function DashboardContent() {
   const [propertyTotal, setPropertyTotal] = useState(0);
   const [propertyTotalPages, setPropertyTotalPages] = useState(1);
   const [propertyError, setPropertyError] = useState<string | null>(null);
+  const [fastTrackError, setFastTrackError] = useState<string | null>(null);
 
   const fetchDashboardData = useCallback(async (forceRefresh = false, silent = false) => {
     if (!silent) {
@@ -76,7 +78,7 @@ function DashboardContent() {
 
       const [analyticsRes, fastTrackRes] = await Promise.all([
         analyticsService.getManagerAnalytics(forceRefresh),
-        getFastTrackCases({ suppressErrorToast: silent }),
+        getFastTrackCases({ suppressErrorToast: true }),
       ]);
 
       if (analyticsRes.data) {
@@ -84,6 +86,9 @@ function DashboardContent() {
       }
       if (fastTrackRes.data) {
         setFastTrackCases(fastTrackRes.data);
+        setFastTrackError(null);
+      } else if (fastTrackRes.error) {
+        setFastTrackError(fastTrackRes.error);
       }
     } finally {
       if (!silent) {
@@ -192,13 +197,18 @@ function DashboardContent() {
     caseItem.finalStatus === 'in_progress' && caseItem.hoursRemaining > 0 && caseItem.hoursRemaining <= 6
   )).length;
   const completedFastTrackCount = fastTrackCases.filter((caseItem) => caseItem.finalStatus === 'completed').length;
+  const livePropertiesFallback = properties.filter((property) => isManagerLivePropertyStatus(property.status));
+  const livePropertyCountFallback = livePropertiesFallback.length;
+  const livePropertyViewsFallback = livePropertiesFallback.reduce((total, property) => (
+    total + (property.analytics?.views || 0)
+  ), 0);
 
   const stats = {
     monthlyRevenue: analytics?.total_revenue?.toLocaleString() || '0.00',
     monthlyRevenueChange: analytics?.revenue_growth || '0%',
-    activeProperties: analytics?.total_properties?.toString() || properties.length.toString(),
+    activeProperties: analytics?.total_properties?.toString() || livePropertyCountFallback.toString(),
     activeListingsChange: analytics?.property_growth || '0%',
-    totalViews: analytics?.total_views?.toString() || String(analytics?.propertyPerformance?.reduce((acc, p) => acc + (p.views || 0), 0) || 0),
+    totalViews: analytics?.total_views?.toString() || String(analytics?.propertyPerformance?.reduce((acc, p) => acc + (p.views || 0), 0) || livePropertyViewsFallback),
     totalViewsChange: analytics?.views_growth || '0%',
     conversionRate: `${(analytics?.conversion_rate || analytics?.leadAnalytics?.conversionRate || 0).toFixed(1)}%`,
     conversionRateChange: analytics?.conversion_growth || '0%',
@@ -266,6 +276,7 @@ function DashboardContent() {
           icon={Building2}
           iconColor="bg-blue-500"
           trendColor="text-blue-600"
+          onClick={() => navigate(buildManagerActiveListingsPath())}
         />
         <StatCard
           title="Total Views"
@@ -347,6 +358,18 @@ function DashboardContent() {
             </div>
 
             <div className="mt-6 grid gap-4">
+              {fastTrackError ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50/80 px-5 py-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+                  <p className="font-semibold">Fast-track lane temporarily unavailable</p>
+                  <p className="mt-1">{fastTrackError}</p>
+                  <button
+                    onClick={() => void fetchDashboardData(true)}
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 dark:border-red-900/40 dark:bg-black dark:text-red-300 dark:hover:bg-red-950/20"
+                  >
+                    Retry fast-track lane
+                  </button>
+                </div>
+              ) : null}
               {fastTrackQueueItems.length > 0 ? fastTrackQueueItems.map((item) => (
                 <button
                   key={item.caseId}

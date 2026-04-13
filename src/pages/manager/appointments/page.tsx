@@ -170,12 +170,19 @@ export default function ManagerAppointmentsPage() {
         setSearchParams((previous) => stripCaseSearchParam(previous));
     }, [loading, removedCaseId, setSearchParams, toast]);
 
+    const focusedCase = useMemo(
+        () => (sanitizedCaseId
+            ? fastTrackCases.find((caseItem) => caseItem.caseId === sanitizedCaseId) || null
+            : null),
+        [fastTrackCases, sanitizedCaseId],
+    );
+
     const focusedAppointmentId = resolveFocusedViewing(appointments, {
         viewingId: searchParams.get('viewing'),
         applicationId: searchParams.get('application'),
         caseId: sanitizedCaseId,
-        leadId: searchParams.get('lead'),
-        propertyId: searchParams.get('property'),
+        leadId: searchParams.get('lead') || focusedCase?.leadId || null,
+        propertyId: searchParams.get('property') || focusedCase?.propertyId || null,
     })?.id || null;
 
     const filteredAppointments = useMemo(() => {

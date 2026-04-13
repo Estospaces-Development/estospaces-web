@@ -16,6 +16,8 @@ type ApplicationRecordLike = {
     status?: string | null;
     liveStage?: string | null;
     live_stage?: string | null;
+    listingType?: string | null;
+    listing_type?: string | null;
 };
 
 export interface SaleJourneyAction {
@@ -185,6 +187,26 @@ export const saleProgressionStageForStatus = (status: string): SaleJourneyStage 
         default:
             return null;
     }
+};
+
+export const shouldUseSaleProgressionStatusUpdate = (
+    application: ApplicationRecordLike | null | undefined,
+    status: string,
+) => {
+    if (!application) {
+        return false;
+    }
+
+    if (isSaleProgressionRecord(application)) {
+        return saleProgressionStageForStatus(status) !== null;
+    }
+
+    const listingType = String(application.listingType || application.listing_type || '').trim().toLowerCase();
+    if (!['sale', 'buy', 'purchase'].includes(listingType)) {
+        return false;
+    }
+
+    return saleProgressionStageForStatus(status) !== null;
 };
 
 export const getNextSaleJourneyActions = (status: string): SaleJourneyAction[] => {

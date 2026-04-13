@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import {
-  isPendingUserSignature,
+  canUserSignContract,
   normalizeContractStatus,
 } from "@/lib/contractStatus";
 import { getUserContracts, signContract } from "@/services/contractsService";
@@ -104,7 +104,7 @@ export default function ContractsPage() {
             fastTrackResult,
             saleProgressionsResult,
           ] = await Promise.all([
-            getUserContracts(),
+            getUserContracts({ suppressErrorToast: true }),
             getApplications({ suppressErrorToast: true }),
             getFastTrackCases({ suppressErrorToast: true }),
             getSaleProgressions({ suppressErrorToast: true }),
@@ -274,7 +274,6 @@ export default function ContractsPage() {
       return;
     }
 
-    setViewContract(focusedContract);
     setHasAppliedRouteFocus(true);
   }, [focusedContract, hasAppliedRouteFocus]);
 
@@ -605,8 +604,9 @@ export default function ContractsPage() {
                     </div>
                   )}
                   {filtered.map((contract) => {
-                    const needsSignature = isPendingUserSignature(
+                    const needsSignature = canUserSignContract(
                       contract.status,
+                      contract.user_signed_at,
                     );
                     return (
                       <div

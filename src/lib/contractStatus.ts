@@ -40,3 +40,8 @@ export const normalizeContract = <T extends Contract>(contract: T): T => ({
 export const isPendingUserSignature = (status?: string) => normalizeContractStatus(status) === 'pending_user_signature';
 
 export const isPendingManagerSignature = (status?: string) => normalizeContractStatus(status) === 'pending_manager_signature';
+
+export const canUserSignContract = (
+    status?: string,
+    userSignedAt?: string | null,
+) => !userSignedAt && ['draft', 'pending_user_signature'].includes(normalizeContractStatus(status));

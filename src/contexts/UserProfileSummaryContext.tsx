@@ -237,6 +237,9 @@ export const useUserProfileSummary = (id?: string | null) => {
 
         ensureSummaries([normalizedId]);
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             ensureSummaries([normalizedId]);
         }, SUMMARY_REVALIDATE_MS);
 

@@ -9,6 +9,7 @@ import {
     getSaleJourneyStageLabel,
     resolveSaleJourneyDisplayStage,
     saleProgressionStageForStatus,
+    shouldUseSaleProgressionStatusUpdate,
 } from './saleJourney';
 
 test('sale progression status mapping targets the backend stage names', () => {
@@ -16,6 +17,25 @@ test('sale progression status mapping targets the backend stage names', () => {
     assert.equal(saleProgressionStageForStatus('sale_agreed'), 'sale_agreed');
     assert.equal(saleProgressionStageForStatus('completed'), 'completion');
     assert.equal(saleProgressionStageForStatus('withdrawn'), null);
+});
+
+test('sale progression status updates stay on purchase journeys and skip rent applications', () => {
+    assert.equal(
+        shouldUseSaleProgressionStatusUpdate({ source: 'sale_progression', listingType: 'sale' }, 'completed'),
+        true,
+    );
+    assert.equal(
+        shouldUseSaleProgressionStatusUpdate({ listingType: 'sale' }, 'completed'),
+        true,
+    );
+    assert.equal(
+        shouldUseSaleProgressionStatusUpdate({ listingType: 'rent' }, 'completed'),
+        false,
+    );
+    assert.equal(
+        shouldUseSaleProgressionStatusUpdate({ listingType: 'rent' }, 'approved'),
+        false,
+    );
 });
 
 test('sale journey actions expose the next manager-facing progression step', () => {

@@ -127,9 +127,16 @@ export interface ApiEnvelope<T> {
     };
     error?: string;
     message?: string;
+    field_errors?: Record<string, string>;
 }
 
 export const AUTH_EXPIRED_EVENT = 'esto-auth-expired';
+
+export interface ManagerWorkflowErrorPresentation {
+    scope: 'application' | 'property_readiness' | 'purchase' | 'viewing' | 'workflow';
+    title: string;
+    message: string;
+}
 
 export class ApiRequestError extends Error {
     status?: number;
@@ -285,6 +292,71 @@ export function getErrorMessage(error: unknown, fallback = SYSTEM_ERROR_MESSAGE)
     }
 
     return fallback;
+}
+
+export function getErrorStatus(error: unknown): number | undefined {
+    return error instanceof ApiRequestError ? error.status : undefined;
+}
+
+export function resolveManagerWorkflowErrorPresentation(error: unknown): ManagerWorkflowErrorPresentation | null {
+    const message = getErrorMessage(error, '').trim();
+    const status = getErrorStatus(error);
+    if (!message) {
+        return null;
+    }
+
+    const normalizedMessage = message.toLowerCase();
+    const looksOperational = normalizedMessage.includes('temporarily unavailable')
+        || normalizedMessage.includes('workflow unavailable')
+        || normalizedMessage.includes('retry the manager action')
+        || normalizedMessage.includes('service unavailable')
+        || normalizedMessage.includes('compliance service is reachable');
+
+    if (!looksOperational && status !== 503) {
+        return null;
+    }
+
+    if (
+        normalizedMessage.includes('property readiness')
+        || normalizedMessage.includes('property compliance readiness')
+        || normalizedMessage.includes('compliance service')
+    ) {
+        return {
+            scope: 'property_readiness',
+            title: 'Property readiness temporarily unavailable',
+            message,
+        };
+    }
+
+    if (normalizedMessage.includes('viewing workflow unavailable') || normalizedMessage.includes('viewing action')) {
+        return {
+            scope: 'viewing',
+            title: 'Viewing action temporarily unavailable',
+            message,
+        };
+    }
+
+    if (normalizedMessage.includes('live purchase workflow unavailable') || normalizedMessage.includes('purchase workflow')) {
+        return {
+            scope: 'purchase',
+            title: 'Live purchase workflow unavailable',
+            message,
+        };
+    }
+
+    if (normalizedMessage.includes('live application workflow unavailable') || normalizedMessage.includes('application workflow')) {
+        return {
+            scope: 'application',
+            title: 'Live application workflow unavailable',
+            message,
+        };
+    }
+
+    return {
+        scope: 'workflow',
+        title: 'Live workflow temporarily unavailable',
+        message,
+    };
 }
 
 async function parseJsonResponse<T>(response: Response): Promise<ApiEnvelope<T>> {

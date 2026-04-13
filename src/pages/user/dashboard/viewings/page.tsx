@@ -43,6 +43,7 @@ export default function ViewingsPage() {
     const [viewings, setViewings] = useState<any[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [filter, setFilter] = useState('all'); // all, upcoming, past, cancelled
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [viewingToCancel, setViewingToCancel] = useState<string | null>(null);
@@ -50,9 +51,10 @@ export default function ViewingsPage() {
 
     const fetchViewings = useCallback(async () => {
         setLoading(true);
+        setLoadError(null);
         try {
             const [data, fastTrackCasesResult] = await Promise.all([
-                bookingsService.getViewings(),
+                bookingsService.getViewings({ suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
             const propertyIDsNeedingImages = Array.from(
@@ -89,12 +91,15 @@ export default function ViewingsPage() {
             }));
             setViewings(mappedViewings);
             setFastTrackCases(fastTrackCasesResult.data || []);
+            setLoadError(null);
         } catch (err: any) {
-            toast.error('Failed to load viewings');
+            setViewings([]);
+            setFastTrackCases([]);
+            setLoadError('Your viewing schedule is temporarily unavailable. Please try again.');
         } finally {
             setLoading(false);
         }
-    }, [toast]);
+    }, []);
 
     useEffect(() => {
         fetchViewings();
@@ -128,12 +133,19 @@ export default function ViewingsPage() {
         setSearchParams((previous) => stripCaseSearchParam(previous));
     }, [loading, removedCaseId, setSearchParams, toast]);
 
+    const focusedCase = useMemo(
+        () => (sanitizedCaseId
+            ? fastTrackCases.find((caseItem) => caseItem.caseId === sanitizedCaseId) || null
+            : null),
+        [fastTrackCases, sanitizedCaseId],
+    );
+
     const focusedViewingId = resolveFocusedViewing(viewings, {
         viewingId: searchParams.get('viewing'),
         applicationId: searchParams.get('application'),
         caseId: sanitizedCaseId,
-        leadId: searchParams.get('lead'),
-        propertyId: searchParams.get('property'),
+        leadId: searchParams.get('lead') || focusedCase?.leadId || null,
+        propertyId: searchParams.get('property') || focusedCase?.propertyId || null,
     })?.id || null;
 
     const filteredViewings = [...viewings]
@@ -297,6 +309,22 @@ export default function ViewingsPage() {
                     <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">
                         <Loader2 size={48} className="animate-spin text-orange-500 mb-4" />
                         <p className="text-gray-600 dark:text-gray-400 font-medium tracking-wide">Fetching your appointments...</p>
+                    </div>
+                ) : loadError ? (
+                    <div className="rounded-3xl border border-red-200 bg-white p-10 text-center shadow-sm dark:border-red-900/40 dark:bg-gray-800">
+                        <div className="mx-auto mb-6 inline-flex items-center justify-center rounded-full bg-red-50 p-5 dark:bg-red-900/20">
+                            <Calendar className="text-red-400" size={42} />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">Unable to load your viewings</h3>
+                        <p className="mx-auto mt-2 max-w-md text-gray-500 dark:text-gray-400">
+                            {loadError}
+                        </p>
+                        <button
+                            onClick={() => void fetchViewings()}
+                            className="mt-8 rounded-xl bg-orange-500 px-8 py-3 font-bold text-white shadow-lg shadow-orange-500/20 transition-all hover:bg-orange-600"
+                        >
+                            Try Again
+                        </button>
                     </div>
                 ) : filteredViewings.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6">

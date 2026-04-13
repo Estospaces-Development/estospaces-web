@@ -12,6 +12,7 @@ import { getManagerAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/
 import { getApplications, Application } from '@/services/applicationsService';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { isManagerLivePropertyStatus } from '@/lib/managerPropertyDashboard';
 
 const Analytics = () => {
     const { properties } = useProperties();
@@ -20,6 +21,7 @@ const Analytics = () => {
     const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
     const [applications, setApplications] = useState<Application[]>([]);
     const [loading, setLoading] = useState(true);
+    const [timeRange, setTimeRange] = useState<'6m' | '12m'>('6m');
 
     const fetchData = useCallback(async (forceRefresh = false, silent = false) => {
         if (!silent) {
@@ -73,12 +75,16 @@ const Analytics = () => {
 
     const approvedApplications = applicationsList.filter(app => app.status === 'approved');
     const pendingApplications = applicationsList.filter(app => app.status === 'submitted');
+    const livePropertyCount = properties.filter((property) => isManagerLivePropertyStatus(property.status)).length;
 
-    const monthlyRevenue = analyticsData?.revenueTrend?.map((item) => ({
+    const revenueTrend = timeRange === '6m'
+        ? (analyticsData?.revenueTrend || []).slice(-6)
+        : (analyticsData?.revenueTrend || []);
+    const monthlyRevenue = revenueTrend.map((item) => ({
         month: item.label,
         value: item.value * 1000,
         change: 0
-    })) || [];
+    }));
 
     const propertyPerformance = analyticsData?.propertyPerformance?.map((p) => ({
         property: p.property,
@@ -86,6 +92,51 @@ const Analytics = () => {
         applications: p.applications,
         conversionRate: p.conversionRate
     })) || [];
+
+    const leadFunnel = [
+        {
+            label: 'New Inquiries',
+            value: leads.filter((lead) => ['pending_broker_response', 'matching'].includes(lead.status)).length,
+            total: leads.length,
+            color: 'blue',
+        },
+        {
+            label: 'Active Negotiations',
+            value: leads.filter((lead) => ['broker_responded', 'viewing_scheduled', 'docs_requested', 'docs_uploaded', 'under_review', 'approved'].includes(lead.status)).length,
+            total: leads.length,
+            color: 'orange',
+        },
+        {
+            label: 'Closed Deals',
+            value: leads.filter((lead) => ['closed_won', 'completed'].includes(lead.status)).length,
+            total: leads.length,
+            color: 'green',
+        },
+    ];
+
+    const handleExportReport = () => {
+        if (propertyPerformance.length === 0) {
+            return;
+        }
+
+        const csv = [
+            ['Property', 'Views', 'Applications', 'Conversion Rate'].join(','),
+            ...propertyPerformance.map((item) => [
+                `"${item.property.replace(/"/g, '""')}"`,
+                item.views,
+                item.applications,
+                item.conversionRate,
+            ].join(',')),
+        ].join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `manager-analytics-${timeRange === '6m' ? '6-months' : 'yearly'}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
 
     if (loading) {
         return (
@@ -114,10 +165,26 @@ const Analytics = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                        <button className="px-4 py-2 bg-white dark:bg-gray-700 shadow-sm rounded-lg text-sm font-bold text-gray-900 dark:text-white transition-all">6 Months</button>
-                        <button className="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">Yearly</button>
+                        <button
+                            type="button"
+                            onClick={() => setTimeRange('6m')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '6m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                        >
+                            6 Months
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTimeRange('12m')}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${timeRange === '12m' ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                        >
+                            Yearly
+                        </button>
                     </div>
-                    <button className="p-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                    <button
+                        type="button"
+                        onClick={handleExportReport}
+                        className="p-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                    >
                         <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                     </button>
                 </div>
@@ -134,8 +201,8 @@ const Analytics = () => {
                         growth: analyticsData?.conversion_growth || '0%'
                     },
                     { 
-                        label: 'Properties', 
-                        value: analyticsData?.total_properties || analyticsData?.leadAnalytics?.totalProperties || properties.length || 0, 
+                        label: 'Live Listings', 
+                        value: analyticsData?.total_properties || analyticsData?.leadAnalytics?.totalProperties || livePropertyCount || 0, 
                         icon: Building2, 
                         color: 'orange', 
                         growth: analyticsData?.property_growth || '0%' 
@@ -373,11 +440,7 @@ const Analytics = () => {
                 <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Lead Conversion Tunnel</h2>
                     <div className="space-y-6">
-                        {[
-                            { label: 'New Inquiries', value: leads.filter((l) => l.status === 'New Lead').length, total: leads.length, color: 'blue' },
-                            { label: 'Active Negotiations', value: leads.filter((l) => l.status === 'In Progress').length, total: leads.length, color: 'orange' },
-                            { label: 'Closed Deals', value: leads.filter((l) => l.status === 'Approved').length, total: leads.length, color: 'green' }
-                        ].map((item, i) => (
+                        {leadFunnel.map((item, i) => (
                             <div key={i} className="space-y-2">
                                 <div className="flex items-center justify-between text-sm font-bold">
                                     <span className="text-gray-700 dark:text-gray-300">{item.label}</span>

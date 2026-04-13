@@ -491,7 +491,11 @@ const UserPropertyDetail = () => {
         }
 
         const nextLeadId = fastTrackCase.leadId || lead.id;
-        const nextManagerId = fastTrackCase.managerId || lead.broker_id || property?.manager_id;
+        const nextManagerId =
+            lead.matched_broker_id ||
+            lead.broker_id ||
+            fastTrackCase.managerId ||
+            property?.manager_id;
         const needsSync = nextLeadId !== fastTrackCase.leadId || nextManagerId !== fastTrackCase.managerId;
 
         if (!needsSync) {
@@ -523,9 +527,9 @@ const UserPropertyDetail = () => {
         }
         try {
             const [leadsResult, casesResult, documentsResult] = await Promise.all([
-                getUserLeads(),
-                getFastTrackCases(),
-                getUserDocuments(),
+                getUserLeads({ suppressErrorToast: true }),
+                getFastTrackCases({ suppressErrorToast: true }),
+                getUserDocuments({ suppressErrorToast: true }),
             ]);
 
             if (leadsResult.error) {
@@ -755,6 +759,9 @@ const UserPropertyDetail = () => {
 
         void refreshWorkspace();
         const interval = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             void refreshWorkspace(true);
         }, 15000);
 
@@ -771,6 +778,9 @@ const UserPropertyDetail = () => {
 
         let cancelled = false;
         const interval = window.setInterval(async () => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             const workspace = await loadFastTrackWorkspace({ silent: true });
             if (!cancelled) {
                 setLiveWorkspaceLoaded(Boolean(workspace.lead || workspace.fastTrackCase));
@@ -790,8 +800,39 @@ const UserPropertyDetail = () => {
         if (listingType === 'lease') {
             return 'lease';
         }
-        return 'rent';
+        if (listingType === 'rent') {
+            return 'rent';
+        }
+        return null;
     };
+
+    const resolveWorkflowManagerId = (
+        lead: Lead | null = activeLead,
+        fastTrackCase: FastTrackCase | null = activeFastTrackCase,
+    ) => (
+        lead?.matched_broker_id ||
+        lead?.broker_id ||
+        fastTrackCase?.managerId ||
+        property?.manager_id ||
+        ''
+    );
+    const workflowManagerId = resolveWorkflowManagerId();
+    const workflowRecipientName =
+        activeLead?.matched_broker?.name ||
+        property?.agent_name ||
+        'Estospaces advisor';
+    const workflowRecipientEmail =
+        activeLead?.matched_broker?.email ||
+        property?.agent_email ||
+        '';
+    const workflowRecipientPhone =
+        activeLead?.matched_broker?.phone ||
+        property?.agent_phone ||
+        '';
+    const workflowRecipientAgency =
+        activeLead?.matched_broker?.company_name ||
+        property?.agent_company ||
+        '';
 
     const ensureAuthenticated = () => {
         if (user) {
@@ -801,6 +842,16 @@ const UserPropertyDetail = () => {
         toast.error('Please sign in to continue.');
         navigate('/login');
         return false;
+    };
+
+    const ensureWorkflowManagerReady = () => {
+        const managerId = resolveWorkflowManagerId();
+        if (managerId) {
+            return managerId;
+        }
+
+        toast.error('This property does not have an assigned broker or manager yet. Please try again shortly.');
+        return null;
     };
 
     const handleSaveToggle = async () => {
@@ -826,7 +877,16 @@ const UserPropertyDetail = () => {
 
     const openFastTrackDashboard = () => {
         if (activeFastTrackCase?.caseId) {
-            navigate(`/user/dashboard/fast-track?case=${activeFastTrackCase.caseId}&section=documents`);
+            const params = new URLSearchParams({
+                case: activeFastTrackCase.caseId,
+                section: activeFastTrackCase.finalStatus === 'completed' ? 'overview' : 'documents',
+            });
+
+            if (activeFastTrackCase.finalStatus === 'completed') {
+                params.set('celebrate', '1');
+            }
+
+            navigate(`/user/dashboard/fast-track?${params.toString()}`);
             return;
         }
 
@@ -875,7 +935,7 @@ const UserPropertyDetail = () => {
             const result = await uploadDocument(type, file, {
                 leadId: activeLead?.id || activeFastTrackCase?.leadId,
                 fastTrackCaseId: activeFastTrackCase?.id,
-                managerId: activeFastTrackCase?.managerId || activeLead?.broker_id || property?.manager_id,
+                managerId: workflowManagerId || undefined,
                 propertyId: property?.id,
             });
             if (!result.success || result.error) {
@@ -893,6 +953,12 @@ const UserPropertyDetail = () => {
 
     const handleStartFastTrack = async () => {
         if (!property || !ensureAuthenticated()) {
+            return;
+        }
+
+        const fastTrackPropertyType = mapFastTrackPropertyType(property.listing_type);
+        if (!fastTrackPropertyType) {
+            toast.error('Fast-track is not available for short-term listings yet.');
             return;
         }
 
@@ -923,13 +989,15 @@ const UserPropertyDetail = () => {
                 property_id: property.id,
                 broker_request_id: brokerRequestId,
                 lead_id: leadToUse.id,
-                manager_id: leadToUse.broker_id,
+                manager_id: leadToUse.matched_broker_id || leadToUse.broker_id || property.manager_id,
                 client_id: user!.id,
                 client_name: displayName,
                 property_title: property.title,
-                property_type: mapFastTrackPropertyType(property.listing_type),
+                property_type: fastTrackPropertyType,
                 property_country: property.country || undefined,
-                listing_type: property.listing_type as 'rent' | 'sale' | 'lease' | undefined,
+                listing_type: ['rent', 'sale', 'lease'].includes(property.listing_type || '')
+                    ? property.listing_type as 'rent' | 'sale' | 'lease'
+                    : undefined,
                 started_from: brokerRequestId ? 'broker_request_selection' : 'direct_property',
             });
             if (fastTrackResult.error || !fastTrackResult.data) {
@@ -956,13 +1024,18 @@ const UserPropertyDetail = () => {
     };
 
     const handleOpenConversation = async () => {
-        if (!property || !property.manager_id || !ensureAuthenticated()) {
+        if (!property || !ensureAuthenticated()) {
+            return;
+        }
+
+        const managerId = ensureWorkflowManagerReady();
+        if (!managerId) {
             return;
         }
 
         setIsCreatingConversation(true);
         try {
-            const conversation = await messagesService.upsertDirectConversation(property.manager_id, {
+            const conversation = await messagesService.upsertDirectConversation(managerId, {
                 propertyId: property.id,
                 propertyTitle: property.title,
                 propertyAddress,
@@ -972,10 +1045,10 @@ const UserPropertyDetail = () => {
                 senderName: displayName,
                 senderEmail: user?.email || '',
                 senderPhone: user?.phone || '',
-                recipientName: property.agent_name,
-                recipientEmail: property.agent_email,
-                recipientPhone: property.agent_phone,
-                recipientAgency: property.agent_company,
+                recipientName: workflowRecipientName,
+                recipientEmail: workflowRecipientEmail,
+                recipientPhone: workflowRecipientPhone,
+                recipientAgency: workflowRecipientAgency,
             });
 
             navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
@@ -989,7 +1062,12 @@ const UserPropertyDetail = () => {
     const handleScheduleViewing = async (event: React.FormEvent) => {
         event.preventDefault();
 
-        if (!property || !property.manager_id || !ensureAuthenticated()) {
+        if (!property || !ensureAuthenticated()) {
+            return;
+        }
+
+        const managerId = ensureWorkflowManagerReady();
+        if (!managerId) {
             return;
         }
 
@@ -1002,7 +1080,7 @@ const UserPropertyDetail = () => {
         try {
             await bookingsService.createViewing({
                 property_id: property.id,
-                manager_id: property.manager_id,
+                manager_id: managerId,
                 lead_id: activeLead?.id || activeFastTrackCase?.leadId,
                 fast_track_case_id: activeFastTrackCase?.id,
                 client_name: displayName,
@@ -1013,10 +1091,10 @@ const UserPropertyDetail = () => {
                 property_image: coverImage || undefined,
                 property_price: property.price,
                 listing_type: property.listing_type,
-                agent_name: property.agent_name,
-                agent_email: property.agent_email,
-                agent_phone: property.agent_phone,
-                agent_agency: property.agent_company,
+                agent_name: workflowRecipientName,
+                agent_email: workflowRecipientEmail,
+                agent_phone: workflowRecipientPhone,
+                agent_agency: workflowRecipientAgency,
                 requested_date: viewingForm.requested_date,
                 requested_time: viewingForm.requested_time,
                 user_notes: viewingForm.user_notes,

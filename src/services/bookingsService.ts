@@ -114,10 +114,11 @@ export async function getBookings(): Promise<Booking[]> {
 /**
  * Create a new viewing
  */
-export async function createViewing(request: CreateViewingRequest): Promise<Viewing> {
+export async function createViewing(request: CreateViewingRequest, options: ServiceRequestOptions = {}): Promise<Viewing> {
     return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings`, {
         method: 'POST',
         body: JSON.stringify(request),
+        suppressErrorToast: options.suppressErrorToast,
     });
 }
 
@@ -147,23 +148,26 @@ export async function getContracts(): Promise<Contract[]> {
 /**
  * Cancel a viewing
  */
-export async function cancelViewing(id: string, reason: string): Promise<void> {
+export async function cancelViewing(id: string, reason: string, options: ServiceRequestOptions = {}): Promise<void> {
     await apiFetch(`${BOOKING_URL()}/api/v1/viewings/${id}/cancel`, {
         method: 'PUT',
         body: JSON.stringify({ reason }),
+        suppressErrorToast: options.suppressErrorToast,
     });
 }
 
-export async function confirmViewing(id: string): Promise<void> {
+export async function confirmViewing(id: string, options: ServiceRequestOptions = {}): Promise<void> {
     await apiFetch(`${BOOKING_URL()}/api/v1/viewings/${id}/confirm`, {
         method: 'PUT',
+        suppressErrorToast: options.suppressErrorToast,
     });
 }
 
-export async function updateViewing(id: string, request: UpdateViewingRequest): Promise<Viewing> {
+export async function updateViewing(id: string, request: UpdateViewingRequest, options: ServiceRequestOptions = {}): Promise<Viewing> {
     return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings/${id}`, {
         method: 'PUT',
         body: JSON.stringify(request),
+        suppressErrorToast: options.suppressErrorToast,
     });
 }
 

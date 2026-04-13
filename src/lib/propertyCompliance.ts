@@ -10,6 +10,16 @@ export interface PropertyComplianceEvidenceDraft {
     reviewNotes: string;
 }
 
+export const normalizePropertyComplianceCode = (code?: string | null) => {
+    let normalized = String(code || '').trim().toLowerCase();
+    normalized = normalized.replace(/-/g, '_');
+    normalized = normalized.replace(/\s+/g, '_');
+    if (normalized.startsWith('property_')) {
+        normalized = normalized.slice('property_'.length);
+    }
+    return normalized;
+};
+
 const normalizeDraftStatus = (status?: string | null) => {
     const normalized = String(status || '').trim().toLowerCase();
     switch (normalized) {
@@ -31,7 +41,7 @@ export const buildLatestPropertyComplianceEvidenceMap = (
     const map = new Map<string, PropertyComplianceEvidence>();
 
     (items || []).forEach((item) => {
-        const category = String(item.category || '').trim();
+        const category = normalizePropertyComplianceCode(item.category);
         if (!category) {
             return;
         }
@@ -56,9 +66,32 @@ export const getOfferReadinessRequirements = (
     readiness: PropertyComplianceReadiness | null | undefined,
 ) => (readiness?.required_evidence || []).filter((item) => item.scope === 'offer_readiness');
 
+export const dedupeJourneyBlockers = (
+    blockers: JourneyBlocker[] | null | undefined,
+) => {
+    const seen = new Set<string>();
+
+    return (blockers || []).filter((item) => {
+        const key = [
+            String(item.code || '').trim(),
+            String(item.title || '').trim(),
+            String(item.description || '').trim(),
+            String(item.scope || '').trim(),
+            String(item.severity || '').trim(),
+        ].join('::');
+
+        if (!key || seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
+};
+
 export const getOfferReadinessBlockers = (
     readiness: PropertyComplianceReadiness | null | undefined,
-) => (readiness?.blockers || []).filter((item) => item.scope === 'offer_readiness');
+) => dedupeJourneyBlockers(readiness?.blockers).filter((item) => item.scope === 'offer_readiness');
 
 export const findRequirementBlocker = (
     blockers: JourneyBlocker[],
@@ -84,7 +117,7 @@ export const createPropertyComplianceDrafts = (
         return accumulator;
     }
 
-    const evidence = evidenceMap.get(code);
+    const evidence = evidenceMap.get(normalizePropertyComplianceCode(code));
     accumulator[code] = {
         status: normalizeDraftStatus(evidence?.status || requirement.status),
         referenceNumber: evidence?.reference_number || '',

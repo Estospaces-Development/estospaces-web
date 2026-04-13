@@ -161,6 +161,7 @@ const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>
     if (filters.minPrice) params.append('min_price', String(filters.minPrice));
     if (filters.maxPrice) params.append('max_price', String(filters.maxPrice));
     if (filters.propertyType && filters.propertyType !== 'all') params.append('type', String(filters.propertyType));
+    if (filters.status) params.append('status', String(filters.status));
 
     const listingType = normalizeListingType(filters.listingType);
     if (listingType) {
@@ -324,6 +325,7 @@ export interface SearchFilters {
     keyword?: string;
     location?: string;
     listingType?: 'all' | 'rent' | 'sale';
+    status?: string;
     propertyType?: string;
     minPrice?: number | null;
     maxPrice?: number | null;
@@ -466,6 +468,7 @@ export const searchService = {
             if (filters.maxPrice) params.append('max_price', filters.maxPrice.toString());
             if (filters.propertyType) params.append('property_type', filters.propertyType);
             if (filters.listingType && filters.listingType !== 'all') params.append('listing_type', filters.listingType);
+            if (filters.status) params.append('status', filters.status);
             if (filters.minBedrooms) params.append('bedrooms', filters.minBedrooms.toString());
             if (filters.minBathrooms) params.append('bathrooms', filters.minBathrooms.toString());
             if (filters.verifiedOnly) params.append('verified_only', 'true');

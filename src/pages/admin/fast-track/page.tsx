@@ -14,6 +14,7 @@ import {
 import FastTrackCaseCard from '@/components/manager/FastTrack/FastTrackCaseCard';
 import FastTrackCaseDetail from '@/components/manager/FastTrack/FastTrackCaseDetail';
 import BackButton from '@/components/ui/BackButton';
+import PaginationBar from '@/components/ui/PaginationBar';
 import Modal from '@/components/ui/Modal';
 import Toast from '@/components/ui/Toast';
 import {
@@ -28,9 +29,12 @@ import {
     updateFastTrackCase,
 } from '@/services/fastTrackService';
 
+const PRIORITY_QUEUE_PAGE_SIZE = 6;
+
 const AdminFastTrackDashboard = () => {
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+    const [priorityQueuePage, setPriorityQueuePage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<FastTrackCase | null>(null);
@@ -191,6 +195,20 @@ const AdminFastTrackDashboard = () => {
         )).length,
     }), [cases]);
 
+    const priorityQueueTotalPages = useMemo(
+        () => Math.max(1, Math.ceil(cases.length / PRIORITY_QUEUE_PAGE_SIZE)),
+        [cases.length],
+    );
+
+    const visiblePriorityCases = useMemo(() => {
+        const start = (priorityQueuePage - 1) * PRIORITY_QUEUE_PAGE_SIZE;
+        return cases.slice(start, start + PRIORITY_QUEUE_PAGE_SIZE);
+    }, [cases, priorityQueuePage]);
+
+    useEffect(() => {
+        setPriorityQueuePage((currentPage) => Math.min(Math.max(currentPage, 1), priorityQueueTotalPages));
+    }, [priorityQueueTotalPages]);
+
     const content = selectedCase ? (
         <div className="relative h-[calc(100vh-100px)] animate-in slide-in-from-right duration-300">
             <div className="pointer-events-none absolute right-4 top-4 z-20">
@@ -297,7 +315,7 @@ const AdminFastTrackDashboard = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                        {cases.map((caseItem) => (
+                        {visiblePriorityCases.map((caseItem) => (
                             <div key={caseItem.caseId} className="relative">
                                 <button
                                     type="button"
@@ -322,6 +340,20 @@ const AdminFastTrackDashboard = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {cases.length > PRIORITY_QUEUE_PAGE_SIZE && (
+                    <div className="mt-6">
+                        <PaginationBar
+                            currentPage={priorityQueuePage}
+                            totalPages={priorityQueueTotalPages}
+                            onPageChange={setPriorityQueuePage}
+                            totalItems={cases.length}
+                            pageSize={PRIORITY_QUEUE_PAGE_SIZE}
+                            currentItemCount={visiblePriorityCases.length}
+                            itemLabel="cases"
+                        />
                     </div>
                 )}
 

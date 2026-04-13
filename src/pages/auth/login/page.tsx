@@ -104,8 +104,8 @@ export default function LoginPage() {
                     Continue to Dashboard
                 </button>
                 <button 
-                    onClick={() => {
-                        signOut();
+                    onClick={async () => {
+                        await signOut();
                         navigate('/login?switch=true');
                     }}
                     className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
