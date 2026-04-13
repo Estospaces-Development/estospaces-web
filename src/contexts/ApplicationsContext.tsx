@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { getBrokerLeads, getUserLeads, Lead as BackendLead } from '../services/leadsService';
@@ -96,8 +96,6 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    // Filters
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [propertyTypeFilter, setPropertyTypeFilter] = useState('all');
@@ -150,7 +148,6 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 submittedDate: lead.created_at,
                 lastUpdated: lead.updated_at || lead.created_at,
                 requiresAction: lead.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED,
-                // In a real app, these would come from the lead data or another endpoint
                 hasAppointment: false,
             }));
             setApplications(transformed);
@@ -168,51 +165,46 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
     }, [pathname, user]);
 
-    const createApplication = async (data: any) => {
-        // This should call a backend service to create a lead
+    const createApplication = async () => {
         return { success: true };
     };
 
-    const withdrawApplication = async (id: string, reason?: string) => {
-        // This should call a backend service to withdraw the application
-        // For now, we'll just update local state to reflect withdrawal for UI responsiveness
-        setApplications(prev => prev.map(app =>
-            app.id === id ? { ...app, status: APPLICATION_STATUS.WITHDRAWN } : app
+    const withdrawApplication = async (id: string) => {
+        setApplications((previous) => previous.map((application) =>
+            application.id === id ? { ...application, status: APPLICATION_STATUS.WITHDRAWN } : application,
         ));
         return { success: true };
     };
 
     const updateApplicationStatus = async (id: string, status: string) => {
-        // Mock implementation for UI only
-        setApplications(prev => prev.map(app =>
-            app.id === id ? { ...app, status: status as ApplicationStatus } : app
+        setApplications((previous) => previous.map((application) =>
+            application.id === id ? { ...application, status: status as ApplicationStatus } : application,
         ));
         return { success: true };
     };
 
-    // Filter logic
     const filteredApplications = React.useMemo(() => {
         let filtered = [...applications];
 
         if (statusFilter !== 'all') {
-            filtered = filtered.filter((app) => app.status === statusFilter);
+            filtered = filtered.filter((application) => application.status === statusFilter);
         }
 
         if (propertyTypeFilter !== 'all') {
-            filtered = filtered.filter((app) => app.propertyType === propertyTypeFilter);
+            filtered = filtered.filter((application) => application.propertyType === propertyTypeFilter);
         }
 
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
-            filtered = filtered.filter((app) =>
-                app.propertyTitle?.toLowerCase().includes(query) ||
-                app.propertyAddress?.toLowerCase().includes(query) ||
-                app.referenceId?.toLowerCase().includes(query)
+            filtered = filtered.filter((application) =>
+                application.propertyTitle?.toLowerCase().includes(query) ||
+                application.propertyAddress?.toLowerCase().includes(query) ||
+                application.referenceId?.toLowerCase().includes(query),
             );
         }
 
-        return filtered.sort((a, b) => new Date(b.lastUpdated || b.createdAt).getTime() - new Date(a.lastUpdated || a.createdAt).getTime());
-    }, [applications, statusFilter, propertyTypeFilter, searchQuery]);
+        return filtered.sort((left, right) => new Date(right.lastUpdated || right.createdAt).getTime() - new Date(left.lastUpdated || left.createdAt).getTime());
+    }, [applications, propertyTypeFilter, searchQuery, statusFilter]);
 
     return (
         <ApplicationsContext.Provider value={{
@@ -231,7 +223,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             setDateRangeFilter,
             fetchApplications,
             withdrawApplication,
-            updateApplicationStatus
+            updateApplicationStatus,
         }}>
             {children}
         </ApplicationsContext.Provider>

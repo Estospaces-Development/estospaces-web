@@ -3,7 +3,8 @@
  * Fetches lead data from core-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { uploadMediaFile } from '@/services/mediaService';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -75,6 +76,52 @@ export interface UpdateLeadRequest {
     score?: number;
     budget?: string;
     last_contact?: string;
+}
+
+export interface UserDocument {
+    id: string;
+    user_id: string;
+    document_type: string;
+    document_category: string;
+    file_name: string;
+    file_url: string;
+    file_size: number;
+    mime_type: string;
+    status: string;
+    reject_reason?: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    lead_id?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+const DOCUMENT_UPLOAD_TYPES: Record<string, { document_type: string; document_category: string }> = {
+    identity: {
+        document_type: 'government_id',
+        document_category: 'identity',
+    },
+    address: {
+        document_type: 'address_proof',
+        document_category: 'address',
+    },
+};
+
+export interface DocumentUploadOptions {
+    targetUserId?: string;
+    leadId?: string;
+    fastTrackCaseId?: string;
+    applicationId?: string;
+    contractId?: string;
+    propertyId?: string;
+    managerId?: string;
+    requestId?: string;
+    linkFamily?: string;
+    visibility?: string;
+    requirementCodes?: string[];
+    reusable?: boolean;
+    documentType?: string;
+    documentCategory?: string;
 }
 
 /**
@@ -300,5 +347,63 @@ export const reassignLead = async (leadId: string, newBrokerId: string): Promise
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: error.message };
+    }
+};
+
+export const uploadDocument = async (
+    type: string,
+    file: File,
+    options: DocumentUploadOptions = {},
+): Promise<{
+    success: boolean;
+    data: UserDocument | null;
+    error: string | null;
+}> => {
+    try {
+        const mapping = DOCUMENT_UPLOAD_TYPES[type];
+        const resolvedDocumentType = options.documentType || mapping?.document_type;
+        const resolvedDocumentCategory = options.documentCategory || mapping?.document_category;
+        if (!resolvedDocumentType || !resolvedDocumentCategory) {
+            throw new Error(`Document upload type "${type}" is not supported`);
+        }
+
+        const uploadedFile = await uploadMediaFile(
+            file,
+            'document',
+            crypto.randomUUID(),
+            file.name,
+            false,
+        );
+
+        const data = await apiFetch<UserDocument>(
+            `${CORE_URL()}/api/v1/documents`,
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    document_type: resolvedDocumentType,
+                    document_category: resolvedDocumentCategory,
+                    media_id: uploadedFile.id,
+                    file_name: file.name,
+                    file_url: uploadedFile.file_url,
+                    file_size: file.size,
+                    mime_type: file.type,
+                    target_user_id: options.targetUserId || '',
+                    lead_id: options.leadId || '',
+                    fast_track_case_id: options.fastTrackCaseId || '',
+                    application_id: options.applicationId || '',
+                    contract_id: options.contractId || '',
+                    property_id: options.propertyId || '',
+                    manager_id: options.managerId || '',
+                    request_id: options.requestId || '',
+                    link_family: options.linkFamily || '',
+                    visibility: options.visibility || '',
+                    requirement_codes: options.requirementCodes || [],
+                    reusable: options.reusable ?? false,
+                }),
+            },
+        );
+        return { success: true, data, error: null };
+    } catch (error: any) {
+        return { success: false, data: null, error: getErrorMessage(error) };
     }
 };

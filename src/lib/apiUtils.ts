@@ -79,12 +79,17 @@ export function getServiceUrl(service: ServiceName): string {
 // ── Auth Header Helper ──────────────────────────────────────────────────────
 
 /** Returns standard auth headers with Bearer token from localStorage. */
-export function getAuthHeaders(): Record<string, string> {
+export function getAuthHeaders(body?: any): Record<string, string> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('esto_token') : '';
-    return {
-        'Content-Type': 'application/json',
+    const headers: Record<string, string> = {
         'Authorization': `Bearer ${token}`,
     };
+
+    if (!(body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    return headers;
 }
 
 // ── apiFetch — strict fetch that throws on error ────────────────────────────
@@ -94,17 +99,34 @@ export interface ApiResponse<T> {
     error: string | null;
 }
 
+export interface ApiFetchOptions extends RequestInit {
+    suppressErrorToast?: boolean;
+}
+
 /**
  * Authenticated fetch that expects `{ success, data }` envelope from backend.
  * Throws on network errors or non-OK status codes.
  */
+export function getErrorMessage(error: unknown, fallback = 'Request failed'): string {
+    if (error instanceof Error) {
+        return error.message || fallback;
+    }
+
+    if (typeof error === 'string' && error.trim()) {
+        return error;
+    }
+
+    return fallback;
+}
+
 export async function apiFetch<T>(
     url: string,
-    options: RequestInit = {},
+    options: ApiFetchOptions = {},
 ): Promise<T> {
+    const { suppressErrorToast: _suppressErrorToast, ...requestOptions } = options;
     const response = await fetch(url, {
-        ...options,
-        headers: { ...getAuthHeaders(), ...options.headers },
+        ...requestOptions,
+        headers: { ...getAuthHeaders(requestOptions.body), ...requestOptions.headers },
     });
 
     const json = await response.json();

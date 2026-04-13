@@ -7,6 +7,7 @@ import { ToastProvider } from "@/contexts/ToastContext";
 import { SavedPropertiesProvider } from "@/contexts/SavedPropertiesContext";
 import { ApplicationsProvider } from "@/contexts/ApplicationsContext";
 import { PropertyProvider } from "@/contexts/PropertyContext";
+import { WorkspaceSyncProvider } from "@/contexts/WorkspaceSyncContext";
 import { BrowserRouter } from 'react-router-dom';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -16,9 +17,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <SavedPropertiesProvider>
           <PropertyProvider>
             <ApplicationsProvider>
-              <ToastProvider>
-                <App />
-              </ToastProvider>
+              <WorkspaceSyncProvider>
+                <ToastProvider>
+                  <App />
+                </ToastProvider>
+              </WorkspaceSyncProvider>
             </ApplicationsProvider>
           </PropertyProvider>
         </SavedPropertiesProvider>
