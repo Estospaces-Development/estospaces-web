@@ -1,19 +1,18 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
-import type {
-  JourneyAction,
-  JourneyBlocker,
-  JourneyDeadline,
-  JourneyRequirement,
-  JourneyState,
-  JourneyStateFields,
-} from "@/types/journey";
 
 const BOOKING_URL = () => getServiceUrl("booking");
-
 type ServiceRequestOptions = Pick<ApiFetchOptions, "suppressErrorToast">;
 
-export type FastTrackStep =
+export type FastTrackStage =
+  | "selected"
+  | "documents"
+  | "viewing"
+  | "decision"
+  | "agreement"
+  | "handover";
+
+export type FastTrackLegacyStep =
   | "property_selected"
   | "documents_requested"
   | "documents_verified"
@@ -23,285 +22,219 @@ export type FastTrackStep =
   | "ready_for_contract"
   | "completed";
 
-export type PropertyType = "rent" | "lease" | "buy" | "sale";
+export type FastTrackStep = FastTrackLegacyStep;
 
-export type DocStatus =
+export type FastTrackFinalStatus = "active" | "completed" | "cancelled";
+export type FastTrackLegacyFinalStatus =
+  | "in_progress"
+  | "completed"
+  | "expired"
+  | "rejected";
+
+export type FastTrackDocumentStatus =
   | "pending"
   | "uploaded"
-  | "reupload_required"
-  | "verified";
-export type FastTrackDocumentPhase =
-  | "not_requested"
-  | "waiting_for_upload"
-  | "uploaded_under_review"
-  | "replacement_required"
-  | "verified";
+  | "reupload_needed"
+  | "approved";
+
+export type DocStatus = "pending" | "uploaded" | "reupload_required" | "verified";
+
+export interface FastTrackDocumentItem {
+  id: string;
+  label: string;
+  status: FastTrackDocumentStatus;
+  documentRecordId?: string;
+  fileName?: string;
+  fileUrl?: string;
+  note?: string;
+  uploadedAt?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
 
 export interface FastTrackDocuments {
   identityProof: DocStatus;
   addressProof: DocStatus;
+  items: FastTrackDocumentItem[];
+  allUploaded: boolean;
+  allApproved: boolean;
+  note?: string;
 }
 
-// Backend Model structure
-interface BackendFastTrackCase extends JourneyStateFields {
+export interface FastTrackViewingState {
+  status: string;
+  scheduledAt?: string;
+  note?: string;
+  requestedChange?: string;
+  requestedChangeAt?: string;
+  confirmedByUser?: boolean;
+}
+
+export interface FastTrackDecisionState {
+  mode: "rent" | "sale";
+  status: string;
+  amount?: number;
+  currency?: string;
+  note?: string;
+  decidedAt?: string;
+  decidedBy?: string;
+}
+
+export interface FastTrackAgreementState {
+  status: string;
+  paymentStatus: string;
+  amountDue?: number;
+  note?: string;
+  sentAt?: string;
+  acceptedAt?: string;
+}
+
+export interface FastTrackHandoverState {
+  status: string;
+  note?: string;
+  readyAt?: string;
+  confirmedByUser?: boolean;
+  confirmedAt?: string;
+  completedAt?: string;
+  completedBy?: string;
+}
+
+export interface FastTrackActivityEntry {
   id: string;
-  property_id: string;
-  property_country?: string;
-  broker_request_id?: string;
-  lead_id?: string;
-  manager_id?: string;
-  client_id: string;
-  client_name: string;
-  property_title: string;
-  property_type: PropertyType;
-  listing_type?: "rent" | "sale" | "lease";
-  started_from?: "direct_property" | "broker_request_selection";
-  current_step: FastTrackStep;
-  final_status: "in_progress" | "completed" | "expired" | "rejected";
-  documents: FastTrackDocuments;
-  journey_type?: "rent" | "buy";
-  journey_source?: "direct_property" | "broker_request_selection";
-  journey_stage?: string;
-  next_action?: string;
-  next_action_target?: string;
-  status_reason?: string;
-  blocking_requirements?: string[];
-  pending_requirements?: string[];
-  completed_requirements?: string[];
-  override_reason?: string;
-  override_by?: string;
-  override_at?: string;
-  jurisdiction?: string;
-  compliance_pack?: string;
-  required_compliance_items?: string[];
-  completed_compliance_items?: string[];
-  blocked_by_compliance?: boolean;
-  compliance_status_reason?: string;
-  submitted_at: string;
-  expires_at?: string;
-  updated_at: string;
-  hours_remaining: number;
-  document_phase?: FastTrackDocumentPhase;
-  document_phase_reason?: string;
+  type: string;
+  message: string;
+  actorRole: string;
+  createdAt: string;
 }
 
-// Frontend Model structure (matching existing components)
+interface BackendFastTrackWorkspaceCase {
+  id: string;
+  case_id?: string;
+  header: {
+    property_id: string;
+    property_title: string;
+    property_type: string;
+    property_country?: string;
+    listing_type?: "rent" | "sale" | "lease" | string;
+    journey_type?: "rent" | "sale" | string;
+    client_id: string;
+    client_name: string;
+    manager_id?: string;
+    lead_id?: string;
+    broker_request_id?: string;
+    started_from?: string;
+    submitted_at: string;
+    expires_at?: string;
+    hours_remaining: number;
+    overdue?: boolean;
+  };
+  stage: FastTrackStage;
+  final_status: FastTrackFinalStatus;
+  documents: {
+    items?: Array<{
+      id: string;
+      label: string;
+      status: string;
+      document_record_id?: string;
+      file_name?: string;
+      file_url?: string;
+      note?: string;
+      uploaded_at?: string;
+      reviewed_at?: string;
+      reviewed_by?: string;
+    }>;
+    all_uploaded?: boolean;
+    all_approved?: boolean;
+    note?: string;
+  };
+  viewing: {
+    status?: string;
+    scheduled_at?: string;
+    note?: string;
+    requested_change?: string;
+    requested_change_at?: string;
+    confirmed_by_user?: boolean;
+  };
+  decision: {
+    mode?: "rent" | "sale" | string;
+    status?: string;
+    amount?: number;
+    currency?: string;
+    note?: string;
+    decided_at?: string;
+    decided_by?: string;
+  };
+  agreement: {
+    status?: string;
+    payment_status?: string;
+    amount_due?: number;
+    note?: string;
+    sent_at?: string;
+    accepted_at?: string;
+  };
+  handover: {
+    status?: string;
+    note?: string;
+    ready_at?: string;
+    confirmed_by_user?: boolean;
+    confirmed_at?: string;
+    completed_at?: string;
+    completed_by?: string;
+  };
+  activity?: Array<{
+    id: string;
+    type: string;
+    message: string;
+    actor_role: string;
+    created_at: string;
+  }>;
+}
+
 export interface FastTrackCase {
+  id: string;
   caseId: string;
-  propertyTitle: string;
-  propertyType: PropertyType;
-  propertyCountry?: string;
-  clientName: string;
-  clientId: string;
   propertyId: string;
-  brokerRequestId?: string;
-  leadId?: string;
+  propertyTitle: string;
+  propertyType: string;
+  propertyCountry?: string;
+  clientId: string;
+  clientName: string;
   managerId?: string;
+  leadId?: string;
+  brokerRequestId?: string;
   listingType?: "rent" | "sale" | "lease";
-  startedFrom?: "direct_property" | "broker_request_selection";
+  journeyMode: "rent" | "sale";
+  journeyType: "rent" | "buy";
+  startedFrom?: string;
   submittedAt: string;
   expiresAt?: string;
   hoursRemaining: number;
-  backendCurrentStep: FastTrackStep;
-  currentStep: FastTrackStep;
+  overdue: boolean;
+  stage: FastTrackStage;
+  currentStep: FastTrackLegacyStep;
+  backendCurrentStep: FastTrackLegacyStep;
+  workspaceFinalStatus: FastTrackFinalStatus;
+  finalStatus: FastTrackLegacyFinalStatus;
   documents: FastTrackDocuments;
-  documentPhase?: FastTrackDocumentPhase;
+  viewing: FastTrackViewingState;
+  decision: FastTrackDecisionState;
+  agreement: FastTrackAgreementState;
+  handover: FastTrackHandoverState;
+  activity: FastTrackActivityEntry[];
+  documentPhase:
+    | "not_requested"
+    | "waiting_for_upload"
+    | "uploaded_under_review"
+    | "replacement_required"
+    | "verified";
   documentPhaseReason?: string;
-  finalStatus: "in_progress" | "completed" | "expired" | "rejected";
-  journeyType?: "rent" | "buy";
-  journeySource?: "direct_property" | "broker_request_selection";
-  journeyStage?: string;
   nextAction?: string;
-  nextActionTarget?: string;
   statusReason?: string;
-  blockingRequirements?: string[];
-  pendingRequirements?: string[];
-  completedRequirements?: string[];
-  overrideReason?: string;
-  overrideBy?: string;
-  overrideAt?: string;
-  jurisdiction?: string;
-  compliancePack?: string;
-  requiredComplianceItems?: string[];
-  completedComplianceItems?: string[];
-  blockedByCompliance?: boolean;
-  complianceStatusReason?: string;
-  journeyState?: JourneyState | null;
-  jurisdictionProfile?: string;
-  liveStage?: string;
-  stageGroup?: string;
-  journeyStatusReason?: string;
-  blockers?: JourneyBlocker[];
-  deadlines?: JourneyDeadline[];
-  requiredEvidence?: JourneyRequirement[];
-  nextActions?: JourneyAction[];
-  // extra fields to preserve ID
-  id: string;
+  applicationId?: string;
+  viewingId?: string;
+  contractId?: string;
+  paymentId?: string;
 }
-
-const normalizeFastTrackStep = (step?: string): FastTrackStep => {
-  switch (String(step || "").trim()) {
-    case "property_selected":
-      return "property_selected";
-    case "documents_requested":
-    case "documents":
-      return "documents_requested";
-    case "documents_verified":
-      return "documents_verified";
-    case "viewing_scheduled":
-      return "viewing_scheduled";
-    case "viewing_completed":
-      return "viewing_completed";
-    case "referencing":
-    case "right_to_rent_or_national_compliance":
-    case "buyer_qualification":
-    case "offer":
-    case "sale_agreed":
-    case "memorandum":
-    case "conveyancing":
-    case "exchange":
-    case "application_in_review":
-      return "application_in_review";
-    case "approval":
-    case "tenancy_pack_issued":
-    case "signatures_pending":
-    case "deposit_and_first_rent":
-    case "ready_for_contract":
-      return "ready_for_contract";
-    case "completed":
-    case "active_tenancy":
-    case "completion":
-      return "completed";
-    case "owner_approval":
-    case "legal_check":
-      return "application_in_review";
-    case "payment_ready":
-      return "ready_for_contract";
-    default:
-      return "property_selected";
-  }
-};
-
-const normalizeFastTrackDocumentPhase = (
-  phase?: string,
-  step?: string,
-): FastTrackDocumentPhase => {
-  switch (String(phase || "").trim()) {
-    case "waiting_for_upload":
-      return "waiting_for_upload";
-    case "uploaded_under_review":
-      return "uploaded_under_review";
-    case "replacement_required":
-      return "replacement_required";
-    case "verified":
-      return "verified";
-    case "not_requested":
-      return "not_requested";
-    default:
-      return normalizeFastTrackStep(step) === "documents_requested"
-        ? "waiting_for_upload"
-        : normalizeFastTrackStep(step) === "documents_verified"
-          ? "verified"
-          : "not_requested";
-  }
-};
-
-const normalizeDocStatus = (value: unknown): DocStatus => {
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "verified" || normalized === "approved") {
-      return "verified";
-    }
-    if (
-      normalized === "uploaded" ||
-      normalized === "under_review" ||
-      normalized === "pending_review"
-    ) {
-      return "uploaded";
-    }
-    if (normalized === "reupload_required" || normalized === "rejected") {
-      return "reupload_required";
-    }
-  }
-
-  return "pending";
-};
-
-const normalizeDocuments = (
-  documents: FastTrackDocuments | Record<string, unknown> | null | undefined,
-): FastTrackDocuments => ({
-  identityProof: normalizeDocStatus(
-    (documents as any)?.identityProof ?? (documents as any)?.idProof,
-  ),
-  addressProof: normalizeDocStatus(
-    (documents as any)?.addressProof ?? (documents as any)?.propertyDocs,
-  ),
-});
-
-// Mapper function
-const mapBackendToFrontend = (
-  apiCase: BackendFastTrackCase,
-): FastTrackCase => ({
-  caseId: apiCase.id,
-  id: apiCase.id,
-  propertyId: apiCase.property_id,
-  propertyCountry: apiCase.property_country,
-  brokerRequestId: apiCase.broker_request_id,
-  leadId: apiCase.lead_id,
-  managerId: apiCase.manager_id,
-  clientId: apiCase.client_id,
-  propertyTitle: apiCase.property_title,
-  propertyType: apiCase.property_type,
-  listingType: apiCase.listing_type,
-  startedFrom: apiCase.started_from,
-  clientName: apiCase.client_name,
-  submittedAt: apiCase.submitted_at,
-  expiresAt: apiCase.expires_at,
-  hoursRemaining: apiCase.hours_remaining,
-  backendCurrentStep: normalizeFastTrackStep(apiCase.current_step),
-  currentStep: normalizeFastTrackStep(
-    apiCase.live_stage || apiCase.current_step,
-  ),
-  documents: normalizeDocuments(apiCase.documents),
-  documentPhase: normalizeFastTrackDocumentPhase(
-    apiCase.document_phase,
-    apiCase.live_stage || apiCase.current_step,
-  ),
-  documentPhaseReason: apiCase.document_phase_reason,
-  finalStatus: apiCase.final_status,
-  journeyType: apiCase.journey_type,
-  journeySource: apiCase.journey_source,
-  journeyStage: apiCase.journey_stage,
-  nextAction: apiCase.next_action,
-  nextActionTarget: apiCase.next_action_target,
-  statusReason: apiCase.status_reason,
-  blockingRequirements: apiCase.blocking_requirements || [],
-  pendingRequirements: apiCase.pending_requirements || [],
-  completedRequirements: apiCase.completed_requirements || [],
-  overrideReason: apiCase.override_reason,
-  overrideBy: apiCase.override_by,
-  overrideAt: apiCase.override_at,
-  jurisdiction: apiCase.jurisdiction,
-  compliancePack: apiCase.compliance_pack,
-  requiredComplianceItems: apiCase.required_compliance_items || [],
-  completedComplianceItems: apiCase.completed_compliance_items || [],
-  blockedByCompliance: apiCase.blocked_by_compliance,
-  complianceStatusReason: apiCase.compliance_status_reason,
-  journeyState: apiCase.journey_state || null,
-  jurisdictionProfile:
-    apiCase.jurisdiction_profile || apiCase.journey_state?.jurisdiction_profile,
-  liveStage: apiCase.live_stage || apiCase.journey_state?.live_stage,
-  stageGroup: apiCase.stage_group || apiCase.journey_state?.stage_group,
-  journeyStatusReason:
-    apiCase.journey_status_reason ||
-    apiCase.journey_state?.journey_status_reason,
-  blockers: apiCase.blockers || apiCase.journey_state?.blockers || [],
-  deadlines: apiCase.deadlines || apiCase.journey_state?.deadlines || [],
-  requiredEvidence:
-    apiCase.required_evidence || apiCase.journey_state?.required_evidence || [],
-  nextActions:
-    apiCase.next_actions || apiCase.journey_state?.next_actions || [],
-});
 
 export interface CreateFastTrackRequest {
   property_id: string;
@@ -311,7 +244,7 @@ export interface CreateFastTrackRequest {
   client_id: string;
   client_name: string;
   property_title: string;
-  property_type: PropertyType;
+  property_type: string;
   property_country?: string;
   listing_type?: "rent" | "sale" | "lease";
   started_from?: "direct_property" | "broker_request_selection";
@@ -322,36 +255,349 @@ export interface UpdateFastTrackRequest {
   final_status?: string;
   lead_id?: string;
   manager_id?: string;
-  documents?: FastTrackDocuments;
+  documents?: {
+    identityProof?: DocStatus;
+    addressProof?: DocStatus;
+  };
   override_reason?: string;
 }
 
+export interface FastTrackActionRequest {
+  action: string;
+  payload?: Record<string, unknown>;
+}
+
+const normalizeStage = (value: string | undefined): FastTrackStage => {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "documents":
+      return "documents";
+    case "viewing":
+      return "viewing";
+    case "decision":
+      return "decision";
+    case "agreement":
+      return "agreement";
+    case "handover":
+      return "handover";
+    default:
+      return "selected";
+  }
+};
+
+const toLegacyStep = (
+  stage: FastTrackStage,
+  workspaceFinalStatus: FastTrackFinalStatus,
+): FastTrackLegacyStep => {
+  switch (stage) {
+    case "documents":
+      return "documents_requested";
+    case "viewing":
+      return "viewing_scheduled";
+    case "decision":
+      return "application_in_review";
+    case "agreement":
+      return "ready_for_contract";
+    case "handover":
+      return workspaceFinalStatus === "completed"
+        ? "completed"
+        : "ready_for_contract";
+    default:
+      return "property_selected";
+  }
+};
+
+const normalizeWorkspaceFinalStatus = (
+  value: string | undefined,
+): FastTrackFinalStatus => {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "active";
+  }
+};
+
+const toLegacyFinalStatus = (
+  value: FastTrackFinalStatus,
+): FastTrackLegacyFinalStatus => {
+  switch (value) {
+    case "completed":
+      return "completed";
+    case "cancelled":
+      return "rejected";
+    default:
+      return "in_progress";
+  }
+};
+
+const normalizeJourneyMode = (value?: string): "rent" | "sale" => {
+  return String(value || "").trim().toLowerCase() === "sale" ? "sale" : "rent";
+};
+
+const normalizeListingType = (
+  value?: string,
+): "rent" | "sale" | "lease" => {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "sale":
+    case "buy":
+      return "sale";
+    case "lease":
+      return "lease";
+    default:
+      return "rent";
+  }
+};
+
+const normalizeDocumentStatus = (
+  value: string | undefined,
+): FastTrackDocumentStatus => {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "uploaded":
+      return "uploaded";
+    case "approved":
+      return "approved";
+    case "reupload_needed":
+      return "reupload_needed";
+    default:
+      return "pending";
+  }
+};
+
+const toLegacyDocumentStatus = (value: FastTrackDocumentStatus): DocStatus => {
+  switch (value) {
+    case "approved":
+      return "verified";
+    case "reupload_needed":
+      return "reupload_required";
+    case "uploaded":
+      return "uploaded";
+    default:
+      return "pending";
+  }
+};
+
+const deriveDocumentPhase = (
+  stage: FastTrackStage,
+  items: FastTrackDocumentItem[],
+): FastTrackCase["documentPhase"] => {
+  if (items.length > 0 && items.every((item) => item.status === "approved")) {
+    return "verified";
+  }
+  if (items.some((item) => item.status === "reupload_needed")) {
+    return "replacement_required";
+  }
+  if (items.some((item) => item.status === "uploaded")) {
+    return "uploaded_under_review";
+  }
+  if (stage === "documents") {
+    return "waiting_for_upload";
+  }
+  return "not_requested";
+};
+
+const deriveDocumentPhaseReason = (
+  phase: FastTrackCase["documentPhase"],
+): string => {
+  switch (phase) {
+    case "verified":
+      return "Core files are approved and the workspace can move forward.";
+    case "replacement_required":
+      return "At least one uploaded file needs a replacement.";
+    case "uploaded_under_review":
+      return "Uploaded files are waiting for review.";
+    case "waiting_for_upload":
+      return "Core files are still needed from the user.";
+    default:
+      return "No core files have been requested yet.";
+  }
+};
+
+const deriveNextAction = (
+  stage: FastTrackStage,
+  journeyMode: "rent" | "sale",
+  roleHint?: "user" | "manager" | "admin",
+): string => {
+  switch (stage) {
+    case "documents":
+      return roleHint === "user" ? "Upload core files" : "Approve core files";
+    case "viewing":
+      return roleHint === "user" ? "Confirm the plan" : "Schedule the viewing";
+    case "decision":
+      return roleHint === "user"
+        ? "Wait for the decision"
+        : journeyMode === "sale"
+          ? "Record the offer outcome"
+          : "Record the application outcome";
+    case "agreement":
+      return roleHint === "user" ? "Accept the agreement" : "Send the agreement";
+    case "handover":
+      return roleHint === "user" ? "Confirm receipt" : "Complete handover";
+    default:
+      return roleHint === "user" ? "Wait for the team to start" : "Start documents";
+  }
+};
+
+const deriveStatusReason = (
+  stage: FastTrackStage,
+  journeyMode: "rent" | "sale",
+  finalStatus: FastTrackFinalStatus,
+): string => {
+  if (finalStatus === "completed") {
+    return "This fast-track case is complete.";
+  }
+  if (finalStatus === "cancelled") {
+    return "This fast-track case has been cancelled.";
+  }
+
+  switch (stage) {
+    case "documents":
+      return "All core documents stay in this workspace until they are approved.";
+    case "viewing":
+      return "Viewing scheduling and confirmation stay in this workspace.";
+    case "decision":
+      return journeyMode === "sale"
+        ? "The offer decision is managed inline in this workspace."
+        : "The application decision is managed inline in this workspace.";
+    case "agreement":
+      return journeyMode === "sale"
+        ? "Agreement and payment steps stay inside this workspace."
+        : "Agreement and payment steps stay inside this workspace.";
+    case "handover":
+      return "Completion is confirmed directly in this workspace.";
+    default:
+      return "The property is selected and ready to start.";
+  }
+};
+
+const mapBackendToFrontend = (
+  raw: BackendFastTrackWorkspaceCase,
+): FastTrackCase => {
+  const stage = normalizeStage(raw.stage);
+  const workspaceFinalStatus = normalizeWorkspaceFinalStatus(raw.final_status);
+  const items = (raw.documents?.items || []).map((item) => ({
+    id: item.id,
+    label: item.label,
+    status: normalizeDocumentStatus(item.status),
+    documentRecordId: item.document_record_id,
+    fileName: item.file_name,
+    fileUrl: item.file_url,
+    note: item.note,
+    uploadedAt: item.uploaded_at,
+    reviewedAt: item.reviewed_at,
+    reviewedBy: item.reviewed_by,
+  }));
+  const identityItem = items.find((item) => item.id === "identity");
+  const addressItem = items.find((item) => item.id === "address");
+  const journeyMode = normalizeJourneyMode(raw.header?.journey_type);
+  const documentPhase = deriveDocumentPhase(stage, items);
+
+  return {
+    id: raw.id,
+    caseId: raw.case_id || raw.id,
+    propertyId: raw.header.property_id,
+    propertyTitle: raw.header.property_title,
+    propertyType: raw.header.property_type,
+    propertyCountry: raw.header.property_country,
+    clientId: raw.header.client_id,
+    clientName: raw.header.client_name,
+    managerId: raw.header.manager_id || undefined,
+    leadId: raw.header.lead_id || undefined,
+    brokerRequestId: raw.header.broker_request_id || undefined,
+    listingType: normalizeListingType(raw.header.listing_type),
+    journeyMode,
+    journeyType: journeyMode === "sale" ? "buy" : "rent",
+    startedFrom: raw.header.started_from,
+    submittedAt: raw.header.submitted_at,
+    expiresAt: raw.header.expires_at,
+    hoursRemaining: Number(raw.header.hours_remaining || 0),
+    overdue: Boolean(raw.header.overdue),
+    stage,
+    currentStep: toLegacyStep(stage, workspaceFinalStatus),
+    backendCurrentStep: toLegacyStep(stage, workspaceFinalStatus),
+    workspaceFinalStatus,
+    finalStatus: toLegacyFinalStatus(workspaceFinalStatus),
+    documents: {
+      identityProof: toLegacyDocumentStatus(identityItem?.status || "pending"),
+      addressProof: toLegacyDocumentStatus(addressItem?.status || "pending"),
+      items,
+      allUploaded: Boolean(raw.documents?.all_uploaded),
+      allApproved: Boolean(raw.documents?.all_approved),
+      note: raw.documents?.note,
+    },
+    viewing: {
+      status: raw.viewing?.status || "pending",
+      scheduledAt: raw.viewing?.scheduled_at,
+      note: raw.viewing?.note,
+      requestedChange: raw.viewing?.requested_change,
+      requestedChangeAt: raw.viewing?.requested_change_at,
+      confirmedByUser: raw.viewing?.confirmed_by_user,
+    },
+    decision: {
+      mode: normalizeJourneyMode(raw.decision?.mode),
+      status: raw.decision?.status || "pending",
+      amount: raw.decision?.amount,
+      currency: raw.decision?.currency || "GBP",
+      note: raw.decision?.note,
+      decidedAt: raw.decision?.decided_at,
+      decidedBy: raw.decision?.decided_by,
+    },
+    agreement: {
+      status: raw.agreement?.status || "pending",
+      paymentStatus: raw.agreement?.payment_status || "not_requested",
+      amountDue: raw.agreement?.amount_due,
+      note: raw.agreement?.note,
+      sentAt: raw.agreement?.sent_at,
+      acceptedAt: raw.agreement?.accepted_at,
+    },
+    handover: {
+      status: raw.handover?.status || "pending",
+      note: raw.handover?.note,
+      readyAt: raw.handover?.ready_at,
+      confirmedByUser: raw.handover?.confirmed_by_user,
+      confirmedAt: raw.handover?.confirmed_at,
+      completedAt: raw.handover?.completed_at,
+      completedBy: raw.handover?.completed_by,
+    },
+    activity: (raw.activity || []).map((item) => ({
+      id: item.id,
+      type: item.type,
+      message: item.message,
+      actorRole: item.actor_role,
+      createdAt: item.created_at,
+    })),
+    documentPhase,
+    documentPhaseReason: deriveDocumentPhaseReason(documentPhase),
+    nextAction: deriveNextAction(stage, journeyMode),
+    statusReason: deriveStatusReason(stage, journeyMode, workspaceFinalStatus),
+  };
+};
+
 export const getFastTrackCases = async (
   options: ServiceRequestOptions = {},
-) => {
+): Promise<{ data: FastTrackCase[] | null; error: string | null }> => {
   try {
-    const result = await apiFetch<BackendFastTrackCase[]>(
+    const result = await apiFetch<BackendFastTrackWorkspaceCase[]>(
       `${BOOKING_URL()}/api/v1/fast-track`,
       options,
     );
-    if (result) {
-      return { data: result.map(mapBackendToFrontend), error: null };
-    }
-    return { data: [], error: null };
+    return { data: (result || []).map(mapBackendToFrontend), error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
   }
 };
 
-export const getFastTrackCaseById = async (id: string) => {
+export const getFastTrackCaseById = async (
+  id: string,
+  options: ServiceRequestOptions = {},
+): Promise<{ data: FastTrackCase | null; error: string | null }> => {
   try {
-    const result = await apiFetch<BackendFastTrackCase>(
+    const result = await apiFetch<BackendFastTrackWorkspaceCase>(
       `${BOOKING_URL()}/api/v1/fast-track/${id}`,
+      options,
     );
-    if (result) {
-      return { data: mapBackendToFrontend(result), error: null };
-    }
-    return { data: null, error: "Case not found" };
+    return { data: result ? mapBackendToFrontend(result) : null, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
   }
@@ -360,9 +606,9 @@ export const getFastTrackCaseById = async (id: string) => {
 export const createFastTrackCase = async (
   req: CreateFastTrackRequest,
   options: ServiceRequestOptions = {},
-) => {
+): Promise<{ data: FastTrackCase | null; error: string | null }> => {
   try {
-    const result = await apiFetch<BackendFastTrackCase>(
+    const result = await apiFetch<BackendFastTrackWorkspaceCase>(
       `${BOOKING_URL()}/api/v1/fast-track`,
       {
         method: "POST",
@@ -370,10 +616,27 @@ export const createFastTrackCase = async (
         ...options,
       },
     );
-    if (result) {
-      return { data: mapBackendToFrontend(result), error: null };
-    }
-    return { data: null, error: "Failed to create case" };
+    return { data: result ? mapBackendToFrontend(result) : null, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const performFastTrackAction = async (
+  id: string,
+  req: FastTrackActionRequest,
+  options: ServiceRequestOptions = {},
+): Promise<{ data: FastTrackCase | null; error: string | null }> => {
+  try {
+    const result = await apiFetch<BackendFastTrackWorkspaceCase>(
+      `${BOOKING_URL()}/api/v1/fast-track/${id}/actions`,
+      {
+        method: "POST",
+        body: JSON.stringify(req),
+        ...options,
+      },
+    );
+    return { data: result ? mapBackendToFrontend(result) : null, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
   }
@@ -382,20 +645,18 @@ export const createFastTrackCase = async (
 export const updateFastTrackCase = async (
   id: string,
   req: UpdateFastTrackRequest,
-) => {
+  options: ServiceRequestOptions = {},
+): Promise<{ data: FastTrackCase | null; error: string | null }> => {
   try {
-    // Map frontend fields back to backend if necessary, but update request is simple
-    const result = await apiFetch<BackendFastTrackCase>(
+    const result = await apiFetch<BackendFastTrackWorkspaceCase>(
       `${BOOKING_URL()}/api/v1/fast-track/${id}`,
       {
         method: "PUT",
         body: JSON.stringify(req),
+        ...options,
       },
     );
-    if (result) {
-      return { data: mapBackendToFrontend(result), error: null };
-    }
-    return { data: null, error: "Failed to update case" };
+    return { data: result ? mapBackendToFrontend(result) : null, error: null };
   } catch (error: any) {
     return { data: null, error: getErrorMessage(error) };
   }
@@ -404,7 +665,7 @@ export const updateFastTrackCase = async (
 export const deleteFastTrackCase = async (
   id: string,
   options: ServiceRequestOptions = {},
-) => {
+): Promise<{ error: string | null }> => {
   try {
     await apiFetch(`${BOOKING_URL()}/api/v1/fast-track/${id}`, {
       method: "DELETE",

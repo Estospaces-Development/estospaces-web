@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext';
 import {
     Application as BackendApplication,
@@ -139,6 +139,7 @@ interface ApplicationsContextType {
     fetchApplications: () => Promise<void>;
     withdrawApplication: (id: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
     updateApplicationStatus: (id: string, status: string) => Promise<{ success: boolean; error?: string }>;
+    registerConsumer: () => () => void;
 }
 
 const ApplicationsContext = createContext<ApplicationsContextType | undefined>(undefined);
@@ -439,6 +440,22 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         WORKSPACE_SYNC_TAGS.CONTRACTS,
         WORKSPACE_SYNC_TAGS.PAYMENTS,
     ], []);
+    const [activeConsumerCount, setActiveConsumerCount] = useState(0);
+    const hasActiveConsumers = activeConsumerCount > 0;
+
+    const registerConsumer = useCallback(() => {
+        setActiveConsumerCount((current) => current + 1);
+
+        let released = false;
+        return () => {
+            if (released) {
+                return;
+            }
+
+            released = true;
+            setActiveConsumerCount((current) => Math.max(0, current - 1));
+        };
+    }, []);
 
     const fetchApplications = async () => {
         if (!user) {
@@ -564,19 +581,24 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     };
 
     useEffect(() => {
-        if (user) {
-            fetchApplications();
+        if (!user) {
+            setApplications([]);
+            setIsLoading(false);
             return;
         }
 
-        setApplications([]);
-        setIsLoading(false);
-    }, [user]);
+        if (!hasActiveConsumers) {
+            setIsLoading(false);
+            return;
+        }
+
+        fetchApplications();
+    }, [hasActiveConsumers, user]);
 
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchApplications,
-        enabled: Boolean(user),
+        enabled: Boolean(user) && hasActiveConsumers,
     });
 
     const createApplication = async (data: any) => {
@@ -781,6 +803,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             fetchApplications,
             withdrawApplication,
             updateApplicationStatus,
+            registerConsumer,
         }}>
             {children}
         </ApplicationsContext.Provider>
@@ -792,5 +815,8 @@ export const useApplications = () => {
     if (context === undefined) {
         throw new Error('useApplications must be used within an ApplicationsProvider');
     }
+
+    useEffect(() => context.registerConsumer(), [context.registerConsumer]);
+
     return context;
 };
