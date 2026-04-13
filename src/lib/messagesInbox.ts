@@ -10,10 +10,11 @@ export interface ConversationQueryResolutionInput {
     requestedConversationId: string | null | undefined;
     hasLoadedConversations: boolean;
     availableConversationIds: string[];
+    hasAttemptedRefresh?: boolean;
 }
 
 export interface ConversationQueryResolution {
-    status: 'ignore' | 'wait' | 'select' | 'clear';
+    status: 'ignore' | 'wait' | 'refresh' | 'select';
     conversationId: string | null;
 }
 
@@ -29,6 +30,7 @@ export function resolveConversationQuerySelection({
     requestedConversationId,
     hasLoadedConversations,
     availableConversationIds,
+    hasAttemptedRefresh = false,
 }: ConversationQueryResolutionInput): ConversationQueryResolution {
     const conversationId = normalizeConversationId(requestedConversationId);
     if (!conversationId) {
@@ -52,8 +54,15 @@ export function resolveConversationQuerySelection({
         };
     }
 
+    if (!hasAttemptedRefresh) {
+        return {
+            status: 'refresh',
+            conversationId,
+        };
+    }
+
     return {
-        status: 'clear',
+        status: 'select',
         conversationId,
     };
 }

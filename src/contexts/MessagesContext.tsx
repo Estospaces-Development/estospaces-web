@@ -157,6 +157,31 @@ const buildConversationContext = (
     recipientAgency: agentData?.agency || agentData?.agent_company || '',
 });
 
+const createPlaceholderConversation = (conversationId: string): Conversation => ({
+    id: conversationId,
+    isSupportConversation: false,
+    agentId: '',
+    agentName: 'Conversation',
+    contactName: 'Conversation',
+    agentAgency: '',
+    agentAvatar: null,
+    agentEmail: '',
+    agentPhone: '',
+    isOnline: false,
+    propertyId: null,
+    propertyTitle: null,
+    propertyAddress: null,
+    propertyImage: null,
+    propertyPrice: null,
+    isArchived: false,
+    isMuted: false,
+    lastActivity: new Date().toISOString(),
+    lastMessage: '',
+    lastMessageTime: '',
+    unreadCount: 0,
+    messages: [],
+});
+
 export const MessagesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
@@ -233,10 +258,23 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         };
     }, [mapBackendMessage]);
 
+    const ensureConversationShell = useCallback((conversationId: string) => {
+        setConversations((previous) => {
+            if (previous.some((conversation) => conversation.id === conversationId)) {
+                return previous;
+            }
+
+            return [createPlaceholderConversation(conversationId), ...previous];
+        });
+    }, []);
+
     const setSelectedConversationId = useCallback((id: string | null) => {
         setConversationThreadIssue(null);
+        if (id) {
+            ensureConversationShell(id);
+        }
         setSelectedConversationIdState(id);
-    }, []);
+    }, [ensureConversationShell]);
 
     const clearConversationThreadIssue = useCallback(() => {
         setConversationThreadIssue(null);
@@ -282,12 +320,24 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         try {
             const backendConversations = await messagesService.getConversations();
             setConversations((previous) =>
-                backendConversations.map((conversation) =>
-                    mapBackendConversation(
-                        conversation,
-                        previous.find((existingConversation) => existingConversation.id === conversation.id),
-                    ),
-                ),
+                {
+                    const mappedConversations = backendConversations.map((conversation) =>
+                        mapBackendConversation(
+                            conversation,
+                            previous.find((existingConversation) => existingConversation.id === conversation.id),
+                        ),
+                    );
+                    const preservedConversations = previous.filter((existingConversation) => {
+                        const existsInBackend = backendConversations.some((conversation) => conversation.id === existingConversation.id);
+                        if (existsInBackend) {
+                            return false;
+                        }
+
+                        return existingConversation.id === selectedConversationIdState || existingConversation.messages.length > 0;
+                    });
+
+                    return [...mappedConversations, ...preservedConversations];
+                },
             );
         } catch {
             // Keep the current state if a polling request fails.
@@ -297,7 +347,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                 setHasLoadedConversations(true);
             }
         }
-    }, [mapBackendConversation, user]);
+    }, [mapBackendConversation, selectedConversationIdState, user]);
 
     const refreshConversations = useCallback(async () => {
         await loadConversations(false);
@@ -309,18 +359,40 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             const mappedMessages = backendMessages.map(mapBackendMessage);
 
             setConversations((previous) =>
-                previous.map((conversation) =>
-                    conversation.id === conversationId
-                        ? {
+                {
+                    let didUpdateConversation = false;
+                    const updatedConversations = previous.map((conversation) => {
+                        if (conversation.id !== conversationId) {
+                            return conversation;
+                        }
+
+                        didUpdateConversation = true;
+                        return {
                             ...conversation,
                             messages: mappedMessages,
                             lastMessage: mappedMessages[mappedMessages.length - 1]?.text || conversation.lastMessage,
                             lastMessageTime: mappedMessages.length > 0
                                 ? mappedMessages[mappedMessages.length - 1].time
                                 : conversation.lastMessageTime,
-                        }
-                        : conversation,
-                ),
+                        };
+                    });
+
+                    if (didUpdateConversation) {
+                        return updatedConversations;
+                    }
+
+                    return [
+                        {
+                            ...createPlaceholderConversation(conversationId),
+                            messages: mappedMessages,
+                            lastMessage: mappedMessages[mappedMessages.length - 1]?.text || '',
+                            lastMessageTime: mappedMessages.length > 0
+                                ? mappedMessages[mappedMessages.length - 1].time
+                                : '',
+                        },
+                        ...updatedConversations,
+                    ];
+                },
             );
             return true;
         } catch (error) {

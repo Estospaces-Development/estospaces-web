@@ -35,15 +35,31 @@ test('conversation query selection accepts an accessible deep-linked conversatio
     );
 });
 
-test('conversation query selection clears a stale deep-linked conversation after load', () => {
+test('conversation query selection retries the inbox refresh before clearing a new deep link', () => {
     assert.deepEqual(
         resolveConversationQuerySelection({
             requestedConversationId: 'conversation-404',
             hasLoadedConversations: true,
             availableConversationIds: ['conversation-1', 'conversation-2'],
+            hasAttemptedRefresh: false,
         }),
         {
-            status: 'clear',
+            status: 'refresh',
+            conversationId: 'conversation-404',
+        },
+    );
+});
+
+test('conversation query selection opens the requested thread after a failed refresh so the thread api can validate it', () => {
+    assert.deepEqual(
+        resolveConversationQuerySelection({
+            requestedConversationId: 'conversation-404',
+            hasLoadedConversations: true,
+            availableConversationIds: ['conversation-1', 'conversation-2'],
+            hasAttemptedRefresh: true,
+        }),
+        {
+            status: 'select',
             conversationId: 'conversation-404',
         },
     );

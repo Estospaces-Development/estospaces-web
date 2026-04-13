@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowLeft, MessageSquare, PlusCircle, RefreshCw } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
@@ -18,6 +18,8 @@ import {
 function MessagesContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
+    const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
     const {
         conversations,
         allConversations,
@@ -35,6 +37,7 @@ function MessagesContent() {
     const [routeConversationIssue, setRouteConversationIssue] = useState<ConversationThreadIssue | null>(null);
     const requestedConversationId = searchParams.get('conversation');
     const newConversationWith = searchParams.get('newConversationWith');
+    const normalizedRequestedConversationId = requestedConversationId?.trim() || null;
 
     useEffect(() => {
         if (!newConversationWith) {
@@ -45,17 +48,42 @@ function MessagesContent() {
     }, [navigate, newConversationWith]);
 
     useEffect(() => {
+        if (!normalizedRequestedConversationId) {
+            attemptedConversationRefreshesRef.current.clear();
+            conversationRefreshesInFlightRef.current.clear();
+            return;
+        }
+
+        if (conversationRefreshesInFlightRef.current.has(normalizedRequestedConversationId)) {
+            return;
+        }
+
         const queryResolution = resolveConversationQuerySelection({
-            requestedConversationId,
+            requestedConversationId: normalizedRequestedConversationId,
             hasLoadedConversations,
             availableConversationIds: allConversations.map((conversation) => conversation.id),
+            hasAttemptedRefresh: attemptedConversationRefreshesRef.current.has(normalizedRequestedConversationId),
         });
 
         if (queryResolution.status === 'wait' || queryResolution.status === 'ignore') {
             return;
         }
 
+        if (queryResolution.status === 'refresh' && queryResolution.conversationId) {
+            attemptedConversationRefreshesRef.current.add(queryResolution.conversationId);
+            conversationRefreshesInFlightRef.current.add(queryResolution.conversationId);
+            void refreshConversations()
+                .finally(() => {
+                    conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId!);
+                });
+            return;
+        }
+
         if (queryResolution.status === 'select') {
+            if (queryResolution.conversationId) {
+                attemptedConversationRefreshesRef.current.delete(queryResolution.conversationId);
+                conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId);
+            }
             setRouteConversationIssue(null);
             if (selectedConversationId !== queryResolution.conversationId) {
                 setSelectedConversationId(queryResolution.conversationId);
@@ -63,18 +91,13 @@ function MessagesContent() {
             return;
         }
 
-        if (queryResolution.conversationId) {
-            setSelectedConversationId(null);
-            clearConversationThreadIssue();
-            setRouteConversationIssue(createUnavailableConversationThreadIssue(queryResolution.conversationId));
-            navigate('/user/dashboard/messages', { replace: true });
-        }
     }, [
         allConversations,
         clearConversationThreadIssue,
         hasLoadedConversations,
         navigate,
-        requestedConversationId,
+        normalizedRequestedConversationId,
+        refreshConversations,
         selectedConversationId,
         setSelectedConversationId,
     ]);
