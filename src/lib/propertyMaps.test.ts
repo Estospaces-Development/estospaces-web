@@ -122,3 +122,43 @@ test("getPropertyDisplayAddress combines nested and fallback address fields with
     "10 Market Street, Manchester, M1 1AA",
   );
 });
+
+test("getPropertyMapState supports core-service property payloads", () => {
+  const state = getPropertyMapState({
+    address_line_1: "27 Oxley Road",
+    city: "Preston",
+    postcode: "PR1 5QH",
+    country: "United Kingdom",
+    latitude: "51.5007",
+    longitude: "-0.1246",
+  });
+
+  assert.equal(state.hasCoordinates, true);
+  assert.equal(state.hasAddress, true);
+  assert.equal(state.coordinates?.latitude, 51.5007);
+  assert.equal(state.coordinates?.longitude, -0.1246);
+  assert.equal(
+    state.displayAddress,
+    "27 Oxley Road, Preston, PR1 5QH, United Kingdom",
+  );
+  assert.match(state.embedUrl ?? "", /51\.5007%2C-0\.1246/);
+  assert.match(state.externalUrl ?? "", /query=51\.5007%2C-0\.1246/);
+});
+
+test("getPropertyMapState falls back to service-address search without coordinates", () => {
+  const state = getPropertyMapState({
+    address_line_1: "221B Smoke Test Lane",
+    city: "London",
+    postcode: "SW1A 1AA",
+    country: "UK",
+  });
+
+  assert.equal(state.hasCoordinates, false);
+  assert.equal(state.hasAddress, true);
+  assert.equal(state.embedUrl, null);
+  assert.equal(
+    state.displayAddress,
+    "221B Smoke Test Lane, London, SW1A 1AA, UK",
+  );
+  assert.match(state.externalUrl ?? "", /221B%20Smoke%20Test%20Lane/);
+});

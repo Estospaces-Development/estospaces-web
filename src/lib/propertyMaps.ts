@@ -3,18 +3,31 @@ export type MapsProvider = "apple" | "google";
 export interface PropertyMapLocationLike {
   location?: {
     addressLine1?: string | null;
+    address_line_1?: string | null;
     addressLine2?: string | null;
+    address_line_2?: string | null;
     city?: string | null;
     state?: string | null;
     postalCode?: string | null;
+    postcode?: string | null;
     country?: string | null;
     latitude?: number | string | null;
+    lat?: number | string | null;
     longitude?: number | string | null;
+    lng?: number | string | null;
   } | null;
   address?: string | null;
+  address_line_1?: string | null;
+  address_line_2?: string | null;
   city?: string | null;
   state?: string | null;
   zipCode?: string | null;
+  postcode?: string | null;
+  country?: string | null;
+  latitude?: number | string | null;
+  lat?: number | string | null;
+  longitude?: number | string | null;
+  lng?: number | string | null;
 }
 
 export interface PropertyMapState {
@@ -102,8 +115,18 @@ export const getPreferredMapsProvider = (
 export const getPropertyMapCoordinates = (
   property: PropertyMapLocationLike,
 ) => {
-  const latitude = normalizeCoordinate(property.location?.latitude);
-  const longitude = normalizeCoordinate(property.location?.longitude);
+  const latitude = normalizeCoordinate(
+    property.location?.latitude ??
+      property.location?.lat ??
+      property.latitude ??
+      property.lat,
+  );
+  const longitude = normalizeCoordinate(
+    property.location?.longitude ??
+      property.location?.lng ??
+      property.longitude ??
+      property.lng,
+  );
 
   if (latitude === null || longitude === null) {
     return null;
@@ -117,15 +140,22 @@ export const getPropertyDisplayAddress = (
 ) =>
   joinAddressParts([
     property.location?.addressLine1,
+    property.location?.address_line_1,
+    property.address_line_1,
     property.location?.addressLine2,
+    property.location?.address_line_2,
+    property.address_line_2,
     property.address,
     property.location?.city,
     property.city,
     property.location?.state,
     property.state,
     property.location?.postalCode,
+    property.location?.postcode,
+    property.postcode,
     property.zipCode,
     property.location?.country,
+    property.country,
   ]);
 
 export const getPropertyMapState = (

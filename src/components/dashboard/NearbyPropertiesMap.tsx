@@ -122,6 +122,7 @@ const NearbyPropertiesMap = ({
     const navigate = useNavigate();
     const [isMounted, setIsMounted] = useState(false);
     const [selectedPropertyID, setSelectedPropertyID] = useState<string | null>(null);
+    const [isSelectionDismissed, setIsSelectionDismissed] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
@@ -189,15 +190,26 @@ const NearbyPropertiesMap = ({
     ), [sortedProperties]);
 
     useEffect(() => {
-        if (!selectedPropertyID && propertiesWithCoords[0]) {
+        if (propertiesWithCoords.length === 0) {
+            if (selectedPropertyID !== null) {
+                setSelectedPropertyID(null);
+            }
+            if (isSelectionDismissed) {
+                setIsSelectionDismissed(false);
+            }
+            return;
+        }
+
+        if (!selectedPropertyID && !isSelectionDismissed && propertiesWithCoords[0]) {
             setSelectedPropertyID(propertiesWithCoords[0].id);
             return;
         }
 
         if (selectedPropertyID && !propertiesWithCoords.some((property) => property.id === selectedPropertyID)) {
+            setIsSelectionDismissed(false);
             setSelectedPropertyID(propertiesWithCoords[0]?.id || null);
         }
-    }, [propertiesWithCoords, selectedPropertyID]);
+    }, [isSelectionDismissed, propertiesWithCoords, selectedPropertyID]);
 
     const selectedProperty = useMemo(
         () => propertiesWithCoords.find((property) => property.id === selectedPropertyID) || null,
@@ -314,6 +326,7 @@ const NearbyPropertiesMap = ({
                             icon={createPropertyIcon(getMarkerColor(property.category), isSelected)}
                             eventHandlers={{
                                 click: () => {
+                                    setIsSelectionDismissed(false);
                                     setSelectedPropertyID(property.id);
                                     onPropertyClick?.(property);
                                 },
@@ -402,7 +415,11 @@ const NearbyPropertiesMap = ({
                         </div>
                         <button
                             type="button"
-                            onClick={() => setSelectedPropertyID(null)}
+                            onClick={() => {
+                                setIsSelectionDismissed(true);
+                                setSelectedPropertyID(null);
+                            }}
+                            aria-label="Close selected property"
                             className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
                         >
                             <X size={16} />

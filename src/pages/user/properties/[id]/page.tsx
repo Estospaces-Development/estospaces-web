@@ -19,6 +19,7 @@ import {
     Clock,
     Sparkles,
     CheckCircle2,
+    ExternalLink,
     Upload,
     X,
     Heart,
@@ -47,6 +48,7 @@ import {
     IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT,
     resolveImmersiveGalleryZoomPoint,
 } from '@/lib/immersiveGallery';
+import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages } from '@/lib/propertyImages';
 
@@ -326,6 +328,14 @@ const UserPropertyDetail = () => {
         ? [property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ')
         : [property?.city, property?.postcode].filter(Boolean).join(', ');
     const locationLabel = [property?.city, property?.country].filter(Boolean).join(', ') || 'Prime location';
+    const propertyMapState = useMemo(
+        () => getPropertyMapState(property ?? {}, {
+            userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
+        }),
+        [property],
+    );
+    const propertyMapAddress = propertyMapState.displayAddress || propertyAddress || locationLabel;
+    const preferredMapsLabel = propertyMapState.provider === 'apple' ? 'Apple Maps' : 'Google Maps';
     const minimumViewingDate = useMemo(() => toDateValue(new Date()), []);
     const bookedViewingSlotsByDate = useMemo(() => {
         const entries: Record<string, Set<string>> = {};
@@ -1530,6 +1540,88 @@ const UserPropertyDetail = () => {
                                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">{addressDetail.label}</p>
                                     <p className="mt-3 max-w-[36rem] text-base font-semibold leading-8 text-gray-900 dark:text-white">
                                         {addressDetail.value}
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+
+                        <section className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 md:p-7">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Location & maps</p>
+                                    <h3 className="mt-3 text-[1.9rem] font-semibold leading-tight tracking-tight text-gray-900 dark:text-white">
+                                        Open the property in {preferredMapsLabel}
+                                    </h3>
+                                    <p className="mt-3 max-w-[34rem] text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                        {propertyMapState.statusDescription}
+                                    </p>
+                                </div>
+                                {propertyMapState.externalUrl && (
+                                    <a
+                                        href={propertyMapState.externalUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                                    >
+                                        <span>Open in Maps</span>
+                                        <ExternalLink size={16} />
+                                    </a>
+                                )}
+                            </div>
+
+                            {propertyMapState.externalUrl ? (
+                                <a
+                                    href={propertyMapState.externalUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="group mt-6 block"
+                                    aria-label={`Open ${property?.title || 'property'} in ${preferredMapsLabel}`}
+                                >
+                                    <div className="relative aspect-[16/10] overflow-hidden rounded-[1.7rem] border border-stone-200/80 bg-stone-100 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                                        {propertyMapState.embedUrl ? (
+                                            <iframe
+                                                src={propertyMapState.embedUrl}
+                                                title={`Map preview for ${property?.title || 'property'}`}
+                                                className="pointer-events-none h-full w-full border-0"
+                                                allowFullScreen
+                                            />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.18),transparent_38%),linear-gradient(135deg,#f8f3eb,#fff)] dark:bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.18),transparent_38%),linear-gradient(135deg,#18181b,#09090b)]">
+                                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-orange-600 shadow-lg dark:bg-zinc-900 dark:text-orange-300">
+                                                    <MapPin size={28} />
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent transition-opacity group-hover:opacity-95" />
+                                        <div className="absolute left-4 top-4 rounded-xl bg-white/95 px-3.5 py-2 text-sm font-semibold text-orange-700 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-zinc-900/90 dark:text-orange-200">
+                                            <span className="inline-flex items-center gap-2">
+                                                <span>Open in Maps</span>
+                                                <ExternalLink size={15} />
+                                            </span>
+                                        </div>
+                                        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+                                                {propertyMapState.statusTitle}
+                                            </p>
+                                            <p className="mt-2 text-sm font-semibold text-white">
+                                                {propertyMapAddress}
+                                            </p>
+                                            <p className="mt-1 text-sm text-white/80">
+                                                Opens in {preferredMapsLabel} when you press the map.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </a>
+                            ) : (
+                                <div className="mt-6 rounded-[1.7rem] border border-dashed border-stone-300 bg-stone-50 p-6 text-center dark:border-zinc-700 dark:bg-zinc-950">
+                                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-200">
+                                        <MapPin size={24} />
+                                    </div>
+                                    <h4 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
+                                        {propertyMapState.statusTitle}
+                                    </h4>
+                                    <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                        {propertyMapState.statusDescription}
                                     </p>
                                 </div>
                             )}

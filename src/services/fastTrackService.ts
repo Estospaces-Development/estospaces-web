@@ -46,6 +46,9 @@ export interface FastTrackDocumentItem {
   documentRecordId?: string;
   fileName?: string;
   fileUrl?: string;
+  mimeType?: string;
+  uploadNote?: string;
+  reviewNote?: string;
   note?: string;
   uploadedAt?: string;
   reviewedAt?: string;
@@ -110,6 +113,10 @@ export interface FastTrackActivityEntry {
 interface BackendFastTrackWorkspaceCase {
   id: string;
   case_id?: string;
+  application_id?: string;
+  viewing_id?: string;
+  contract_id?: string;
+  payment_id?: string;
   header: {
     property_id: string;
     property_title: string;
@@ -138,6 +145,9 @@ interface BackendFastTrackWorkspaceCase {
       document_record_id?: string;
       file_name?: string;
       file_url?: string;
+      mime_type?: string;
+      upload_note?: string;
+      review_note?: string;
       note?: string;
       uploaded_at?: string;
       reviewed_at?: string;
@@ -483,7 +493,10 @@ const mapBackendToFrontend = (
     documentRecordId: item.document_record_id,
     fileName: item.file_name,
     fileUrl: item.file_url,
-    note: item.note,
+    mimeType: item.mime_type,
+    uploadNote: item.upload_note || (item.reviewed_at ? undefined : item.note),
+    reviewNote: item.review_note || (item.reviewed_at ? item.note : undefined),
+    note: item.review_note || item.upload_note || item.note,
     uploadedAt: item.uploaded_at,
     reviewedAt: item.reviewed_at,
     reviewedBy: item.reviewed_by,
@@ -502,6 +515,10 @@ const mapBackendToFrontend = (
     propertyCountry: raw.header.property_country,
     clientId: raw.header.client_id,
     clientName: raw.header.client_name,
+    applicationId: raw.application_id,
+    viewingId: raw.viewing_id,
+    contractId: raw.contract_id,
+    paymentId: raw.payment_id,
     managerId: raw.header.manager_id || undefined,
     leadId: raw.header.lead_id || undefined,
     brokerRequestId: raw.header.broker_request_id || undefined,

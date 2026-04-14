@@ -28,7 +28,7 @@ const matchesQuery = (query: string, value: string) => value.toLowerCase().inclu
 
 export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps) {
     const [query, setQuery] = useState('');
-    const [openFaq, setOpenFaq] = useState(config.faqs[0]?.question ?? '');
+    const [openFaq, setOpenFaq] = useState('');
     const [activeSection, setActiveSection] = useState(docsDocument.sections[0]?.slug ?? '');
     const pageRootRef = useRef<HTMLDivElement | null>(null);
     const deferredQuery = useDeferredValue(query.trim().toLowerCase());
@@ -520,6 +520,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                             <div className="mt-6 space-y-3">
                                 {config.faqs.map((faq, index) => {
                                     const isOpen = openFaq === faq.question;
+                                    const answerId = `faq-answer-${config.role}-${index + 1}`;
 
                                     return (
                                         <div
@@ -533,6 +534,8 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                             <button
                                                 type="button"
                                                 onClick={() => setOpenFaq(isOpen ? '' : faq.question)}
+                                                aria-expanded={isOpen}
+                                                aria-controls={answerId}
                                                 className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors dark:hover:bg-white/[0.02]"
                                             >
                                                 <span className="flex items-start gap-3">
@@ -548,6 +551,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                                 />
                                             </button>
                                             <div
+                                                id={answerId}
                                                 className={`grid transition-[grid-template-rows] duration-200 ${
                                                     isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
                                                 }`}
