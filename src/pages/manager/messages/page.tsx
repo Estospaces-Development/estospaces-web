@@ -87,7 +87,7 @@ function MessagesContent() {
         <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-500">
             <div className={`${showConversationList ? 'flex' : 'hidden'} w-full md:w-96 border-r dark:border-gray-700 flex-col h-full bg-white dark:bg-gray-800`}>
                 <div className="p-4 border-b dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Messages</h2>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Messages</h1>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     <ConversationList

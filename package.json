@@ -17,6 +17,16 @@
     "test:e2e:batch:dev": "node scripts/e2e-batch-runner.cjs --env=dev",
     "test:e2e:batch:local": "node scripts/e2e-batch-runner.cjs --env=local",
     "test:e2e:batch:review": "node scripts/e2e-batch-review.cjs",
+    "test:messages:local": "node scripts/messages-proof.cjs --target=local",
+    "test:messages:dev": "node scripts/messages-proof.cjs --target=dev",
+    "test:support:local": "node scripts/support-lifecycle-proof.cjs --target=local",
+    "test:support:dev": "node scripts/support-lifecycle-proof.cjs --target=dev",
+    "test:public:local": "node scripts/public-proof.cjs --target=local",
+    "test:public:dev": "node scripts/public-proof.cjs --target=dev",
+    "test:platform:local": "node scripts/full-platform-proof.cjs --target=local",
+    "test:platform:dev": "node scripts/full-platform-proof.cjs --target=dev",
+    "test:platform:extra:local": "node scripts/platform-extra-proof.cjs --target=local",
+    "test:platform:extra:dev": "node scripts/platform-extra-proof.cjs --target=dev",
     "env:local": "node -e \"require('fs').copyFileSync('.env.local-preset', '.env.development')\" && echo Switched to LOCAL backend",
     "env:dev": "node -e \"require('fs').copyFileSync('.env.gcp-dev', '.env.development')\" && echo Switched to GCP DEV backend"
   },
@@ -27,15 +37,15 @@
     "@types/leaflet": "^1.9.21",
     "@types/three": "^0.182.0",
     "@types/uuid": "^10.0.0",
-    "axios": "^1.13.4",
+    "axios": "^1.15.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.34.0",
-    "jspdf": "^4.1.0",
-    "jspdf-autotable": "^5.0.7",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.563.0",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
@@ -46,11 +56,11 @@
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -62,5 +72,10 @@
     "tsx": "^4.20.6",
     "typescript": "^5",
     "vite": "^6.1.1"
+  },
+  "overrides": {
+    "brace-expansion": "^1.1.13",
+    "follow-redirects": "^1.16.0",
+    "minimatch": "^3.1.4"
   }
 }

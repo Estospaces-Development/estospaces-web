@@ -41,6 +41,7 @@ export function SupportComposer({
                                 type="button"
                                 onClick={() => onRemoveAttachment(attachment.local_id)}
                                 className="rounded-full p-0.5 transition hover:bg-orange-200/60 dark:hover:bg-orange-500/20"
+                                aria-label={`Remove ${attachment.file_name}`}
                             >
                                 <X className="h-3.5 w-3.5" />
                             </button>

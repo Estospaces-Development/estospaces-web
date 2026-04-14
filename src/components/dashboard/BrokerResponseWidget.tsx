@@ -458,18 +458,18 @@ const BrokerResponseWidget: React.FC = () => {
                         <BellRing className="w-5 h-5 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                        <h3 className="section-heading text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <h2 className="section-heading text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                             <span className="text-red-600 dark:text-red-500">Live</span> Response Tracker
                             {pendingCount > 0 && (
                                 <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-bounce">
                                     {pendingCount} URGENT
                                 </span>
                             )}
-                        </h3>
+                        </h2>
                         <p className="text-xs text-gray-500 dark:text-gray-400">Real-time emergency assistance requests</p>
                     </div>
                 </div>
-                <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <button type="button" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" aria-label="Open live response options">
                     <MoreHorizontal className="w-5 h-5" />
                 </button>
             </div>
@@ -539,7 +539,7 @@ const BrokerResponseWidget: React.FC = () => {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Matched client workspaces</p>
-                            <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Share your ranked property shortlist</h4>
+                            <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">Share your ranked property shortlist</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 These are the live broker requests you already accepted. Only your published, active, or online properties appear here. Newly created listings stay in admin approval until an admin publishes them.
                             </p>
@@ -590,9 +590,9 @@ const BrokerResponseWidget: React.FC = () => {
                                                     {getManagerWorkspaceStateLabel(request)}
                                                 </span>
                                             </div>
-                                            <h5 className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
+                                            <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
                                                 {request.requester_name || request.requester_email || 'Matched client'}
-                                            </h5>
+                                            </p>
                                             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
                                                 <span>Workspace {formatWorkspaceReference(request.id)}</span>
                                                 <span className="text-gray-300 dark:text-gray-600">|</span>
@@ -635,7 +635,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                         <CheckCircle2 className="h-4 w-4" />
                                                         <span className="text-sm font-semibold">Client selected this property</span>
                                                     </div>
-                                                    <h6 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{selectedProperty.title}</h6>
+                                                    <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{selectedProperty.title}</p>
                                                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                                         {[selectedProperty.address_line_1, selectedProperty.city, selectedProperty.postcode].filter(Boolean).join(', ')}
                                                     </p>

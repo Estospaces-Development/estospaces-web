@@ -5,9 +5,9 @@
    Theme Configuration (Tailwind v4)
    ========================================= */
 @theme {
-  --color-primary: #FF6B35;
-  --color-primary-light: #FF8C61;
-  --color-primary-dark: #E55A2B;
+  --color-primary: #C2410C;
+  --color-primary-light: #EA580C;
+  --color-primary-dark: #9A3412;
 
   --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   --font-manager: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;

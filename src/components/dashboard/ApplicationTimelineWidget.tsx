@@ -650,7 +650,7 @@ const ApplicationTimelineWidget = () => {
                                 {expandedId === item.id && (
                                     <div className="px-6 pb-6 animate-fadeIn">
                                         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 mb-5">
-                                            <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-orange-500" /> Complete Journey Progress</h4>
+                                            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><Activity size={16} className="text-orange-500" /> Complete Journey Progress</h3>
                                             <div className="relative space-y-4">
                                                 <div className="absolute left-5 top-4 bottom-4 w-0.5 bg-gray-200 dark:bg-gray-700" />
                                                 {item.stages?.map((stage, idx) => (
@@ -659,7 +659,7 @@ const ApplicationTimelineWidget = () => {
                                                             <StageIcon stage={stage} size={16} />
                                                         </div>
                                                         <div className="flex-1 pb-2">
-                                                            <h5 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h5>
+                                                            <h4 className="font-semibold text-gray-900 dark:text-white">{stage.name}</h4>
                                                             <p className="text-sm text-gray-600 dark:text-gray-400">{stage.description}</p>
                                                         </div>
                                                     </div>

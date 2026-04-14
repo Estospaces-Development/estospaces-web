@@ -343,12 +343,13 @@ export function SupportCenter({ role }: SupportCenterProps) {
             <section className="rounded-[2.25rem] border border-orange-100 bg-white/95 p-8 shadow-[0_24px_70px_-40px_rgba(255,115,0,0.35)] dark:border-orange-500/15 dark:bg-gray-900/85">
                 <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="max-w-4xl">
-                        <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-orange-600 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">{ROLE_COPY[role].title}</span>
-                        <h1 className="mt-4 text-4xl font-black tracking-tight text-gray-950 dark:text-white">{ROLE_COPY[role].subtitle}</h1>
+                        <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">{ROLE_COPY[role].title}</span>
+                        <h1 className="mt-4 text-4xl font-black tracking-tight text-gray-950 dark:text-white">{ROLE_COPY[role].title}</h1>
+                        <p className="mt-3 text-base text-gray-600 dark:text-gray-300">{ROLE_COPY[role].subtitle}</p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                         {!isAdmin && resumableTicket && (
-                            <button onClick={() => setSearchParams(new URLSearchParams({ ticket: resumableTicket.id }), { replace: true })} className="rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white">Resume live support</button>
+                            <button onClick={() => setSearchParams(new URLSearchParams({ ticket: resumableTicket.id }), { replace: true })} className="rounded-full bg-orange-700 px-5 py-3 text-sm font-bold text-white">Resume live support</button>
                         )}
                         <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200"><BookOpen className="h-4 w-4" /> Docs</Link>
                         {!isAdmin && <Link to={`${ROLE_COPY[role].docsPath}#faq`} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200"><CircleHelp className="h-4 w-4" /> FAQ</Link>}
@@ -368,8 +369,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                 onClick={() => setFilters((current) => ({ ...current, status: tab.status, assignee: tab.assignee }))}
                                 className={`rounded-full px-4 py-2 text-sm font-bold transition ${
                                     active
-                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                        : 'border border-gray-200 bg-white text-gray-600 hover:border-orange-200 hover:text-orange-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-orange-500/20 dark:hover:text-orange-200'
+                                        ? 'bg-orange-700 text-white shadow-lg shadow-orange-500/20'
+                                        : 'border border-gray-200 bg-white text-gray-700 hover:border-orange-200 hover:text-orange-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-orange-500/20 dark:hover:text-orange-200'
                                 }`}
                             >
                                 {tab.label}
@@ -381,12 +382,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
             {isAdmin && (
                 <div className="grid gap-3 rounded-[2rem] border border-orange-100 bg-white/90 p-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80 md:grid-cols-2">
-                    <select value={filters.requesterRole || ''} onChange={(event) => setFilters((current) => ({ ...current, requesterRole: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white">
+                    <select value={filters.requesterRole || ''} onChange={(event) => setFilters((current) => ({ ...current, requesterRole: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white" aria-label="Filter tickets by requester role">
                         <option value="">All requester roles</option>
                         <option value="user">Users</option>
                         <option value="manager">Managers</option>
                     </select>
-                    <select value={filters.assignee || ''} onChange={(event) => setFilters((current) => ({ ...current, assignee: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white">
+                    <select value={filters.assignee || ''} onChange={(event) => setFilters((current) => ({ ...current, assignee: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 dark:bg-gray-800 dark:text-white" aria-label="Filter tickets by assignee">
                         <option value="">All assignees</option>
                         <option value="unassigned">Unassigned</option>
                         <option value="me">Assigned to me</option>
@@ -399,12 +400,12 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 <div className="space-y-4">
                     <div className="flex items-center justify-between rounded-[2rem] border border-orange-100 bg-white/90 px-5 py-4 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80">
                         <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-200">{isAdmin ? 'Support queue' : 'My tickets'}</p>
+                            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{isAdmin ? 'Support queue' : 'My tickets'}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{tickets.length} visible right now</p>
                         </div>
                         <div className="flex items-center gap-2">
                             {!isAdmin && <button onClick={() => setSearchParams(new URLSearchParams(), { replace: true })} className="rounded-full border border-orange-200 px-3 py-2 text-xs font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">New ticket</button>}
-                            <button onClick={() => void fetchTickets()} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-600 dark:border-orange-500/20 dark:text-orange-200"><RefreshCw className="h-4 w-4" /></button>
+                            <button onClick={() => void fetchTickets()} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 dark:border-orange-500/20 dark:text-orange-200" aria-label="Refresh support tickets"><RefreshCw className="h-4 w-4" /></button>
                         </div>
                     </div>
                     {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => setSearchParams(new URLSearchParams({ ticket: ticketId }), { replace: true })} emptyLabel={isAdmin ? 'No tickets in this queue' : 'No support tickets yet'} />}
@@ -415,8 +416,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
                         <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                             <div className="mb-4 flex items-center gap-3"><Ticket className="h-6 w-6 text-orange-500" /><h2 className="text-2xl font-black text-gray-950 dark:text-white">Open a support ticket</h2></div>
                             <div className="grid gap-4 md:grid-cols-2">
-                                <select value={composer.category} onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white">{ROLE_COPY[role].categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
-                                <select value={composer.priority} onChange={(event) => setComposer((current) => ({ ...current, priority: event.target.value as SupportTicketSummary['priority'] }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+                                <select value={composer.category} onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket category">{ROLE_COPY[role].categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
+                                <select value={composer.priority} onChange={(event) => setComposer((current) => ({ ...current, priority: event.target.value as SupportTicketSummary['priority'] }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
                             </div>
                             <input value={composer.subject} onChange={(event) => setComposer((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" className="mt-4 w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" />
                             <div className="mt-4"><SupportComposer value={composer.message} onChange={(value) => setComposer((current) => ({ ...current, message: value }))} onSubmit={() => void handleCreateTicket()} onFilesSelected={(files) => void handleFiles('ticket', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('ticket', localId)} attachments={ticketAttachments} disabled={submitting} placeholder="Describe the blocker, the screen you were on, what you expected, and what needs to happen next." submitLabel={submitting ? 'Submitting' : 'Create ticket'} /></div>
@@ -428,20 +429,20 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div>
-                                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-200">{selectedTicket.category}</p>
+                                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{selectedTicket.category}</p>
                                         <h2 className="mt-2 text-2xl font-black text-gray-950 dark:text-white">{selectedTicket.subject}</h2>
-                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Support request'}
                                             {selectedTicket.requester_context?.module ? ` - ${selectedTicket.requester_context.module}` : ''}
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2"><SupportStatusBadge status={selectedTicket.status} /><SupportPriorityBadge priority={selectedTicket.priority} /></div>
                                 </div>
-                                {isAdmin && <div className="mt-5 grid gap-4 md:grid-cols-3"><select value={selectedTicket.status} onChange={(event) => void patchTicket({ status: event.target.value as SupportTicketSummary['status'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select><select value={selectedTicket.priority} onChange={(event) => void patchTicket({ priority: event.target.value as SupportTicketSummary['priority'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select><select value={selectedTicket.assignee_id || ''} onChange={(event) => void patchTicket({ assignee_id: event.target.value })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white"><option value="">Unassigned</option>{adminUsers.map((adminUser) => <option key={adminUser.id} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}</select></div>}
+                                {isAdmin && <div className="mt-5 grid gap-4 md:grid-cols-3"><select value={selectedTicket.status} onChange={(event) => void patchTicket({ status: event.target.value as SupportTicketSummary['status'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket status"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select><select value={selectedTicket.priority} onChange={(event) => void patchTicket({ priority: event.target.value as SupportTicketSummary['priority'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select><select value={selectedTicket.assignee_id || ''} onChange={(event) => void patchTicket({ assignee_id: event.target.value })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket assignee"><option value="">Unassigned</option>{adminUsers.map((adminUser) => <option key={adminUser.id} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}</select></div>}
                                 {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
-                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
+                                <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
                                 <SupportTranscript messages={messages} currentUserId={user?.id} otherLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Estospaces Support'} onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)} />
                                 {canReply && <div className="mt-6"><SupportComposer value={reply} onChange={setReply} onSubmit={() => void handleReply()} onFilesSelected={(files) => void handleFiles('reply', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('reply', localId)} attachments={replyAttachments} disabled={submitting} placeholder={isAdmin ? 'Reply as the Estospaces Team' : 'Reply to support'} submitLabel={submitting ? 'Sending' : 'Send reply'} /></div>}
                             </div>

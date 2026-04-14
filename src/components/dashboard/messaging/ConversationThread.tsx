@@ -29,7 +29,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     }
 
     return (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900/50">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50 dark:bg-gray-900/50" tabIndex={0} aria-label="Conversation messages">
             {messages.length > 0 ? (
                 messages.map((message: any, index) => {
                     const isUser = message.senderId === 'me';

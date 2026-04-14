@@ -38,9 +38,9 @@ const ProfileCompletionCard = () => {
 
                     {/* Content */}
                     <div className="flex-1 mr-2">
-                        <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
                             Complete Profile
-                        </h4>
+                        </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">
                             Unlock verified access
                         </p>
@@ -50,6 +50,7 @@ const ProfileCompletionCard = () => {
                     <button
                         onClick={() => navigate('/user/dashboard/profile')}
                         className="flex-shrink-0 flex items-center justify-center w-8 h-8 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full hover:scale-105 transition-transform shadow-md"
+                        aria-label="Complete profile"
                     >
                         <ArrowRight size={14} />
                     </button>
@@ -58,6 +59,7 @@ const ProfileCompletionCard = () => {
                     <button
                         onClick={() => setIsVisible(false)}
                         className="absolute top-2 right-2 w-5 h-5 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        aria-label="Dismiss profile reminder"
                     >
                         <X size={10} />
                     </button>

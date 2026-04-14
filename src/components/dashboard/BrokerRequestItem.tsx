@@ -173,7 +173,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                             </div>
                         </div>
                         <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm hover:text-orange-500 transition-colors">{request.brokerName}</h4>
+                            <p className="font-semibold text-gray-900 dark:text-white text-sm hover:text-orange-500 transition-colors">{request.brokerName}</p>
                             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                 <MapPin className="w-3 h-3" />
                                 <span>{request.distance}</span>

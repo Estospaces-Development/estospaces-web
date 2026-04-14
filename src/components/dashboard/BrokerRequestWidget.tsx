@@ -666,7 +666,7 @@ const BrokerRequestWidget = () => {
                     <Send size={20} className="text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">Request a Broker</h3>
+                    <h2 className="font-bold text-gray-900 dark:text-white">Request a Broker</h2>
                     <p className="text-xs text-gray-500 dark:text-gray-400">10-minute live dispatch with nearby broker ranking</p>
                 </div>
             </div>
@@ -681,9 +681,9 @@ const BrokerRequestWidget = () => {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">Live dispatch workspace</p>
-                            <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                            <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                                 {dispatchWorkspaceSummary.title}
-                            </h4>
+                            </h3>
                             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                                 {activeRequest?.status_reason || dispatchWorkspaceSummary.subtitle}
                             </p>
@@ -761,9 +761,9 @@ const BrokerRequestWidget = () => {
                                             <BadgeCheck size={12} />
                                             Broker locked in
                                         </span>
-                                        <h5 className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
+                                        <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
                                             {matchedBroker?.name || 'Your broker is ready'}
-                                        </h5>
+                                        </p>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {matchedBroker?.company_name || 'Independent broker'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequest.location ? ` in ${activeRequest.location}` : ''}.
@@ -936,7 +936,7 @@ const BrokerRequestWidget = () => {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <h6 className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{selectedProperty.title}</h6>
+                                                            <p className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{selectedProperty.title}</p>
                                                             <p className="mt-3 flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
                                                                 <MapPin size={15} className="mt-0.5 shrink-0 text-emerald-500 dark:text-emerald-300" />
                                                                 <span>{formatPropertyAddress(selectedProperty) || 'Address available on the property page'}</span>
@@ -1013,7 +1013,7 @@ const BrokerRequestWidget = () => {
                                                                                     </span>
                                                                                 )}
                                                                             </div>
-                                                                            <h6 className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{property.title}</h6>
+                                                                            <p className="mt-3 text-xl font-semibold leading-tight text-gray-900 dark:text-white">{property.title}</p>
                                                                         </div>
                                                                         <div className="rounded-2xl border border-orange-200/80 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20">
                                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">Guide price</p>

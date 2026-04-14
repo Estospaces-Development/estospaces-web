@@ -79,23 +79,13 @@ export default defineConfig(({ mode }) => {
               return 'motion';
             }
 
-            if (id.includes('jspdf') || id.includes('xlsx')) {
+            if (id.includes('pdf-lib') || id.includes('exceljs')) {
               return 'documents';
             }
 
             if (id.includes('@tanstack/react-query')) {
               return 'query';
             }
-
-            if (
-              id.includes('react-dom') ||
-              id.includes('react-router-dom') ||
-              id.includes('react')
-            ) {
-              return 'react-vendor';
-            }
-
-            return 'vendor';
           },
         },
       },

@@ -48,6 +48,7 @@ export function SupportFilters({ filters, onChange, mode }: SupportFiltersProps)
                 value={filters.status}
                 onChange={(event) => onChange({ ...filters, status: event.target.value })}
                 className="rounded-2xl border border-transparent bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40"
+                aria-label="Filter tickets by status"
             >
                 {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -58,6 +59,7 @@ export function SupportFilters({ filters, onChange, mode }: SupportFiltersProps)
                 value={filters.priority}
                 onChange={(event) => onChange({ ...filters, priority: event.target.value })}
                 className="rounded-2xl border border-transparent bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40"
+                aria-label="Filter tickets by priority"
             >
                 {PRIORITY_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>

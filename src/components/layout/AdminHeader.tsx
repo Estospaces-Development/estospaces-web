@@ -104,7 +104,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                 <div className="px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         {onMenuToggle && (
-                            <button onClick={onMenuToggle} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                            <button onClick={onMenuToggle} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" aria-label="Open admin sidebar">
                                 <Menu size={20} />
                             </button>
                         )}
@@ -114,11 +114,12 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setSearchOpen(true)}
-                            className="hidden md:flex items-center gap-2 pl-3 pr-4 py-2 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-400 rounded-lg hover:border-orange-300 dark:hover:border-orange-700 transition-all w-64 text-sm"
+                            className="hidden md:flex items-center gap-2 pl-3 pr-4 py-2 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 rounded-lg hover:border-orange-300 dark:hover:border-orange-700 transition-all w-64 text-sm"
+                            aria-label="Open admin command palette"
                         >
                             <Search size={16} />
                             <span>Search...</span>
-                            <kbd className="ml-auto text-[10px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">Ctrl+K</kbd>
+                            <kbd className="ml-auto text-[10px] font-bold bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-1.5 py-0.5 rounded">Ctrl+K</kbd>
                         </button>
 
                         <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden sm:block"></div>
@@ -128,6 +129,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                             target="_blank"
                             className="p-2 text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400 transition-colors"
                             title="Visit Landing Page"
+                            aria-label="Open landing page"
                         >
                             <Globe size={20} />
                         </Link>

@@ -4,6 +4,7 @@ import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
+import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
 import { formatPropertyStatusLabel } from '@/lib/propertyStatusBadge';
 
 interface TopProperty {
@@ -21,6 +22,23 @@ interface TopPropertiesProps {
     loading?: boolean;
 }
 
+const mapTopProperties = (propertyPerformance?: analyticsService.PropertyPerformance[] | null): TopProperty[] => (
+    filterManagerLivePropertyPerformance(propertyPerformance)
+        .map((property, index) => {
+            const propertyId = property.property_id?.trim() || undefined;
+            return {
+                id: propertyId || `${property.property}-${index}`,
+                propertyId,
+                name: property.property,
+                price: '',
+                views: property.views,
+                inquiries: property.applications,
+                status: formatPropertyStatusLabel(property.status || 'available'),
+            };
+        })
+        .slice(0, 3)
+);
+
 const TopProperties = ({ analytics, loading: externalLoading = false }: TopPropertiesProps) => {
     const navigate = useNavigate();
     const [topProperties, setTopProperties] = useState<TopProperty[]>([]);
@@ -28,16 +46,7 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
 
     useEffect(() => {
         if (analytics !== undefined) {
-            const mapped = analytics?.propertyPerformance?.map((p) => ({
-                id: p.property_id || p.property,
-                propertyId: p.property_id,
-                name: p.property,
-                price: '',
-                views: p.views,
-                inquiries: p.applications,
-                status: formatPropertyStatusLabel(p.status || 'available'),
-            })) || [];
-            setTopProperties(mapped.slice(0, 3));
+            setTopProperties(mapTopProperties(analytics?.propertyPerformance));
             setLoading(externalLoading);
             return;
         }
@@ -47,16 +56,7 @@ const TopProperties = ({ analytics, loading: externalLoading = false }: TopPrope
             try {
                 const res = await analyticsService.getManagerAnalytics();
                 if (res.data && res.data.propertyPerformance) {
-                    const mapped = res.data.propertyPerformance.map(p => ({
-                        id: p.property_id || p.property,
-                        propertyId: p.property_id,
-                        name: p.property,
-                        price: '',
-                        views: p.views,
-                        inquiries: p.applications,
-                        status: formatPropertyStatusLabel(p.status || 'available'),
-                    }));
-                    setTopProperties(mapped.slice(0, 3));
+                    setTopProperties(mapTopProperties(res.data.propertyPerformance));
                 } else {
                     setTopProperties([]);
                 }

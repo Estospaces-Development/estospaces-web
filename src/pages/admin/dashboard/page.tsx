@@ -168,10 +168,10 @@ export default function AdminDashboard() {
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <span className="px-3 py-1 bg-orange-600 text-white rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-orange-500/20">
+                        <span className="px-3 py-1 bg-orange-700 text-white rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-orange-500/20">
                             Command Center
                         </span>
-                        <span className="text-gray-500 dark:text-gray-400 text-xs font-bold flex items-center gap-1">
+                        <span className="text-gray-600 dark:text-gray-300 text-xs font-bold flex items-center gap-1">
                             <Activity size={12} /> Backend Synced
                         </span>
                     </div>
@@ -200,12 +200,12 @@ export default function AdminDashboard() {
                             <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400">
                                 <Zap size={24} />
                             </div>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">SLA Compliance</span>
+                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">SLA Compliance</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.slaCompliance.toFixed(1)}%</span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Responses under 10 mins</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Responses under 10 mins</p>
 
                         {/* Progress Bar */}
                         <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full mt-4 overflow-hidden">
@@ -227,12 +227,12 @@ export default function AdminDashboard() {
                             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-600 dark:text-blue-400">
                                 <Clock size={24} />
                             </div>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Avg Response</span>
+                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">Avg Response</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.avgResponseTime}</span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Global broker average</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Global broker average</p>
                     </div>
                 </div>
 
@@ -246,12 +246,12 @@ export default function AdminDashboard() {
                             <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl text-orange-600 dark:text-orange-400">
                                 <Shield size={24} />
                             </div>
-                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Pending Verifications</span>
+                            <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">Pending Verifications</span>
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-bold text-gray-900 dark:text-white">{stats.pendingVerifications}</span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2">Awaiting admin review</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 font-medium mt-2">Awaiting admin review</p>
                     </div>
                 </div>
 
@@ -273,7 +273,7 @@ export default function AdminDashboard() {
                         <p className="text-xs text-orange-100 font-medium mt-2">Active fast-track flows</p>
                         <button
                             onClick={() => navigate('/admin/fast-track')}
-                            className="mt-5 w-full py-2 bg-white text-orange-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-50 transition-colors shadow-sm flex items-center justify-center gap-2"
+                            className="mt-5 w-full py-2 bg-white text-orange-700 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-orange-50 transition-colors shadow-sm flex items-center justify-center gap-2"
                         >
                             Open Fast-Track Queue <ArrowRight size={14} />
                         </button>
@@ -288,9 +288,9 @@ export default function AdminDashboard() {
 
                     {/* Quick Actions Rail */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                             <Zap className="text-orange-500" size={20} /> Quick Actions
-                        </h3>
+                        </h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <button
                                 onClick={() => navigate('/admin/verifications')}
@@ -301,8 +301,8 @@ export default function AdminDashboard() {
                                         <Shield size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Verifications</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-orange-600/70 dark:group-hover:text-orange-400/70">{data?.pending_verifications || 0} Pending Reviews</p>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Verifications</h3>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">{data?.pending_verifications || 0} Pending Reviews</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
@@ -319,8 +319,8 @@ export default function AdminDashboard() {
                                         <Building2 size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Property Hub</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-blue-600/70 dark:group-hover:text-blue-400/70">Manage Inventory</p>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">Property Hub</h3>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-blue-700/80 dark:group-hover:text-blue-300/80">Manage Inventory</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-blue-500">
@@ -337,8 +337,8 @@ export default function AdminDashboard() {
                                         <Users size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">User Registry</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-emerald-600/70 dark:group-hover:text-emerald-400/70">View Clients</p>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">User Registry</h3>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-emerald-700/80 dark:group-hover:text-emerald-300/80">View Clients</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-emerald-500">
@@ -355,8 +355,8 @@ export default function AdminDashboard() {
                                         <MessageSquare size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors">Help & Support</h4>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600/70 dark:group-hover:text-purple-400/70">Ticket queue and live replies</p>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-purple-700 dark:group-hover:text-purple-400 transition-colors">Help & Support</h3>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-purple-700/80 dark:group-hover:text-purple-300/80">Ticket queue and live replies</p>
                                     </div>
                                 </div>
                                 <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-purple-500">
@@ -371,14 +371,14 @@ export default function AdminDashboard() {
                         <div className="absolute right-0 top-0 w-64 h-64 bg-orange-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
                         <div className="relative z-10 flex items-start justify-between">
                             <div>
-                                <h3 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h3>
-                                <p className="text-gray-400 text-sm max-w-md mb-6">
+                                <h2 className="text-xl font-bold mb-2 text-white">Quarterly Goals</h2>
+                                <p className="text-gray-200 text-sm max-w-md mb-6">
                                     Platform status summary:
                                     {` ${data?.total_properties || 0} `}verified properties,
                                     {` ${data?.total_brokers || 0} `}brokers, and
                                     {` ${stats.activeTransactions} `}active lead transactions.
                                 </p>
-                                <span className="inline-flex text-xs font-bold text-gray-500 bg-gray-800 px-3 py-1.5 rounded-lg">
+                                <span className="inline-flex text-xs font-bold text-gray-200 bg-gray-800 px-3 py-1.5 rounded-lg">
                                     Live backend metrics
                                 </span>
                             </div>
@@ -395,10 +395,10 @@ export default function AdminDashboard() {
                     {/* Platform Snapshot */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-800 h-fit">
                         <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <Activity className="text-orange-500" size={20} /> Platform Snapshot
-                            </h3>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Core Service</span>
+                            </h2>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">Core Service</span>
                         </div>
 
                         <div className="space-y-4">
@@ -429,14 +429,14 @@ export default function AdminDashboard() {
                     >
                         <div className="flex items-center justify-between mb-6 gap-3">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                     <Bell className="text-orange-500" size={20} /> Recent Notifications
-                                </h3>
+                                </h2>
                                 <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
                                     New verification submissions and platform alerts land here first.
                                 </p>
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
                                 {recentNotifications.length} Recent
                             </span>
                         </div>
@@ -491,7 +491,7 @@ export default function AdminDashboard() {
                                                             {notification.message}
                                                         </p>
                                                     </div>
-                                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
                                                         {formatNotificationTime(notification.created_at)}
                                                     </span>
                                                 </div>

@@ -59,6 +59,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     return (
         <aside
+            aria-label="Admin workspace sidebar"
             className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'}`}
         >
             {/* Logo Section */}
@@ -78,6 +79,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                     <button
                         onClick={onToggle}
                         className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors md:hidden"
+                        aria-label="Close sidebar"
                     >
                         <ChevronLeft size={18} />
                     </button>
@@ -89,6 +91,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                 <button
                     onClick={onToggle}
                     className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full p-1.5 text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+                    aria-label={isOpen ? 'Collapse admin sidebar' : 'Expand admin sidebar'}
                 >
                     {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
                 </button>
@@ -106,7 +109,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                                     <Link
                                         to={linkPath}
                                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${active
-                                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/30'
+                                            ? 'bg-orange-700 text-white shadow-lg shadow-orange-500/30'
                                             : 'text-gray-600 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-gray-800 hover:text-orange-600 dark:hover:text-orange-400 hover:scale-[1.02]'
                                             }`}
                                         title={!isOpen ? item.label : ''}

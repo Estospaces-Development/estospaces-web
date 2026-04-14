@@ -5,7 +5,7 @@ export default function AuthLayout() {
     return (
         <div className="flex min-h-screen w-full overflow-hidden">
             {/* Left side - Image (hidden on mobile) */}
-            <div className="hidden md:block w-1/2 min-h-screen relative">
+            <div className="hidden md:block w-1/2 min-h-screen relative" aria-hidden="true">
                 <img
                     src="/images/auth/building.jpg"
                     alt="Estospaces"

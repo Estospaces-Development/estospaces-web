@@ -47,7 +47,7 @@ export default function ConversationList({ onSelectConversation, selectedConvers
                                         status={conv.isSupportConversation ? undefined : (conv.isOnline ? 'online' : 'offline')}
                                     />
                                     {conv.unreadCount > 0 && (
-                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
+                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-orange-700 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
                                             {conv.unreadCount}
                                         </div>
                                     )}
@@ -55,8 +55,8 @@ export default function ConversationList({ onSelectConversation, selectedConvers
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between mb-1">
-                                        <h4 className="font-bold text-gray-900 dark:text-white truncate">{conv.contactName}</h4>
-                                        <span className="text-xs text-gray-400 whitespace-nowrap">{conv.lastMessageTime}</span>
+                                        <p className="font-bold text-gray-900 dark:text-white truncate">{conv.contactName}</p>
+                                        <span className="text-xs text-gray-500 dark:text-gray-300 whitespace-nowrap">{conv.lastMessageTime}</span>
                                     </div>
                                     <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
                                         {conv.lastMessage}

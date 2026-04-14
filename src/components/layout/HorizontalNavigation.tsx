@@ -154,7 +154,7 @@ const HorizontalNavigation = ({
                   rounded-lg
                   ${
                     active
-                      ? "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10"
+                      ? "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/10"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   }
                   ${clickedTab === item.path ? "scale-95" : "scale-100"}
@@ -188,7 +188,7 @@ const HorizontalNavigation = ({
                 rounded-lg
                 ${
                   isBuyActive()
-                    ? "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10"
+                    ? "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/10"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 }
                 ${clickedTab === "buy" ? "scale-95" : "scale-100"}
@@ -214,7 +214,7 @@ const HorizontalNavigation = ({
                 rounded-lg
                 ${
                   isRentActive()
-                    ? "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10"
+                    ? "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/10"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                 }
                 ${clickedTab === "rent" ? "scale-95" : "scale-100"}
@@ -251,7 +251,7 @@ const HorizontalNavigation = ({
                   rounded-lg
                   ${
                     active
-                      ? "text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10"
+                      ? "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-500/10"
                       : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                   }
                   ${clickedTab === item.path ? "scale-95" : "scale-100"}

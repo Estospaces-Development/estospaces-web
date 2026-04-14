@@ -30,7 +30,7 @@ export function SupportTranscript({ messages, currentUserId, otherLabel = 'Estos
                     <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[78%] rounded-[1.75rem] px-4 py-3 shadow-sm ${
                             isMine
-                                ? 'bg-orange-500 text-white'
+                                ? 'bg-orange-700 text-white'
                                 : 'border border-gray-100 bg-white text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-white'
                         }`}>
                             {!isMine && (
@@ -59,7 +59,7 @@ export function SupportTranscript({ messages, currentUserId, otherLabel = 'Estos
                                     ))}
                                 </div>
                             )}
-                            <p className={`mt-2 text-xs ${isMine ? 'text-orange-100' : 'text-gray-400 dark:text-gray-500'}`}>
+                            <p className={`mt-2 text-xs ${isMine ? 'text-orange-50' : 'text-gray-500 dark:text-gray-300'}`}>
                                 {new Date(message.created_at).toLocaleString()}
                             </p>
                         </div>

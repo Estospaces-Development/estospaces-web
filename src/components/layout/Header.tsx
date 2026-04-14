@@ -147,7 +147,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                     <Link
                         to="/manager/docs"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-600 transition-all hover:-translate-y-0.5 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200 dark:hover:bg-orange-500/15"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 transition-all hover:-translate-y-0.5 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/15"
                     >
                         <BookOpen className="h-4 w-4" />
                         <span className="hidden md:inline">Docs</span>
@@ -163,6 +163,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                             className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            aria-label="Open profile menu"
                         >
                             <Avatar
                                 userId={user?.id}

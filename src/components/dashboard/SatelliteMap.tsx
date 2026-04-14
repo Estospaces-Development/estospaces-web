@@ -180,6 +180,7 @@ const SatelliteMap = () => {
                         <button
                             onClick={() => setShowFilters(false)}
                             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                            aria-label="Close map filters"
                         >
                             <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         </button>

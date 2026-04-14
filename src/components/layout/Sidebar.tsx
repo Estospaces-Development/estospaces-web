@@ -128,6 +128,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
 
   return (
     <aside
+      aria-label={`${isManagerRole ? "Manager" : "User"} workspace sidebar`}
       className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${
         isOpen ? "w-64" : "w-20"
       }`}
@@ -155,20 +156,26 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
         </div>
         {isOpen && (
           <button
+            type="button"
             onClick={onToggle}
             className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors md:hidden"
+            aria-label="Close sidebar"
           >
             <ChevronLeft size={18} />
+            <span className="sr-only">Close sidebar</span>
           </button>
         )}
       </div>
 
       {/* Toggle Button (Desktop) */}
       <button
+        type="button"
         onClick={onToggle}
         className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full p-1.5 text-gray-500 hover:text-orange-500 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+        aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
       >
         {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+        <span className="sr-only">{isOpen ? "Collapse sidebar" : "Expand sidebar"}</span>
       </button>
 
       {/* User Info (Collapsed/Expanded) */}

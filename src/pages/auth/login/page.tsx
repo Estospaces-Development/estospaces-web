@@ -82,7 +82,7 @@ export default function LoginPage() {
   const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
 
   return (
-    <div className="flex flex-col items-center">
+    <main className="flex flex-col items-center" aria-labelledby="login-heading">
       {/* Logo */}
       <div className="mb-8">
         <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
@@ -90,10 +90,10 @@ export default function LoginPage() {
 
       {isAuthenticated && !isSwitching ? (
           <div className="text-center w-full max-w-sm">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+              <h1 id="login-heading" className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                 Already signed in
-              </h2>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
+              </h1>
+              <p className="text-gray-500 dark:text-gray-300 text-sm mb-8">
                 You are currently signed in as <strong>{authUser?.email}</strong>
               </p>
               <div className="space-y-3">
@@ -116,11 +116,11 @@ export default function LoginPage() {
           </div>
       ) : (
           <>
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
+            <h1 id="login-heading" className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
                 {isSwitching ? 'Sign in with another account' : 'Sign in to Estospaces'}
-            </h2>
+            </h1>
 
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 text-center">
+            <p className="text-gray-500 dark:text-gray-300 text-sm mb-8 text-center">
                 Enter your email and password to continue
             </p>
 
@@ -164,7 +164,8 @@ export default function LoginPage() {
                     <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
@@ -174,7 +175,7 @@ export default function LoginPage() {
 
                 {/* Forgot Password Link */}
                 <div className="text-right mb-6">
-                <Link to="/forgot-password" className="text-primary text-sm font-medium hover:underline">
+                <Link to="/forgot-password" className="text-primary text-sm font-semibold hover:underline">
                     Forgot Password?
                 </Link>
                 </div>
@@ -201,25 +202,25 @@ export default function LoginPage() {
       {/* Test credentials hint */}
       <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md w-full">
         <p className="text-orange-700 dark:text-orange-300 text-xs font-medium mb-1">Test Credentials:</p>
-        <p className="text-orange-600 dark:text-orange-400 text-[10px]">Admin: admin@estospaces.com / admin123</p>
-        <p className="text-orange-600 dark:text-orange-400 text-[10px]">Manager: manager@gmail.com / Estospaces@123</p>
-        <p className="text-orange-600 dark:text-orange-400 text-[10px]">User: user@gmail.com / Estospaces@123</p>
+        <p className="text-orange-700 dark:text-orange-200 text-[10px]">Admin: admin@estospaces.com / admin123</p>
+        <p className="text-orange-700 dark:text-orange-200 text-[10px]">Manager: manager@gmail.com / Estospaces@123</p>
+        <p className="text-orange-700 dark:text-orange-200 text-[10px]">User: user@gmail.com / Estospaces@123</p>
       </div>
 
-      <p className="text-sm text-gray-600 dark:text-gray-400 mt-6">
+      <p className="text-sm text-gray-700 dark:text-gray-300 mt-6">
         Don&apos;t have an account?{' '}
-        <Link to="/register" className="text-primary font-medium hover:underline">
+        <Link to="/register" className="text-primary font-semibold hover:underline">
           Sign Up
         </Link>
       </p>
 
-      <p className="text-xs text-gray-400 dark:text-gray-500 mt-12 text-center leading-relaxed">
+      <p className="text-xs text-gray-500 dark:text-gray-300 mt-12 text-center leading-relaxed">
         By continuing you agree to Estospaces<br />
         <Link to="/terms" className="text-primary hover:underline">terms &amp; conditions</Link>
         {' \u00B7 '}
         <Link to="/privacy" className="text-primary hover:underline">privacy policy</Link>
       </p>
-    </div>
+    </main>
   );
 }
 

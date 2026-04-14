@@ -275,7 +275,7 @@ const ActionButton = ({
         ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800'
         : tone === 'danger'
             ? 'bg-red-600 text-white hover:bg-red-700'
-            : 'bg-orange-600 text-white hover:bg-orange-700';
+            : 'bg-orange-700 text-white hover:bg-orange-800';
 
     return (
         <button
@@ -906,7 +906,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 <div className="flex items-center justify-between gap-3">
                     <div>
                         <p className="text-base font-semibold text-gray-900 dark:text-white">{threadRecipientLabel}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                             Messages stay attached to this case only.
                         </p>
                     </div>
@@ -921,14 +921,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label="Case chat transcript">
                     {threadLoading ? (
-                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
                             <Loader2 className="h-4 w-4 animate-spin" />
                             Loading case messages
                         </div>
                     ) : threadMessages.length === 0 ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                             No case messages yet. Keep every update here instead of leaving the workspace.
                         </p>
                     ) : threadMessages.map((message) => {
@@ -939,12 +939,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 className={[
                                     'rounded-3xl px-4 py-3',
                                     mine
-                                        ? 'bg-orange-600 text-white'
+                                        ? 'bg-orange-700 text-white'
                                         : 'border border-gray-100 bg-white text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200',
                                 ].join(' ')}
                             >
                                 <p className="text-sm leading-6">{message.content}</p>
-                                <p className={`mt-2 text-[11px] ${mine ? 'text-orange-100' : 'text-gray-400'}`}>
+                                <p className={`mt-2 text-[11px] ${mine ? 'text-orange-50' : 'text-gray-500 dark:text-gray-300'}`}>
                                     {formatDateTime(message.created_at)}
                                 </p>
                             </div>
@@ -986,16 +986,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             >
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Property</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Property</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.propertyTitle}</p>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             {selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / {selectedCase.propertyType}
                         </p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Participants</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Participants</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.clientName}</p>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             Manager: {selectedCase.managerId ? 'Assigned' : 'Waiting for claim'}
                         </p>
                     </div>
@@ -1043,7 +1043,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{selectedCase.documents.items.length}</p>
                     </div>
                     <div className="rounded-3xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Uploaded</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Uploaded</p>
                         <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                             {selectedCase.documents.items.filter((item) => item.status === 'uploaded' || item.status === 'approved').length}
                         </p>
@@ -1070,7 +1070,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
                                         <p className="text-base font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                                             {formatDocumentStatus(item.status)}
                                         </p>
                                     </div>
@@ -1081,13 +1081,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current file</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current file</p>
                                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             {item.fileName || 'No file attached yet'}
                                         </p>
                                     </div>
                                     <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Last upload</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Last upload</p>
                                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             {formatDateTime(item.uploadedAt)}
                                         </p>
@@ -1098,7 +1098,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     <div className="mt-4 grid gap-3">
                                         {item.uploadNote ? (
                                             <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Upload note</p>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Upload note</p>
                                                 <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{item.uploadNote}</p>
                                             </div>
                                         ) : null}
@@ -1259,7 +1259,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Latest response</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Latest response</p>
                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                             {selectedCase.viewing.requestedChange
                                 ? 'Change request sent'
@@ -1303,7 +1303,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             >
                 <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current slot</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current slot</p>
                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                             {selectedCase.viewing.scheduledAt
                                 ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
@@ -1314,7 +1314,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">User response</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">User response</p>
                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                             {selectedCase.viewing.requestedChange
                                 ? 'Change requested'
@@ -1327,7 +1327,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Last change</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Last change</p>
                         <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                             {formatDateTime(selectedCase.viewing.requestedChangeAt || selectedCase.viewing.scheduledAt)}
                         </p>
@@ -1698,7 +1698,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         <div className="space-y-6 pb-16">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-orange-600 p-3 text-white shadow-lg shadow-orange-500/20">
+                    <div className="rounded-2xl bg-orange-700 p-3 text-white shadow-lg shadow-orange-500/20">
                         <Sparkles size={22} />
                     </div>
                     <div>
@@ -1706,22 +1706,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fast-track workspace</h1>
                             <RoleBadge role={role} />
                         </div>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             One workspace from property selection to handover. No extra pages.
                         </p>
                     </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Active</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Active</p>
                         <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.active}</p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Completed</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Completed</p>
                         <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Cancelled</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Cancelled</p>
                         <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.cancelled}</p>
                     </div>
                 </div>
@@ -1734,7 +1734,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ) : null}
 
             <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-                <aside className="space-y-4">
+                <aside className="space-y-4" aria-label="Fast-track case list">
                     <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
                         <div className="relative">
                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -1755,7 +1755,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     className={[
                                         'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
                                         filter === item.value
-                                            ? 'bg-orange-600 text-white'
+                                            ? 'bg-orange-700 text-white'
                                             : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
                                     ].join(' ')}
                                 >
@@ -1794,11 +1794,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.propertyTitle}</p>
                                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.clientName}</p>
                                         </div>
-                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${chip.tone}`}>
-                                            {chip.label}
-                                        </span>
-                                    </div>
-                                    <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${chip.tone}`}>
+                                        {chip.label}
+                                    </span>
+                                </div>
+                                    <div className="mt-4 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
                                         <span>{formatStageLabel(item.stage, item.journeyMode)}</span>
                                         <span>{formatDeadline(item.hoursRemaining)}</span>
                                     </div>
@@ -1832,7 +1832,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                                     <div className="grid gap-3 sm:grid-cols-3">
                                         <div className="rounded-3xl border border-white/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-white/5">
-                                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
                                                 <Clock3 size={14} />
                                                 24h
                                             </div>
@@ -1841,13 +1841,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             </p>
                                         </div>
                                         <div className="rounded-3xl border border-white/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-white/5">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current stage</p>
                                             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                                 {formatStageLabel(selectedCase.stage, selectedCase.journeyMode)}
                                             </p>
                                         </div>
                                         <div className="rounded-3xl border border-white/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-white/5">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Focus</p>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Focus</p>
                                             <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                                 {workspaceFocus}
                                             </p>
@@ -1859,7 +1859,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {workspaceStatus}
                                 </p>
 
-                                <div className="mt-6 flex gap-3 overflow-x-auto pb-1">
+                                <div className="mt-6 flex gap-3 overflow-x-auto pb-1" tabIndex={0} aria-label="Fast-track stage progress">
                                     {STAGES.map((stage, index) => (
                                         <StagePill
                                             key={stage}
@@ -1967,7 +1967,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 <div key={entry.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
                                                     <div className="flex items-center justify-between gap-3">
                                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
-                                                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
                                                             {entry.actorRole}
                                                         </span>
                                                     </div>

@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    MANAGER_LIVE_LISTINGS_STATUS_FILTER,
+    MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
     buildManagerActiveListingsPath,
     buildManagerPropertySearchParams,
+    filterManagerLivePropertyPerformance,
     getManagerPropertyStatusFilters,
     isManagerLivePropertyStatus,
     managerPropertyStatusFiltersEqual,
@@ -56,8 +57,26 @@ test('managerPropertyStatusFiltersEqual compares normalized status filters', () 
 });
 
 test('buildManagerActiveListingsPath points to the live listings preset', () => {
+    const params = new URLSearchParams();
+    params.set('view', MANAGER_LIVE_LISTINGS_VIEW);
+    params.set('status', MANAGER_LIVE_LISTINGS_STATUS_FILTERS.join(','));
+
     assert.equal(
         buildManagerActiveListingsPath(),
-        `/manager/dashboard/properties?view=${MANAGER_LIVE_LISTINGS_VIEW}&status=${MANAGER_LIVE_LISTINGS_STATUS_FILTER}`,
+        `/manager/dashboard/properties?${params.toString()}`,
+    );
+});
+
+test('filterManagerLivePropertyPerformance keeps only live listings', () => {
+    const propertyPerformance = [
+        { property: 'Approved listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+        { property: 'Pending listing', property_id: '2', status: 'pending_approval', views: 100, applications: 7, conversionRate: 11 },
+        { property: 'Draft listing', property_id: '3', status: 'draft', views: 4, applications: 0, conversionRate: 0 },
+        { property: 'Live listing', property_id: '4', status: 'online', views: 42, applications: 8, conversionRate: 19 },
+    ];
+
+    assert.deepEqual(
+        filterManagerLivePropertyPerformance(propertyPerformance).map((property) => property.property_id),
+        ['1', '4'],
     );
 });

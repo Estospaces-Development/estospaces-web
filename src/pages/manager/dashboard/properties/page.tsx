@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
 import PaginationBar from '@/components/ui/PaginationBar';
 import {
-    MANAGER_LIVE_LISTINGS_STATUS_FILTER,
+    MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
     buildManagerPropertySearchParams,
     getManagerPropertyStatusFilters,
@@ -155,7 +155,7 @@ function PropertiesContent() {
         if (isLiveListingsPreset) {
             const presetStatuses = searchParamStatuses.length > 0
                 ? searchParamStatuses
-                : [MANAGER_LIVE_LISTINGS_STATUS_FILTER];
+                : [...MANAGER_LIVE_LISTINGS_STATUS_FILTERS];
 
             if (searchQuery) {
                 setSearchQuery('');

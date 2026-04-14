@@ -45,21 +45,19 @@ export function SupportTicketList({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="mb-2 flex items-center gap-2">
-                                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-200">
+                                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-200">
                                         <MessageSquareText className="h-5 w-5" />
                                     </span>
                                     <div className="min-w-0">
-                                        <p className="truncate text-sm font-black uppercase tracking-[0.18em] text-orange-600 dark:text-orange-200">
+                                        <p className="truncate text-sm font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">
                                             {ticket.category || 'Support'}
                                         </p>
-                                        <h3 className="truncate text-base font-bold text-gray-950 dark:text-white">
-                                            {ticket.subject}
-                                        </h3>
+                                        <p className="truncate text-base font-bold text-gray-950 dark:text-white">{ticket.subject}</p>
                                     </div>
                                 </div>
-                                <p className="truncate text-sm text-gray-500 dark:text-gray-400">
+                                <p className="truncate text-sm text-gray-600 dark:text-gray-300">
                                     {ticket.requester_context?.name || ticket.requester_context?.email || 'Estospaces customer'}
-                                    {ticket.requester_context?.module ? ` • ${ticket.requester_context.module}` : ''}
+                                    {ticket.requester_context?.module ? ` · ${ticket.requester_context.module}` : ''}
                                 </p>
                                 {ticket.last_message?.content && (
                                     <p className="mt-3 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
@@ -68,7 +66,7 @@ export function SupportTicketList({
                                 )}
                             </div>
                             {ticket.unread_count > 0 && (
-                                <span className="inline-flex min-w-8 justify-center rounded-full bg-orange-500 px-2 py-1 text-xs font-bold text-white">
+                                <span className="inline-flex min-w-8 justify-center rounded-full bg-orange-700 px-2 py-1 text-xs font-bold text-white">
                                     {ticket.unread_count}
                                 </span>
                             )}
@@ -77,7 +75,7 @@ export function SupportTicketList({
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                             <SupportStatusBadge status={ticket.status} />
                             <SupportPriorityBadge priority={ticket.priority} />
-                            <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-300">
                                 {new Date(ticket.last_message_at || ticket.updated_at).toLocaleString()}
                             </span>
                         </div>

@@ -222,9 +222,9 @@ function MessagesContent() {
                                 <div className="mb-6 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 w-20 h-20 rounded-full flex items-center justify-center">
                                     <AlertCircle size={34} />
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                                     {activeThreadIssue.title}
-                                </h3>
+                                </h2>
                                 <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                                     {activeThreadIssue.message}
                                 </p>
@@ -240,7 +240,7 @@ function MessagesContent() {
                                     <button
                                         type="button"
                                         onClick={handleOpenNewEnquiry}
-                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-all"
+                                        className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all"
                                     >
                                         <PlusCircle size={18} />
                                         New Enquiry
@@ -253,16 +253,16 @@ function MessagesContent() {
                                     <MessageSquare size={40} className="text-orange-500" />
                                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-100 rounded-full animate-ping"></div>
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                                     Select an enquiry
-                                </h3>
+                                </h2>
                                 <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                                     Pick a conversation from the sidebar to view your messages and updates from property agents.
                                 </p>
                                 <button
                                     type="button"
                                     onClick={handleOpenNewEnquiry}
-                                    className="mt-8 px-8 py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/30"
+                                    className="mt-8 px-8 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all shadow-lg shadow-orange-500/30"
                                 >
                                     Find Property to Enquiry
                                 </button>

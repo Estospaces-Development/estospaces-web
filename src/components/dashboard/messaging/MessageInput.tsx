@@ -134,6 +134,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSending || pendingFiles.length >= MAX_ATTACHMENTS}
                     className="p-2 text-gray-400 hover:text-orange-500 transition-colors"
+                    aria-label="Attach files"
                 >
                     <Paperclip size={20} />
                 </button>
@@ -150,6 +151,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                         type="button"
                         onClick={() => setIsEmojiPickerOpen((current) => !current)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500"
+                        aria-label="Open emoji picker"
                     >
                         <Smile size={18} />
                     </button>
@@ -164,6 +166,7 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
                     type="submit"
                     disabled={isSending || (!message.trim() && pendingFiles.length === 0)}
                     className="p-2.5 bg-orange-500 text-white rounded-xl shadow-lg shadow-orange-500/20 hover:bg-orange-600 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                    aria-label="Send message"
                 >
                     {isSending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
                 </button>

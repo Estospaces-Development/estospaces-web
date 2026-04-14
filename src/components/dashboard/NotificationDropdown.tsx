@@ -152,7 +152,7 @@ const NotificationDropdown = () => {
                 {unreadCount > 0 && (
                     <>
                         <span className="absolute -right-0.5 -top-0.5 h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
-                        <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-lg ring-4 ring-white dark:ring-gray-900">
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 text-[10px] font-bold text-white shadow-lg ring-4 ring-white dark:ring-gray-900">
                             {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                     </>
@@ -214,6 +214,7 @@ const NotificationDropdown = () => {
                                                     }}
                                                     className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
                                                     title="Mark as read"
+                                                    aria-label="Mark notification as read"
                                                 >
                                                     <Check size={14} />
                                                 </button>
@@ -225,6 +226,7 @@ const NotificationDropdown = () => {
                                                 }}
                                                 className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
                                                 title="Remove"
+                                                aria-label="Remove notification"
                                             >
                                                 <X size={14} />
                                             </button>

@@ -6,7 +6,11 @@ import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
-import { buildManagerActiveListingsPath, isManagerLivePropertyStatus } from '@/lib/managerPropertyDashboard';
+import {
+  buildManagerActiveListingsPath,
+  filterManagerLivePropertyPerformance,
+  isManagerLivePropertyStatus,
+} from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X } from 'lucide-react';
@@ -202,13 +206,26 @@ function DashboardContent() {
   const livePropertyViewsFallback = livePropertiesFallback.reduce((total, property) => (
     total + (property.analytics?.views || 0)
   ), 0);
+  const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
+  const livePropertyCountFromAnalytics = livePropertyPerformance.length;
+  const livePropertyViewsFromAnalytics = livePropertyPerformance.reduce((total, property) => (
+    total + (property.views || 0)
+  ), 0);
 
   const stats = {
     monthlyRevenue: analytics?.total_revenue?.toLocaleString() || '0.00',
     monthlyRevenueChange: analytics?.revenue_growth || '0%',
-    activeProperties: analytics?.total_properties?.toString() || livePropertyCountFallback.toString(),
+    activeProperties: (
+      analytics
+        ? livePropertyCountFromAnalytics
+        : livePropertyCountFallback
+    ).toString(),
     activeListingsChange: analytics?.property_growth || '0%',
-    totalViews: analytics?.total_views?.toString() || String(analytics?.propertyPerformance?.reduce((acc, p) => acc + (p.views || 0), 0) || livePropertyViewsFallback),
+    totalViews: analytics?.total_views?.toString() || String(
+      analytics
+        ? livePropertyViewsFromAnalytics
+        : livePropertyViewsFallback,
+    ),
     totalViewsChange: analytics?.views_growth || '0%',
     conversionRate: `${(analytics?.conversion_rate || analytics?.leadAnalytics?.conversionRate || 0).toFixed(1)}%`,
     conversionRateChange: analytics?.conversion_growth || '0%',
@@ -314,7 +331,7 @@ function DashboardContent() {
                     <Zap className="w-5 h-5 text-orange-500" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white font-outfit">Fast-track lane</h3>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white font-outfit">Fast-track lane</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       Live cases surface here automatically while user verification stays with admins.
                     </p>
@@ -489,6 +506,7 @@ function DashboardContent() {
                     setPropertyPage(1);
                   }}
                   className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                  aria-label="Filter properties by type"
                 >
                   {managerPropertyTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -504,6 +522,7 @@ function DashboardContent() {
                     setPropertyPage(1);
                   }}
                   className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-all focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                  aria-label="Filter properties by status"
                 >
                   {managerPropertyStatusOptions.map((option) => (
                     <option key={option.value} value={option.value}>

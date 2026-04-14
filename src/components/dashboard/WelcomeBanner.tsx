@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
+import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
 
 interface WelcomeBannerProps {
     analytics?: analyticsService.AnalyticsData | null;
@@ -27,10 +28,11 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
 
     useEffect(() => {
         if (analytics !== undefined) {
+            const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
             setStats({
-                activeProperties: analytics?.total_properties || 0,
+                activeProperties: livePropertyPerformance.length,
                 activeLeads: analytics?.active_leads || 0,
-                totalApplications: analytics?.propertyPerformance?.reduce((acc, p) => acc + p.applications, 0) || 0,
+                totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
             });
             setLoading(externalLoading);
             return;
@@ -42,10 +44,11 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
             try {
                 const res = await analyticsService.getManagerAnalytics();
                 if (res.data) {
+                    const livePropertyPerformance = filterManagerLivePropertyPerformance(res.data.propertyPerformance);
                     setStats({
-                        activeProperties: res.data.total_properties || 0,
+                        activeProperties: livePropertyPerformance.length,
                         activeLeads: res.data.active_leads || 0,
-                        totalApplications: res.data.propertyPerformance?.reduce((acc, p) => acc + p.applications, 0) || 0
+                        totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
                     });
                 } else {
                     setStats({
@@ -66,7 +69,7 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
         <div className="mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome {displayName}</h2>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome {displayName}</h1>
                     <p className="text-gray-600 dark:text-gray-400">
                         Manage Your Properties, ideas, and grow your business
                     </p>
