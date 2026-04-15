@@ -2580,31 +2580,31 @@ export default function AddPropertyPage() {
                     <div className="border-b border-gray-100 dark:border-gray-700 p-2 flex gap-2 flex-wrap bg-gray-50 dark:bg-gray-800">
                       <button
                         type="button"
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        className="p-2 rounded text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         <Bold className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        className="p-2 rounded text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         <Italic className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        className="p-2 rounded text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         <Underline className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        className="p-2 rounded text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         <List className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
-                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        className="p-2 rounded text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         <LinkIcon className="w-4 h-4" />
                       </button>

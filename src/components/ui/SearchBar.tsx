@@ -209,14 +209,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
     if (variant === 'hero') {
         return (
             <form onSubmit={handleSearch} className={`w-full ${className}`}>
-                <div className="inline-flex p-1 bg-white/10 backdrop-blur-sm rounded-t-xl border border-white/20 border-b-0">
+                <div className="inline-flex p-1.5 bg-slate-100/95 backdrop-blur-sm rounded-t-2xl border border-slate-200 shadow-sm">
                     {['buy', 'rent'].map((type) => (
                         <button
                             key={type}
                             type="button"
-                            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold text-sm tracking-wide transition-all duration-300 ${filters.listingType === (type === 'buy' ? 'sale' : type)
-                                ? 'bg-primary text-white shadow-lg shadow-primary/30 scale-[1.02]'
-                                : 'text-white/80 hover:text-white hover:bg-white/10'
+                            className={`flex min-w-[100px] items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 ${filters.listingType === (type === 'buy' ? 'sale' : type)
+                                ? 'bg-primary text-white shadow-lg shadow-primary/25'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                                 }`}
                             onClick={() => handleInputChange('listingType', type === 'buy' ? 'sale' : 'rent')}
                         >
