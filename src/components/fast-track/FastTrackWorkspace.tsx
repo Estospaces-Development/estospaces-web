@@ -55,6 +55,8 @@ import {
     upsertDirectConversation,
 } from '@/services/messagesService';
 import PaginationBar from '@/components/ui/PaginationBar';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
 
 type WorkspaceRole = 'user' | 'manager' | 'admin';
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -337,6 +339,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [threadError, setThreadError] = useState<string | null>(null);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
+    const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const releasePreviewObjectUrl = useCallback(() => {
@@ -344,6 +347,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             URL.revokeObjectURL(previewObjectUrlRef.current);
         }
         previewObjectUrlRef.current = null;
+    }, []);
+
+    const revealPreviewSection = useCallback(() => {
+        previewSectionRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest',
+        });
     }, []);
 
     const fetchCases = useCallback(async (silent: boolean = false) => {
@@ -596,6 +607,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
+    const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
+    const hasValidAgreementPaymentAmount = Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
+    const publishAgreementNeedsAmount = paymentRequired && !hasValidAgreementPaymentAmount;
     const stats = useMemo(() => ({
         active: cases.filter((item) => item.workspaceFinalStatus === 'active').length,
         completed: cases.filter((item) => item.workspaceFinalStatus === 'completed').length,
@@ -652,13 +666,46 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [role, selectedCase],
     );
 
+    const handlePublishAgreement = useCallback(() => {
+        if (publishAgreementNeedsAmount) {
+            toast.error('Enter a payment amount or turn off payment required.');
+            return;
+        }
+
+        void runAction(
+            'publish_agreement',
+            {
+                note: agreementNote,
+                payment_required: paymentRequired && hasValidAgreementPaymentAmount,
+                amount_due: paymentRequired && hasValidAgreementPaymentAmount ? parsedAgreementAmount : undefined,
+            },
+            'Agreement published.',
+        );
+    }, [
+        agreementNote,
+        hasValidAgreementPaymentAmount,
+        parsedAgreementAmount,
+        paymentRequired,
+        publishAgreementNeedsAmount,
+        runAction,
+        toast,
+    ]);
+
     const ensureDocumentPreview = useCallback(async (
         item: FastTrackDocumentItem,
-        openInNewTab: boolean = false,
+        options?: {
+            openInNewTab?: boolean;
+            revealInViewport?: boolean;
+        },
     ) => {
+        const openInNewTab = options?.openInNewTab === true;
+        const revealInViewport = options?.revealInViewport === true;
         if (!item.documentRecordId && !item.fileUrl) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
+            if (revealInViewport) {
+                revealPreviewSection();
+            }
             return null;
         }
 
@@ -676,6 +723,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     setPreviewBusyItemId(null);
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    if (revealInViewport) {
+                        revealPreviewSection();
+                    }
                     return null;
                 }
                 releasePreviewObjectUrl();
@@ -687,6 +737,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     setPreviewBusyItemId(null);
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    if (revealInViewport) {
+                        revealPreviewSection();
+                    }
                     return null;
                 }
                 releasePreviewObjectUrl();
@@ -701,25 +754,31 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewBusyItemId(null);
             setPreviewUrl(null);
             setPreviewError('Preview is unavailable for this document.');
+            if (revealInViewport) {
+                revealPreviewSection();
+            }
             return null;
         }
 
         setPreviewBusyItemId(null);
         setPreviewUrl(nextUrl);
         setPreviewError(null);
+        if (revealInViewport) {
+            revealPreviewSection();
+        }
 
         if (openInNewTab && nextAccessUrl) {
             window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
         }
         return nextUrl;
-    }, [releasePreviewObjectUrl]);
+    }, [releasePreviewObjectUrl, revealPreviewSection]);
 
     const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item);
+        await ensureDocumentPreview(item, { revealInViewport: true });
     }, [ensureDocumentPreview]);
 
     const handleRailDownload = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, true);
+        await ensureDocumentPreview(item, { openInNewTab: true });
     }, [ensureDocumentPreview]);
 
     useEffect(() => {
@@ -872,7 +931,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div className="mt-4 flex flex-wrap gap-3">
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem)}
+                            onClick={() => void ensureDocumentPreview(previewItem, { revealInViewport: true })}
                             busy={previewBusyItemId === previewItem.id}
                             disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
                         >
@@ -881,7 +940,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, true)}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
                             busy={previewBusyItemId === previewItem.id}
                             disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
                         >
@@ -1170,7 +1229,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <div className="mt-4 flex flex-wrap gap-3">
                                     <ActionButton
                                         tone="secondary"
-                                        onClick={() => void ensureDocumentPreview(item)}
+                                        onClick={() => void ensureDocumentPreview(item, { revealInViewport: true })}
                                         busy={previewBusyItemId === item.id}
                                         disabled={!canPreview}
                                         ariaLabel={`Preview ${item.label}`}
@@ -1180,7 +1239,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     </ActionButton>
                                     <ActionButton
                                         tone="secondary"
-                                        onClick={() => void ensureDocumentPreview(item, true)}
+                                        onClick={() => void ensureDocumentPreview(item, { openInNewTab: true })}
                                         busy={previewBusyItemId === item.id}
                                         disabled={!canPreview}
                                         ariaLabel={`Open ${item.label}`}
@@ -1386,17 +1445,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                    <input
-                        type="date"
+                    <DateField
                         value={viewingDate}
-                        onChange={(event) => setViewingDate(event.target.value)}
-                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                        onChange={setViewingDate}
+                        ariaLabel="Viewing date"
                     />
-                    <input
-                        type="time"
+                    <TimeField
                         value={viewingTime}
-                        onChange={(event) => setViewingTime(event.target.value)}
-                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                        onChange={setViewingTime}
+                        ariaLabel="Viewing time"
                     />
                 </div>
                 <textarea
@@ -1614,16 +1671,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="mt-5 flex flex-wrap gap-3">
                     <ActionButton
-                        onClick={() => void runAction(
-                            'publish_agreement',
-                            {
-                                note: agreementNote,
-                                payment_required: paymentRequired,
-                                amount_due: amountDue ? Number(amountDue) : undefined,
-                            },
-                            'Agreement published.',
-                        )}
+                        onClick={handlePublishAgreement}
                         busy={activeAction === 'publish_agreement'}
+                        disabled={publishAgreementNeedsAmount}
+                        title={publishAgreementNeedsAmount ? 'Enter a payment amount or turn off payment required.' : undefined}
                     >
                         Publish agreement
                     </ActionButton>
@@ -1636,6 +1687,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 'Payment confirmed.',
                             )}
                             busy={activeAction === 'mark_payment_received'}
+                            disabled={!hasValidAgreementPaymentAmount || selectedCase.agreement.paymentStatus === 'paid'}
                         >
                             Mark payment received
                         </ActionButton>
@@ -1884,6 +1936,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             pageSize={FAST_TRACK_CASES_PAGE_SIZE}
                             currentItemCount={paginatedCases.length}
                             itemLabel="cases"
+                            stacked
                         />
                     ) : null}
                 </aside>
@@ -1954,7 +2007,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                             {renderActiveStage()}
 
-                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]">
                                 <SectionShell
                                     title="Core files"
                                     description="Every file stays attached to this case. Pick one to preview or download."
@@ -2022,12 +2075,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 </SectionShell>
 
                                 <div className="space-y-6">
-                                    <SectionShell
-                                        title="Preview"
-                                        description="Images and PDFs open here. Other files stay downloadable from this same rail."
-                                    >
-                                        {renderDocumentPreview()}
-                                    </SectionShell>
+                                    <div ref={previewSectionRef} data-fast-track-preview-panel className="scroll-mt-24">
+                                        <SectionShell
+                                            title="Preview"
+                                            description="Images and PDFs open here. Other files stay downloadable from this same rail."
+                                        >
+                                            {renderDocumentPreview()}
+                                        </SectionShell>
+                                    </div>
 
                                     <SectionShell
                                         title="Case chat"
