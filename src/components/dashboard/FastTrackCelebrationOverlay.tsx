@@ -290,7 +290,10 @@ export default function FastTrackCelebrationOverlay({
     }
 
     return (
-        <div className="pointer-events-none fixed inset-0 z-[220] overflow-hidden">
+        <div
+            data-fast-track-celebration-overlay="true"
+            className="pointer-events-none fixed inset-0 z-[220] overflow-hidden"
+        >
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.12))] dark:bg-[linear-gradient(180deg,rgba(2,6,23,0.22),rgba(2,6,23,0.46))]" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.74),transparent_32%)] dark:bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.12),transparent_30%)]" />
             <div className="absolute -left-10 top-4 h-72 w-72 rounded-full bg-orange-300/28 blur-3xl" />
@@ -355,7 +358,10 @@ export default function FastTrackCelebrationOverlay({
 
                             <div className="mt-4 h-px w-full max-w-md bg-gradient-to-r from-transparent via-orange-200/80 to-transparent dark:via-orange-400/20" />
 
-                            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[2.35rem]">
+                            <h2
+                                data-fast-track-celebration-title="true"
+                                className="mt-4 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[2.35rem]"
+                            >
                                 {title}
                             </h2>
                             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">

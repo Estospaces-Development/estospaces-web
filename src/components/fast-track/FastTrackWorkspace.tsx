@@ -57,6 +57,7 @@ import {
 import PaginationBar from '@/components/ui/PaginationBar';
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
+import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
 
 type WorkspaceRole = 'user' | 'manager' | 'admin';
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -337,9 +338,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [threadLoading, setThreadLoading] = useState(false);
     const [threadSending, setThreadSending] = useState(false);
     const [threadError, setThreadError] = useState<string | null>(null);
+    const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+    const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
+    const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
+    const celebratedCaseIdRef = useRef<string | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const releasePreviewObjectUrl = useCallback(() => {
@@ -645,6 +650,27 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return uploadedItem?.id || selectedCase.documents.items[0]?.id || null;
         });
     }, [role, selectedCase?.caseId]);
+
+    useEffect(() => {
+        if (!selectedCase) {
+            return;
+        }
+
+        const previousStatus = completionStatusRef.current[selectedCase.caseId];
+        completionStatusRef.current[selectedCase.caseId] = selectedCase.workspaceFinalStatus;
+
+        if (!previousStatus || previousStatus === 'completed' || selectedCase.workspaceFinalStatus !== 'completed') {
+            return;
+        }
+
+        if (celebratedCaseIdRef.current === selectedCase.caseId) {
+            return;
+        }
+
+        celebratedCaseIdRef.current = selectedCase.caseId;
+        setCelebrationPropertyTitle(selectedCase.propertyTitle);
+        setShowCompletionCelebration(true);
+    }, [selectedCase]);
 
     const compactActivity = useMemo(
         () => (selectedCase?.activity || []).slice(0, 8),
@@ -1794,6 +1820,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     return (
         <div className="space-y-6 pb-16">
+            <FastTrackCelebrationOverlay
+                active={showCompletionCelebration}
+                title={role === 'user' ? 'Handover confirmed.' : 'Handover complete.'}
+                subtitle={celebrationPropertyTitle
+                    ? `${celebrationPropertyTitle} is fully completed and the fast-track case is now closed.`
+                    : 'The fast-track case is fully completed and closed.'}
+                onComplete={() => setShowCompletionCelebration(false)}
+            />
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
                     <button
