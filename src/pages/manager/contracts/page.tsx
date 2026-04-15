@@ -4,10 +4,11 @@ import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contra
 import { getUserContracts, signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildWorkspacePath, resolveContractWorkspaceContext } from '@/lib/workspaceLinks';
 import { getApplications, type Application } from '@/services/applicationsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import {
     usePublishWorkspaceSync,
     useWorkflowWorkspaceRefresh,
@@ -32,6 +33,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: React.Rea
 };
 
 export default function ManagerContractsPage() {
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [applications, setApplications] = useState<Application[]>([]);
@@ -171,6 +173,11 @@ export default function ManagerContractsPage() {
         && !focusedContract
         && ['approved', 'ready_for_contract'].includes(String(focusedApplication.status || '').trim()),
     );
+    const handleFastTrackCaseUpdated = useCallback((nextCase: FastTrackCase) => {
+        setFastTrackCases((previous) => previous.map((caseItem) => (
+            caseItem.caseId === nextCase.caseId ? nextCase : caseItem
+        )));
+    }, []);
 
     useEffect(() => {
         if (hasAppliedRouteFocus || !focusedContract) {
@@ -346,6 +353,22 @@ export default function ManagerContractsPage() {
                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                             The contract linked to your fast-track case is pinned first so you can countersign without searching manually.
                         </div>
+                    )}
+                    {focusedFastTrackCase && (
+                        <FastTrackCompanionPanel
+                            role="manager"
+                            fastTrackCase={focusedFastTrackCase}
+                            context={{
+                                caseId: sanitizedCaseId || focusedFastTrackCase.caseId,
+                                applicationId: searchParams.get('application') || focusedApplication?.id,
+                                contractId: searchParams.get('contract') || focusedContract?.id,
+                                leadId: searchParams.get('lead') || focusedApplication?.lead_id || focusedFastTrackCase.leadId,
+                                propertyId: searchParams.get('property') || focusedApplication?.property_id || focusedFastTrackCase.propertyId,
+                            }}
+                            title="Linked agreement and handover controls"
+                            onCaseUpdated={handleFastTrackCaseUpdated}
+                            onRefresh={fetchContracts}
+                        />
                     )}
                     {filteredContracts.map(contract => {
                         const normalizedStatus = normalizeContractStatus(contract.status);

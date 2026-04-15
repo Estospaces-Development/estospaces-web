@@ -37,6 +37,7 @@ import {
   getFastTrackCases,
   type FastTrackCase,
 } from "@/services/fastTrackService";
+import FastTrackCompanionPanel from "@/components/fast-track/FastTrackCompanionPanel";
 import {
   getSaleProgressions,
   type SaleProgression,
@@ -53,6 +54,7 @@ import {
   stripCaseSearchParam,
 } from "@/lib/fastTrackCaseContext";
 import { buildUserPropertyPortfolio } from "@/lib/userPropertyPortfolio";
+import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
 
 export default function ContractsPage() {
   const navigate = useNavigate();
@@ -181,6 +183,31 @@ export default function ContractsPage() {
     if (error) {
       toast.error(error);
     } else if (data) {
+      const linkedFastTrackCase =
+        fastTrackCases.find(
+          (caseItem) =>
+            caseItem.caseId === data.fast_track_case_id ||
+            caseItem.id === data.fast_track_case_id ||
+            caseItem.contractId === data.id,
+        ) || null;
+      if (linkedFastTrackCase) {
+        const syncResult = await syncFastTrackCompanionAction({
+          fastTrackCase: linkedFastTrackCase,
+          request: { action: "confirm_agreement", payload: {} },
+          publishWorkspaceSync,
+          reason: "User confirmed agreement from contracts workspace",
+        });
+        if (syncResult.error || !syncResult.data) {
+          setSigningId(null);
+          toast.error(syncResult.error || "Contract signed, but the fast-track case did not refresh.");
+          return;
+        }
+        setFastTrackCases((previous) =>
+          previous.map((caseItem) =>
+            caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem,
+          ),
+        );
+      }
       toast.success("Contract signed successfully!");
       setContracts((prev) => prev.map((c) => (c.id === id ? data : c)));
       publishWorkspaceSync({
@@ -268,6 +295,11 @@ export default function ContractsPage() {
   const fastTrackWorkspacePath = focusedFastTrackCase
     ? `/user/dashboard/fast-track?case=${focusedFastTrackCase.caseId}`
     : "/user/dashboard/fast-track";
+  const handleFastTrackCaseUpdated = React.useCallback((nextCase: FastTrackCase) => {
+    setFastTrackCases((previous) => previous.map((caseItem) => (
+      caseItem.caseId === nextCase.caseId ? nextCase : caseItem
+    )));
+  }, []);
 
   useEffect(() => {
     if (hasAppliedRouteFocus || !focusedContract) {
@@ -602,6 +634,28 @@ export default function ContractsPage() {
                       Your linked live contract is pinned first so you can
                       review or sign it without searching the whole list.
                     </div>
+                  )}
+                  {focusedFastTrackCase && (
+                    <FastTrackCompanionPanel
+                      role="user"
+                      fastTrackCase={focusedFastTrackCase}
+                      context={{
+                        caseId: sanitizedCaseId || focusedFastTrackCase.caseId,
+                        applicationId: searchParams.get("application") || focusedApplication?.id,
+                        contractId: searchParams.get("contract") || focusedContract?.id,
+                        leadId:
+                          searchParams.get("lead") ||
+                          focusedApplication?.lead_id ||
+                          focusedFastTrackCase.leadId,
+                        propertyId:
+                          searchParams.get("property") ||
+                          focusedApplication?.property_id ||
+                          focusedFastTrackCase.propertyId,
+                      }}
+                      title="Linked agreement and handover controls"
+                      onCaseUpdated={handleFastTrackCaseUpdated}
+                      onRefresh={() => fetchData({ background: true })}
+                    />
                   )}
                   {filtered.map((contract) => {
                     const needsSignature = canUserSignContract(

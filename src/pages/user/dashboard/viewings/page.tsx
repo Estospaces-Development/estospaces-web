@@ -15,10 +15,10 @@ import { notifyViewingCancelled } from '@/services/notificationsService';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Avatar from '@/components/ui/Avatar';
+import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
-import { getPropertyById } from '@/services/propertyService';
-import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
+import { findLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import {
     usePublishWorkspaceSync,
     useWorkflowWorkspaceRefresh,
@@ -57,31 +57,11 @@ export default function ViewingsPage() {
                 bookingsService.getViewings({ suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
-            const propertyIDsNeedingImages = Array.from(
-                new Set(
-                    data
-                        .filter((viewing: any) => !viewing.property_image && typeof viewing.property_id === 'string' && viewing.property_id.trim().length > 0)
-                        .map((viewing: any) => viewing.property_id),
-                ),
-            );
-
-            const propertyImageEntries = await Promise.all(
-                propertyIDsNeedingImages.map(async (propertyID) => {
-                    try {
-                        const { data: property } = await getPropertyById(propertyID);
-                        return [propertyID, getPrimaryPropertyImage(property)] as const;
-                    } catch {
-                        return [propertyID, null] as const;
-                    }
-                }),
-            );
-
-            const propertyImageMap = new Map(propertyImageEntries);
             const mappedViewings = data.map((viewing: any) => ({
                 ...viewing,
                 date: viewing.scheduled_at,
                 time: viewing.scheduled_at ? new Date(viewing.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
-                propertyImage: viewing.property_image || propertyImageMap.get(viewing.property_id) || PROPERTY_PLACEHOLDER_IMAGE,
+                propertyImage: viewing.property_image || PROPERTY_PLACEHOLDER_IMAGE,
                 propertyTitle: viewing.property_title || 'Property',
                 propertyAddress: viewing.property_address || 'Address not available',
                 propertyPrice: viewing.property_price || 0,
@@ -147,6 +127,10 @@ export default function ViewingsPage() {
         leadId: searchParams.get('lead') || focusedCase?.leadId || null,
         propertyId: searchParams.get('property') || focusedCase?.propertyId || null,
     })?.id || null;
+    const focusedViewing = useMemo(
+        () => viewings.find((viewing) => viewing.id === focusedViewingId) || null,
+        [focusedViewingId, viewings],
+    );
 
     const filteredViewings = [...viewings]
         .filter(viewing => {
@@ -178,6 +162,23 @@ export default function ViewingsPage() {
             }
             return 0;
         });
+    const companionFastTrackCase = useMemo(() => (
+        focusedCase
+        || findLinkedFastTrackCase(fastTrackCases, {
+            caseId: sanitizedCaseId,
+            viewingId: focusedViewingId || undefined,
+            applicationId: searchParams.get('application'),
+            leadId: searchParams.get('lead') || focusedViewing?.lead_id || null,
+            propertyId: searchParams.get('property') || focusedViewing?.property_id || null,
+        })
+        || findLinkedFastTrackCase(fastTrackCases, {
+            viewingId: filteredViewings[0]?.id,
+            applicationId: filteredViewings[0]?.application_id,
+            caseId: filteredViewings[0]?.fast_track_case_id,
+            leadId: filteredViewings[0]?.lead_id,
+            propertyId: filteredViewings[0]?.property_id,
+        })
+    ), [fastTrackCases, filteredViewings, focusedCase, focusedViewing, focusedViewingId, sanitizedCaseId, searchParams]);
 
     const handleCancelViewing = async (viewingId: string) => {
         if (!user?.id) {
@@ -328,6 +329,26 @@ export default function ViewingsPage() {
                     </div>
                 ) : filteredViewings.length > 0 ? (
                     <div className="grid grid-cols-1 gap-6">
+                        {companionFastTrackCase && (
+                            <FastTrackCompanionPanel
+                                role="user"
+                                fastTrackCase={companionFastTrackCase}
+                                context={{
+                                    caseId: sanitizedCaseId || companionFastTrackCase.caseId,
+                                    viewingId: focusedViewingId || filteredViewings[0]?.id,
+                                    applicationId: searchParams.get('application') || filteredViewings[0]?.application_id,
+                                    leadId: searchParams.get('lead') || companionFastTrackCase.leadId,
+                                    propertyId: searchParams.get('property') || companionFastTrackCase.propertyId,
+                                }}
+                                title="Linked viewing controls"
+                                onCaseUpdated={(nextCase) => {
+                                    setFastTrackCases((previous) => previous.map((caseItem) => (
+                                        caseItem.caseId === nextCase.caseId ? nextCase : caseItem
+                                    )));
+                                }}
+                                onRefresh={fetchViewings}
+                            />
+                        )}
                         {focusedViewingId && (
                             <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                                 Your linked fast-track appointment is pinned first so you can keep the live journey moving without searching manually.

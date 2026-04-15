@@ -33,12 +33,21 @@ import {
   ApplicationStatus,
 } from "../../../contexts/ApplicationsContext";
 import StatusTracker from "./StatusTracker";
+import FastTrackCompanionPanel from "@/components/fast-track/FastTrackCompanionPanel";
 import CreateContractModal from "@/components/manager/contracts/CreateContractModal";
 import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/placeholders";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { messagesService } from "@/services/messagesService";
 import Avatar from "@/components/ui/Avatar";
+import {
+  attachLinkedFastTrackCase,
+  findLinkedFastTrackCase,
+} from "@/lib/fastTrackCompanion";
+import {
+  getFastTrackCases,
+  type FastTrackCase,
+} from "@/services/fastTrackService";
 import {
   getAMLReview,
   getBuyerQualification,
@@ -139,8 +148,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const { allApplications, fetchApplications, withdrawApplication } =
     useApplications();
   const application =
-    initialApplication ||
-    allApplications?.find((app) => app.id === applicationId);
+    allApplications?.find((app) => app.id === applicationId) ||
+    initialApplication;
   const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
@@ -169,6 +178,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     sourceOfFundsStatus: "pending",
     reviewNotes: "",
   });
+  const [resolvedFastTrackCase, setResolvedFastTrackCase] =
+    useState<FastTrackCase | null>(application?.fastTrackCase || null);
   const [offerDraft, setOfferDraft] = useState({
     amount: String(application?.propertyPrice || ""),
     notes: "",
@@ -234,6 +245,62 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       notes: "",
     });
   }, [application?.id, application?.propertyPrice]);
+
+  useEffect(() => {
+    if (!application) {
+      setResolvedFastTrackCase(null);
+      return;
+    }
+
+    if (application.fastTrackCase) {
+      setResolvedFastTrackCase(application.fastTrackCase);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadFastTrackCase = async () => {
+      const result = await getFastTrackCases({ suppressErrorToast: true });
+      if (cancelled) {
+        return;
+      }
+
+      const linkedFastTrackCase =
+        findLinkedFastTrackCase(result.data || [], {
+          applicationId:
+            application.source === "sale_progression" ? undefined : application.id,
+          caseId: application.fastTrackCaseId,
+          fastTrackCaseId: application.fastTrackCaseId,
+          leadId: application.leadId,
+          propertyId: application.propertyId,
+        }) || null;
+
+      setResolvedFastTrackCase(linkedFastTrackCase);
+    };
+
+    void loadFastTrackCase();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    application?.fastTrackCase,
+    application?.fastTrackCaseId,
+    application?.id,
+    application?.leadId,
+    application?.propertyId,
+    application?.source,
+  ]);
+
+  const linkedApplication = application
+    ? attachLinkedFastTrackCase(
+        {
+          ...application,
+          fastTrackCase: application.fastTrackCase || resolvedFastTrackCase || undefined,
+        },
+        resolvedFastTrackCase ? [resolvedFastTrackCase] : [],
+      )
+    : null;
 
   const managerWorkflowRequestOptions = { suppressErrorToast: true } as const;
 
@@ -617,6 +684,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       </div>
     );
   }
+
+  const displayApplication = linkedApplication || application;
 
   const canWithdraw = canWithdrawApplicationRecord(application);
   const saleNextActions = getNextSaleJourneyActions(application.status);
@@ -1081,14 +1150,20 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
     setRentWorkflowAction("approve");
     try {
-      const result = await updateApplicationWorkflowStatus(
-        application.id,
-        "approved",
-        "Approved from the manager application workflow.",
-        managerWorkflowRequestOptions,
-      );
-      if (result.error) {
-        throw new Error(result.error);
+      if (onUpdateStatus) {
+        await Promise.resolve(
+          onUpdateStatus(application.id, APPLICATION_STATUS.APPROVED as ApplicationStatus),
+        );
+      } else {
+        const result = await updateApplicationWorkflowStatus(
+          application.id,
+          "approved",
+          "Approved from the manager application workflow.",
+          managerWorkflowRequestOptions,
+        );
+        if (result.error) {
+          throw new Error(result.error);
+        }
       }
 
       await refreshRentWorkflow();
@@ -1712,6 +1787,23 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             source={application.source}
           />
         </div>
+        {displayApplication.fastTrackCase && (
+          <div className="mb-6">
+            <FastTrackCompanionPanel
+              role="manager"
+              fastTrackCase={displayApplication.fastTrackCase}
+              context={{
+                applicationId: displayApplication.id,
+                caseId: displayApplication.fastTrackCase.caseId,
+                leadId: displayApplication.leadId,
+                propertyId: displayApplication.propertyId,
+                contractId: rentCaseFile?.contract_id,
+              }}
+              title="Linked fast-track controls"
+              onRefresh={fetchApplications}
+            />
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden shadow-sm">

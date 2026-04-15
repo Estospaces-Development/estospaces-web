@@ -34,6 +34,8 @@ import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import ApplicationCard from '@/components/dashboard/applications/ApplicationCard';
 import ApplicationCardSkeleton from '@/components/dashboard/applications/ApplicationCardSkeleton';
 import ApplicationFilters from '@/components/dashboard/applications/ApplicationFilters';
+import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
+import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
@@ -53,6 +55,7 @@ import {
 
 function ApplicationDetailDrawer({ application, onClose }: { application: Application; onClose: () => void }) {
     const navigate = useNavigate();
+    const { fetchApplications } = useApplications();
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
@@ -148,6 +151,21 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold ${statusInfo.color}`}>
                         {statusInfo.label}
                     </span>
+
+                    {application.fastTrackCase && (
+                        <FastTrackCompanionPanel
+                            role="user"
+                            fastTrackCase={application.fastTrackCase}
+                            context={{
+                                applicationId: application.id,
+                                caseId: application.fastTrackCase.caseId,
+                                leadId: application.leadId,
+                                propertyId: application.propertyId,
+                            }}
+                            title="Linked fast-track controls"
+                            onRefresh={fetchApplications}
+                        />
+                    )}
 
                     {/* Property */}
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl overflow-hidden">
@@ -317,6 +335,17 @@ export default function ApplicationsPage() {
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
     });
+    const drawerApplication = useMemo(() => {
+        if (!selectedApplication) {
+            return null;
+        }
+
+        const currentApplication =
+            applications.find((application) => application.id === selectedApplication.id)
+            || selectedApplication;
+
+        return attachLinkedFastTrackCase(currentApplication, fastTrackCases);
+    }, [applications, fastTrackCases, selectedApplication]);
 
     useEffect(() => {
         let cancelled = false;
@@ -397,9 +426,9 @@ export default function ApplicationsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
-            {selectedApplication && (
+            {drawerApplication && (
                 <ApplicationDetailDrawer
-                    application={selectedApplication}
+                    application={drawerApplication}
                     onClose={() => setSelectedApplication(null)}
                 />
             )}

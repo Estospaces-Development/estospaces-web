@@ -35,6 +35,7 @@ import {
 import { openDocumentAccessUrl } from "@/services/documentAccessService";
 import { uploadDocument, type UserDocument } from "@/services/leadsService";
 import { useToast } from "@/contexts/ToastContext";
+import DateField from "@/components/ui/DateField";
 import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
@@ -500,24 +501,6 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
         section: "documents",
       }),
     },
-    {
-      label:
-        role === "manager"
-          ? "Open applications workspace"
-          : "Open applications",
-      path: buildWorkspacePath(
-        role === "manager" ? "/manager/applications" : "/user/applications",
-        shared,
-      ),
-    },
-    {
-      label:
-        role === "manager" ? "Open appointments workspace" : "Open viewings",
-      path: buildWorkspacePath(
-        `${base}/${role === "manager" ? "appointments" : "viewings"}`,
-        shared,
-      ),
-    },
     ...(role === "manager"
       ? [
           {
@@ -531,17 +514,6 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
             path: buildWorkspacePath("/user/dashboard/payments", shared),
           },
         ]),
-    ...(caseFile.contract_id
-      ? [
-          {
-            label:
-              role === "manager"
-                ? "Open contracts workspace"
-                : "Open contracts",
-            path: buildWorkspacePath(`${base}/contracts`, shared),
-          },
-        ]
-      : []),
   ];
 };
 
@@ -1782,8 +1754,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     </h2>
                   </div>
                   <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-200">
-                    The document lane is clear right now. Use the quick links to
-                    continue the live workflow.
+                    The document lane is clear right now. Use the fast-track
+                    links for the live workflow and keep this space for
+                    supporting context.
                   </p>
                 </div>
               )}
@@ -2411,16 +2384,17 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   <span className="font-medium text-gray-700 dark:text-gray-300">
                     Due date
                   </span>
-                  <input
-                    type="date"
+                  <DateField
                     value={requestForm.due_at}
-                    onChange={(event) =>
+                    onChange={(nextValue) =>
                       setRequestForm((previous) => ({
                         ...previous,
-                        due_at: event.target.value,
+                        due_at: nextValue,
                       }))
                     }
-                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                    className="w-full"
+                    buttonClassName="bg-gray-50 dark:bg-zinc-900"
+                    ariaLabel="Case file request due date"
                   />
                 </label>
               </div>
@@ -2932,7 +2906,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
             <div className="flex items-center gap-2 text-gray-900 dark:text-white">
               <ArrowRight className="h-5 w-5 text-orange-500" />
-              <h2 className="text-lg font-semibold">Next actions</h2>
+              <h2 className="text-lg font-semibold">Workflow notes</h2>
             </div>
             <div className="mt-4 space-y-3">
               {(workflow?.next_actions || []).length > 0 ? (

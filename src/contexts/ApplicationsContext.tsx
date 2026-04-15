@@ -12,9 +12,16 @@ import {
     withdrawApplication as withdrawBackendApplication,
 } from '@/services/applicationsService';
 import { getViewings, type Viewing } from '@/services/bookingsService';
-import { getFastTrackCases } from '@/services/fastTrackService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { findRelatedViewing } from '@/lib/applicationWorkflow';
+import {
+    attachLinkedFastTrackCase,
+    applicationStatusToFastTrackDecisionOutcome,
+    describeFastTrackStageLabel,
+    findLinkedFastTrackCase,
+    syncFastTrackCompanionAction,
+} from '@/lib/fastTrackCompanion';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, shouldUseSaleProgressionStatusUpdate, isSaleProgressionRecord } from '@/lib/saleJourney';
 import { findLinkedSaleProgression } from '@/lib/workspaceLinks';
@@ -116,6 +123,7 @@ export interface Application {
     amlReview?: AMLReview | null;
     journeyLabel?: string;
     journeySummary?: string;
+    fastTrackCase?: FastTrackCase;
     appointment?: {
         date: string;
         time: string;
@@ -467,9 +475,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         setIsLoading(true);
         setError(null);
 
-        await getFastTrackCases({ suppressErrorToast: true });
-
-        const [applicationsResult, viewingsResult, saleProgressionsResult] = await Promise.all([
+        const [fastTrackCasesResult, applicationsResult, viewingsResult, saleProgressionsResult] = await Promise.all([
+            getFastTrackCases({ suppressErrorToast: true }),
             getBackendApplications({ suppressErrorToast: true }),
             getViewings().catch(() => [] as Viewing[]),
             getSaleProgressions({ suppressErrorToast: true }),
@@ -570,12 +577,15 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             ),
         );
 
+        const fastTrackCases = fastTrackCasesResult.data || [];
         setApplications(
-            [...mappedApplications, ...mappedSaleProgressions].sort(
-                (left, right) =>
-                    new Date(right.lastUpdated || right.createdAt).getTime() -
-                    new Date(left.lastUpdated || left.createdAt).getTime(),
-            ),
+            [...mappedApplications, ...mappedSaleProgressions]
+                .map((application) => attachLinkedFastTrackCase(application, fastTrackCases))
+                .sort(
+                    (left, right) =>
+                        new Date(right.lastUpdated || right.createdAt).getTime() -
+                        new Date(left.lastUpdated || left.createdAt).getTime(),
+                ),
         );
         setIsLoading(false);
     };
@@ -693,6 +703,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         const application = applications.find((item) => item.id === id);
+        const fastTrackDecisionOutcome = applicationStatusToFastTrackDecisionOutcome(status);
+        let syncedFastTrack = false;
         const stage = shouldUseSaleProgressionStatusUpdate(application, status)
             ? saleProgressionStageForStatus(status)
             : null;
@@ -710,19 +722,41 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 return { success: false, error: updateError || 'Failed to update purchase progression' };
             }
 
+            if (fastTrackDecisionOutcome && application?.fastTrackCase) {
+                const syncResult = await syncFastTrackCompanionAction({
+                    fastTrackCase: application.fastTrackCase,
+                    request: {
+                        action: 'record_decision',
+                        payload: {
+                            outcome: fastTrackDecisionOutcome,
+                            amount: application.fastTrackCase.decision.amount,
+                            currency: 'GBP',
+                        },
+                    },
+                    publishWorkspaceSync,
+                    reason: `Applications companion decision: ${status}`,
+                });
+                if (syncResult.error || !syncResult.data) {
+                    return { success: false, error: syncResult.error || 'Failed to sync fast-track decision' };
+                }
+                syncedFastTrack = true;
+            }
+
             await fetchApplications();
-            publishWorkspaceSync({
-                key: `applications:progression:${progressionTarget.id}:${stage}`,
-                source: 'mutation',
-                tags: syncTags,
-                reason: 'sale-progression-updated',
-                ids: {
-                    applicationId: application?.id,
-                    caseId: progressionTarget.fastTrackCaseId,
-                    leadId: progressionTarget.leadId,
-                    propertyId: progressionTarget.propertyId,
-                },
-            });
+            if (!syncedFastTrack) {
+                publishWorkspaceSync({
+                    key: `applications:progression:${progressionTarget.id}:${stage}`,
+                    source: 'mutation',
+                    tags: syncTags,
+                    reason: 'sale-progression-updated',
+                    ids: {
+                        applicationId: application?.id,
+                        caseId: progressionTarget.fastTrackCaseId,
+                        leadId: progressionTarget.leadId,
+                        propertyId: progressionTarget.propertyId,
+                    },
+                });
+            }
             return { success: true };
         }
 
@@ -736,14 +770,34 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return { success: false, error: updateError || 'Failed to update application status' };
         }
 
+        if (fastTrackDecisionOutcome && application?.fastTrackCase) {
+            const syncResult = await syncFastTrackCompanionAction({
+                fastTrackCase: application.fastTrackCase,
+                request: {
+                    action: 'record_decision',
+                    payload: {
+                        outcome: fastTrackDecisionOutcome,
+                    },
+                },
+                publishWorkspaceSync,
+                reason: `Applications companion decision: ${status}`,
+            });
+            if (syncResult.error || !syncResult.data) {
+                return { success: false, error: syncResult.error || 'Failed to sync fast-track decision' };
+            }
+            syncedFastTrack = true;
+        }
+
         await fetchApplications();
-        publishWorkspaceSync({
-            key: `applications:update:${id}:${status}`,
-            source: 'mutation',
-            tags: syncTags,
-            reason: 'application-status-updated',
-            ids: { applicationId: id },
-        });
+        if (!syncedFastTrack) {
+            publishWorkspaceSync({
+                key: `applications:update:${id}:${status}`,
+                source: 'mutation',
+                tags: syncTags,
+                reason: 'application-status-updated',
+                ids: { applicationId: id },
+            });
+        }
         return { success: true };
     };
 

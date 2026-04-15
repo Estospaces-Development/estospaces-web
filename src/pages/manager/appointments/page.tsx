@@ -7,8 +7,15 @@ import { bookingsService, type Viewing } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
+import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
+import {
+    findLinkedFastTrackCase,
+    syncFastTrackCompanionAction,
+} from '@/lib/fastTrackCompanion';
 import {
     usePublishWorkspaceSync,
     useWorkflowWorkspaceRefresh,
@@ -226,11 +233,39 @@ export default function ManagerAppointmentsPage() {
     }), [appointments]);
     const isSavingReschedule = Boolean(rescheduleTarget && actingID === rescheduleTarget.id);
 
-    const runAction = async (appointmentID: string, action: () => Promise<void>, successMessage: string) => {
+    const runAction = async (
+        appointmentID: string,
+        action: () => Promise<void>,
+        successMessage: string,
+        fastTrackSync?: { action: string; payload?: Record<string, unknown> },
+    ) => {
         setActingID(appointmentID);
         try {
             const appointment = appointments.find((item) => item.id === appointmentID);
             await action();
+            if (appointment && fastTrackSync) {
+                const linkedFastTrackCase = findLinkedFastTrackCase(fastTrackCases, {
+                    caseId: appointment.fast_track_case_id,
+                    viewingId: appointment.id,
+                    applicationId: appointment.application_id,
+                    leadId: appointment.lead_id,
+                    propertyId: appointment.property_id,
+                });
+                if (linkedFastTrackCase) {
+                    const syncResult = await syncFastTrackCompanionAction({
+                        fastTrackCase: linkedFastTrackCase,
+                        request: fastTrackSync,
+                        publishWorkspaceSync,
+                        reason: `Manager appointments companion action: ${fastTrackSync.action}`,
+                    });
+                    if (syncResult.error || !syncResult.data) {
+                        throw new Error(syncResult.error || 'Unable to sync the linked fast-track case.');
+                    }
+                    setFastTrackCases((previous) => previous.map((caseItem) => (
+                        caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem
+                    )));
+                }
+            }
             toast.success(successMessage);
             publishWorkspaceSync({
                 source: 'mutation',
@@ -286,6 +321,13 @@ export default function ManagerAppointmentsPage() {
                 setRescheduleTarget(null);
             },
             'Appointment rescheduled successfully.',
+            {
+                action: 'reschedule_viewing',
+                payload: {
+                    scheduled_at: new Date(`${rescheduleForm.requested_date}T${rescheduleForm.requested_time}:00`).toISOString(),
+                    note: rescheduleForm.manager_notes,
+                },
+            },
         );
     };
 
@@ -383,6 +425,28 @@ export default function ManagerAppointmentsPage() {
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {focusedCase && (
+                            <div className="p-6">
+                                <FastTrackCompanionPanel
+                                    role="manager"
+                                    fastTrackCase={focusedCase}
+                                    context={{
+                                        caseId: sanitizedCaseId || focusedCase.caseId,
+                                        viewingId: focusedAppointmentId,
+                                        applicationId: searchParams.get('application') || focusedCase.applicationId,
+                                        leadId: searchParams.get('lead') || focusedCase.leadId,
+                                        propertyId: searchParams.get('property') || focusedCase.propertyId,
+                                    }}
+                                    title="Linked viewing controls"
+                                    onCaseUpdated={(nextCase) => {
+                                        setFastTrackCases((previous) => previous.map((caseItem) => (
+                                            caseItem.caseId === nextCase.caseId ? nextCase : caseItem
+                                        )));
+                                    }}
+                                    onRefresh={fetchAppointments}
+                                />
+                            </div>
+                        )}
                         {focusedAppointmentId && (
                             <div className="border-b border-orange-200 bg-orange-50 px-6 py-4 text-sm text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                                 The appointment linked to your live workflow is pinned first so you can confirm or reschedule it without searching manually.
@@ -462,7 +526,18 @@ export default function ManagerAppointmentsPage() {
 
                                             {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'rescheduled') && (
                                                 <button
-                                                    onClick={() => runAction(appointment.id, () => bookingsService.confirmViewing(appointment.id), 'Appointment confirmed successfully.')}
+                                                    onClick={() => runAction(
+                                                        appointment.id,
+                                                        () => bookingsService.confirmViewing(appointment.id),
+                                                        'Appointment confirmed successfully.',
+                                                        {
+                                                            action: 'schedule_viewing',
+                                                            payload: {
+                                                                scheduled_at: appointment.scheduled_at,
+                                                                note: appointment.manager_notes,
+                                                            },
+                                                        },
+                                                    )}
                                                     disabled={isBusy}
                                                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
@@ -483,7 +558,17 @@ export default function ManagerAppointmentsPage() {
 
                                             {!isWorkflowLocked && appointment.status === 'confirmed' && (
                                                 <button
-                                                    onClick={() => runAction(appointment.id, () => bookingsService.updateViewing(appointment.id, { status: 'completed' }).then(() => undefined), 'Appointment marked as completed.')}
+                                                    onClick={() => runAction(
+                                                        appointment.id,
+                                                        () => bookingsService.updateViewing(appointment.id, { status: 'completed' }).then(() => undefined),
+                                                        'Appointment marked as completed.',
+                                                        {
+                                                            action: 'complete_viewing',
+                                                            payload: {
+                                                                note: appointment.manager_notes,
+                                                            },
+                                                        },
+                                                    )}
                                                     disabled={isBusy}
                                                     className="rounded-2xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30"
                                                 >
@@ -493,7 +578,17 @@ export default function ManagerAppointmentsPage() {
 
                                             {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button
-                                                    onClick={() => runAction(appointment.id, () => bookingsService.cancelViewing(appointment.id, 'Cancelled by manager'), 'Appointment cancelled successfully.')}
+                                                    onClick={() => runAction(
+                                                        appointment.id,
+                                                        () => bookingsService.cancelViewing(appointment.id, 'Cancelled by manager'),
+                                                        'Appointment cancelled successfully.',
+                                                        {
+                                                            action: 'skip_viewing',
+                                                            payload: {
+                                                                note: 'Cancelled by manager',
+                                                            },
+                                                        },
+                                                    )}
                                                     disabled={isBusy}
                                                     className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
                                                 >
@@ -546,20 +641,22 @@ export default function ManagerAppointmentsPage() {
                         <div className="mt-6 grid gap-4 md:grid-cols-2">
                             <label className="space-y-2 text-sm">
                                 <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
-                                <input
-                                    type="date"
+                                <DateField
                                     value={rescheduleForm.requested_date}
-                                    onChange={(event) => setRescheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
-                                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                    onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_date: nextValue }))}
+                                    className="w-full"
+                                    buttonClassName="bg-gray-50 dark:bg-gray-900"
+                                    ariaLabel="Appointment reschedule date"
                                 />
                             </label>
                             <label className="space-y-2 text-sm">
                                 <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
-                                <input
-                                    type="time"
+                                <TimeField
                                     value={rescheduleForm.requested_time}
-                                    onChange={(event) => setRescheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
-                                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                    onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_time: nextValue }))}
+                                    className="w-full"
+                                    inputClassName="bg-gray-50 dark:bg-gray-900"
+                                    ariaLabel="Appointment reschedule time"
                                 />
                             </label>
                         </div>

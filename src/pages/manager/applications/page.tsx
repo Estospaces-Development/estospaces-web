@@ -18,6 +18,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
 import ApplicationDetail from '@/components/manager/applications/ApplicationDetail';
 import ApplicationFilters from '@/components/manager/applications/ApplicationFilters';
+import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { resolveFocusedApplication } from '@/lib/workspaceLinks';
 import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
 import {
@@ -76,6 +77,18 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
     });
+    const selectedApplication = useMemo(() => {
+        if (!selectedId) {
+            return null;
+        }
+
+        const baseApplication = allApplications.find((application) => application.id === selectedId);
+        if (!baseApplication) {
+            return null;
+        }
+
+        return attachLinkedFastTrackCase(baseApplication, fastTrackCases);
+    }, [allApplications, fastTrackCases, selectedId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -193,6 +206,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             <ApplicationDetail
                 key={selectedId}
                 applicationId={selectedId}
+                application={selectedApplication || undefined}
                 onClose={handleCloseDetail}
                 onUpdateStatus={handleUpdateStatus}
                 requestedSection={requestedSection}
