@@ -504,13 +504,13 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
     ...(role === "manager"
       ? [
           {
-            label: "Open billing workspace",
+            label: "Open billing details",
             path: buildWorkspacePath("/manager/billing", shared),
           },
         ]
       : [
           {
-            label: "Open payments workspace",
+            label: "Open payment details",
             path: buildWorkspacePath("/user/dashboard/payments", shared),
           },
         ]),

@@ -17,10 +17,9 @@ type FinanceTask = {
 export type FastTrackStageGuidanceTarget =
     | 'none'
     | 'schedule_viewing'
-    | 'appointments'
-    | 'applications'
-    | 'contracts'
-    | 'billing';
+    | 'fast_track';
+
+const CONTINUE_IN_FAST_TRACK_LABEL = 'Continue in fast-track workspace';
 
 export interface FastTrackStageGuidance {
     title: string;
@@ -46,21 +45,7 @@ export const hasPendingRentFinanceTasks = (linkedJourney?: LinkedJourneyLike) =>
     || (linkedJourney?.invoices || []).some(isPendingInvoiceTask)
 );
 
-export const getPurchaseWorkspaceLabel = (linkedJourney?: Pick<FastTrackLinkedJourney, 'liveStage' | 'saleProgression'> | null) => {
-    if (linkedJourney?.saleProgression) {
-        return 'Open sale progression workspace';
-    }
-
-    if (linkedJourney?.liveStage === 'buyer_qualification') {
-        return 'Open buyer qualification workspace';
-    }
-
-    if (linkedJourney?.liveStage === 'offer') {
-        return 'Open offer workspace';
-    }
-
-    return 'Open purchase workspace';
-};
+export const getPurchaseWorkspaceLabel = (_linkedJourney?: Pick<FastTrackLinkedJourney, 'liveStage' | 'saleProgression'> | null) => 'Open linked purchase details';
 
 const applicationsTitle = (journeyType: JourneyType, linkedJourney?: LinkedJourneyLike) => (
     linkedJourney?.primaryHeadline
@@ -68,10 +53,10 @@ const applicationsTitle = (journeyType: JourneyType, linkedJourney?: LinkedJourn
 );
 
 const applicationsDescription = (journeyType: JourneyType, linkedJourney?: LinkedJourneyLike) => (
-    linkedJourney?.nextStep
+    linkedJourney?.primaryHeadline
     || (journeyType === 'buy'
-        ? 'Open the purchase workspace to continue proof of funds, the MIP, and the live offer from the same fast-track case.'
-        : 'Open the applications workspace to continue referencing, compliance checks, and approval from the same fast-track case.')
+        ? 'Keep proof of funds, offer review, and sale progression in the same fast-track case. Purchase records stay synced there.'
+        : 'Keep referencing, approval, and agreement prep in the same fast-track case. Companion application pages stay synced if you open them later.')
 );
 
 export const resolveFastTrackStageGuidance = ({
@@ -92,9 +77,9 @@ export const resolveFastTrackStageGuidance = ({
             if (linkedJourney?.viewing) {
                 return {
                     title: 'Documents verified',
-                    actionLabel: 'Open appointments workspace',
-                    description: 'Open the appointments workspace to confirm, reschedule, or complete the live viewing from the same fast-track case.',
-                    target: 'appointments',
+                    actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
+                    description: 'The viewing record is linked. Confirm, reschedule, or complete it from this fast-track case without jumping into a separate workflow screen.',
+                    target: 'fast_track',
                 };
             }
 
@@ -116,47 +101,47 @@ export const resolveFastTrackStageGuidance = ({
             return linkedJourney?.viewing
                 ? {
                     title: 'Viewing scheduled',
-                    actionLabel: 'Open appointments workspace',
-                    description: linkedJourney.nextStep || 'Open the appointments workspace to confirm, reschedule, or complete the live viewing from the same fast-track case.',
-                    target: 'appointments',
+                    actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
+                    description: linkedJourney.nextStep || 'The viewing is booked. Confirm, reschedule, or complete it from this fast-track case.',
+                    target: 'fast_track',
                 }
                 : {
                     title: 'Viewing scheduled',
-                    description: 'The viewing is booked and the appointments workspace owns the next update.',
+                    description: 'The viewing is booked and the next update stays in this fast-track case.',
                     target: 'none',
                 };
         case 'viewing_completed':
         case 'application_in_review':
             return {
                 title: applicationsTitle(journeyType, linkedJourney),
-                actionLabel: journeyType === 'buy' ? getPurchaseWorkspaceLabel(linkedJourney) : 'Open applications workspace',
+                actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
                 description: applicationsDescription(journeyType, linkedJourney),
-                target: 'applications',
+                target: 'fast_track',
             };
         case 'ready_for_contract':
             if (journeyType === 'buy') {
                 return {
                     title: applicationsTitle(journeyType, linkedJourney),
-                    actionLabel: getPurchaseWorkspaceLabel(linkedJourney),
+                    actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
                     description: applicationsDescription(journeyType, linkedJourney),
-                    target: 'applications',
+                    target: 'fast_track',
                 };
             }
 
             if (hasPendingFinanceTasks) {
                 return {
                     title: linkedJourney?.primaryHeadline || 'Deposit and first-rent tasks',
-                    actionLabel: 'Open billing workspace',
-                    description: linkedJourney?.nextStep || 'Open the billing workspace to clear deposit or first-rent tasks and finish the move-in handoff.',
-                    target: 'billing',
+                    actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
+                    description: linkedJourney?.nextStep || 'Agreement, payment, and handover stay inside the same fast-track case until move-in is complete.',
+                    target: 'fast_track',
                 };
             }
 
             return {
                 title: linkedJourney?.primaryHeadline || 'Tenancy agreement and signatures',
-                actionLabel: 'Open contracts workspace',
-                description: linkedJourney?.nextStep || 'Open the contracts workspace to draft, issue, or complete the tenancy agreement from the same fast-track case.',
-                target: 'contracts',
+                actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
+                description: linkedJourney?.nextStep || 'Draft, issue, and complete the tenancy agreement from this fast-track case.',
+                target: 'fast_track',
             };
         default:
             return null;

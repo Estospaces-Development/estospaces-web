@@ -616,8 +616,8 @@ export default function ContractsPage() {
                           className="rounded-xl border border-orange-300 px-4 py-2.5 font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:text-orange-200 dark:hover:bg-orange-950/30"
                         >
                           {focusedJourneyType === "buy"
-                            ? "Open purchase journey"
-                            : "Open applications workspace"}
+                            ? "Open purchase details"
+                            : "Open linked application"}
                         </button>
                         <button
                           type="button"

@@ -194,7 +194,7 @@ export const buildUserPropertyPortfolio = ({
         leadId: progression.lead_id || application?.lead_id,
         propertyId: progression.property_id || application?.property_id,
       }),
-      actionLabel: "Open purchase workspace",
+      actionLabel: "Open purchase details",
       sortDate: firstString(
         progression.completed_at,
         progression.updated_at,
@@ -253,7 +253,7 @@ export const buildUserPropertyPortfolio = ({
         leadId: application.lead_id,
         propertyId: application.property_id,
       }),
-      actionLabel: "Open purchase workspace",
+      actionLabel: "Open purchase details",
       sortDate: firstString(application.updated_at, application.created_at),
     });
   }

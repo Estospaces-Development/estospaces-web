@@ -2777,7 +2777,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       >
                         <FileText size={16} />
                         {rentCaseFile?.contract_id
-                          ? "Open contracts workspace"
+                          ? "Open contract details"
                           : isLoadingRentWorkflow
                             ? "Refreshing workflow"
                           : createContractGuard.canRun

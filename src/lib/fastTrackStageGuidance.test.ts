@@ -7,7 +7,7 @@ import {
     resolveFastTrackStageGuidance,
 } from './fastTrackStageGuidance';
 
-test('viewing completed fast-track guidance sends completed buy journeys into the purchase workspace', () => {
+test('viewing completed fast-track guidance keeps completed buy journeys inside fast-track', () => {
     const guidance = resolveFastTrackStageGuidance({
         currentStep: 'viewing_completed',
         journeyType: 'buy',
@@ -25,9 +25,9 @@ test('viewing completed fast-track guidance sends completed buy journeys into th
 
     assert.deepEqual(guidance, {
         title: 'Proof of funds / MIP',
-        actionLabel: 'Open buyer qualification workspace',
-        description: 'Open the applications workspace to record proof of funds, the MIP, and the live offer.',
-        target: 'applications',
+        actionLabel: 'Continue in fast-track workspace',
+        description: 'Proof of funds / MIP',
+        target: 'fast_track',
     });
 });
 
@@ -50,14 +50,14 @@ test('ready for contract rent guidance moves payment blockers into billing', () 
         hasPendingFinanceTasks: true,
     });
 
-    assert.equal(guidance?.target, 'billing');
-    assert.equal(guidance?.actionLabel, 'Open billing workspace');
+    assert.equal(guidance?.target, 'fast_track');
+    assert.equal(guidance?.actionLabel, 'Continue in fast-track workspace');
 });
 
-test('purchase workspace label follows the live sale lane', () => {
-    assert.equal(getPurchaseWorkspaceLabel({ saleProgression: {} as any, liveStage: null }), 'Open sale progression workspace');
-    assert.equal(getPurchaseWorkspaceLabel({ saleProgression: null, liveStage: 'buyer_qualification' } as any), 'Open buyer qualification workspace');
-    assert.equal(getPurchaseWorkspaceLabel({ saleProgression: null, liveStage: 'offer' } as any), 'Open offer workspace');
+test('purchase workspace label now points to the linked purchase details surface', () => {
+    assert.equal(getPurchaseWorkspaceLabel({ saleProgression: {} as any, liveStage: null }), 'Open linked purchase details');
+    assert.equal(getPurchaseWorkspaceLabel({ saleProgression: null, liveStage: 'buyer_qualification' } as any), 'Open linked purchase details');
+    assert.equal(getPurchaseWorkspaceLabel({ saleProgression: null, liveStage: 'offer' } as any), 'Open linked purchase details');
 });
 
 test('pending rent finance task detection only flags deposit and rent blockers', () => {

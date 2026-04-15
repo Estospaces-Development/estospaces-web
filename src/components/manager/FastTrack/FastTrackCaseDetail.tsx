@@ -31,13 +31,14 @@ import {
     resolveFastTrackPrimaryLaneLabel,
 } from '@/lib/fastTrackLinkedJourney';
 import {
-    getPurchaseWorkspaceLabel,
     hasPendingRentFinanceTasks,
     resolveFastTrackStageGuidance,
 } from '@/lib/fastTrackStageGuidance';
 import { getNextSaleJourneyActions, saleProgressionStageForStatus } from '@/lib/saleJourney';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import type { WorkspaceSection } from '@/lib/liveCaseWorkspace';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
 import {
     getManagerSaleProgressionGuard,
     getManagerViewingActionGuard,
@@ -235,6 +236,13 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         propertyId: caseData.propertyId,
         applicationId: linkedJourney?.application?.id,
         section: 'documents',
+    });
+    const sharedFastTrackWorkspacePath = buildWorkspacePath(isAdminWorkspace ? '/admin/fast-track' : '/manager/fast-track', {
+        caseId: caseData.caseId,
+        leadId: caseData.leadId,
+        propertyId: caseData.propertyId,
+        applicationId: linkedJourney?.application?.id,
+        section: 'journey',
     });
     const caseFileWorkspacePath = !isAdminWorkspace ? buildWorkspacePath('/manager/case-files', {
         caseId: caseData.caseId,
@@ -489,7 +497,6 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
     const canCompleteViewing = completeViewingGuard.canRun;
     const canCancelViewing = cancelViewingGuard.canRun;
     const rentJourney = caseData.journeyType !== 'buy';
-    const purchaseWorkspaceLabel = getPurchaseWorkspaceLabel(linkedJourney);
     const nextStageGuidance = resolveFastTrackStageGuidance({
         currentStep: caseData.currentStep,
         journeyType: caseData.journeyType,
@@ -497,15 +504,9 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
         canScheduleViewing,
         hasPendingFinanceTasks,
     });
-    const nextStageWorkspacePath = nextStageGuidance?.target === 'appointments'
-        ? appointmentsWorkspacePath
-        : nextStageGuidance?.target === 'applications'
-            ? applicationsWorkspacePath
-            : nextStageGuidance?.target === 'contracts'
-                ? contractsWorkspacePath
-                : nextStageGuidance?.target === 'billing'
-                    ? billingWorkspacePath
-                    : null;
+    const nextStageWorkspacePath = nextStageGuidance?.target === 'fast_track'
+        ? sharedFastTrackWorkspacePath
+        : null;
     const saleProgressionActions = !rentJourney && linkedJourney?.saleProgression
         ? getNextSaleJourneyActions(linkedJourney.saleProgression.current_stage).reduce<Array<{
             status: string;
@@ -1165,7 +1166,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 <h3 className="text-lg font-semibold">Linked journey records</h3>
                             </div>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                Keep the fast-track case aligned with the real downstream records instead of switching tabs blindly.
+                                Keep the downstream records visible here, but continue the live workflow inside the linked fast-track case.
                             </p>
                             <div className="mt-4 space-y-3">
                                 {linkedWorkflowCards.map((item) => (
@@ -1180,16 +1181,14 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                 ))}
                             </div>
                             <div className="mt-4 grid gap-3">
-                                {applicationsWorkspacePath ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(applicationsWorkspacePath)}
-                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                    >
-                                        <FileText size={18} />
-                                        {rentJourney ? 'Open applications workspace' : purchaseWorkspaceLabel}
-                                    </button>
-                                ) : null}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(sharedFastTrackWorkspacePath)}
+                                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
+                                >
+                                    <FileText size={18} />
+                                    Open linked fast-track workspace
+                                </button>
                                 {caseFileWorkspacePath ? (
                                     <button
                                         type="button"
@@ -1197,37 +1196,7 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                                         className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
                                     >
                                         <FileText size={18} />
-                                        Open shared case file
-                                    </button>
-                                ) : null}
-                                {appointmentsWorkspacePath ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(appointmentsWorkspacePath)}
-                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                    >
-                                        <CalendarClock size={18} />
-                                        Open appointments workspace
-                                    </button>
-                                ) : null}
-                                {caseData.journeyType !== 'buy' && contractsWorkspacePath ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(contractsWorkspacePath)}
-                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                    >
-                                        <Shield size={18} />
-                                        Open contracts workspace
-                                    </button>
-                                ) : null}
-                                {billingWorkspacePath ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(billingWorkspacePath)}
-                                        className="w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-zinc-700 px-4 py-3 font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors"
-                                    >
-                                        <Shield size={18} />
-                                        Open billing workspace
+                                        Open support case file
                                     </button>
                                 ) : null}
                             </div>
@@ -1492,20 +1461,22 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                     <div className="grid gap-4 md:grid-cols-2">
                         <label className="space-y-2 text-sm">
                             <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
-                            <input
-                                type="date"
+                            <DateField
                                 value={scheduleForm.requested_date}
-                                onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                onChange={(nextValue) => setScheduleForm((previous) => ({ ...previous, requested_date: nextValue }))}
+                                className="w-full"
+                                buttonClassName="bg-gray-50 dark:bg-zinc-900"
+                                ariaLabel="Viewing schedule date"
                             />
                         </label>
                         <label className="space-y-2 text-sm">
                             <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
-                            <input
-                                type="time"
+                            <TimeField
                                 value={scheduleForm.requested_time}
-                                onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                onChange={(nextValue) => setScheduleForm((previous) => ({ ...previous, requested_time: nextValue }))}
+                                className="w-full"
+                                inputClassName="bg-gray-50 dark:bg-zinc-900"
+                                ariaLabel="Viewing schedule time"
                             />
                         </label>
                     </div>
@@ -1561,20 +1532,22 @@ const FastTrackCaseDetail: React.FC<FastTrackCaseDetailProps> = ({
                     <div className="grid gap-4 md:grid-cols-2">
                         <label className="space-y-2 text-sm">
                             <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
-                            <input
-                                type="date"
+                            <DateField
                                 value={rescheduleForm.requested_date}
-                                onChange={(event) => setRescheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_date: nextValue }))}
+                                className="w-full"
+                                buttonClassName="bg-gray-50 dark:bg-zinc-900"
+                                ariaLabel="Viewing reschedule date"
                             />
                         </label>
                         <label className="space-y-2 text-sm">
                             <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
-                            <input
-                                type="time"
+                            <TimeField
                                 value={rescheduleForm.requested_time}
-                                onChange={(event) => setRescheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                                onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_time: nextValue }))}
+                                className="w-full"
+                                inputClassName="bg-gray-50 dark:bg-zinc-900"
+                                ariaLabel="Viewing reschedule time"
                             />
                         </label>
                     </div>
