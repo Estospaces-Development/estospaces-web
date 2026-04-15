@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
+    ArrowLeft,
     ArrowUpRight,
     CalendarDays,
     CircleDot,
@@ -21,6 +21,7 @@ import {
     Sparkles,
     Upload,
 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
@@ -53,9 +54,16 @@ import {
     sendMessage,
     upsertDirectConversation,
 } from '@/services/messagesService';
+import PaginationBar from '@/components/ui/PaginationBar';
 
 type WorkspaceRole = 'user' | 'manager' | 'admin';
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
+const FAST_TRACK_CASES_PAGE_SIZE = 12;
+const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
+    user: '/user/dashboard',
+    manager: '/manager/dashboard',
+    admin: '/admin/dashboard',
+};
 
 const STAGES: FastTrackStage[] = [
     'selected',
@@ -293,6 +301,7 @@ const ActionButton = ({
 };
 
 export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -302,6 +311,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [error, setError] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState<FilterMode>('all');
+    const [currentCasePage, setCurrentCasePage] = useState(1);
     const [activeAction, setActiveAction] = useState<string | null>(null);
     const [viewingDate, setViewingDate] = useState('');
     const [viewingTime, setViewingTime] = useState('');
@@ -393,6 +403,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [cases, filter, query]);
 
     useEffect(() => {
+        setCurrentCasePage(1);
+    }, [filter, query]);
+
+    useEffect(() => {
         if (filteredCases.length === 0) {
             return;
         }
@@ -401,6 +415,38 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setSelectedCaseId(filteredCases[0].caseId);
         }
     }, [filteredCases, selectedCaseId]);
+
+    const totalCasePages = useMemo(
+        () => Math.max(1, Math.ceil(filteredCases.length / FAST_TRACK_CASES_PAGE_SIZE)),
+        [filteredCases.length],
+    );
+
+    useEffect(() => {
+        if (currentCasePage > totalCasePages) {
+            setCurrentCasePage(totalCasePages);
+        }
+    }, [currentCasePage, totalCasePages]);
+
+    useEffect(() => {
+        if (!selectedCaseId) {
+            return;
+        }
+
+        const selectedIndex = filteredCases.findIndex((item) => item.caseId === selectedCaseId);
+        if (selectedIndex === -1) {
+            return;
+        }
+
+        const targetPage = Math.floor(selectedIndex / FAST_TRACK_CASES_PAGE_SIZE) + 1;
+        if (targetPage !== currentCasePage) {
+            setCurrentCasePage(targetPage);
+        }
+    }, [filteredCases, selectedCaseId]);
+
+    const paginatedCases = useMemo(() => {
+        const pageStart = (currentCasePage - 1) * FAST_TRACK_CASES_PAGE_SIZE;
+        return filteredCases.slice(pageStart, pageStart + FAST_TRACK_CASES_PAGE_SIZE);
+    }, [currentCasePage, filteredCases]);
 
     useEffect(() => {
         if (!selectedCaseId) {
@@ -1698,6 +1744,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         <div className="space-y-6 pb-16">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
+                        className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+                        aria-label="Back to dashboard"
+                        title="Back to dashboard"
+                    >
+                        <ArrowLeft size={18} />
+                    </button>
                     <div className="rounded-2xl bg-orange-700 p-3 text-white shadow-lg shadow-orange-500/20">
                         <Sparkles size={22} />
                     </div>
@@ -1736,6 +1791,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="space-y-4" aria-label="Fast-track case list">
                     <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Cases</p>
+                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                    {filteredCases.length} matching {filteredCases.length === 1 ? 'case' : 'cases'}
+                                </p>
+                            </div>
+                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                {currentCasePage}/{totalCasePages}
+                            </span>
+                        </div>
+
                         <div className="relative">
                             <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
@@ -1775,12 +1842,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <div className="rounded-[28px] border border-dashed border-gray-300 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
                                 No fast-track cases match this filter.
                             </div>
-                        ) : filteredCases.map((item) => {
+                        ) : paginatedCases.map((item) => {
                             const chip = formatStatusChip(item);
                             return (
                                 <button
                                     key={item.caseId}
                                     type="button"
+                                    data-fast-track-case-card={item.caseId}
                                     onClick={() => setSelectedCaseId(item.caseId)}
                                     className={[
                                         'w-full rounded-[28px] border px-5 py-4 text-left shadow-sm transition-colors',
@@ -1806,6 +1874,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             );
                         })}
                     </div>
+
+                    {filteredCases.length > FAST_TRACK_CASES_PAGE_SIZE ? (
+                        <PaginationBar
+                            currentPage={currentCasePage}
+                            totalPages={totalCasePages}
+                            onPageChange={setCurrentCasePage}
+                            totalItems={filteredCases.length}
+                            pageSize={FAST_TRACK_CASES_PAGE_SIZE}
+                            currentItemCount={paginatedCases.length}
+                            itemLabel="cases"
+                        />
+                    ) : null}
                 </aside>
 
                 <div className="space-y-6">

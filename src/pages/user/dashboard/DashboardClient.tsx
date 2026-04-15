@@ -565,6 +565,24 @@ const DashboardClient = () => {
               ? `Results for "${dashboardSearchFilters.keyword.trim()}"`
               : 'Search Results';
 
+  const openPropertyFromDashboard = useCallback((property: SearchResult) => {
+    navigate(`/user/properties/${property.id}`, {
+      state: {
+        backTo: '/user/dashboard',
+        backLabel: 'Back to Dashboard',
+      },
+    });
+  }, [navigate]);
+
+  const openFastTrackFromDashboard = useCallback((property: SearchResult) => {
+    navigate(`/user/properties/${property.id}?fast-track=1`, {
+      state: {
+        backTo: '/user/dashboard',
+        backLabel: 'Back to Dashboard',
+      },
+    });
+  }, [navigate]);
+
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto dark:bg-[#0a0a0a] min-h-screen transition-all duration-300">
       <FastTrackCelebrationOverlay
@@ -763,7 +781,7 @@ const DashboardClient = () => {
                 <PropertyCard
                   key={property.id}
                   property={property}
-                  onViewDetails={(selectedProperty: SearchResult) => navigate(`/user/properties/${selectedProperty.id}`)}
+                  onViewDetails={openPropertyFromDashboard}
                 />
               ))}
             </div>
@@ -880,7 +898,8 @@ const DashboardClient = () => {
                 <NearbyPropertiesMap
                   properties={mapProperties}
                   userLocation={mapLocation}
-                  onPropertyClick={(property: SearchResult) => navigate(`/user/properties/${property.id}`)}
+                  onPropertyClick={openPropertyFromDashboard}
+                  onStartFastTrack={openFastTrackFromDashboard}
                 />
               </div>
             </div>

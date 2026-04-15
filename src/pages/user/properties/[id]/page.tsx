@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
     BadgeCheck,
@@ -252,6 +252,7 @@ const formatMinutesRemaining = (deadline?: string) => {
 
 const UserPropertyDetail = () => {
     const { id } = useParams<{ id: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const fastTrackQuery = searchParams.get('fast-track');
@@ -290,6 +291,25 @@ const UserPropertyDetail = () => {
     });
     const [viewingAvailability, setViewingAvailability] = useState<ViewingAvailability | null>(null);
     const immersiveGalleryImageRef = useRef<HTMLImageElement | null>(null);
+    const navigationState = (location.state && typeof location.state === 'object'
+        ? location.state
+        : null) as { backTo?: string; backLabel?: string } | null;
+    const fallbackBackTarget = fastTrackQuery === '1' ? '/user/dashboard' : '/user/dashboard/discover';
+    const backLabel = navigationState?.backLabel || 'Back';
+
+    const handleBackNavigation = () => {
+        if (navigationState?.backTo) {
+            navigate(navigationState.backTo);
+            return;
+        }
+
+        if (window.history.length > 1) {
+            navigate(-1);
+            return;
+        }
+
+        navigate(fallbackBackTarget);
+    };
 
     useEffect(() => {
         const fetchProperty = async () => {
@@ -1164,11 +1184,11 @@ const UserPropertyDetail = () => {
             <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
             <div className="mb-8 flex items-center justify-between">
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={handleBackNavigation}
                     className="flex items-center gap-2 text-gray-600 transition-colors group hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                    <span>Back</span>
+                    <span>{backLabel}</span>
                 </button>
                 <button
                     type="button"

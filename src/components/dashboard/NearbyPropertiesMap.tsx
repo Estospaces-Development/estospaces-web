@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navigation, X } from 'lucide-react';
+import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -47,33 +47,70 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
     return radiusMiles * c;
 };
 
-const createPropertyIcon = (color: string, selected: boolean) => L.divIcon({
+const formatCompactPrice = (price?: number) => {
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+        return 'View';
+    }
+
+    if (price >= 1_000_000) {
+        return `£${(price / 1_000_000).toFixed(price >= 10_000_000 ? 0 : 1)}m`;
+    }
+
+    if (price >= 1_000) {
+        return `£${Math.round(price / 1_000)}k`;
+    }
+
+    return `£${Math.round(price)}`;
+};
+
+const createPropertyIcon = (label: string, color: string, selected: boolean) => L.divIcon({
     className: 'nearby-property-marker',
     html: `<div style="
-        background:${color};
-        width:${selected ? 42 : 36}px;
-        height:${selected ? 42 : 36}px;
-        border-radius:999px;
-        border:3px solid white;
-        box-shadow:0 12px 24px rgba(15,23,42,0.28);
         display:flex;
+        flex-direction:column;
         align-items:center;
-        justify-content:center;
-        color:white;
-        font-weight:700;
-        font-size:16px;
-    ">&#8962;</div>`,
-    iconSize: [selected ? 42 : 36, selected ? 42 : 36],
-    iconAnchor: [selected ? 21 : 18, selected ? 42 : 36],
-    popupAnchor: [0, selected ? -34 : -30],
+        transform:translateY(-8px);
+    ">
+        <div style="
+            min-width:${selected ? 74 : 64}px;
+            height:${selected ? 40 : 34}px;
+            padding:0 12px;
+            border-radius:999px;
+            border:2px solid rgba(255,255,255,0.92);
+            background:${selected ? '#111827' : color};
+            box-shadow:0 16px 32px rgba(15,23,42,0.24);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:white;
+            font-weight:800;
+            font-size:${selected ? 13 : 12}px;
+            letter-spacing:0.02em;
+            white-space:nowrap;
+        ">${label}</div>
+        <div style="
+            width:${selected ? 14 : 12}px;
+            height:${selected ? 14 : 12}px;
+            margin-top:-3px;
+            background:${selected ? '#111827' : color};
+            border-right:2px solid rgba(255,255,255,0.92);
+            border-bottom:2px solid rgba(255,255,255,0.92);
+            transform:rotate(45deg);
+        "></div>
+    </div>`,
+    iconSize: [selected ? 74 : 64, selected ? 54 : 48],
+    iconAnchor: [selected ? 37 : 32, selected ? 48 : 42],
+    popupAnchor: [0, selected ? -42 : -36],
 });
 
 function MapAutoFit({
     userLocation,
     properties,
+    fitSignal,
 }: {
     userLocation: UserLocation | null;
     properties: Property[];
+    fitSignal: number;
 }) {
     const map = useMap();
 
@@ -107,7 +144,7 @@ function MapAutoFit({
         } catch {
             // Ignore transient Leaflet teardown errors during route or data changes.
         }
-    }, [map, properties, userLocation]);
+    }, [fitSignal, map, properties, userLocation]);
 
     return null;
 }
@@ -123,6 +160,8 @@ const NearbyPropertiesMap = ({
     const [isMounted, setIsMounted] = useState(false);
     const [selectedPropertyID, setSelectedPropertyID] = useState<string | null>(null);
     const [isSelectionDismissed, setIsSelectionDismissed] = useState(false);
+    const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
+    const [fitSignal, setFitSignal] = useState(0);
 
     useEffect(() => {
         setIsMounted(true);
@@ -246,7 +285,12 @@ const NearbyPropertiesMap = ({
             return;
         }
 
-        navigate(`/user/properties/${property.id}`);
+        navigate(`/user/properties/${property.id}`, {
+            state: {
+                backTo: '/user/dashboard',
+                backLabel: 'Back to Dashboard',
+            },
+        });
     };
 
     const handleStartFastTrack = (property: Property) => {
@@ -255,7 +299,12 @@ const NearbyPropertiesMap = ({
             return;
         }
 
-        navigate(`/user/properties/${property.id}?fast-track=1`);
+        navigate(`/user/properties/${property.id}?fast-track=1`, {
+            state: {
+                backTo: '/user/dashboard',
+                backLabel: 'Back to Dashboard',
+            },
+        });
     };
 
     if (!hasMapData) {
@@ -285,7 +334,10 @@ const NearbyPropertiesMap = ({
     }
 
     return (
-        <div className="relative h-full w-full overflow-hidden rounded-lg bg-white dark:bg-gray-800">
+        <div
+            className="relative h-full w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-950"
+            data-nearby-map-style={mapStyle}
+        >
             <MapContainer
                 key={mapKey}
                 center={[54.5, -3]}
@@ -296,11 +348,18 @@ const NearbyPropertiesMap = ({
                 markerZoomAnimation={false}
                 zoomAnimation={false}
             >
-                <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} />
-                <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+                <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} />
+                {mapStyle === 'standard' ? (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    />
+                ) : (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    />
+                )}
 
                 {userLocation?.latitude && userLocation?.longitude ? (
                     <CircleMarker
@@ -323,7 +382,7 @@ const NearbyPropertiesMap = ({
                         <Marker
                             key={property.id}
                             position={[property.latitude as number, property.longitude as number]}
-                            icon={createPropertyIcon(getMarkerColor(property.category), isSelected)}
+                            icon={createPropertyIcon(formatCompactPrice(property.price), getMarkerColor(property.category), isSelected)}
                             eventHandlers={{
                                 click: () => {
                                     setIsSelectionDismissed(false);
@@ -370,39 +429,68 @@ const NearbyPropertiesMap = ({
                 })}
             </MapContainer>
 
-            <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
-                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? 'Property' : 'Properties'} nearby
-                </p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Real map markers stay linked to the live property workspace.
-                </p>
+            <div className="absolute left-4 top-4 z-[1000] flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3">
+                <div className="rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Nearby map</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? 'property' : 'properties'} nearby
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Price markers, live property actions, and fast-track access stay here.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                    <button
+                        type="button"
+                        data-nearby-map-standard
+                        onClick={() => setMapStyle('standard')}
+                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                            mapStyle === 'standard'
+                                ? 'bg-orange-500 text-white'
+                                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                        <Layers3 size={14} />
+                        Standard
+                    </button>
+                    <button
+                        type="button"
+                        data-nearby-map-satellite
+                        onClick={() => setMapStyle('satellite')}
+                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                            mapStyle === 'satellite'
+                                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                        <Globe size={14} />
+                        Satellite
+                    </button>
+                    <button
+                        type="button"
+                        data-nearby-map-recenter
+                        onClick={() => setFitSignal((value) => value + 1)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+                    >
+                        <LocateFixed size={14} />
+                        Recenter
+                    </button>
+                </div>
             </div>
 
-            <div className="absolute bottom-4 left-4 z-[1000] rounded-xl bg-white/95 p-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+            <div className="absolute bottom-4 left-4 z-[1000] rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Distance</p>
-                <div className="space-y-1.5 text-xs text-gray-600 dark:text-gray-300">
-                    <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full bg-green-500" />
-                        <span>Very near (&lt;1 mi)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full bg-orange-500" />
-                        <span>Near (1-3 mi)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full bg-yellow-500" />
-                        <span>Moderate (3-5 mi)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full bg-slate-400" />
-                        <span>Far (5+ mi)</span>
-                    </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-green-500" />Very near</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-orange-500" />Near</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-yellow-500" />Moderate</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-slate-400" />Far</span>
                 </div>
             </div>
 
             {selectedProperty ? (
-                <div className="absolute right-4 top-4 z-[1000] w-[320px] max-w-[calc(100%-2rem)] rounded-2xl bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/95">
+                <div className="absolute bottom-4 right-4 z-[1000] w-[340px] max-w-[calc(100%-2rem)] rounded-[24px] bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/95">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Selected property</p>
@@ -427,7 +515,14 @@ const NearbyPropertiesMap = ({
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
-                        <p className="text-lg font-bold text-orange-600">{formatPropertyPrice(selectedProperty.price)}</p>
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-lg font-bold text-orange-600">{formatPropertyPrice(selectedProperty.price)}</p>
+                            {selectedProperty.property_type ? (
+                                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                    {selectedProperty.property_type}
+                                </span>
+                            ) : null}
+                        </div>
                         <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
                             {selectedProperty.bedrooms ? <span>{selectedProperty.bedrooms} bed</span> : null}
                             {selectedProperty.bathrooms ? <span>{selectedProperty.bathrooms} bath</span> : null}
@@ -440,6 +535,7 @@ const NearbyPropertiesMap = ({
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
                         <button
                             type="button"
+                            data-nearby-open-property
                             onClick={() => handleOpenWorkspace(selectedProperty)}
                             className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-700 dark:text-white dark:hover:bg-zinc-900"
                         >
@@ -447,10 +543,11 @@ const NearbyPropertiesMap = ({
                         </button>
                         <button
                             type="button"
+                            data-nearby-open-fast-track
                             onClick={() => handleStartFastTrack(selectedProperty)}
                             className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
                         >
-                            Resume live workspace
+                            Open fast-track
                         </button>
                     </div>
                 </div>
