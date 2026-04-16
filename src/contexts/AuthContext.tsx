@@ -21,7 +21,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     loading: boolean;
     error: string | null;
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string }>;
     register: (name: string, email: string, password: string, role: string) => Promise<{ success: boolean; error?: string }>;
     signOut: () => void;
     getRole: () => string;
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('esto_user', JSON.stringify(userObj));
             setUser(userObj);
 
-            return { success: true };
+            return { success: true, role: userObj.role };
         } catch (err) {
             console.warn('Backend unavailable, using mock login:', err);
             return tryMockLogin(email, password);
@@ -128,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('esto_user', JSON.stringify(userObj));
         setUser(userObj);
 
-        return { success: true };
+        return { success: true, role: userObj.role };
     };
 
     const register = useCallback(async (name: string, email: string, password: string, role: string) => {
@@ -227,4 +227,65 @@ export function getRedirectPath(role: string): string {
         default:
             return '/user/dashboard';
     }
+}
+
+const APP_DOMAIN = 'app.estospaces.com';
+const ADMIN_DOMAIN = 'admin.estospaces.com';
+
+const normalizeRole = (role?: string) => {
+    switch (String(role || '').trim().toLowerCase()) {
+        case 'admin':
+            return 'admin';
+        case 'manager':
+        case 'broker':
+            return 'manager';
+        default:
+            return 'user';
+    }
+};
+
+const resolveCurrentAppFromHostname = (hostname: string) => {
+    if (hostname.startsWith('admin.')) {
+        return 'admin';
+    }
+    if (hostname.startsWith('app.') || hostname.startsWith('user.') || hostname.startsWith('manager.')) {
+        return 'app';
+    }
+    return 'landing';
+};
+
+export function requiresHostedLoginRedirect(role?: string, hostname?: string): boolean {
+    if (typeof window === 'undefined' && !hostname) {
+        return false;
+    }
+
+    const resolvedHostname = hostname || window.location.hostname;
+    if (resolvedHostname === 'localhost' || resolvedHostname === '127.0.0.1' || resolvedHostname.endsWith('.run.app')) {
+        return false;
+    }
+
+    const currentApp = resolveCurrentAppFromHostname(resolvedHostname);
+    const resolvedRole = normalizeRole(role);
+
+    if (resolvedRole === 'admin') {
+        return currentApp !== 'admin';
+    }
+
+    return currentApp === 'admin';
+}
+
+export function getHostedLoginRedirectUrl(role?: string): string {
+    const resolvedRole = normalizeRole(role);
+
+    if (typeof window === 'undefined') {
+        return '/login';
+    }
+
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('.run.app')) {
+        return '/login';
+    }
+
+    return resolvedRole === 'admin'
+        ? `https://${ADMIN_DOMAIN}/login`
+        : `https://${APP_DOMAIN}/login`;
 }

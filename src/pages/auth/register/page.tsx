@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, getRedirectPath } from '@/contexts/AuthContext';
+import { useAuth, getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/contexts\AuthContext';
 import { Check, X, Eye, EyeOff, User, Briefcase } from 'lucide-react';
 
 export default function RegisterPage() {
     const navigate = useNavigate();
-    const { isAuthenticated, loading: authLoading, getRole, register } = useAuth();
+    const { isAuthenticated, loading: authLoading, getRole, register, signOut } = useAuth();
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -32,9 +32,14 @@ export default function RegisterPage() {
     useEffect(() => {
         if (isAuthenticated && !authLoading) {
             const userRole = getRole();
+            if (requiresHostedLoginRedirect(userRole)) {
+                signOut();
+                window.location.replace(getHostedLoginRedirectUrl(userRole));
+                return;
+            }
             navigate(getRedirectPath(userRole));
         }
-    }, [isAuthenticated, authLoading, getRole, navigate]);
+    }, [isAuthenticated, authLoading, getRole, navigate, signOut]);
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();

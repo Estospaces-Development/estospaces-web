@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, getRedirectPath } from '@/contexts/AuthContext';
+import { useAuth, getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/contexts/AuthContext';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading, getRole, login } = useAuth();
+  const { isAuthenticated, loading: authLoading, getRole, login, signOut } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,9 +21,14 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
       const role = getRole();
+      if (requiresHostedLoginRedirect(role)) {
+        signOut();
+        window.location.replace(getHostedLoginRedirectUrl(role));
+        return;
+      }
       navigate(getRedirectPath(role));
     }
-  }, [isAuthenticated, authLoading, getRole, navigate]);
+  }, [isAuthenticated, authLoading, getRole, navigate, signOut]);
 
   const validateEmail = (value: string) => {
     if (!value) return 'Email is required';
@@ -63,7 +68,13 @@ export default function LoginPage() {
       }
 
       // Successfully logged in — redirect
-      const role = getRole();
+      const role = result.role || getRole();
+      if (requiresHostedLoginRedirect(role)) {
+        signOut();
+        window.location.replace(getHostedLoginRedirectUrl(role));
+        return;
+      }
+
       navigate(getRedirectPath(role));
     } catch {
       setGeneralError('An unexpected error occurred. Please try again.');
