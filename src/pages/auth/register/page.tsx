@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/contexts\AuthContext';
+import { useAuth, getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/contexts/AuthContext';
 import { Check, X, Eye, EyeOff, User, Briefcase } from 'lucide-react';
 
 export default function RegisterPage() {
