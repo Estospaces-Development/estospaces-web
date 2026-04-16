@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getRedirectPath } from '@/lib/authUtils';
+import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
 import axios from 'axios';
@@ -144,6 +144,16 @@ export default function RegisterPage() {
 
     const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
 
+    const continueWithRole = async (nextRole?: string) => {
+        if (requiresHostedLoginRedirect(nextRole)) {
+            await signOut();
+            window.location.replace(getHostedLoginRedirectUrl(nextRole));
+            return;
+        }
+
+        navigate(getRedirectPath(nextRole));
+    };
+
     useEffect(() => () => {
         if (resendCooldownTimerRef.current !== null) {
             window.clearInterval(resendCooldownTimerRef.current);
@@ -247,7 +257,7 @@ export default function RegisterPage() {
 
                 <div className="space-y-3 w-full">
                     <button
-                        onClick={() => navigate(getRedirectPath(getRole()))}
+                        onClick={() => void continueWithRole(getRole())}
                         className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all"
                     >
                         Continue to Dashboard

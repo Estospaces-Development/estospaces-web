@@ -1,3 +1,10 @@
+import {
+    buildHostedWorkspaceUrl,
+    isLocalhostHost,
+    isSingleOriginHostedHost,
+    resolveCurrentAppFromHostname,
+} from '@/lib/utils/hostUtils';
+
 const AUTH_ROUTE_PATHS = new Set([
     '/login',
     '/register',
@@ -56,6 +63,30 @@ export function getRedirectPath(role?: string): string {
         default:
             return '/user/dashboard';
     }
+}
+
+export function requiresHostedLoginRedirect(role?: string, hostname?: string): boolean {
+    const resolvedRole = normalizeRole(role);
+
+    if (typeof window === 'undefined' && !hostname) {
+        return false;
+    }
+
+    const resolvedHostname = hostname || window.location.hostname;
+    if (isLocalhostHost(resolvedHostname) || isSingleOriginHostedHost(resolvedHostname)) {
+        return false;
+    }
+
+    const currentApp = resolveCurrentAppFromHostname(resolvedHostname);
+    if (resolvedRole === 'admin') {
+        return currentApp !== 'admin';
+    }
+
+    return currentApp === 'admin';
+}
+
+export function getHostedLoginRedirectUrl(role?: string): string {
+    return buildHostedWorkspaceUrl('/login', normalizeRole(role));
 }
 
 export function isProtectedRoutePath(pathname: string): boolean {

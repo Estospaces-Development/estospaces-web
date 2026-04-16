@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getRedirectPath } from '@/lib/authUtils';
+import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
@@ -28,6 +28,16 @@ export default function LoginPage() {
     if (!value) return 'Password is required';
     if (value.length < 6) return 'Password must be at least 6 characters';
     return '';
+  };
+
+  const continueWithRole = async (role?: string) => {
+    if (requiresHostedLoginRedirect(role)) {
+      await signOut();
+      window.location.replace(getHostedLoginRedirectUrl(role));
+      return;
+    }
+
+    navigate(getRedirectPath(role));
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -63,7 +73,7 @@ export default function LoginPage() {
 
       // Successfully logged in â€” redirect using role from response
       const role = result.role || getRole();
-      navigate(getRedirectPath(role));
+      await continueWithRole(role);
     } catch (err: any) {
       setGeneralError(err.message || 'An unexpected error occurred. Please try again.');
       setLoading(false);
@@ -98,7 +108,7 @@ export default function LoginPage() {
               </p>
               <div className="space-y-3">
                 <button 
-                    onClick={() => navigate(getRedirectPath(getRole()))}
+                    onClick={() => void continueWithRole(getRole())}
                     className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all shadow-lg shadow-primary/20"
                 >
                     Continue to Dashboard

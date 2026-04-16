@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    getHostedLoginRedirectUrl,
     getRedirectPath,
     isProtectedRoutePath,
     normalizeRole,
+    requiresHostedLoginRedirect,
     resolveProtectedRedirect,
     shouldAwaitSessionResolution,
 } from './authUtils';
@@ -43,6 +45,41 @@ test('getRedirectPath stays aligned with normalized roles', () => {
     assert.equal(getRedirectPath('broker'), '/manager/dashboard');
     assert.equal(getRedirectPath('admin'), '/admin/dashboard');
     assert.equal(getRedirectPath('user'), '/user/dashboard');
+});
+
+test('requiresHostedLoginRedirect enforces admin login on the admin host only', () => {
+    assert.equal(requiresHostedLoginRedirect('admin', 'app.estospaces.com'), true);
+    assert.equal(requiresHostedLoginRedirect('admin', 'admin.estospaces.com'), false);
+    assert.equal(requiresHostedLoginRedirect('manager', 'admin.estospaces.com'), true);
+    assert.equal(requiresHostedLoginRedirect('user', 'app.estospaces.com'), false);
+    assert.equal(requiresHostedLoginRedirect('admin', 'localhost'), false);
+});
+
+test('getHostedLoginRedirectUrl targets the correct hosted login domain', () => {
+    const originalWindow = globalThis.window;
+    Object.defineProperty(globalThis, 'window', {
+        value: {
+            location: {
+                hostname: 'app.estospaces.com',
+                origin: 'https://app.estospaces.com',
+            },
+        },
+        configurable: true,
+    });
+
+    try {
+        assert.equal(getHostedLoginRedirectUrl('admin'), 'https://admin.estospaces.com/login');
+        assert.equal(getHostedLoginRedirectUrl('manager'), 'https://app.estospaces.com/login');
+    } finally {
+        if (originalWindow === undefined) {
+            delete (globalThis as { window?: Window }).window;
+        } else {
+            Object.defineProperty(globalThis, 'window', {
+                value: originalWindow,
+                configurable: true,
+            });
+        }
+    }
 });
 
 test('shouldAwaitSessionResolution only blocks while auth is unresolved', () => {
