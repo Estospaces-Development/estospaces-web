@@ -2,11 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ArrowLeft,
     ArrowUpRight,
     CalendarDays,
     CircleDot,
-    Clock3,
     Download,
     Eye,
     FileCheck2,
@@ -14,11 +12,8 @@ import {
     FileText,
     Home,
     Loader2,
-    MessageSquareText,
-    Search,
     SendHorizontal,
     ShieldCheck,
-    Sparkles,
     Upload,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -38,7 +33,6 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { getDocumentAccessBlob, getDocumentAccessUrl } from '@/services/documentAccessService';
 import {
-    FastTrackActivityEntry,
     FastTrackCase,
     FastTrackDocumentItem,
     FastTrackStage,
@@ -54,12 +48,33 @@ import {
     sendMessage,
     upsertDirectConversation,
 } from '@/services/messagesService';
-import PaginationBar from '@/components/ui/PaginationBar';
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
 import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
+import {
+    FastTrackCaseMasthead,
+    FastTrackCaseRail,
+    FastTrackStageStepper,
+    FastTrackUtilityDock,
+    FastTrackWorkspaceCustomizationDrawer,
+    FastTrackWorkspaceHeader,
+} from '@/components/fast-track/FastTrackWorkspaceLayout';
+import {
+    defaultFastTrackWorkspacePreferences,
+    FAST_TRACK_WORKSPACE_MODULES,
+    moveFastTrackWorkspaceModule,
+    normalizeFastTrackWorkspacePreferences,
+    orderVisibleFastTrackWorkspaceModules,
+    type FastTrackWorkspaceModule,
+    type FastTrackWorkspacePreferences,
+    type FastTrackWorkspaceRole,
+} from '@/lib/fastTrackWorkspacePreferences';
+import {
+    getFastTrackWorkspacePreferences,
+    updateFastTrackWorkspacePreferences,
+} from '@/services/workspacePreferencesService';
 
-type WorkspaceRole = 'user' | 'manager' | 'admin';
+type WorkspaceRole = FastTrackWorkspaceRole;
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
 const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
@@ -207,57 +222,30 @@ const detectDocumentPreviewKind = (item: FastTrackDocumentItem) => {
     return 'file' as const;
 };
 
-const RoleBadge = ({ role }: { role: WorkspaceRole }) => (
-    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-        {role}
-    </span>
-);
-
-const StagePill = ({
-    stage,
-    active,
-    complete,
-    label,
-}: {
-    stage: FastTrackStage;
-    active: boolean;
-    complete: boolean;
-    label: string;
-}) => {
-    const Icon = STAGE_ICONS[stage];
-
-    return (
-        <div
-            className={[
-                'flex min-w-[120px] items-center gap-3 rounded-2xl border px-4 py-3 transition-colors',
-                active
-                    ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
-                    : complete
-                        ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300'
-                        : 'border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400',
-            ].join(' ')}
-        >
-            <Icon size={18} />
-            <span className="text-sm font-semibold">{label}</span>
-        </div>
-    );
-};
-
 const SectionShell = ({
     title,
     description,
+    icon: Icon,
     children,
 }: {
     title: string;
     description?: string;
+    icon?: React.ElementType;
     children: React.ReactNode;
 }) => (
     <section className="rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-        <div className="flex flex-col gap-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-            {description ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+        <div className="flex items-start gap-3">
+            {Icon ? (
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                    <Icon size={18} />
+                </span>
             ) : null}
+            <div className="flex flex-col gap-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+                {description ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+                ) : null}
+            </div>
         </div>
         <div className="mt-5">{children}</div>
     </section>
@@ -340,11 +328,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [threadError, setThreadError] = useState<string | null>(null);
     const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
     const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
+    const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
+        () => defaultFastTrackWorkspacePreferences(role),
+    );
+    const [customizationOpen, setCustomizationOpen] = useState(false);
+    const [caseRailDrawerOpen, setCaseRailDrawerOpen] = useState(false);
+    const [activeUtilityModule, setActiveUtilityModule] = useState<FastTrackWorkspaceModule>('core_files');
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
+    const workspacePreferencesLoadedRef = useRef(false);
+    const lastSavedWorkspacePreferencesRef = useRef('');
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const releasePreviewObjectUrl = useCallback(() => {
@@ -391,6 +387,65 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
         refresh: () => fetchCases(true),
     });
+
+    useEffect(() => {
+        const defaults = defaultFastTrackWorkspacePreferences(role);
+        workspacePreferencesLoadedRef.current = false;
+        lastSavedWorkspacePreferencesRef.current = JSON.stringify(defaults);
+        setWorkspacePreferences(defaults);
+        setActiveUtilityModule(defaults.defaultActiveModule);
+
+        let cancelled = false;
+        const loadWorkspacePreferences = async () => {
+            const { data } = await getFastTrackWorkspacePreferences(role);
+            if (cancelled) {
+                return;
+            }
+
+            const nextPreferences = normalizeFastTrackWorkspacePreferences(data, role);
+            workspacePreferencesLoadedRef.current = true;
+            lastSavedWorkspacePreferencesRef.current = JSON.stringify(nextPreferences);
+            setWorkspacePreferences(nextPreferences);
+            setActiveUtilityModule(nextPreferences.defaultActiveModule);
+        };
+
+        void loadWorkspacePreferences();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [role]);
+
+    useEffect(() => {
+        if (!workspacePreferencesLoadedRef.current) {
+            return;
+        }
+
+        const serializedPreferences = JSON.stringify(workspacePreferences);
+        if (serializedPreferences === lastSavedWorkspacePreferencesRef.current) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(async () => {
+            const { data } = await updateFastTrackWorkspacePreferences(role, workspacePreferences);
+            if (!data) {
+                return;
+            }
+
+            const normalized = normalizeFastTrackWorkspacePreferences(data, role);
+            lastSavedWorkspacePreferencesRef.current = JSON.stringify(normalized);
+            setWorkspacePreferences(normalized);
+            setActiveUtilityModule((previous) =>
+                normalized.visibleModules.includes(previous)
+                    ? previous
+                    : normalized.defaultActiveModule,
+            );
+        }, 350);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [role, workspacePreferences]);
 
     const filteredCases = useMemo(() => {
         return cases.filter((item) => {
@@ -442,22 +497,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setCurrentCasePage(totalCasePages);
         }
     }, [currentCasePage, totalCasePages]);
-
-    useEffect(() => {
-        if (!selectedCaseId) {
-            return;
-        }
-
-        const selectedIndex = filteredCases.findIndex((item) => item.caseId === selectedCaseId);
-        if (selectedIndex === -1) {
-            return;
-        }
-
-        const targetPage = Math.floor(selectedIndex / FAST_TRACK_CASES_PAGE_SIZE) + 1;
-        if (targetPage !== currentCasePage) {
-            setCurrentCasePage(targetPage);
-        }
-    }, [filteredCases, selectedCaseId]);
 
     const paginatedCases = useMemo(() => {
         const pageStart = (currentCasePage - 1) * FAST_TRACK_CASES_PAGE_SIZE;
@@ -620,6 +659,21 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         completed: cases.filter((item) => item.workspaceFinalStatus === 'completed').length,
         cancelled: cases.filter((item) => item.workspaceFinalStatus === 'cancelled').length,
     }), [cases]);
+    const orderedVisibleUtilityModules = useMemo(
+        () => orderVisibleFastTrackWorkspaceModules(workspacePreferences),
+        [workspacePreferences],
+    );
+    const utilityModules = useMemo(() => {
+        if (previewItemId && !orderedVisibleUtilityModules.includes('preview')) {
+            return ['preview', ...orderedVisibleUtilityModules] as FastTrackWorkspaceModule[];
+        }
+        return orderedVisibleUtilityModules;
+    }, [orderedVisibleUtilityModules, previewItemId]);
+    const allOrderedModules = useMemo(() => {
+        return workspacePreferences.moduleOrder.length > 0
+            ? workspacePreferences.moduleOrder
+            : [...FAST_TRACK_WORKSPACE_MODULES];
+    }, [workspacePreferences.moduleOrder]);
 
     useEffect(() => {
         if (!selectedCase) {
@@ -646,10 +700,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
                 return previous;
             }
-            const uploadedItem = selectedCase.documents.items.find((item) => item.documentRecordId || item.fileUrl);
-            return uploadedItem?.id || selectedCase.documents.items[0]?.id || null;
+            return null;
         });
     }, [role, selectedCase?.caseId]);
+
+    useEffect(() => {
+        if (utilityModules.length === 0) {
+            return;
+        }
+
+        if (!utilityModules.includes(activeUtilityModule)) {
+            setActiveUtilityModule(utilityModules[0]);
+        }
+    }, [activeUtilityModule, utilityModules]);
+
+    useEffect(() => {
+        if (!selectedCase) {
+            return;
+        }
+
+        if (orderedVisibleUtilityModules.includes(workspacePreferences.defaultActiveModule)) {
+            setActiveUtilityModule(workspacePreferences.defaultActiveModule);
+        }
+    }, [orderedVisibleUtilityModules, selectedCase?.caseId, workspacePreferences.defaultActiveModule]);
 
     useEffect(() => {
         if (!selectedCase) {
@@ -671,6 +744,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setCelebrationPropertyTitle(selectedCase.propertyTitle);
         setShowCompletionCelebration(true);
     }, [selectedCase]);
+
+    useEffect(() => {
+        if (!previewItemId || !utilityModules.includes('preview')) {
+            return;
+        }
+
+        setActiveUtilityModule('preview');
+    }, [previewItemId, utilityModules]);
 
     const compactActivity = useMemo(
         () => (selectedCase?.activity || []).slice(0, 8),
@@ -716,6 +797,58 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         runAction,
         toast,
     ]);
+
+    const updateWorkspacePreferencesState = useCallback((
+        updater: (previous: FastTrackWorkspacePreferences) => FastTrackWorkspacePreferences,
+    ) => {
+        setWorkspacePreferences((previous) => normalizeFastTrackWorkspacePreferences(updater(previous), role));
+    }, [role]);
+
+    const handleToggleRail = useCallback(() => {
+        if (window.matchMedia('(max-width: 1279px)').matches) {
+            setCaseRailDrawerOpen((previous) => !previous);
+            return;
+        }
+
+        updateWorkspacePreferencesState((previous) => ({
+            ...previous,
+            caseRailCollapsed: !previous.caseRailCollapsed,
+        }));
+    }, [updateWorkspacePreferencesState]);
+
+    const handleToggleModuleVisibility = useCallback((module: FastTrackWorkspaceModule) => {
+        updateWorkspacePreferencesState((previous) => {
+            const visible = previous.visibleModules.includes(module)
+                ? previous.visibleModules.filter((item) => item !== module)
+                : [...previous.visibleModules, module];
+            const nextVisible = previous.moduleOrder.filter((item) => visible.includes(item));
+            return {
+                ...previous,
+                visibleModules: visible,
+                defaultActiveModule: nextVisible.includes(previous.defaultActiveModule)
+                    ? previous.defaultActiveModule
+                    : nextVisible[0] || previous.defaultActiveModule,
+            };
+        });
+    }, [updateWorkspacePreferencesState]);
+
+    const handleMoveModule = useCallback((
+        module: FastTrackWorkspaceModule,
+        direction: 'up' | 'down',
+    ) => {
+        updateWorkspacePreferencesState((previous) => ({
+            ...previous,
+            moduleOrder: moveFastTrackWorkspaceModule(previous.moduleOrder, module, direction),
+        }));
+    }, [updateWorkspacePreferencesState]);
+
+    const handleResetWorkspacePreferences = useCallback(() => {
+        const defaults = defaultFastTrackWorkspacePreferences(role);
+        workspacePreferencesLoadedRef.current = true;
+        lastSavedWorkspacePreferencesRef.current = '';
+        setWorkspacePreferences(defaults);
+        setActiveUtilityModule(defaults.defaultActiveModule);
+    }, [role]);
 
     const ensureDocumentPreview = useCallback(async (
         item: FastTrackDocumentItem,
@@ -1103,6 +1236,152 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             </div>
         );
+    };
+
+    const renderCoreFilesModule = () => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        return (
+            <div className="space-y-3">
+                {selectedCase.documents.items.map((item) => {
+                    const active = previewItemId === item.id;
+                    const canPreview = Boolean(item.documentRecordId || item.fileUrl);
+                    return (
+                        <div
+                            key={item.id}
+                            data-fast-track-document={item.id}
+                            className={[
+                                'rounded-[24px] border px-4 py-4 transition-colors',
+                                active
+                                    ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20'
+                                    : 'border-gray-100 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900',
+                            ].join(' ')}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => void handleRailPreview(item)}
+                                className="w-full text-left"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {item.fileName || 'No file attached yet'}
+                                        </p>
+                                    </div>
+                                    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${documentStatusTone(item.status)}`}>
+                                        {formatDocumentStatus(item.status)}
+                                    </span>
+                                </div>
+                            </button>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <ActionButton
+                                    tone="secondary"
+                                    onClick={() => void handleRailPreview(item)}
+                                    disabled={!canPreview}
+                                    busy={previewBusyItemId === item.id}
+                                    ariaLabel={`Preview ${item.label} from core files`}
+                                    className="px-3 py-2 text-xs"
+                                >
+                                    <Eye size={12} />
+                                    Preview
+                                </ActionButton>
+                                <ActionButton
+                                    tone="secondary"
+                                    onClick={() => void handleRailDownload(item)}
+                                    disabled={!canPreview}
+                                    busy={previewBusyItemId === item.id}
+                                    ariaLabel={`Download ${item.label} from core files`}
+                                    className="px-3 py-2 text-xs"
+                                >
+                                    <Download size={12} />
+                                    Download
+                                </ActionButton>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderActivityModule = () => (
+        <div className="space-y-3">
+            {compactActivity.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Recent case updates will appear here.
+                </p>
+            ) : compactActivity.map((entry) => (
+                <div
+                    key={entry.id}
+                    className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
+                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                            {entry.actorRole}
+                        </span>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderConnectedRecordsModule = () => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        const items = [
+            ['Lead', selectedCase.leadId],
+            ['Application', selectedCase.applicationId],
+            ['Viewing', selectedCase.viewingId],
+            ['Contract', selectedCase.contractId],
+            ['Payment', selectedCase.paymentId],
+            ['Property', selectedCase.propertyId],
+        ].filter(([, value]) => Boolean(value));
+
+        if (items.length === 0) {
+            return (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Linked record ids will appear here as the case progresses.
+                </p>
+            );
+        }
+
+        return (
+            <div className="grid gap-3 sm:grid-cols-2">
+                {items.map(([label, value]) => (
+                    <div
+                        key={label}
+                        className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
+                    >
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                            {label}
+                        </p>
+                        <p className="mt-2 break-all text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderUtilityModule = (module: FastTrackWorkspaceModule) => {
+        switch (module) {
+            case 'preview':
+                return <div ref={previewSectionRef}>{renderDocumentPreview()}</div>;
+            case 'case_chat':
+                return renderCaseThread();
+            case 'activity':
+                return renderActivityModule();
+            case 'connected_records':
+                return renderConnectedRecordsModule();
+            default:
+                return renderCoreFilesModule();
+        }
     };
 
     const renderSelectedStage = () => {
@@ -1818,6 +2097,50 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
     };
 
+    const headerStats = useMemo(
+        () => [
+            { label: 'Active', value: stats.active },
+            { label: 'Completed', value: stats.completed },
+            { label: 'Cancelled', value: stats.cancelled },
+        ],
+        [stats.active, stats.cancelled, stats.completed],
+    );
+
+    const caseRailItems = useMemo(
+        () => paginatedCases.map((item) => {
+            const chip = formatStatusChip(item);
+            return {
+                caseId: item.caseId,
+                title: item.propertyTitle,
+                subtitle: item.clientName,
+                stageLabel: formatStageLabel(item.stage, item.journeyMode),
+                deadlineLabel: formatDeadline(item.hoursRemaining),
+                statusLabel: chip.label,
+                statusTone: chip.tone,
+                selected: selectedCaseId === item.caseId,
+            };
+        }),
+        [paginatedCases, selectedCaseId],
+    );
+
+    const stepperItems = useMemo(
+        () => STAGES.map((stage, index) => {
+            const Icon = STAGE_ICONS[stage];
+            return {
+                key: stage,
+                label: selectedCase ? formatStageLabel(stage, selectedCase.journeyMode) : formatStageLabel(stage, 'rent'),
+                icon: <Icon size={16} />,
+                active: selectedCase?.stage === stage,
+                complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
+            };
+        }),
+        [selectedCase, stageIndex],
+    );
+
+    const selectedCaseSubtitle = selectedCase
+        ? `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
+        : '';
+
     return (
         <div className="space-y-6 pb-16">
             <FastTrackCelebrationOverlay
@@ -1828,45 +2151,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     : 'The fast-track case is fully completed and closed.'}
                 onComplete={() => setShowCompletionCelebration(false)}
             />
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
-                        className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
-                        aria-label="Back to dashboard"
-                        title="Back to dashboard"
-                    >
-                        <ArrowLeft size={18} />
-                    </button>
-                    <div className="rounded-2xl bg-orange-700 p-3 text-white shadow-lg shadow-orange-500/20">
-                        <Sparkles size={22} />
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fast-track workspace</h1>
-                            <RoleBadge role={role} />
-                        </div>
-                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            One workspace from property selection to handover. No extra pages.
-                        </p>
-                    </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Active</p>
-                        <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.active}</p>
-                    </div>
-                    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Completed</p>
-                        <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
-                    </div>
-                    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Cancelled</p>
-                        <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.cancelled}</p>
-                    </div>
-                </div>
-            </div>
+            <FastTrackWorkspaceHeader
+                role={role}
+                railCollapsed={workspacePreferences.caseRailCollapsed}
+                showMetricsStrip={workspacePreferences.showMetricsStrip}
+                stats={headerStats}
+                onBack={() => navigate(WORKSPACE_HOME_PATH[role])}
+                onToggleRail={handleToggleRail}
+                onOpenCustomize={() => setCustomizationOpen(true)}
+            />
 
             {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
@@ -1874,279 +2167,94 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-                <aside className="space-y-4" aria-label="Fast-track case list">
-                    <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Cases</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                    {filteredCases.length} matching {filteredCases.length === 1 ? 'case' : 'cases'}
-                                </p>
-                            </div>
-                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                {currentCasePage}/{totalCasePages}
-                            </span>
-                        </div>
-
-                        <div className="relative">
-                            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                placeholder="Search property or client"
-                                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                            />
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {FILTERS.map((item) => (
-                                <button
-                                    key={item.value}
-                                    type="button"
-                                    onClick={() => setFilter(item.value)}
-                                    className={[
-                                        'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-                                        filter === item.value
-                                            ? 'bg-orange-700 text-white'
-                                            : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
-                                    ].join(' ')}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        {loading && cases.length === 0 ? (
-                            <div className="flex items-center justify-center rounded-[28px] border border-gray-100 bg-white px-6 py-16 text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400">
-                                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                                Loading cases
-                            </div>
-                        ) : filteredCases.length === 0 ? (
-                            <div className="rounded-[28px] border border-dashed border-gray-300 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-                                No fast-track cases match this filter.
-                            </div>
-                        ) : paginatedCases.map((item) => {
-                            const chip = formatStatusChip(item);
-                            return (
-                                <button
-                                    key={item.caseId}
-                                    type="button"
-                                    data-fast-track-case-card={item.caseId}
-                                    onClick={() => setSelectedCaseId(item.caseId)}
-                                    className={[
-                                        'w-full rounded-[28px] border px-5 py-4 text-left shadow-sm transition-colors',
-                                        selectedCaseId === item.caseId
-                                            ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20'
-                                            : 'border-gray-100 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900',
-                                    ].join(' ')}
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.propertyTitle}</p>
-                                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.clientName}</p>
-                                        </div>
-                                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${chip.tone}`}>
-                                        {chip.label}
-                                    </span>
-                                </div>
-                                    <div className="mt-4 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
-                                        <span>{formatStageLabel(item.stage, item.journeyMode)}</span>
-                                        <span>{formatDeadline(item.hoursRemaining)}</span>
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {filteredCases.length > FAST_TRACK_CASES_PAGE_SIZE ? (
-                        <PaginationBar
+            {caseRailDrawerOpen ? (
+                <div className="fixed inset-0 z-40 xl:hidden">
+                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+                    <div className="absolute inset-y-0 left-0 w-full max-w-sm p-4">
+                        <FastTrackCaseRail
+                            query={query}
+                            filter={filter}
+                            filters={FILTERS}
                             currentPage={currentCasePage}
                             totalPages={totalCasePages}
-                            onPageChange={setCurrentCasePage}
                             totalItems={filteredCases.length}
                             pageSize={FAST_TRACK_CASES_PAGE_SIZE}
-                            currentItemCount={paginatedCases.length}
-                            itemLabel="cases"
-                            stacked
+                            paginatedCount={paginatedCases.length}
+                            items={caseRailItems}
+                            onQueryChange={setQuery}
+                            onFilterChange={setFilter}
+                            onSelectCase={(caseId) => {
+                                setSelectedCaseId(caseId);
+                                setCaseRailDrawerOpen(false);
+                            }}
+                            onPageChange={setCurrentCasePage}
+                            className="h-full overflow-y-auto"
                         />
-                    ) : null}
-                </aside>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setCaseRailDrawerOpen(false)}
+                        className="absolute inset-0 -z-10"
+                        aria-label="Close case rail"
+                    />
+                </div>
+            ) : null}
+
+            <div className="grid gap-6 xl:grid-cols-[292px_minmax(0,1fr)]">
+                {!workspacePreferences.caseRailCollapsed ? (
+                    <div className="hidden xl:block">
+                        <FastTrackCaseRail
+                            query={query}
+                            filter={filter}
+                            filters={FILTERS}
+                            currentPage={currentCasePage}
+                            totalPages={totalCasePages}
+                            totalItems={filteredCases.length}
+                            pageSize={FAST_TRACK_CASES_PAGE_SIZE}
+                            paginatedCount={paginatedCases.length}
+                            items={caseRailItems}
+                            onQueryChange={setQuery}
+                            onFilterChange={setFilter}
+                            onSelectCase={(caseId) => {
+                                setSelectedCaseId(caseId);
+                                setCaseRailDrawerOpen(false);
+                            }}
+                            onPageChange={setCurrentCasePage}
+                        />
+                    </div>
+                ) : (
+                    <div className="hidden xl:block" />
+                )}
 
                 <div className="space-y-6">
                     {selectedCase ? (
                         <>
-                            <section className="overflow-hidden rounded-[36px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,237,213,0.95),_rgba(255,255,255,1)_55%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.38),_rgba(3,7,18,1)_58%)]">
-                                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedCase.propertyTitle}</h2>
-                                            {statusChip ? (
-                                                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusChip.tone}`}>
-                                                    {statusChip.label}
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {selectedCase.clientName} / {selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / {selectedCase.propertyType} / Case {selectedCase.caseId}
-                                        </p>
-                                        <p className="mt-4 max-w-2xl text-sm text-gray-600 dark:text-gray-300">
-                                            Keep everything here: files, viewing changes, decisions, agreement, payment confirmation, handover, and case chat.
-                                        </p>
-                                    </div>
+                            <FastTrackCaseMasthead
+                                title={selectedCase.propertyTitle}
+                                subtitle={selectedCaseSubtitle}
+                                statusLabel={statusChip?.label || 'Active'}
+                                statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
+                                deadlineLabel={formatDeadline(selectedCase.hoursRemaining)}
+                                currentStage={formatStageLabel(selectedCase.stage, selectedCase.journeyMode)}
+                                focus={workspaceFocus}
+                                statusSummary={workspaceStatus}
+                                onOpenCustomize={() => setCustomizationOpen(true)}
+                            />
 
-                                    <div className="grid gap-3 sm:grid-cols-3">
-                                        <div className="rounded-3xl border border-white/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-white/5">
-                                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
-                                                <Clock3 size={14} />
-                                                24h
-                                            </div>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                {formatDeadline(selectedCase.hoursRemaining)}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-3xl border border-white/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-white/5">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current stage</p>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                {formatStageLabel(selectedCase.stage, selectedCase.journeyMode)}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-3xl border border-white/70 bg-white/80 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-white/5">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Focus</p>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                {workspaceFocus}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
+                            <FastTrackStageStepper items={stepperItems} />
 
-                                <p className="mt-5 text-sm text-gray-600 dark:text-gray-300">
-                                    {workspaceStatus}
-                                </p>
-
-                                <div className="mt-6 flex gap-3 overflow-x-auto pb-1" tabIndex={0} aria-label="Fast-track stage progress">
-                                    {STAGES.map((stage, index) => (
-                                        <StagePill
-                                            key={stage}
-                                            stage={stage}
-                                            label={formatStageLabel(stage, selectedCase.journeyMode)}
-                                            active={stage === selectedCase.stage}
-                                            complete={index < stageIndex || selectedCase.workspaceFinalStatus === 'completed'}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
-
-                            {renderActiveStage()}
-
-                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px]">
-                                <SectionShell
-                                    title="Core files"
-                                    description="Every file stays attached to this case. Pick one to preview or download."
-                                >
-                                    <div className="space-y-3">
-                                        {selectedCase.documents.items.map((item) => {
-                                            const active = previewItemId === item.id;
-                                            const canPreview = Boolean(item.documentRecordId || item.fileUrl);
-                                            return (
-                                                <div
-                                                    key={item.id}
-                                                    data-fast-track-document={item.id}
-                                                    className={[
-                                                        'rounded-3xl border px-4 py-4 transition-colors',
-                                                        active
-                                                            ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20'
-                                                            : 'border-gray-100 bg-gray-50 hover:bg-gray-100 dark:border-gray-800 dark:bg-gray-900/40 dark:hover:bg-gray-900',
-                                                    ].join(' ')}
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => void handleRailPreview(item)}
-                                                        className="w-full text-left"
-                                                    >
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div>
-                                                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                                                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                                    {item.fileName || 'No file attached yet'}
-                                                                </p>
-                                                            </div>
-                                                            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${documentStatusTone(item.status)}`}>
-                                                                {formatDocumentStatus(item.status)}
-                                                            </span>
-                                                        </div>
-                                                    </button>
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        <ActionButton
-                                                            tone="secondary"
-                                                            onClick={() => void handleRailPreview(item)}
-                                                            disabled={!canPreview}
-                                                            busy={previewBusyItemId === item.id}
-                                                            ariaLabel={`Preview ${item.label} from core files`}
-                                                            className="px-3 py-2 text-xs"
-                                                        >
-                                                            <Eye size={12} />
-                                                            Preview
-                                                        </ActionButton>
-                                                        <ActionButton
-                                                            tone="secondary"
-                                                            onClick={() => void handleRailDownload(item)}
-                                                            disabled={!canPreview}
-                                                            busy={previewBusyItemId === item.id}
-                                                            ariaLabel={`Download ${item.label} from core files`}
-                                                            className="px-3 py-2 text-xs"
-                                                        >
-                                                            <Download size={12} />
-                                                            Download
-                                                        </ActionButton>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </SectionShell>
-
+                            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.8fr)]">
                                 <div className="space-y-6">
-                                    <div ref={previewSectionRef} data-fast-track-preview-panel className="scroll-mt-24">
-                                        <SectionShell
-                                            title="Preview"
-                                            description="Images and PDFs open here. Other files stay downloadable from this same rail."
-                                        >
-                                            {renderDocumentPreview()}
-                                        </SectionShell>
-                                    </div>
-
-                                    <SectionShell
-                                        title="Case chat"
-                                        description="Keep quick coordination on the same case page."
-                                    >
-                                        {renderCaseThread()}
-                                    </SectionShell>
-
-                                    <SectionShell
-                                        title="Activity"
-                                        description="Recent case changes stay visible here."
-                                    >
-                                        <div className="space-y-3">
-                                            {compactActivity.length === 0 ? (
-                                                <p className="text-sm text-gray-500 dark:text-gray-400">No activity yet.</p>
-                                            ) : compactActivity.map((entry: FastTrackActivityEntry) => (
-                                                <div key={entry.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
-                                                        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
-                                                            {entry.actorRole}
-                                                        </span>
-                                                    </div>
-                                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                        {formatDateTime(entry.createdAt)}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </SectionShell>
+                                    {renderActiveStage()}
+                                </div>
+                                <div className="space-y-6">
+                                    <FastTrackUtilityDock
+                                        density={workspacePreferences.secondaryDensity}
+                                        modules={utilityModules}
+                                        activeModule={activeUtilityModule}
+                                        onActiveModuleChange={setActiveUtilityModule}
+                                        renderModule={renderUtilityModule}
+                                    />
                                 </div>
                             </div>
                         </>
@@ -2157,6 +2265,32 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     )}
                 </div>
             </div>
+
+            <FastTrackWorkspaceCustomizationDrawer
+                open={customizationOpen}
+                preferences={workspacePreferences}
+                orderedModules={allOrderedModules}
+                onClose={() => setCustomizationOpen(false)}
+                onReset={handleResetWorkspacePreferences}
+                onToggleMetrics={() => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    showMetricsStrip: !previous.showMetricsStrip,
+                }))}
+                onToggleCaseRailCollapsed={() => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    caseRailCollapsed: !previous.caseRailCollapsed,
+                }))}
+                onDensityChange={(density) => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    secondaryDensity: density,
+                }))}
+                onToggleModule={handleToggleModuleVisibility}
+                onMoveModule={handleMoveModule}
+                onSetDefaultModule={(module) => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    defaultActiveModule: module,
+                }))}
+            />
         </div>
     );
 }

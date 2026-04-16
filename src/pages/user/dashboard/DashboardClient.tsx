@@ -36,7 +36,6 @@ import { getFastTrackCases } from '@/services/fastTrackService';
 import { hasFastTrackReachedCompletion } from '@/lib/fastTrackWorkflow';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
-const MAX_TRACKED_COMPLETED_FAST_TRACK_CASES = 24;
 
 const dashboardFilterOptions = [
   { id: 'recently_added', label: 'Recently Added' },
@@ -137,45 +136,6 @@ const applyDashboardFilterOrdering = (results: SearchResult[], filters: string[]
   }
 
   return ordered;
-};
-
-const buildCompletedFastTrackStorageKey = (userId: string) => `estospaces.fast-track.completed-seen:${userId}`;
-
-const readSeenCompletedFastTrackCaseIds = (userId?: string | null): string[] | null => {
-  if (!userId || typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(buildCompletedFastTrackStorageKey(userId));
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return Array.from(new Set(parsed.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)))
-      .slice(-MAX_TRACKED_COMPLETED_FAST_TRACK_CASES);
-  } catch {
-    return [];
-  }
-};
-
-const writeSeenCompletedFastTrackCaseIds = (userId: string, caseIds: string[]) => {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    const nextValue = Array.from(new Set(caseIds.filter((value) => value.trim().length > 0)))
-      .slice(-MAX_TRACKED_COMPLETED_FAST_TRACK_CASES);
-    window.localStorage.setItem(buildCompletedFastTrackStorageKey(userId), JSON.stringify(nextValue));
-  } catch {
-    // Ignore local storage write failures so the dashboard stays usable.
-  }
 };
 
 const buildDiscoverParams = (
@@ -355,8 +315,6 @@ const DashboardClient = () => {
       const completedCases = result.data
         .filter((caseItem) => hasFastTrackReachedCompletion(caseItem))
         .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
-      const completedCaseIds = completedCases.map((caseItem) => caseItem.caseId);
-      const seenCaseIds = readSeenCompletedFastTrackCaseIds(user.id);
       const clearCelebrateQuery = () => {
         if (!dashboardCelebrateRequested) {
           return;
@@ -383,27 +341,8 @@ const DashboardClient = () => {
             ? `Fast-track complete for ${forcedCelebrationCase.propertyTitle}.`
             : 'Fast-track complete.',
         );
-        writeSeenCompletedFastTrackCaseIds(user.id, completedCaseIds);
         clearCelebrateQuery();
-        return;
       }
-
-      if (seenCaseIds === null) {
-        writeSeenCompletedFastTrackCaseIds(user.id, completedCaseIds);
-        return;
-      }
-
-      const unseenCompletedCase = completedCases.find((caseItem) => !seenCaseIds.includes(caseItem.caseId));
-      writeSeenCompletedFastTrackCaseIds(user.id, [...seenCaseIds, ...completedCaseIds]);
-
-      if (!unseenCompletedCase || celebratedDashboardCaseIdRef.current === unseenCompletedCase.caseId) {
-        return;
-      }
-
-      celebratedDashboardCaseIdRef.current = unseenCompletedCase.caseId;
-      setCelebrationPropertyTitle(unseenCompletedCase.propertyTitle);
-      setShowFastTrackCelebration(true);
-      toast.success(`Fast-track complete for ${unseenCompletedCase.propertyTitle}.`);
     };
 
     void loadCompletedFastTrackCases();
