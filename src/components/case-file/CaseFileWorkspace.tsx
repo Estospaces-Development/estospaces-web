@@ -488,32 +488,21 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
 
   return [
     {
-      label: "Open fast-track workspace",
+      label: "Continue in fast-track",
+      description: "Use the live workspace for viewing, decision, agreement, payment, and handover.",
       path: buildWorkspacePath(`${base}/fast-track`, {
         ...shared,
         section: "overview",
       }),
     },
     {
-      label: "Open documents in fast-track",
+      label: "Open document lane",
+      description: "Jump straight to the shared document lane inside fast-track.",
       path: buildWorkspacePath(`${base}/fast-track`, {
         ...shared,
         section: "documents",
       }),
     },
-    ...(role === "manager"
-      ? [
-          {
-            label: "Open billing details",
-            path: buildWorkspacePath("/manager/billing", shared),
-          },
-        ]
-      : [
-          {
-            label: "Open payment details",
-            path: buildWorkspacePath("/user/dashboard/payments", shared),
-          },
-        ]),
   ];
 };
 
@@ -802,6 +791,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     () => (caseFile ? buildWorkspaceLinks(role, caseFile) : []),
     [caseFile, role],
   );
+  const primaryWorkspaceLink = workspaceLinks[0] || null;
+  const secondaryWorkspaceLinks = workspaceLinks.slice(1);
   const openRequests = useMemo(
     () =>
       (caseFile?.requests || []).filter(
@@ -1754,12 +1745,52 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     </h2>
                   </div>
                   <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-200">
-                    The document lane is clear right now. Use the fast-track
-                    links for the live workflow and keep this space for
-                    supporting context.
+                    The support file is clear. Continue the live journey in
+                    fast-track and keep this page for documents, audit context,
+                    and supporting requests.
                   </p>
                 </div>
               )}
+
+              {primaryWorkspaceLink ? (
+                <div
+                  className="rounded-3xl border border-orange-200 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_55%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.24)_0%,rgba(9,9,11,1)_60%)]"
+                  data-case-file-live-workflow
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
+                    Live workflow
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
+                    Case file is support-only. Continue the journey in fast-track.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    This page keeps the shared record clean, but the live actions stay in the fast-track workspace. Open the live case when you need to move the journey forward.
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate(primaryWorkspaceLink.path)}
+                      data-case-file-live-workflow-primary
+                      className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                    >
+                      {primaryWorkspaceLink.label}
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                    {secondaryWorkspaceLinks.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => navigate(item.path)}
+                        data-case-file-live-workflow-secondary={item.label}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:bg-black dark:text-gray-200 dark:hover:bg-zinc-900"
+                      >
+                        {item.label}
+                        <ArrowRight className="h-4 w-4 text-gray-400" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {(workflow?.deadlines || []).length > 0 ? (
                 <div className="rounded-3xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-900/30 dark:bg-blue-950/20">
@@ -1813,19 +1844,30 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
               <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                 <FolderOpen className="h-5 w-5 text-orange-500" />
-                <h2 className="text-lg font-semibold">Connected workspaces</h2>
+                <h2 className="text-lg font-semibold">Quick links</h2>
               </div>
-              <div className={workspaceLinksGridClass}>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Open the live fast-track workspace or jump straight to its document lane.
+              </p>
+              <div className={workspaceLinksGridClass} data-case-file-quick-links>
                 {workspaceLinks.map((item) => (
                   <button
                     key={item.label}
                     type="button"
                     onClick={() => navigate(item.path)}
+                    data-case-file-quick-link={item.label}
                     className="flex w-full items-center justify-between rounded-2xl border border-gray-200 px-4 py-4 text-left transition-colors hover:bg-gray-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
                   >
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {item.label}
-                    </span>
+                    <div>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {item.label}
+                      </span>
+                      {"description" in item && item.description ? (
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          {item.description}
+                        </p>
+                      ) : null}
+                    </div>
                     <ArrowRight className="h-4 w-4 text-gray-400" />
                   </button>
                 ))}
@@ -2927,9 +2969,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 ))
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  The backend has not published additional next-action hints for
-                  this case yet. Use the connected workspace links from the
-                  overview.
+                  No extra support notes are published for this case yet.
+                  Continue the live workflow in fast-track from the overview.
                 </p>
               )}
             </div>
