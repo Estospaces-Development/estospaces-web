@@ -279,6 +279,12 @@ async function getRailWidth(page) {
   return box ? Math.round(box.width) : null;
 }
 
+async function getElementWidth(page, selector) {
+  const locator = page.locator(selector).first();
+  const box = await locator.boundingBox();
+  return box ? Math.round(box.width) : null;
+}
+
 async function getComputedPosition(locator) {
   return locator.evaluate((element) => window.getComputedStyle(element).position);
 }
@@ -341,6 +347,10 @@ async function run() {
 
     await gotoFastTrackWorkspace(userPage, "user", userActiveCase.caseId);
     const userInitialRailWidth = await getRailWidth(userPage);
+    const userMastheadWidthBeforeCollapse = await getElementWidth(
+      userPage,
+      "[data-fast-track-masthead]",
+    );
     const userMetricsInitiallyVisible = await hasVisibleLocator(
       userPage,
       "[data-fast-track-metrics-strip]",
@@ -348,6 +358,19 @@ async function run() {
     const userStepperPosition = await getComputedPosition(
       userPage.locator("[data-fast-track-stepper]").first(),
     );
+
+    await userPage.locator("[data-fast-track-toggle-rail]").click({ timeout: 10000 });
+    await userPage.waitForTimeout(700);
+    const userRailVisibleAfterCollapse = await hasVisibleLocator(
+      userPage,
+      "[data-fast-track-case-rail]",
+    );
+    const userMastheadWidthAfterCollapse = await getElementWidth(
+      userPage,
+      "[data-fast-track-masthead]",
+    );
+    await userPage.locator("[data-fast-track-toggle-rail]").click({ timeout: 10000 });
+    await userPage.waitForTimeout(700);
 
     await userPage.locator("[data-fast-track-customize-open-inline]").click({ timeout: 10000 });
     await userPage.locator("[data-fast-track-customization-drawer]").waitFor({ timeout: 10000 });
@@ -396,6 +419,13 @@ async function run() {
     result.userDesktop = {
       caseId: userActiveCase.caseId,
       railWidth: userInitialRailWidth,
+      mastheadWidthBeforeCollapse: userMastheadWidthBeforeCollapse,
+      mastheadWidthAfterCollapse: userMastheadWidthAfterCollapse,
+      contentExpandedOnCollapse:
+        userRailVisibleAfterCollapse === false &&
+        typeof userMastheadWidthBeforeCollapse === "number" &&
+        typeof userMastheadWidthAfterCollapse === "number" &&
+        userMastheadWidthAfterCollapse > userMastheadWidthBeforeCollapse + 120,
       metricsInitiallyVisible: userMetricsInitiallyVisible,
       metricsAfterReload: userMetricsAfterReload,
       stepperPosition: userStepperPosition,
@@ -418,10 +448,26 @@ async function run() {
     await gotoFastTrackWorkspace(managerPage, "manager", managerActiveCase.caseId);
 
     const managerRailWidth = await getRailWidth(managerPage);
+    const managerMastheadWidthBeforeCollapse = await getElementWidth(
+      managerPage,
+      "[data-fast-track-masthead]",
+    );
     const managerMetricsVisible = await hasVisibleLocator(
       managerPage,
       "[data-fast-track-metrics-strip]",
     );
+    await managerPage.locator("[data-fast-track-toggle-rail]").click({ timeout: 10000 });
+    await managerPage.waitForTimeout(700);
+    const managerRailVisibleAfterCollapse = await hasVisibleLocator(
+      managerPage,
+      "[data-fast-track-case-rail]",
+    );
+    const managerMastheadWidthAfterCollapse = await getElementWidth(
+      managerPage,
+      "[data-fast-track-masthead]",
+    );
+    await managerPage.locator("[data-fast-track-toggle-rail]").click({ timeout: 10000 });
+    await managerPage.waitForTimeout(700);
     const managerPreferences = await getWorkspacePreferences(managerSession.token, "manager");
 
     const managerDesktopScreenshot = path.join(
@@ -433,6 +479,13 @@ async function run() {
     result.managerDesktop = {
       caseId: managerActiveCase.caseId,
       railWidth: managerRailWidth,
+      mastheadWidthBeforeCollapse: managerMastheadWidthBeforeCollapse,
+      mastheadWidthAfterCollapse: managerMastheadWidthAfterCollapse,
+      contentExpandedOnCollapse:
+        managerRailVisibleAfterCollapse === false &&
+        typeof managerMastheadWidthBeforeCollapse === "number" &&
+        typeof managerMastheadWidthAfterCollapse === "number" &&
+        managerMastheadWidthAfterCollapse > managerMastheadWidthBeforeCollapse + 120,
       metricsVisible: managerMetricsVisible,
       preferences: managerPreferences,
       screenshot: managerDesktopScreenshot,
@@ -554,12 +607,14 @@ async function run() {
     result.overallOk =
       typeof result.userDesktop.railWidth === "number" &&
       result.userDesktop.railWidth <= 360 &&
+      result.userDesktop.contentExpandedOnCollapse === true &&
       result.userDesktop.metricsInitiallyVisible === true &&
       result.userDesktop.metricsAfterReload === false &&
       result.userDesktop.stepperPosition === "sticky" &&
       result.userDesktop.defaultPanelAfterReload === "case_chat" &&
       result.userDesktop.connectedRecordsHiddenAfterReload === true &&
       result.managerDesktop.metricsVisible === true &&
+      result.managerDesktop.contentExpandedOnCollapse === true &&
       result.managerDesktop.preferences?.show_metrics_strip === true &&
       result.adminDesktop.loaded === true &&
       result.userTablet.railDrawerOpened === true &&

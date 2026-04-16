@@ -66,42 +66,42 @@ export function FastTrackWorkspaceHeader({
   onOpenCustomize,
 }: FastTrackWorkspaceHeaderProps) {
   return (
-    <div className="flex flex-col gap-4" data-fast-track-header>
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="flex flex-wrap items-start gap-3">
+    <div className="flex flex-col gap-3" data-fast-track-header>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-wrap items-start gap-2.5">
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
             aria-label="Back to dashboard"
             title="Back to dashboard"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#FF6B35_0%,#E55A2B_100%)] text-white shadow-lg shadow-orange-500/20">
-            <LayoutGrid size={20} />
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#FF6B35_0%,#E55A2B_100%)] text-white shadow-lg shadow-orange-500/20">
+            <LayoutGrid size={18} />
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[30px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-[26px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
                 Fast-track workspace
               </h1>
-              <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+              <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                 {role}
               </span>
             </div>
-            <p className="mt-1 max-w-2xl text-sm text-gray-600 dark:text-gray-300">
-              One calm workspace from property selection to handover. The workflow stays visible; the secondary tools stay customizable.
+            <p className="mt-1 max-w-2xl text-[13px] text-gray-600 dark:text-gray-300">
+              One calm workspace from property selection to handover. The workflow stays visible and the secondary tools stay customizable.
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={onToggleRail}
             data-fast-track-toggle-rail
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            className="inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
           >
             {railCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             {railCollapsed ? 'Show cases' : 'Collapse cases'}
@@ -110,7 +110,7 @@ export function FastTrackWorkspaceHeader({
             type="button"
             onClick={onOpenCustomize}
             data-fast-track-customize-open
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            className="inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
           >
             <Settings2 size={16} />
             Customize
@@ -119,16 +119,16 @@ export function FastTrackWorkspaceHeader({
       </div>
 
       {showMetricsStrip ? (
-        <div className="grid gap-3 sm:grid-cols-3" data-fast-track-metrics-strip>
+        <div className="flex flex-wrap gap-2.5" data-fast-track-metrics-strip>
           {stats.map((item) => (
             <div
               key={item.label}
-              className="rounded-[26px] border border-gray-100 bg-white px-5 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+              className="inline-flex items-center gap-3 rounded-full border border-gray-100 bg-white px-4 py-2.5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
                 {item.label}
               </p>
-              <p className="mt-2 text-2xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+              <p className="text-lg font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
                 {item.value}
               </p>
             </div>
@@ -175,23 +175,23 @@ export function FastTrackCaseRail({
   return (
     <aside
       className={cn(
-        'space-y-4 rounded-[32px] border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950',
+        'space-y-3 rounded-[26px] border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-950',
         className,
       )}
       data-fast-track-case-rail
       aria-label="Fast-track case list"
     >
-      <div className="space-y-4">
+      <div className="space-y-2.5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
               Cases
             </p>
-            <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+            <p className="mt-1 text-xs font-semibold text-gray-900 dark:text-white">
               {totalItems} matching {totalItems === 1 ? 'case' : 'cases'}
             </p>
           </div>
-          <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+          <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
             {currentPage}/{totalPages}
           </span>
         </div>
@@ -205,7 +205,7 @@ export function FastTrackCaseRail({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search property or client"
-            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200"
+            className="h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200"
           />
         </div>
 
@@ -216,7 +216,7 @@ export function FastTrackCaseRail({
               type="button"
               onClick={() => onFilterChange(item.value)}
               className={cn(
-                'inline-flex h-9 items-center rounded-full px-3 text-xs font-semibold transition-colors',
+                'inline-flex h-8 items-center rounded-full px-3 text-[11px] font-semibold transition-colors',
                 filter === item.value
                   ? 'bg-orange-700 text-white'
                   : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
@@ -228,7 +228,7 @@ export function FastTrackCaseRail({
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {items.length === 0 ? (
           <div className="rounded-[28px] border border-dashed border-gray-300 bg-gray-50 px-5 py-12 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
             No fast-track cases match this filter.
@@ -241,7 +241,7 @@ export function FastTrackCaseRail({
               data-fast-track-case-card={item.caseId}
               onClick={() => onSelectCase(item.caseId)}
               className={cn(
-                'w-full rounded-[26px] border px-4 py-4 text-left transition-colors',
+                'w-full rounded-[20px] border px-3 py-3 text-left transition-colors',
                 item.selected
                   ? 'border-orange-300 bg-orange-50 shadow-[0_12px_28px_-16px_rgba(234,88,12,0.35)] dark:border-orange-800 dark:bg-orange-950/20'
                   : 'border-gray-100 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900',
@@ -249,18 +249,18 @@ export function FastTrackCaseRail({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                  <p className="truncate text-[12px] font-semibold text-gray-900 dark:text-white">
                     {item.title}
                   </p>
-                  <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 truncate text-[11px] text-gray-500 dark:text-gray-400">
                     {item.subtitle}
                   </p>
                 </div>
-                <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-semibold', item.statusTone)}>
+                <span className={cn('rounded-full border px-2 py-1 text-[9px] font-semibold', item.statusTone)}>
                   {item.statusLabel}
                 </span>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-4 text-xs text-gray-600 dark:text-gray-300">
+              <div className="mt-2 flex items-center justify-between gap-3 text-[10px] text-gray-600 dark:text-gray-300">
                 <span>{item.stageLabel}</span>
                 <span>{item.deadlineLabel}</span>
               </div>
@@ -309,40 +309,42 @@ export function FastTrackCaseMasthead({
   onOpenCustomize,
 }: FastTrackCaseMastheadProps) {
   return (
-    <section className="overflow-hidden rounded-[34px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,237,213,0.9),_rgba(255,255,255,1)_52%)] p-6 shadow-[0_24px_44px_-28px_rgba(234,88,12,0.25)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.34),_rgba(3,7,18,1)_56%)]" data-fast-track-masthead>
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-        <div className="max-w-3xl">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-[28px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
-              {title}
-            </h2>
-            <span className={cn('rounded-full border px-3 py-1 text-xs font-semibold', statusTone)}>
-              {statusLabel}
-            </span>
+    <section className="overflow-hidden rounded-[30px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)]" data-fast-track-masthead>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="text-[24px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+                {title}
+              </h2>
+              <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', statusTone)}>
+                {statusLabel}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
+            <p className="mt-3 max-w-2xl text-[13px] leading-6 text-gray-700 dark:text-gray-200">
+              {statusSummary}
+            </p>
           </div>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
-          <p className="mt-4 max-w-2xl text-sm leading-6 text-gray-700 dark:text-gray-200">
-            {statusSummary}
-          </p>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={onOpenCustomize}
+              data-fast-track-customize-open-inline
+              className="inline-flex h-9 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3.5 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            >
+              <ListFilter size={15} />
+              Tune layout
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[430px]">
+        <div className="flex flex-wrap gap-2.5">
           <MastheadInfoCard label="24h" value={deadlineLabel} />
           <MastheadInfoCard label="Current stage" value={currentStage} />
           <MastheadInfoCard label="Focus" value={focus} />
         </div>
-      </div>
-
-      <div className="mt-5 flex justify-end">
-        <button
-          type="button"
-          onClick={onOpenCustomize}
-          data-fast-track-customize-open-inline
-          className="inline-flex h-10 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-4 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
-        >
-          <ListFilter size={16} />
-          Tune layout
-        </button>
       </div>
     </section>
   );
@@ -350,11 +352,11 @@ export function FastTrackCaseMasthead({
 
 function MastheadInfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[26px] border border-white/70 bg-white/80 px-4 py-4 backdrop-blur dark:border-white/10 dark:bg-white/5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+    <div className="inline-flex items-center gap-2.5 rounded-full border border-white/70 bg-white/85 px-3.5 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
         {label}
       </p>
-      <p className="mt-2 text-lg font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
+      <p className="text-sm font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
         {value}
       </p>
     </div>
@@ -367,9 +369,9 @@ interface FastTrackStageStepperProps {
 
 export function FastTrackStageStepper({ items }: FastTrackStageStepperProps) {
   return (
-    <section className="sticky top-20 z-20 rounded-[28px] border border-gray-100 bg-white/92 px-4 py-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/92" data-fast-track-stepper>
+    <section className="sticky top-20 z-20 rounded-[24px] border border-gray-100 bg-white/92 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/92" data-fast-track-stepper>
       <div
-        className="flex gap-2 overflow-x-auto pb-1"
+        className="flex gap-1.5 overflow-x-auto pb-1"
         tabIndex={0}
         aria-label="Fast-track stage progress"
       >
@@ -377,7 +379,7 @@ export function FastTrackStageStepper({ items }: FastTrackStageStepperProps) {
           <React.Fragment key={item.key}>
             <div
               className={cn(
-                'inline-flex min-w-[112px] items-center gap-2 rounded-2xl border px-3 py-2.5',
+                'inline-flex min-w-[96px] items-center gap-2 rounded-2xl border px-3 py-2',
                 item.active
                   ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
                   : item.complete
@@ -386,12 +388,12 @@ export function FastTrackStageStepper({ items }: FastTrackStageStepperProps) {
               )}
             >
               <span className="shrink-0">{item.icon}</span>
-              <span className="text-sm font-semibold">{item.label}</span>
+              <span className="text-xs font-semibold">{item.label}</span>
             </div>
             {index < items.length - 1 ? (
               <div
                 className={cn(
-                  'mt-5 hidden h-px min-w-6 flex-1 sm:block',
+                  'mt-4 hidden h-px min-w-4 flex-1 sm:block',
                   item.complete ? 'bg-green-300 dark:bg-green-700' : 'bg-gray-200 dark:bg-gray-700',
                 )}
               />
@@ -423,14 +425,14 @@ export function FastTrackUtilityDock({
   }
 
   return (
-    <section className="rounded-[30px] border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
-      <div className="space-y-4">
+    <section className="rounded-[28px] border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
+      <div className="space-y-3.5">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
             Utility dock
           </p>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-            Keep the supporting tools close without crowding the workflow.
+          <p className="mt-1 text-[13px] text-gray-600 dark:text-gray-300">
+            Keep the secondary tools close, but only one active at a time.
           </p>
         </div>
 
@@ -442,7 +444,7 @@ export function FastTrackUtilityDock({
               onClick={() => onActiveModuleChange(module)}
               data-fast-track-utility-tab={module}
               className={cn(
-                'inline-flex h-9 items-center rounded-full px-3 text-xs font-semibold transition-colors',
+                'inline-flex h-8 items-center rounded-full px-3 text-[11px] font-semibold transition-colors',
                 activeModule === module
                   ? 'bg-orange-700 text-white'
                   : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
@@ -455,8 +457,8 @@ export function FastTrackUtilityDock({
 
         <div
           className={cn(
-            'rounded-[26px] border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40',
-            density === 'comfortable' ? 'min-h-[360px]' : 'min-h-[300px]',
+            'rounded-[22px] border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-900/40',
+            density === 'comfortable' ? 'min-h-[320px]' : 'min-h-[248px]',
           )}
           data-fast-track-utility-panel={activeModule}
         >

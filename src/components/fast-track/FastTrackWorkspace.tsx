@@ -73,6 +73,7 @@ import {
     getFastTrackWorkspacePreferences,
     updateFastTrackWorkspacePreferences,
 } from '@/services/workspacePreferencesService';
+import { cn } from '@/lib/utils';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -233,21 +234,21 @@ const SectionShell = ({
     icon?: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <section className="rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-        <div className="flex items-start gap-3">
+    <section className="rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+        <div className="flex items-start gap-2.5">
             {Icon ? (
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
-                    <Icon size={18} />
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                    <Icon size={16} />
                 </span>
             ) : null}
             <div className="flex flex-col gap-1">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+                <h3 className="text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
                 {description ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
                 ) : null}
             </div>
         </div>
-        <div className="mt-5">{children}</div>
+        <div className="mt-4">{children}</div>
     </section>
 );
 
@@ -316,6 +317,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [requestChangeNote, setRequestChangeNote] = useState('');
     const [documentNotes, setDocumentNotes] = useState<Record<string, string>>({});
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+    const [documentFocusId, setDocumentFocusId] = useState<string | null>(null);
     const [previewItemId, setPreviewItemId] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewError, setPreviewError] = useState<string | null>(null);
@@ -696,6 +698,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 role === 'user' ? (item.uploadNote || '') : (item.reviewNote || ''),
             ])),
         );
+        setDocumentFocusId((previous) => {
+            if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
+                return previous;
+            }
+            return selectedCase.documents.items[0]?.id || null;
+        });
         setPreviewItemId((previous) => {
             if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
                 return previous;
@@ -761,6 +769,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const previewItem = useMemo(
         () => selectedCase?.documents.items.find((item) => item.id === previewItemId) || null,
         [previewItemId, selectedCase?.documents.items],
+    );
+    const focusedDocumentItem = useMemo(
+        () => selectedCase?.documents.items.find((item) => item.id === documentFocusId)
+            || selectedCase?.documents.items[0]
+            || null,
+        [documentFocusId, selectedCase?.documents.items],
     );
 
     const threadRecipientId = useMemo(
@@ -869,6 +883,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setPreviewBusyItemId(item.id);
+        setDocumentFocusId(item.id);
         setPreviewItemId(item.id);
         setPreviewError(null);
 
@@ -1243,66 +1258,107 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        const activeDocument = focusedDocumentItem;
+        if (!activeDocument) {
+            return (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Core files will appear here when this case reaches the document lane.
+                </p>
+            );
+        }
+
+        const canPreview = Boolean(activeDocument.documentRecordId || activeDocument.fileUrl);
+        const helperNote = activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '';
+
         return (
-            <div className="space-y-3">
-                {selectedCase.documents.items.map((item) => {
-                    const active = previewItemId === item.id;
-                    const canPreview = Boolean(item.documentRecordId || item.fileUrl);
-                    return (
-                        <div
+            <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                    {selectedCase.documents.items.map((item) => (
+                        <button
                             key={item.id}
+                            type="button"
                             data-fast-track-document={item.id}
-                            className={[
-                                'rounded-[24px] border px-4 py-4 transition-colors',
-                                active
-                                    ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20'
-                                    : 'border-gray-100 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900',
-                            ].join(' ')}
+                            onClick={() => setDocumentFocusId(item.id)}
+                            className={cn(
+                                'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors',
+                                activeDocument.id === item.id
+                                    ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
+                            )}
                         >
-                            <button
-                                type="button"
-                                onClick={() => void handleRailPreview(item)}
-                                className="w-full text-left"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            {item.fileName || 'No file attached yet'}
-                                        </p>
-                                    </div>
-                                    <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${documentStatusTone(item.status)}`}>
-                                        {formatDocumentStatus(item.status)}
-                                    </span>
-                                </div>
-                            </button>
-                            <div className="mt-3 flex flex-wrap gap-2">
-                                <ActionButton
-                                    tone="secondary"
-                                    onClick={() => void handleRailPreview(item)}
-                                    disabled={!canPreview}
-                                    busy={previewBusyItemId === item.id}
-                                    ariaLabel={`Preview ${item.label} from core files`}
-                                    className="px-3 py-2 text-xs"
-                                >
-                                    <Eye size={12} />
-                                    Preview
-                                </ActionButton>
-                                <ActionButton
-                                    tone="secondary"
-                                    onClick={() => void handleRailDownload(item)}
-                                    disabled={!canPreview}
-                                    busy={previewBusyItemId === item.id}
-                                    ariaLabel={`Download ${item.label} from core files`}
-                                    className="px-3 py-2 text-xs"
-                                >
-                                    <Download size={12} />
-                                    Download
-                                </ActionButton>
-                            </div>
+                            <span>{item.label}</span>
+                            <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-semibold', documentStatusTone(item.status))}>
+                                {formatDocumentStatus(item.status)}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="rounded-[24px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{activeDocument.label}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {activeDocument.fileName || 'No file attached yet'}
+                            </p>
                         </div>
-                    );
-                })}
+                        <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(activeDocument.status))}>
+                            {formatDocumentStatus(activeDocument.status)}
+                        </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                                Last upload
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                {formatDateTime(activeDocument.uploadedAt)}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                                Next step
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                {role === 'user'
+                                    ? (activeDocument.status === 'reupload_needed' ? 'Replace file' : 'Keep file ready')
+                                    : (activeDocument.status === 'uploaded' ? 'Review file' : 'Keep workflow moving')}
+                            </p>
+                        </div>
+                    </div>
+
+                    {helperNote ? (
+                        <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
+                            {helperNote}
+                        </div>
+                    ) : null}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void handleRailPreview(activeDocument)}
+                            disabled={!canPreview}
+                            busy={previewBusyItemId === activeDocument.id}
+                            ariaLabel={`Preview ${activeDocument.label} from core files`}
+                            className="px-3 py-2 text-xs"
+                        >
+                            <Eye size={12} />
+                            Preview
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void handleRailDownload(activeDocument)}
+                            disabled={!canPreview}
+                            busy={previewBusyItemId === activeDocument.id}
+                            ariaLabel={`Download ${activeDocument.label} from core files`}
+                            className="px-3 py-2 text-xs"
+                        >
+                            <Download size={12} />
+                            Download
+                        </ActionButton>
+                    </div>
+                </div>
             </div>
         );
     };
@@ -1442,194 +1498,222 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        const uploadedCount = selectedCase.documents.items.filter(
+            (item) => item.status === 'uploaded' || item.status === 'approved',
+        ).length;
+        const approvedCount = selectedCase.documents.items.filter(
+            (item) => item.status === 'approved',
+        ).length;
+
         return (
             <SectionShell
                 title="Documents"
-                description="Upload, review, preview, and replace the core files without leaving this page."
+                description="A compact checklist for the mandatory files. Use the dock for preview, chat, and activity."
             >
-                <div className="mb-5 grid gap-3 md:grid-cols-3">
-                    <div className="rounded-3xl border border-orange-100 bg-orange-50 px-4 py-4 dark:border-orange-900/40 dark:bg-orange-950/30">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Required</p>
-                        <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{selectedCase.documents.items.length}</p>
+                <div className="mb-4 flex flex-wrap gap-2">
+                    <div className="rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                        {selectedCase.documents.items.length} required
                     </div>
-                    <div className="rounded-3xl border border-gray-100 bg-gray-50 px-4 py-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Uploaded</p>
-                        <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                            {selectedCase.documents.items.filter((item) => item.status === 'uploaded' || item.status === 'approved').length}
-                        </p>
+                    <div className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                        {uploadedCount} uploaded
                     </div>
-                    <div className="rounded-3xl border border-green-100 bg-green-50 px-4 py-4 dark:border-green-900/40 dark:bg-green-950/30">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-500">Approved</p>
-                        <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                            {selectedCase.documents.items.filter((item) => item.status === 'approved').length}
-                        </p>
+                    <div className="rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300">
+                        {approvedCount} approved
+                    </div>
+                    <div className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                        Click a file row to focus it in the dock.
                     </div>
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item) => {
                         const canUpload = role === 'user';
                         const busyKey = `upload-${item.id}`;
                         const canPreview = Boolean(item.documentRecordId || item.fileUrl);
+                        const focused = focusedDocumentItem?.id === item.id;
+                        const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
                         return (
                             <div
                                 key={item.id}
                                 data-fast-track-document-card={item.id}
-                                className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+                                className={cn(
+                                    'grid gap-3 rounded-[22px] border bg-white px-3.5 py-3.5 shadow-sm transition-colors dark:bg-gray-950 lg:grid-cols-[minmax(0,1fr)_272px]',
+                                    focused
+                                        ? 'border-orange-300 ring-1 ring-orange-200 dark:border-orange-800 dark:ring-orange-900/40'
+                                        : 'border-gray-100 dark:border-gray-800',
+                                )}
                             >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-base font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                            {formatDocumentStatus(item.status)}
-                                        </p>
-                                    </div>
-                                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(item.status)}`}>
-                                        {formatDocumentStatus(item.status)}
-                                    </span>
-                                </div>
-
-                                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                    <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current file</p>
-                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                            {item.fileName || 'No file attached yet'}
-                                        </p>
-                                    </div>
-                                    <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Last upload</p>
-                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                            {formatDateTime(item.uploadedAt)}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {(item.uploadNote || item.reviewNote) ? (
-                                    <div className="mt-4 grid gap-3">
-                                        {item.uploadNote ? (
-                                            <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Upload note</p>
-                                                <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{item.uploadNote}</p>
-                                            </div>
-                                        ) : null}
-                                        {item.reviewNote ? (
-                                            <div className={[
-                                                'rounded-2xl border px-4 py-3',
-                                                item.status === 'reupload_needed'
-                                                    ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300'
-                                                    : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300',
-                                            ].join(' ')}>
-                                                <p className="text-xs font-semibold uppercase tracking-[0.18em] opacity-80">Reviewer note</p>
-                                                <p className="mt-2 text-sm">{item.reviewNote}</p>
-                                                {item.reviewedAt ? (
-                                                    <p className="mt-2 text-xs opacity-80">
-                                                        Reviewed {formatDateTime(item.reviewedAt)}
-                                                    </p>
-                                                ) : null}
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-
-                                <div className="mt-4 flex flex-wrap gap-3">
-                                    <ActionButton
-                                        tone="secondary"
-                                        onClick={() => void ensureDocumentPreview(item, { revealInViewport: true })}
-                                        busy={previewBusyItemId === item.id}
-                                        disabled={!canPreview}
-                                        ariaLabel={`Preview ${item.label}`}
+                                <div className="space-y-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDocumentFocusId(item.id)}
+                                        className="w-full text-left"
                                     >
-                                        <Eye size={16} />
-                                        Preview
-                                    </ActionButton>
-                                    <ActionButton
-                                        tone="secondary"
-                                        onClick={() => void ensureDocumentPreview(item, { openInNewTab: true })}
-                                        busy={previewBusyItemId === item.id}
-                                        disabled={!canPreview}
-                                        ariaLabel={`Open ${item.label}`}
-                                    >
-                                        <ArrowUpRight size={16} />
-                                        Open file
-                                    </ActionButton>
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{item.label}</p>
+                                                    {focused ? (
+                                                        <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                                            In focus
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                <p className="mt-1 truncate text-[13px] text-gray-500 dark:text-gray-400">
+                                                    {item.fileName || 'No file attached yet'}
+                                                </p>
+                                            </div>
+                                            <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(item.status))}>
+                                                {formatDocumentStatus(item.status)}
+                                            </span>
+                                        </div>
+                                    </button>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                            Last upload {formatDateTime(item.uploadedAt)}
+                                        </span>
+                                        {item.reviewedAt ? (
+                                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                Reviewed {formatDateTime(item.reviewedAt)}
+                                            </span>
+                                        ) : null}
+                                    </div>
+
+                                    <div className={cn(
+                                        'rounded-2xl border px-4 py-3 text-sm',
+                                        supportingNote
+                                            ? (item.status === 'reupload_needed'
+                                                ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300'
+                                                : 'border-gray-100 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300')
+                                            : 'border-dashed border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-500',
+                                    )}>
+                                        {supportingNote || (canUpload
+                                            ? 'Add a file and one short upload note.'
+                                            : 'Review the file, leave one short note, and move on.')}
+                                    </div>
                                 </div>
 
-                                <textarea
-                                    value={documentNotes[item.id] || ''}
-                                    onChange={(event) => setDocumentNotes((previous) => ({
-                                        ...previous,
-                                        [item.id]: event.target.value,
-                                    }))}
-                                    aria-label={`Note for ${item.label}`}
-                                    placeholder={canUpload ? 'Add one short note with this upload' : 'Add one short review note'}
-                                    className="mt-4 h-24 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                                />
-
-                                {canUpload ? (
-                                    <div className="mt-4 space-y-3">
-                                        <input
-                                            ref={(node) => {
-                                                fileInputRefs.current[item.id] = node;
-                                            }}
-                                            type="file"
-                                            aria-label={`Upload ${item.label}`}
-                                            onChange={(event) => setSelectedFiles((previous) => ({
-                                                ...previous,
-                                                [item.id]: event.target.files?.[0] || null,
-                                            }))}
-                                            className="w-full text-sm text-gray-500 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-100 file:px-4 file:py-2 file:font-semibold file:text-orange-700 dark:text-gray-400 dark:file:bg-orange-950/20 dark:file:text-orange-300"
-                                        />
-                                        {item.status === 'reupload_needed' ? (
-                                            <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-                                                Upload a replacement here. The previous note stays visible until the new file is reviewed.
-                                            </p>
-                                        ) : null}
+                                    <div className="rounded-[20px] border border-gray-100 bg-white/80 p-3.5 dark:border-gray-800 dark:bg-gray-950/80">
+                                    <div className="flex flex-wrap gap-2">
                                         <ActionButton
-                                            onClick={() => void handleUploadDocument(item)}
-                                            busy={activeAction === busyKey}
-                                            disabled={!selectedFiles[item.id]}
-                                        >
-                                            <Upload size={16} />
-                                            Upload {item.label}
-                                        </ActionButton>
-                                    </div>
-                                ) : (
-                                    <div className="mt-4 flex flex-wrap gap-3">
-                                        <ActionButton
-                                            onClick={() => void runAction(
-                                                'review_document',
-                                                {
-                                                    document_id: item.id,
-                                                    outcome: 'approved',
-                                                    note: documentNotes[item.id] || '',
-                                                },
-                                                `${item.label} approved.`,
-                                            )}
-                                            busy={activeAction === 'review_document'}
+                                            tone="secondary"
+                                            onClick={() => void ensureDocumentPreview(item, { revealInViewport: true })}
+                                            busy={previewBusyItemId === item.id}
                                             disabled={!canPreview}
-                                            ariaLabel={`Approve ${item.label}`}
+                                            ariaLabel={`Preview ${item.label}`}
+                                            className="px-3 py-2 text-xs"
                                         >
-                                            Approve
+                                            <Eye size={14} />
+                                            Preview
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void runAction(
-                                                'review_document',
-                                                {
-                                                    document_id: item.id,
-                                                    outcome: 'reupload_needed',
-                                                    note: documentNotes[item.id] || '',
-                                                },
-                                                `${item.label} marked for replacement.`,
-                                            )}
-                                            busy={activeAction === 'review_document'}
+                                            onClick={() => void ensureDocumentPreview(item, { openInNewTab: true })}
+                                            busy={previewBusyItemId === item.id}
                                             disabled={!canPreview}
-                                            ariaLabel={`Request replacement for ${item.label}`}
+                                            ariaLabel={`Open ${item.label}`}
+                                            className="px-3 py-2 text-xs"
                                         >
-                                            Request replacement
+                                            <ArrowUpRight size={14} />
+                                            Open
                                         </ActionButton>
                                     </div>
-                                )}
+
+                                    <input
+                                        type="text"
+                                        value={documentNotes[item.id] || ''}
+                                        onChange={(event) => setDocumentNotes((previous) => ({
+                                            ...previous,
+                                            [item.id]: event.target.value,
+                                        }))}
+                                        aria-label={`Note for ${item.label}`}
+                                        placeholder={canUpload ? 'Short upload note' : 'Short review note'}
+                                        className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                                    />
+
+                                    {canUpload ? (
+                                        <div className="mt-3 space-y-3">
+                                            <input
+                                                ref={(node) => {
+                                                    fileInputRefs.current[item.id] = node;
+                                                }}
+                                                type="file"
+                                                aria-label={`Upload ${item.label}`}
+                                                onChange={(event) => setSelectedFiles((previous) => ({
+                                                    ...previous,
+                                                    [item.id]: event.target.files?.[0] || null,
+                                                }))}
+                                                className="hidden"
+                                            />
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <ActionButton
+                                                    tone="secondary"
+                                                    onClick={() => fileInputRefs.current[item.id]?.click()}
+                                                    className="px-3 py-2 text-xs"
+                                                >
+                                                    <Upload size={14} />
+                                                    Choose file
+                                                </ActionButton>
+                                                <span className="min-w-0 flex-1 truncate rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                    {selectedFiles[item.id]?.name || 'No replacement selected'}
+                                                </span>
+                                            </div>
+                                            {item.status === 'reupload_needed' ? (
+                                                <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                                    Replacement required. The current reviewer note stays visible until the new file is checked.
+                                                </p>
+                                            ) : null}
+                                            <ActionButton
+                                                onClick={() => void handleUploadDocument(item)}
+                                                busy={activeAction === busyKey}
+                                                disabled={!selectedFiles[item.id]}
+                                                className="w-full"
+                                            >
+                                                <Upload size={16} />
+                                                Upload file
+                                            </ActionButton>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <ActionButton
+                                                onClick={() => void runAction(
+                                                    'review_document',
+                                                    {
+                                                        document_id: item.id,
+                                                        outcome: 'approved',
+                                                        note: documentNotes[item.id] || '',
+                                                    },
+                                                    `${item.label} approved.`,
+                                                )}
+                                                busy={activeAction === 'review_document'}
+                                                disabled={!canPreview}
+                                                ariaLabel={`Approve ${item.label}`}
+                                                className="flex-1 px-3 py-2 text-xs"
+                                            >
+                                                Approve
+                                            </ActionButton>
+                                            <ActionButton
+                                                tone="secondary"
+                                                onClick={() => void runAction(
+                                                    'review_document',
+                                                    {
+                                                        document_id: item.id,
+                                                        outcome: 'reupload_needed',
+                                                        note: documentNotes[item.id] || '',
+                                                    },
+                                                    `${item.label} marked for replacement.`,
+                                                )}
+                                                busy={activeAction === 'review_document'}
+                                                disabled={!canPreview}
+                                                ariaLabel={`Request replacement for ${item.label}`}
+                                                className="flex-1 px-3 py-2 text-xs"
+                                            >
+                                                Request replacement
+                                            </ActionButton>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
@@ -2200,7 +2284,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-[292px_minmax(0,1fr)]">
+            <div
+                className={cn(
+                    'grid gap-4',
+                    workspacePreferences.caseRailCollapsed
+                        ? 'xl:grid-cols-[minmax(0,1fr)]'
+                        : 'xl:grid-cols-[224px_minmax(0,1fr)]',
+                )}
+            >
                 {!workspacePreferences.caseRailCollapsed ? (
                     <div className="hidden xl:block">
                         <FastTrackCaseRail
@@ -2222,9 +2313,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             onPageChange={setCurrentCasePage}
                         />
                     </div>
-                ) : (
-                    <div className="hidden xl:block" />
-                )}
+                ) : null}
 
                 <div className="space-y-6">
                     {selectedCase ? (
@@ -2243,7 +2332,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                             <FastTrackStageStepper items={stepperItems} />
 
-                            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.8fr)]">
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]">
                                 <div className="space-y-6">
                                     {renderActiveStage()}
                                 </div>
