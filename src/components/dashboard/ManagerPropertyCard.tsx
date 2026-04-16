@@ -4,6 +4,7 @@ import React from 'react';
 import { Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye } from 'lucide-react';
 import type { ListingType, PriceInfo } from '@/contexts/PropertyContext';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 
 interface ManagerPropertyCardProps {
     property: {
@@ -22,7 +23,9 @@ interface ManagerPropertyCardProps {
         sqft?: number;
         status: string;
         images?: string[] | any[];
+        image_urls?: unknown;
         image?: string;
+        image_url?: string;
         media?: any;
         dimensions?: {
             totalFloors?: number;
@@ -48,19 +51,6 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
     const size = property.area || property.sqft || 0;
-
-    const getImage = () => {
-        if (property.images && Array.isArray(property.images) && property.images.length > 0) {
-            return property.images[0];
-        }
-        if (property.image) {
-            return property.image;
-        }
-        if (property.media?.images?.[0]?.url) {
-            return property.media.images[0].url;
-        }
-        return null;
-    };
 
     const formatPrice = (price?: PriceInfo | number | string) => {
         const isRentalListing =
@@ -96,7 +86,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
         return null;
     };
 
-    const imageUrl = getImage();
+    const imageUrl = getPrimaryPropertyImage(property);
     const statusConfig = getManagerPropertyStatusBadge(property.status);
     const inventoryCaption = formatPropertyInventoryCaption(
         property.dimensions?.totalFloors ?? property.total_floors,
@@ -111,7 +101,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     <img
                         src={imageUrl}
                         alt={title}
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                     />
                 ) : (
                     <div className="flex items-center justify-center h-full">

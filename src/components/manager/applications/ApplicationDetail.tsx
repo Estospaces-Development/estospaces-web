@@ -1475,7 +1475,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     if (openingConversation) {
       return;
     }
-    if (application.conversationId) {
+    if (application.conversationId && !application.fastTrackCaseId) {
       navigate(`/manager/messages?conversation=${application.conversationId}`);
       return;
     }
@@ -1493,6 +1493,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
           propertyTitle: application.propertyTitle,
           propertyAddress: application.propertyAddress,
           propertyImage: application.propertyImage,
+          fastTrackCaseId: application.fastTrackCaseId,
           listingType:
             application.listingType === "buy"
               ? "sale"

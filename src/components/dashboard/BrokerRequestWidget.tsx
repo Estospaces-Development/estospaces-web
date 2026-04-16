@@ -39,7 +39,7 @@ import {
     buildBrokerRequestWorkspacePath,
     publishBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
-import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
+import { selectAutoResumeBrokerRequest } from '@/lib/brokerRequestSelection';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -238,6 +238,17 @@ const BrokerRequestWidget = () => {
         return () => window.clearTimeout(timeout);
     }, [workspacePulse]);
 
+    const resetWorkspaceForm = useCallback(() => {
+        setRequestType('buy');
+        setDetails('');
+        setLocation('');
+        setLocationPostcode('');
+        setBudget('');
+        setFastTrackEnabled(true);
+        setError(null);
+        setPostcodeError(null);
+    }, []);
+
     const loadActiveRequest = useCallback(async () => {
         if (requestedWorkspaceRequestId) {
             const { data } = await getBrokerRequestById(requestedWorkspaceRequestId, { suppressErrorToast: true });
@@ -254,13 +265,23 @@ const BrokerRequestWidget = () => {
             }
         }
 
-        const { data } = await getUserBrokerRequests({ suppressErrorToast: true });
-        if (!data || data.length === 0) {
+        const { data, error } = await getUserBrokerRequests({ suppressErrorToast: true });
+        if (error) {
             return;
         }
 
-        const latestRequest = selectPrimaryBrokerRequest(data);
+        if (!data || data.length === 0) {
+            setActiveRequest(null);
+            publishBrokerRequestWorkspaceSelection(null);
+            resetWorkspaceForm();
+            return;
+        }
+
+        const latestRequest = selectAutoResumeBrokerRequest(data);
         if (!latestRequest) {
+            setActiveRequest(null);
+            publishBrokerRequestWorkspaceSelection(null);
+            resetWorkspaceForm();
             return;
         }
 
@@ -272,7 +293,7 @@ const BrokerRequestWidget = () => {
         setBudget(latestRequest.budget || '');
         setDetails(latestRequest.details || '');
         setFastTrackEnabled(latestRequest.fast_track_enabled !== false);
-    }, [requestedWorkspaceRequestId]);
+    }, [requestedWorkspaceRequestId, resetWorkspaceForm]);
 
     useEffect(() => {
         void loadActiveRequest();

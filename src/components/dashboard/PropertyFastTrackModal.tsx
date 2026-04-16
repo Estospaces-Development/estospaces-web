@@ -115,8 +115,8 @@ const PropertyFastTrackModal = ({
     }
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/55 px-4 py-6 backdrop-blur-sm">
-            <div className="relative w-full max-w-4xl overflow-hidden rounded-[36px] border border-orange-100 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_26%,#fffdf8_100%)] shadow-[0_32px_120px_rgba(15,23,42,0.26)] dark:border-orange-900/40 dark:bg-[linear-gradient(180deg,#1c1917_0%,#0f172a_24%,#020617_100%)]">
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-gray-950/55 px-4 py-6 backdrop-blur-sm sm:px-6 sm:py-8">
+            <div className="relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-[36px] border border-orange-100 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_26%,#fffdf8_100%)] shadow-[0_32px_120px_rgba(15,23,42,0.26)] dark:border-orange-900/40 dark:bg-[linear-gradient(180deg,#1c1917_0%,#0f172a_24%,#020617_100%)]">
                 <button
                     type="button"
                     onClick={onClose}
@@ -126,8 +126,8 @@ const PropertyFastTrackModal = ({
                     <X size={18} />
                 </button>
 
-                <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_360px]">
-                    <section className="p-7 sm:p-9">
+                <div className="grid gap-0 lg:grid-cols-[minmax(0,1.55fr)_400px] xl:grid-cols-[minmax(0,1.7fr)_430px]">
+                    <section className="p-7 sm:p-9 xl:p-10">
                         <div className="flex flex-wrap items-center gap-3">
                             <span className="inline-flex items-center rounded-full border border-orange-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300">
                                 Fast-track workspace
@@ -139,10 +139,10 @@ const PropertyFastTrackModal = ({
                             ) : null}
                         </div>
 
-                        <h2 className="mt-5 max-w-2xl text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                        <h2 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-gray-900 dark:text-white xl:text-[3.1rem] xl:leading-[1.05]">
                             Keep the whole journey in one clean workspace.
                         </h2>
-                        <p className="mt-4 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-300">
+                        <p className="mt-4 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300">
                             Open the live case to handle files, viewing, decision, agreement, payment, and handover on one page.
                             No extra workflow screens. No message detours. No compliance-heavy checklist language.
                         </p>
@@ -230,7 +230,7 @@ const PropertyFastTrackModal = ({
                         </div>
                     </section>
 
-                    <aside className="border-t border-orange-100/70 bg-white/85 p-7 dark:border-orange-900/30 dark:bg-white/5 lg:border-l lg:border-t-0">
+                    <aside className="border-t border-orange-100/70 bg-white/85 p-7 xl:p-8 dark:border-orange-900/30 dark:bg-white/5 lg:border-l lg:border-t-0">
                         <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950/60">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">What changes</p>
                             <ul className="mt-4 space-y-3 text-sm leading-6 text-gray-600 dark:text-gray-300">

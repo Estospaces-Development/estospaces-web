@@ -344,6 +344,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const workspacePreferencesLoadedRef = useRef(false);
     const lastSavedWorkspacePreferencesRef = useRef('');
     const publishWorkspaceSync = usePublishWorkspaceSync();
+    const searchParamsKey = searchParams.toString();
 
     const releasePreviewObjectUrl = useCallback(() => {
         if (previewObjectUrlRef.current?.startsWith('blob:')) {
@@ -368,9 +369,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const { data, error: requestError } = await getFastTrackCases({ suppressErrorToast: true });
         if (data) {
-            const nextCases = sortCases(data);
-            setCases(nextCases);
-            setSelectedCaseId((previous) => resolveFastTrackSelectionCaseId(nextCases, searchParams, previous));
+            setCases(sortCases(data));
             setError(null);
         } else if (!silent) {
             setError(requestError || 'Unable to load fast-track cases.');
@@ -379,7 +378,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!silent) {
             setLoading(false);
         }
-    }, [searchParams]);
+    }, []);
 
     useEffect(() => {
         void fetchCases();
@@ -479,6 +478,24 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setCurrentCasePage(1);
     }, [filter, query]);
 
+    const selectionParams = useMemo(
+        () => new URLSearchParams(searchParamsKey),
+        [searchParamsKey],
+    );
+    const requestedCaseParam = selectionParams.get('case');
+
+    useEffect(() => {
+        if (cases.length === 0) {
+            setSelectedCaseId(null);
+            return;
+        }
+
+        const resolvedCaseId = resolveFastTrackSelectionCaseId(cases, selectionParams, selectedCaseId);
+        if (resolvedCaseId !== selectedCaseId) {
+            setSelectedCaseId(resolvedCaseId);
+        }
+    }, [cases, searchParamsKey, selectedCaseId, selectionParams]);
+
     useEffect(() => {
         if (filteredCases.length === 0) {
             return;
@@ -510,7 +527,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        if (searchParams.get('case') === selectedCaseId) {
+        if (requestedCaseParam === selectedCaseId) {
             return;
         }
 
@@ -519,7 +536,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             next.set('case', selectedCaseId);
             return next;
         });
-    }, [searchParams, selectedCaseId, setSearchParams]);
+    }, [requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
@@ -1795,105 +1812,113 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 title="Viewing"
                 description="Schedule, reschedule, skip, or complete the viewing in this workspace."
             >
-                <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current slot</p>
-                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                            {selectedCase.viewing.scheduledAt
-                                ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
-                                : 'No slot set yet'}
-                        </p>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.viewing.note || 'Add the viewing details below.'}
-                        </p>
+                <div className="space-y-5">
+                    <div className="grid gap-5 xl:grid-cols-3">
+                        <div data-fast-track-viewing-summary-card="current-slot" className="flex min-h-[160px] flex-col justify-between rounded-[24px] border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current slot</p>
+                                <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
+                                    {selectedCase.viewing.scheduledAt
+                                        ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
+                                        : 'No slot set yet'}
+                                </p>
+                            </div>
+                            <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                {selectedCase.viewing.note || 'Add the viewing details below.'}
+                            </p>
+                        </div>
+                        <div data-fast-track-viewing-summary-card="user-response" className="flex min-h-[160px] flex-col justify-between rounded-[24px] border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">User response</p>
+                                <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
+                                    {selectedCase.viewing.requestedChange
+                                        ? 'Change requested'
+                                        : selectedCase.viewing.confirmedByUser
+                                            ? 'Confirmed by user'
+                                            : 'Waiting for user response'}
+                                </p>
+                            </div>
+                            <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                {selectedCase.viewing.requestedChange || 'No change request has been sent back yet.'}
+                            </p>
+                        </div>
+                        <div data-fast-track-viewing-summary-card="last-change" className="flex min-h-[160px] flex-col justify-between rounded-[24px] border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Last change</p>
+                                <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
+                                    {formatDateTime(selectedCase.viewing.requestedChangeAt || selectedCase.viewing.scheduledAt)}
+                                </p>
+                            </div>
+                            <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                {selectedCase.viewing.requestedChangeAt
+                                    ? 'The latest user request is visible here before you reschedule.'
+                                    : 'Rescheduling updates this timeline in the same workspace.'}
+                            </p>
+                        </div>
                     </div>
-                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">User response</p>
-                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                            {selectedCase.viewing.requestedChange
-                                ? 'Change requested'
-                                : selectedCase.viewing.confirmedByUser
-                                    ? 'Confirmed by user'
-                                    : 'Waiting for user response'}
-                        </p>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.viewing.requestedChange || 'No change request has been sent back yet.'}
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Last change</p>
-                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                            {formatDateTime(selectedCase.viewing.requestedChangeAt || selectedCase.viewing.scheduledAt)}
-                        </p>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.viewing.requestedChangeAt
-                                ? 'The latest user request is visible here before you reschedule.'
-                                : 'Rescheduling will refresh this timeline on the same page.'}
-                        </p>
-                    </div>
-                </div>
 
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                    <DateField
-                        value={viewingDate}
-                        onChange={setViewingDate}
-                        ariaLabel="Viewing date"
+                    <div data-fast-track-viewing-input-row="true" className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.85fr)]">
+                        <DateField
+                            value={viewingDate}
+                            onChange={setViewingDate}
+                            ariaLabel="Viewing date"
+                        />
+                        <TimeField
+                            value={viewingTime}
+                            onChange={setViewingTime}
+                            ariaLabel="Viewing time"
+                        />
+                    </div>
+                    <textarea
+                        value={viewingNote}
+                        onChange={(event) => setViewingNote(event.target.value)}
+                        placeholder="Add one short note for the user."
+                        className="h-28 w-full rounded-[24px] border border-gray-200 bg-white px-4 py-3 text-sm leading-6 text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                     />
-                    <TimeField
-                        value={viewingTime}
-                        onChange={setViewingTime}
-                        ariaLabel="Viewing time"
-                    />
-                </div>
-                <textarea
-                    value={viewingNote}
-                    onChange={(event) => setViewingNote(event.target.value)}
-                    placeholder="Add one short note for the user."
-                    className="mt-4 h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                />
 
-                <div className="mt-5 flex flex-wrap gap-3">
-                    <ActionButton
-                        onClick={() => {
-                            if (!viewingDate || !viewingTime) {
-                                toast.error('Set both date and time first.');
-                                return;
-                            }
-                            void runAction(
-                                selectedCase.viewing.status === 'scheduled' ? 'reschedule_viewing' : 'schedule_viewing',
-                                {
-                                    scheduled_at: new Date(`${viewingDate}T${viewingTime}:00`).toISOString(),
-                                    note: viewingNote,
-                                },
-                                selectedCase.viewing.status === 'scheduled' ? 'Viewing rescheduled.' : 'Viewing scheduled.',
-                            );
-                        }}
-                        busy={activeAction === 'schedule_viewing' || activeAction === 'reschedule_viewing'}
-                    >
-                        {selectedCase.viewing.status === 'scheduled' ? 'Reschedule viewing' : 'Schedule viewing'}
-                    </ActionButton>
-                    <ActionButton
-                        tone="secondary"
-                        onClick={() => void runAction(
-                            'skip_viewing',
-                            { note: viewingNote },
-                            'Viewing skipped.',
-                        )}
-                        busy={activeAction === 'skip_viewing'}
-                    >
-                        Skip viewing
-                    </ActionButton>
-                    <ActionButton
-                        tone="secondary"
-                        onClick={() => void runAction(
-                            'complete_viewing',
-                            { note: viewingNote },
-                            'Viewing completed.',
-                        )}
-                        busy={activeAction === 'complete_viewing'}
-                    >
-                        Complete viewing
-                    </ActionButton>
+                    <div className="flex flex-wrap gap-3.5 pt-1">
+                        <ActionButton
+                            onClick={() => {
+                                if (!viewingDate || !viewingTime) {
+                                    toast.error('Set both date and time first.');
+                                    return;
+                                }
+                                void runAction(
+                                    selectedCase.viewing.status === 'scheduled' ? 'reschedule_viewing' : 'schedule_viewing',
+                                    {
+                                        scheduled_at: new Date(`${viewingDate}T${viewingTime}:00`).toISOString(),
+                                        note: viewingNote,
+                                    },
+                                    selectedCase.viewing.status === 'scheduled' ? 'Viewing rescheduled.' : 'Viewing scheduled.',
+                                );
+                            }}
+                            busy={activeAction === 'schedule_viewing' || activeAction === 'reschedule_viewing'}
+                        >
+                            {selectedCase.viewing.status === 'scheduled' ? 'Reschedule viewing' : 'Schedule viewing'}
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void runAction(
+                                'skip_viewing',
+                                { note: viewingNote },
+                                'Viewing skipped.',
+                            )}
+                            busy={activeAction === 'skip_viewing'}
+                        >
+                            Skip viewing
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void runAction(
+                                'complete_viewing',
+                                { note: viewingNote },
+                                'Viewing completed.',
+                            )}
+                            busy={activeAction === 'complete_viewing'}
+                        >
+                            Complete viewing
+                        </ActionButton>
+                    </div>
                 </div>
             </SectionShell>
         );

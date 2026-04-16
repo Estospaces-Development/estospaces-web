@@ -43,6 +43,36 @@ export const sortBrokerRequestsByPriority = (
     ? [...requests].sort(compareBrokerRequests)
     : [];
 
+export const shouldAutoResumeBrokerRequest = (
+    request: BrokerRequestRecord,
+) => {
+    const status = normalizeValue(request.status);
+    const dispatchStatus = normalizeValue(request.dispatch_status);
+    const handoffStatus = normalizeValue(request.handoff_status);
+
+    if (
+        status === 'cancelled'
+        || handoffStatus === 'cancelled'
+        || handoffStatus === 'archived'
+    ) {
+        return false;
+    }
+
+    if (status === 'expired' || dispatchStatus === 'expired') {
+        return false;
+    }
+
+    if (
+        handoffStatus === 'property_selected'
+        || Boolean(request.selected_property_id)
+        || Boolean(request.selected_fast_track_case_id)
+    ) {
+        return false;
+    }
+
+    return true;
+};
+
 export const selectPrimaryBrokerRequest = (
     requests: BrokerRequestRecord[] | null | undefined,
     preferredRequestId?: string | null,
@@ -68,5 +98,14 @@ export const selectPrimaryBrokerRequestBy = (
     preferredRequestId?: string | null,
 ) => selectPrimaryBrokerRequest(
     requests?.filter(predicate) || [],
+    preferredRequestId,
+);
+
+export const selectAutoResumeBrokerRequest = (
+    requests: BrokerRequestRecord[] | null | undefined,
+    preferredRequestId?: string | null,
+) => selectPrimaryBrokerRequestBy(
+    requests,
+    shouldAutoResumeBrokerRequest,
     preferredRequestId,
 );

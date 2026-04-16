@@ -273,7 +273,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         if (openingConversation) {
             return;
         }
-        if (application.conversationId) {
+        if (application.conversationId && !application.fastTrackCaseId) {
             navigate(`/manager/messages?conversation=${application.conversationId}`);
             return;
         }
@@ -289,6 +289,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                 propertyTitle: application.propertyTitle,
                 propertyAddress: application.propertyAddress,
                 propertyImage: application.propertyImage,
+                fastTrackCaseId: application.fastTrackCaseId,
                 listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
                 propertyPrice: application.propertyPrice,
                 senderName: user.user_metadata?.full_name || user.name || user.email,

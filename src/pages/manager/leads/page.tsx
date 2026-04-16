@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
 import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
 import LeadActionMap from '@/components/manager/LeadActionMap';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -289,11 +291,14 @@ export default function ManagerLeadsPage() {
             throw new Error('This lead does not have a linked user conversation yet.');
         }
 
+        const linkedCase = fastTrackCaseByLeadId.get(lead.id) || null;
+
         return messagesService.upsertDirectConversation(lead.user_id, {
             propertyId: lead.property_id,
             propertyTitle: getLeadTitle(lead),
             propertyAddress: getLeadAddress(lead),
             propertyImage: parseLeadPropertyImage(lead.property?.image_urls),
+            fastTrackCaseId: linkedCase?.caseId,
             listingType: lead.property?.listing_type,
             propertyPrice: lead.property?.price,
             senderName: user?.name || user?.email || 'Manager',
@@ -303,7 +308,7 @@ export default function ManagerLeadsPage() {
             recipientEmail: lead.email || '',
             recipientPhone: lead.phone || '',
         });
-    }, [user]);
+    }, [fastTrackCaseByLeadId, user]);
 
     const sendLeadMessage = useCallback(async (lead: Lead, content: string) => {
         const conversation = await openConversation(lead);
@@ -827,20 +832,22 @@ export default function ManagerLeadsPage() {
                         <div className="grid gap-4 md:grid-cols-2">
                             <label className="space-y-2 text-sm">
                                 <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
-                                <input
-                                    type="date"
+                                <DateField
                                     value={scheduleForm.requested_date}
-                                    onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_date: event.target.value }))}
-                                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                    onChange={(nextValue) => setScheduleForm((previous) => ({ ...previous, requested_date: nextValue }))}
+                                    className="w-full"
+                                    buttonClassName="bg-gray-50 dark:bg-gray-900"
+                                    ariaLabel="Lead schedule date"
                                 />
                             </label>
                             <label className="space-y-2 text-sm">
                                 <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
-                                <input
-                                    type="time"
+                                <TimeField
                                     value={scheduleForm.requested_time}
-                                    onChange={(event) => setScheduleForm((previous) => ({ ...previous, requested_time: event.target.value }))}
-                                    className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                    onChange={(nextValue) => setScheduleForm((previous) => ({ ...previous, requested_time: nextValue }))}
+                                    className="w-full"
+                                    inputClassName="bg-gray-50 dark:bg-gray-900"
+                                    ariaLabel="Lead schedule time"
                                 />
                             </label>
                         </div>

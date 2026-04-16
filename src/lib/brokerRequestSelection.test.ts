@@ -3,8 +3,10 @@ import assert from 'node:assert/strict';
 
 import type { BrokerRequestRecord } from '@/services/leadsService';
 import {
+    selectAutoResumeBrokerRequest,
     selectPrimaryBrokerRequest,
     selectPrimaryBrokerRequestBy,
+    shouldAutoResumeBrokerRequest,
     sortBrokerRequestsByPriority,
 } from '@/lib/brokerRequestSelection';
 
@@ -151,6 +153,66 @@ test('selectPrimaryBrokerRequestBy keeps the newest selected workspace instead o
     );
 
     assert.equal(selected?.id, 'selected-newer');
+});
+
+test('shouldAutoResumeBrokerRequest excludes property-selected requests from plain dashboard restore', () => {
+    const selectedRequest = makeRequest({
+        id: 'selected-request',
+        status: 'matched',
+        dispatch_status: 'broker_matched',
+        handoff_status: 'property_selected',
+        selected_property_id: 'property-1',
+        selected_fast_track_case_id: 'case-1',
+    });
+
+    assert.equal(shouldAutoResumeBrokerRequest(selectedRequest), false);
+});
+
+test('selectAutoResumeBrokerRequest skips selected-property handoff requests and keeps the active dashboard workspace', () => {
+    const selected = selectAutoResumeBrokerRequest([
+        makeRequest({
+            id: 'selected-property',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            handoff_status: 'property_selected',
+            selected_property_id: 'property-1',
+            updated_at: '2026-03-25T09:30:00.000Z',
+        }),
+        makeRequest({
+            id: 'portfolio-shared',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            handoff_status: 'portfolio_shared',
+            property_shares: [{ id: 'share-1' } as any],
+            updated_at: '2026-03-25T09:20:00.000Z',
+        }),
+    ]);
+
+    assert.equal(selected?.id, 'portfolio-shared');
+});
+
+test('selectAutoResumeBrokerRequest returns null when only archived or handed-off requests remain', () => {
+    const selected = selectAutoResumeBrokerRequest([
+        makeRequest({
+            id: 'selected-property',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            handoff_status: 'property_selected',
+            selected_property_id: 'property-1',
+        }),
+        makeRequest({
+            id: 'expired-request',
+            status: 'expired',
+            dispatch_status: 'expired',
+        }),
+        makeRequest({
+            id: 'archived-request',
+            status: 'matched',
+            handoff_status: 'archived',
+        }),
+    ]);
+
+    assert.equal(selected, null);
 });
 
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {

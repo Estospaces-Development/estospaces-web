@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FileText, Calendar, DollarSign, AlertCircle } from 'lucide-react';
+import { X, FileText, DollarSign, AlertCircle } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { createContract, CreateContractRequest } from '@/services/contractsService';
 import type { Contract } from '@/types/booking';
+import DateField from '@/components/ui/DateField';
 
 interface CreateContractModalProps {
     applicationId: string;
@@ -34,6 +35,10 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
         const monthlyRent = Number.parseFloat(monthlyRentInput);
         const depositAmount = Number.parseFloat(depositAmountInput);
 
+        if (!formData.start_date) {
+            setSubmitError('Start date is required.');
+            return;
+        }
         if (!Number.isFinite(monthlyRent) || monthlyRent < 0) {
             setSubmitError('Monthly rent must be a valid amount.');
             return;
@@ -133,35 +138,32 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                             {/* Dates */}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Start Date</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input
-                                        type="date"
-                                        required
-                                        value={formData.start_date}
-                                        onChange={(e) => {
-                                            setSubmitError('');
-                                            setFormData({ ...formData, start_date: e.target.value });
-                                        }}
-                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
+                                <DateField
+                                    value={formData.start_date}
+                                    onChange={(nextValue) => {
+                                        setSubmitError('');
+                                        setFormData({ ...formData, start_date: nextValue });
+                                    }}
+                                    className="w-full"
+                                    size="sm"
+                                    buttonClassName="dark:bg-gray-700"
+                                    ariaLabel="Contract start date"
+                                />
                             </div>
 
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">End Date (Optional)</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input
-                                        type="date"
-                                        value={formData.end_date}
-                                        onChange={(e) => {
-                                            setSubmitError('');
-                                            setFormData({ ...formData, end_date: e.target.value });
-                                        }}
-                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
-                                    />
-                                </div>
+                                <DateField
+                                    value={formData.end_date}
+                                    onChange={(nextValue) => {
+                                        setSubmitError('');
+                                        setFormData({ ...formData, end_date: nextValue });
+                                    }}
+                                    className="w-full"
+                                    size="sm"
+                                    buttonClassName="dark:bg-gray-700"
+                                    ariaLabel="Contract end date"
+                                />
                             </div>
                         </div>
 

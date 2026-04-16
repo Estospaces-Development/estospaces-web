@@ -53,6 +53,7 @@ import {
   Save,
   ArrowLeft,
 } from "lucide-react";
+import DateField from "@/components/ui/DateField";
 import AddressSection, {
   AddressFormData,
 } from "@/components/ui/AddressSection";
@@ -1131,6 +1132,9 @@ export default function AddPropertyPage() {
   const getFieldClassName = (field: string, extraClassName: string = "") =>
     `w-full rounded-lg border bg-gray-50 px-4 py-3 text-gray-900 transition-all hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-800 dark:text-white dark:hover:border-gray-600 ${errors[field] ? "border-red-500 dark:border-red-500" : "border-gray-100 dark:border-gray-700"} ${extraClassName}`.trim();
 
+  const getNumberFieldClassName = (field: string, extraClassName: string = "") =>
+    getFieldClassName(field, `themed-number-input ${extraClassName}`.trim());
+
   const renderFieldError = (field: string) =>
     errors[field] ? (
       <p className="mt-1 text-xs text-red-500">{errors[field]}</p>
@@ -2089,7 +2093,7 @@ export default function AddPropertyPage() {
                       min="0.01"
                       max={PROPERTY_NUMERIC_LIMITS.moneyMax}
                       step="0.01"
-                      className={getFieldClassName(
+                      className={getNumberFieldClassName(
                         "priceAmount",
                         "pl-16 pr-10",
                       )}
@@ -2284,7 +2288,7 @@ export default function AddPropertyPage() {
                     min="0.01"
                     max={PROPERTY_NUMERIC_LIMITS.areaMax}
                     step="0.01"
-                    className={getFieldClassName("totalArea", "pr-10")}
+                    className={getNumberFieldClassName("totalArea", "pr-10")}
                     placeholder="0"
                   />
                   {renderFieldError("totalArea")}
@@ -2306,7 +2310,7 @@ export default function AddPropertyPage() {
                     min="0"
                     max={PROPERTY_NUMERIC_LIMITS.areaMax}
                     step="0.01"
-                    className={getFieldClassName("carpetArea", "pr-10")}
+                    className={getNumberFieldClassName("carpetArea", "pr-10")}
                     placeholder="0"
                   />
                   {renderFieldError("carpetArea")}
@@ -2347,7 +2351,7 @@ export default function AddPropertyPage() {
                       )
                     }
                     step="1"
-                    className={getFieldClassName("yearBuilt", "pr-10")}
+                    className={getNumberFieldClassName("yearBuilt", "pr-10")}
                   />
                   {renderFieldError("yearBuilt")}
                 </div>
@@ -2374,7 +2378,7 @@ export default function AddPropertyPage() {
                       handleNumericChange("bedrooms", e.target.value, 0)
                     }
                     step="1"
-                    className={getFieldClassName("bedrooms", "pr-10")}
+                    className={getNumberFieldClassName("bedrooms", "pr-10")}
                   />
                   {renderFieldError("bedrooms")}
                 </div>
@@ -2391,7 +2395,7 @@ export default function AddPropertyPage() {
                       handleNumericChange("bathrooms", e.target.value, 0)
                     }
                     step="1"
-                    className={getFieldClassName("bathrooms", "pr-10")}
+                    className={getNumberFieldClassName("bathrooms", "pr-10")}
                   />
                   {renderFieldError("bathrooms")}
                 </div>
@@ -2408,7 +2412,7 @@ export default function AddPropertyPage() {
                       handleNumericChange("balconies", e.target.value, 0)
                     }
                     step="1"
-                    className={getFieldClassName("balconies", "pr-10")}
+                    className={getNumberFieldClassName("balconies", "pr-10")}
                   />
                   {renderFieldError("balconies")}
                 </div>
@@ -2425,7 +2429,7 @@ export default function AddPropertyPage() {
                       handleNumericChange("parkingSpaces", e.target.value, 0)
                     }
                     step="1"
-                    className={getFieldClassName("parkingSpaces", "pr-10")}
+                    className={getNumberFieldClassName("parkingSpaces", "pr-10")}
                   />
                   {renderFieldError("parkingSpaces")}
                 </div>
@@ -2445,7 +2449,7 @@ export default function AddPropertyPage() {
                       handleNumericChange("floorNumber", e.target.value, 0)
                     }
                     step="1"
-                    className={getFieldClassName("floorNumber", "pr-10")}
+                    className={getNumberFieldClassName("floorNumber", "pr-10")}
                   />
                   {renderFieldError("floorNumber")}
                 </div>
@@ -2462,7 +2466,7 @@ export default function AddPropertyPage() {
                       handleNumericChange("totalFloors", e.target.value, 1)
                     }
                     step="1"
-                    className={getFieldClassName("totalFloors", "pr-10")}
+                    className={getNumberFieldClassName("totalFloors", "pr-10")}
                   />
                   {renderFieldError("totalFloors")}
                 </div>
@@ -2949,13 +2953,14 @@ export default function AddPropertyPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Available From
                   </label>
-                  <input
-                    type="date"
+                  <DateField
                     value={formData.availableFrom}
-                    onChange={(e) =>
-                      handleInputChange("availableFrom", e.target.value)
+                    onChange={(nextValue) =>
+                      handleInputChange("availableFrom", nextValue)
                     }
-                    className={getFieldClassName("availableFrom")}
+                    className="w-full"
+                    buttonClassName={getFieldClassName("availableFrom")}
+                    ariaLabel="Available from date"
                   />
                   {renderFieldError("availableFrom")}
                 </div>
@@ -2977,7 +2982,7 @@ export default function AddPropertyPage() {
                         )
                       }
                       step="1"
-                      className={getFieldClassName("minimumLease", "pr-10")}
+                      className={getNumberFieldClassName("minimumLease", "pr-10")}
                     />
                     {renderFieldError("minimumLease")}
                   </div>
@@ -2999,7 +3004,7 @@ export default function AddPropertyPage() {
                     }
                     max={PROPERTY_NUMERIC_LIMITS.moneyMax}
                     step="0.01"
-                    className={getFieldClassName("deposit", "pr-10")}
+                    className={getNumberFieldClassName("deposit", "pr-10")}
                     placeholder="0"
                   />
                   {renderFieldError("deposit")}
@@ -3021,7 +3026,7 @@ export default function AddPropertyPage() {
                     }
                     max={PROPERTY_NUMERIC_LIMITS.moneyMax}
                     step="0.01"
-                    className={getFieldClassName("maintenanceCharges", "pr-10")}
+                    className={getNumberFieldClassName("maintenanceCharges", "pr-10")}
                     placeholder="0"
                   />
                   {renderFieldError("maintenanceCharges")}

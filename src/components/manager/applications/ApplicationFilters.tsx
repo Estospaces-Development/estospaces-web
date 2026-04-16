@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 import { APPLICATION_STATUS } from '../../../contexts/ApplicationsContext';
+import DateField from '@/components/ui/DateField';
 
 interface ApplicationFiltersProps {
     searchQuery: string;
@@ -185,23 +186,24 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
                             </label>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <input
-                                        type="date"
+                                    <DateField
                                         value={dateRangeFilter.start || ''}
-                                        onChange={(e) =>
-                                            setDateRangeFilter({ ...dateRangeFilter, start: e.target.value || null })
+                                        onChange={(nextValue) =>
+                                            setDateRangeFilter({ ...dateRangeFilter, start: nextValue || null })
                                         }
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white text-sm"
+                                        placeholder="Start date"
+                                        size="sm"
                                     />
                                 </div>
                                 <div>
-                                    <input
-                                        type="date"
+                                    <DateField
                                         value={dateRangeFilter.end || ''}
-                                        onChange={(e) =>
-                                            setDateRangeFilter({ ...dateRangeFilter, end: e.target.value || null })
+                                        onChange={(nextValue) =>
+                                            setDateRangeFilter({ ...dateRangeFilter, end: nextValue || null })
                                         }
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white text-sm"
+                                        placeholder="End date"
+                                        size="sm"
+                                        align="right"
                                     />
                                 </div>
                             </div>

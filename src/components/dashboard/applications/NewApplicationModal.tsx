@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    X, Loader2, Home, User, Briefcase, DollarSign, Calendar,
+    X, Loader2, Home, User, Briefcase, DollarSign,
     Phone, Mail, Building2, FileText, CheckCircle, Search,
     ArrowRight, ArrowLeft, Sparkles, MapPin, Bed, Bath, Edit2,
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as propertyService from '@/services/propertyService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import DateField from '@/components/ui/DateField';
 
 interface Property {
     id: string;
@@ -685,17 +686,15 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 Preferred Move-in Date
                                             </label>
-                                            <div className="relative">
-                                                <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                <input
-                                                    type="date"
-                                                    name="moveInDate"
-                                                    value={formData.moveInDate}
-                                                    onChange={handleInputChange}
-                                                    min={new Date().toISOString().split('T')[0]}
-                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
-                                                />
-                                            </div>
+                                            <DateField
+                                                name="moveInDate"
+                                                value={formData.moveInDate}
+                                                onChange={(nextValue) => setFormData((previous) => ({ ...previous, moveInDate: nextValue }))}
+                                                min={new Date().toISOString().split('T')[0]}
+                                                className="w-full"
+                                                buttonClassName="border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700"
+                                                ariaLabel="Preferred move-in date"
+                                            />
                                         </div>
                                     </div>
 

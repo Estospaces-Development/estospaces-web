@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
 
 interface Appointment {
     id?: string;
@@ -117,13 +119,27 @@ const AddAppointmentModal = ({
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date *</label>
-                            <input type="date" value={formData.date} onChange={(e) => handleInputChange('date', e.target.value)} className={`w-full px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:text-white ${errors.date ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`} />
+                            <DateField
+                                value={formData.date}
+                                onChange={(nextValue) => handleInputChange('date', nextValue)}
+                                className="w-full"
+                                size="sm"
+                                buttonClassName={`bg-white dark:bg-gray-800 ${errors.date ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 dark:border-gray-700'}`}
+                                ariaLabel="Appointment date"
+                            />
                             {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
                         </div>
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Time *</label>
-                            <input type="time" value={formData.time} onChange={(e) => handleInputChange('time', e.target.value)} className={`w-full px-4 py-2 bg-white dark:bg-gray-800 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:text-white ${errors.time ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`} />
+                            <TimeField
+                                value={formData.time}
+                                onChange={(nextValue) => handleInputChange('time', nextValue)}
+                                className="w-full"
+                                size="sm"
+                                inputClassName={`bg-white dark:bg-gray-800 ${errors.time ? 'border-red-500 focus:ring-red-200' : 'border-gray-300 dark:border-gray-700'}`}
+                                ariaLabel="Appointment time"
+                            />
                             {errors.time && <p className="text-red-500 text-xs mt-1">{errors.time}</p>}
                         </div>
 

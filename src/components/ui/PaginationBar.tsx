@@ -14,6 +14,7 @@ interface PaginationBarProps {
     itemLabel?: string;
     disabled?: boolean;
     className?: string;
+    stacked?: boolean;
 }
 
 export default function PaginationBar({
@@ -26,6 +27,7 @@ export default function PaginationBar({
     itemLabel = 'items',
     disabled = false,
     className = '',
+    stacked = false,
 }: PaginationBarProps) {
     if (totalPages <= 1) {
         return null;
@@ -38,8 +40,12 @@ export default function PaginationBar({
     const canGoPrevious = !disabled && safeCurrentPage > 1;
     const canGoNext = !disabled && safeCurrentPage < totalPages;
 
+    const containerLayoutClass = stacked
+        ? 'flex-col items-stretch justify-start'
+        : 'flex-col sm:flex-row sm:items-center sm:justify-between';
+
     return (
-        <div className={`flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white/95 px-5 py-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/95 sm:flex-row sm:items-center sm:justify-between ${className}`}>
+        <div className={`flex gap-4 rounded-3xl border border-gray-100 bg-white/95 px-5 py-4 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-900/95 ${containerLayoutClass} ${className}`}>
             <div className="space-y-1">
                 {range && totalItems !== undefined ? (
                     <>
@@ -58,7 +64,7 @@ export default function PaginationBar({
                 )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className={`flex flex-wrap items-center gap-2 ${stacked ? 'w-full' : ''}`}>
                 <button
                     type="button"
                     onClick={() => canGoPrevious && onPageChange(safeCurrentPage - 1)}
@@ -69,7 +75,12 @@ export default function PaginationBar({
                     Previous
                 </button>
 
-                <div className="flex items-center gap-2 rounded-2xl bg-gray-50/90 px-2 py-2 dark:bg-gray-800/80">
+                <div
+                    className={[
+                        'flex items-center gap-2 rounded-2xl bg-gray-50/90 px-2 py-2 dark:bg-gray-800/80',
+                        stacked ? 'w-full max-w-full flex-wrap justify-center' : '',
+                    ].join(' ')}
+                >
                     {tokens.map((token, index) => {
                         if (token === 'ellipsis') {
                             return (

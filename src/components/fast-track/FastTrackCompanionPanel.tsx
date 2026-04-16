@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Clock3, FileText, Handshake, Home, Loader2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, FileText, Handshake, Home, Loader2, MessageSquareText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import DateField from "@/components/ui/DateField";
 import TimeField from "@/components/ui/TimeField";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/contexts/ToastContext";
 import { usePublishWorkspaceSync } from "@/contexts/WorkspaceSyncContext";
 import {
@@ -17,7 +18,9 @@ import {
   type FastTrackCompanionContext,
   type FastTrackCompanionRole,
 } from "@/lib/fastTrackCompanion";
+import { resolveFastTrackThreadRecipientId } from "@/lib/fastTrackWorkspace";
 import type { FastTrackCase } from "@/services/fastTrackService";
+import { upsertDirectConversation } from "@/services/messagesService";
 
 interface FastTrackCompanionPanelProps {
   role: FastTrackCompanionRole;
@@ -87,9 +90,11 @@ export default function FastTrackCompanionPanel({
   onRefresh,
 }: FastTrackCompanionPanelProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const toast = useToast();
   const publishWorkspaceSync = usePublishWorkspaceSync();
   const [activeAction, setActiveAction] = useState<string | null>(null);
+  const [openingConversation, setOpeningConversation] = useState(false);
   const [viewingDate, setViewingDate] = useState("");
   const [viewingTime, setViewingTime] = useState("10:00");
   const [viewingNote, setViewingNote] = useState("");
@@ -125,6 +130,11 @@ export default function FastTrackCompanionPanel({
     () => buildFastTrackCompanionWorkspacePath(role, fastTrackCase, context),
     [context, fastTrackCase, role],
   );
+  const messagesPath = role === "manager" ? "/manager/messages" : "/user/dashboard/messages";
+  const threadRecipientId = useMemo(
+    () => resolveFastTrackThreadRecipientId(role, user?.id, fastTrackCase),
+    [fastTrackCase, role, user?.id],
+  );
 
   const parsedDecisionAmount = decisionAmount.trim() ? Number(decisionAmount) : 0;
   const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
@@ -156,6 +166,37 @@ export default function FastTrackCompanionPanel({
     },
     [fastTrackCase, onCaseUpdated, onRefresh, publishWorkspaceSync, toast],
   );
+
+  const handleOpenMessages = useCallback(async () => {
+    if (!user || !threadRecipientId) {
+      toast.error(
+        role === "user"
+          ? "The case manager conversation is not ready yet."
+          : "The client conversation is not ready yet.",
+      );
+      return;
+    }
+
+    setOpeningConversation(true);
+    try {
+      const conversation = await upsertDirectConversation(threadRecipientId, {
+        fastTrackCaseId: fastTrackCase.caseId,
+        propertyId: fastTrackCase.propertyId,
+        propertyTitle: fastTrackCase.propertyTitle,
+        listingType: fastTrackCase.listingType,
+        senderName: user.user_metadata?.full_name || user.name || user.email,
+        senderEmail: user.email,
+        senderPhone: user.phone || user.user_metadata?.phone || "",
+        recipientName: role === "user" ? "Case manager" : fastTrackCase.clientName || "",
+      });
+
+      navigate(`${messagesPath}?conversation=${conversation.id}`);
+    } catch (error: any) {
+      toast.error(error?.message || "Unable to open the linked message thread right now.");
+    } finally {
+      setOpeningConversation(false);
+    }
+  }, [fastTrackCase, messagesPath, navigate, role, threadRecipientId, toast, user]);
 
   const renderViewingActions = () => {
     if (role === "user") {
@@ -646,15 +687,31 @@ export default function FastTrackCompanionPanel({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          data-fast-track-companion-open-workspace="true"
-          onClick={() => navigate(workspacePath)}
-          className="inline-flex items-center gap-2 rounded-2xl border border-orange-300 bg-white px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:bg-black dark:text-orange-200 dark:hover:bg-orange-950/30"
-        >
-          Open fast-track workspace
-          <ArrowRight className="h-4 w-4" />
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            data-fast-track-companion-open-messages="true"
+            onClick={() => void handleOpenMessages()}
+            disabled={openingConversation || !threadRecipientId}
+            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+          >
+            {openingConversation ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquareText className="h-4 w-4" />
+            )}
+            {openingConversation ? "Opening messages" : "Open messages"}
+          </button>
+          <button
+            type="button"
+            data-fast-track-companion-open-workspace="true"
+            onClick={() => navigate(workspacePath)}
+            className="inline-flex items-center gap-2 rounded-2xl border border-orange-300 bg-white px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-800 dark:bg-black dark:text-orange-200 dark:hover:bg-orange-950/30"
+          >
+            Open fast-track workspace
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="mt-5">{renderStageActions()}</div>
