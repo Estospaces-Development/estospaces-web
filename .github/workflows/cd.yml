@@ -1,0 +1,66 @@
+name: CD - Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: estospaces-web-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.ref_name == 'develop' || github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'dev' }}
+    env:
+      SERVICE_NAME: estospaces-web
+      REGION: europe-west2
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      TARGET_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and Push
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          docker build \
+            --build-arg VITE_CORE_SERVICE_URL=${{ vars.CORE_SERVICE_URL }} \
+            --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.BOOKING_SERVICE_URL }} \
+            --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.PAYMENT_SERVICE_URL }} \
+            --build-arg VITE_NOTIFICATION_SERVICE_URL=${{ vars.NOTIFICATION_SERVICE_URL }} \
+            --build-arg VITE_SEARCH_SERVICE_URL=${{ vars.SEARCH_SERVICE_URL }} \
+            --build-arg VITE_MEDIA_SERVICE_URL=${{ vars.MEDIA_SERVICE_URL }} \
+            --build-arg VITE_MESSAGING_SERVICE_URL=${{ vars.MESSAGING_SERVICE_URL }} \
+            -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
+          gcloud run services update "$SERVICE_TARGET" \
+            --image="$IMAGE" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}"
+
+      - name: Health check
+        run: |
+          SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
+          SERVICE_URL="$(gcloud run services describe "$SERVICE_TARGET" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
+          curl --fail --show-error --silent "${SERVICE_URL}/health" > /dev/null
