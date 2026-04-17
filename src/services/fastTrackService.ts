@@ -190,6 +190,38 @@ interface BackendFastTrackWorkspaceCase {
     }>;
 }
 
+interface BackendFastTrackLegacyCase {
+    id: string;
+    case_id?: string;
+    property_id?: string;
+    client_id?: string;
+    client_name?: string;
+    property_title?: string;
+    property_type?: string;
+    property_country?: string;
+    listing_type?: string;
+    journey_type?: string;
+    current_step?: string;
+    final_status?: string;
+    documents?: Record<string, unknown> | unknown[];
+    submitted_at?: string;
+    updated_at?: string;
+    hours_remaining?: number;
+    expires_at?: string;
+    lead_id?: string;
+    manager_id?: string;
+    broker_request_id?: string;
+    started_from?: string;
+    application_id?: string;
+    viewing_id?: string;
+    contract_id?: string;
+    payment_id?: string;
+}
+
+type BackendFastTrackApiCase =
+    | BackendFastTrackWorkspaceCase
+    | BackendFastTrackLegacyCase;
+
 export interface FastTrackCase {
     id: string;
     caseId: string;
@@ -354,8 +386,11 @@ const normalizeDocumentStatus = (
     value: string | undefined,
 ): FastTrackDocumentStatus => {
     switch (String(value || '').trim().toLowerCase()) {
+        case 'verified':
+            return 'approved';
         case 'uploaded':
             return 'uploaded';
+        case 'reupload_required':
         case 'approved':
             return 'approved';
         case 'reupload_needed':
@@ -469,9 +504,218 @@ const deriveStatusReason = (
     }
 };
 
+const isWorkspaceCase = (
+    raw: BackendFastTrackApiCase,
+): raw is BackendFastTrackWorkspaceCase =>
+    Boolean((raw as BackendFastTrackWorkspaceCase).header);
+
+const legacyStepToStage = (
+    value: string | undefined,
+    finalStatus: FastTrackFinalStatus,
+): FastTrackStage => {
+    if (finalStatus === 'completed') {
+        return 'handover';
+    }
+
+    switch (String(value || '').trim().toLowerCase()) {
+        case 'documents':
+        case 'documents_requested':
+        case 'documents_verified':
+            return 'documents';
+        case 'viewing':
+        case 'viewing_scheduled':
+        case 'viewing_completed':
+            return 'viewing';
+        case 'decision':
+        case 'owner_approval':
+        case 'legal_check':
+        case 'application_in_review':
+            return 'decision';
+        case 'agreement':
+        case 'payment_ready':
+        case 'ready_for_contract':
+            return 'agreement';
+        case 'handover':
+        case 'completed':
+            return 'handover';
+        default:
+            return 'selected';
+    }
+};
+
+const formatLegacyDocumentLabel = (key: string) =>
+    key
+        .replace(/_/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const normalizeLegacyDocumentItems = (
+    value: BackendFastTrackLegacyCase['documents'],
+): FastTrackDocumentItem[] => {
+    if (Array.isArray(value)) {
+        return value
+            .map((entry, index) => {
+                if (!entry || typeof entry !== 'object') {
+                    return null;
+                }
+
+                const record = entry as Record<string, unknown>;
+                const id = String(record.id || record.key || `document-${index + 1}`);
+                const label = String(
+                    record.label || record.name || formatLegacyDocumentLabel(id),
+                );
+                const rawStatus = String(
+                    record.status || record.document_status || 'pending',
+                );
+
+                return {
+                    id,
+                    label,
+                    status: normalizeDocumentStatus(rawStatus),
+                    documentRecordId: record.document_record_id
+                        ? String(record.document_record_id)
+                        : undefined,
+                    fileName: record.file_name ? String(record.file_name) : undefined,
+                    fileUrl: record.file_url ? String(record.file_url) : undefined,
+                    note: record.note ? String(record.note) : undefined,
+                    uploadedAt: record.uploaded_at ? String(record.uploaded_at) : undefined,
+                    reviewedAt: record.reviewed_at ? String(record.reviewed_at) : undefined,
+                    reviewedBy: record.reviewed_by ? String(record.reviewed_by) : undefined,
+                } as FastTrackDocumentItem;
+            })
+            .filter((item): item is FastTrackDocumentItem => Boolean(item));
+    }
+
+    if (!value || typeof value !== 'object') {
+        return [];
+    }
+
+    return Object.entries(value).map(([key, rawValue]) => {
+        const nested = rawValue && typeof rawValue === 'object'
+            ? (rawValue as Record<string, unknown>)
+            : null;
+        const rawStatus = nested
+            ? String(nested.status || nested.document_status || 'pending')
+            : String(rawValue || 'pending');
+
+        return {
+            id: key,
+            label: formatLegacyDocumentLabel(key),
+            status: normalizeDocumentStatus(rawStatus),
+            documentRecordId: nested?.document_record_id
+                ? String(nested.document_record_id)
+                : undefined,
+            fileName: nested?.file_name ? String(nested.file_name) : undefined,
+            fileUrl: nested?.file_url ? String(nested.file_url) : undefined,
+            note: nested?.note ? String(nested.note) : undefined,
+            uploadedAt: nested?.uploaded_at ? String(nested.uploaded_at) : undefined,
+            reviewedAt: nested?.reviewed_at ? String(nested.reviewed_at) : undefined,
+            reviewedBy: nested?.reviewed_by ? String(nested.reviewed_by) : undefined,
+        };
+    });
+};
+
+const resolveLegacyDocumentStatus = (
+    items: FastTrackDocumentItem[],
+    keys: string[],
+): DocStatus => {
+    const match = items.find((item) =>
+        keys.includes(String(item.id || '').trim().toLowerCase()),
+    );
+
+    return toLegacyDocumentStatus(match?.status || 'pending');
+};
+
 const mapBackendToFrontend = (
-    raw: BackendFastTrackWorkspaceCase,
+    raw: BackendFastTrackApiCase,
 ): FastTrackCase => {
+    if (!isWorkspaceCase(raw)) {
+        const workspaceFinalStatus = normalizeWorkspaceFinalStatus(raw.final_status);
+        const stage = legacyStepToStage(raw.current_step, workspaceFinalStatus);
+        const items = normalizeLegacyDocumentItems(raw.documents);
+        const journeyMode = normalizeJourneyMode(
+            raw.journey_type || raw.listing_type || raw.property_type,
+        );
+        const documentPhase = deriveDocumentPhase(stage, items);
+
+        return {
+            id: raw.id,
+            caseId: raw.case_id || raw.id,
+            propertyId: raw.property_id || raw.id,
+            propertyTitle: raw.property_title || 'Untitled property',
+            propertyType: raw.property_type || 'rent',
+            propertyCountry: raw.property_country,
+            clientId: raw.client_id || '',
+            clientName: raw.client_name || 'Unknown client',
+            managerId: raw.manager_id || undefined,
+            leadId: raw.lead_id || undefined,
+            brokerRequestId: raw.broker_request_id || undefined,
+            listingType: normalizeListingType(raw.listing_type || raw.property_type),
+            journeyMode,
+            journeyType: journeyMode === 'sale' ? 'buy' : 'rent',
+            startedFrom: raw.started_from,
+            submittedAt: raw.submitted_at || raw.updated_at || new Date(0).toISOString(),
+            expiresAt: raw.expires_at,
+            hoursRemaining: Number(raw.hours_remaining || 0),
+            overdue: Number(raw.hours_remaining || 0) <= 0,
+            stage,
+            currentStep: legacyStepToStage(raw.current_step, workspaceFinalStatus) === 'selected'
+                ? 'property_selected'
+                : toLegacyStep(stage, workspaceFinalStatus),
+            backendCurrentStep:
+                String(raw.current_step || '').trim().toLowerCase() === 'completed'
+                    ? 'completed'
+                    : legacyStepToStage(raw.current_step, workspaceFinalStatus) === 'selected'
+                        ? 'property_selected'
+                        : toLegacyStep(stage, workspaceFinalStatus),
+            workspaceFinalStatus,
+            finalStatus: toLegacyFinalStatus(workspaceFinalStatus),
+            documents: {
+                identityProof: resolveLegacyDocumentStatus(items, [
+                    'identity',
+                    'identityproof',
+                    'idproof',
+                ]),
+                addressProof: resolveLegacyDocumentStatus(items, [
+                    'address',
+                    'addressproof',
+                    'propertydocs',
+                ]),
+                items,
+                allUploaded: items.length > 0 && items.every((item) => item.status !== 'pending'),
+                allApproved: items.length > 0 && items.every((item) => item.status === 'approved'),
+            },
+            viewing: {
+                status: stage === 'viewing' ? 'scheduled' : 'pending',
+            },
+            decision: {
+                mode: journeyMode,
+                status: stage === 'decision' ? 'pending' : 'pending',
+                currency: 'GBP',
+            },
+            agreement: {
+                status: stage === 'agreement' || stage === 'handover' ? 'sent' : 'pending',
+                paymentStatus: 'not_requested',
+            },
+            handover: {
+                status: workspaceFinalStatus === 'completed'
+                    ? 'completed'
+                    : stage === 'handover'
+                        ? 'ready'
+                        : 'pending',
+            },
+            activity: [],
+            documentPhase,
+            documentPhaseReason: deriveDocumentPhaseReason(documentPhase),
+            nextAction: deriveNextAction(stage, journeyMode),
+            statusReason: deriveStatusReason(stage, journeyMode, workspaceFinalStatus),
+            applicationId: raw.application_id,
+            viewingId: raw.viewing_id,
+            contractId: raw.contract_id,
+            paymentId: raw.payment_id,
+        };
+    }
+
     const stage = normalizeStage(raw.stage);
     const workspaceFinalStatus = normalizeWorkspaceFinalStatus(raw.final_status);
     const items = (raw.documents?.items || []).map((item) => ({
@@ -576,7 +820,7 @@ export const getFastTrackCases = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: FastTrackCase[] | null; error: string | null }> => {
     try {
-        const result = await apiFetch<BackendFastTrackWorkspaceCase[]>(
+        const result = await apiFetch<BackendFastTrackApiCase[]>(
             `${BOOKING_URL()}/api/v1/fast-track`,
             options,
         );
@@ -591,7 +835,7 @@ export const getFastTrackCaseById = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: FastTrackCase | null; error: string | null }> => {
     try {
-        const result = await apiFetch<BackendFastTrackWorkspaceCase>(
+        const result = await apiFetch<BackendFastTrackApiCase>(
             `${BOOKING_URL()}/api/v1/fast-track/${id}`,
             options,
         );
@@ -606,7 +850,7 @@ export const createFastTrackCase = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: FastTrackCase | null; error: string | null }> => {
     try {
-        const result = await apiFetch<BackendFastTrackWorkspaceCase>(
+        const result = await apiFetch<BackendFastTrackApiCase>(
             `${BOOKING_URL()}/api/v1/fast-track`,
             {
                 method: 'POST',
@@ -626,7 +870,7 @@ export const performFastTrackAction = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: FastTrackCase | null; error: string | null }> => {
     try {
-        const result = await apiFetch<BackendFastTrackWorkspaceCase>(
+        const result = await apiFetch<BackendFastTrackApiCase>(
             `${BOOKING_URL()}/api/v1/fast-track/${id}/actions`,
             {
                 method: 'POST',
@@ -646,7 +890,7 @@ export const updateFastTrackCase = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: FastTrackCase | null; error: string | null }> => {
     try {
-        const result = await apiFetch<BackendFastTrackWorkspaceCase>(
+        const result = await apiFetch<BackendFastTrackApiCase>(
             `${BOOKING_URL()}/api/v1/fast-track/${id}`,
             {
                 method: 'PUT',
