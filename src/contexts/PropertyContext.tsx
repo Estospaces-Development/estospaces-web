@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import * as propertyService from '../services/propertyService';
+import { useAuth } from './AuthContext';
 
 // Type definitions
 export type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'INR' | 'AED' | 'CAD' | 'AUD' | 'JPY' | 'CNY' | 'SGD';
@@ -246,6 +248,8 @@ export const useProperties = () => {
 // Provider Implementation
 
 export const PropertyProvider = ({ children }: { children: ReactNode }) => {
+    const { user } = useAuth();
+    const { pathname } = useLocation();
     const [properties, setProperties] = useState<Property[]>([]);
     const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
     const [filters, setFiltersState] = useState<PropertyFilters>({});
@@ -430,9 +434,33 @@ export const PropertyProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const shouldAutoFetchProperties = useMemo(() => {
+        if (!user) return false;
+
+        if (user.role === 'manager') {
+            return (
+                pathname.startsWith('/manager/dashboard/properties') ||
+                pathname.startsWith('/manager/analytics') ||
+                pathname.startsWith('/manager/leads')
+            );
+        }
+
+        if (user.role === 'admin') {
+            return pathname.startsWith('/admin/properties');
+        }
+
+        return false;
+    }, [pathname, user]);
+
     useEffect(() => {
+        if (!shouldAutoFetchProperties) {
+            setLoading(false);
+            setError(null);
+            return;
+        }
+
         fetchProperties();
-    }, [filters]);
+    }, [filters, shouldAutoFetchProperties]);
 
     const filteredProperties = properties;
     // Placeholder for actual filtering logic

@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bell, Calendar, Check, CreditCard, FileText, Home, Info, MessageSquare, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications, markRead, markAllRead, NOTIFICATION_TYPES, type Notification } from '@/services/notificationsService';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
 
 interface DisplayNotification {
     id: string;
@@ -16,48 +15,33 @@ interface DisplayNotification {
     data: Record<string, any>;
 }
 
-const mapNotification = (n: Notification): DisplayNotification => ({
-    id: n.id,
-    type: n.type,
-    title: n.title,
-    message: n.message,
-    read: n.is_read,
-    timestamp: n.created_at,
-    data: n.data ? (typeof n.data === 'string' ? JSON.parse(n.data) : n.data) : {},
-});
-
 const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
-    const [notifications, setNotifications] = useState<DisplayNotification[]>([]);
-    const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const {
+        notifications,
+        loading,
+        fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+    } = useNotifications();
 
-    // Fetch notifications from backend
-    const fetchNotifications = useCallback(async () => {
-        if (!user) return;
-        setLoading(true);
-        try {
-            const result = await getNotifications();
-            setNotifications((result.notifications || []).map(mapNotification));
-        } catch (error) {
-            console.error('[NotificationDropdown] Error fetching:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
+    const displayNotifications: DisplayNotification[] = notifications.map((notification: any) => ({
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        read: notification.is_read ?? notification.read ?? false,
+        timestamp: notification.created_at ?? notification.timestamp,
+        data: notification.data ? (typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data) : {},
+    }));
 
-    // Fetch on mount & when dropdown opens
     useEffect(() => {
+        if (!isOpen) return;
         fetchNotifications();
-    }, [fetchNotifications]);
+    }, [fetchNotifications, isOpen]);
 
-    useEffect(() => {
-        if (isOpen) fetchNotifications();
-    }, [isOpen, fetchNotifications]);
-
-    // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -69,42 +53,19 @@ const NotificationDropdown = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
-
-    const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-        try {
-            await markRead(id);
-        } catch {
-            // Optimistic update already applied
-        }
-    };
-
-    const handleMarkAllAsRead = async () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        try {
-            await markAllRead();
-        } catch {
-            // Optimistic update already applied
-        }
-    };
-
-    const removeNotification = (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    };
+    const unreadCount = displayNotifications.filter(notification => !notification.read).length;
 
     const handleNotificationClick = async (notification: DisplayNotification) => {
-        // Mark as read
         if (!notification.read) {
-            setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, read: true } : n));
-            try { await markRead(notification.id); } catch { /* optimistic */ }
+            try {
+                await markAsRead(notification.id);
+            } catch {
+                // Context state remains the source of truth.
+            }
         }
 
         setIsOpen(false);
 
-        // Navigate based on type
         switch (notification.type) {
             case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
             case NOTIFICATION_TYPES.VIEWING_BOOKED:
@@ -136,7 +97,6 @@ const NotificationDropdown = () => {
                 navigate('/user/dashboard/contracts');
                 break;
             default:
-                // Stay on dashboard
                 break;
         }
     };
@@ -203,7 +163,7 @@ const NotificationDropdown = () => {
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
-                                onClick={handleMarkAllAsRead}
+                                onClick={markAllAsRead}
                                 className="text-xs font-medium text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
                             >
                                 Mark all as read
@@ -212,13 +172,13 @@ const NotificationDropdown = () => {
                     </div>
 
                     <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
-                        {loading && notifications.length === 0 ? (
+                        {loading && displayNotifications.length === 0 ? (
                             <div className="p-8 text-center">
                                 <p className="text-gray-500 dark:text-gray-400 text-sm">Loading...</p>
                             </div>
-                        ) : notifications.length > 0 ? (
+                        ) : displayNotifications.length > 0 ? (
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                                {notifications.map(notification => (
+                                {displayNotifications.map(notification => (
                                     <div
                                         key={notification.id}
                                         onClick={() => handleNotificationClick(notification)}
@@ -243,11 +203,13 @@ const NotificationDropdown = () => {
                                             </div>
                                         </div>
 
-                                        {/* Hover Actions */}
                                         <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             {!notification.read && (
                                                 <button
-                                                    onClick={(e) => handleMarkAsRead(notification.id, e)}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        markAsRead(notification.id);
+                                                    }}
                                                     className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
                                                     title="Mark as read"
                                                 >
@@ -255,8 +217,8 @@ const NotificationDropdown = () => {
                                                 </button>
                                             )}
                                             <button
-                                                onClick={(e) => removeNotification(notification.id, e)}
-                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
+                                                onClick={(event) => event.stopPropagation()}
+                                                className="p-1.5 text-gray-300 rounded-full shadow-sm transition-all cursor-default"
                                                 title="Remove"
                                             >
                                                 <X size={14} />
@@ -277,7 +239,10 @@ const NotificationDropdown = () => {
 
                     <div className="p-3 bg-gray-50/50 dark:bg-gray-800/50 text-center">
                         <button
-                            onClick={() => { setIsOpen(false); navigate('/user/dashboard/notifications'); }}
+                            onClick={() => {
+                                setIsOpen(false);
+                                navigate('/user/dashboard/notifications');
+                            }}
                             className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                         >
                             View All Notifications

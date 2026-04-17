@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getUserLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
+import { useLocation } from 'react-router-dom';
+import { getBrokerLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
 
 // Re-export Lead type
 export type { Lead } from '../services/leadsService';
@@ -25,14 +26,20 @@ export const useLeads = () => {
 };
 
 export const LeadProvider = ({ children }: { children: ReactNode }) => {
+    const { pathname } = useLocation();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
 
     // Load leads from service
     useEffect(() => {
         const fetchLeads = async () => {
+            if (!pathname.startsWith('/manager/leads') && !pathname.startsWith('/manager/analytics')) {
+                setIsInitialized(true);
+                return;
+            }
+
             try {
-                const result = await getUserLeads();
+                const result = await getBrokerLeads();
                 if (result.data) {
                     setLeads(result.data);
                 }
@@ -44,7 +51,7 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
         };
 
         fetchLeads();
-    }, []);
+    }, [pathname]);
 
     const addLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {
         try {

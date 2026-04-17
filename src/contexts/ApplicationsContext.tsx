@@ -1,8 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { getUserLeads, Lead as BackendLead } from '../services/leadsService';
+import { getBrokerLeads, getUserLeads, Lead as BackendLead } from '../services/leadsService';
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -91,6 +92,7 @@ const ApplicationsContext = createContext<ApplicationsContextType | undefined>(u
 
 export const ApplicationsProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
+    const { pathname } = useLocation();
     const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -103,10 +105,22 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
 
     const fetchApplications = async () => {
         if (!user) return;
+
+        if (user.role === 'admin') {
+            setApplications([]);
+            setError(null);
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         setError(null);
 
-        const { data, error: fetchError } = await getUserLeads();
+        const endpointResult = user.role === 'manager'
+            ? await getBrokerLeads()
+            : await getUserLeads();
+
+        const { data, error: fetchError } = endpointResult;
 
         if (fetchError) {
             setError(fetchError);
@@ -145,10 +159,14 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
     };
 
     useEffect(() => {
-        if (user) {
+        if (user && pathname.startsWith(`/${user.role === 'manager' ? 'manager' : user.role === 'user' ? 'user' : 'admin'}`)) {
             fetchApplications();
+        } else if (!user || user.role === 'admin') {
+            setApplications([]);
+            setError(null);
+            setIsLoading(false);
         }
-    }, [user]);
+    }, [pathname, user]);
 
     const createApplication = async (data: any) => {
         // This should call a backend service to create a lead

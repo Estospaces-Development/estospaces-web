@@ -1,9 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { notifyPropertySaved } from '../services/notificationsService';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import { apiFetch, getServiceUrl, getAuthHeaders } from '@/lib/apiUtils';
+import { getSavedProperties as fetchSavedPropertiesFromService } from '@/services/propertyService';
+import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 
 interface SavedPropertiesContextType {
     savedProperties: any[];
@@ -30,21 +31,25 @@ export const useSavedProperties = () => {
 
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
+    const { pathname } = useLocation();
     const [savedProperties, setSavedProperties] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchSavedProperties = useCallback(async () => {
-        if (!user) {
+        if (!user || user.role !== 'user' || !pathname.startsWith('/user')) {
+            setSavedProperties([]);
+            setError(null);
             setLoading(false);
             return;
         }
 
         setLoading(true);
         try {
-            const data = await apiFetch<any[]>(
-                `${getServiceUrl('core')}/api/v1/properties/saved`,
-            );
+            const { data, error: fetchError } = await fetchSavedPropertiesFromService();
+            if (fetchError) {
+                throw new Error(fetchError);
+            }
             setSavedProperties(data || []);
             setError(null);
         } catch (err: any) {
@@ -54,7 +59,7 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [pathname, user]);
 
     useEffect(() => {
         fetchSavedProperties();

@@ -25,7 +25,7 @@ const RecentActivity = () => {
             setLoading(true);
             try {
                 const [leadsRes, appsRes] = await Promise.all([
-                    leadsService.getUserLeads(),
+                    leadsService.getBrokerLeads(),
                     applicationsService.getApplications()
                 ]);
 
