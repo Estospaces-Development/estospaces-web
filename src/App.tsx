@@ -140,6 +140,7 @@ const App: React.FC = () => {
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/faq" element={<FAQPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/search" element={<UserSearch />} />
           <Route path="/terms" element={<TermsPage />} />
         </Route>
 
