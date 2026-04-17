@@ -5,14 +5,68 @@
 
 // ── Service URL Registry ────────────────────────────────────────────────────
 
+const FALLBACK_SERVICE_URLS = {
+    local: {
+        core: 'http://localhost:8080',
+        booking: 'http://localhost:8081',
+        payment: 'http://localhost:8082',
+        notification: 'http://localhost:8083',
+        search: 'http://localhost:8084',
+        media: 'http://localhost:8085',
+        messaging: 'http://localhost:8086',
+    },
+    dev: {
+        core: 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app',
+        booking: 'https://estospaces-booking-service-dev-zaryfkxmeq-nw.a.run.app',
+        payment: 'https://estospaces-payment-service-dev-zaryfkxmeq-nw.a.run.app',
+        notification: 'https://estospaces-notification-service-dev-zaryfkxmeq-nw.a.run.app',
+        search: 'https://estospaces-search-service-dev-zaryfkxmeq-nw.a.run.app',
+        media: 'https://estospaces-media-service-dev-zaryfkxmeq-nw.a.run.app',
+        messaging: 'https://estospaces-messaging-service-dev-zaryfkxmeq-nw.a.run.app',
+    },
+    prod: {
+        core: 'https://estospaces-core-service-prod-zaryfkxmeq-nw.a.run.app',
+        booking: 'https://estospaces-booking-service-prod-zaryfkxmeq-nw.a.run.app',
+        payment: 'https://estospaces-payment-service-prod-zaryfkxmeq-nw.a.run.app',
+        notification: 'https://estospaces-notification-service-prod-zaryfkxmeq-nw.a.run.app',
+        search: 'https://estospaces-search-service-prod-zaryfkxmeq-nw.a.run.app',
+        media: 'https://estospaces-media-service-prod-zaryfkxmeq-nw.a.run.app',
+        messaging: 'https://estospaces-messaging-service-prod-zaryfkxmeq-nw.a.run.app',
+    },
+} as const;
+
+type RuntimeEnvironment = keyof typeof FALLBACK_SERVICE_URLS;
+
+function resolveRuntimeEnvironment(): RuntimeEnvironment {
+    if (typeof window === 'undefined') {
+        return import.meta.env.MODE === 'development' ? 'local' : 'prod';
+    }
+
+    const hostname = window.location.hostname;
+    if (hostname === 'app.estospaces.com' || hostname === 'admin.estospaces.com' || hostname.includes('-prod-')) {
+        return 'prod';
+    }
+    if (hostname.includes('-dev-')) {
+        return 'dev';
+    }
+    return import.meta.env.MODE === 'development' ? 'local' : 'prod';
+}
+
+function resolveServiceUrl(service: keyof typeof FALLBACK_SERVICE_URLS.local, envValue: string | undefined): string {
+    if (envValue) {
+        return envValue;
+    }
+    return FALLBACK_SERVICE_URLS[resolveRuntimeEnvironment()][service];
+}
+
 const SERVICE_URLS = {
-    core: () => import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080',
-    booking: () => import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:8081',
-    notification: () => import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
-    payment: () => import.meta.env.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
-    search: () => import.meta.env.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
-    messaging: () => import.meta.env.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8085',
-    media: () => import.meta.env.VITE_MEDIA_SERVICE_URL || 'http://localhost:8086',
+    core: () => resolveServiceUrl('core', import.meta.env.VITE_CORE_SERVICE_URL),
+    booking: () => resolveServiceUrl('booking', import.meta.env.VITE_BOOKING_SERVICE_URL),
+    notification: () => resolveServiceUrl('notification', import.meta.env.VITE_NOTIFICATION_SERVICE_URL),
+    payment: () => resolveServiceUrl('payment', import.meta.env.VITE_PAYMENT_SERVICE_URL),
+    search: () => resolveServiceUrl('search', import.meta.env.VITE_SEARCH_SERVICE_URL),
+    messaging: () => resolveServiceUrl('messaging', import.meta.env.VITE_MESSAGING_SERVICE_URL),
+    media: () => resolveServiceUrl('media', import.meta.env.VITE_MEDIA_SERVICE_URL),
 } as const;
 
 export type ServiceName = keyof typeof SERVICE_URLS;

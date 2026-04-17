@@ -1,21 +1,73 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HelpCircle, MessageSquare, Book, Mail, Send, X, CheckCircle, Clock, Loader2, ArrowLeft, ChevronRight, Search, FileText } from 'lucide-react';
+import { MessageSquare, Book, Mail, Send, CheckCircle, Loader2, ArrowLeft, ChevronRight, FileText } from 'lucide-react';
+import * as messagesService from '@/services/messagesService';
+
+interface SupportTicketSummary {
+    id: string;
+    subject: string;
+    status: string;
+    created_at: string;
+}
 
 export default function HelpPage() {
     const navigate = useNavigate();
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [submitError, setSubmitError] = useState('');
+    const [submittedTicketId, setSubmittedTicketId] = useState('');
+    const [ticketsLoading, setTicketsLoading] = useState(false);
+    const [tickets, setTickets] = useState<SupportTicketSummary[]>([]);
+    const [formData, setFormData] = useState({
+        category: 'general',
+        subject: '',
+        message: '',
+    });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const fetchTickets = useCallback(async () => {
+        setTicketsLoading(true);
+        try {
+            const data = await messagesService.getTickets();
+            setTickets(data.map((ticket) => ({
+                id: ticket.id,
+                subject: ticket.subject,
+                status: ticket.status,
+                created_at: ticket.created_at,
+            })));
+        } catch (error) {
+            console.error('Failed to load support tickets:', error);
+        } finally {
+            setTicketsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchTickets();
+    }, [fetchTickets]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
-        setTimeout(() => {
+        setSubmitError('');
+        try {
+            const ticket = await messagesService.createTicket({
+                subject: formData.subject,
+                message: formData.message,
+                category: formData.category,
+                priority: 'medium',
+            });
+            setSubmittedTicketId(ticket.id);
+            setFormData({ category: 'general', subject: '', message: '' });
             setSubmitting(false);
             setSubmitted(true);
-        }, 1500);
+            await fetchTickets();
+        } catch (error: any) {
+            console.error('Failed to create support ticket:', error);
+            setSubmitError(error.message || 'Failed to send message. Please try again.');
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -81,7 +133,7 @@ export default function HelpPage() {
 
                     {/* Right Column: Contact Us Form */}
                     <div className="lg:col-span-5">
-                        <div className="bg-gray-900 dark:bg-white rounded-[2.5rem] p-10 shadow-2xl sticky top-8">
+                        <div className="bg-gray-900 dark:bg-white rounded-[2.5rem] p-10 shadow-2xl sticky top-8 space-y-8">
                             <div className="flex items-center gap-4 mb-10">
                                 <div className="p-3 bg-orange-500 rounded-2xl text-white">
                                     <Mail size={24} />
@@ -95,9 +147,17 @@ export default function HelpPage() {
                                         <CheckCircle size={40} className="text-green-500" />
                                     </div>
                                     <h3 className="text-2xl font-black text-white dark:text-gray-900 mb-2">Message Sent!</h3>
-                                    <p className="text-gray-400 dark:text-gray-500 font-bold mb-10">Our team will get back to you within 24 hours.</p>
+                                    <p className="text-gray-400 dark:text-gray-500 font-bold mb-3">Our team will get back to you within 24 hours.</p>
+                                    {submittedTicketId && (
+                                        <p className="text-sm text-gray-500 dark:text-gray-600 font-semibold mb-10">
+                                            Ticket ID: {submittedTicketId}
+                                        </p>
+                                    )}
                                     <button
-                                        onClick={() => setSubmitted(false)}
+                                        onClick={() => {
+                                            setSubmitted(false);
+                                            setSubmittedTicketId('');
+                                        }}
                                         className="w-full py-4 bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-black border border-white/20 dark:border-gray-200 transition-all active:scale-95"
                                     >
                                         Send Another
@@ -107,10 +167,14 @@ export default function HelpPage() {
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 px-1">Reason</label>
-                                        <select className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 appearance-none shadow-sm">
-                                            <option>General Inquiry</option>
-                                            <option>Technical Problem</option>
-                                            <option>Billing Issue</option>
+                                        <select
+                                            value={formData.category}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                                            className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 appearance-none shadow-sm"
+                                        >
+                                            <option value="general">General Inquiry</option>
+                                            <option value="technical">Technical Problem</option>
+                                            <option value="billing">Billing Issue</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2">
@@ -119,6 +183,8 @@ export default function HelpPage() {
                                             type="text"
                                             placeholder="What's it about?"
                                             required
+                                            value={formData.subject}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, subject: e.target.value }))}
                                             className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 shadow-sm"
                                         />
                                     </div>
@@ -128,9 +194,14 @@ export default function HelpPage() {
                                             rows={4}
                                             placeholder="Give us more details..."
                                             required
+                                            value={formData.message}
+                                            onChange={(e) => setFormData((prev) => ({ ...prev, message: e.target.value }))}
                                             className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-6 outline-none font-bold text-white dark:text-gray-900 shadow-sm resize-none"
                                         ></textarea>
                                     </div>
+                                    {submitError && (
+                                        <p className="text-sm font-semibold text-red-300 dark:text-red-600">{submitError}</p>
+                                    )}
                                     <button
                                         type="submit"
                                         disabled={submitting}
@@ -141,6 +212,34 @@ export default function HelpPage() {
                                     </button>
                                 </form>
                             )}
+
+                            <div className="border-t border-white/10 dark:border-gray-200 pt-8">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-black text-white dark:text-gray-900">Recent Tickets</h3>
+                                    {ticketsLoading && <Loader2 size={18} className="animate-spin text-orange-500" />}
+                                </div>
+                                {tickets.length === 0 ? (
+                                    <p className="text-sm font-medium text-gray-400 dark:text-gray-500">No support tickets yet.</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {tickets.slice(0, 3).map((ticket) => (
+                                            <div key={ticket.id} className="rounded-2xl border border-white/10 dark:border-gray-200 bg-white/5 dark:bg-gray-50 px-4 py-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-black text-white dark:text-gray-900">{ticket.subject}</p>
+                                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500 mt-1">
+                                                            {ticket.status.replace(/_/g, ' ')}
+                                                        </p>
+                                                    </div>
+                                                    <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                                                        {new Date(ticket.created_at).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

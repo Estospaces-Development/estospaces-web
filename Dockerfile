@@ -19,6 +19,7 @@ ARG VITE_PAYMENT_SERVICE_URL=http://localhost:8082
 ARG VITE_NOTIFICATION_SERVICE_URL=http://localhost:8083
 ARG VITE_SEARCH_SERVICE_URL=http://localhost:8084
 ARG VITE_MEDIA_SERVICE_URL=http://localhost:8085
+ARG VITE_MESSAGING_SERVICE_URL=http://localhost:8086
 
 # Build the Vite app
 RUN npm run build

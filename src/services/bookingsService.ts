@@ -96,7 +96,7 @@ export async function getViewings(): Promise<{ data: Viewing[] }> {
  * Get contracts for the current user
  */
 export async function getContracts(): Promise<{ data: Contract[] }> {
-    return apiFetch<{ data: Contract[] }>(`${BOOKING_URL()}/api/v1/contracts`);
+    return apiFetch<{ data: Contract[] }>(`${BOOKING_URL()}/api/v1/contracts/mine`);
 }
 
 /**
