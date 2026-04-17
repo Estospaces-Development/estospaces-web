@@ -31,8 +31,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 import { silentFetch } from '@/lib/apiUtils';
+import { getServiceUrl } from '@/lib/apiUtils';
 
-const CORE_SERVICE_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+const CORE_SERVICE_URL = getServiceUrl('core');
+
+const isLocalAuthFallbackHost = () => {
+    if (typeof window === 'undefined') {
+        return import.meta.env.MODE === 'development';
+    }
+
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -41,21 +50,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const isAuthenticated = !!user?.isAuthenticated;
 
+    const clearStoredSession = useCallback(() => {
+        localStorage.removeItem('esto_user');
+        localStorage.removeItem('esto_token');
+        setUser(null);
+        setError(null);
+    }, []);
+
     // Check for existing session on mount
     useEffect(() => {
-        const stored = localStorage.getItem('esto_user');
-        const token = localStorage.getItem('esto_token');
-        if (stored && token) {
-            try {
-                const parsed = JSON.parse(stored);
-                setUser({ ...parsed, isAuthenticated: true });
-            } catch {
-                localStorage.removeItem('esto_user');
-                localStorage.removeItem('esto_token');
+        let cancelled = false;
+
+        const restoreSession = async () => {
+            const stored = localStorage.getItem('esto_user');
+            const token = localStorage.getItem('esto_token');
+
+            if (!stored || !token) {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+                return;
             }
-        }
-        setLoading(false);
-    }, []);
+
+            let parsed: User | null = null;
+            try {
+                parsed = JSON.parse(stored);
+            } catch {
+                if (!cancelled) {
+                    clearStoredSession();
+                    setLoading(false);
+                }
+                return;
+            }
+
+            try {
+                const response = await fetch(`${CORE_SERVICE_URL}/api/v1/auth/me`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Auth session invalid: ${response.status}`);
+                }
+
+                const payload = await response.json();
+                const validatedUser = payload?.data?.user;
+                if (!validatedUser) {
+                    throw new Error('Auth session invalid: missing user');
+                }
+
+                const userObj: User = {
+                    id: validatedUser.id || parsed?.id || '',
+                    email: validatedUser.email || parsed?.email || '',
+                    name: validatedUser.name || validatedUser.full_name || parsed?.name || validatedUser.email?.split('@')[0] || 'User',
+                    role: validatedUser.role || parsed?.role || 'user',
+                    isAuthenticated: true,
+                    avatar_url: validatedUser.avatar_url || parsed?.avatar_url,
+                    user_metadata: validatedUser.user_metadata || parsed?.user_metadata,
+                };
+
+                if (!cancelled) {
+                    localStorage.setItem('esto_user', JSON.stringify(userObj));
+                    setUser(userObj);
+                }
+            } catch {
+                if (!cancelled) {
+                    clearStoredSession();
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        void restoreSession();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [clearStoredSession]);
 
     const login = useCallback(async (email: string, password: string) => {
         setError(null);
@@ -72,8 +148,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
 
             if (!result.data || result.error) {
-                console.warn('Backend login failed, trying mock login fallback');
-                return tryMockLogin(email, password);
+                if (isLocalAuthFallbackHost()) {
+                    console.warn('Backend login failed, trying mock login fallback');
+                    return tryMockLogin(email, password);
+                }
+
+                return { success: false, error: result.error || 'Login failed' };
             }
 
             const data = result.data;
@@ -94,8 +174,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             return { success: true, role: userObj.role };
         } catch (err) {
-            console.warn('Backend unavailable, using mock login:', err);
-            return tryMockLogin(email, password);
+            if (isLocalAuthFallbackHost()) {
+                console.warn('Backend unavailable, using mock login:', err);
+                return tryMockLogin(email, password);
+            }
+
+            return { success: false, error: 'Backend service unavailable. Please try again.' };
         }
     }, []);
 
@@ -177,11 +261,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signOut = useCallback(() => {
-        localStorage.removeItem('esto_token');
-        localStorage.removeItem('esto_user');
-        setUser(null);
-        setError(null);
-    }, []);
+        const token = localStorage.getItem('esto_token');
+        if (token) {
+            void fetch(`${CORE_SERVICE_URL}/api/v1/auth/logout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                keepalive: true,
+            }).catch(() => undefined);
+        }
+
+        clearStoredSession();
+    }, [clearStoredSession]);
 
     const getRole = useCallback(() => {
         return user?.role || 'user';
@@ -232,7 +325,7 @@ export function getRedirectPath(role: string): string {
 const APP_DOMAIN = 'app.estospaces.com';
 const ADMIN_DOMAIN = 'admin.estospaces.com';
 
-const normalizeRole = (role?: string) => {
+export const normalizeRole = (role?: string) => {
     switch (String(role || '').trim().toLowerCase()) {
         case 'admin':
             return 'admin';

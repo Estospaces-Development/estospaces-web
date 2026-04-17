@@ -1,5 +1,12 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import {
+  getHostedLoginRedirectUrl,
+  getRedirectPath,
+  normalizeRole,
+  requiresHostedLoginRedirect,
+  useAuth,
+} from './contexts/AuthContext';
 
 // Layouts
 import PublicLayout from './layouts/PublicLayout';
@@ -10,6 +17,45 @@ import UserLayout from './layouts/UserLayout';
 
 // Loading component
 const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
+
+interface ProtectedRoleRouteProps {
+  role: 'admin' | 'manager' | 'user';
+  children: React.ReactElement;
+}
+
+const ProtectedRoleRoute = ({ role, children }: ProtectedRoleRouteProps) => {
+  const { user, loading, isAuthenticated, signOut } = useAuth();
+  const location = useLocation();
+  const resolvedRole = normalizeRole(user?.role);
+  const needsHostedRedirect = !loading && isAuthenticated && requiresHostedLoginRedirect(resolvedRole);
+
+  useEffect(() => {
+    if (!needsHostedRedirect) {
+      return;
+    }
+
+    signOut();
+    window.location.replace(getHostedLoginRedirectUrl(resolvedRole));
+  }, [needsHostedRedirect, resolvedRole, signOut]);
+
+  if (loading) {
+    return <Loading />;
+  }
+
+  if (needsHostedRedirect) {
+    return <Loading />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (resolvedRole !== role) {
+    return <Navigate to={getRedirectPath(resolvedRole)} replace />;
+  }
+
+  return children;
+};
 
 // Lazy loaded pages - Public
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
@@ -104,7 +150,7 @@ const App: React.FC = () => {
         </Route>
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/admin" element={<ProtectedRoleRoute role="admin"><AdminLayout /></ProtectedRoleRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="analytics" element={<AdminAnalytics />} />
@@ -119,7 +165,7 @@ const App: React.FC = () => {
         </Route>
 
         {/* Manager Routes */}
-        <Route path="/manager" element={<ManagerLayout />}>
+        <Route path="/manager" element={<ProtectedRoleRoute role="manager"><ManagerLayout /></ProtectedRoleRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<ManagerDashboard />} />
           <Route path="dashboard/properties" element={<ManagerProperties />} />
@@ -145,7 +191,7 @@ const App: React.FC = () => {
         </Route>
 
         {/* User Routes */}
-        <Route path="/user" element={<UserLayout />}>
+        <Route path="/user" element={<ProtectedRoleRoute role="user"><UserLayout /></ProtectedRoleRoute>}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<UserDashboard />} />
           <Route path="dashboard/contracts" element={<UserContracts />} />
