@@ -4,6 +4,7 @@ const {
   buildArtifactPath,
   createAuthedContext,
   ensureReachable,
+  getRoleBaseUrl,
   loginViaApi,
   resolveTarget,
 } = require('./platform-proof-shared.cjs');
@@ -36,60 +37,15 @@ async function getLiveConversation(target, token) {
 async function main() {
   const target = resolveTarget(process.argv.slice(2));
   const artifactPath = buildArtifactPath(`messages-${target.name}-full-proof.json`);
-  await ensureReachable(target.baseUrl);
-
-  const session = await loginViaApi(target, 'user');
-  const { availableConversationCount, conversationId } = await getLiveConversation(target, session.token);
-
-  const browser = await chromium.launch({ headless: true });
-  const context = await createAuthedContext(browser, session);
-  let tampered = false;
-
-  await context.route(`${target.services.messaging}/api/v1/conversations*`, async (route) => {
-    try {
-      const response = await route.fetch();
-      if (tampered) {
-        await route.fulfill({ response });
-        return;
-      }
-
-      tampered = true;
-      const json = await response.json();
-      const filtered = Array.isArray(json)
-        ? json.filter((item) => item?.id !== conversationId)
-        : Array.isArray(json?.data)
-          ? { ...json, data: json.data.filter((item) => item?.id !== conversationId) }
-          : json;
-      await route.fulfill({ response, json: filtered });
-    } catch (error) {
-      if (/Target page, context or browser has been closed/i.test(String(error))) {
-        return;
-      }
-      throw error;
-    }
-  });
-
-  const page = await context.newPage();
+  const appBaseUrl = getRoleBaseUrl(target, 'user');
   const pageErrors = [];
   const consoleErrors = [];
   const networkErrors = [];
-  page.on('pageerror', (error) => pageErrors.push(String(error)));
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') {
-      consoleErrors.push(msg.text());
-    }
-  });
-  page.on('response', (response) => {
-    if (response.status() >= 400) {
-      networkErrors.push(`${response.status()} ${response.url()}`);
-    }
-  });
-
   const result = {
     target: target.name,
-    baseUrl: target.baseUrl,
-    availableConversationCount,
-    chosenConversationId: conversationId,
+    baseUrl: appBaseUrl,
+    availableConversationCount: 0,
+    chosenConversationId: null,
     loginOk: false,
     messagesPageOk: false,
     newEnquiryOk: false,
@@ -107,17 +63,67 @@ async function main() {
     overallOk: false,
   };
 
+  let browser = null;
+  let context = null;
+
   try {
-    await page.goto(`${target.baseUrl}/user/dashboard/messages`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await ensureReachable(appBaseUrl);
+    const session = await loginViaApi(target, 'user');
+    result.loginOk = true;
+    const { availableConversationCount, conversationId } = await getLiveConversation(target, session.token);
+    result.availableConversationCount = availableConversationCount;
+    result.chosenConversationId = conversationId;
+
+    browser = await chromium.launch({ headless: true });
+    context = await createAuthedContext(browser, session);
+    let tampered = false;
+
+    await context.route(`${target.services.messaging}/api/v1/conversations*`, async (route) => {
+      try {
+        const response = await route.fetch();
+        if (tampered) {
+          await route.fulfill({ response });
+          return;
+        }
+
+        tampered = true;
+        const json = await response.json();
+        const filtered = Array.isArray(json)
+          ? json.filter((item) => item?.id !== conversationId)
+          : Array.isArray(json?.data)
+            ? { ...json, data: json.data.filter((item) => item?.id !== conversationId) }
+            : json;
+        await route.fulfill({ response, json: filtered });
+      } catch (error) {
+        if (/Target page, context or browser has been closed/i.test(String(error))) {
+          return;
+        }
+        throw error;
+      }
+    });
+
+    const page = await context.newPage();
+    page.on('pageerror', (error) => pageErrors.push(String(error)));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        consoleErrors.push(msg.text());
+      }
+    });
+    page.on('response', (response) => {
+      if (response.status() >= 400) {
+        networkErrors.push(`${response.status()} ${response.url()}`);
+      }
+    });
+
+    await page.goto(`${appBaseUrl}/user/dashboard/messages`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.waitForURL(/\/user\/dashboard\/messages/, { timeout: 120000 });
     await page.getByRole('heading', { name: /^Messages$/i }).waitFor({ timeout: 120000 });
     await page.waitForTimeout(4000);
-    result.loginOk = true;
     result.directToastCount = await page.getByText(/Invalid data provided/i).count();
     result.messagesPageOk = result.directToastCount === 0;
 
     tampered = true;
-    await page.goto(`${target.baseUrl}/user/dashboard/messages?conversation=${conversationId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.goto(`${appBaseUrl}/user/dashboard/messages?conversation=${conversationId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.getByRole('heading', { name: /^Messages$/i }).waitFor({ timeout: 120000 });
     await page.waitForTimeout(5000);
     result.directThreadToastCount = await page.getByText(/Invalid data provided/i).count();
@@ -133,7 +139,7 @@ async function main() {
     result.newEnquiryOk = true;
 
     tampered = false;
-    await page.goto(`${target.baseUrl}/user/dashboard/messages?conversation=${conversationId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.goto(`${appBaseUrl}/user/dashboard/messages?conversation=${conversationId}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
     await page.getByRole('heading', { name: /^Messages$/i }).waitFor({ timeout: 120000 });
     await page.waitForTimeout(7000);
     result.staleToastCount = await page.getByText(/Invalid data provided/i).count();
@@ -151,13 +157,16 @@ async function main() {
       && pageErrors.length === 0
       && consoleErrors.length === 0
       && networkErrors.length === 0;
+  } catch (error) {
+    result.error = String(error);
+    throw error;
   } finally {
     try {
-      await context.unrouteAll({ behavior: 'ignoreErrors' });
+      await context?.unrouteAll({ behavior: 'ignoreErrors' });
     } catch {}
     fs.writeFileSync(artifactPath, JSON.stringify(result, null, 2));
-    await context.close();
-    await browser.close();
+    await context?.close();
+    await browser?.close();
   }
 
   if (!result.overallOk) {

@@ -4,6 +4,8 @@ const targets = {
   local: {
     name: 'local',
     baseUrl: process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
+    appBaseUrl: process.env.E2E_LOCAL_APP_BASE_URL || process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
+    adminBaseUrl: process.env.E2E_LOCAL_ADMIN_BASE_URL || process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
     services: {
       core: process.env.E2E_LOCAL_CORE_URL || 'http://localhost:8080',
       booking: process.env.E2E_LOCAL_BOOKING_URL || 'http://localhost:8081',
@@ -17,6 +19,8 @@ const targets = {
   dev: {
     name: 'dev',
     baseUrl: process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
+    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
+    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
     services: {
       core: process.env.E2E_DEV_CORE_URL || 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app',
       booking: process.env.E2E_DEV_BOOKING_URL || 'https://estospaces-booking-service-dev-zaryfkxmeq-nw.a.run.app',
@@ -25,6 +29,21 @@ const targets = {
       search: process.env.E2E_DEV_SEARCH_URL || 'https://estospaces-search-service-dev-zaryfkxmeq-nw.a.run.app',
       media: process.env.E2E_DEV_MEDIA_URL || 'https://estospaces-media-service-dev-zaryfkxmeq-nw.a.run.app',
       messaging: process.env.E2E_DEV_MESSAGING_URL || 'https://estospaces-messaging-service-dev-zaryfkxmeq-nw.a.run.app',
+    },
+  },
+  prod: {
+    name: 'prod',
+    baseUrl: process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
+    appBaseUrl: process.env.E2E_PROD_APP_BASE_URL || process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
+    adminBaseUrl: process.env.E2E_PROD_ADMIN_BASE_URL || 'https://admin.estospaces.com',
+    services: {
+      core: process.env.E2E_PROD_CORE_URL || 'https://estospaces-core-service-prod-zaryfkxmeq-nw.a.run.app',
+      booking: process.env.E2E_PROD_BOOKING_URL || 'https://estospaces-booking-service-prod-zaryfkxmeq-nw.a.run.app',
+      payment: process.env.E2E_PROD_PAYMENT_URL || 'https://estospaces-payment-service-prod-zaryfkxmeq-nw.a.run.app',
+      notification: process.env.E2E_PROD_NOTIFICATION_URL || 'https://estospaces-notification-service-prod-zaryfkxmeq-nw.a.run.app',
+      search: process.env.E2E_PROD_SEARCH_URL || 'https://estospaces-search-service-prod-zaryfkxmeq-nw.a.run.app',
+      media: process.env.E2E_PROD_MEDIA_URL || 'https://estospaces-media-service-prod-zaryfkxmeq-nw.a.run.app',
+      messaging: process.env.E2E_PROD_MESSAGING_URL || 'https://estospaces-messaging-service-prod-zaryfkxmeq-nw.a.run.app',
     },
   },
 };
@@ -151,11 +170,31 @@ function buildArtifactPath(filename) {
   return path.join(process.cwd(), 'output', 'playwright', filename);
 }
 
+function normalizeRole(roleName) {
+  const role = String(roleName || '').trim().toLowerCase();
+  if (role === 'admin') {
+    return 'admin';
+  }
+  if (role === 'manager' || role === 'broker') {
+    return 'manager';
+  }
+  return 'user';
+}
+
+function getRoleBaseUrl(target, roleName) {
+  const role = normalizeRole(roleName);
+  if (role === 'admin') {
+    return target.adminBaseUrl || target.baseUrl;
+  }
+  return target.appBaseUrl || target.baseUrl;
+}
+
 module.exports = {
   buildArtifactPath,
   createAuthedContext,
   credentials,
   ensureReachable,
+  getRoleBaseUrl,
   loginViaApi,
   parseOption,
   parseTarget,

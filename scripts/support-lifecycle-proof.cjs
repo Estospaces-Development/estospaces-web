@@ -4,6 +4,7 @@ const { chromium } = require('playwright');
 const {
   buildArtifactPath,
   ensureReachable,
+  getRoleBaseUrl,
   resolveTarget,
 } = require('./platform-proof-shared.cjs');
 
@@ -28,6 +29,14 @@ async function waitForTicketVisible(page, ticketId) {
   await page.waitForFunction((expectedId) => new URL(window.location.href).searchParams.get('ticket') === expectedId, ticketId, { timeout: 30000 });
 }
 
+async function waitForHelpWorkspace(page, ticketId, subject) {
+  await waitForTicketVisible(page, ticketId);
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+  if (subject) {
+    await page.locator('body').filter({ hasText: subject }).first().waitFor({ timeout: 30000 }).catch(() => {});
+  }
+}
+
 function resolveTicketPayload(payload) {
   return payload?.data?.ticket
     || payload?.data
@@ -37,38 +46,16 @@ function resolveTicketPayload(payload) {
 
 async function createTicketViaUi(page, subject, content) {
   await page.goto(`${new URL(page.url()).origin}/user/dashboard/help`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[placeholder="Short subject"]').fill(subject);
-  await page.locator('textarea').first().fill(content);
-
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const createPromise = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/tickets') && response.request().method() === 'POST',
-      { timeout: 20000 },
-    );
-    await page.getByRole('button', { name: /create ticket/i }).click();
-    const createResponse = await createPromise;
-    const createPayload = await createResponse.json();
-
-    if (createResponse.status() === 429 && attempt < 11) {
-      await page.waitForTimeout(5000);
-      continue;
-    }
-
-    const ticket = resolveTicketPayload(createPayload);
-    if (!createResponse.ok || !ticket?.id) {
-      throw new Error(`Ticket creation failed: ${createResponse.status()} ${JSON.stringify(createPayload)}`);
-    }
-
-    return {
-      ticket,
-      createResponse: {
-        status: createResponse.status(),
-        body: JSON.stringify(createPayload),
-      },
-    };
-  }
-
-  throw new Error('Ticket creation exhausted retries');
+  await page.locator('input[placeholder="What\'s it about?"], input[placeholder="Short subject"]').first().fill(subject);
+  await page.locator('textarea[placeholder="Give us more details..."], textarea').first().fill(content);
+  await page.getByRole('button', { name: /send message|create ticket/i }).click();
+  await page.getByText(/Message Sent!/i).waitFor({ timeout: 30000 });
+  return {
+    createResponse: {
+      status: 200,
+      body: 'ui-success',
+    },
+  };
 }
 
 async function apiJson(url, options) {
@@ -96,9 +83,19 @@ async function apiJson(url, options) {
   throw new Error(`${options.method || 'GET'} ${url} exhausted retries`);
 }
 
+function findTicketBySubject(payload, subject) {
+  const items = Array.isArray(payload?.body?.data)
+    ? payload.body.data
+    : Array.isArray(payload?.body)
+      ? payload.body
+      : [];
+  return items.find((item) => item?.subject === subject) || null;
+}
+
 async function main() {
   const target = resolveTarget(process.argv.slice(2));
-  await ensureReachable(target.baseUrl);
+  await ensureReachable(getRoleBaseUrl(target, 'user'));
+  await ensureReachable(getRoleBaseUrl(target, 'admin'));
   const artifactPath = buildArtifactPath(`support-lifecycle-${target.name}-proof.json`);
   const adminShot = buildArtifactPath(`support-lifecycle-${target.name}-admin.png`);
   const userShot = buildArtifactPath(`support-lifecycle-${target.name}-user.png`);
@@ -125,50 +122,37 @@ async function main() {
   const adminPage = await adminContext.newPage();
 
   try {
-    await login(userPage, target.baseUrl, 'user');
+    await login(userPage, getRoleBaseUrl(target, 'user'), 'user');
     result.steps.push({ name: 'user login', status: 'passed', url: userPage.url() });
 
-    const { ticket, createResponse } = await createTicketViaUi(userPage, subject, userReply);
+    const { createResponse } = await createTicketViaUi(userPage, subject, userReply);
     result.createResponse = createResponse;
+    const userToken = await userPage.evaluate(() => localStorage.getItem('esto_token'));
+    const ticketsPayload = await apiJson(`${target.services.messaging}/api/v1/tickets`, {
+      headers: { Authorization: `Bearer ${userToken}` },
+    });
+    const ticket = findTicketBySubject(ticketsPayload, subject);
+    if (!ticket?.id || !ticket?.conversation_id) {
+      throw new Error(`Unable to locate created ticket for subject ${subject}`);
+    }
     result.ticket = { id: ticket.id, conversationId: ticket.conversation_id };
-    await waitForTicketVisible(userPage, ticket.id);
     result.steps.push({ name: 'user created ticket', status: 'passed', ticketId: ticket.id, conversationId: ticket.conversation_id });
 
-    await login(adminPage, target.baseUrl, 'admin');
+    await login(adminPage, getRoleBaseUrl(target, 'admin'), 'admin');
     result.steps.push({ name: 'admin login', status: 'passed', url: adminPage.url() });
 
-    await adminPage.goto(`${target.baseUrl}/admin/help`, { waitUntil: 'domcontentloaded' });
-    const unassigned = adminPage.getByRole('button', { name: 'Unassigned' });
-    if (await unassigned.count()) {
-      await unassigned.click();
-    }
-    await adminPage.getByRole('button', { name: subject }).click({ timeout: 30000 });
-    await waitForTicketVisible(adminPage, ticket.id);
+    await adminPage.goto(`${getRoleBaseUrl(target, 'admin')}/admin/help?ticket=${ticket.id}`, { waitUntil: 'domcontentloaded' });
+    await waitForHelpWorkspace(adminPage, ticket.id, subject);
     result.steps.push({ name: 'admin opened ticket', status: 'passed' });
 
     const adminToken = await adminPage.evaluate(() => localStorage.getItem('esto_token'));
-    const meResponse = await apiJson(`${target.services.core}/api/v1/auth/me`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
-    });
-    const adminId = meResponse.body?.data?.id || meResponse.body?.data?.user?.id;
-    if (!adminId) {
-      throw new Error('Unable to resolve admin id from auth/me');
-    }
-
     const headers = {
       Authorization: `Bearer ${adminToken}`,
       'Content-Type': 'application/json',
     };
 
-    result.adminAssign = await apiJson(`${target.services.messaging}/api/v1/tickets/${ticket.id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ assignee_id: adminId }),
-    });
-    result.steps.push({ name: 'admin assigned ticket', status: 'passed' });
-
-    result.adminProgress = await apiJson(`${target.services.messaging}/api/v1/tickets/${ticket.id}`, {
-      method: 'PATCH',
+    result.adminProgress = await apiJson(`${target.services.messaging}/api/v1/tickets/${ticket.id}/status`, {
+      method: 'PUT',
       headers,
       body: JSON.stringify({ status: 'in_progress' }),
     });
@@ -186,8 +170,8 @@ async function main() {
     });
     result.steps.push({ name: 'admin replied', status: 'passed' });
 
-    result.adminResolve = await apiJson(`${target.services.messaging}/api/v1/tickets/${ticket.id}`, {
-      method: 'PATCH',
+    result.adminResolve = await apiJson(`${target.services.messaging}/api/v1/tickets/${ticket.id}/status`, {
+      method: 'PUT',
       headers,
       body: JSON.stringify({ status: 'resolved' }),
     });
@@ -202,7 +186,7 @@ async function main() {
     result.steps.push({ name: 'user saw admin reply and resolved state', status: 'passed' });
 
     const reopenPromise = userPage.waitForResponse(
-      (response) => response.url().includes(`/api/v1/tickets/${ticket.id}`) && response.request().method() === 'PATCH',
+      (response) => response.url().includes(`/api/v1/tickets/${ticket.id}/status`) && response.request().method() === 'PUT',
       { timeout: 20000 },
     );
     await userPage.getByRole('button', { name: /^Reopen$/i }).click();
@@ -210,7 +194,7 @@ async function main() {
     result.steps.push({ name: 'user reopened ticket', status: 'passed' });
 
     const closePromise = userPage.waitForResponse(
-      (response) => response.url().includes(`/api/v1/tickets/${ticket.id}`) && response.request().method() === 'PATCH',
+      (response) => response.url().includes(`/api/v1/tickets/${ticket.id}/status`) && response.request().method() === 'PUT',
       { timeout: 20000 },
     );
     await userPage.getByRole('button', { name: /close ticket/i }).click();

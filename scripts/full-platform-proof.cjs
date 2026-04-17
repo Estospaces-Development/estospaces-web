@@ -42,6 +42,9 @@ function toScenario(category, environment, role, surface, status, expected, actu
 async function healthChecks(target) {
   const urls = [
     target.baseUrl,
+    target.appBaseUrl,
+    target.adminBaseUrl,
+    `${target.adminBaseUrl}/login`,
     `${target.services.core}/health`,
     `${target.services.booking}/health`,
     `${target.services.payment}/health`,
@@ -74,7 +77,8 @@ async function healthChecks(target) {
 
 async function performanceSmoke(target) {
   const urls = [
-    `${target.baseUrl}/login`,
+    `${target.appBaseUrl}/login`,
+    `${target.adminBaseUrl}/login`,
     `${target.services.core}/health`,
     `${target.services.booking}/health`,
     `${target.services.messaging}/health`,
@@ -161,6 +165,20 @@ function aggregateMessages(targetName, artifactPath, payload) {
   ];
 }
 
+function aggregateAuthHosts(targetName, artifactPath, payload) {
+  return payload.steps.map((step) => toScenario(
+    'auth-host-routing',
+    targetName,
+    step.name.includes('admin') ? 'admin' : step.name.includes('manager') ? 'manager' : 'user',
+    step.name,
+    step.status === 'passed' ? 'passed' : 'failed',
+    'Role login uses the correct host and wrong-host logins are redirected to the correct login origin',
+    step.actualUrl || '',
+    [artifactPath],
+    [...(step.pageErrors || []), ...(step.consoleErrors || []), ...(step.networkErrors || []), ...(step.error ? [step.error] : [])],
+  ));
+}
+
 function aggregateSupport(targetName, artifactPath, payload) {
   return payload.steps.map((step) => toScenario(
     'support-e2e',
@@ -203,6 +221,7 @@ async function main() {
   const messagesArtifactPath = path.join(outputDir, `messages-${target.name}-full-proof.json`);
   const supportArtifactPath = path.join(outputDir, `support-lifecycle-${target.name}-proof.json`);
   const publicArtifactPath = path.join(outputDir, `public-${target.name}-proof.json`);
+  const authHostArtifactPath = path.join(outputDir, `auth-host-${target.name}-proof.json`);
 
   const scenarios = [];
   scenarios.push(...await healthChecks(target));
@@ -214,6 +233,9 @@ async function main() {
 
   runNode(['scripts/public-proof.cjs', `--target=${target.name}`], webDir);
   scenarios.push(...aggregatePublic(target.name, publicArtifactPath, loadJson(publicArtifactPath)));
+
+  runNode(['scripts/auth-host-proof.cjs', `--target=${target.name}`], webDir);
+  scenarios.push(...aggregateAuthHosts(target.name, authHostArtifactPath, loadJson(authHostArtifactPath)));
 
   runNode(['scripts/messages-proof.cjs', `--target=${target.name}`], webDir);
   scenarios.push(...aggregateMessages(target.name, messagesArtifactPath, loadJson(messagesArtifactPath)));

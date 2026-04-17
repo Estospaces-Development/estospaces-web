@@ -276,10 +276,11 @@ async function main() {
       throw new Error(`Unknown target: ${targetName}`);
     }
 
-    const baseUrl = overrideBaseUrl || target.baseUrl;
+    const defaultBaseUrl = overrideBaseUrl || target.baseUrl;
     const caseId = overrideCaseId || target.caseId;
 
-    await ensureReachable(baseUrl);
+    await ensureReachable(target.appBaseUrl || defaultBaseUrl);
+    await ensureReachable(target.adminBaseUrl || defaultBaseUrl);
 
     for (const role of roles) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
@@ -305,15 +306,22 @@ async function main() {
       });
 
       try {
-        await login(page, baseUrl, role);
+        const roleBaseUrl = role.name === "admin"
+          ? (target.adminBaseUrl || defaultBaseUrl)
+          : (target.appBaseUrl || defaultBaseUrl);
+
+        console.error(`[${targetName}/${role.name}] login -> ${roleBaseUrl}`);
+        await login(page, roleBaseUrl, role);
         allResults.push({ target: targetName, role: role.name, route: "login", status: "passed" });
 
         for (const route of role.routes) {
-          await runRouteCheck(page, baseUrl, route);
+          console.error(`[${targetName}/${role.name}] route -> ${route}`);
+          await runRouteCheck(page, roleBaseUrl, route);
           allResults.push({ target: targetName, role: role.name, route, status: "passed" });
         }
 
-        const caseResults = await runCaseChecks(page, targetName, baseUrl, caseId, role.name);
+        console.error(`[${targetName}/${role.name}] case-checks`);
+        const caseResults = await runCaseChecks(page, targetName, roleBaseUrl, caseId, role.name);
         allResults.push(...caseResults);
 
         if (pageErrors.length > 0 || consoleErrors.length > 0 || responseErrors.length > 0) {

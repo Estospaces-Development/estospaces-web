@@ -7,14 +7,26 @@ const envTargets = {
   dev: {
     name: 'dev',
     baseUrl: process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
+    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
+    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
     coreServiceUrl: process.env.E2E_DEV_CORE_URL || 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app',
     caseId: process.env.E2E_DEV_FAST_TRACK_CASE_ID || '',
   },
   local: {
     name: 'local',
     baseUrl: process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
+    appBaseUrl: process.env.E2E_LOCAL_APP_BASE_URL || process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
+    adminBaseUrl: process.env.E2E_LOCAL_ADMIN_BASE_URL || process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
     coreServiceUrl: process.env.E2E_LOCAL_CORE_URL || 'http://localhost:8080',
     caseId: process.env.E2E_LOCAL_FAST_TRACK_CASE_ID || '',
+  },
+  prod: {
+    name: 'prod',
+    baseUrl: process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
+    appBaseUrl: process.env.E2E_PROD_APP_BASE_URL || process.env.E2E_PROD_BASE_URL || 'https://app.estospaces.com',
+    adminBaseUrl: process.env.E2E_PROD_ADMIN_BASE_URL || 'https://admin.estospaces.com',
+    coreServiceUrl: process.env.E2E_PROD_CORE_URL || 'https://estospaces-core-service-prod-zaryfkxmeq-nw.a.run.app',
+    caseId: process.env.E2E_PROD_FAST_TRACK_CASE_ID || '',
   },
 };
 
@@ -63,8 +75,8 @@ const familyDefinitions = [
   {
     code: 'F3',
     name: 'user-workspaces',
-    visitByRole: { user: '/user/dashboard', manager: '/manager/clients', admin: '/admin/users' },
-    expectedByRole: { user: '/user/dashboard', manager: '/manager/clients', admin: '/admin/users' },
+    visitByRole: { user: '/user/dashboard', manager: '/manager/leads', admin: '/admin/users' },
+    expectedByRole: { user: '/user/dashboard', manager: '/manager/leads', admin: '/admin/users' },
     missingByRole: {
       user: '/user/properties/qa-missing-record',
       manager: '/manager/dashboard/properties/qa-missing-record',
@@ -80,8 +92,8 @@ const familyDefinitions = [
   {
     code: 'F5',
     name: 'admin-workspaces',
-    visitByRole: { user: '/user/dashboard/notifications', manager: '/manager/analytics', admin: '/admin/dashboard' },
-    expectedByRole: { user: '/user/dashboard/notifications', manager: '/manager/analytics', admin: '/admin/dashboard' },
+    visitByRole: { user: '/user/dashboard', manager: '/manager/analytics', admin: '/admin/dashboard' },
+    expectedByRole: { user: '/user/dashboard', manager: '/manager/analytics', admin: '/admin/dashboard' },
   },
   {
     code: 'F6',
@@ -179,6 +191,55 @@ function getWrongRoleName(roleName) {
   if (roleName === 'user') return 'manager';
   if (roleName === 'manager') return 'user';
   return 'user';
+}
+
+function normalizeRole(roleName) {
+  const role = String(roleName || '').trim().toLowerCase();
+  if (role === 'admin') {
+    return 'admin';
+  }
+  if (role === 'manager' || role === 'broker') {
+    return 'manager';
+  }
+  return 'user';
+}
+
+function getScenarioBaseUrl(target, scenario, baseUrlOverride = '') {
+  if (baseUrlOverride) {
+    return baseUrlOverride;
+  }
+
+  const route = String(
+    scenario?.visit_path
+    || scenario?.expected_path
+    || scenario?.missing_path
+    || '',
+  );
+  if (route.startsWith('/admin')) {
+    return target.adminBaseUrl || target.baseUrl;
+  }
+
+  const role = normalizeRole(scenario?.role);
+  if (role === 'admin') {
+    return target.adminBaseUrl || target.baseUrl;
+  }
+
+  return target.appBaseUrl || target.baseUrl;
+}
+
+function getReachableBaseUrls(target, scenarios = [], baseUrlOverride = '') {
+  if (baseUrlOverride) {
+    return [baseUrlOverride];
+  }
+
+  const urls = new Set();
+  for (const scenario of scenarios) {
+    urls.add(getScenarioBaseUrl(target, scenario));
+  }
+  if (urls.size === 0) {
+    urls.add(target.baseUrl);
+  }
+  return [...urls];
 }
 
 function formatBatchId(familyCode, roleName, authState) {
@@ -362,9 +423,11 @@ module.exports = {
   generateCatalog,
   getFamily,
   getOutputRoot,
+  getReachableBaseUrls,
   getReviewPath,
   getRole,
   getScenarioSupport,
+  getScenarioBaseUrl,
   getTarget,
   getTestListPath,
   getWorkspaceRoot,

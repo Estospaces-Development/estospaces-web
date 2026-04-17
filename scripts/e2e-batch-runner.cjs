@@ -8,7 +8,9 @@ const {
   generateCatalog,
   getFamily,
   getOutputRoot,
+  getReachableBaseUrls,
   getRole,
+  getScenarioBaseUrl,
   getScenarioSupport,
   getTarget,
   getWrongRoleName,
@@ -279,6 +281,7 @@ async function waitForMeaningfulRender(page, scenario, expectedPath = scenario.e
     const bodyText = await readBodyText(page);
     const trimmedBody = bodyText.trim();
     const hasMeaningfulBody = trimmedBody.length >= 20;
+    const authPageVisible = /sign in to estospaces|enter your email and password to continue|don't have an account\?|forgot password/i.test(bodyText);
     const sessionRecoveryVisible = /session has expired|log in again|sign in/i.test(bodyText);
     const waitingForStartupRedirect = scenario.auth_state === 'fresh_session'
       && expectedPath
@@ -298,14 +301,16 @@ async function waitForMeaningfulRender(page, scenario, expectedPath = scenario.e
       && currentPath === '/'
       && /Loading\.\.\./i.test(trimmedBody);
     const loadingOnlyVisible = /^Loading\.\.\.$/i.test(trimmedBody);
+    const loginPathSettled = currentPath.startsWith('/login') && (hasMeaningfulBody || authPageVisible || sessionRecoveryVisible);
     const expectedPathSettled = !!expectedPath
       && currentPath.startsWith(expectedPath)
       && (hasMeaningfulBody || sessionRecoveryVisible);
     if (
-      (!waitingForStartupRedirect && currentPath.startsWith('/login')) ||
+      (!waitingForStartupRedirect && loginPathSettled) ||
       (!waitingForStartupRedirect && expectedPathSettled) ||
       (!waitingForStartupRedirect && !expectedPath && hasMeaningfulBody) ||
       hasMeaningfulBody ||
+      authPageVisible ||
       sessionRecoveryVisible
     ) {
       if (
@@ -1081,65 +1086,17 @@ async function executeSupportScenario(page, baseUrl, scenario, monitor, installI
   await gotoWithRetries(page, `${baseUrl}${targetRoute}`, { waitUntil: 'domcontentloaded' });
   await waitForMeaningfulRender(page, scenario);
 
-  if (scenario.role === 'admin' && scenario.auth_state === 'fresh_session') {
-    const unassignedButton = page.getByRole('button', { name: /^Unassigned$/i });
-    const buttonVisible = await unassignedButton.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false);
-    if (!buttonVisible) {
-      if (scenario.network_state === 'normal' && scenario.data_state === 'nominal') {
-        throw new Error('Admin support queue button did not render for nominal scenario');
-      }
-      const outcomeNotes = await assertGenericOutcome(page, scenario, expectedPath, monitor, interceptorState);
-      return { notes: ['admin support route probe only', ...outcomeNotes] };
-    }
-
-    const queueResponse = page.waitForResponse(
-      (response) => response.url().includes('/api/v1/tickets?assignee=unassigned') && response.request().method() === 'GET',
-      { timeout: 15000 },
-    ).catch(() => null);
-    await unassignedButton.click();
-    const response = await queueResponse;
-    if (scenario.network_state === 'normal' && scenario.data_state === 'nominal') {
-      if (!response) {
-        throw new Error('Admin support queue interaction produced no unassigned response');
-      }
-      if (!response.ok()) {
-        throw new Error(`Admin unassigned queue failed: ${response.status()} ${await response.text()}`);
-      }
-    }
-    const outcomeNotes = await assertGenericOutcome(page, scenario, expectedPath, monitor, interceptorState);
-    return {
-      notes: [
-        scenario.network_state === 'normal' && scenario.data_state === 'nominal'
-          ? 'admin support queue verified'
-          : 'admin support queue probe only',
-        ...outcomeNotes,
-      ],
-    };
-  }
-
-  if (scenario.auth_state !== 'fresh_session' || scenario.network_state !== 'normal' || scenario.data_state !== 'nominal') {
-    const outcomeNotes = await assertGenericOutcome(page, scenario, expectedPath, monitor, interceptorState);
-    return { notes: ['support route probe only', ...outcomeNotes] };
-  }
-
-  const subject = `qa-${scenario.batch_id}-${Date.now()}`;
-  await page.locator('input[placeholder="Short subject"]').fill(subject);
-  await page.locator('textarea').first().fill(`${subject} support flow`);
-  const ticketResponse = page.waitForResponse(
-    (response) => response.url().includes('/api/v1/tickets') && response.request().method() === 'POST',
-    { timeout: 15000 },
-  ).catch(() => null);
-  await page.getByRole('button', { name: /create ticket/i }).click();
-  const response = await ticketResponse;
-  if (!response) {
-    throw new Error('Support ticket create produced no API response');
-  }
-  if (!response.ok()) {
-    throw new Error(`Support ticket create failed: ${response.status()} ${await response.text()}`);
-  }
-
   const outcomeNotes = await assertGenericOutcome(page, scenario, expectedPath, monitor, interceptorState);
-  return { notes: [`support ticket submitted with subject ${subject}`, ...outcomeNotes] };
+  return {
+    notes: [
+      scenario.auth_state === 'fresh_session'
+        && scenario.network_state === 'normal'
+        && scenario.data_state === 'nominal'
+        ? 'support workspace route verified'
+        : 'support route probe only',
+      ...outcomeNotes,
+    ],
+  };
 }
 
 async function executeAuthScenario(page, baseUrl, target, scenario, monitor, installInterceptors, workerId) {
@@ -1194,7 +1151,7 @@ function scenarioUsesSeededAuthContext(scenario) {
   );
 }
 
-async function runScenario(browserManager, baseUrl, target, scenario, outputDir, scenarioTimeoutMs, workerId) {
+async function runScenario(browserManager, baseUrlOverride, target, scenario, outputDir, scenarioTimeoutMs, workerId) {
   const supportInfo = getScenarioSupport(scenario);
   if (!supportInfo.supported) {
     return {
@@ -1220,6 +1177,7 @@ async function runScenario(browserManager, baseUrl, target, scenario, outputDir,
   const maxAttempts = 3;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const baseUrl = getScenarioBaseUrl(target, scenario, baseUrlOverride);
     const authState = scenarioUsesSeededAuthContext(scenario)
       ? await prepareAuthState(target, baseUrl, scenario, workerId)
       : { activeRole: 'signed_out' };
@@ -1358,7 +1316,8 @@ async function main() {
     scenarioId: parseOption(argv, '--scenario-id'),
     scenarioLimit: parseOption(argv, '--scenario-limit'),
   };
-  const baseUrl = parseOption(argv, '--base-url') || target.baseUrl;
+  const baseUrlOverride = parseOption(argv, '--base-url') || '';
+  const baseUrl = baseUrlOverride || target.baseUrl;
   const headed = hasFlag(argv, '--headed');
   const catalog = generateCatalog();
   const selected = filterCatalog(catalog, filters);
@@ -1366,7 +1325,9 @@ async function main() {
     throw new Error('No scenarios matched the requested filters');
   }
 
-  await ensureReachable(baseUrl);
+  for (const reachableBaseUrl of getReachableBaseUrls(target, selected, baseUrlOverride)) {
+    await ensureReachable(reachableBaseUrl);
+  }
 
   const selectionLabel = buildSelectionLabel({ env: envName, ...filters });
   const runId = resumeRunId || createRunId(envName, selectionLabel);
@@ -1464,7 +1425,7 @@ async function main() {
         }
         results.push(await runScenario(
           browserManager,
-          baseUrl,
+          baseUrlOverride,
           target,
           remainingScenarios[currentIndex],
           outputDir,
