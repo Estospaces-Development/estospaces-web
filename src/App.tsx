@@ -29,6 +29,7 @@ const AdminAnalytics = lazy(() => import('./pages/admin/analytics/page'));
 const AdminChat = lazy(() => import('./pages/admin/chat/page'));
 const AdminFastTrack = lazy(() => import('./pages/admin/fast-track/page'));
 const AdminHelp = lazy(() => import('./pages/admin/help/page'));
+const AdminProfile = lazy(() => import('./pages/admin/profile/page'));
 const AdminProperties = lazy(() => import('./pages/admin/properties/page'));
 const AdminSettings = lazy(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazy(() => import('./pages/admin/users/page'));
@@ -47,11 +48,13 @@ const ManagerBilling = lazy(() => import('./pages/manager/billing/page'));
 const ManagerClients = lazy(() => import('./pages/manager/clients/page'));
 const ManagerCommunity = lazy(() => import('./pages/manager/community/page'));
 const ManagerContracts = lazy(() => import('./pages/manager/contracts/page'));
+const ManagerDocs = lazy(() => import('./pages/manager/docs/page'));
 const ManagerFastTrack = lazy(() => import('./pages/manager/fast-track/page'));
 const ManagerHelp = lazy(() => import('./pages/manager/help/page'));
 const ManagerLeads = lazy(() => import('./pages/manager/leads/page'));
 const ManagerMessages = lazy(() => import('./pages/manager/messages/page'));
 const ManagerNotifications = lazy(() => import('./pages/manager/notifications/page'));
+const ManagerCaseFiles = lazy(() => import('./pages/manager/case-files/page'));
 const ManagerProfile = lazy(() => import('./pages/manager/profile/page'));
 const ManagerVerification = lazy(() => import('./pages/manager/verification/page'));
 
@@ -59,6 +62,7 @@ const ManagerVerification = lazy(() => import('./pages/manager/verification/page
 const UserDashboard = lazy(() => import('./pages/user/dashboard/page'));
 const UserApplications = lazy(() => import('./pages/user/applications/page'));
 const UserBookings = lazy(() => import('./pages/user/bookings/page'));
+const UserDocs = lazy(() => import('./pages/user/docs/page'));
 const UserFavorites = lazy(() => import('./pages/user/favorites/page'));
 const UserProfile = lazy(() => import('./pages/user/profile/page'));
 const UserSaved = lazy(() => import('./pages/user/saved/page'));
@@ -68,6 +72,7 @@ const UserSettings = lazy(() => import('./pages/user/settings/page'));
 // Nested User Dashboard pages
 const UserContracts = lazy(() => import('./pages/user/dashboard/contracts/page'));
 const UserDiscover = lazy(() => import('./pages/user/dashboard/discover/page'));
+const UserFastTrack = lazy(() => import('./pages/user/dashboard/fast-track/page'));
 const UserHelp = lazy(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazy(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazy(() => import('./pages/user/dashboard/notifications/page'));
@@ -106,6 +111,7 @@ const App: React.FC = () => {
           <Route path="chat" element={<AdminChat />} />
           <Route path="fast-track" element={<AdminFastTrack />} />
           <Route path="help" element={<AdminHelp />} />
+          <Route path="profile" element={<AdminProfile />} />
           <Route path="properties" element={<AdminProperties />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="users" element={<AdminUsers />} />
@@ -124,7 +130,9 @@ const App: React.FC = () => {
           <Route path="applications" element={<ManagerApplications />} />
           <Route path="appointments" element={<ManagerAppointments />} />
           <Route path="contracts" element={<ManagerContracts />} />
+          <Route path="docs" element={<ManagerDocs />} />
           <Route path="billing" element={<ManagerBilling />} />
+          <Route path="case-files" element={<ManagerCaseFiles />} />
           <Route path="clients" element={<ManagerClients />} />
           <Route path="community" element={<ManagerCommunity />} />
           <Route path="fast-track" element={<ManagerFastTrack />} />
@@ -142,6 +150,7 @@ const App: React.FC = () => {
           <Route path="dashboard" element={<UserDashboard />} />
           <Route path="dashboard/contracts" element={<UserContracts />} />
           <Route path="dashboard/discover" element={<UserDiscover />} />
+          <Route path="dashboard/fast-track" element={<UserFastTrack />} />
           <Route path="dashboard/help" element={<UserHelp />} />
           <Route path="dashboard/messages" element={<UserMessages />} />
           <Route path="dashboard/notifications" element={<UserNotifications />} />
@@ -153,6 +162,7 @@ const App: React.FC = () => {
           <Route path="dashboard/viewings" element={<UserViewings />} />
           <Route path="applications" element={<UserApplications />} />
           <Route path="bookings" element={<UserViewings />} />
+          <Route path="docs" element={<UserDocs />} />
           <Route path="favorites" element={<UserSaved />} />
           <Route path="profile" element={<UserProfileDash />} />
           <Route path="saved" element={<UserSaved />} />
