@@ -120,6 +120,13 @@ export async function getTicket(ticketId: string): Promise<SupportTicket> {
     return apiFetch<SupportTicket>(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}`);
 }
 
+export async function updateTicketStatus(ticketId: string, status: SupportTicket['status']): Promise<void> {
+    await apiFetch(`${MESSAGING_URL()}/api/v1/tickets/${ticketId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+    });
+}
+
 // ── Default Export ──────────────────────────────────────────────────────────
 
 export const messagesService = {
@@ -130,4 +137,5 @@ export const messagesService = {
     createTicket,
     getTickets,
     getTicket,
+    updateTicketStatus,
 };

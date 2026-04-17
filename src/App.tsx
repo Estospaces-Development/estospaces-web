@@ -28,6 +28,7 @@ const AdminDashboard = lazy(() => import('./pages/admin/dashboard/page'));
 const AdminAnalytics = lazy(() => import('./pages/admin/analytics/page'));
 const AdminChat = lazy(() => import('./pages/admin/chat/page'));
 const AdminFastTrack = lazy(() => import('./pages/admin/fast-track/page'));
+const AdminHelp = lazy(() => import('./pages/admin/help/page'));
 const AdminProperties = lazy(() => import('./pages/admin/properties/page'));
 const AdminSettings = lazy(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazy(() => import('./pages/admin/users/page'));
@@ -104,6 +105,7 @@ const App: React.FC = () => {
           <Route path="analytics" element={<AdminAnalytics />} />
           <Route path="chat" element={<AdminChat />} />
           <Route path="fast-track" element={<AdminFastTrack />} />
+          <Route path="help" element={<AdminHelp />} />
           <Route path="properties" element={<AdminProperties />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="users" element={<AdminUsers />} />

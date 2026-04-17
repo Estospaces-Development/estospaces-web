@@ -104,6 +104,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
         { icon: Building2, label: 'All Properties', path: '/admin/properties' },
+        { icon: HelpCircle, label: 'Help & Support', path: '/admin/help' },
         { icon: Settings, label: 'System Settings', path: '/admin/settings' },
     ];
 

@@ -75,6 +75,7 @@ function MessagesContent() {
                         </div>
 
                         <button
+                            onClick={() => navigate('/user/dashboard/discover')}
                             className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:shadow-lg transition-all active:scale-95"
                         >
                             <PlusCircle size={20} />

@@ -1,45 +1,112 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Book, Mail, Send, CheckCircle, Loader2, ArrowLeft, ChevronRight, FileText } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Book, CheckCircle, ChevronRight, FileText, Loader2, Mail, MessageSquare, Send } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import * as messagesService from '@/services/messagesService';
 
 interface SupportTicketSummary {
     id: string;
+    conversation_id: string;
     subject: string;
-    status: string;
+    status: messagesService.SupportTicket['status'];
     created_at: string;
 }
 
+const statusClasses: Record<string, string> = {
+    open: 'bg-yellow-500/15 text-yellow-300 dark:text-yellow-700',
+    in_progress: 'bg-blue-500/15 text-blue-300 dark:text-blue-700',
+    resolved: 'bg-green-500/15 text-green-300 dark:text-green-700',
+    closed: 'bg-gray-500/15 text-gray-300 dark:text-gray-700',
+};
+
 export default function HelpPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState('');
     const [submittedTicketId, setSubmittedTicketId] = useState('');
     const [ticketsLoading, setTicketsLoading] = useState(false);
+    const [messagesLoading, setMessagesLoading] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
     const [tickets, setTickets] = useState<SupportTicketSummary[]>([]);
+    const [selectedTicketId, setSelectedTicketId] = useState(searchParams.get('ticket') || '');
+    const [ticketMessages, setTicketMessages] = useState<messagesService.Message[]>([]);
+    const [followUpMessage, setFollowUpMessage] = useState('');
     const [formData, setFormData] = useState({
         category: 'general',
         subject: '',
         message: '',
     });
 
+    const selectedTicket = useMemo(
+        () => tickets.find((ticket) => ticket.id === selectedTicketId) || null,
+        [tickets, selectedTicketId],
+    );
+
+    const syncSelectedTicket = useCallback((ticketId: string) => {
+        setSelectedTicketId(ticketId);
+        const nextParams = new URLSearchParams(searchParams);
+        if (ticketId) {
+            nextParams.set('ticket', ticketId);
+        } else {
+            nextParams.delete('ticket');
+        }
+        setSearchParams(nextParams, { replace: true });
+    }, [searchParams, setSearchParams]);
+
     const fetchTickets = useCallback(async () => {
         setTicketsLoading(true);
         try {
             const data = await messagesService.getTickets();
-            setTickets(data.map((ticket) => ({
-                id: ticket.id,
-                subject: ticket.subject,
-                status: ticket.status,
-                created_at: ticket.created_at,
-            })));
+            const mapped = data
+                .map((ticket) => ({
+                    id: ticket.id,
+                    conversation_id: ticket.conversation_id,
+                    subject: ticket.subject,
+                    status: ticket.status,
+                    created_at: ticket.created_at,
+                }))
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+            setTickets(mapped);
+
+            const requestedTicketId = searchParams.get('ticket');
+            const existingSelection = requestedTicketId && mapped.some((ticket) => ticket.id === requestedTicketId)
+                ? requestedTicketId
+                : mapped.some((ticket) => ticket.id === selectedTicketId)
+                    ? selectedTicketId
+                    : mapped[0]?.id || '';
+
+            if (existingSelection !== selectedTicketId) {
+                setSelectedTicketId(existingSelection);
+            }
         } catch (error) {
             console.error('Failed to load support tickets:', error);
+            setTickets([]);
         } finally {
             setTicketsLoading(false);
+        }
+    }, [searchParams, selectedTicketId]);
+
+    const fetchTicketMessages = useCallback(async (ticket: SupportTicketSummary | null) => {
+        if (!ticket) {
+            setTicketMessages([]);
+            return;
+        }
+
+        setMessagesLoading(true);
+        try {
+            const data = await messagesService.getMessages(ticket.conversation_id, 1, 100);
+            setTicketMessages(data);
+        } catch (error) {
+            console.error('Failed to load support conversation:', error);
+            setTicketMessages([]);
+        } finally {
+            setMessagesLoading(false);
         }
     }, []);
 
@@ -47,10 +114,23 @@ export default function HelpPage() {
         fetchTickets();
     }, [fetchTickets]);
 
+    useEffect(() => {
+        if (selectedTicketId) {
+            const nextParams = new URLSearchParams(searchParams);
+            nextParams.set('ticket', selectedTicketId);
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [searchParams, selectedTicketId, setSearchParams]);
+
+    useEffect(() => {
+        fetchTicketMessages(selectedTicket);
+    }, [fetchTicketMessages, selectedTicket]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
         setSubmitError('');
+
         try {
             const ticket = await messagesService.createTicket({
                 subject: formData.subject,
@@ -58,22 +138,62 @@ export default function HelpPage() {
                 category: formData.category,
                 priority: 'medium',
             });
+
             setSubmittedTicketId(ticket.id);
-            setFormData({ category: 'general', subject: '', message: '' });
-            setSubmitting(false);
             setSubmitted(true);
+            setFormData({ category: 'general', subject: '', message: '' });
             await fetchTickets();
+            syncSelectedTicket(ticket.id);
         } catch (error: any) {
             console.error('Failed to create support ticket:', error);
             setSubmitError(error.message || 'Failed to send message. Please try again.');
+        } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleStatusUpdate = async (status: messagesService.SupportTicket['status']) => {
+        if (!selectedTicket) {
+            return;
+        }
+
+        setActionLoading(true);
+        try {
+            await messagesService.updateTicketStatus(selectedTicket.id, status);
+            await fetchTickets();
+        } catch (error) {
+            console.error('Failed to update support ticket status:', error);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleFollowUpSend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedTicket || !followUpMessage.trim()) {
+            return;
+        }
+
+        setActionLoading(true);
+        try {
+            await messagesService.sendMessage({
+                conversationId: selectedTicket.conversation_id,
+                content: followUpMessage.trim(),
+                type: 'text',
+            });
+            setFollowUpMessage('');
+            await fetchTicketMessages(selectedTicket);
+            await fetchTickets();
+        } catch (error) {
+            console.error('Failed to send support follow-up:', error);
+        } finally {
+            setActionLoading(false);
         }
     };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Header */}
                 <div className="mb-10">
                     <button
                         onClick={() => navigate('/user/dashboard')}
@@ -89,17 +209,16 @@ export default function HelpPage() {
                         Support Center
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 font-medium max-w-xl">
-                        We're here to help you. Find answers to your questions or reach out to our team directly.
+                        Open a support ticket, track replies, and close or reopen the thread from the same workspace.
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    {/* Left Column: Quick Actions & FAQs */}
                     <div className="lg:col-span-7 space-y-10">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {[
                                 { title: 'Guides & Docs', icon: Book, color: 'text-blue-500 bg-blue-50' },
-                                { title: 'Live Chat', icon: MessageSquare, color: 'text-green-500 bg-green-50' },
+                                { title: 'Live Support', icon: MessageSquare, color: 'text-green-500 bg-green-50' },
                             ].map((act) => (
                                 <button key={act.title} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center text-center group hover:scale-[1.05] transition-all">
                                     <div className={`p-5 rounded-2xl mb-6 ${act.color} dark:bg-gray-700 dark:text-white group-hover:bg-orange-500 group-hover:text-white transition-all`}>
@@ -118,7 +237,7 @@ export default function HelpPage() {
                                     'How do I cancel my viewing?',
                                     'Can I update my profile details after verification?',
                                     'How secure is the digital contract signing?',
-                                    'What documents are needed for registration?'
+                                    'What documents are needed for registration?',
                                 ].map((q) => (
                                     <button key={q} className="w-full text-left p-6 bg-gray-50 dark:bg-gray-900/50 rounded-2xl flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-900 transition-all group">
                                         <span className="font-bold text-gray-700 dark:text-gray-300 group-hover:text-orange-500 transition-colors">{q}</span>
@@ -131,7 +250,6 @@ export default function HelpPage() {
                         </div>
                     </div>
 
-                    {/* Right Column: Contact Us Form */}
                     <div className="lg:col-span-5">
                         <div className="bg-gray-900 dark:bg-white rounded-[2.5rem] p-10 shadow-2xl sticky top-8 space-y-8">
                             <div className="flex items-center gap-4 mb-10">
@@ -197,7 +315,7 @@ export default function HelpPage() {
                                             value={formData.message}
                                             onChange={(e) => setFormData((prev) => ({ ...prev, message: e.target.value }))}
                                             className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-6 outline-none font-bold text-white dark:text-gray-900 shadow-sm resize-none"
-                                        ></textarea>
+                                        />
                                     </div>
                                     {submitError && (
                                         <p className="text-sm font-semibold text-red-300 dark:text-red-600">{submitError}</p>
@@ -222,12 +340,20 @@ export default function HelpPage() {
                                     <p className="text-sm font-medium text-gray-400 dark:text-gray-500">No support tickets yet.</p>
                                 ) : (
                                     <div className="space-y-3">
-                                        {tickets.slice(0, 3).map((ticket) => (
-                                            <div key={ticket.id} className="rounded-2xl border border-white/10 dark:border-gray-200 bg-white/5 dark:bg-gray-50 px-4 py-3">
+                                        {tickets.slice(0, 4).map((ticket) => (
+                                            <button
+                                                key={ticket.id}
+                                                type="button"
+                                                onClick={() => syncSelectedTicket(ticket.id)}
+                                                className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${selectedTicketId === ticket.id
+                                                    ? 'border-orange-500 bg-orange-500/10'
+                                                    : 'border-white/10 dark:border-gray-200 bg-white/5 dark:bg-gray-50'
+                                                    }`}
+                                            >
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div>
                                                         <p className="text-sm font-black text-white dark:text-gray-900">{ticket.subject}</p>
-                                                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500 mt-1">
+                                                        <p className={`text-xs font-semibold uppercase tracking-[0.18em] mt-1 ${statusClasses[ticket.status] || 'text-gray-400 dark:text-gray-500'}`}>
                                                             {ticket.status.replace(/_/g, ' ')}
                                                         </p>
                                                     </div>
@@ -235,11 +361,99 @@ export default function HelpPage() {
                                                         {new Date(ticket.created_at).toLocaleDateString()}
                                                     </p>
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 )}
                             </div>
+
+                            {selectedTicket && (
+                                <div className="border-t border-white/10 dark:border-gray-200 pt-8 space-y-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <h3 className="text-lg font-black text-white dark:text-gray-900">{selectedTicket.subject}</h3>
+                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500 mt-1">
+                                                {selectedTicket.status.replace(/_/g, ' ')}
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {selectedTicket.status !== 'in_progress' && (
+                                                <button
+                                                    type="button"
+                                                    disabled={actionLoading}
+                                                    onClick={() => handleStatusUpdate('in_progress')}
+                                                    className="rounded-xl bg-blue-500/15 px-3 py-2 text-xs font-black text-blue-200 dark:text-blue-700"
+                                                >
+                                                    Mark In Progress
+                                                </button>
+                                            )}
+                                            {(selectedTicket.status === 'resolved' || selectedTicket.status === 'closed') ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={actionLoading}
+                                                    onClick={() => handleStatusUpdate('open')}
+                                                    className="rounded-xl bg-yellow-500/15 px-3 py-2 text-xs font-black text-yellow-200 dark:text-yellow-700"
+                                                >
+                                                    Reopen
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    disabled={actionLoading}
+                                                    onClick={() => handleStatusUpdate('closed')}
+                                                    className="rounded-xl bg-gray-500/15 px-3 py-2 text-xs font-black text-gray-200 dark:text-gray-700"
+                                                >
+                                                    Close Ticket
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-72 overflow-y-auto space-y-3 rounded-2xl border border-white/10 dark:border-gray-200 bg-white/5 dark:bg-gray-50 px-4 py-4">
+                                        {messagesLoading ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="animate-spin text-orange-500" />
+                                            </div>
+                                        ) : ticketMessages.length === 0 ? (
+                                            <p className="text-sm font-medium text-gray-400 dark:text-gray-500">No replies yet.</p>
+                                        ) : (
+                                            ticketMessages.map((message) => {
+                                                const isUserMessage = message.sender_id === user?.id;
+                                                return (
+                                                    <div key={message.id} className={`flex ${isUserMessage ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${isUserMessage
+                                                            ? 'bg-orange-500 text-white'
+                                                            : 'bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900'
+                                                            }`}>
+                                                            <p className="text-xs font-black uppercase tracking-[0.18em] mb-2 opacity-80">
+                                                                {isUserMessage ? 'You' : 'Support'}
+                                                            </p>
+                                                            <p className="text-sm font-medium">{message.content}</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    <form onSubmit={handleFollowUpSend} className="space-y-3">
+                                        <textarea
+                                            rows={3}
+                                            value={followUpMessage}
+                                            onChange={(e) => setFollowUpMessage(e.target.value)}
+                                            placeholder="Add a follow-up message..."
+                                            className="w-full bg-white/5 dark:bg-gray-50 border-2 border-transparent focus:border-orange-500 rounded-2xl px-6 py-4 outline-none font-bold text-white dark:text-gray-900 shadow-sm resize-none"
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={actionLoading || !followUpMessage.trim()}
+                                            className="w-full py-4 bg-white/10 dark:bg-gray-100 text-white dark:text-gray-900 rounded-2xl font-black border border-white/20 dark:border-gray-200 transition-all active:scale-95 disabled:opacity-60"
+                                        >
+                                            {actionLoading ? 'Sending...' : 'Send Follow-up'}
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -247,4 +461,3 @@ export default function HelpPage() {
         </div>
     );
 }
-
