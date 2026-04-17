@@ -1,4 +1,4 @@
-Estospaces gives users one connected dashboard for search, live broker help, active property tracking, and support. This guide is focused on the current user dashboard and the routes linked from it.
+Estospaces gives users one connected dashboard for search, live broker help, active property tracking, and support. This guide is focused on the current user dashboard, the redesigned Fast-track 24h workspace, and the linked routes that now stay tied to one case.
 
 Use it whenever you need to answer three questions fast: what can I do from here, what is my active property journey, and where should I go next.
 
@@ -8,6 +8,7 @@ Use it whenever you need to answer three questions fast: what can I do from here
 
 ### Where to start
 - Dashboard: [/user/dashboard](/user/dashboard)
+- Fast-track 24h: [/user/dashboard/fast-track](/user/dashboard/fast-track)
 - Full search: [/user/search](/user/search)
 - Saved properties: [/user/saved](/user/saved)
 - Docs: [/user/docs](/user/docs)
@@ -20,6 +21,7 @@ Use it whenever you need to answer three questions fast: what can I do from here
 - shortcut cards for buy, rent, and saved properties
 - the Real-Time Tracking module
 - the nearby properties map
+- the active Fast-track 24h case when a property is already in motion
 
 ### Start-of-session checklist
 1. Open the dashboard first.
@@ -92,6 +94,33 @@ It is the live response stage only. It does not mean your full home journey ends
 ### What happens after a broker matches
 The same workspace becomes the place where you review the broker's shortlist, open the conversation, and choose one property to start the next stage.
 
+## Fast-track 24h Workspace
+
+### What it is
+The Fast-track 24h workspace is now the main live case workspace after a property is selected. It keeps the case rail, mandatory stepper, current stage, current focus, and utility dock together on one page.
+
+### Where to work
+- Fast-track workspace: [/user/dashboard/fast-track](/user/dashboard/fast-track)
+- Messages companion route: [/user/dashboard/messages](/user/dashboard/messages)
+- Viewings companion route: [/user/dashboard/viewings](/user/dashboard/viewings)
+- Contracts companion route: [/user/dashboard/contracts](/user/dashboard/contracts)
+
+### What stays mandatory there
+- the selected case
+- the current stage and focus
+- the 24-hour timer
+- the stage stepper
+- the active stage work area
+
+### What is customizable there
+- case rail collapsed state
+- utility dock tab visibility and order
+- the default utility module
+- layout density for the secondary tools
+
+### What the utility dock is for
+Use the utility dock for secondary tools like core files, preview, case chat, activity, and connected records. It supports the workflow, but it does not replace the main stage work area.
+
 ## Real-Time Tracking
 
 ### What it is
@@ -136,12 +165,19 @@ Once a property is selected from a broker shortlist or another active journey, t
 - Contracts: [/user/dashboard/contracts](/user/dashboard/contracts)
 - Payments: [/user/dashboard/payments](/user/dashboard/payments)
 
+### Which route owns what now
+- Fast-track owns the workflow stage and the next required step.
+- Applications, viewings, and contracts act as linked companion pages and should stay in sync with the same case.
+- Messages keep the case-specific thread tied to the same selected property.
+- Case file is support context only. It is no longer the route where you continue the workflow.
+
 ### What should stay aligned
 - the selected property
 - your messages
 - your documents
 - your next appointment
 - your contract and payment state
+- the linked fast-track case
 
 ## Messages, Notifications, and Help
 
@@ -155,6 +191,14 @@ Use messages for live coordination, notifications to spot changes, and Help & Su
 
 ### When to contact support
 Contact support if the live case looks wrong, a document step is blocked, a contract or payment looks mismatched, or the active property context seems incorrect.
+
+## Case File and Support Context
+
+### What the shared case file is for
+The shared case file is now a support and reference route. Use it for overview context, documents, tasks, activity, and quick links back into fast-track.
+
+### What it is not for
+Do not treat the case file as the workflow owner. If you need to continue documents, viewing, decision, agreement, or handover, go back to Fast-track 24h.
 
 ## Profile, Settings, Reviews, and Overseas
 
@@ -182,4 +226,4 @@ Stop and confirm the active property through your dashboard and messages before 
 Check the active stage, notifications, and Help & Support before assuming the journey is still progressing.
 
 ### What is the best user rule to remember
-Start from the dashboard, confirm the active property and active stage, then take the next step from the route that owns that action.
+Start from the dashboard, confirm the active property and active stage, then take the next step from Fast-track unless the companion page clearly owns only that one manual action.

@@ -1,4 +1,4 @@
-Estospaces gives managers one working dashboard for live response, shortlist sharing, fast-track follow-through, and property operations. This guide is focused on the current manager workspace and the routes you actually open during the day.
+Estospaces gives managers one working dashboard for live response, shortlist sharing, fast-track follow-through, and property operations. This guide is focused on the current manager workspace, the redesigned Fast Track 24h flow, and the routes you actually open during the day.
 
 Use it to answer three questions fast: what is live, what is blocked, and which route owns the next action.
 
@@ -19,6 +19,7 @@ Use it to answer three questions fast: what is live, what is blocked, and which 
 - the Fast Track 24h lane
 - recent activity and top properties
 - the Your Properties workspace with search, filters, and pagination
+- the routes that now mirror linked fast-track case state instead of owning separate workflow truth
 
 ### Start-of-session checklist
 1. Confirm your verification and profile are usable.
@@ -105,7 +106,7 @@ Select from your live inventory, rank the chosen properties, and share them into
 ## Fast Track 24h Lane
 
 ### What it is
-The Fast Track 24h module is the live queue for selected-property cases that now need close follow-through.
+The Fast Track 24h module is the live queue for selected-property cases that now need close follow-through. It opens the main workflow workspace, not a summary-only lane.
 
 ### Where it lives
 - Dashboard: [/manager/dashboard](/manager/dashboard)
@@ -119,8 +120,33 @@ The Fast Track 24h module is the live queue for selected-property cases that now
 
 ### What to do there
 - open the full queue
-- add a 24h case manually when needed
+- use the redesigned workspace to work stage by stage
 - review the next required action before the case goes overdue
+- keep case chat, file review, preview, and activity in the utility dock instead of jumping across routes
+
+### What the redesigned workspace now keeps together
+- a denser case rail with search, filters, and pagination
+- the current case masthead with timer, stage, and focus
+- the mandatory workflow stepper
+- the active stage work area
+- the utility dock for files, preview, case chat, activity, and connected records
+
+## Companion Routes for Live Cases
+
+### Which routes are companions now
+- Applications: [/manager/applications](/manager/applications)
+- Appointments: [/manager/appointments](/manager/appointments)
+- Contracts: [/manager/contracts](/manager/contracts)
+- Messages: [/manager/messages](/manager/messages)
+
+### How they should be used
+- Applications should handle linked decision-stage work.
+- Appointments should handle linked viewing-stage work.
+- Contracts should handle linked agreement, payment, and handover work.
+- Messages should keep the case-specific thread clear.
+
+### What remains the workflow owner
+Fast Track 24h remains the workflow owner. Companion routes can still perform their relevant manual actions, but they should reflect the linked fast-track case rather than diverge from it.
 
 ## Your Properties Workspace
 
@@ -178,13 +204,22 @@ If your own verification is incomplete, live dispatch or publishing can be limit
 - Billing: [/manager/billing](/manager/billing)
 
 ### How to use them together
-Use messages to keep the record clear, appointments to handle timing, applications and case files to track readiness, contracts to confirm formal progression, and billing to verify financial state.
+Use messages to keep the record clear, appointments to handle timing, applications to handle formal decision work, contracts to handle agreement and handover work, and billing to verify financial state. For the main workflow view, return to Fast Track 24h.
 
 ### What should always stay aligned
 - the selected property
 - the active client
 - the current stage
 - the next requested document or action
+- the linked fast-track case
+
+## Case File and Support Context
+
+### What case file is for now
+Case file is support context only. Use it for overview, activity, quick links, and supporting documents around the case.
+
+### What it should not be used for
+Do not treat case file as the place where the live workflow continues. When the case needs documents, viewing, decision, agreement, payment, or handover work, return to Fast Track 24h or the correct companion route.
 
 ## Analytics, Notifications, Docs, and Support
 
@@ -215,4 +250,4 @@ Check ownership in this order:
 6. support escalation
 
 ### What is the best manager rule to remember
-Keep every action anchored to the live state, the real property status, and the next milestone. If any one of those is unclear, clarify first and act second.
+Keep every action anchored to the live state, the real property status, the linked fast-track case, and the next milestone. If any one of those is unclear, clarify first and act second.

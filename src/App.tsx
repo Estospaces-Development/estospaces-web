@@ -78,6 +78,7 @@ const ContactPage = lazyPage(() => import('./pages/public/contact/page'));
 const CookiesPage = lazyPage(() => import('./pages/public/cookies/page'));
 const FAQPage = lazyPage(() => import('./pages/public/faq/page'));
 const PrivacyPage = lazyPage(() => import('./pages/public/privacy/page'));
+const PublicSearchPage = lazyPage(() => import('./pages/user/search/page'));
 const TermsPage = lazyPage(() => import('./pages/public/terms/page'));
 
 // Lazy loaded pages - Auth
@@ -177,6 +178,7 @@ const App: React.FC = () => {
             <Route path="/cookies" element={<CookiesPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/search" element={<PublicSearchPage />} />
             <Route path="/terms" element={<TermsPage />} />
           </Route>
 

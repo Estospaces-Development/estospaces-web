@@ -10,9 +10,9 @@ interface ResolvedRoleDocsConfig {
 const userConfig: RoleDocsConfig = {
     role: 'user',
     label: 'User Docs',
-    title: 'Guide to the current user dashboard, live broker workspace, and active property journey on Estospaces.',
+    title: 'Guide to the current user dashboard, redesigned fast-track workspace, and linked case journey on Estospaces.',
     subtitle:
-        'Use this guide to understand the user dashboard as it exists today: hero search, buy and rent shortcuts, saved properties, the 10-minute broker request workspace, real-time tracking, nearby map browsing, fast-track progression, and the routes that own the next action.',
+        'Use this guide to understand the user dashboard as it exists today: hero search, buy and rent shortcuts, saved properties, the 10-minute broker request workspace, the redesigned 24-hour fast-track workspace, linked applications and contracts, and the routes that now own the next action.',
     audience: ['Buyers', 'Renters', 'Applicants', 'Fast-track users'],
     searchPlaceholder: 'Search this guide for broker request, dashboard search, fast-track, saved properties, messages, or payments',
     supportTitle: 'Need action, not just guidance?',
@@ -24,7 +24,7 @@ const userConfig: RoleDocsConfig = {
         {
             eyebrow: 'Start',
             title: 'Open your dashboard',
-            description: 'See your active journey, dashboard search, broker workspace, and current tracking modules.',
+            description: 'See your active journey, dashboard search, broker workspace, and the current tracking modules first.',
             href: '/user/dashboard',
         },
         {
@@ -46,10 +46,10 @@ const userConfig: RoleDocsConfig = {
             href: '/user/dashboard/discover?type=rent',
         },
         {
-            eyebrow: 'Saved',
-            title: 'Open saved properties',
-            description: 'Return to shortlisted homes and pick up where you left off.',
-            href: '/user/saved',
+            eyebrow: 'Fast-track',
+            title: 'Open Fast-track 24h',
+            description: 'Jump into the active case workspace where the selected property journey now stays visible end to end.',
+            href: '/user/dashboard/fast-track',
         },
     ],
     faqs: [
@@ -71,12 +71,17 @@ const userConfig: RoleDocsConfig = {
         {
             question: 'What changes once I choose a broker-shared property?',
             answer:
-                'The selected property becomes the center of the next journey. Your fast-track, case file, messages, contracts, and payments should all stay tied to that same property unless the journey is restarted.',
+                'The selected property becomes the center of the next journey. Fast-track becomes the main workflow workspace, companion pages stay linked to the same case, and the case file becomes support context instead of the route that owns progression.',
         },
         {
             question: 'Where should I track the current stage of my live journey?',
             answer:
-                'Use the Real-Time Tracking module on the dashboard first. It shows stage progress, recent updates, and the primary next action for active applications, broker requests, and related live journeys.',
+                'Use the Real-Time Tracking module on the dashboard first, then open Fast-track 24h for the live case workspace. That is where the mandatory stepper, current focus, files, chat, preview, and linked actions now stay visible.',
+        },
+        {
+            question: 'Can I still use applications, viewings, or contracts directly?',
+            answer:
+                'Yes, but only as companion pages. They reflect the linked fast-track case and can still handle role-relevant manual actions, while fast-track remains the workflow source of truth.',
         },
         {
             question: 'What if no broker accepts in the 10-minute window?',
@@ -113,12 +118,17 @@ const userConfig: RoleDocsConfig = {
         {
             term: 'Fast-track 24h',
             definition:
-                'The accelerated active journey that starts after a property is selected and shifts the focus from browsing into progression.',
+                'The accelerated active journey that starts after a property is selected and now acts as the main workflow workspace from documents to handover.',
         },
         {
             term: 'Help & Support',
             definition:
                 'The support route you use when the app state, document flow, or contract and payment context needs human intervention.',
+        },
+        {
+            term: 'Companion pages',
+            definition:
+                'Applications, viewings, and contracts pages that stay linked to the same fast-track case and expose relevant manual actions without becoming a second workflow owner.',
         },
     ],
     markdown: userGuideMarkdown,
@@ -127,9 +137,9 @@ const userConfig: RoleDocsConfig = {
 const managerConfig: RoleDocsConfig = {
     role: 'manager',
     label: 'Manager Docs',
-    title: 'Guide to the current manager dashboard, live response tracker, and fast-track workflow on Estospaces.',
+    title: 'Guide to the current manager dashboard, live response tracker, and redesigned fast-track workflow on Estospaces.',
     subtitle:
-        'Use this guide to understand the manager dashboard as it exists today: the KPI overview, tab routes, live response tracker, matched workspace shortlist sharing, Fast Track 24h lane, property filters, readiness checks, and the routes that own ongoing client execution.',
+        'Use this guide to understand the manager dashboard as it exists today: the KPI overview, tab routes, live response tracker, matched workspace shortlist sharing, the redesigned Fast Track 24h workspace, linked applications, appointments, contracts, readiness checks, and the routes that own ongoing client execution.',
     audience: ['Managers', 'Brokers', 'Property publishers', 'Fast-track operators'],
     searchPlaceholder: 'Search this guide for live response, shortlist sharing, fast-track, properties, verification, or billing',
     supportTitle: 'Need platform support?',
@@ -159,7 +169,7 @@ const managerConfig: RoleDocsConfig = {
         {
             eyebrow: 'Acceleration',
             title: 'Open Fast Track 24h',
-            description: 'Track the accelerated cases that need close coordination and immediate next actions.',
+            description: 'Track the accelerated cases that need close coordination, current focus, and immediate next actions in one workspace.',
             href: '/manager/fast-track',
         },
         {
@@ -188,12 +198,12 @@ const managerConfig: RoleDocsConfig = {
         {
             question: 'What is the Fast Track 24h lane on the dashboard for?',
             answer:
-                'It is the manager-side queue for selected-property cases that now need close follow-through. Use it to spot active, closing-soon, and completed cases before the next step becomes late.',
+                'It is the manager-side queue for selected-property cases that now need close follow-through. Use it to spot active, closing-soon, and completed cases, then open the redesigned workspace where the stepper, current focus, utility dock, and linked actions stay together.',
         },
         {
             question: 'When should I use leads, messages, and appointments separately?',
             answer:
-                'Use leads for intake and active client context, messages for written coordination, and appointments for schedule ownership. Do not rely on one route to do the job of all three.',
+                'Use leads for intake and active client context, messages for written coordination, and appointments for schedule ownership. Once a case is in fast-track, applications, appointments, and contracts should behave as linked companion pages instead of separate workflow owners.',
         },
         {
             question: 'What usually blocks a manager from operating smoothly?',
@@ -230,7 +240,7 @@ const managerConfig: RoleDocsConfig = {
         {
             term: 'Fast Track 24h lane',
             definition:
-                'The dashboard queue that summarizes active, closing-soon, and completed fast-track cases.',
+                'The dashboard queue that summarizes active, closing-soon, and completed fast-track cases and opens the main workflow workspace.',
         },
         {
             term: 'Shareable inventory',
@@ -251,6 +261,11 @@ const managerConfig: RoleDocsConfig = {
             term: 'Manager support',
             definition:
                 'The help route used when a case, listing, verification, billing, or contract issue needs platform intervention.',
+        },
+        {
+            term: 'Utility dock',
+            definition:
+                'The secondary tool area inside fast-track where files, preview, case chat, activity, and connected records stay available without replacing the main stage workspace.',
         },
     ],
     markdown: managerGuideMarkdown,
