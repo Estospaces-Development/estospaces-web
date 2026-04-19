@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, AlertCircle, CheckCircle } from 'lucide-react';
 import axios from 'axios';
+import { getServiceUrl } from '@/lib/apiUtils';
 
-// Get API URL from env
-const API_URL = import.meta.env.VITE_CORE_SERVICE_URL || import.meta.env.NEXT_PUBLIC_CORE_SERVICE_URL || 'http://localhost:8080';
+const API_URL = getServiceUrl('core');
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -86,6 +86,7 @@ export default function ForgotPasswordPage() {
                             </div>
                             <input
                                 type="email"
+                                autoComplete="email"
                                 placeholder="Enter your email address"
                                 value={email}
                                 onChange={(e) => {

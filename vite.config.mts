@@ -15,6 +15,8 @@ const DEV_PROXY_PATHS = {
   VITE_MESSAGING_SERVICE_URL: '/__dev_proxy/messaging',
 } as const;
 
+const REQUIRED_SERVICE_ENV_KEYS = Object.keys(DEV_PROXY_PATHS) as Array<keyof typeof DEV_PROXY_PATHS>;
+
 const buildServiceProxy = (env: Record<string, string>) => {
   return Object.entries(DEV_PROXY_PATHS).reduce<Record<string, string | ProxyOptions>>((proxy, [envKey, prefix]) => {
     const target = env[envKey];
@@ -43,9 +45,25 @@ const buildServiceProxy = (env: Record<string, string>) => {
   }, {});
 };
 
+const validateBuildServiceEnv = (mode: string, env: Record<string, string>) => {
+  if (mode !== 'production' && mode !== 'staging') {
+    return;
+  }
+
+  const missing = REQUIRED_SERVICE_ENV_KEYS.filter((envKey) => !env[envKey]?.trim());
+  if (missing.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `Missing required frontend service environment variables for ${mode}: ${missing.join(', ')}`,
+  );
+};
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, rootDir, '');
+  validateBuildServiceEnv(mode, env);
 
   return {
     plugins: [react()],

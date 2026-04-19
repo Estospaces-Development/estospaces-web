@@ -62,5 +62,5 @@ jobs:
       - name: Health check
         run: |
           SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
-          READY_REVISION="$(gcloud run services describe "$SERVICE_TARGET" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.latestReadyRevisionName)')"
-          test -n "$READY_REVISION"
+          SERVICE_URL="$(gcloud run services describe "$SERVICE_TARGET" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
+          curl --fail --show-error --silent "${SERVICE_URL}" > /dev/null

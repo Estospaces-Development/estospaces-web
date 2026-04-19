@@ -27,7 +27,7 @@ const ROLE_COPY: Record<Role, { title: string; subtitle: string; docsPath: strin
     user: {
         title: 'User Help & Support',
         subtitle: 'Open a support ticket, keep talking in the same thread, and track each update from the Estospaces Team without losing context.',
-        docsPath: '/user/docs',
+        docsPath: '/user/dashboard/docs',
         categories: ['General Inquiry', 'Buying Help', 'Renting Help', 'Fast Track', 'Contracts', 'Payments', 'Technical Issue'],
     },
     manager: {

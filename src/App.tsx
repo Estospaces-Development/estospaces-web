@@ -141,6 +141,7 @@ const UserSettings = lazyPage(() => import('./pages/user/settings/page'));
 
 // Nested User Dashboard pages
 const UserContracts = lazyPage(() => import('./pages/user/dashboard/contracts/page'));
+const UserDashboardDocs = lazyPage(() => import('./pages/user/dashboard/docs/page'));
 const UserDiscover = lazyPage(() => import('./pages/user/dashboard/discover/page'));
 const UserFastTrack = lazyPage(() => import('./pages/user/dashboard/fast-track/page'));
 const UserCaseFile = lazyPage(() => import('./pages/user/dashboard/case-file/page'));
@@ -243,6 +244,7 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<UserDashboard />} />
             <Route path="dashboard/contracts" element={<UserContracts />} />
             <Route path="dashboard/case-file" element={<UserCaseFile />} />
+            <Route path="dashboard/docs" element={<UserDashboardDocs />} />
             <Route path="dashboard/discover" element={<UserDiscover />} />
             <Route path="dashboard/fast-track" element={<UserFastTrack />} />
             <Route path="dashboard/help" element={<UserHelp />} />

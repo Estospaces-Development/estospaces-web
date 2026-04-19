@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, CheckCircle, KeyRound } from 'lucide-react';
 import axios from 'axios';
+import { getServiceUrl } from '@/lib/apiUtils';
 
-const API_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+const API_URL = getServiceUrl('core');
 
 interface PasswordRule {
     label: string;
@@ -181,6 +182,7 @@ export default function ResetPasswordPage() {
                     <div className="relative">
                         <input
                             type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
                             placeholder="Enter your new password"
                             value={password}
                             onChange={(e) => {
@@ -222,6 +224,7 @@ export default function ResetPasswordPage() {
                     <div className="relative">
                         <input
                             type={showConfirmPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
                             placeholder="Re-enter your new password"
                             value={confirmPassword}
                             onChange={(e) => {

@@ -3,12 +3,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { getServiceUrl } from '@/lib/apiUtils';
 import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+const API_URL = getServiceUrl('core');
 
 type TermsAcceptanceModalProps = {
     isOpen: boolean;
@@ -402,6 +403,7 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
                         <input
                             type="text"
+                            autoComplete="name"
                             placeholder="Enter your full name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -413,6 +415,7 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                         <input
                             type="email"
+                            autoComplete="email"
                             placeholder="Enter your email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -425,6 +428,7 @@ export default function RegisterPage() {
                         <div className="relative">
                             <input
                                 type={showPassword ? 'text' : 'password'}
+                                autoComplete="new-password"
                                 placeholder="Create a password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}

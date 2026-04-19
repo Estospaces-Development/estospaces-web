@@ -8,6 +8,13 @@ on:
 
 env:
   GCP_REGION: europe-west2
+  VITE_CORE_SERVICE_URL: https://core.estospaces.invalid
+  VITE_BOOKING_SERVICE_URL: https://booking.estospaces.invalid
+  VITE_NOTIFICATION_SERVICE_URL: https://notification.estospaces.invalid
+  VITE_PAYMENT_SERVICE_URL: https://payment.estospaces.invalid
+  VITE_SEARCH_SERVICE_URL: https://search.estospaces.invalid
+  VITE_MEDIA_SERVICE_URL: https://media.estospaces.invalid
+  VITE_MESSAGING_SERVICE_URL: https://messaging.estospaces.invalid
 
 jobs:
   build-test-and-lint:
@@ -19,6 +26,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - run: npm audit --audit-level=high
       - name: Run tests when the script exists
         run: |
           if node -e "const pkg=require('./package.json'); process.exit(pkg.scripts && pkg.scripts.test ? 0 : 1)"; then

@@ -16,17 +16,27 @@ const VITE_ENV = (import.meta as ImportMeta & { env?: Record<string, string | bo
 
 // ── Service URL Registry ────────────────────────────────────────────────────
 
-const SERVICE_URLS = {
-    core: VITE_ENV.VITE_CORE_SERVICE_URL || 'http://localhost:8080',
-    booking: VITE_ENV.VITE_BOOKING_SERVICE_URL || 'http://localhost:8081',
-    notification: VITE_ENV.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8083',
-    payment: VITE_ENV.VITE_PAYMENT_SERVICE_URL || 'http://localhost:8082',
-    search: VITE_ENV.VITE_SEARCH_SERVICE_URL || 'http://localhost:8084',
-    media: VITE_ENV.VITE_MEDIA_SERVICE_URL || 'http://localhost:8085',
-    messaging: VITE_ENV.VITE_MESSAGING_SERVICE_URL || 'http://localhost:8086',
+const LOCAL_SERVICE_URLS = {
+    core: 'http://localhost:8080',
+    booking: 'http://localhost:8081',
+    notification: 'http://localhost:8083',
+    payment: 'http://localhost:8082',
+    search: 'http://localhost:8084',
+    media: 'http://localhost:8085',
+    messaging: 'http://localhost:8086',
 } as const;
 
-export type ServiceName = keyof typeof SERVICE_URLS;
+export type ServiceName = keyof typeof LOCAL_SERVICE_URLS;
+
+const SERVICE_ENV_KEYS: Record<ServiceName, string> = {
+    core: 'VITE_CORE_SERVICE_URL',
+    booking: 'VITE_BOOKING_SERVICE_URL',
+    notification: 'VITE_NOTIFICATION_SERVICE_URL',
+    payment: 'VITE_PAYMENT_SERVICE_URL',
+    search: 'VITE_SEARCH_SERVICE_URL',
+    media: 'VITE_MEDIA_SERVICE_URL',
+    messaging: 'VITE_MESSAGING_SERVICE_URL',
+};
 
 const LOCAL_DEV_PROXY_PREFIXES: Record<ServiceName, string> = {
     core: '/__dev_proxy/core',
@@ -42,6 +52,26 @@ const LOCAL_DEV_HOSTNAMES = new Set(['localhost', '127.0.0.1']);
 
 function isAbsoluteServiceUrl(value: string) {
     return /^https?:\/\//i.test(value);
+}
+
+function readEnvString(value: string | boolean | undefined) {
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function isProductionBuild() {
+    return VITE_ENV.PROD === true || readEnvString(VITE_ENV.MODE) === 'production';
+}
+
+function getConfiguredServiceUrl(service: ServiceName) {
+    const envKey = SERVICE_ENV_KEYS[service];
+    const configuredUrl = readEnvString(VITE_ENV[envKey]);
+    if (configuredUrl) {
+        return configuredUrl;
+    }
+    if (isProductionBuild()) {
+        throw new Error(`${envKey} must be configured for production builds.`);
+    }
+    return LOCAL_SERVICE_URLS[service];
 }
 
 function resolveServiceUrl(service: ServiceName, configuredUrl: string) {
@@ -68,7 +98,7 @@ function resolveServiceUrl(service: ServiceName, configuredUrl: string) {
 
 /** Returns the base URL for a given backend service. */
 export function getServiceUrl(service: ServiceName): string {
-    return resolveServiceUrl(service, SERVICE_URLS[service]);
+    return resolveServiceUrl(service, getConfiguredServiceUrl(service));
 }
 
 export function buildApiUrl(baseUrl: string, path: string) {

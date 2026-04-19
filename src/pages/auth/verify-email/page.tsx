@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import { getServiceUrl } from '@/lib/apiUtils';
 
-const API_URL = import.meta.env.VITE_CORE_SERVICE_URL || 'http://localhost:8080';
+const API_URL = getServiceUrl('core');
 
 export default function VerifyEmailPage() {
     const [searchParams] = useSearchParams();

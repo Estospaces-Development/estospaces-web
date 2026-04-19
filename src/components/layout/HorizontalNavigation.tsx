@@ -76,7 +76,7 @@ const HorizontalNavigation = ({
     },
     { icon: User, label: "Profile", path: "/user/dashboard/profile" },
     { icon: Settings, label: "Settings", path: "/user/dashboard/settings" },
-    { icon: BookOpen, label: "Docs", path: "/user/docs" },
+    { icon: BookOpen, label: "Docs", path: "/user/dashboard/docs" },
     { icon: HelpCircle, label: "Help & Support", path: "/user/dashboard/help" },
   ];
 
