@@ -185,19 +185,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const tryMockLogin = (email: string, password: string) => {
         const MOCK_USERS: Record<string, { password: string; role: string; name: string }> = {
-            'manager@gmail.com': { password: 'Estospaces@123', role: 'manager', name: 'Manager User' },
-            'manager@estospaces.com': { password: 'Estospaces@123', role: 'manager', name: 'Manager User' },
-            'user@gmail.com': { password: 'Estospaces@123', role: 'user', name: 'Demo User' },
-            'user@estospaces.com': { password: 'Estospaces@123', role: 'user', name: 'Demo User' },
-            'admin@estospaces.com': { password: 'Estospaces@123', role: 'admin', name: 'Admin User' },
+            'manager@example.com': { password: 'dev-manager-change-me', role: 'manager', name: 'Manager User' },
+            'user@example.com': { password: 'dev-user-change-me', role: 'user', name: 'Demo User' },
+            'admin@example.com': { password: 'dev-admin-change-me', role: 'admin', name: 'Admin User' },
         };
 
         const mockUser = MOCK_USERS[email.toLowerCase()];
         if (!mockUser) {
-            return { success: false, error: 'Invalid email. Try manager@gmail.com or user@gmail.com for demo.' };
+            return { success: false, error: 'Mock login is not configured for this account.' };
         }
         if (password !== mockUser.password) {
-            return { success: false, error: 'Invalid password. Use Estospaces@123 for demo.' };
+            return { success: false, error: 'Invalid password for the configured mock account.' };
         }
 
         const userObj: User = {
