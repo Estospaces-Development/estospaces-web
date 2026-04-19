@@ -6,6 +6,14 @@ const crashPattern = /toast is not defined|unexpected application error|somethin
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
 const routeSettleMs = Number(process.env.E2E_ROUTE_SETTLE_MS || "1500");
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 function readFrontendUrlFromEnvFile(filename) {
   const filePath = path.join(process.cwd(), filename);
   if (!fs.existsSync(filePath)) {
@@ -50,8 +58,8 @@ const targets = {
 const roles = [
   {
     name: "user",
-    email: process.env.E2E_USER_EMAIL || "user@gmail.com",
-    password: process.env.E2E_USER_PASSWORD || "Estospaces@123",
+    email: requireEnv("E2E_USER_EMAIL"),
+    password: requireEnv("E2E_USER_PASSWORD"),
     dashboard: "/user/dashboard",
     routes: [
       "/user/dashboard",
@@ -69,8 +77,8 @@ const roles = [
   },
   {
     name: "manager",
-    email: process.env.E2E_MANAGER_EMAIL || "siranjeeviworks@gmail.com",
-    password: process.env.E2E_MANAGER_PASSWORD || "Estospaces@123",
+    email: requireEnv("E2E_MANAGER_EMAIL"),
+    password: requireEnv("E2E_MANAGER_PASSWORD"),
     dashboard: "/manager/dashboard",
     routes: [
       "/manager/dashboard",
@@ -93,8 +101,8 @@ const roles = [
   },
   {
     name: "admin",
-    email: process.env.E2E_ADMIN_EMAIL || "admin@estospaces.com",
-    password: process.env.E2E_ADMIN_PASSWORD || "admin123",
+    email: requireEnv("E2E_ADMIN_EMAIL"),
+    password: requireEnv("E2E_ADMIN_PASSWORD"),
     dashboard: "/admin/dashboard",
     routes: [
       "/admin/dashboard",
@@ -126,7 +134,7 @@ function parseTargets(argv) {
     }
   });
 
-  return selected.length > 0 ? selected : ["dev"];
+  return selected.length > 0 ? selected : ["local"];
 }
 
 function parseOption(argv, name) {

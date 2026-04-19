@@ -209,14 +209,6 @@ export default function LoginPage() {
           </>
       )}
 
-      {/* Test credentials hint */}
-      <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md w-full">
-        <p className="text-orange-700 dark:text-orange-300 text-xs font-medium mb-1">Test Credentials:</p>
-        <p className="text-orange-700 dark:text-orange-200 text-[10px]">Admin: admin@estospaces.com / admin123</p>
-        <p className="text-orange-700 dark:text-orange-200 text-[10px]">Manager: manager@gmail.com / Estospaces@123</p>
-        <p className="text-orange-700 dark:text-orange-200 text-[10px]">User: user@gmail.com / Estospaces@123</p>
-      </div>
-
       <p className="text-sm text-gray-700 dark:text-gray-300 mt-6">
         Don&apos;t have an account?{' '}
         <Link to="/register" className="text-primary font-semibold hover:underline">

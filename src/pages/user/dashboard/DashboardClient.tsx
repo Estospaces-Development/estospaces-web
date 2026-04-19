@@ -16,7 +16,6 @@ import {
 
 import { useUserLocation } from '@/contexts/LocationContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
-import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -32,8 +31,12 @@ import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebra
 import SearchBar, { SearchFilters as DashboardSearchFilters } from '@/components/ui/SearchBar';
 
 import { searchService, SearchResult } from '@/services/searchService';
-import { getFastTrackCases } from '@/services/fastTrackService';
+import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
 import { hasFastTrackReachedCompletion } from '@/lib/fastTrackWorkflow';
+import { getUserBrokerRequests, type BrokerRequestRecord } from '@/services/leadsService';
+import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 
@@ -189,7 +192,6 @@ const DashboardClient = () => {
   const toast = useToast();
   const { activeLocation, loading: locationLoading } = useUserLocation();
   const { setActiveTab } = usePropertyFilter();
-  const { savedProperties } = useSavedProperties();
   const dashboardCelebrateRequested = searchParams.get('celebrate') === '1';
   const dashboardCelebrateCaseId = searchParams.get('fastTrackCase');
 
@@ -219,8 +221,22 @@ const DashboardClient = () => {
   const [nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
   const [showFastTrackCelebration, setShowFastTrackCelebration] = useState(false);
   const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
+  const [activeBrokerRequest, setActiveBrokerRequest] = useState<BrokerRequestRecord | null>(null);
+  const [activeJourney, setActiveJourney] = useState<FastTrackCase | null>(null);
+  const [completedJourney, setCompletedJourney] = useState<FastTrackCase | null>(null);
+  const [journeySummaryLoading, setJourneySummaryLoading] = useState(true);
+  const [journeySummaryError, setJourneySummaryError] = useState<string | null>(null);
   const brokerRequestWorkspaceRef = useRef<HTMLDivElement | null>(null);
   const celebratedDashboardCaseIdRef = useRef<string | null>(null);
+  const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
+  const dashboardCopy = useMemo(() => getDashboardSimplificationCopy(), []);
+
+  const openDashboardCelebration = useCallback((caseItem: FastTrackCase) => {
+    celebratedDashboardCaseIdRef.current = caseItem.caseId;
+    setCelebrationPropertyTitle(caseItem.propertyTitle || null);
+    toast.clearAll();
+    setShowFastTrackCelebration(true);
+  }, [toast]);
 
   useEffect(() => {
     const nextDashboardType = mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'));
@@ -301,24 +317,76 @@ const DashboardClient = () => {
 
   useEffect(() => {
     if (!user?.id) {
+      setActiveBrokerRequest(null);
+      setActiveJourney(null);
+      setCompletedJourney(null);
+      setJourneySummaryError(null);
+      setJourneySummaryLoading(false);
       return;
     }
 
     let active = true;
 
-    const loadCompletedFastTrackCases = async () => {
-      const result = await getFastTrackCases({ suppressErrorToast: true });
-      if (!active || !result.data) {
-        return;
-      }
+    const loadJourneySummary = async () => {
+      setJourneySummaryLoading(true);
+      setJourneySummaryError(null);
 
-      const completedCases = result.data
-        .filter((caseItem) => hasFastTrackReachedCompletion(caseItem))
-        .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
-      const clearCelebrateQuery = () => {
-        if (!dashboardCelebrateRequested) {
+      try {
+        const [brokerResult, fastTrackResult] = await Promise.all([
+          getUserBrokerRequests({ suppressErrorToast: true }),
+          getFastTrackCases({ suppressErrorToast: true }),
+        ]);
+
+        if (!active) {
           return;
         }
+
+        const liveBrokerRequest = (brokerResult.data || [])
+          .filter((request) => isLiveBrokerRequest(request))
+          .sort((left, right) => (
+            new Date(right.updated_at || right.created_at || 0).getTime()
+            - new Date(left.updated_at || left.created_at || 0).getTime()
+          ))[0] || null;
+
+        const fastTrackCases = fastTrackResult.data || [];
+        const liveFastTrackJourney = fastTrackCases
+          .filter((caseItem) => caseItem.workspaceFinalStatus === 'active')
+          .sort((left, right) => {
+            if (left.hoursRemaining !== right.hoursRemaining) {
+              return left.hoursRemaining - right.hoursRemaining;
+            }
+            return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
+          })[0] || null;
+
+        const completedCases = fastTrackCases
+          .filter((caseItem) => hasFastTrackReachedCompletion(caseItem))
+          .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
+
+        let freshlyCompletedCase: FastTrackCase | null = null;
+        const nextCompletionStatus: Record<string, FastTrackCase['workspaceFinalStatus']> = {};
+        fastTrackCases.forEach((caseItem) => {
+          nextCompletionStatus[caseItem.caseId] = caseItem.workspaceFinalStatus;
+          const previousStatus = completionStatusRef.current[caseItem.caseId];
+          if (!freshlyCompletedCase && previousStatus && previousStatus !== 'completed' && caseItem.workspaceFinalStatus === 'completed') {
+            freshlyCompletedCase = caseItem;
+          }
+        });
+        completionStatusRef.current = nextCompletionStatus;
+
+        setActiveBrokerRequest(liveBrokerRequest);
+        setActiveJourney(liveFastTrackJourney);
+        setCompletedJourney(completedCases[0] || null);
+
+        if (!dashboardCelebrateRequested) {
+          if (freshlyCompletedCase && celebratedDashboardCaseIdRef.current !== freshlyCompletedCase.caseId) {
+            openDashboardCelebration(freshlyCompletedCase);
+          }
+          return;
+        }
+
+        const forcedCelebrationCase = dashboardCelebrateCaseId
+          ? completedCases.find((caseItem) => caseItem.caseId === dashboardCelebrateCaseId) || null
+          : completedCases[0] || null;
 
         setSearchParams((previous) => {
           const next = new URLSearchParams(previous);
@@ -326,31 +394,34 @@ const DashboardClient = () => {
           next.delete('fastTrackCase');
           return next;
         });
-      };
 
-      if (dashboardCelebrateRequested) {
-        const forcedCelebrationCase = dashboardCelebrateCaseId
-          ? completedCases.find((caseItem) => caseItem.caseId === dashboardCelebrateCaseId) || null
-          : completedCases[0] || null;
+        if (forcedCelebrationCase) {
+          openDashboardCelebration(forcedCelebrationCase);
+        } else if (freshlyCompletedCase && celebratedDashboardCaseIdRef.current !== freshlyCompletedCase.caseId) {
+          openDashboardCelebration(freshlyCompletedCase);
+        }
+      } catch {
+        if (!active) {
+          return;
+        }
 
-        celebratedDashboardCaseIdRef.current = forcedCelebrationCase?.caseId || dashboardCelebrateCaseId || '__dashboard-success__';
-        setCelebrationPropertyTitle(forcedCelebrationCase?.propertyTitle || null);
-        setShowFastTrackCelebration(true);
-        toast.success(
-          forcedCelebrationCase?.propertyTitle
-            ? `Fast-track complete for ${forcedCelebrationCase.propertyTitle}.`
-            : 'Fast-track complete.',
-        );
-        clearCelebrateQuery();
+        setActiveBrokerRequest(null);
+        setActiveJourney(null);
+        setCompletedJourney(null);
+        setJourneySummaryError('Unable to load your latest journey update right now.');
+      } finally {
+        if (active) {
+          setJourneySummaryLoading(false);
+        }
       }
     };
 
-    void loadCompletedFastTrackCases();
+    void loadJourneySummary();
 
     return () => {
       active = false;
     };
-  }, [dashboardCelebrateCaseId, dashboardCelebrateRequested, setSearchParams, toast, user?.id]);
+  }, [dashboardCelebrateCaseId, dashboardCelebrateRequested, openDashboardCelebration, setSearchParams, user?.id]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -364,6 +435,63 @@ const DashboardClient = () => {
     || user?.name?.split(' ')[0]
     || user?.email?.split('@')[0]
     || 'there';
+
+  const nextStepSummary = useMemo(() => {
+    if (activeJourney) {
+      const stageLabel = getJourneyStageLabel(activeJourney.stage, activeJourney.journeyMode, 'user');
+      return {
+        title: dashboardCopy.activeJourneyTitle,
+        now: `${activeJourney.propertyTitle} is at ${stageLabel.toLowerCase()}.`,
+        next: activeJourney.workspaceFinalStatus === 'active'
+          ? `Next: ${activeJourney.hoursRemaining > 0 ? `${activeJourney.hoursRemaining}h left today.` : 'This journey needs attention.'}`
+          : 'Next: review the latest update.',
+        primaryLabel: dashboardCopy.activeJourneyPrimaryLabel,
+        primaryAction: () => navigate(`/user/dashboard/fast-track?case=${activeJourney.caseId}`),
+        secondaryLabel: dashboardCopy.activeJourneySecondaryLabel,
+        secondaryAction: () => navigate('/user/dashboard/fast-track'),
+      };
+    }
+
+    if (activeBrokerRequest) {
+      const tracking = getBrokerRequestTrackingSummary(activeBrokerRequest);
+      const sharedHomes = activeBrokerRequest.property_shares?.length || 0;
+      return {
+        title: dashboardCopy.brokerRequestTitle,
+        now: activeBrokerRequest.matched_broker?.name
+          ? `${activeBrokerRequest.matched_broker.name} is helping you now.`
+          : `${tracking.currentStage}.`,
+        next: sharedHomes > 0
+          ? `Next: review ${sharedHomes} home choice${sharedHomes === 1 ? '' : 's'}.`
+          : `Next: ${tracking.nextAction}.`,
+        primaryLabel: dashboardCopy.brokerRequestPrimaryLabel,
+        primaryAction: () => navigate(buildBrokerRequestWorkspacePath(activeBrokerRequest.id)),
+        secondaryLabel: dashboardCopy.brokerRequestSecondaryLabel,
+        secondaryAction: () => brokerRequestWorkspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      };
+    }
+
+    if (completedJourney) {
+      return {
+        title: dashboardCopy.completedJourneyTitle,
+        now: `${completedJourney.propertyTitle} has finished its guided journey.`,
+        next: 'Next: review the property and any final records.',
+        primaryLabel: dashboardCopy.completedJourneyPrimaryLabel,
+        primaryAction: () => navigate(`/user/properties/${completedJourney.propertyId}`),
+        secondaryLabel: dashboardCopy.completedJourneySecondaryLabel,
+        secondaryAction: () => navigate('/user/dashboard/fast-track'),
+      };
+    }
+
+    return {
+      title: dashboardCopy.noJourneyTitle,
+      now: dashboardCopy.noJourneySummary,
+      next: 'Next: choose one option below to get started.',
+      primaryLabel: dashboardCopy.noJourneyPrimaryLabel,
+      primaryAction: () => navigate('/user/search'),
+      secondaryLabel: dashboardCopy.noJourneySecondaryLabel,
+      secondaryAction: () => brokerRequestWorkspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    };
+  }, [activeBrokerRequest, activeJourney, completedJourney, dashboardCopy, navigate]);
 
   const fetchFilteredProperties = useCallback(async () => {
     if (!shouldFetchFilteredResults) {
@@ -526,53 +654,76 @@ const DashboardClient = () => {
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto dark:bg-[#0a0a0a] min-h-screen transition-all duration-300">
       <FastTrackCelebrationOverlay
         active={showFastTrackCelebration}
-        title="Fast-Track Complete"
+        role="user"
+        title="Your journey is complete"
         subtitle={celebrationPropertyTitle
-          ? `${celebrationPropertyTitle} has completed fast-track and is ready for the next step.`
-          : 'Your fast-track journey has completed and is ready for the next step.'}
+          ? `${celebrationPropertyTitle} is ready for the next step.`
+          : 'Your 24-hour journey is complete and ready for the next step.'}
         onComplete={() => setShowFastTrackCelebration(false)}
       />
-      <div id="greeting-section" className="flex items-center justify-between animate-fadeIn">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
-            {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span> {'\u{1F44B}'}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            What would you like to do today?
+      <div id="greeting-section" className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px] animate-fadeIn">
+        <section className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_58%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.22)_0%,rgba(10,10,10,1)_60%)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
+            {dashboardCopy.nextStepEyebrow}
           </p>
-        </div>
+          <div className="mt-3">
+            <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
+              {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span>
+            </h1>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              {dashboardCopy.greetingSubtitle}
+            </p>
+          </div>
+          <div className="mt-5 rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {nextStepSummary.title}
+            </h2>
+            <div className="mt-4 space-y-3 text-sm text-gray-600 dark:text-gray-300">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What is happening now?</p>
+                <p className="mt-1 text-base text-gray-900 dark:text-white">{journeySummaryLoading ? 'Loading your latest update...' : nextStepSummary.now}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What do I need to do next?</p>
+                <p className="mt-1">{journeySummaryLoading ? 'Checking your next step...' : nextStepSummary.next}</p>
+              </div>
+            </div>
+            {journeySummaryError ? (
+              <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">{journeySummaryError}</p>
+            ) : null}
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                onClick={nextStepSummary.primaryAction}
+                className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+              >
+                {nextStepSummary.primaryLabel}
+                <ArrowRight size={16} />
+              </button>
+              <button
+                onClick={nextStepSummary.secondaryAction}
+                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                {nextStepSummary.secondaryLabel}
+              </button>
+            </div>
+          </div>
+        </section>
 
-        <div className="ml-auto">
+        <div className="min-w-0">
           <ProfileCompletionCard />
         </div>
       </div>
 
-      <div id="hero-search" className="relative rounded-3xl shadow-soft-xl overflow-hidden min-h-[500px] lg:min-h-[550px] flex flex-col items-center justify-center animate-fadeIn group">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 group-hover:scale-105"
-          style={{
-            backgroundImage: `url('https://images.pexels.com/photos/8293778/pexels-photo-8293778.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&dpr=2')`,
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 via-gray-900/50 to-orange-900/30" />
-        <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-black/20 to-transparent" />
-
-        <div className="relative z-10 text-center px-4 md:px-6 max-w-5xl mx-auto w-full">
-          <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight tracking-tight animate-slideUp"
-            style={{ textShadow: '0 4px 20px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)' }}
-          >
-            Find your <span className="text-orange-400" style={{ textShadow: '0 4px 20px rgba(251,146,60,0.4), 0 2px 8px rgba(0,0,0,0.3)' }}>perfect space</span>
-          </h1>
-          <p
-            className="text-white text-lg md:text-xl mb-10 max-w-2xl mx-auto animate-slideUp font-medium tracking-wide"
-            style={{ animationDelay: '0.1s', textShadow: '0 2px 12px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3)' }}
-          >
-            Discover thousands of premium properties for sale and rent across the UK
-          </p>
-
-          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 lg:p-8 shadow-2xl max-w-4xl mx-auto animate-slideUp border border-white/50 ring-1 ring-black/5" style={{ animationDelay: '0.2s' }}>
-            <div className="w-full">
+      <div id="hero-search" className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 animate-fadeIn">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              {dashboardCopy.searchTitle}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              {dashboardCopy.searchSubtitle}
+            </p>
+            <div className="mt-5">
               <SearchBar
                 variant="hero"
                 navigateOnSearch={false}
@@ -581,8 +732,7 @@ const DashboardClient = () => {
                 className="w-full text-left"
               />
             </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-4 flex flex-wrap gap-2.5">
               {dashboardFilterOptions.map((filter) => {
                 const selected = selectedFilters.includes(filter.id);
 
@@ -593,18 +743,45 @@ const DashboardClient = () => {
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
                       selected
                         ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
                     {filter.label}
                   </button>
                 );
               })}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">Quick actions</p>
+            <div className="mt-4 grid gap-3">
               <button
-                onClick={() => navigate('/user/search')}
-                className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-orange-300 hover:text-orange-600"
+                onClick={() => {
+                  setActiveTab('buy');
+                  navigate('/user/dashboard/discover?type=buy');
+                }}
+                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
               >
-                Open Full Search
+                <span>{dashboardCopy.quickBuyLabel}</span>
+                <Building2 size={16} className="text-orange-500" />
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('rent');
+                  navigate('/user/dashboard/discover?type=rent');
+                }}
+                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
+              >
+                <span>{dashboardCopy.quickRentLabel}</span>
+                <Key size={16} className="text-orange-500" />
+              </button>
+              <button
+                onClick={() => navigate('/user/saved')}
+                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
+              >
+                <span>{dashboardCopy.quickSavedLabel}</span>
+                <Bookmark size={16} className="text-orange-500" />
               </button>
             </div>
           </div>
@@ -632,56 +809,6 @@ const DashboardClient = () => {
                 <NearbyAgenciesList />
               </Suspense>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => {
-                setActiveTab('buy');
-                navigate('/user/dashboard/discover?type=buy');
-              }}
-              className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
-            >
-              <div className="p-3.5 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-violet-500/25">
-                <Building2 size={24} className="text-white" strokeWidth={1.5} />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Buy Property</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Find your dream home</p>
-              <span className="text-violet-600 text-sm font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                Browse <ArrowRight size={14} />
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('rent');
-                navigate('/user/dashboard/discover?type=rent');
-              }}
-              className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
-            >
-              <div className="p-3.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/25">
-                <Key size={24} className="text-white" strokeWidth={1.5} />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Rent Property</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Explore rentals</p>
-              <span className="text-cyan-600 text-sm font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                Explore <ArrowRight size={14} />
-              </span>
-            </button>
-
-            <button
-              onClick={() => navigate('/user/saved')}
-              className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
-            >
-              <div className="p-3.5 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-rose-500/25">
-                <Bookmark size={24} className="text-white" strokeWidth={1.5} />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Saved</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{savedProperties?.length || 0} properties</p>
-              <span className="text-rose-600 text-sm font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                View All <ArrowRight size={14} />
-              </span>
-            </button>
           </div>
 
           <Suspense fallback={<div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />}>
@@ -807,10 +934,10 @@ const DashboardClient = () => {
             <div>
               <div className="flex items-center gap-2">
                 <MapIcon className="text-orange-500" size={20} />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">Nearby Properties</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">{dashboardCopy.mapTitle}</h2>
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                Explore properties on the map - click markers to view details
+                {dashboardCopy.mapSubtitle}
               </p>
             </div>
             <button

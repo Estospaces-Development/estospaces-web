@@ -3,6 +3,14 @@ const path = require('node:path');
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 const envTargets = {
   dev: {
     name: 'dev',
@@ -33,20 +41,20 @@ const envTargets = {
 const roleDefinitions = {
   user: {
     name: 'user',
-    email: process.env.E2E_USER_EMAIL || 'user@gmail.com',
-    password: process.env.E2E_USER_PASSWORD || 'Estospaces@123',
+    email: requireEnv('E2E_USER_EMAIL'),
+    password: requireEnv('E2E_USER_PASSWORD'),
     dashboard: '/user/dashboard',
   },
   manager: {
     name: 'manager',
-    email: process.env.E2E_MANAGER_EMAIL || 'siranjeeviworks@gmail.com',
-    password: process.env.E2E_MANAGER_PASSWORD || 'Estospaces@123',
+    email: requireEnv('E2E_MANAGER_EMAIL'),
+    password: requireEnv('E2E_MANAGER_PASSWORD'),
     dashboard: '/manager/dashboard',
   },
   admin: {
     name: 'admin',
-    email: process.env.E2E_ADMIN_EMAIL || 'admin@estospaces.com',
-    password: process.env.E2E_ADMIN_PASSWORD || 'admin123',
+    email: requireEnv('E2E_ADMIN_EMAIL'),
+    password: requireEnv('E2E_ADMIN_PASSWORD'),
     dashboard: '/admin/dashboard',
   },
 };

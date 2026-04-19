@@ -86,7 +86,7 @@ test('thread recipient resolution stays case-role aware', () => {
     assert.equal(resolveFastTrackThreadRecipientId('manager', 'manager-1', baseCase), 'user-1');
     assert.equal(resolveFastTrackThreadRecipientId('admin', 'admin-1', baseCase), 'user-1');
     assert.equal(resolveFastTrackThreadRecipientId('user', 'manager-1', baseCase), null);
-    assert.equal(buildFastTrackThreadRecipientLabel('user', baseCase), 'Case manager');
+    assert.equal(buildFastTrackThreadRecipientLabel('user', baseCase), 'Your helper');
     assert.equal(buildFastTrackThreadRecipientLabel('manager', baseCase), 'Example user');
 });
 

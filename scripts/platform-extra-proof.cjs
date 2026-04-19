@@ -204,7 +204,7 @@ async function runSecurityChecks(target) {
       localStorage.setItem('esto_token', 'invalid-token');
       localStorage.setItem('esto_user', JSON.stringify({
         id: 'stale-user',
-        email: 'user@gmail.com',
+        email: 'stale-user@example.invalid',
         role: 'user',
         isAuthenticated: true,
       }));

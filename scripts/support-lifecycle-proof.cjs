@@ -8,9 +8,17 @@ const {
   resolveTarget,
 } = require('./platform-proof-shared.cjs');
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 const credentials = {
-  user: { email: 'user@gmail.com', password: 'Estospaces@123', dashboard: '/user/dashboard' },
-  admin: { email: 'admin@estospaces.com', password: 'admin123', dashboard: '/admin/dashboard' },
+  user: { email: requireEnv('E2E_USER_EMAIL'), password: requireEnv('E2E_USER_PASSWORD'), dashboard: '/user/dashboard' },
+  admin: { email: requireEnv('E2E_ADMIN_EMAIL'), password: requireEnv('E2E_ADMIN_PASSWORD'), dashboard: '/admin/dashboard' },
 };
 
 async function login(page, baseUrl, role) {

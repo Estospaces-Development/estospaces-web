@@ -2,6 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const CORE_URL = process.env.CORE_URL || "http://localhost:8080";
 const BOOKING_URL = process.env.BOOKING_URL || "http://localhost:8081";
@@ -16,9 +24,9 @@ const FAST_TRACK_ROUTE_BY_ROLE = {
 };
 
 const CREDENTIALS = {
-  user: { email: "user@gmail.com", password: "Estospaces@123" },
-  manager: { email: "siranjeeviworks@gmail.com", password: "Estospaces@123" },
-  admin: { email: "admin@estospaces.com", password: "admin123" },
+  user: { email: requireEnv("E2E_USER_EMAIL"), password: requireEnv("E2E_USER_PASSWORD") },
+  manager: { email: requireEnv("E2E_MANAGER_EMAIL"), password: requireEnv("E2E_MANAGER_PASSWORD") },
+  admin: { email: requireEnv("E2E_ADMIN_EMAIL"), password: requireEnv("E2E_ADMIN_PASSWORD") },
 };
 
 const DEFAULT_PREFERENCES = {

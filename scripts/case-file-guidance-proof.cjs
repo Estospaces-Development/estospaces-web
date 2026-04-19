@@ -2,6 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const OUTPUT_PATH =
   process.env.OUTPUT_PATH ||
@@ -20,8 +28,8 @@ const FAST_TRACK_ROUTE_BY_ROLE = {
 };
 
 const CREDENTIALS = {
-  user: { email: "user@gmail.com", password: "Estospaces@123" },
-  manager: { email: "siranjeeviworks@gmail.com", password: "Estospaces@123" },
+  user: { email: requireEnv("E2E_USER_EMAIL"), password: requireEnv("E2E_USER_PASSWORD") },
+  manager: { email: requireEnv("E2E_MANAGER_EMAIL"), password: requireEnv("E2E_MANAGER_PASSWORD") },
 };
 
 function attachDiagnostics(page, result) {

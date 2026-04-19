@@ -134,21 +134,21 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
       }`}
     >
       {/* Logo Section */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex h-16 items-center justify-between border-b border-gray-100 px-4 dark:border-gray-800">
         <div
-          className={`flex items-center gap-3 overflow-hidden ${!isOpen && "justify-center w-full"}`}
+          className={`flex min-w-0 items-center ${isOpen ? "gap-3" : "w-full justify-center"}`}
         >
-          <div className="relative w-8 h-8 flex-shrink-0">
+          <div className={`flex shrink-0 items-center overflow-hidden ${isOpen ? "h-8 w-[2.85rem]" : "h-8 w-8 justify-center"}`}>
             <img
               src="/images/logo-icon.png"
-              alt="Logo"
-              className="object-contain"
-              sizes="32px"
+              alt="Estospaces"
+              className={`block h-6 w-auto max-w-none object-contain object-left ${isOpen ? "" : "mx-auto"}`}
+              sizes={isOpen ? "46px" : "32px"}
             />
           </div>
           <span
-            className={`font-display font-bold text-xl tracking-tight text-gray-900 dark:text-white whitespace-nowrap transition-opacity duration-300 ${
-              isOpen ? "opacity-100" : "opacity-0 w-0"
+            className={`font-display whitespace-nowrap text-[2rem] font-bold leading-none tracking-tight text-gray-900 transition-all duration-300 dark:text-white ${
+              isOpen ? "max-w-[11rem] opacity-100" : "max-w-0 opacity-0"
             }`}
           >
             Estospaces

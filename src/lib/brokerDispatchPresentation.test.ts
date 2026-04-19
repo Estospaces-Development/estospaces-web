@@ -24,9 +24,9 @@ test('matched broker summary highlights the acceptance state', () => {
             },
         } as any),
         {
-            title: 'Broker matched',
+            title: 'Broker found',
             subtitle: 'Matched with Asha Realty',
-            helper: 'Your broker is preparing a property shortlist',
+            helper: 'Your broker is preparing home choices.',
         },
     );
 });
@@ -45,17 +45,17 @@ test('matched experience steps keep the user in the same live workflow', () => {
             {
                 id: 'confirmed',
                 title: 'Broker confirmed',
-                description: 'Asha Realty accepted your rent request and the live dispatch queue is now locked.',
+                description: 'Asha Realty accepted your rent request and is now helping you.',
             },
             {
                 id: 'details',
-                title: 'Request details stay attached',
-                description: 'Your location, budget, and requirements remain in this workspace so the matched broker sees the same brief you submitted.',
+                title: 'Your request details stay here',
+                description: 'Your location, budget, and requirements stay attached so the broker sees the same details you shared.',
             },
             {
                 id: 'handoff',
-                title: 'Broker is preparing options',
-                description: 'The 24-hour property fast-track starts only after your broker shares property options and you choose one.',
+                title: 'Home choices are on the way',
+                description: 'Your 24-hour journey starts after your broker shares home choices and you pick one.',
             },
         ],
     );
@@ -68,9 +68,9 @@ test('workspace summary reflects portfolio share and property selection states',
             property_shares: [{ id: 'share-1' }, { id: 'share-2' }],
         } as any),
         {
-            title: 'Portfolio shared',
-            subtitle: '2 property options ready to review',
-            helper: 'Choose one property to start the 24-hour fast-track',
+            title: 'Home choices ready',
+            subtitle: '2 home choices ready to review',
+            helper: 'Choose one home to start your 24-hour journey.',
         },
     );
 
@@ -85,9 +85,9 @@ test('workspace summary reflects portfolio share and property selection states',
             },
         } as any),
         {
-            title: 'Property selected',
-            subtitle: 'Canal View Loft is now linked to your live workspace',
-            helper: 'Continue in the selected property or fast-track workspace',
+            title: 'Home selected',
+            subtitle: 'Canal View Loft is ready for your 24-hour journey',
+            helper: 'Continue with your chosen home.',
         },
     );
 });
@@ -105,7 +105,7 @@ test('pending request summary keeps the submitted area and budget visible', () =
         {
             title: 'Request sent',
             subtitle: 'Searching brokers near Fresh Flow District - SW1A 1AA',
-            helper: 'Budget 450000 - 550000 is attached to this live brief',
+            helper: 'Budget 450000 - 550000 is included in your request.',
         },
     );
 });

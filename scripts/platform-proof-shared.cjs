@@ -1,5 +1,13 @@
 const path = require('node:path');
 
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 const targets = {
   local: {
     name: 'local',
@@ -50,18 +58,18 @@ const targets = {
 
 const credentials = {
   user: {
-    email: process.env.E2E_USER_EMAIL || 'user@gmail.com',
-    password: process.env.E2E_USER_PASSWORD || 'Estospaces@123',
+    email: requireEnv('E2E_USER_EMAIL'),
+    password: requireEnv('E2E_USER_PASSWORD'),
     dashboard: '/user/dashboard',
   },
   manager: {
-    email: process.env.E2E_MANAGER_EMAIL || 'siranjeeviworks@gmail.com',
-    password: process.env.E2E_MANAGER_PASSWORD || 'Estospaces@123',
+    email: requireEnv('E2E_MANAGER_EMAIL'),
+    password: requireEnv('E2E_MANAGER_PASSWORD'),
     dashboard: '/manager/dashboard',
   },
   admin: {
-    email: process.env.E2E_ADMIN_EMAIL || 'admin@estospaces.com',
-    password: process.env.E2E_ADMIN_PASSWORD || 'admin123',
+    email: requireEnv('E2E_ADMIN_EMAIL'),
+    password: requireEnv('E2E_ADMIN_PASSWORD'),
     dashboard: '/admin/dashboard',
   },
 };
@@ -72,7 +80,7 @@ function parseTarget(argv) {
       return arg.slice('--target='.length);
     }
   }
-  return 'dev';
+  return 'local';
 }
 
 function resolveTarget(argv) {
