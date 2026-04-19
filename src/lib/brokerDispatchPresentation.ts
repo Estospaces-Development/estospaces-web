@@ -47,7 +47,7 @@ const secondsUntilDeadline = (deadline?: string) => {
 
 export const formatDispatchStatus = (value?: string) => {
     if (!value) {
-        return 'Live dispatch started';
+        return 'Request sent';
     }
 
     return value
@@ -82,8 +82,8 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
     if (!request) {
         return {
             title: 'Request sent',
-            subtitle: 'Live dispatch started',
-            helper: 'Ranked brokers are being notified in waves',
+            subtitle: 'We are finding a nearby broker now.',
+            helper: 'Nearby brokers are being contacted for you.',
         };
     }
 
@@ -91,37 +91,37 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
 
     if (request.handoff_status === 'property_selected' || request.selected_fast_track_case_id || request.selected_property_id) {
         return {
-            title: 'Property selected',
+            title: 'Home selected',
             subtitle: request.selected_property?.title
-                ? `${request.selected_property.title} is now linked to your live workspace`
-                : 'A property has been selected for the 24-hour fast-track',
-            helper: 'Continue in the selected property or fast-track workspace',
+                ? `${request.selected_property.title} is ready for your 24-hour journey`
+                : 'Your chosen home is ready for the 24-hour journey.',
+            helper: 'Continue with your chosen home.',
         };
     }
 
     if (request.handoff_status === 'portfolio_shared' || (request.property_shares?.length || 0) > 0) {
         return {
-            title: 'Portfolio shared',
-            subtitle: `${request.property_shares?.length || 0} property option${request.property_shares?.length === 1 ? '' : 's'} ready to review`,
-            helper: 'Choose one property to start the 24-hour fast-track',
+            title: 'Home choices ready',
+            subtitle: `${request.property_shares?.length || 0} home choice${request.property_shares?.length === 1 ? '' : 's'} ready to review`,
+            helper: 'Choose one home to start your 24-hour journey.',
         };
     }
 
     if (request.dispatch_status === 'broker_matched' || request.status === 'matched') {
         return {
-            title: 'Broker matched',
+            title: 'Broker found',
             subtitle: request.matched_broker?.name ? `Matched with ${request.matched_broker.name}` : 'A broker accepted your request',
             helper: request.handoff_status === 'awaiting_portfolio'
-                ? 'Your broker is preparing a property shortlist'
-                : 'Broker accepted your request',
+                ? 'Your broker is preparing home choices.'
+                : 'Your broker is reviewing your request.',
         };
     }
 
     if (request.dispatch_status === 'expired' || request.status === 'expired') {
         return {
-            title: 'Dispatch expired',
+            title: 'Request expired',
             subtitle: 'No broker accepted in time',
-            helper: 'Start another request to restart matching',
+            helper: 'Start another request to try again.',
         };
     }
 
@@ -129,7 +129,7 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
         return {
             title: 'Waiting for eligible brokers',
             subtitle: 'No verified brokers are available right now',
-            helper: 'We keep checking during the 10-minute response window',
+            helper: 'We keep checking nearby brokers during the response window.',
         };
     }
 
@@ -139,8 +139,8 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
             ? `Searching brokers near ${requestArea}`
             : formatDispatchStatus(request.dispatch_status),
         helper: request.budget
-            ? `Budget ${request.budget} is attached to this live brief`
-            : 'Ranked brokers are being notified in waves',
+            ? `Budget ${request.budget} is included in your request.`
+            : 'Nearby brokers are being contacted for you.',
     };
 };
 
@@ -150,33 +150,33 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
     const sharedCount = request.property_shares?.length || 0;
     const hasSelectedProperty = Boolean(request.selected_property_id || request.selected_fast_track_case_id || request.selected_property);
 
-    let handoffTitle = request.fast_track_enabled ? 'Broker is preparing options' : 'Continue in the broker workspace';
+    let handoffTitle = request.fast_track_enabled ? 'Home choices are on the way' : 'Continue with your broker request';
     let handoffDescription = request.fast_track_enabled
-        ? 'The 24-hour property fast-track starts only after your broker shares property options and you choose one.'
-        : 'Property options, document requests, and next actions will continue from the same broker workspace.';
+        ? 'Your 24-hour journey starts after your broker shares home choices and you pick one.'
+        : 'Home choices, document requests, and next steps will continue in this broker request.';
 
     if (request.handoff_status === 'portfolio_shared' || sharedCount > 0) {
-        handoffTitle = 'Property options are ready';
-        handoffDescription = `${sharedCount} shortlisted propert${sharedCount === 1 ? 'y is' : 'ies are'} now available in this workspace for you to review and choose from.`;
+        handoffTitle = 'Home choices are ready';
+        handoffDescription = `${sharedCount} home choice${sharedCount === 1 ? '' : 's'} ${sharedCount === 1 ? 'is' : 'are'} now ready for you to review and choose from.`;
     }
 
     if (hasSelectedProperty) {
-        handoffTitle = 'Property selected';
+        handoffTitle = 'Home selected';
         handoffDescription = request.selected_property?.title
-            ? `${request.selected_property.title} is now linked to your live fast-track and all next actions continue from that property workspace.`
-            : 'Your selected property is now linked to the live fast-track workspace.';
+            ? `${request.selected_property.title} is ready for your 24-hour journey and all next steps continue there.`
+            : 'Your chosen home is ready for your 24-hour journey.';
     }
 
     return [
         {
             id: 'confirmed',
             title: 'Broker confirmed',
-            description: `${brokerName} accepted your ${requestTypeLabel} request and the live dispatch queue is now locked.`,
+            description: `${brokerName} accepted your ${requestTypeLabel} request and is now helping you.`,
         },
         {
             id: 'details',
-            title: 'Request details stay attached',
-            description: 'Your location, budget, and requirements remain in this workspace so the matched broker sees the same brief you submitted.',
+            title: 'Your request details stay here',
+            description: 'Your location, budget, and requirements stay attached so the broker sees the same details you shared.',
         },
         {
             id: 'handoff',
