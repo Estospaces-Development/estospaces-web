@@ -78,10 +78,10 @@ export const buildFastTrackThreadRecipientLabel = (
     fastTrackCase: FastTrackCase | null,
 ) => {
     if (!fastTrackCase) {
-        return 'Case chat';
+        return role === 'user' ? 'Messages' : 'Case chat';
     }
     if (role === 'user') {
-        return fastTrackCase.managerId ? 'Case manager' : 'Case team';
+        return fastTrackCase.managerId ? 'Your helper' : 'Support team';
     }
     return fastTrackCase.clientName || 'Client';
 };
@@ -91,35 +91,37 @@ export const describeFastTrackWorkspaceFocus = (
     role: FastTrackWorkspaceRole,
 ) => {
     if (fastTrackCase.workspaceFinalStatus === 'completed') {
-        return 'Case finished';
+        return role === 'user' ? 'Your journey is complete' : 'Case finished';
     }
     if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
-        return 'Case closed';
+        return role === 'user' ? 'This journey is closed' : 'Case closed';
     }
 
     switch (fastTrackCase.stage) {
         case 'documents':
             return role === 'user' ? 'Upload the core files' : 'Review the uploaded files';
         case 'viewing':
-            return role === 'user' ? 'Confirm the viewing plan' : 'Set or update the viewing';
+            return role === 'user' ? 'Check or change your viewing' : 'Set or update the viewing';
         case 'decision':
             return role === 'user'
-                ? 'Wait for the outcome'
+                ? fastTrackCase.journeyMode === 'sale'
+                    ? 'Check the latest offer update'
+                    : 'Check the latest decision update'
                 : fastTrackCase.journeyMode === 'sale'
                     ? 'Record the offer result'
                     : 'Record the application result';
         case 'agreement':
             if (role === 'user') {
-                return 'Accept the agreement';
+                return 'Read and sign the agreement';
             }
             return fastTrackCase.agreement.paymentStatus === 'requested' || fastTrackCase.agreement.paymentStatus === 'paid'
                 ? 'Confirm payment and move to handover'
                 : 'Publish the agreement';
         case 'handover':
-            return role === 'user' ? 'Confirm receipt' : 'Finish handover';
+            return role === 'user' ? 'Confirm key handover' : 'Finish handover';
         default:
             if (role === 'user') {
-                return 'Wait for the case to start';
+                return 'We are preparing your next step';
             }
             return fastTrackCase.managerId ? 'Start documents' : 'Claim and start';
     }
@@ -130,38 +132,44 @@ export const describeFastTrackWorkspaceStatus = (
     role: FastTrackWorkspaceRole,
 ) => {
     if (fastTrackCase.workspaceFinalStatus === 'completed') {
-        return 'Every core step was completed inside this workspace.';
+        return role === 'user'
+            ? 'Every step is complete. You can keep this page for records and updates.'
+            : 'Every core step was completed inside this workspace.';
     }
     if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
-        return 'The live case ended here and no further action is needed.';
+        return role === 'user'
+            ? 'This journey ended here and no further action is needed.'
+            : 'The live case ended here and no further action is needed.';
     }
 
     switch (fastTrackCase.stage) {
         case 'documents':
             return role === 'user'
-                ? 'Upload each core file here. Review notes, previews, and replacements stay on the same page.'
+                ? 'Share each required document here. Extra notes and previews are available only when you need them.'
                 : 'Preview every uploaded file, approve it, or request one replacement on the same page.';
         case 'viewing':
             return role === 'user'
-                ? 'The schedule, change request, and confirmation all stay here.'
+                ? 'Your viewing time, any change request, and the final confirmation all stay here.'
                 : 'Scheduling, rescheduling, skip, and completion all happen in this one lane.';
         case 'decision':
             return role === 'user'
-                ? 'You will see the live result here as soon as it is recorded.'
+                ? fastTrackCase.journeyMode === 'sale'
+                    ? 'You will see the latest offer update here as soon as it is recorded.'
+                    : 'You will see the latest decision here as soon as it is recorded.'
                 : fastTrackCase.journeyMode === 'sale'
                     ? 'Offer decisions stay on this page. No handoff to another purchase screen is needed.'
                     : 'Application decisions stay on this page. No handoff to another review screen is needed.';
         case 'agreement':
             return role === 'user'
-                ? 'Agreement acceptance and payment confirmation stay inside this case.'
+                ? 'Signing and any payment confirmation stay in this one place.'
                 : 'Agreement publishing and payment confirmation stay inside this case.';
         case 'handover':
             return role === 'user'
-                ? 'Confirm the final handover here to close the case.'
+                ? 'Confirm the final handover here to close your journey.'
                 : 'Mark the case ready, confirm the final note, and complete it here.';
         default:
             return role === 'user'
-                ? 'The team will open the next step here. You stay in this workspace from start to finish.'
+                ? 'The team will open the next step here. You stay in this journey from start to finish.'
                 : 'Claim the case if needed, then open documents here so the rest of the journey stays on one page.';
     }
 };
