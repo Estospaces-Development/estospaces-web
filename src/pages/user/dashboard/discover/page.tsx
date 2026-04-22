@@ -9,8 +9,6 @@ import {
     Map as MapIcon,
     ArrowLeft,
     AlertCircle,
-    ChevronLeft,
-    ChevronRight,
     Plus
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -18,7 +16,55 @@ import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import MapView from '@/components/dashboard/MapView';
-import { getProperties, Property } from '@/services/propertyService';
+import PaginationBar from '@/components/ui/PaginationBar';
+import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
+
+const ITEMS_PER_PAGE = 12;
+
+const parsePositivePage = (value: string | null, fallback = 1) => {
+    const parsed = Number.parseInt(value || `${fallback}`, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const mapListingTypeParamToTab = (value: string | null): 'all' | 'buy' | 'rent' => {
+    if (value === 'rent') return 'rent';
+    if (value === 'buy' || value === 'sale') return 'buy';
+    return 'all';
+};
+
+const getPrimaryDashboardFilter = (filterParam: string) => {
+    return filterParam
+        .split(',')
+        .map((part) => part.trim())
+        .find((part) => part.length > 0) || '';
+};
+
+const mapDashboardFilterToSearchSort = (filterParam: string) => {
+    const primary = getPrimaryDashboardFilter(filterParam);
+    if (primary === 'budget_friendly') return 'price_asc';
+    if (primary === 'most_viewed' || primary === 'high_demand') return 'views_desc';
+    if (primary === 'recently_added') return 'newest';
+    return undefined;
+};
+
+const applyDashboardFilterOrdering = (results: SearchResult[], filterParam: string) => {
+    const primary = getPrimaryDashboardFilter(filterParam);
+    const ordered = [...results];
+
+    if (primary === 'budget_friendly') {
+        ordered.sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (primary === 'most_viewed' || primary === 'high_demand') {
+        ordered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0));
+    } else if (primary === 'recently_added') {
+        ordered.sort((a, b) => {
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTime - aTime;
+        });
+    }
+
+    return ordered;
+};
 
 function DiscoverContent() {
     const navigate = useNavigate();
@@ -27,97 +73,161 @@ function DiscoverContent() {
 
     // Local state
     const [loading, setLoading] = useState(true);
-    const [properties, setProperties] = useState<Property[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [locationQuery, setLocationQuery] = useState('');
-    const [propertyType, setPropertyType] = useState('all');
-    const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-    const [beds, setBeds] = useState('');
-    const [baths, setBaths] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [properties, setProperties] = useState<SearchResult[]>([]);
+    const [total, setTotal] = useState(0);
+    const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || searchParams.get('keyword') || '');
+    const [locationQuery, setLocationQuery] = useState(() => searchParams.get('location') || '');
+    const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || '');
+    const [propertyType, setPropertyType] = useState(() => searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
+    const [priceRange, setPriceRange] = useState(() => ({
+        min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
+        max: searchParams.get('maxPrice') || searchParams.get('max_price') || '',
+    }));
+    const [beds, setBeds] = useState(() => searchParams.get('beds') || searchParams.get('minBedrooms') || '');
+    const [baths, setBaths] = useState(() => searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+    const [dashboardFilter, setDashboardFilter] = useState(() => searchParams.get('filter') || '');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    const [currentPage, setCurrentPage] = useState(() => parsePositivePage(searchParams.get('page')));
+
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Initialize filters from URL/Context
     useEffect(() => {
-        const type = searchParams.get('type');
-        if (type === 'rent') setActiveTab('rent');
-        else if (type === 'buy') setActiveTab('buy');
-
-        fetchData();
+        const listingParam = searchParams.get('type') || searchParams.get('tab');
+        const nextTab = mapListingTypeParamToTab(listingParam);
+        if (nextTab === 'rent') setActiveTab('rent');
+        else if (nextTab === 'buy') setActiveTab('buy');
+        else setActiveTab('all');
     }, [searchParams, setActiveTab]);
+
+    // Keep page filters synchronized with URL query parameters
+    useEffect(() => {
+        setSearchQuery(searchParams.get('q') || searchParams.get('keyword') || '');
+        setLocationQuery(searchParams.get('location') || '');
+        setStatusFilter(searchParams.get('status') || '');
+        setPropertyType(searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
+        setPriceRange({
+            min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
+            max: searchParams.get('maxPrice') || searchParams.get('max_price') || '',
+        });
+        setBeds(searchParams.get('beds') || searchParams.get('minBedrooms') || '');
+        setBaths(searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+        setDashboardFilter(searchParams.get('filter') || '');
+        setCurrentPage(parsePositivePage(searchParams.get('page')));
+    }, [searchParams]);
+
+    // Initial load for filters
+    useEffect(() => {
+        const loadFilters = async () => {
+            const opts = await searchService.getFilters();
+            if (opts) setFilterOptions(opts);
+        };
+        loadFilters();
+    }, []);
 
     const fetchData = async () => {
         setLoading(true);
-        const { data } = await getProperties();
-        if (data) setProperties(data);
-        setLoading(false);
+        setError(null);
+        try {
+            const result = await searchService.search(
+                searchQuery,
+                {
+                    propertyType: propertyType !== 'all' ? propertyType : undefined,
+                    minPrice: priceRange.min ? parseInt(priceRange.min) : undefined,
+                    maxPrice: priceRange.max ? parseInt(priceRange.max) : undefined,
+                    minBedrooms: beds ? parseInt(beds) : undefined,
+                    minBathrooms: baths ? parseInt(baths) : undefined,
+                    listingType: activeTab === 'buy' ? 'sale' : activeTab === 'rent' ? 'rent' : 'all',
+                    status: statusFilter || undefined,
+                    location: locationQuery.trim() ? locationQuery.trim() : undefined,
+                    sortBy: mapDashboardFilterToSearchSort(dashboardFilter),
+                    page: currentPage,
+                    limit: ITEMS_PER_PAGE
+                }
+            );
+
+            if (result.success) {
+                setProperties(applyDashboardFilterOrdering(result.data || [], dashboardFilter));
+                setTotal(result.pagination?.total || 0);
+            } else {
+                setProperties([]);
+                setTotal(0);
+                setError('Failed to fetch properties from server.');
+            }
+        } catch {
+            setProperties([]);
+            setTotal(0);
+            setError('An unexpected error occurred while processing the search.');
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // Filter properties logic
-    const filteredProperties = useMemo(() => {
-        return properties.filter(p => {
-            // Filter by type (buy/rent)
-            if (activeTab === 'buy' && p.property_type !== 'sale') return false;
-            if (activeTab === 'rent' && p.property_type !== 'rent') return false;
+    // Refetch when dependencies change
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchData();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter]);
 
-            // Search query
-            if (searchQuery.trim()) {
-                const query = searchQuery.toLowerCase();
-                const matches =
-                    p.title.toLowerCase().includes(query) ||
-                    p.address_line_1.toLowerCase().includes(query) ||
-                    p.city.toLowerCase().includes(query) ||
-                    p.postcode.toLowerCase().includes(query);
-                if (!matches) return false;
+    // Autocomplete location suggestions
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (searchQuery.length >= 2) {
+                try {
+                    const suggestions = await searchService.autocomplete(searchQuery);
+                    setLocationSuggestions(suggestions.slice(0, 10));
+                } catch {
+                    setLocationSuggestions([]);
+                }
+            } else {
+                setLocationSuggestions([]);
             }
+        };
 
-            // Location
-            if (locationQuery.trim()) {
-                const loc = locationQuery.toLowerCase();
-                const matches =
-                    p.city.toLowerCase().includes(loc) ||
-                    p.postcode.toLowerCase().includes(loc);
-                if (!matches) return false;
-            }
+        const timer = setTimeout(() => {
+            fetchSuggestions();
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
-            // Price
-            if (priceRange.min && p.price < parseInt(priceRange.min)) return false;
-            if (priceRange.max && p.price > parseInt(priceRange.max)) return false;
+    // The backend now handles all filtering and pagination natively.
+    const filteredProperties = properties;
 
-            // Beds/Baths
-            if (beds && p.bedrooms < parseInt(beds)) return false;
-            if (baths && p.bathrooms < parseInt(baths)) return false;
-
-            return true;
-        });
-    }, [properties, activeTab, searchQuery, locationQuery, priceRange, beds, baths]);
-
-    // Pagination
-    const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
-    const paginatedProperties = filteredProperties.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+    const paginatedProperties = properties; // Backend paginates for us
 
     const handleClearFilters = () => {
         setSearchQuery('');
         setLocationQuery('');
+        setStatusFilter('');
+        setPropertyType('all');
         setPriceRange({ min: '', max: '' });
         setBeds('');
         setBaths('');
+        setDashboardFilter('');
         setCurrentPage(1);
     };
 
-    const transformForMap = (props: Property[]) => {
-        return props.filter(p => p.latitude && p.longitude).map(p => ({
-            id: p.id,
-            title: p.title,
-            lat: parseFloat(p.latitude || '0'),
-            lng: parseFloat(p.longitude || '0'),
-            price: `£${p.price.toLocaleString()}`,
-            address: p.address_line_1
-        }));
+    const transformForMap = (props: SearchResult[]) => {
+        return props
+            .filter(p => p.latitude != null && p.longitude != null)
+            .map(p => ({
+                id: p.id,
+                title: p.title,
+                lat: p.latitude as number,
+                lng: p.longitude as number,
+                price: new Intl.NumberFormat('en-GB', {
+                    style: 'currency',
+                    currency: 'GBP',
+                    maximumFractionDigits: 0,
+                }).format(p.price || 0),
+                address: p.location || p.city || 'Unknown Location'
+            }));
     };
 
     return (
@@ -137,7 +247,13 @@ function DiscoverContent() {
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Discover Properties</h1>
                         <p className="text-gray-500 dark:text-gray-400 mt-1">
-                            {activeTab === 'buy' ? 'Showing properties for sale' : activeTab === 'rent' ? 'Showing properties for rent' : 'Find your next home across the UK'}
+                            {statusFilter === 'sold'
+                                ? 'Showing sold properties'
+                                : activeTab === 'buy'
+                                    ? 'Showing properties for sale'
+                                    : activeTab === 'rent'
+                                        ? 'Showing properties for rent'
+                                        : 'Find your next home across the UK'}
                         </p>
                     </div>
 
@@ -176,9 +292,49 @@ function DiscoverContent() {
                                     type="text"
                                     placeholder="Postcode, street, or property name..."
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setCurrentPage(1);
+                                        setShowSuggestions(true);
+                                    }}
+                                    onFocus={() => {
+                                        if (locationSuggestions.length > 0) setShowSuggestions(true);
+                                    }}
+                                    onBlur={() => setShowSuggestions(false)}
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
                                 />
+                                {showSuggestions && locationSuggestions.length > 0 && (
+                                    <div
+                                        className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg max-h-60 overflow-auto"
+                                        onMouseDown={(e) => e.preventDefault()}
+                                    >
+                                        {locationSuggestions.map((suggestion, index) => (
+                                            <button
+                                                key={index}
+                                                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors flex items-center justify-between gap-2"
+                                                onClick={() => {
+                                                    if (suggestion.type === 'property' && suggestion.id) {
+                                                        navigate(`/user/properties/${suggestion.id}`);
+                                                    } else if (suggestion.type === 'postcode') {
+                                                        setSearchQuery(suggestion.text);
+                                                        setLocationQuery('');
+                                                    } else {
+                                                        setSearchQuery(suggestion.text);
+                                                        setLocationQuery(suggestion.city || suggestion.text);
+                                                    }
+                                                    setCurrentPage(1);
+                                                    setShowSuggestions(false);
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    {suggestion.type === 'property' ? <Home className="w-4 h-4 text-orange-500" /> : <MapPin className="w-4 h-4 text-gray-400" />}
+                                                    <span>{suggestion.text}</span>
+                                                </div>
+                                                <span className="text-[10px] uppercase font-bold text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded">{suggestion.type}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -190,8 +346,11 @@ function DiscoverContent() {
                                     type="text"
                                     placeholder="City or Town"
                                     value={locationQuery}
-                                    onChange={(e) => setLocationQuery(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
+                                    onChange={(e) => {
+                                        setLocationQuery(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none transition-all text-gray-900 dark:text-white"
                                 />
                             </div>
                         </div>
@@ -201,28 +360,58 @@ function DiscoverContent() {
                             <div className="flex items-center gap-2">
                                 <input
                                     type="number"
-                                    placeholder="Min"
+                                    placeholder={filterOptions?.price_range?.min ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min"}
                                     value={priceRange.min}
-                                    onChange={(e) => setPriceRange({ ...priceRange, min: e.target.value })}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                    min={filterOptions?.price_range?.min}
+                                    max={priceRange.max || filterOptions?.price_range?.max}
+                                    onChange={(e) => {
+                                        setPriceRange({ ...priceRange, min: e.target.value });
+                                        setCurrentPage(1);
+                                    }}
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                 />
                                 <span className="text-gray-400">-</span>
                                 <input
                                     type="number"
-                                    placeholder="Max"
+                                    placeholder={filterOptions?.price_range?.max ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max"}
                                     value={priceRange.max}
-                                    onChange={(e) => setPriceRange({ ...priceRange, max: e.target.value })}
-                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                    min={priceRange.min || filterOptions?.price_range?.min}
+                                    max={filterOptions?.price_range?.max}
+                                    onChange={(e) => {
+                                        setPriceRange({ ...priceRange, max: e.target.value });
+                                        setCurrentPage(1);
+                                    }}
+                                    className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Type</label>
+                            <select
+                                value={propertyType}
+                                onChange={(e) => {
+                                    setPropertyType(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                            >
+                                <option value="all">Any Type</option>
+                                {(filterOptions?.property_types || []).map((t: string) => (
+                                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bedrooms</label>
                             <select
                                 value={beds}
-                                onChange={(e) => setBeds(e.target.value)}
-                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                onChange={(e) => {
+                                    setBeds(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="">Any Beds</option>
                                 <option value="1">1+ Bed</option>
@@ -236,8 +425,11 @@ function DiscoverContent() {
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bathrooms</label>
                             <select
                                 value={baths}
-                                onChange={(e) => setBaths(e.target.value)}
-                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                                onChange={(e) => {
+                                    setBaths(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
                                 <option value="">Any Baths</option>
                                 <option value="1">1+ Bath</option>
@@ -270,6 +462,25 @@ function DiscoverContent() {
                                     <PropertyCardSkeleton key={i} />
                                 ))}
                             </div>
+                        ) : error ? (
+                            <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-red-100 dark:border-red-900/30">
+                                <div className="inline-flex items-center justify-center p-6 bg-red-50 dark:bg-red-900/20 rounded-full mb-6">
+                                    <AlertCircle className="text-red-500" size={48} />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Something went wrong</h3>
+                                <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
+                                    {error}
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        setError(null);
+                                        fetchData();
+                                    }}
+                                    className="mt-8 px-8 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all shadow-md active:scale-95"
+                                >
+                                    Try Again
+                                </button>
+                            </div>
                         ) : paginatedProperties.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {paginatedProperties.map((property) => (
@@ -296,24 +507,16 @@ function DiscoverContent() {
 
                         {/* Pagination */}
                         {totalPages > 1 && (
-                            <div className="mt-12 flex items-center justify-center gap-4">
-                                <button
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(prev => prev - 1)}
-                                    className="p-2 rounded-xl bg-white dark:bg-gray-800 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                                >
-                                    <ChevronLeft size={24} />
-                                </button>
-                                <span className="text-gray-600 dark:text-gray-400 font-medium">
-                                    Page <span className="text-gray-900 dark:text-white">{currentPage}</span> of {totalPages}
-                                </span>
-                                <button
-                                    disabled={currentPage >= totalPages}
-                                    onClick={() => setCurrentPage(prev => prev + 1)}
-                                    className="p-2 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 disabled:opacity-30 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                                >
-                                    <ChevronRight size={24} />
-                                </button>
+                            <div className="mt-12">
+                                <PaginationBar
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={setCurrentPage}
+                                    totalItems={total}
+                                    pageSize={ITEMS_PER_PAGE}
+                                    currentItemCount={paginatedProperties.length}
+                                    itemLabel="properties"
+                                />
                             </div>
                         )}
                     </>

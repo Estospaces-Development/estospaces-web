@@ -1,92 +1,430 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Search, Home, ArrowRight, MapPin, AlertCircle, TrendingUp, Star,
-  Loader2, X, Clock, Eye, DollarSign, Sparkles,
-  Building2, Key, Bookmark, Map as MapIcon
+  AlertCircle,
+  ArrowRight,
+  Bookmark,
+  Building2,
+  Home,
+  Key,
+  Loader2,
+  Map as MapIcon,
+  X,
 } from 'lucide-react';
 
-// Contexts
 import { useUserLocation } from '@/contexts/LocationContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
-import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
-// Components
 import ApplicationTimelineWidget from '@/components/dashboard/ApplicationTimelineWidget';
 import NearbyAgenciesList from '@/components/dashboard/NearbyAgenciesList';
+import PaginationBar from '@/components/ui/PaginationBar';
 import BrokerRequestWidget from '@/components/dashboard/BrokerRequestWidget';
 import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
-import DashboardFooter from '@/components/dashboard/DashboardFooter';
 import ProfileCompletionCard from '@/components/dashboard/ProfileCompletionCard';
+import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
+import SearchBar, { SearchFilters as DashboardSearchFilters } from '@/components/ui/SearchBar';
 
-// Services
-import * as propertyService from '@/services/propertyService';
+import { searchService, SearchResult } from '@/services/searchService';
+import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
+import { hasFastTrackReachedCompletion } from '@/lib/fastTrackWorkflow';
+import { getUserBrokerRequests, type BrokerRequestRecord } from '@/services/leadsService';
+import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
+import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
+
+const FILTERED_RESULTS_PAGE_SIZE = 12;
+const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
+
+const dashboardFilterOptions = [
+  { id: 'recently_added', label: 'Recently Added' },
+  { id: 'most_viewed', label: 'Most Viewed' },
+  { id: 'high_demand', label: 'High Demand' },
+  { id: 'budget_friendly', label: 'Budget Friendly' },
+];
+
+const defaultDashboardSearchFilters: DashboardSearchFilters = {
+  keyword: '',
+  location: '',
+  listingType: 'sale',
+  propertyType: '',
+  minPrice: null,
+  maxPrice: null,
+  minBedrooms: null,
+  maxBedrooms: null,
+  minBathrooms: null,
+};
+
+const parsePositivePage = (value: string | null, fallback = 1) => {
+  const parsed = Number.parseInt(value || `${fallback}`, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const mapSearchParamsToDashboardType = (
+  typeValue: string | null,
+  statusValue: string | null,
+): 'buy' | 'rent' | 'sold' => {
+  if (statusValue === 'sold') {
+    return 'sold';
+  }
+
+  const value = typeValue;
+  if (value === 'rent') {
+    return 'rent';
+  }
+  return 'buy';
+};
+
+const buildDashboardSearchFiltersFromParams = (searchParams: URLSearchParams): DashboardSearchFilters => {
+  const listingType = searchParams.get('type') === 'rent' ? 'rent' : 'sale';
+
+  return {
+    keyword: searchParams.get('q') || searchParams.get('keyword') || '',
+    location: searchParams.get('location') || '',
+    listingType,
+    propertyType: searchParams.get('propertyType') || '',
+    minPrice: searchParams.get('minPrice') ? Number.parseInt(searchParams.get('minPrice') || '', 10) : null,
+    maxPrice: searchParams.get('maxPrice') ? Number.parseInt(searchParams.get('maxPrice') || '', 10) : null,
+    minBedrooms: searchParams.get('beds') || searchParams.get('minBedrooms')
+      ? Number.parseInt(searchParams.get('beds') || searchParams.get('minBedrooms') || '', 10)
+      : null,
+    maxBedrooms: null,
+    minBathrooms: searchParams.get('baths') || searchParams.get('minBathrooms')
+      ? Number.parseInt(searchParams.get('baths') || searchParams.get('minBathrooms') || '', 10)
+      : null,
+  };
+};
+
+const hasActiveDashboardSearch = (filters: DashboardSearchFilters) => {
+  return Boolean(
+    filters.keyword.trim() ||
+    filters.location.trim() ||
+    filters.propertyType ||
+    filters.minPrice !== null ||
+    filters.maxPrice !== null ||
+    filters.minBedrooms !== null ||
+    filters.minBathrooms !== null,
+  );
+};
+
+const buildDashboardSortValue = (filters: string[]) => {
+  if (filters.includes('budget_friendly')) {
+    return 'price_asc';
+  }
+
+  if (filters.includes('recently_added')) {
+    return 'newest';
+  }
+
+  return undefined;
+};
+
+const applyDashboardFilterOrdering = (results: SearchResult[], filters: string[]) => {
+  const ordered = [...results];
+
+  if (filters.includes('budget_friendly')) {
+    ordered.sort((left, right) => (left.price || 0) - (right.price || 0));
+  } else if (filters.includes('most_viewed') || filters.includes('high_demand')) {
+    ordered.sort((left, right) => (right.view_count || 0) - (left.view_count || 0));
+  } else if (filters.includes('recently_added')) {
+    ordered.sort((left, right) => {
+      const leftTime = left.created_at ? new Date(left.created_at).getTime() : 0;
+      const rightTime = right.created_at ? new Date(right.created_at).getTime() : 0;
+      return rightTime - leftTime;
+    });
+  }
+
+  return ordered;
+};
+
+const buildDiscoverParams = (
+  selectedPropertyType: 'buy' | 'rent' | 'sold',
+  selectedFilters: string[],
+  searchFilters: DashboardSearchFilters,
+) => {
+  const params = new URLSearchParams();
+
+  if (selectedPropertyType === 'rent') {
+    params.set('type', 'rent');
+  } else if (selectedPropertyType === 'sold') {
+    params.set('type', 'buy');
+    params.set('status', 'sold');
+  } else {
+    params.set('type', 'buy');
+  }
+
+  if (selectedFilters.length > 0) {
+    params.set('filter', selectedFilters.join(','));
+  }
+  if (searchFilters.keyword.trim()) {
+    params.set('q', searchFilters.keyword.trim());
+  }
+  if (searchFilters.location.trim()) {
+    params.set('location', searchFilters.location.trim());
+  }
+  if (searchFilters.propertyType) {
+    params.set('propertyType', searchFilters.propertyType);
+  }
+  if (searchFilters.minPrice !== null) {
+    params.set('minPrice', String(searchFilters.minPrice));
+  }
+  if (searchFilters.maxPrice !== null) {
+    params.set('maxPrice', String(searchFilters.maxPrice));
+  }
+  if (searchFilters.minBedrooms !== null) {
+    params.set('beds', String(searchFilters.minBedrooms));
+  }
+  if (searchFilters.minBathrooms !== null) {
+    params.set('baths', String(searchFilters.minBathrooms));
+  }
+
+  return params;
+};
 
 const DashboardClient = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
+  const toast = useToast();
   const { activeLocation, loading: locationLoading } = useUserLocation();
   const { setActiveTab } = usePropertyFilter();
-  const { savedProperties } = useSavedProperties();
+  const dashboardCelebrateRequested = searchParams.get('celebrate') === '1';
+  const dashboardCelebrateCaseId = searchParams.get('fastTrackCase');
+  const dashboardResetRequested = searchParams.get('reset') === '1';
 
-  // State for selected property type tab (Buy/Rent/Sold) - default to 'sold'
-  const [selectedPropertyType, setSelectedPropertyType] = useState(() => {
-    const urlType = searchParams.get('type');
-    if (urlType === 'buy' || urlType === 'rent' || urlType === 'sold') {
-      return urlType;
-    }
-    return 'sold';
-  });
-
-  // State for selected filter options (array for multiple selections)
+  const [selectedPropertyType, setSelectedPropertyType] = useState<'buy' | 'rent' | 'sold'>(() => (
+    mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'))
+  ));
   const [selectedFilters, setSelectedFilters] = useState<string[]>(() => {
     const filterParam = searchParams.get('filter');
-    if (filterParam) {
-      return filterParam.split(',').filter(f => f);
-    }
-    return [];
+    return filterParam ? filterParam.split(',').filter(Boolean) : [];
   });
-
-  // Search & filter state
-  const [searchInput, setSearchInput] = useState(() => {
-    return searchParams.get('location') || '';
-  });
+  const [dashboardSearchFilters, setDashboardSearchFilters] = useState<DashboardSearchFilters>(() => (
+    buildDashboardSearchFiltersFromParams(searchParams)
+  ));
   const [searchLoading, setSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
-
-  // Filtered properties state
-  const [filteredProperties, setFilteredProperties] = useState<any[]>([]);
-  const [showFilteredResults, setShowFilteredResults] = useState(false);
+  const [filteredProperties, setFilteredProperties] = useState<SearchResult[]>([]);
+  const [showFilteredResults, setShowFilteredResults] = useState(() => {
+    const filters = buildDashboardSearchFiltersFromParams(searchParams);
+    const activeFilters = searchParams.get('filter');
+    return hasActiveDashboardSearch(filters) || Boolean(activeFilters) || searchParams.get('status') === 'sold';
+  });
   const [filteredCount, setFilteredCount] = useState(0);
+  const [filteredTotalPages, setFilteredTotalPages] = useState(0);
+  const [currentFilteredPage, setCurrentFilteredPage] = useState(() => parsePositivePage(searchParams.get('page')));
+  const [nearbyProperties, setNearbyProperties] = useState<SearchResult[]>([]);
+  const [nearbyPropertiesLoading, setNearbyPropertiesLoading] = useState(true);
+  const [showFastTrackCelebration, setShowFastTrackCelebration] = useState(false);
+  const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
+  const [activeBrokerRequest, setActiveBrokerRequest] = useState<BrokerRequestRecord | null>(null);
+  const [activeJourney, setActiveJourney] = useState<FastTrackCase | null>(null);
+  const [completedJourney, setCompletedJourney] = useState<FastTrackCase | null>(null);
+  const [journeySummaryLoading, setJourneySummaryLoading] = useState(true);
+  const [journeySummaryError, setJourneySummaryError] = useState<string | null>(null);
+  const brokerRequestWorkspaceRef = useRef<HTMLDivElement | null>(null);
+  const celebratedDashboardCaseIdRef = useRef<string | null>(null);
+  const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
+  const dashboardCopy = useMemo(() => getDashboardSimplificationCopy(), []);
 
-  // Sync selectedPropertyType with URL params
+  const openDashboardCelebration = useCallback((caseItem: FastTrackCase) => {
+    celebratedDashboardCaseIdRef.current = caseItem.caseId;
+    setCelebrationPropertyTitle(caseItem.propertyTitle || null);
+    toast.clearAll();
+    setShowFastTrackCelebration(true);
+  }, [toast]);
+
   useEffect(() => {
-    const urlType = searchParams.get('type');
-    if (urlType === 'buy' || urlType === 'rent' || urlType === 'sold') {
-      setSelectedPropertyType(urlType);
-    } else if (!urlType) {
-      setSelectedPropertyType('sold');
-    }
+    const nextDashboardType = mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'));
+    const nextFilters = searchParams.get('filter')
+      ? searchParams.get('filter')!.split(',').filter(Boolean)
+      : [];
+    const nextSearchFilters = buildDashboardSearchFiltersFromParams(searchParams);
+    const nextPage = parsePositivePage(searchParams.get('page'));
+
+    setSelectedPropertyType(nextDashboardType);
+    setSelectedFilters(nextFilters);
+    setDashboardSearchFilters(nextSearchFilters);
+    setCurrentFilteredPage(nextPage);
+    setShowFilteredResults(
+      hasActiveDashboardSearch(nextSearchFilters)
+      || nextFilters.length > 0
+      || nextDashboardType === 'sold',
+    );
   }, [searchParams]);
 
-  // Sync selectedFilters with URL params
+  const shouldFetchFilteredResults =
+    hasActiveDashboardSearch(dashboardSearchFilters)
+    || selectedFilters.length > 0
+    || selectedPropertyType === 'sold';
+
   useEffect(() => {
-    const urlFilter = searchParams.get('filter');
-    if (urlFilter) {
-      setSelectedFilters(urlFilter.split(',').filter(f => f));
-    } else {
-      setSelectedFilters([]);
+    if (selectedPropertyType === 'rent') {
+      setActiveTab('rent');
+      return;
     }
+
+    setActiveTab('buy');
+  }, [selectedPropertyType, setActiveTab]);
+
+  useEffect(() => {
+    if (searchParams.get('workspace') !== 'broker-request') {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      brokerRequestWorkspaceRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [searchParams]);
 
-  // Get time-based greeting
+  useEffect(() => {
+    let active = true;
+
+    const loadNearbyProperties = async () => {
+      setNearbyPropertiesLoading(true);
+
+      try {
+        const response = await searchService.search('', {
+          page: 1,
+          limit: 50,
+        });
+
+        if (active && response.success) {
+          setNearbyProperties(response.data || []);
+        }
+      } finally {
+        if (active) {
+          setNearbyPropertiesLoading(false);
+        }
+      }
+    };
+
+    loadNearbyProperties();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setActiveBrokerRequest(null);
+      setActiveJourney(null);
+      setCompletedJourney(null);
+      setJourneySummaryError(null);
+      setJourneySummaryLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const loadJourneySummary = async () => {
+      setJourneySummaryLoading(true);
+      setJourneySummaryError(null);
+
+      try {
+        const [brokerResult, fastTrackResult] = await Promise.all([
+          getUserBrokerRequests({ suppressErrorToast: true }),
+          getFastTrackCases({ suppressErrorToast: true }),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        const liveBrokerRequest = (brokerResult.data || [])
+          .filter((request) => isLiveBrokerRequest(request))
+          .sort((left, right) => (
+            new Date(right.updated_at || right.created_at || 0).getTime()
+            - new Date(left.updated_at || left.created_at || 0).getTime()
+          ))[0] || null;
+
+        const fastTrackCases = fastTrackResult.data || [];
+        const liveFastTrackJourney = fastTrackCases
+          .filter((caseItem) => caseItem.workspaceFinalStatus === 'active')
+          .sort((left, right) => {
+            if (left.hoursRemaining !== right.hoursRemaining) {
+              return left.hoursRemaining - right.hoursRemaining;
+            }
+            return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
+          })[0] || null;
+
+        const completedCases = fastTrackCases
+          .filter((caseItem) => hasFastTrackReachedCompletion(caseItem))
+          .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
+
+        let freshlyCompletedCase: FastTrackCase | null = null;
+        const nextCompletionStatus: Record<string, FastTrackCase['workspaceFinalStatus']> = {};
+        fastTrackCases.forEach((caseItem) => {
+          nextCompletionStatus[caseItem.caseId] = caseItem.workspaceFinalStatus;
+          const previousStatus = completionStatusRef.current[caseItem.caseId];
+          if (!freshlyCompletedCase && previousStatus && previousStatus !== 'completed' && caseItem.workspaceFinalStatus === 'completed') {
+            freshlyCompletedCase = caseItem;
+          }
+        });
+        completionStatusRef.current = nextCompletionStatus;
+
+        setActiveBrokerRequest(liveBrokerRequest);
+        setActiveJourney(liveFastTrackJourney);
+        setCompletedJourney(completedCases[0] || null);
+
+        if (!dashboardCelebrateRequested) {
+          if (freshlyCompletedCase && celebratedDashboardCaseIdRef.current !== freshlyCompletedCase.caseId) {
+            openDashboardCelebration(freshlyCompletedCase);
+          }
+          return;
+        }
+
+        const forcedCelebrationCase = dashboardCelebrateCaseId
+          ? completedCases.find((caseItem) => caseItem.caseId === dashboardCelebrateCaseId) || null
+          : completedCases[0] || null;
+
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete('celebrate');
+          next.delete('fastTrackCase');
+          return next;
+        });
+
+        if (forcedCelebrationCase) {
+          openDashboardCelebration(forcedCelebrationCase);
+        } else if (freshlyCompletedCase && celebratedDashboardCaseIdRef.current !== freshlyCompletedCase.caseId) {
+          openDashboardCelebration(freshlyCompletedCase);
+        }
+      } catch {
+        if (!active) {
+          return;
+        }
+
+        setActiveBrokerRequest(null);
+        setActiveJourney(null);
+        setCompletedJourney(null);
+        setJourneySummaryError('Unable to load your latest journey update right now.');
+      } finally {
+        if (active) {
+          setJourneySummaryLoading(false);
+        }
+      }
+    };
+
+    void loadJourneySummary();
+
+    return () => {
+      active = false;
+    };
+  }, [dashboardCelebrateCaseId, dashboardCelebrateRequested, openDashboardCelebration, setSearchParams, user?.id]);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
@@ -94,285 +432,460 @@ const DashboardClient = () => {
     return 'Good evening';
   };
 
-  // Get first name from user metadata
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] ||
-    user?.user_metadata?.name?.split(' ')[0] ||
-    user?.name?.split(' ')[0] ||
-    user?.email?.split('@')[0] ||
-    'there';
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0]
+    || user?.user_metadata?.name?.split(' ')[0]
+    || user?.name?.split(' ')[0]
+    || user?.email?.split('@')[0]
+    || 'there';
 
-  // Fetch filtered properties
+  const nextStepSummary = useMemo(() => {
+    if (activeJourney) {
+      const stageLabel = getJourneyStageLabel(activeJourney.stage, activeJourney.journeyMode, 'user');
+      return {
+        title: dashboardCopy.activeJourneyTitle,
+        now: `${activeJourney.propertyTitle} is at ${stageLabel.toLowerCase()}.`,
+        next: activeJourney.workspaceFinalStatus === 'active'
+          ? `Next: ${activeJourney.hoursRemaining > 0 ? `${activeJourney.hoursRemaining}h left today.` : 'This journey needs attention.'}`
+          : 'Next: review the latest update.',
+        primaryLabel: dashboardCopy.activeJourneyPrimaryLabel,
+        primaryAction: () => navigate(`/user/dashboard/fast-track?case=${activeJourney.caseId}`),
+        secondaryLabel: dashboardCopy.activeJourneySecondaryLabel,
+        secondaryAction: () => navigate('/user/dashboard/fast-track'),
+      };
+    }
+
+    if (activeBrokerRequest) {
+      const tracking = getBrokerRequestTrackingSummary(activeBrokerRequest);
+      const sharedHomes = activeBrokerRequest.property_shares?.length || 0;
+      return {
+        title: dashboardCopy.brokerRequestTitle,
+        now: activeBrokerRequest.matched_broker?.name
+          ? `${activeBrokerRequest.matched_broker.name} is helping you now.`
+          : `${tracking.currentStage}.`,
+        next: sharedHomes > 0
+          ? `Next: review ${sharedHomes} home choice${sharedHomes === 1 ? '' : 's'}.`
+          : `Next: ${tracking.nextAction}.`,
+        primaryLabel: dashboardCopy.brokerRequestPrimaryLabel,
+        primaryAction: () => navigate(buildBrokerRequestWorkspacePath(activeBrokerRequest.id)),
+        secondaryLabel: dashboardCopy.brokerRequestSecondaryLabel,
+        secondaryAction: () => brokerRequestWorkspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      };
+    }
+
+    if (completedJourney) {
+      return {
+        title: dashboardCopy.completedJourneyTitle,
+        now: `${completedJourney.propertyTitle} has finished its guided journey.`,
+        next: 'Next: review the property and any final records.',
+        primaryLabel: dashboardCopy.completedJourneyPrimaryLabel,
+        primaryAction: () => navigate(`/user/properties/${completedJourney.propertyId}`),
+        secondaryLabel: dashboardCopy.completedJourneySecondaryLabel,
+        secondaryAction: () => navigate('/user/dashboard/fast-track'),
+      };
+    }
+
+    return {
+      title: dashboardCopy.noJourneyTitle,
+      now: dashboardCopy.noJourneySummary,
+      next: 'Next: choose one option below to get started.',
+      primaryLabel: dashboardCopy.noJourneyPrimaryLabel,
+      primaryAction: () => navigate('/user/search'),
+      secondaryLabel: dashboardCopy.noJourneySecondaryLabel,
+      secondaryAction: () => brokerRequestWorkspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    };
+  }, [activeBrokerRequest, activeJourney, completedJourney, dashboardCopy, navigate]);
+
   const fetchFilteredProperties = useCallback(async () => {
+    if (!shouldFetchFilteredResults) {
+      setFilteredProperties([]);
+      setFilteredCount(0);
+      setFilteredTotalPages(0);
+      setSearchLoading(false);
+      return;
+    }
+
     setSearchLoading(true);
     setError(null);
     setShowFilteredResults(true);
 
     try {
-      const filters: any = {
-        search: searchInput.trim(),
-        listingType: selectedPropertyType === 'rent' ? ['rent'] : ['sale'],
-      };
+      const result = await searchService.search(
+        dashboardSearchFilters.keyword.trim(),
+        {
+          location: dashboardSearchFilters.location.trim() || undefined,
+          propertyType: dashboardSearchFilters.propertyType || undefined,
+          minPrice: dashboardSearchFilters.minPrice ?? undefined,
+          maxPrice: dashboardSearchFilters.maxPrice ?? undefined,
+          minBedrooms: dashboardSearchFilters.minBedrooms ?? undefined,
+          minBathrooms: dashboardSearchFilters.minBathrooms ?? undefined,
+          listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
+          status: selectedPropertyType === 'sold' ? 'sold' : undefined,
+          sortBy: buildDashboardSortValue(selectedFilters),
+          page: currentFilteredPage,
+          limit: FILTERED_RESULTS_PAGE_SIZE,
+        },
+      );
 
-      if (selectedPropertyType === 'sold') {
-        filters.status = ['sold'];
-      }
-
-      const result = await propertyService.getProperties(filters);
-
-      if (result.error) {
-        setError(result.error);
+      if (!result.success) {
+        setError('Failed to fetch properties. Please try again.');
         setFilteredProperties([]);
         setFilteredCount(0);
-      } else if (result.data) {
-        setFilteredProperties(result.data);
-        setFilteredCount(result.data.length);
-        if (result.data.length === 0) {
-          setLocationMessage('No properties found matching your search. Try adjusting your criteria.');
-        }
+        setFilteredTotalPages(0);
+        return;
       }
-    } catch (err: any) {
-      console.error('[Dashboard] Error filtering properties:', err);
-      setError(err.message);
+
+      const nextProperties = applyDashboardFilterOrdering(result.data || [], selectedFilters);
+      const total = result.pagination?.total || nextProperties.length;
+      const totalPages = total > 0 ? Math.ceil(total / FILTERED_RESULTS_PAGE_SIZE) : 0;
+
+      setFilteredProperties(nextProperties);
+      setFilteredCount(total);
+      setFilteredTotalPages(totalPages);
+
+      if (nextProperties.length === 0) {
+        setLocationMessage('No properties found matching your search. Try adjusting your criteria.');
+      } else {
+        setLocationMessage(null);
+      }
+    } catch (fetchError: any) {
+      setError(fetchError?.message || 'An unexpected error occurred while searching.');
+      setFilteredProperties([]);
+      setFilteredCount(0);
+      setFilteredTotalPages(0);
     } finally {
       setSearchLoading(false);
     }
-  }, [selectedPropertyType, selectedFilters, searchInput]);
+  }, [currentFilteredPage, dashboardSearchFilters, selectedFilters, selectedPropertyType, shouldFetchFilteredResults]);
 
-  // Handle location search
-  const handleLocationSearch = useCallback((e?: React.FormEvent) => {
-    e?.preventDefault();
+  useEffect(() => {
+    if (!shouldFetchFilteredResults) {
+      return;
+    }
+
+    fetchFilteredProperties();
+  }, [fetchFilteredProperties, shouldFetchFilteredResults]);
+
+  const handleDashboardSearch = useCallback((nextFilters: DashboardSearchFilters) => {
+    setDashboardSearchFilters(nextFilters);
+    setSelectedPropertyType(nextFilters.listingType === 'rent' ? 'rent' : 'buy');
+    setCurrentFilteredPage(1);
     setError(null);
     setLocationMessage(null);
+    setShowFilteredResults(
+      hasActiveDashboardSearch(nextFilters)
+      || selectedFilters.length > 0
+      || selectedPropertyType === 'sold',
+    );
+  }, [selectedFilters.length, selectedPropertyType]);
 
-    if (selectedFilters.length > 0 || searchInput.trim()) {
-      fetchFilteredProperties();
-    } else {
-      const params = new URLSearchParams();
-      if (selectedPropertyType === 'buy') {
-        params.set('tab', 'buy');
-      } else if (selectedPropertyType === 'rent') {
-        params.set('tab', 'rent');
-      } else if (selectedPropertyType === 'sold') {
-        params.set('tab', 'buy');
-        params.set('status', 'sold');
-      }
-      navigate(`/user/dashboard/discover?${params.toString()}`);
-    }
-  }, [searchInput, selectedPropertyType, selectedFilters, navigate, fetchFilteredProperties]);
+  const toggleQuickFilter = (filterId: string) => {
+    setSelectedFilters((current) => {
+      const nextFilters = current.includes(filterId)
+        ? current.filter((item) => item !== filterId)
+        : [filterId];
 
-  // Map location
-  const mapLocation = activeLocation || {
-    type: 'default',
-    postcode: 'SW1A 1AA',
-    latitude: 51.5074,
-    longitude: -0.1278,
-    city: 'London',
-    source: 'default',
+      setCurrentFilteredPage(1);
+      setShowFilteredResults(
+        hasActiveDashboardSearch(dashboardSearchFilters)
+        || nextFilters.length > 0
+        || selectedPropertyType === 'sold',
+      );
+      return nextFilters;
+    });
   };
 
-  // Map properties - pass raw properties with latitude/longitude for NearbyPropertiesMap
-  const mapProperties = useMemo(() => {
-    return filteredProperties.filter((p: any) => p && p.latitude && p.longitude);
-  }, [filteredProperties]);
+  const clearFilteredResults = useCallback(() => {
+    setSelectedFilters([]);
+    setSelectedPropertyType((current) => (current === 'rent' ? 'rent' : 'buy'));
+    setDashboardSearchFilters({
+      ...defaultDashboardSearchFilters,
+      listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
+    });
+    setFilteredProperties([]);
+    setFilteredCount(0);
+    setFilteredTotalPages(0);
+    setCurrentFilteredPage(1);
+    setShowFilteredResults(false);
+    setError(null);
+    setLocationMessage(null);
+  }, [selectedPropertyType]);
+
+  const clearDashboardSearchParams = useCallback(() => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete('reset');
+      next.delete('page');
+      next.delete('filter');
+      next.delete('type');
+      next.delete('status');
+      next.delete('q');
+      next.delete('keyword');
+      next.delete('location');
+      next.delete('propertyType');
+      next.delete('minPrice');
+      next.delete('maxPrice');
+      next.delete('beds');
+      next.delete('baths');
+      next.delete('minBedrooms');
+      next.delete('minBathrooms');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    if (!dashboardResetRequested) {
+      return;
+    }
+
+    clearFilteredResults();
+    clearDashboardSearchParams();
+  }, [clearDashboardSearchParams, clearFilteredResults, dashboardResetRequested]);
+
+  useEffect(() => {
+    const handleDashboardReset = () => {
+      clearFilteredResults();
+      clearDashboardSearchParams();
+    };
+
+    window.addEventListener(USER_DASHBOARD_RESET_EVENT, handleDashboardReset);
+    return () => window.removeEventListener(USER_DASHBOARD_RESET_EVENT, handleDashboardReset);
+  }, [clearDashboardSearchParams, clearFilteredResults]);
+
+  const mapLocation = activeLocation || null;
+  const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
+  const mapProperties = useMemo(() => (
+    activeMapProperties.filter((property) => (
+      property
+      && typeof property.latitude === 'number'
+      && typeof property.longitude === 'number'
+    ))
+  ), [activeMapProperties]);
+  const hasNearbyMapPreview = Boolean(
+    (mapLocation?.latitude && mapLocation?.longitude) || mapProperties.length > 0,
+  );
+
+  const resultHeading = selectedFilters.includes('recently_added')
+    ? 'Recently Added Properties'
+    : selectedFilters.includes('most_viewed')
+      ? 'Most Viewed Properties'
+      : selectedFilters.includes('high_demand')
+        ? 'High Demand Properties'
+        : selectedFilters.includes('budget_friendly')
+          ? 'Budget Friendly Properties'
+          : dashboardSearchFilters.location.trim()
+            ? `Properties in "${dashboardSearchFilters.location.trim()}"`
+            : dashboardSearchFilters.keyword.trim()
+              ? `Results for "${dashboardSearchFilters.keyword.trim()}"`
+              : 'Search Results';
+
+  const openPropertyFromDashboard = useCallback((property: SearchResult) => {
+    navigate(`/user/properties/${property.id}`, {
+      state: {
+        backTo: '/user/dashboard',
+        backLabel: 'Back to Dashboard',
+      },
+    });
+  }, [navigate]);
+
+  const openFastTrackFromDashboard = useCallback((property: SearchResult) => {
+    navigate(`/user/properties/${property.id}?fast-track=1`, {
+      state: {
+        backTo: '/user/dashboard',
+        backLabel: 'Back to Dashboard',
+      },
+    });
+  }, [navigate]);
 
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto dark:bg-[#0a0a0a] min-h-screen transition-all duration-300">
-
-      {/* Simple Welcome Greeting */}
-      <div id="greeting-section" className="flex items-center justify-between animate-fadeIn">
-        <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
-            {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span> 👋
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-            What would you like to do today?
-          </p>
-        </div>
-
-        {/* Profile Completion Widget - Top Right */}
-        <div className="ml-auto">
-          <ProfileCompletionCard />
-        </div>
-      </div>
-
-      {/* Hero Search Section - Modern Polished Design */}
-      <div id="hero-search" className="relative rounded-3xl shadow-soft-xl overflow-hidden min-h-[500px] lg:min-h-[550px] flex flex-col items-center justify-center animate-fadeIn group">
-        {/* Background Image with parallax effect */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 group-hover:scale-105"
-          style={{
-            backgroundImage: `url('https://images.pexels.com/photos/8293778/pexels-photo-8293778.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&dpr=2')`,
-          }}
-        />
-        {/* Elegant gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/70 via-gray-900/50 to-orange-900/30" />
-
-        {/* Top decorative gradient for seamless header blend */}
-        <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-black/20 to-transparent" />
-
-        {/* Hero Content - Centered */}
-        <div className="relative z-10 text-center px-4 md:px-6 max-w-5xl mx-auto w-full">
-          <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight tracking-tight animate-slideUp"
-            style={{ textShadow: '0 4px 20px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)' }}
-          >
-            Find your <span className="text-orange-400" style={{ textShadow: '0 4px 20px rgba(251,146,60,0.4), 0 2px 8px rgba(0,0,0,0.3)' }}>perfect space</span>
-          </h1>
-          <p
-            className="text-white text-lg md:text-xl mb-10 max-w-2xl mx-auto animate-slideUp font-medium tracking-wide"
-            style={{ animationDelay: '0.1s', textShadow: '0 2px 12px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.3)' }}
-          >
-            Discover thousands of premium properties for sale and rent across the UK
-          </p>
-
-          {/* Search Card - Clean Glass Effect */}
-          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 lg:p-8 shadow-2xl max-w-4xl mx-auto animate-slideUp border border-white/50 ring-1 ring-black/5" style={{ animationDelay: '0.2s' }}>
-            {/* Tabs */}
-            <div className="flex items-center gap-2 mb-6 bg-gray-100/80 p-1.5 rounded-2xl w-fit mx-auto border border-gray-200/50">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedPropertyType('buy');
-                  setSearchParams({ type: 'buy' }, { replace: true });
-                }}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${selectedPropertyType === 'buy'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
-                  }`}
-              >
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedPropertyType('rent');
-                  setSearchParams({ type: 'rent' }, { replace: true });
-                }}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${selectedPropertyType === 'rent'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
-                  }`}
-              >
-                Rent
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setSelectedPropertyType('sold');
-                  setSearchParams({ type: 'sold' }, { replace: true });
-                }}
-                className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${selectedPropertyType === 'sold'
-                  ? 'bg-white text-orange-600 shadow-sm ring-1 ring-black/5'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
-                  }`}
-              >
-                Sold
-              </button>
-            </div>
-
-            {/* Filter Options Row - Multiple Selection */}
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-              {[
-                { id: 'all', label: 'All Properties', icon: Sparkles },
-                { id: 'recently_added', label: 'Recently Added', icon: Clock },
-                { id: 'most_viewed', label: 'Most Visited', icon: Eye },
-                { id: 'high_demand', label: 'High Demand', icon: TrendingUp },
-                { id: 'budget_friendly', label: 'Budget Friendly', icon: DollarSign },
-              ].map((filter) => {
-                const Icon = filter.icon;
-                const isAllSelected = filter.id === 'all' && selectedFilters.length === 0;
-                const isSelected = filter.id === 'all' ? isAllSelected : selectedFilters.includes(filter.id);
-
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      let newFilters: string[];
-
-                      if (filter.id === 'all') {
-                        newFilters = [];
-                      } else {
-                        if (selectedFilters.includes(filter.id)) {
-                          newFilters = selectedFilters.filter(f => f !== filter.id);
-                        } else {
-                          newFilters = [...selectedFilters, filter.id];
-                        }
-                      }
-
-                      setSelectedFilters(newFilters);
-
-                      const newParams = new URLSearchParams(searchParams);
-                      if (newFilters.length === 0) {
-                        newParams.delete('filter');
-                      } else {
-                        newParams.set('filter', newFilters.join(','));
-                      }
-                      setSearchParams(newParams, { replace: true });
-                    }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${isSelected
-                      ? 'bg-orange-50 text-orange-600 border-orange-200 shadow-none'
-                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                      }`}
-                  >
-                    <Icon size={16} className={isSelected ? 'text-orange-500' : 'text-gray-400'} />
-                    <span>{filter.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Search Form - Inline */}
-            <form onSubmit={handleLocationSearch} className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 relative group/input">
-                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/input:text-orange-500 transition-colors" size={22} />
-                <input
-                  type="text"
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Enter postcode, city, or area..."
-                  className="w-full pl-14 pr-12 py-4 bg-gray-50 hover:bg-white border-2 border-transparent focus:bg-white focus:border-orange-500 rounded-2xl text-gray-900 placeholder-gray-400 text-lg transition-all duration-300 outline-none shadow-inner"
-                  disabled={searchLoading}
-                />
-                {searchInput && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchInput('')}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                  >
-                    <X size={20} />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                disabled={searchLoading}
-                className="px-8 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 active:from-orange-700 active:to-orange-800 text-white rounded-2xl font-bold text-lg transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 min-w-[160px] shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 transform hover:-translate-y-1"
-              >
-                {searchLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={24} />
-                    <span>Searching</span>
-                  </>
-                ) : (
-                  <span>Search</span>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Action CTAs - Property Tech Style (hidden when showing filtered results) */}
+      <FastTrackCelebrationOverlay
+        active={showFastTrackCelebration}
+        role="user"
+        title="Your journey is complete"
+        subtitle={celebrationPropertyTitle
+          ? `${celebrationPropertyTitle} is ready for the next step.`
+          : 'Your 24-hour journey is complete and ready for the next step.'}
+        onComplete={() => setShowFastTrackCelebration(false)}
+      />
       {!showFilteredResults && (
         <>
-          {/* PROMINENT: Broker + Agencies - Full Width Grid */}
+          <div
+            id="hero-search"
+            className="relative overflow-hidden rounded-[32px] shadow-2xl animate-fadeIn group min-h-[480px] lg:min-h-[540px]"
+          >
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 group-hover:scale-105"
+              style={{
+                backgroundImage: "url('https://images.pexels.com/photos/8293778/pexels-photo-8293778.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&dpr=2')",
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/78 via-slate-900/58 to-orange-950/30" />
+            <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/25 to-transparent" />
+
+            <div className="relative z-10 flex min-h-[480px] lg:min-h-[540px] items-center px-4 py-10 md:px-6 lg:px-10">
+              <div className="mx-auto w-full max-w-6xl">
+                <div className="max-w-3xl text-white">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-300/90">
+                    Search sale and rental homes
+                  </p>
+                  <h1
+                    className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl"
+                    style={{ textShadow: '0 4px 20px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)' }}
+                  >
+                    Find your <span className="text-orange-400">perfect space</span>
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base text-white/88 md:text-lg">
+                    {dashboardCopy.searchSubtitle}
+                  </p>
+                </div>
+
+                <div
+                  className="mt-8 rounded-[28px] border border-white/40 bg-white/92 p-5 shadow-2xl backdrop-blur-2xl ring-1 ring-black/5 md:p-6 lg:p-8"
+                  style={{ animationDelay: '0.15s' }}
+                >
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+                    <div>
+                      <SearchBar
+                        variant="hero"
+                        navigateOnSearch={false}
+                        onSearch={handleDashboardSearch}
+                        initialFilters={dashboardSearchFilters}
+                        className="w-full text-left"
+                      />
+
+                      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                        {dashboardFilterOptions.map((filter) => {
+                          const selected = selectedFilters.includes(filter.id);
+
+                          return (
+                            <button
+                              key={filter.id}
+                              onClick={() => toggleQuickFilter(filter.id)}
+                              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                                selected
+                                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              }`}
+                            >
+                              {filter.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/95 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Quick actions</p>
+                      <div className="mt-4 grid gap-3">
+                        <button
+                          onClick={() => {
+                            setActiveTab('buy');
+                            navigate('/user/dashboard/discover?type=buy');
+                          }}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+                        >
+                          <span>{dashboardCopy.quickBuyLabel}</span>
+                          <Building2 size={16} className="text-orange-500" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveTab('rent');
+                            navigate('/user/dashboard/discover?type=rent');
+                          }}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+                        >
+                          <span>{dashboardCopy.quickRentLabel}</span>
+                          <Key size={16} className="text-orange-500" />
+                        </button>
+                        <button
+                          onClick={() => navigate('/user/saved')}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+                        >
+                          <span>{dashboardCopy.quickSavedLabel}</span>
+                          <Bookmark size={16} className="text-orange-500" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="greeting-section" className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px] animate-fadeIn">
+            <section className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_58%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.22)_0%,rgba(10,10,10,1)_60%)]">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
+                    {dashboardCopy.nextStepEyebrow}
+                  </p>
+                  <h2 className="mt-3 text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
+                    {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span>
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    {dashboardCopy.greetingSubtitle}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {nextStepSummary.title}
+                </h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What is happening now?</p>
+                    <p className="mt-2 text-base text-gray-900 dark:text-white">
+                      {journeySummaryLoading ? 'Loading your latest update...' : nextStepSummary.now}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What do I need to do next?</p>
+                    <p className="mt-2 text-base text-gray-900 dark:text-white">
+                      {journeySummaryLoading ? 'Checking your next step...' : nextStepSummary.next}
+                    </p>
+                  </div>
+                </div>
+                {journeySummaryError ? (
+                  <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">{journeySummaryError}</p>
+                ) : null}
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    onClick={nextStepSummary.primaryAction}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                  >
+                    {nextStepSummary.primaryLabel}
+                    <ArrowRight size={16} />
+                  </button>
+                  <button
+                    onClick={nextStepSummary.secondaryAction}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                  >
+                    {nextStepSummary.secondaryLabel}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <div className="min-w-0">
+              <ProfileCompletionCard />
+            </div>
+          </div>
+        </>
+      )}
+
+      {!showFilteredResults && (
+        <>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2">
+            <div
+              id="broker-request-workspace"
+              ref={brokerRequestWorkspaceRef}
+              className={`lg:col-span-2 scroll-mt-24 rounded-3xl transition-shadow ${
+                searchParams.get('workspace') === 'broker-request'
+                  ? 'ring-2 ring-orange-200 shadow-lg shadow-orange-500/10'
+                  : ''
+              }`}
+            >
               <Suspense fallback={<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />}>
                 <BrokerRequestWidget />
               </Suspense>
@@ -384,88 +897,23 @@ const DashboardClient = () => {
             </div>
           </div>
 
-          {/* Quick Action Cards Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => {
-                setActiveTab('buy');
-                navigate('/user/dashboard/discover?tab=buy');
-              }}
-              className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
-            >
-              <div className="p-3.5 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-violet-500/25">
-                <Building2 size={24} className="text-white" strokeWidth={1.5} />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Buy Property</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Find your dream home</p>
-              <span className="text-violet-600 text-sm font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                Browse <ArrowRight size={14} />
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('rent');
-                navigate('/user/dashboard/discover?tab=rent');
-              }}
-              className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
-            >
-              <div className="p-3.5 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-cyan-500/25">
-                <Key size={24} className="text-white" strokeWidth={1.5} />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Rent Property</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">Explore rentals</p>
-              <span className="text-cyan-600 text-sm font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                Explore <ArrowRight size={14} />
-              </span>
-            </button>
-
-            <button
-              onClick={() => navigate('/user/dashboard/saved')}
-              className="group bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-left"
-            >
-              <div className="p-3.5 bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl w-fit mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-rose-500/25">
-                <Bookmark size={24} className="text-white" strokeWidth={1.5} />
-              </div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Saved</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{savedProperties?.length || 0} properties</p>
-              <span className="text-rose-600 text-sm font-medium inline-flex items-center gap-1 group-hover:gap-2 transition-all">
-                View All <ArrowRight size={14} />
-              </span>
-            </button>
-          </div>
-
-          {/* Real-Time Application Monitoring */}
           <Suspense fallback={<div className="h-48 bg-gray-100 rounded-2xl animate-pulse" />}>
             <ApplicationTimelineWidget />
           </Suspense>
         </>
       )}
 
-      {/* Filtered Properties Results */}
       {showFilteredResults && (
         <div className="animate-fadeIn">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 gap-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">
-                {selectedFilters.includes('recently_added') && 'Recently Added Properties'}
-                {selectedFilters.includes('most_viewed') && !selectedFilters.includes('recently_added') && 'Most Visited Properties'}
-                {selectedFilters.includes('high_demand') && !selectedFilters.includes('recently_added') && !selectedFilters.includes('most_viewed') && 'High Demand Properties'}
-                {selectedFilters.includes('budget_friendly') && !selectedFilters.includes('recently_added') && !selectedFilters.includes('most_viewed') && !selectedFilters.includes('high_demand') && 'Budget Friendly Properties'}
-                {selectedFilters.length === 0 && searchInput && `Properties in "${searchInput}"`}
-                {selectedFilters.length === 0 && !searchInput && 'Search Results'}
-              </h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">{resultHeading}</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {searchLoading ? 'Loading...' : `${filteredCount} ${filteredCount === 1 ? 'property' : 'properties'} found`}
               </p>
             </div>
             <button
-              onClick={() => {
-                setShowFilteredResults(false);
-                setFilteredProperties([]);
-                setSelectedFilters([]);
-                setSearchInput('');
-              }}
+              onClick={clearFilteredResults}
               className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
             >
               <X size={16} />
@@ -475,54 +923,55 @@ const DashboardClient = () => {
 
           {searchLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <PropertyCardSkeleton key={i} />
+              {[1, 2, 3, 4, 5, 6].map((index) => (
+                <PropertyCardSkeleton key={index} />
               ))}
             </div>
           ) : filteredProperties.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProperties.map((property: any) => (
+              {filteredProperties.map((property) => (
                 <PropertyCard
                   key={property.id}
                   property={property}
-                  onViewDetails={(p: any) => navigate(`/user/dashboard/property/${p.id}`)}
+                  onViewDetails={openPropertyFromDashboard}
                 />
               ))}
             </div>
           ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-100 dark:border-gray-700">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Home size={32} className="text-gray-400" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Properties Found</h3>
               <p className="text-gray-500 dark:text-gray-400 mb-4">Try adjusting your filters or search criteria</p>
               <button
-                onClick={() => {
-                  setShowFilteredResults(false);
-                  setSelectedFilters([]);
-                  setSearchInput('');
-                  navigate('/user/dashboard/discover');
-                }}
+                onClick={clearFilteredResults}
                 className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
               >
-                Browse All Properties
+                Clear Search
               </button>
             </div>
           )}
 
-          {/* View More Button */}
-          {filteredProperties.length > 0 && filteredCount > 12 && (
+          {filteredTotalPages > 1 && (
+            <div className="mt-8">
+              <PaginationBar
+                currentPage={currentFilteredPage}
+                totalPages={filteredTotalPages}
+                onPageChange={setCurrentFilteredPage}
+                totalItems={filteredCount}
+                pageSize={FILTERED_RESULTS_PAGE_SIZE}
+                currentItemCount={filteredProperties.length}
+                itemLabel="properties"
+              />
+            </div>
+          )}
+
+          {filteredProperties.length > 0 && filteredCount > FILTERED_RESULTS_PAGE_SIZE && (
             <div className="text-center mt-6">
               <button
                 onClick={() => {
-                  const params = new URLSearchParams();
-                  params.set('tab', selectedPropertyType === 'rent' ? 'rent' : 'buy');
-                  if (selectedFilters.length > 0) {
-                    params.set('filter', selectedFilters.join(','));
-                  }
-                  if (searchInput) {
-                    params.set('location', searchInput);
-                  }
+                  const params = buildDiscoverParams(selectedPropertyType, selectedFilters, dashboardSearchFilters);
                   navigate(`/user/dashboard/discover?${params.toString()}`);
                 }}
                 className="px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold transition-colors inline-flex items-center gap-2"
@@ -535,9 +984,8 @@ const DashboardClient = () => {
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
           <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg">
             <AlertCircle className="text-red-600 dark:text-red-400" size={18} />
           </div>
@@ -551,9 +999,8 @@ const DashboardClient = () => {
         </div>
       )}
 
-      {/* Location Message (Info/Warning) */}
       {locationMessage && !error && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl p-4 flex items-center gap-3 animate-slideDown">
           <div className="p-2 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
             <AlertCircle className="text-amber-600 dark:text-amber-400" size={18} />
           </div>
@@ -567,17 +1014,19 @@ const DashboardClient = () => {
         </div>
       )}
 
-      {/* Main Map View - Nearby Properties (hidden when showing filtered results) */}
       {!showFilteredResults && (
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="flex items-center gap-2">
                 <MapIcon className="text-orange-500" size={20} />
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">Nearby Properties</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-orange-500">{dashboardCopy.mapTitle}</h2>
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                Explore properties on the map - click markers to view details
+                {dashboardCopy.mapSubtitle}
+              </p>
+              <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                This is a compact preview. Open Browse All for the full map experience.
               </p>
             </div>
             <button
@@ -590,8 +1039,8 @@ const DashboardClient = () => {
           </div>
 
           {locationLoading ? (
-            <div className="bg-white dark:bg-white rounded-lg shadow-sm border border-gray-200 dark:border-gray-300 overflow-hidden">
-              <div className="h-[600px] lg:h-[700px] flex items-center justify-center">
+            <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+              <div className="flex h-[240px] items-center justify-center sm:h-[270px] lg:h-[300px]">
                 <div className="text-center">
                   <Loader2 className="animate-spin mx-auto mb-4 text-orange-500" size={48} />
                   <p className="text-gray-600 dark:text-gray-300">Loading nearby properties...</p>
@@ -599,21 +1048,20 @@ const DashboardClient = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="h-[600px] lg:h-[700px]">
+            <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+              <div className={hasNearbyMapPreview ? 'h-[310px] sm:h-[350px] lg:h-[400px]' : 'h-[250px] sm:h-[280px] lg:h-[320px]'}>
                 <NearbyPropertiesMap
                   properties={mapProperties}
                   userLocation={mapLocation}
-                  onPropertyClick={(p: any) => navigate(`/user/dashboard/property/${p.id}`)}
+                  onPropertyClick={openPropertyFromDashboard}
+                  onStartFastTrack={openFastTrackFromDashboard}
+                  compact
                 />
               </div>
             </div>
           )}
         </div>
       )}
-
-      {/* Footer Section */}
-      <DashboardFooter />
     </div>
   );
 };

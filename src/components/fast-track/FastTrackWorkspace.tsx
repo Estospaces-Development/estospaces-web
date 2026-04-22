@@ -1,28 +1,42 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
+    ArrowUpRight,
     CalendarDays,
     CircleDot,
-    Clock3,
+    Download,
+    Eye,
     FileCheck2,
+    FileImage,
     FileText,
     Home,
     Loader2,
-    Search,
+    SendHorizontal,
     ShieldCheck,
-    Sparkles,
+    Star,
     Upload,
 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
     usePublishWorkspaceSync,
-    useWorkflowWorkspaceRefresh,
+    useWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
-import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
-    FastTrackActivityEntry,
+    buildFastTrackThreadRecipientLabel,
+    describeFastTrackWorkspaceFocus,
+    describeFastTrackWorkspaceStatus,
+    resolveFastTrackSelectionCaseId,
+    resolveFastTrackThreadRecipientId,
+} from '@/lib/fastTrackWorkspace';
+import {
+    WORKSPACE_SYNC_INTERVALS,
+    WORKSPACE_SYNC_TAGS,
+} from '@/lib/workspaceSync';
+import { getDocumentAccessBlob, getDocumentAccessUrl } from '@/services/documentAccessService';
+import {
     FastTrackCase,
     FastTrackDocumentItem,
     FastTrackStage,
@@ -30,9 +44,54 @@ import {
     performFastTrackAction,
 } from '@/services/fastTrackService';
 import { uploadDocument } from '@/services/leadsService';
+import {
+    Conversation,
+    Message,
+    getMessages,
+    markAsRead,
+    sendMessage,
+    upsertDirectConversation,
+} from '@/services/messagesService';
+import {
+    managerReviewsService,
+    type ManagerReview,
+} from '@/services/managerReviewsService';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
+import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
+import {
+    FastTrackCaseMasthead,
+    FastTrackCaseRail,
+    FastTrackStageStepper,
+    FastTrackUtilityDock,
+    FastTrackWorkspaceCustomizationDrawer,
+    FastTrackWorkspaceHeader,
+} from '@/components/fast-track/FastTrackWorkspaceLayout';
+import {
+    defaultFastTrackWorkspacePreferences,
+    FAST_TRACK_WORKSPACE_MODULES,
+    moveFastTrackWorkspaceModule,
+    normalizeFastTrackWorkspacePreferences,
+    orderVisibleFastTrackWorkspaceModules,
+    type FastTrackWorkspaceModule,
+    type FastTrackWorkspacePreferences,
+    type FastTrackWorkspaceRole,
+} from '@/lib/fastTrackWorkspacePreferences';
+import {
+    getFastTrackWorkspacePreferences,
+    updateFastTrackWorkspacePreferences,
+} from '@/services/workspacePreferencesService';
+import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
+import { cn } from '@/lib/utils';
 
-type WorkspaceRole = 'user' | 'manager' | 'admin';
+type WorkspaceRole = FastTrackWorkspaceRole;
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
+const FAST_TRACK_CASES_PAGE_SIZE = 12;
+const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
+    user: '/user/dashboard',
+    manager: '/manager/dashboard',
+    admin: '/admin/dashboard',
+};
 
 const STAGES: FastTrackStage[] = [
     'selected',
@@ -41,13 +100,6 @@ const STAGES: FastTrackStage[] = [
     'decision',
     'agreement',
     'handover',
-];
-
-const FILTERS: Array<{ value: FilterMode; label: string }> = [
-    { value: 'all', label: 'All' },
-    { value: 'active', label: 'Active' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const STAGE_ICONS: Record<FastTrackStage, React.ElementType> = {
@@ -62,21 +114,9 @@ const STAGE_ICONS: Record<FastTrackStage, React.ElementType> = {
 const formatStageLabel = (
     stage: FastTrackStage,
     journeyMode: FastTrackCase['journeyMode'],
+    role: WorkspaceRole,
 ): string => {
-    switch (stage) {
-        case 'documents':
-            return 'Documents';
-        case 'viewing':
-            return 'Viewing';
-        case 'decision':
-            return journeyMode === 'sale' ? 'Offer' : 'Decision';
-        case 'agreement':
-            return 'Agreement';
-        case 'handover':
-            return 'Handover';
-        default:
-            return 'Selected';
-    }
+    return getJourneyStageLabel(stage, journeyMode, role);
 };
 
 const formatStatusChip = (fastTrackCase: FastTrackCase) => {
@@ -99,12 +139,12 @@ const formatStatusChip = (fastTrackCase: FastTrackCase) => {
     }
 };
 
-const formatDeadline = (hoursRemaining: number) => {
+const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     if (!Number.isFinite(hoursRemaining)) {
-        return '24h window';
+        return role === 'user' ? '24 hours' : '24h window';
     }
     if (hoursRemaining <= 0) {
-        return 'Overdue';
+        return role === 'user' ? 'Needs attention' : 'Overdue';
     }
     return `${hoursRemaining}h left`;
 };
@@ -124,99 +164,125 @@ const sortCases = (cases: FastTrackCase[]) => [...cases].sort((left, right) => {
     return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
 });
 
-const resolveSelectedCaseId = (
-    cases: FastTrackCase[],
-    params: URLSearchParams,
-    previous: string | null,
-) => {
-    if (cases.length === 0) {
-        return null;
-    }
-
-    const requestedCaseId = params.get('case');
-    if (requestedCaseId && cases.some((item) => item.caseId === requestedCaseId)) {
-        return requestedCaseId;
-    }
-
-    const requestedLeadId = params.get('lead');
-    if (requestedLeadId) {
-        const caseByLead = cases.find((item) => item.leadId === requestedLeadId);
-        if (caseByLead) {
-            return caseByLead.caseId;
-        }
-    }
-
-    const requestedPropertyId = params.get('property');
-    if (requestedPropertyId) {
-        const caseByProperty = cases.find((item) => item.propertyId === requestedPropertyId);
-        if (caseByProperty) {
-            return caseByProperty.caseId;
-        }
-    }
-
-    if (previous && cases.some((item) => item.caseId === previous)) {
-        return previous;
-    }
-
-    return cases[0].caseId;
-};
+const buildFastTrackCasesSignature = (cases: FastTrackCase[]) => JSON.stringify(
+    cases.map((item) => ({
+        caseId: item.caseId,
+        stage: item.stage,
+        finalStatus: item.workspaceFinalStatus,
+        hoursRemaining: item.hoursRemaining,
+        statusReason: item.statusReason || '',
+        nextAction: item.nextAction || '',
+        documents: item.documents.items.map((document) => ({
+            id: document.id,
+            status: document.status,
+            recordId: document.documentRecordId || '',
+            uploadedAt: document.uploadedAt || '',
+            reviewedAt: document.reviewedAt || '',
+        })),
+        viewing: {
+            status: item.viewing.status,
+            scheduledAt: item.viewing.scheduledAt || '',
+            requestedChangeAt: item.viewing.requestedChangeAt || '',
+            confirmedByUser: Boolean(item.viewing.confirmedByUser),
+        },
+        decision: {
+            status: item.decision.status,
+            amount: item.decision.amount || 0,
+            decidedAt: item.decision.decidedAt || '',
+        },
+        agreement: {
+            status: item.agreement.status,
+            paymentStatus: item.agreement.paymentStatus,
+            amountDue: item.agreement.amountDue || 0,
+            acceptedAt: item.agreement.acceptedAt || '',
+        },
+        handover: {
+            status: item.handover.status,
+            confirmedAt: item.handover.confirmedAt || '',
+            completedAt: item.handover.completedAt || '',
+        },
+        activity: {
+            count: item.activity.length,
+            lastId: item.activity[item.activity.length - 1]?.id || '',
+        },
+    })),
+);
 
 const textMatches = (source: string | undefined, query: string) =>
     String(source || '').toLowerCase().includes(query.toLowerCase());
 
-const RoleBadge = ({ role }: { role: WorkspaceRole }) => (
-    <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-        {role}
-    </span>
-);
+const formatDateTime = (value?: string) => {
+    if (!value) {
+        return 'Not set';
+    }
+    return new Date(value).toLocaleString('en-GB');
+};
 
-const StagePill = ({
-    stage,
-    active,
-    complete,
-    label,
-}: {
-    stage: FastTrackStage;
-    active: boolean;
-    complete: boolean;
-    label: string;
-}) => {
-    const Icon = STAGE_ICONS[stage];
+const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
+    switch (status) {
+        case 'approved':
+            return 'Approved';
+        case 'reupload_needed':
+            return 'Replacement needed';
+        case 'uploaded':
+            return 'Waiting for review';
+        default:
+            return 'Waiting for upload';
+    }
+};
 
-    return (
-        <div
-            className={[
-                'flex min-w-[120px] items-center gap-3 rounded-2xl border px-4 py-3 transition-colors',
-                active
-                    ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
-                    : complete
-                        ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300'
-                        : 'border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400',
-            ].join(' ')}
-        >
-            <Icon size={18} />
-            <span className="text-sm font-semibold">{label}</span>
-        </div>
-    );
+const documentStatusTone = (status: FastTrackDocumentItem['status']) => {
+    switch (status) {
+        case 'approved':
+            return 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/30 dark:text-green-300';
+        case 'reupload_needed':
+            return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300';
+        case 'uploaded':
+            return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300';
+        default:
+            return 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
+    }
+};
+
+const detectDocumentPreviewKind = (item: FastTrackDocumentItem) => {
+    const mimeType = String(item.mimeType || '').toLowerCase();
+    const fileName = String(item.fileName || '').toLowerCase();
+
+    if (mimeType.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName)) {
+        return 'image' as const;
+    }
+    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+        return 'pdf' as const;
+    }
+    return 'file' as const;
 };
 
 const SectionShell = ({
     title,
     description,
+    icon: Icon,
     children,
 }: {
     title: string;
     description?: string;
+    icon?: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <section className="rounded-[28px] border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-        <div className="flex flex-col gap-1">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-            {description ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+    <section className="rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+        <div className="flex items-start gap-2.5">
+            {Icon ? (
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                    <Icon size={16} />
+                </span>
             ) : null}
+            <div className="flex flex-col gap-1">
+                <h3 className="text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
+                {description ? (
+                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
+                ) : null}
+            </div>
         </div>
-        <div className="mt-5">{children}</div>
+        <div className="mt-4">{children}</div>
     </section>
 );
 
@@ -226,25 +292,33 @@ const ActionButton = ({
     busy,
     children,
     tone = 'primary',
+    ariaLabel,
+    title,
+    className = '',
 }: {
     onClick?: () => void;
     disabled?: boolean;
     busy?: boolean;
     children: React.ReactNode;
     tone?: 'primary' | 'secondary' | 'danger';
+    ariaLabel?: string;
+    title?: string;
+    className?: string;
 }) => {
     const toneClass = tone === 'secondary'
         ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800'
         : tone === 'danger'
             ? 'bg-red-600 text-white hover:bg-red-700'
-            : 'bg-orange-600 text-white hover:bg-orange-700';
+            : 'bg-orange-700 text-white hover:bg-orange-800';
 
     return (
         <button
             type="button"
             onClick={onClick}
             disabled={disabled || busy}
-            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-70 ${toneClass}`}
+            aria-label={ariaLabel}
+            title={title}
+            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-70 ${toneClass} ${className}`.trim()}
         >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             {children}
@@ -253,6 +327,8 @@ const ActionButton = ({
 };
 
 export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
+    const navigate = useNavigate();
+    const { user } = useAuth();
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
@@ -261,6 +337,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [error, setError] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [filter, setFilter] = useState<FilterMode>('all');
+    const [currentCasePage, setCurrentCasePage] = useState(1);
     const [activeAction, setActiveAction] = useState<string | null>(null);
     const [viewingDate, setViewingDate] = useState('');
     const [viewingTime, setViewingTime] = useState('');
@@ -274,8 +351,72 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [requestChangeNote, setRequestChangeNote] = useState('');
     const [documentNotes, setDocumentNotes] = useState<Record<string, string>>({});
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File | null>>({});
+    const [documentFocusId, setDocumentFocusId] = useState<string | null>(null);
+    const [previewItemId, setPreviewItemId] = useState<string | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [previewError, setPreviewError] = useState<string | null>(null);
+    const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
+    const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
+    const [threadMessages, setThreadMessages] = useState<Message[]>([]);
+    const [threadDraft, setThreadDraft] = useState('');
+    const [threadLoading, setThreadLoading] = useState(false);
+    const [threadSending, setThreadSending] = useState(false);
+    const [threadError, setThreadError] = useState<string | null>(null);
+    const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+    const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
+    const [managerReview, setManagerReview] = useState<ManagerReview | null>(null);
+    const [managerReviewLoading, setManagerReviewLoading] = useState(false);
+    const [managerReviewSubmitting, setManagerReviewSubmitting] = useState(false);
+    const [managerReviewExpanded, setManagerReviewExpanded] = useState(false);
+    const [managerReviewRating, setManagerReviewRating] = useState(0);
+    const [managerReviewComment, setManagerReviewComment] = useState('');
+    const [managerReviewError, setManagerReviewError] = useState<string | null>(null);
+    const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
+        () => defaultFastTrackWorkspacePreferences(role),
+    );
+    const [customizationOpen, setCustomizationOpen] = useState(false);
+    const [caseRailDrawerOpen, setCaseRailDrawerOpen] = useState(false);
+    const [activeUtilityModule, setActiveUtilityModule] = useState<FastTrackWorkspaceModule>('core_files');
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+    const previewObjectUrlRef = useRef<string | null>(null);
+    const previewSectionRef = useRef<HTMLDivElement | null>(null);
+    const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
+    const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
+    const celebratedCaseIdRef = useRef<string | null>(null);
+    const workspacePreferencesLoadedRef = useRef(false);
+    const lastSavedWorkspacePreferencesRef = useRef('');
+    const lastCasesSignatureRef = useRef('');
     const publishWorkspaceSync = usePublishWorkspaceSync();
+    const searchParamsKey = searchParams.toString();
+    const journeyChromeCopy = getJourneyChromeCopy(role);
+    const filters: Array<{ value: FilterMode; label: string }> = role === 'user'
+        ? [
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'In progress' },
+            { value: 'completed', label: 'Done' },
+            { value: 'cancelled', label: 'Closed' },
+        ]
+        : [
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'cancelled', label: 'Cancelled' },
+        ];
+
+    const releasePreviewObjectUrl = useCallback(() => {
+        if (previewObjectUrlRef.current?.startsWith('blob:')) {
+            URL.revokeObjectURL(previewObjectUrlRef.current);
+        }
+        previewObjectUrlRef.current = null;
+    }, []);
+
+    const revealPreviewSection = useCallback(() => {
+        previewSectionRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+            inline: 'nearest',
+        });
+    }, []);
 
     const fetchCases = useCallback(async (silent: boolean = false) => {
         if (!silent) {
@@ -286,8 +427,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const { data, error: requestError } = await getFastTrackCases({ suppressErrorToast: true });
         if (data) {
             const nextCases = sortCases(data);
-            setCases(nextCases);
-            setSelectedCaseId((previous) => resolveSelectedCaseId(nextCases, searchParams, previous));
+            const nextSignature = buildFastTrackCasesSignature(nextCases);
+            if (nextSignature !== lastCasesSignatureRef.current) {
+                lastCasesSignatureRef.current = nextSignature;
+                setCases(nextCases);
+            }
             setError(null);
         } else if (!silent) {
             setError(requestError || 'Unable to load fast-track cases.');
@@ -296,16 +440,78 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!silent) {
             setLoading(false);
         }
-    }, [searchParams]);
+    }, []);
 
     useEffect(() => {
         void fetchCases();
     }, [fetchCases]);
 
-    useWorkflowWorkspaceRefresh({
+    useWorkspaceRefresh({
         tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
         refresh: () => fetchCases(true),
+        intervalMs: role === 'user' ? 60000 : WORKSPACE_SYNC_INTERVALS.DASHBOARD,
+        refreshOnFocus: true,
+        refreshOnVisible: true,
     });
+
+    useEffect(() => {
+        const defaults = defaultFastTrackWorkspacePreferences(role);
+        workspacePreferencesLoadedRef.current = false;
+        lastSavedWorkspacePreferencesRef.current = JSON.stringify(defaults);
+        setWorkspacePreferences(defaults);
+        setActiveUtilityModule(defaults.defaultActiveModule);
+
+        let cancelled = false;
+        const loadWorkspacePreferences = async () => {
+            const { data } = await getFastTrackWorkspacePreferences(role);
+            if (cancelled) {
+                return;
+            }
+
+            const nextPreferences = normalizeFastTrackWorkspacePreferences(data, role);
+            workspacePreferencesLoadedRef.current = true;
+            lastSavedWorkspacePreferencesRef.current = JSON.stringify(nextPreferences);
+            setWorkspacePreferences(nextPreferences);
+            setActiveUtilityModule(nextPreferences.defaultActiveModule);
+        };
+
+        void loadWorkspacePreferences();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [role]);
+
+    useEffect(() => {
+        if (!workspacePreferencesLoadedRef.current) {
+            return;
+        }
+
+        const serializedPreferences = JSON.stringify(workspacePreferences);
+        if (serializedPreferences === lastSavedWorkspacePreferencesRef.current) {
+            return;
+        }
+
+        const timeoutId = window.setTimeout(async () => {
+            const { data } = await updateFastTrackWorkspacePreferences(role, workspacePreferences);
+            if (!data) {
+                return;
+            }
+
+            const normalized = normalizeFastTrackWorkspacePreferences(data, role);
+            lastSavedWorkspacePreferencesRef.current = JSON.stringify(normalized);
+            setWorkspacePreferences(normalized);
+            setActiveUtilityModule((previous) =>
+                normalized.visibleModules.includes(previous)
+                    ? previous
+                    : normalized.defaultActiveModule,
+            );
+        }, 350);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
+    }, [role, workspacePreferences]);
 
     const filteredCases = useMemo(() => {
         return cases.filter((item) => {
@@ -334,21 +540,74 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [cases, filter, query]);
 
     useEffect(() => {
+        setCurrentCasePage(1);
+    }, [filter, query]);
+
+    const selectionParams = useMemo(
+        () => new URLSearchParams(searchParamsKey),
+        [searchParamsKey],
+    );
+    const requestedCaseParam = selectionParams.get('case');
+    const celebrateRequested = selectionParams.get('celebrate') === '1';
+
+    useEffect(() => {
+        if (cases.length === 0) {
+            setSelectedCaseId(null);
+            return;
+        }
+
+        const resolvedCaseId = resolveFastTrackSelectionCaseId(cases, selectionParams, selectedCaseId);
+        if (resolvedCaseId !== selectedCaseId) {
+            setSelectedCaseId(resolvedCaseId);
+        }
+    }, [cases, searchParamsKey, selectedCaseId, selectionParams]);
+
+    useEffect(() => {
         if (filteredCases.length === 0) {
+            return;
+        }
+
+        const requestedCaseStillAvailable = Boolean(
+            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
+        );
+        if (requestedCaseStillAvailable) {
             return;
         }
 
         if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
             setSelectedCaseId(filteredCases[0].caseId);
         }
-    }, [filteredCases, selectedCaseId]);
+    }, [cases, filteredCases, requestedCaseParam, selectedCaseId]);
+
+    const totalCasePages = useMemo(
+        () => Math.max(1, Math.ceil(filteredCases.length / FAST_TRACK_CASES_PAGE_SIZE)),
+        [filteredCases.length],
+    );
+
+    useEffect(() => {
+        if (currentCasePage > totalCasePages) {
+            setCurrentCasePage(totalCasePages);
+        }
+    }, [currentCasePage, totalCasePages]);
+
+    const paginatedCases = useMemo(() => {
+        const pageStart = (currentCasePage - 1) * FAST_TRACK_CASES_PAGE_SIZE;
+        return filteredCases.slice(pageStart, pageStart + FAST_TRACK_CASES_PAGE_SIZE);
+    }, [currentCasePage, filteredCases]);
 
     useEffect(() => {
         if (!selectedCaseId) {
             return;
         }
 
-        if (searchParams.get('case') === selectedCaseId) {
+        const requestedCaseStillAvailable = Boolean(
+            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
+        );
+        if (requestedCaseStillAvailable && requestedCaseParam !== selectedCaseId) {
+            return;
+        }
+
+        if (requestedCaseParam === selectedCaseId) {
             return;
         }
 
@@ -357,11 +616,89 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             next.set('case', selectedCaseId);
             return next;
         });
-    }, [searchParams, selectedCaseId, setSearchParams]);
+    }, [cases, requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
         [cases, filteredCases, selectedCaseId],
+    );
+    const isManagerReviewEligible = role === 'user'
+        && Boolean(selectedCase?.managerId)
+        && selectedCase?.workspaceFinalStatus !== 'cancelled';
+
+    useEffect(() => {
+        if (!isManagerReviewEligible || !selectedCase) {
+            setManagerReview(null);
+            setManagerReviewExpanded(false);
+            setManagerReviewRating(0);
+            setManagerReviewComment('');
+            setManagerReviewError(null);
+            setManagerReviewLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setManagerReviewLoading(true);
+        setManagerReviewError(null);
+
+        const loadManagerReview = async () => {
+            const result = await managerReviewsService.getManagerReviewForCase(selectedCase.caseId);
+            if (cancelled) {
+                return;
+            }
+
+            if (!result.success) {
+                setManagerReview(null);
+                setManagerReviewError(result.error || 'Unable to load manager feedback.');
+                setManagerReviewLoading(false);
+                return;
+            }
+
+            setManagerReview(result.data);
+            setManagerReviewExpanded(!result.data);
+            setManagerReviewRating(result.data?.rating || 0);
+            setManagerReviewComment(result.data?.comment || '');
+            setManagerReviewLoading(false);
+        };
+
+        void loadManagerReview();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isManagerReviewEligible, selectedCase?.caseId]);
+
+    const openManagerReviewForm = useCallback(() => {
+        if (!isManagerReviewEligible) {
+            return;
+        }
+
+        setManagerReviewExpanded(true);
+        setShowCompletionCelebration(false);
+        window.requestAnimationFrame(() => {
+            managerReviewSectionRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'nearest',
+            });
+        });
+    }, [isManagerReviewEligible]);
+
+    const openCompletionCelebration = useCallback((nextCase: FastTrackCase) => {
+        celebratedCaseIdRef.current = nextCase.caseId;
+        setCelebrationPropertyTitle(nextCase.propertyTitle);
+        toast.clearAll();
+        setShowCompletionCelebration(true);
+    }, [toast]);
+
+    const workspaceFocus = useMemo(
+        () => (selectedCase ? describeFastTrackWorkspaceFocus(selectedCase, role) : ''),
+        [role, selectedCase],
+    );
+
+    const workspaceStatus = useMemo(
+        () => (selectedCase ? describeFastTrackWorkspaceStatus(selectedCase, role) : ''),
+        [role, selectedCase],
     );
 
     const updateLocalCase = useCallback((nextCase: FastTrackCase) => {
@@ -370,6 +707,56 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         ))));
         setSelectedCaseId(nextCase.caseId);
     }, []);
+
+    const handleSubmitManagerReview = useCallback(async () => {
+        if (!selectedCase || !isManagerReviewEligible) {
+            return;
+        }
+        if (managerReviewRating < 1 || managerReviewRating > 5) {
+            toast.error('Choose a star rating first.');
+            return;
+        }
+
+        setManagerReviewSubmitting(true);
+        setManagerReviewError(null);
+
+        const result = managerReview
+            ? await managerReviewsService.updateManagerReview(managerReview.id, {
+                rating: managerReviewRating,
+                comment: managerReviewComment.trim(),
+            })
+            : await managerReviewsService.createManagerReview({
+                fast_track_case_id: selectedCase.caseId,
+                rating: managerReviewRating,
+                comment: managerReviewComment.trim(),
+            });
+
+        setManagerReviewSubmitting(false);
+
+        if (!result.success || !result.data) {
+            const message = result.error || 'Unable to save your feedback right now.';
+            setManagerReviewError(message);
+            toast.error(message);
+            return;
+        }
+
+        setManagerReview(result.data);
+        setManagerReviewExpanded(false);
+        setManagerReviewRating(result.data.rating);
+        setManagerReviewComment(result.data.comment || '');
+        toast.success(
+            managerReview
+                ? 'Your feedback was updated.'
+                : 'Thanks. Your feedback is now pending admin approval.',
+        );
+    }, [
+        isManagerReviewEligible,
+        managerReview,
+        managerReviewComment,
+        managerReviewRating,
+        selectedCase,
+        toast,
+    ]);
 
     const runAction = useCallback(async (
         action: string,
@@ -404,7 +791,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 propertyId: data.propertyId,
             },
         });
-        toast.success(successMessage || 'Workspace updated.');
+        if (data.workspaceFinalStatus !== 'completed') {
+            toast.success(successMessage || 'Workspace updated.');
+        }
     }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase]);
 
     const handleUploadDocument = useCallback(async (item: FastTrackDocumentItem) => {
@@ -446,6 +835,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     document_record_id: uploadResult.data.id,
                     file_name: uploadResult.data.file_name,
                     file_url: uploadResult.data.file_url,
+                    mime_type: uploadResult.data.mime_type,
                     note: documentNotes[item.id] || '',
                     uploaded_at: uploadResult.data.created_at,
                 },
@@ -480,11 +870,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
+    const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
+    const hasValidAgreementPaymentAmount = Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
+    const publishAgreementNeedsAmount = paymentRequired && !hasValidAgreementPaymentAmount;
     const stats = useMemo(() => ({
         active: cases.filter((item) => item.workspaceFinalStatus === 'active').length,
         completed: cases.filter((item) => item.workspaceFinalStatus === 'completed').length,
         cancelled: cases.filter((item) => item.workspaceFinalStatus === 'cancelled').length,
     }), [cases]);
+    const orderedVisibleUtilityModules = useMemo(
+        () => orderVisibleFastTrackWorkspaceModules(workspacePreferences),
+        [workspacePreferences],
+    );
+    const utilityModules = useMemo(() => {
+        if (previewItemId && !orderedVisibleUtilityModules.includes('preview')) {
+            return ['preview', ...orderedVisibleUtilityModules] as FastTrackWorkspaceModule[];
+        }
+        return orderedVisibleUtilityModules;
+    }, [orderedVisibleUtilityModules, previewItemId]);
+    const allOrderedModules = useMemo(() => {
+        return workspacePreferences.moduleOrder.length > 0
+            ? workspacePreferences.moduleOrder
+            : [...FAST_TRACK_WORKSPACE_MODULES];
+    }, [workspacePreferences.moduleOrder]);
 
     useEffect(() => {
         if (!selectedCase) {
@@ -502,14 +910,772 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setHandoverNote(selectedCase.handover.note || '');
         setRequestChangeNote(selectedCase.viewing.requestedChange || '');
         setDocumentNotes(
-            Object.fromEntries(selectedCase.documents.items.map((item) => [item.id, item.note || ''])),
+            Object.fromEntries(selectedCase.documents.items.map((item) => [
+                item.id,
+                role === 'user' ? (item.uploadNote || '') : (item.reviewNote || ''),
+            ])),
         );
-    }, [selectedCase?.caseId]);
+        setDocumentFocusId((previous) => {
+            if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
+                return previous;
+            }
+            return selectedCase.documents.items[0]?.id || null;
+        });
+        setPreviewItemId((previous) => {
+            if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
+                return previous;
+            }
+            return null;
+        });
+    }, [role, selectedCase?.caseId]);
+
+    useEffect(() => {
+        if (utilityModules.length === 0) {
+            return;
+        }
+
+        if (!utilityModules.includes(activeUtilityModule)) {
+            setActiveUtilityModule(utilityModules[0]);
+        }
+    }, [activeUtilityModule, utilityModules]);
+
+    useEffect(() => {
+        if (!selectedCase) {
+            return;
+        }
+
+        if (orderedVisibleUtilityModules.includes(workspacePreferences.defaultActiveModule)) {
+            setActiveUtilityModule(workspacePreferences.defaultActiveModule);
+        }
+    }, [orderedVisibleUtilityModules, selectedCase?.caseId, workspacePreferences.defaultActiveModule]);
+
+    useEffect(() => {
+        if (!selectedCase) {
+            return;
+        }
+
+        const previousStatus = completionStatusRef.current[selectedCase.caseId];
+        completionStatusRef.current[selectedCase.caseId] = selectedCase.workspaceFinalStatus;
+
+        if (!previousStatus || previousStatus === 'completed' || selectedCase.workspaceFinalStatus !== 'completed') {
+            return;
+        }
+
+        if (celebratedCaseIdRef.current === selectedCase.caseId) {
+            return;
+        }
+
+        openCompletionCelebration(selectedCase);
+    }, [openCompletionCelebration, selectedCase]);
+
+    useEffect(() => {
+        if (!celebrateRequested || !selectedCase || selectedCase.workspaceFinalStatus !== 'completed') {
+            return;
+        }
+
+        setSearchParams((previous) => {
+            const next = new URLSearchParams(previous);
+            next.delete('celebrate');
+            return next;
+        });
+
+        if (celebratedCaseIdRef.current === selectedCase.caseId) {
+            return;
+        }
+
+        openCompletionCelebration(selectedCase);
+    }, [celebrateRequested, openCompletionCelebration, selectedCase, setSearchParams]);
+
+    useEffect(() => {
+        if (!previewItemId || !utilityModules.includes('preview')) {
+            return;
+        }
+
+        setActiveUtilityModule('preview');
+    }, [previewItemId, utilityModules]);
 
     const compactActivity = useMemo(
         () => (selectedCase?.activity || []).slice(0, 8),
         [selectedCase?.activity],
     );
+
+    const previewItem = useMemo(
+        () => selectedCase?.documents.items.find((item) => item.id === previewItemId) || null,
+        [previewItemId, selectedCase?.documents.items],
+    );
+    const focusedDocumentItem = useMemo(
+        () => selectedCase?.documents.items.find((item) => item.id === documentFocusId)
+            || selectedCase?.documents.items[0]
+            || null,
+        [documentFocusId, selectedCase?.documents.items],
+    );
+
+    const threadRecipientId = useMemo(
+        () => resolveFastTrackThreadRecipientId(role, user?.id, selectedCase),
+        [role, selectedCase, user?.id],
+    );
+
+    const threadRecipientLabel = useMemo(
+        () => buildFastTrackThreadRecipientLabel(role, selectedCase),
+        [role, selectedCase],
+    );
+
+    const handlePublishAgreement = useCallback(() => {
+        if (publishAgreementNeedsAmount) {
+            toast.error('Enter a payment amount or turn off payment required.');
+            return;
+        }
+
+        void runAction(
+            'publish_agreement',
+            {
+                note: agreementNote,
+                payment_required: paymentRequired && hasValidAgreementPaymentAmount,
+                amount_due: paymentRequired && hasValidAgreementPaymentAmount ? parsedAgreementAmount : undefined,
+            },
+            'Agreement published.',
+        );
+    }, [
+        agreementNote,
+        hasValidAgreementPaymentAmount,
+        parsedAgreementAmount,
+        paymentRequired,
+        publishAgreementNeedsAmount,
+        runAction,
+        toast,
+    ]);
+
+    const updateWorkspacePreferencesState = useCallback((
+        updater: (previous: FastTrackWorkspacePreferences) => FastTrackWorkspacePreferences,
+    ) => {
+        setWorkspacePreferences((previous) => normalizeFastTrackWorkspacePreferences(updater(previous), role));
+    }, [role]);
+
+    const handleToggleRail = useCallback(() => {
+        if (window.matchMedia('(max-width: 1279px)').matches) {
+            setCaseRailDrawerOpen((previous) => !previous);
+            return;
+        }
+
+        updateWorkspacePreferencesState((previous) => ({
+            ...previous,
+            caseRailCollapsed: !previous.caseRailCollapsed,
+        }));
+    }, [updateWorkspacePreferencesState]);
+
+    const handleToggleModuleVisibility = useCallback((module: FastTrackWorkspaceModule) => {
+        updateWorkspacePreferencesState((previous) => {
+            const visible = previous.visibleModules.includes(module)
+                ? previous.visibleModules.filter((item) => item !== module)
+                : [...previous.visibleModules, module];
+            const nextVisible = previous.moduleOrder.filter((item) => visible.includes(item));
+            return {
+                ...previous,
+                visibleModules: visible,
+                defaultActiveModule: nextVisible.includes(previous.defaultActiveModule)
+                    ? previous.defaultActiveModule
+                    : nextVisible[0] || previous.defaultActiveModule,
+            };
+        });
+    }, [updateWorkspacePreferencesState]);
+
+    const handleMoveModule = useCallback((
+        module: FastTrackWorkspaceModule,
+        direction: 'up' | 'down',
+    ) => {
+        updateWorkspacePreferencesState((previous) => ({
+            ...previous,
+            moduleOrder: moveFastTrackWorkspaceModule(previous.moduleOrder, module, direction),
+        }));
+    }, [updateWorkspacePreferencesState]);
+
+    const handleResetWorkspacePreferences = useCallback(() => {
+        const defaults = defaultFastTrackWorkspacePreferences(role);
+        workspacePreferencesLoadedRef.current = true;
+        lastSavedWorkspacePreferencesRef.current = '';
+        setWorkspacePreferences(defaults);
+        setActiveUtilityModule(defaults.defaultActiveModule);
+    }, [role]);
+
+    const ensureDocumentPreview = useCallback(async (
+        item: FastTrackDocumentItem,
+        options?: {
+            openInNewTab?: boolean;
+            revealInViewport?: boolean;
+        },
+    ) => {
+        const openInNewTab = options?.openInNewTab === true;
+        const revealInViewport = options?.revealInViewport === true;
+        if (!item.documentRecordId && !item.fileUrl) {
+            setPreviewError('This file is not attached yet.');
+            setPreviewUrl(null);
+            if (revealInViewport) {
+                revealPreviewSection();
+            }
+            return null;
+        }
+
+        setPreviewBusyItemId(item.id);
+        setDocumentFocusId(item.id);
+        setPreviewItemId(item.id);
+        setPreviewError(null);
+
+        const previewKind = detectDocumentPreviewKind(item);
+        let nextUrl = item.fileUrl || null;
+        let nextAccessUrl = item.fileUrl || null;
+        if (item.documentRecordId) {
+            if (!openInNewTab && (previewKind === 'image' || previewKind === 'pdf')) {
+                const access = await getDocumentAccessBlob(item.documentRecordId);
+                if (access.error || !access.url || !access.blob) {
+                    setPreviewBusyItemId(null);
+                    setPreviewUrl(null);
+                    setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    if (revealInViewport) {
+                        revealPreviewSection();
+                    }
+                    return null;
+                }
+                releasePreviewObjectUrl();
+                nextUrl = URL.createObjectURL(access.blob);
+                previewObjectUrlRef.current = nextUrl;
+            } else {
+                const access = await getDocumentAccessUrl(item.documentRecordId);
+                if (access.error || !access.url) {
+                    setPreviewBusyItemId(null);
+                    setPreviewUrl(null);
+                    setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    if (revealInViewport) {
+                        revealPreviewSection();
+                    }
+                    return null;
+                }
+                releasePreviewObjectUrl();
+                nextUrl = access.url;
+                nextAccessUrl = access.url;
+            }
+        } else {
+            releasePreviewObjectUrl();
+        }
+
+        if (!nextUrl) {
+            setPreviewBusyItemId(null);
+            setPreviewUrl(null);
+            setPreviewError('Preview is unavailable for this document.');
+            if (revealInViewport) {
+                revealPreviewSection();
+            }
+            return null;
+        }
+
+        setPreviewBusyItemId(null);
+        setPreviewUrl(nextUrl);
+        setPreviewError(null);
+        if (revealInViewport) {
+            revealPreviewSection();
+        }
+
+        if (openInNewTab && nextAccessUrl) {
+            window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
+        }
+        return nextUrl;
+    }, [releasePreviewObjectUrl, revealPreviewSection]);
+
+    const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
+        await ensureDocumentPreview(item, { revealInViewport: true });
+    }, [ensureDocumentPreview]);
+
+    const handleRailDownload = useCallback(async (item: FastTrackDocumentItem) => {
+        await ensureDocumentPreview(item, { openInNewTab: true });
+    }, [ensureDocumentPreview]);
+
+    useEffect(() => {
+        return () => {
+            releasePreviewObjectUrl();
+        };
+    }, [releasePreviewObjectUrl]);
+
+    useEffect(() => {
+        if (!previewItem) {
+            releasePreviewObjectUrl();
+            setPreviewUrl(null);
+            setPreviewError(null);
+            return;
+        }
+        if (!previewItem.documentRecordId && !previewItem.fileUrl) {
+            releasePreviewObjectUrl();
+            setPreviewUrl(null);
+            setPreviewError('Choose a document to preview once a file has been attached.');
+            return;
+        }
+        void ensureDocumentPreview(previewItem);
+    }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadThread = async () => {
+            if (activeUtilityModule !== 'case_chat') {
+                return;
+            }
+
+            if (!selectedCase || !user) {
+                setThreadConversation(null);
+                setThreadMessages([]);
+                setThreadError(null);
+                return;
+            }
+
+            if (!threadRecipientId) {
+                setThreadConversation(null);
+                setThreadMessages([]);
+                setThreadError(
+                    role === 'user'
+                        ? 'Your helper will open messages here as soon as someone joins your journey.'
+                        : 'This case does not have a client attached yet.',
+                );
+                return;
+            }
+
+            setThreadLoading(true);
+            setThreadError(null);
+
+            const context = {
+                fastTrackCaseId: selectedCase.caseId,
+                propertyId: selectedCase.propertyId,
+                propertyTitle: selectedCase.propertyTitle,
+                listingType: selectedCase.listingType,
+                senderName: user.name,
+                senderEmail: user.email,
+                senderPhone: user.phone,
+                recipientName: role === 'user' ? 'Your helper' : selectedCase.clientName,
+            };
+
+            try {
+                const conversation = await upsertDirectConversation(threadRecipientId, context);
+                const messages = await getMessages(conversation.id, 1, 50);
+                await markAsRead(conversation.id);
+                if (cancelled) {
+                    return;
+                }
+                setThreadConversation(conversation);
+                setThreadMessages([...messages].sort((left, right) => (
+                    new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+                )));
+            } catch (error: any) {
+                if (cancelled) {
+                    return;
+                }
+                setThreadConversation(null);
+                setThreadMessages([]);
+                setThreadError(error?.message || (role === 'user' ? 'Unable to load your messages right now.' : 'Unable to load the case chat.'));
+            } finally {
+                if (!cancelled) {
+                    setThreadLoading(false);
+                }
+            }
+        };
+
+        void loadThread();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeUtilityModule, role, selectedCase?.caseId, selectedCase?.clientName, threadRecipientId, user]);
+
+    const handleSendThreadMessage = useCallback(async () => {
+        if (!selectedCase || !user || !threadRecipientId || !threadDraft.trim()) {
+            return;
+        }
+
+        setThreadSending(true);
+        setThreadError(null);
+        try {
+            const conversation = threadConversation || await upsertDirectConversation(threadRecipientId, {
+                fastTrackCaseId: selectedCase.caseId,
+                propertyId: selectedCase.propertyId,
+                propertyTitle: selectedCase.propertyTitle,
+                listingType: selectedCase.listingType,
+                senderName: user.name,
+                senderEmail: user.email,
+                senderPhone: user.phone,
+                recipientName: role === 'user' ? 'Your helper' : selectedCase.clientName,
+            });
+            const nextMessage = await sendMessage({
+                conversationId: conversation.id,
+                content: threadDraft.trim(),
+            });
+            setThreadConversation(conversation);
+            setThreadMessages((previous) => [...previous, nextMessage]);
+            setThreadDraft('');
+        } catch (error: any) {
+            setThreadError(error?.message || (role === 'user' ? 'Unable to send your message right now.' : 'Unable to send this case message.'));
+        } finally {
+            setThreadSending(false);
+        }
+    }, [role, selectedCase, threadConversation, threadDraft, threadRecipientId, user]);
+
+    const renderDocumentPreview = () => {
+        if (!previewItem) {
+            return (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Pick a file to preview it here.
+                </p>
+            );
+        }
+
+        const previewKind = detectDocumentPreviewKind(previewItem);
+
+        return (
+            <div className="space-y-4">
+                <div className="rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{previewItem.label}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {previewItem.fileName || 'No file attached yet'}
+                            </p>
+                        </div>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(previewItem.status)}`}>
+                            {formatDocumentStatus(previewItem.status)}
+                        </span>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void ensureDocumentPreview(previewItem, { revealInViewport: true })}
+                            busy={previewBusyItemId === previewItem.id}
+                            disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
+                        >
+                            <Eye size={16} />
+                            Preview
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
+                            busy={previewBusyItemId === previewItem.id}
+                            disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
+                        >
+                            <Download size={16} />
+                            Download
+                        </ActionButton>
+                    </div>
+                </div>
+
+                {previewError ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                        {previewError}
+                    </div>
+                ) : null}
+
+                {!previewUrl ? (
+                    <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
+                        Upload a file to preview it here.
+                    </div>
+                ) : previewKind === 'image' ? (
+                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
+                        <img
+                            src={previewUrl}
+                            alt={previewItem.fileName || previewItem.label}
+                            className="max-h-[420px] w-full object-contain"
+                        />
+                    </div>
+                ) : previewKind === 'pdf' ? (
+                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
+                        <iframe
+                            title={previewItem.fileName || previewItem.label}
+                            src={previewUrl}
+                            className="h-[420px] w-full"
+                        />
+                    </div>
+                ) : (
+                    <div className="rounded-3xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex items-center gap-3">
+                            <FileImage size={18} className="text-orange-500" />
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">Preview not supported inline</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    Open or download this file directly.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
+                                Type: {previewItem.mimeType || 'Unknown'}
+                            </div>
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
+                                Uploaded: {formatDateTime(previewItem.uploadedAt)}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    const renderCaseThread = () => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white">{threadRecipientLabel}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {role === 'user' ? 'Messages about your journey stay here.' : 'Messages stay attached to this case only.'}
+                        </p>
+                    </div>
+                    <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                        {role === 'user' ? 'Messages' : 'Case chat'}
+                    </span>
+                </div>
+
+                {threadError ? (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                        {threadError}
+                    </div>
+                ) : null}
+
+                <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label={role === 'user' ? 'Journey messages' : 'Case chat transcript'}>
+                    {threadLoading ? (
+                        <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {role === 'user' ? 'Loading your messages' : 'Loading case messages'}
+                        </div>
+                    ) : threadMessages.length === 0 ? (
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {role === 'user' ? 'No messages yet. Keep your updates here.' : 'No case messages yet. Keep every update here instead of leaving the workspace.'}
+                        </p>
+                    ) : threadMessages.map((message) => {
+                        const mine = message.sender_id === user?.id;
+                        return (
+                            <div
+                                key={message.id}
+                                className={[
+                                    'rounded-3xl px-4 py-3',
+                                    mine
+                                        ? 'bg-orange-700 text-white'
+                                        : 'border border-gray-100 bg-white text-gray-700 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200',
+                                ].join(' ')}
+                            >
+                                <p className="text-sm leading-6">{message.content}</p>
+                                <p className={`mt-2 text-[11px] ${mine ? 'text-orange-50' : 'text-gray-500 dark:text-gray-300'}`}>
+                                    {formatDateTime(message.created_at)}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="rounded-3xl border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+                    <textarea
+                        value={threadDraft}
+                        onChange={(event) => setThreadDraft(event.target.value)}
+                        placeholder={role === 'user' ? 'Write one clear message.' : 'Write one clear update for this case.'}
+                        className="h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                    />
+                    <div className="mt-4 flex justify-end">
+                        <ActionButton
+                            onClick={() => void handleSendThreadMessage()}
+                            busy={threadSending}
+                            disabled={!threadDraft.trim() || !threadRecipientId}
+                        >
+                            <SendHorizontal size={16} />
+                            Send update
+                        </ActionButton>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderCoreFilesModule = () => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        const activeDocument = focusedDocumentItem;
+        if (!activeDocument) {
+            return (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {role === 'user' ? 'Your documents will appear here when the document step opens.' : 'Core files will appear here when this case reaches the document lane.'}
+                </p>
+            );
+        }
+
+        const canPreview = Boolean(activeDocument.documentRecordId || activeDocument.fileUrl);
+        const helperNote = activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '';
+
+        return (
+            <div className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                    {selectedCase.documents.items.map((item) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            data-fast-track-document={item.id}
+                            onClick={() => setDocumentFocusId(item.id)}
+                            className={cn(
+                                'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors',
+                                activeDocument.id === item.id
+                                    ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
+                            )}
+                        >
+                            <span>{item.label}</span>
+                            <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-semibold', documentStatusTone(item.status))}>
+                                {formatDocumentStatus(item.status)}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="rounded-[24px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <p className="text-base font-semibold text-gray-900 dark:text-white">{activeDocument.label}</p>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                {activeDocument.fileName || 'No file attached yet'}
+                            </p>
+                        </div>
+                        <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(activeDocument.status))}>
+                            {formatDocumentStatus(activeDocument.status)}
+                        </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                                Last upload
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                {formatDateTime(activeDocument.uploadedAt)}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                                Next step
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                {role === 'user'
+                                    ? (activeDocument.status === 'reupload_needed' ? 'Replace file' : 'Keep file ready')
+                                    : (activeDocument.status === 'uploaded' ? 'Review file' : 'Keep workflow moving')}
+                            </p>
+                        </div>
+                    </div>
+
+                    {helperNote ? (
+                        <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
+                            {helperNote}
+                        </div>
+                    ) : null}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void handleRailPreview(activeDocument)}
+                            disabled={!canPreview}
+                            busy={previewBusyItemId === activeDocument.id}
+                            ariaLabel={`Preview ${activeDocument.label} from core files`}
+                            className="px-3 py-2 text-xs"
+                        >
+                            <Eye size={12} />
+                            Preview
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void handleRailDownload(activeDocument)}
+                            disabled={!canPreview}
+                            busy={previewBusyItemId === activeDocument.id}
+                            ariaLabel={`Download ${activeDocument.label} from core files`}
+                            className="px-3 py-2 text-xs"
+                        >
+                            <Download size={12} />
+                            Download
+                        </ActionButton>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    const renderActivityModule = () => (
+        <div className="space-y-3">
+            {compactActivity.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
+                </p>
+            ) : compactActivity.map((entry) => (
+                <div
+                    key={entry.id}
+                    className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
+                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                            {entry.actorRole}
+                        </span>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
+                </div>
+            ))}
+        </div>
+    );
+
+    const renderConnectedRecordsModule = () => {
+        if (!selectedCase) {
+            return null;
+        }
+
+        const items = [
+            ['Lead', selectedCase.leadId],
+            ['Application', selectedCase.applicationId],
+            ['Viewing', selectedCase.viewingId],
+            ['Contract', selectedCase.contractId],
+            ['Payment', selectedCase.paymentId],
+            ['Property', selectedCase.propertyId],
+        ].filter(([, value]) => Boolean(value));
+
+        if (items.length === 0) {
+            return (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {role === 'user' ? 'More linked details will appear here as your journey moves forward.' : 'Linked record ids will appear here as the case progresses.'}
+                </p>
+            );
+        }
+
+        return (
+            <div className="grid gap-3 sm:grid-cols-2">
+                {items.map(([label, value]) => (
+                    <div
+                        key={label}
+                        className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
+                    >
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
+                            {label}
+                        </p>
+                        <p className="mt-2 break-all text-sm font-semibold text-gray-900 dark:text-white">{value}</p>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    const renderUtilityModule = (module: FastTrackWorkspaceModule) => {
+        switch (module) {
+            case 'preview':
+                return <div ref={previewSectionRef}>{renderDocumentPreview()}</div>;
+            case 'case_chat':
+                return renderCaseThread();
+            case 'activity':
+                return renderActivityModule();
+            case 'connected_records':
+                return renderConnectedRecordsModule();
+            default:
+                return renderCoreFilesModule();
+        }
+    };
 
     const renderSelectedStage = () => {
         if (!selectedCase) {
@@ -518,21 +1684,23 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         return (
             <SectionShell
-                title="Selected"
-                description="This case is anchored to one property and one shared workspace."
+                title={getJourneyStageLabel('selected', selectedCase.journeyMode, role)}
+                description={role === 'user'
+                    ? 'This home is now linked to your guided journey.'
+                    : 'This case is anchored to one property and one shared workspace.'}
             >
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Property</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Property</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.propertyTitle}</p>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} · {selectedCase.propertyType}
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                            {selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / {selectedCase.propertyType}
                         </p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Participants</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Participants</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.clientName}</p>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                             Manager: {selectedCase.managerId ? 'Assigned' : 'Waiting for claim'}
                         </p>
                     </div>
@@ -557,7 +1725,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : (
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                        The manager or admin starts the case from here. Once documents are opened, you can upload them in this same workspace.
+                        The team will open the document step here. Once that happens, you can upload what is needed on this page.
                     </div>
                 )}
             </SectionShell>
@@ -569,100 +1737,224 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        const uploadedCount = selectedCase.documents.items.filter(
+            (item) => item.status === 'uploaded' || item.status === 'approved',
+        ).length;
+        const approvedCount = selectedCase.documents.items.filter(
+            (item) => item.status === 'approved',
+        ).length;
+
         return (
             <SectionShell
-                title="Documents"
-                description="Core files stay here until they are approved."
+                title={getJourneyStageLabel('documents', selectedCase.journeyMode, role)}
+                description={role === 'user'
+                    ? 'Share the required documents here. Extra help stays under See details.'
+                    : 'A compact checklist for the mandatory files. Use the dock for preview, chat, and activity.'}
             >
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className="mb-4 flex flex-wrap gap-2">
+                    <div className="rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                        {selectedCase.documents.items.length} required
+                    </div>
+                    <div className="rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                        {uploadedCount} uploaded
+                    </div>
+                    <div className="rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300">
+                        {approvedCount} approved
+                    </div>
+                    <div className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                        {role === 'user' ? 'Open a file row to see more details.' : 'Click a file row to focus it in the dock.'}
+                    </div>
+                </div>
+
+                <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
                     {selectedCase.documents.items.map((item) => {
                         const canUpload = role === 'user';
                         const busyKey = `upload-${item.id}`;
+                        const canPreview = Boolean(item.documentRecordId || item.fileUrl);
+                        const focused = focusedDocumentItem?.id === item.id;
+                        const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
                         return (
-                            <div key={item.id} className="rounded-2xl border border-gray-100 p-4 dark:border-gray-800">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-base font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            Status: {item.status.replace(/_/g, ' ')}
-                                        </p>
+                            <div
+                                key={item.id}
+                                data-fast-track-document-card={item.id}
+                                className={cn(
+                                    'grid gap-3 rounded-[22px] border bg-white px-3.5 py-3.5 shadow-sm transition-colors dark:bg-gray-950 lg:grid-cols-[minmax(0,1fr)_272px]',
+                                    focused
+                                        ? 'border-orange-300 ring-1 ring-orange-200 dark:border-orange-800 dark:ring-orange-900/40'
+                                        : 'border-gray-100 dark:border-gray-800',
+                                )}
+                            >
+                                <div className="space-y-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDocumentFocusId(item.id)}
+                                        className="w-full text-left"
+                                    >
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{item.label}</p>
+                                                    {focused ? (
+                                                        <span className="rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                                            In focus
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                <p className="mt-1 truncate text-[13px] text-gray-500 dark:text-gray-400">
+                                                    {item.fileName || 'No file attached yet'}
+                                                </p>
+                                            </div>
+                                            <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(item.status))}>
+                                                {formatDocumentStatus(item.status)}
+                                            </span>
+                                        </div>
+                                    </button>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                            Last upload {formatDateTime(item.uploadedAt)}
+                                        </span>
+                                        {item.reviewedAt ? (
+                                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                Reviewed {formatDateTime(item.reviewedAt)}
+                                            </span>
+                                        ) : null}
                                     </div>
-                                    <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                        {item.status}
-                                    </span>
+
+                                    <div className={cn(
+                                        'rounded-2xl border px-4 py-3 text-sm',
+                                        supportingNote
+                                            ? (item.status === 'reupload_needed'
+                                                ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300'
+                                                : 'border-gray-100 bg-gray-50 text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300')
+                                            : 'border-dashed border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-500',
+                                    )}>
+                                        {supportingNote || (canUpload
+                                            ? 'Add a file and one short upload note.'
+                                            : 'Review the file, leave one short note, and move on.')}
+                                    </div>
                                 </div>
 
-                                {item.fileName ? (
-                                    <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                                        Current file: {item.fileName}
-                                    </p>
-                                ) : null}
-
-                                <textarea
-                                    value={documentNotes[item.id] || ''}
-                                    onChange={(event) => setDocumentNotes((previous) => ({
-                                        ...previous,
-                                        [item.id]: event.target.value,
-                                    }))}
-                                    placeholder={canUpload ? 'Add a short note for this file' : 'Add a short review note'}
-                                    className="mt-4 h-24 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none ring-0 placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                                />
-
-                                {canUpload ? (
-                                    <div className="mt-4 space-y-3">
-                                        <input
-                                            ref={(node) => {
-                                                fileInputRefs.current[item.id] = node;
-                                            }}
-                                            type="file"
-                                            onChange={(event) => setSelectedFiles((previous) => ({
-                                                ...previous,
-                                                [item.id]: event.target.files?.[0] || null,
-                                            }))}
-                                            className="w-full text-sm text-gray-500 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-100 file:px-4 file:py-2 file:font-semibold file:text-orange-700 dark:text-gray-400 dark:file:bg-orange-950/20 dark:file:text-orange-300"
-                                        />
+                                    <div className="rounded-[20px] border border-gray-100 bg-white/80 p-3.5 dark:border-gray-800 dark:bg-gray-950/80">
+                                    <div className="flex flex-wrap gap-2">
                                         <ActionButton
-                                            onClick={() => void handleUploadDocument(item)}
-                                            busy={activeAction === busyKey}
-                                            disabled={!selectedFiles[item.id]}
+                                            tone="secondary"
+                                            onClick={() => void ensureDocumentPreview(item, { revealInViewport: true })}
+                                            busy={previewBusyItemId === item.id}
+                                            disabled={!canPreview}
+                                            ariaLabel={`Preview ${item.label}`}
+                                            className="px-3 py-2 text-xs"
                                         >
-                                            <Upload size={16} />
-                                            Upload {item.label}
-                                        </ActionButton>
-                                    </div>
-                                ) : (
-                                    <div className="mt-4 flex flex-wrap gap-3">
-                                        <ActionButton
-                                            onClick={() => void runAction(
-                                                'review_document',
-                                                {
-                                                    document_id: item.id,
-                                                    outcome: 'approved',
-                                                    note: documentNotes[item.id] || '',
-                                                },
-                                                `${item.label} approved.`,
-                                            )}
-                                            busy={activeAction === 'review_document'}
-                                        >
-                                            Approve
+                                            <Eye size={14} />
+                                            Preview
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void runAction(
-                                                'review_document',
-                                                {
-                                                    document_id: item.id,
-                                                    outcome: 'reupload_needed',
-                                                    note: documentNotes[item.id] || '',
-                                                },
-                                                `${item.label} marked for replacement.`,
-                                            )}
-                                            busy={activeAction === 'review_document'}
+                                            onClick={() => void ensureDocumentPreview(item, { openInNewTab: true })}
+                                            busy={previewBusyItemId === item.id}
+                                            disabled={!canPreview}
+                                            ariaLabel={`Open ${item.label}`}
+                                            className="px-3 py-2 text-xs"
                                         >
-                                            Request replacement
+                                            <ArrowUpRight size={14} />
+                                            Open
                                         </ActionButton>
                                     </div>
-                                )}
+
+                                    <input
+                                        type="text"
+                                        value={documentNotes[item.id] || ''}
+                                        onChange={(event) => setDocumentNotes((previous) => ({
+                                            ...previous,
+                                            [item.id]: event.target.value,
+                                        }))}
+                                        aria-label={`Note for ${item.label}`}
+                                        placeholder={canUpload ? 'Short upload note' : 'Short review note'}
+                                        className="mt-3 h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                                    />
+
+                                    {canUpload ? (
+                                        <div className="mt-3 space-y-3">
+                                            <input
+                                                ref={(node) => {
+                                                    fileInputRefs.current[item.id] = node;
+                                                }}
+                                                type="file"
+                                                aria-label={`Upload ${item.label}`}
+                                                onChange={(event) => setSelectedFiles((previous) => ({
+                                                    ...previous,
+                                                    [item.id]: event.target.files?.[0] || null,
+                                                }))}
+                                                className="hidden"
+                                            />
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <ActionButton
+                                                    tone="secondary"
+                                                    onClick={() => fileInputRefs.current[item.id]?.click()}
+                                                    className="px-3 py-2 text-xs"
+                                                >
+                                                    <Upload size={14} />
+                                                    Choose file
+                                                </ActionButton>
+                                                <span className="min-w-0 flex-1 truncate rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                    {selectedFiles[item.id]?.name || 'No replacement selected'}
+                                                </span>
+                                            </div>
+                                            {item.status === 'reupload_needed' ? (
+                                                <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                                    Replacement required. The current reviewer note stays visible until the new file is checked.
+                                                </p>
+                                            ) : null}
+                                            <ActionButton
+                                                onClick={() => void handleUploadDocument(item)}
+                                                busy={activeAction === busyKey}
+                                                disabled={!selectedFiles[item.id]}
+                                                className="w-full"
+                                            >
+                                                <Upload size={16} />
+                                                Upload file
+                                            </ActionButton>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <ActionButton
+                                                onClick={() => void runAction(
+                                                    'review_document',
+                                                    {
+                                                        document_id: item.id,
+                                                        outcome: 'approved',
+                                                        note: documentNotes[item.id] || '',
+                                                    },
+                                                    `${item.label} approved.`,
+                                                )}
+                                                busy={activeAction === 'review_document'}
+                                                disabled={!canPreview}
+                                                ariaLabel={`Approve ${item.label}`}
+                                                className="flex-1 px-3 py-2 text-xs"
+                                            >
+                                                Approve
+                                            </ActionButton>
+                                            <ActionButton
+                                                tone="secondary"
+                                                onClick={() => void runAction(
+                                                    'review_document',
+                                                    {
+                                                        document_id: item.id,
+                                                        outcome: 'reupload_needed',
+                                                        note: documentNotes[item.id] || '',
+                                                    },
+                                                    `${item.label} marked for replacement.`,
+                                                )}
+                                                busy={activeAction === 'review_document'}
+                                                disabled={!canPreview}
+                                                ariaLabel={`Request replacement for ${item.label}`}
+                                                className="flex-1 px-3 py-2 text-xs"
+                                            >
+                                                Request replacement
+                                            </ActionButton>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
@@ -679,8 +1971,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title="Viewing"
-                    description="Confirm the plan or ask for one change right here."
+                    title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
+                    description="Check your viewing plan here or ask for one change."
                 >
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
@@ -699,6 +1991,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             placeholder="Need another slot? Write one short note."
                             className="h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                         />
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Latest response</p>
+                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                            {selectedCase.viewing.requestedChange
+                                ? 'Change request sent'
+                                : selectedCase.viewing.confirmedByUser
+                                    ? 'Viewing confirmed'
+                                    : 'No response sent yet'}
+                        </p>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            {selectedCase.viewing.requestedChange || 'If you need a different slot, send one short note here and it will stay on this page.'}
+                        </p>
                     </div>
 
                     <div className="mt-5 flex flex-wrap gap-3">
@@ -727,72 +2033,116 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         return (
             <SectionShell
-                title="Viewing"
+                title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
                 description="Schedule, reschedule, skip, or complete the viewing in this workspace."
             >
-                <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                    <input
-                        type="date"
-                        value={viewingDate}
-                        onChange={(event) => setViewingDate(event.target.value)}
-                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                    />
-                    <input
-                        type="time"
-                        value={viewingTime}
-                        onChange={(event) => setViewingTime(event.target.value)}
-                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                    />
-                </div>
-                <textarea
-                    value={viewingNote}
-                    onChange={(event) => setViewingNote(event.target.value)}
-                    placeholder="Add one short note for the user."
-                    className="mt-4 h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                />
+                <div className="space-y-5">
+                    <div className="grid gap-5 xl:grid-cols-3">
+                        <div data-fast-track-viewing-summary-card="current-slot" className="flex min-h-[160px] flex-col justify-between rounded-[24px] border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Current slot</p>
+                                <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
+                                    {selectedCase.viewing.scheduledAt
+                                        ? new Date(selectedCase.viewing.scheduledAt).toLocaleString('en-GB')
+                                        : 'No slot set yet'}
+                                </p>
+                            </div>
+                            <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                {selectedCase.viewing.note || 'Add the viewing details below.'}
+                            </p>
+                        </div>
+                        <div data-fast-track-viewing-summary-card="user-response" className="flex min-h-[160px] flex-col justify-between rounded-[24px] border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">User response</p>
+                                <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
+                                    {selectedCase.viewing.requestedChange
+                                        ? 'Change requested'
+                                        : selectedCase.viewing.confirmedByUser
+                                            ? 'Confirmed by user'
+                                            : 'Waiting for user response'}
+                                </p>
+                            </div>
+                            <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                {selectedCase.viewing.requestedChange || 'No change request has been sent back yet.'}
+                            </p>
+                        </div>
+                        <div data-fast-track-viewing-summary-card="last-change" className="flex min-h-[160px] flex-col justify-between rounded-[24px] border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Last change</p>
+                                <p className="mt-3 text-[15px] font-semibold leading-6 text-gray-900 dark:text-white">
+                                    {formatDateTime(selectedCase.viewing.requestedChangeAt || selectedCase.viewing.scheduledAt)}
+                                </p>
+                            </div>
+                            <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                {selectedCase.viewing.requestedChangeAt
+                                    ? 'The latest user request is visible here before you reschedule.'
+                                    : 'Rescheduling updates this timeline in the same workspace.'}
+                            </p>
+                        </div>
+                    </div>
 
-                <div className="mt-5 flex flex-wrap gap-3">
-                    <ActionButton
-                        onClick={() => {
-                            if (!viewingDate || !viewingTime) {
-                                toast.error('Set both date and time first.');
-                                return;
-                            }
-                            void runAction(
-                                selectedCase.viewing.status === 'scheduled' ? 'reschedule_viewing' : 'schedule_viewing',
-                                {
-                                    scheduled_at: new Date(`${viewingDate}T${viewingTime}:00`).toISOString(),
-                                    note: viewingNote,
-                                },
-                                selectedCase.viewing.status === 'scheduled' ? 'Viewing rescheduled.' : 'Viewing scheduled.',
-                            );
-                        }}
-                        busy={activeAction === 'schedule_viewing' || activeAction === 'reschedule_viewing'}
-                    >
-                        {selectedCase.viewing.status === 'scheduled' ? 'Reschedule viewing' : 'Schedule viewing'}
-                    </ActionButton>
-                    <ActionButton
-                        tone="secondary"
-                        onClick={() => void runAction(
-                            'skip_viewing',
-                            { note: viewingNote },
-                            'Viewing skipped.',
-                        )}
-                        busy={activeAction === 'skip_viewing'}
-                    >
-                        Skip viewing
-                    </ActionButton>
-                    <ActionButton
-                        tone="secondary"
-                        onClick={() => void runAction(
-                            'complete_viewing',
-                            { note: viewingNote },
-                            'Viewing completed.',
-                        )}
-                        busy={activeAction === 'complete_viewing'}
-                    >
-                        Complete viewing
-                    </ActionButton>
+                    <div data-fast-track-viewing-input-row="true" className="grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(260px,0.85fr)]">
+                        <DateField
+                            value={viewingDate}
+                            onChange={setViewingDate}
+                            ariaLabel="Viewing date"
+                        />
+                        <TimeField
+                            value={viewingTime}
+                            onChange={setViewingTime}
+                            ariaLabel="Viewing time"
+                        />
+                    </div>
+                    <textarea
+                        value={viewingNote}
+                        onChange={(event) => setViewingNote(event.target.value)}
+                        placeholder="Add one short note for the user."
+                        className="h-28 w-full rounded-[24px] border border-gray-200 bg-white px-4 py-3 text-sm leading-6 text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+                    />
+
+                    <div className="flex flex-wrap gap-3.5 pt-1">
+                        <ActionButton
+                            onClick={() => {
+                                if (!viewingDate || !viewingTime) {
+                                    toast.error('Set both date and time first.');
+                                    return;
+                                }
+                                void runAction(
+                                    selectedCase.viewing.status === 'scheduled' ? 'reschedule_viewing' : 'schedule_viewing',
+                                    {
+                                        scheduled_at: new Date(`${viewingDate}T${viewingTime}:00`).toISOString(),
+                                        note: viewingNote,
+                                    },
+                                    selectedCase.viewing.status === 'scheduled' ? 'Viewing rescheduled.' : 'Viewing scheduled.',
+                                );
+                            }}
+                            busy={activeAction === 'schedule_viewing' || activeAction === 'reschedule_viewing'}
+                        >
+                            {selectedCase.viewing.status === 'scheduled' ? 'Reschedule viewing' : 'Schedule viewing'}
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void runAction(
+                                'skip_viewing',
+                                { note: viewingNote },
+                                'Viewing skipped.',
+                            )}
+                            busy={activeAction === 'skip_viewing'}
+                        >
+                            Skip viewing
+                        </ActionButton>
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void runAction(
+                                'complete_viewing',
+                                { note: viewingNote },
+                                'Viewing completed.',
+                            )}
+                            busy={activeAction === 'complete_viewing'}
+                        >
+                            Complete viewing
+                        </ActionButton>
+                    </div>
                 </div>
             </SectionShell>
         );
@@ -807,8 +2157,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title={decisionLabel}
-                    description="The manager or admin records the outcome here."
+                    title={getJourneyStageLabel('decision', selectedCase.journeyMode, role)}
+                    description={selectedCase.journeyMode === 'sale'
+                        ? 'We will show your latest offer update here.'
+                        : 'We will show your latest decision here.'}
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -890,8 +2242,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title="Agreement"
-                    description="Accept the agreement here. If payment is requested, the manager will confirm it here too."
+                    title={getJourneyStageLabel('agreement', selectedCase.journeyMode, role)}
+                    description="Read and sign the agreement here. If a payment is needed, it will appear here too."
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -902,12 +2254,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     : 'Waiting to be sent'}
                         </p>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.agreement.note || 'The agreement summary stays in this workspace.'}
+                            {selectedCase.agreement.note || 'Your agreement summary stays here.'}
                         </p>
                         {selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid' ? (
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Payment: {selectedCase.agreement.paymentStatus.replace(/_/g, ' ')}
-                                {selectedCase.agreement.amountDue ? ` · £${selectedCase.agreement.amountDue}` : ''}
+                                {selectedCase.agreement.amountDue ? ` / GBP ${selectedCase.agreement.amountDue}` : ''}
                             </p>
                         ) : null}
                     </div>
@@ -917,7 +2269,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             busy={activeAction === 'confirm_agreement'}
                             disabled={selectedCase.agreement.status === 'accepted'}
                         >
-                            Accept agreement
+                            Sign agreement
                         </ActionButton>
                     </div>
                 </SectionShell>
@@ -959,16 +2311,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 <div className="mt-5 flex flex-wrap gap-3">
                     <ActionButton
-                        onClick={() => void runAction(
-                            'publish_agreement',
-                            {
-                                note: agreementNote,
-                                payment_required: paymentRequired,
-                                amount_due: amountDue ? Number(amountDue) : undefined,
-                            },
-                            'Agreement published.',
-                        )}
+                        onClick={handlePublishAgreement}
                         busy={activeAction === 'publish_agreement'}
+                        disabled={publishAgreementNeedsAmount}
+                        title={publishAgreementNeedsAmount ? 'Enter a payment amount or turn off payment required.' : undefined}
                     >
                         Publish agreement
                     </ActionButton>
@@ -981,6 +2327,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 'Payment confirmed.',
                             )}
                             busy={activeAction === 'mark_payment_received'}
+                            disabled={!hasValidAgreementPaymentAmount || selectedCase.agreement.paymentStatus === 'paid'}
                         >
                             Mark payment received
                         </ActionButton>
@@ -998,8 +2345,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title="Handover"
-                    description="Confirm that the final handover is complete."
+                    title={getJourneyStageLabel('handover', selectedCase.journeyMode, role)}
+                    description="Confirm when the final handover is complete."
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -1010,7 +2357,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     : 'Waiting for the team'}
                         </p>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.handover.note || 'The final handover stays in this workspace.'}
+                            {selectedCase.handover.note || 'Your final handover update stays here.'}
                         </p>
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
@@ -1019,7 +2366,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             busy={activeAction === 'confirm_handover'}
                             disabled={selectedCase.handover.confirmedByUser}
                         >
-                            Confirm receipt
+                            Confirm I got the keys
                         </ActionButton>
                     </div>
                 </SectionShell>
@@ -1053,7 +2400,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         onClick={() => void runAction(
                             'complete_handover',
                             { note: handoverNote },
-                            'Fast-track completed.',
+                            role === 'user' ? 'Your journey is complete.' : 'Fast-track completed.',
                         )}
                         busy={activeAction === 'complete_handover'}
                     >
@@ -1061,6 +2408,136 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </ActionButton>
                 </div>
             </SectionShell>
+        );
+    };
+
+    const renderManagerReviewCard = () => {
+        if (!selectedCase || !isManagerReviewEligible) {
+            return null;
+        }
+
+        const isApproved = managerReview?.approval_status === 'approved';
+        const showForm = !isApproved && (managerReviewExpanded || !managerReview);
+
+        return (
+            <div ref={managerReviewSectionRef}>
+                <SectionShell
+                    title={selectedCase.workspaceFinalStatus === 'completed' ? 'Rate your manager' : 'Share feedback about your manager'}
+                    description={selectedCase.workspaceFinalStatus === 'completed'
+                        ? 'Your feedback helps us improve and updates the public score after admin approval.'
+                        : 'You can leave feedback now or after the journey is complete.'}
+                    icon={Star}
+                >
+                    {managerReviewLoading ? (
+                        <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
+                            <Loader2 size={16} className="animate-spin" />
+                            Loading your feedback...
+                        </div>
+                    ) : isApproved ? (
+                        <div className="rounded-3xl border border-green-200 bg-green-50/80 p-5 dark:border-green-900/40 dark:bg-green-950/20">
+                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700 dark:text-green-300">
+                                Feedback received
+                            </p>
+                            <div className="mt-3 flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                    <Star
+                                        key={value}
+                                        size={18}
+                                        className={value <= (managerReview?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-700'}
+                                    />
+                                ))}
+                            </div>
+                            <p className="mt-3 text-sm text-green-900/80 dark:text-green-100/80">
+                                {managerReview?.comment?.trim() || 'Your star rating has been approved.'}
+                            </p>
+                        </div>
+                    ) : showForm ? (
+                        <div className="space-y-4 rounded-3xl border border-gray-100 bg-gray-50/80 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">How was your manager?</p>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Leave a 1 to 5 star rating and an optional short note.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setManagerReviewRating(value)}
+                                        className={cn(
+                                            'inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors',
+                                            value <= managerReviewRating
+                                                ? 'border-amber-200 bg-amber-50 text-amber-500 dark:border-amber-900/40 dark:bg-amber-950/30'
+                                                : 'border-gray-200 bg-white text-gray-300 hover:border-amber-200 hover:text-amber-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-600 dark:hover:border-amber-900/40',
+                                        )}
+                                        aria-label={`Rate ${value} star${value === 1 ? '' : 's'}`}
+                                    >
+                                        <Star size={18} className={value <= managerReviewRating ? 'fill-current' : ''} />
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea
+                                value={managerReviewComment}
+                                onChange={(event) => setManagerReviewComment(event.target.value.slice(0, 500))}
+                                placeholder="Optional note"
+                                rows={4}
+                                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-orange-800 dark:focus:ring-orange-900/40"
+                            />
+                            {managerReviewError ? (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                    {managerReviewError}
+                                </div>
+                            ) : null}
+                            <div className="flex flex-wrap gap-3">
+                                <ActionButton onClick={() => void handleSubmitManagerReview()} busy={managerReviewSubmitting}>
+                                    {managerReview ? 'Update feedback' : 'Submit feedback'}
+                                </ActionButton>
+                                {managerReview ? (
+                                    <ActionButton
+                                        tone="secondary"
+                                        onClick={() => {
+                                            setManagerReviewExpanded(false);
+                                            setManagerReviewRating(managerReview.rating);
+                                            setManagerReviewComment(managerReview.comment || '');
+                                            setManagerReviewError(null);
+                                        }}
+                                    >
+                                        Cancel
+                                    </ActionButton>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/40 dark:bg-amber-950/20">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
+                                        Feedback submitted
+                                    </p>
+                                    <p className="mt-2 text-sm text-amber-900/80 dark:text-amber-100/80">
+                                        Your rating is pending admin approval. You can still edit it before it is approved.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <div className="flex items-center gap-1 rounded-full border border-amber-200 bg-white px-3 py-2 dark:border-amber-900/40 dark:bg-gray-950">
+                                        {[1, 2, 3, 4, 5].map((value) => (
+                                            <Star
+                                                key={value}
+                                                size={15}
+                                                className={value <= (managerReview?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-700'}
+                                            />
+                                        ))}
+                                    </div>
+                                    <ActionButton tone="secondary" onClick={() => setManagerReviewExpanded(true)}>
+                                        Edit feedback
+                                    </ActionButton>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </SectionShell>
+            </div>
         );
     };
 
@@ -1085,38 +2562,95 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
     };
 
+    const headerStats = useMemo(
+        () => role === 'user'
+            ? [
+                { label: 'Live', value: stats.active },
+                { label: 'Done', value: stats.completed },
+                { label: 'Closed', value: stats.cancelled },
+            ]
+            : [
+                { label: 'Active', value: stats.active },
+                { label: 'Completed', value: stats.completed },
+                { label: 'Cancelled', value: stats.cancelled },
+            ],
+        [role, stats.active, stats.cancelled, stats.completed],
+    );
+
+    const caseRailItems = useMemo(
+        () => paginatedCases.map((item) => {
+            const chip = formatStatusChip(item);
+            return {
+                caseId: item.caseId,
+                title: item.propertyTitle,
+                subtitle: role === 'user'
+                    ? `${item.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home`
+                    : item.clientName,
+                stageLabel: formatStageLabel(item.stage, item.journeyMode, role),
+                deadlineLabel: formatDeadline(item.hoursRemaining, role),
+                statusLabel: chip.label,
+                statusTone: chip.tone,
+                selected: selectedCaseId === item.caseId,
+            };
+        }),
+        [paginatedCases, role, selectedCaseId],
+    );
+
+    const stepperItems = useMemo(
+        () => STAGES.map((stage, index) => {
+            const Icon = STAGE_ICONS[stage];
+            return {
+                key: stage,
+                label: selectedCase
+                    ? formatStageLabel(stage, selectedCase.journeyMode, role)
+                    : formatStageLabel(stage, 'rent', role),
+                icon: <Icon size={16} />,
+                active: selectedCase?.stage === stage,
+                complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
+            };
+        }),
+        [role, selectedCase, stageIndex],
+    );
+
+    const selectedCaseSubtitle = selectedCase
+        ? role === 'user'
+            ? `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`
+            : `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
+        : '';
+
     return (
         <div className="space-y-6 pb-16">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-orange-600 p-3 text-white shadow-lg shadow-orange-500/20">
-                        <Sparkles size={22} />
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fast-track workspace</h1>
-                            <RoleBadge role={role} />
-                        </div>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            One workspace from property selection to handover. No extra pages.
-                        </p>
-                    </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Active</p>
-                        <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.active}</p>
-                    </div>
-                    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Completed</p>
-                        <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
-                    </div>
-                    <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Cancelled</p>
-                        <p className="mt-2 text-xl font-bold text-gray-900 dark:text-white">{stats.cancelled}</p>
-                    </div>
-                </div>
-            </div>
+            <FastTrackCelebrationOverlay
+                active={showCompletionCelebration}
+                role={role}
+                title={role === 'user' ? 'Your journey is complete.' : 'Handover complete.'}
+                subtitle={celebrationPropertyTitle
+                    ? role === 'user'
+                        ? `${celebrationPropertyTitle} is ready for your next step.`
+                        : `${celebrationPropertyTitle} is fully completed and the fast-track case is now closed.`
+                    : role === 'user'
+                        ? 'Your 24-hour journey is complete and ready for the next step.'
+                        : 'The fast-track case is fully completed and closed.'}
+                footerAction={role === 'user' && isManagerReviewEligible && managerReview?.approval_status !== 'approved' ? (
+                    <button
+                        type="button"
+                        onClick={openManagerReviewForm}
+                        className="inline-flex items-center justify-center rounded-2xl border border-orange-300/30 bg-orange-400/10 px-4 py-3 text-sm font-semibold text-orange-100 transition hover:bg-orange-400/16"
+                    >
+                        Rate your manager
+                    </button>
+                ) : null}
+                onComplete={() => setShowCompletionCelebration(false)}
+            />
+            <FastTrackWorkspaceHeader
+                role={role}
+                railCollapsed={workspacePreferences.caseRailCollapsed}
+                showMetricsStrip={workspacePreferences.showMetricsStrip}
+                stats={headerStats}
+                onBack={() => navigate(WORKSPACE_HOME_PATH[role])}
+                onToggleRail={handleToggleRail}
+                onOpenCustomize={() => setCustomizationOpen(true)}
+            />
 
             {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
@@ -1124,197 +2658,172 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-                <aside className="space-y-4">
-                    <div className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                        <div className="relative">
-                            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                value={query}
-                                onChange={(event) => setQuery(event.target.value)}
-                                placeholder="Search property or client"
-                                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                            />
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            {FILTERS.map((item) => (
-                                <button
-                                    key={item.value}
-                                    type="button"
-                                    onClick={() => setFilter(item.value)}
-                                    className={[
-                                        'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-                                        filter === item.value
-                                            ? 'bg-orange-600 text-white'
-                                            : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
-                                    ].join(' ')}
-                                >
-                                    {item.label}
-                                </button>
-                            ))}
-                        </div>
+            {caseRailDrawerOpen ? (
+                <div className="fixed inset-0 z-40 xl:hidden">
+                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+                    <div className="absolute inset-y-0 left-0 w-full max-w-sm p-4">
+                        <FastTrackCaseRail
+                            role={role}
+                            query={query}
+                            filter={filter}
+                            filters={filters}
+                            currentPage={currentCasePage}
+                            totalPages={totalCasePages}
+                            totalItems={filteredCases.length}
+                            pageSize={FAST_TRACK_CASES_PAGE_SIZE}
+                            paginatedCount={paginatedCases.length}
+                            items={caseRailItems}
+                            onQueryChange={setQuery}
+                            onFilterChange={setFilter}
+                            onSelectCase={(caseId) => {
+                                setSelectedCaseId(caseId);
+                                setCaseRailDrawerOpen(false);
+                            }}
+                            onPageChange={setCurrentCasePage}
+                            className="h-full overflow-y-auto"
+                        />
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setCaseRailDrawerOpen(false)}
+                        className="absolute inset-0 -z-10"
+                        aria-label="Close case rail"
+                    />
+                </div>
+            ) : null}
 
-                    <div className="space-y-3">
-                        {loading && cases.length === 0 ? (
-                            <div className="flex items-center justify-center rounded-[28px] border border-gray-100 bg-white px-6 py-16 text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400">
-                                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                                Loading cases
-                            </div>
-                        ) : filteredCases.length === 0 ? (
-                            <div className="rounded-[28px] border border-dashed border-gray-300 bg-white px-6 py-16 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-                                No fast-track cases match this filter.
-                            </div>
-                        ) : filteredCases.map((item) => {
-                            const chip = formatStatusChip(item);
-                            return (
-                                <button
-                                    key={item.caseId}
-                                    type="button"
-                                    onClick={() => setSelectedCaseId(item.caseId)}
-                                    className={[
-                                        'w-full rounded-[28px] border px-5 py-4 text-left shadow-sm transition-colors',
-                                        selectedCaseId === item.caseId
-                                            ? 'border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/20'
-                                            : 'border-gray-100 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900',
-                                    ].join(' ')}
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.propertyTitle}</p>
-                                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{item.clientName}</p>
-                                        </div>
-                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${chip.tone}`}>
-                                            {chip.label}
-                                        </span>
-                                    </div>
-                                    <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                        <span>{formatStageLabel(item.stage, item.journeyMode)}</span>
-                                        <span>{formatDeadline(item.hoursRemaining)}</span>
-                                    </div>
-                                </button>
-                            );
-                        })}
+            <div
+                className={cn(
+                    'grid gap-4',
+                    workspacePreferences.caseRailCollapsed
+                        ? 'xl:grid-cols-[minmax(0,1fr)]'
+                        : 'xl:grid-cols-[224px_minmax(0,1fr)]',
+                )}
+            >
+                {!workspacePreferences.caseRailCollapsed ? (
+                    <div className="hidden xl:block">
+                        <FastTrackCaseRail
+                            role={role}
+                            query={query}
+                            filter={filter}
+                            filters={filters}
+                            currentPage={currentCasePage}
+                            totalPages={totalCasePages}
+                            totalItems={filteredCases.length}
+                            pageSize={FAST_TRACK_CASES_PAGE_SIZE}
+                            paginatedCount={paginatedCases.length}
+                            items={caseRailItems}
+                            onQueryChange={setQuery}
+                            onFilterChange={setFilter}
+                            onSelectCase={(caseId) => {
+                                setSelectedCaseId(caseId);
+                                setCaseRailDrawerOpen(false);
+                            }}
+                            onPageChange={setCurrentCasePage}
+                        />
                     </div>
-                </aside>
+                ) : null}
 
                 <div className="space-y-6">
                     {selectedCase ? (
                         <>
-                            <section className="rounded-[32px] border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
-                                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedCase.propertyTitle}</h2>
-                                            {statusChip ? (
-                                                <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusChip.tone}`}>
-                                                    {statusChip.label}
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                            {selectedCase.clientName} · {selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} · Case {selectedCase.caseId}
-                                        </p>
-                                    </div>
+                            <FastTrackCaseMasthead
+                                role={role}
+                                title={selectedCase.propertyTitle}
+                                subtitle={selectedCaseSubtitle}
+                                statusLabel={statusChip?.label || 'Active'}
+                                statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
+                                deadlineLabel={formatDeadline(selectedCase.hoursRemaining, role)}
+                                currentStage={formatStageLabel(selectedCase.stage, selectedCase.journeyMode, role)}
+                                focus={workspaceFocus}
+                                statusSummary={workspaceStatus}
+                                onOpenCustomize={() => setCustomizationOpen(true)}
+                            />
 
-                                    <div className="grid gap-3 sm:grid-cols-3">
-                                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
-                                                <Clock3 size={14} />
-                                                24h
-                                            </div>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                {formatDeadline(selectedCase.hoursRemaining)}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Current stage</p>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                {formatStageLabel(selectedCase.stage, selectedCase.journeyMode)}
-                                            </p>
-                                        </div>
-                                        <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Next</p>
-                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                                {selectedCase.nextAction}
-                                            </p>
-                                        </div>
-                                    </div>
+                            <FastTrackStageStepper items={stepperItems} />
+
+                            <div className={cn(
+                                'grid gap-4',
+                                role === 'user'
+                                    ? 'grid-cols-1'
+                                    : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
+                            )}>
+                                <div className="space-y-6">
+                                    {renderActiveStage()}
+                                    {renderManagerReviewCard()}
                                 </div>
-
-                                <p className="mt-5 text-sm text-gray-600 dark:text-gray-300">
-                                    {selectedCase.statusReason}
-                                </p>
-
-                                <div className="mt-6 flex gap-3 overflow-x-auto pb-1">
-                                    {STAGES.map((stage, index) => (
-                                        <StagePill
-                                            key={stage}
-                                            stage={stage}
-                                            label={formatStageLabel(stage, selectedCase.journeyMode)}
-                                            active={stage === selectedCase.stage}
-                                            complete={index < stageIndex || selectedCase.workspaceFinalStatus === 'completed'}
+                                {role === 'user' ? (
+                                    <details className="group rounded-[28px] border border-gray-100 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-gray-900 dark:text-white">
+                                            <span>See details</span>
+                                            <span className="text-xs font-medium text-gray-500 transition-transform group-open:rotate-180 dark:text-gray-400">
+                                                v
+                                            </span>
+                                        </summary>
+                                        <div className="mt-4">
+                                            <FastTrackUtilityDock
+                                                role={role}
+                                                density={workspacePreferences.secondaryDensity}
+                                                modules={utilityModules}
+                                                activeModule={activeUtilityModule}
+                                                onActiveModuleChange={setActiveUtilityModule}
+                                                renderModule={renderUtilityModule}
+                                            />
+                                        </div>
+                                    </details>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <FastTrackUtilityDock
+                                            role={role}
+                                            density={workspacePreferences.secondaryDensity}
+                                            modules={utilityModules}
+                                            activeModule={activeUtilityModule}
+                                            onActiveModuleChange={setActiveUtilityModule}
+                                            renderModule={renderUtilityModule}
                                         />
-                                    ))}
-                                </div>
-                            </section>
-
-                            {renderActiveStage()}
-
-                            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                                <SectionShell
-                                    title="Core files"
-                                    description={selectedCase.documentPhaseReason}
-                                >
-                                    <div className="space-y-3">
-                                        {selectedCase.documents.items.map((item) => (
-                                            <div key={item.id} className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                        {item.fileName || 'No file attached yet'}
-                                                    </p>
-                                                </div>
-                                                <span className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
-                                                    {item.status}
-                                                </span>
-                                            </div>
-                                        ))}
                                     </div>
-                                </SectionShell>
-
-                                <SectionShell
-                                    title="Activity"
-                                    description="Recent case changes stay visible here."
-                                >
-                                    <div className="space-y-3">
-                                        {compactActivity.length === 0 ? (
-                                            <p className="text-sm text-gray-500 dark:text-gray-400">No activity yet.</p>
-                                        ) : compactActivity.map((entry: FastTrackActivityEntry) => (
-                                            <div key={entry.id} className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-900/40">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
-                                                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                                                        {entry.actorRole}
-                                                    </span>
-                                                </div>
-                                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                                    {new Date(entry.createdAt).toLocaleString('en-GB')}
-                                                </p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </SectionShell>
+                                )}
                             </div>
                         </>
                     ) : (
                         <div className="rounded-[32px] border border-dashed border-gray-300 bg-white px-6 py-20 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-                            No fast-track case is selected.
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                                {journeyChromeCopy.noSelectionTitle}
+                            </p>
+                            <p className="mt-2">
+                                {journeyChromeCopy.noSelectionDescription}
+                            </p>
                         </div>
                     )}
                 </div>
             </div>
+
+            <FastTrackWorkspaceCustomizationDrawer
+                role={role}
+                open={customizationOpen}
+                preferences={workspacePreferences}
+                orderedModules={allOrderedModules}
+                onClose={() => setCustomizationOpen(false)}
+                onReset={handleResetWorkspacePreferences}
+                onToggleMetrics={() => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    showMetricsStrip: !previous.showMetricsStrip,
+                }))}
+                onToggleCaseRailCollapsed={() => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    caseRailCollapsed: !previous.caseRailCollapsed,
+                }))}
+                onDensityChange={(density) => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    secondaryDensity: density,
+                }))}
+                onToggleModule={handleToggleModuleVisibility}
+                onMoveModule={handleMoveModule}
+                onSetDefaultModule={(module) => updateWorkspacePreferencesState((previous) => ({
+                    ...previous,
+                    defaultActiveModule: module,
+                }))}
+            />
         </div>
     );
 }

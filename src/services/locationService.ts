@@ -25,6 +25,30 @@ interface GetUserLocationParams {
     useGeolocation?: boolean;
 }
 
+type GeolocationPolicyDocument = Document & {
+    permissionsPolicy?: {
+        allowsFeature?: (feature: string) => boolean;
+    };
+    featurePolicy?: {
+        allowsFeature?: (feature: string) => boolean;
+    };
+};
+
+const isGeolocationAllowedByPolicy = (): boolean => {
+    if (typeof document === 'undefined') {
+        return true;
+    }
+
+    const policyHost = document as GeolocationPolicyDocument;
+    const policy = policyHost.permissionsPolicy || policyHost.featurePolicy;
+    const allowsFeature = policy?.allowsFeature;
+    if (typeof allowsFeature !== 'function') {
+        return true;
+    }
+
+    return allowsFeature.call(policy, 'geolocation');
+};
+
 /**
  * Get user location from browser geolocation
  */
@@ -32,6 +56,11 @@ export const getUserGeolocation = (): Promise<GeolocationCoordinates> => {
     return new Promise((resolve, reject) => {
         if (typeof window === 'undefined' || !navigator.geolocation) {
             reject(new Error('Geolocation is not supported by your browser'));
+            return;
+        }
+
+        if (!isGeolocationAllowedByPolicy()) {
+            reject(new Error('Geolocation is blocked by this page permissions policy'));
             return;
         }
 

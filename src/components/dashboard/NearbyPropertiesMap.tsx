@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, X, Navigation, ZoomIn, ZoomOut } from 'lucide-react';
+import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface UserLocation {
     latitude: number;
@@ -25,382 +28,551 @@ interface Property {
     category?: string;
 }
 
-interface MapBounds {
-    minLat: number;
-    maxLat: number;
-    minLng: number;
-    maxLng: number;
-}
-
 interface NearbyPropertiesMapProps {
     properties?: Property[];
     userLocation?: UserLocation | null;
     onPropertyClick?: ((property: Property) => void) | null;
+    onOpenWorkspace?: ((property: Property) => void) | null;
+    onStartFastTrack?: ((property: Property) => void) | null;
+    compact?: boolean;
 }
 
-/**
- * Calculate distance between two coordinates using Haversine formula
- */
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 3959; // Earth's radius in miles
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const radiusMiles = 3959;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+        + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180)
+        * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
+    return radiusMiles * c;
 };
+
+const formatCompactPrice = (price?: number) => {
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+        return 'View';
+    }
+
+    if (price >= 1_000_000) {
+        return `£${(price / 1_000_000).toFixed(price >= 10_000_000 ? 0 : 1)}m`;
+    }
+
+    if (price >= 1_000) {
+        return `£${Math.round(price / 1_000)}k`;
+    }
+
+    return `£${Math.round(price)}`;
+};
+
+const createPropertyIcon = (label: string, color: string, selected: boolean) => L.divIcon({
+    className: 'nearby-property-marker',
+    html: `<div style="
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        transform:translateY(-8px);
+    ">
+        <div style="
+            min-width:${selected ? 74 : 64}px;
+            height:${selected ? 40 : 34}px;
+            padding:0 12px;
+            border-radius:999px;
+            border:2px solid rgba(255,255,255,0.92);
+            background:${selected ? '#111827' : color};
+            box-shadow:0 16px 32px rgba(15,23,42,0.24);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:white;
+            font-weight:800;
+            font-size:${selected ? 13 : 12}px;
+            letter-spacing:0.02em;
+            white-space:nowrap;
+        ">${label}</div>
+        <div style="
+            width:${selected ? 14 : 12}px;
+            height:${selected ? 14 : 12}px;
+            margin-top:-3px;
+            background:${selected ? '#111827' : color};
+            border-right:2px solid rgba(255,255,255,0.92);
+            border-bottom:2px solid rgba(255,255,255,0.92);
+            transform:rotate(45deg);
+        "></div>
+    </div>`,
+    iconSize: [selected ? 74 : 64, selected ? 54 : 48],
+    iconAnchor: [selected ? 37 : 32, selected ? 48 : 42],
+    popupAnchor: [0, selected ? -42 : -36],
+});
+
+function MapAutoFit({
+    userLocation,
+    properties,
+    fitSignal,
+}: {
+    userLocation: UserLocation | null;
+    properties: Property[];
+    fitSignal: number;
+}) {
+    const map = useMap();
+
+    useEffect(() => {
+        try {
+            const points: [number, number][] = [];
+
+            map.closePopup();
+
+            if (userLocation?.latitude && userLocation?.longitude) {
+                points.push([userLocation.latitude, userLocation.longitude]);
+            }
+
+            properties.forEach((property) => {
+                if (typeof property.latitude === 'number' && typeof property.longitude === 'number') {
+                    points.push([property.latitude, property.longitude]);
+                }
+            });
+
+            if (points.length === 0) {
+                map.setView([54.5, -3], 5);
+                return;
+            }
+
+            if (points.length === 1) {
+                map.setView(points[0], 14);
+                return;
+            }
+
+            map.fitBounds(L.latLngBounds(points), { padding: [44, 44], maxZoom: 15 });
+        } catch {
+            // Ignore transient Leaflet teardown errors during route or data changes.
+        }
+    }, [fitSignal, map, properties, userLocation]);
+
+    return null;
+}
 
 const NearbyPropertiesMap = ({
     properties = [],
     userLocation = null,
     onPropertyClick = null,
+    onOpenWorkspace = null,
+    onStartFastTrack = null,
+    compact = false,
 }: NearbyPropertiesMapProps) => {
     const navigate = useNavigate();
-    const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
+    const [selectedPropertyID, setSelectedPropertyID] = useState<string | null>(null);
+    const [isSelectionDismissed, setIsSelectionDismissed] = useState(false);
+    const [mapStyle, setMapStyle] = useState<'standard' | 'satellite'>('standard');
+    const [fitSignal, setFitSignal] = useState(0);
 
-    const defaultLocation = { lat: 51.5074, lng: -0.1278 }; // London
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-    const [mapCenter, setMapCenter] = useState(() => {
-        try {
-            if (userLocation && userLocation.latitude && userLocation.longitude) {
-                return { lat: userLocation.latitude, lng: userLocation.longitude };
-            }
-            return defaultLocation;
-        } catch {
-            return defaultLocation;
+    const formatPropertyPrice = (price?: number) => {
+        if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+            return 'Price unavailable';
         }
-    });
-    const [zoom, setZoom] = useState(12);
 
-    // Calculate distances and categorize properties
+        return new Intl.NumberFormat('en-GB', {
+            style: 'currency',
+            currency: 'GBP',
+            maximumFractionDigits: 0,
+        }).format(price);
+    };
+
     const propertiesWithDistance = useMemo(() => {
-        try {
-            if (!properties || !Array.isArray(properties) || properties.length === 0) {
-                return [];
-            }
-
-            if (!userLocation || !userLocation.latitude || !userLocation.longitude) {
-                return properties.map(p => ({ ...p, distance: null, category: 'other' }));
-            }
-
-            return properties.map(property => {
-                if (!property || !property.latitude || !property.longitude) {
-                    return { ...property, distance: null, category: 'other' };
-                }
-
-                try {
-                    const distance = calculateDistance(
-                        userLocation.latitude,
-                        userLocation.longitude,
-                        property.latitude,
-                        property.longitude
-                    );
-
-                    let category = 'other';
-                    if (distance <= 1) category = 'very-near';
-                    else if (distance <= 3) category = 'near';
-                    else if (distance <= 5) category = 'moderate';
-                    else category = 'far';
-
-                    return {
-                        ...property,
-                        distance: Math.round(distance * 10) / 10,
-                        category,
-                    };
-                } catch {
-                    return { ...property, distance: null, category: 'other' };
-                }
-            });
-        } catch {
-            return properties || [];
+        if (!Array.isArray(properties) || properties.length === 0) {
+            return [];
         }
+
+        if (!userLocation?.latitude || !userLocation?.longitude) {
+            return properties.map((property) => ({ ...property, distance: null, category: 'other' }));
+        }
+
+        return properties.map((property) => {
+            if (typeof property.latitude !== 'number' || typeof property.longitude !== 'number') {
+                return { ...property, distance: null, category: 'other' };
+            }
+
+            const distance = calculateDistance(
+                userLocation.latitude,
+                userLocation.longitude,
+                property.latitude,
+                property.longitude,
+            );
+
+            let category = 'other';
+            if (distance <= 1) category = 'very-near';
+            else if (distance <= 3) category = 'near';
+            else if (distance <= 5) category = 'moderate';
+            else category = 'far';
+
+            return {
+                ...property,
+                distance: Math.round(distance * 10) / 10,
+                category,
+            };
+        });
     }, [properties, userLocation]);
 
-    // Sort by distance (nearest first)
-    const sortedProperties = useMemo(() => {
-        return [...propertiesWithDistance].sort((a, b) => {
-            if (a.distance === null || a.distance === undefined) return 1;
-            if (b.distance === null || b.distance === undefined) return -1;
-            return a.distance - b.distance;
-        });
-    }, [propertiesWithDistance]);
+    const sortedProperties = useMemo(() => (
+        [...propertiesWithDistance].sort((left, right) => {
+            if (left.distance === null || left.distance === undefined) return 1;
+            if (right.distance === null || right.distance === undefined) return -1;
+            return left.distance - right.distance;
+        })
+    ), [propertiesWithDistance]);
 
-    // Filter properties with valid coordinates
-    const propertiesWithCoords = sortedProperties.filter(
-        p => p.latitude && p.longitude
+    const propertiesWithCoords = useMemo(() => (
+        sortedProperties.filter((property) => (
+            typeof property.latitude === 'number' && typeof property.longitude === 'number'
+        ))
+    ), [sortedProperties]);
+
+    useEffect(() => {
+        if (propertiesWithCoords.length === 0) {
+            if (selectedPropertyID !== null) {
+                setSelectedPropertyID(null);
+            }
+            if (isSelectionDismissed) {
+                setIsSelectionDismissed(false);
+            }
+            return;
+        }
+
+        if (!selectedPropertyID && !isSelectionDismissed && propertiesWithCoords[0]) {
+            setSelectedPropertyID(propertiesWithCoords[0].id);
+            return;
+        }
+
+        if (selectedPropertyID && !propertiesWithCoords.some((property) => property.id === selectedPropertyID)) {
+            setIsSelectionDismissed(false);
+            setSelectedPropertyID(propertiesWithCoords[0]?.id || null);
+        }
+    }, [isSelectionDismissed, propertiesWithCoords, selectedPropertyID]);
+
+    const selectedProperty = useMemo(
+        () => propertiesWithCoords.find((property) => property.id === selectedPropertyID) || null,
+        [propertiesWithCoords, selectedPropertyID],
+    );
+    const mapKey = useMemo(() => [
+        userLocation?.latitude ?? 'none',
+        userLocation?.longitude ?? 'none',
+        ...propertiesWithCoords.map((property) => `${property.id}:${property.latitude}:${property.longitude}`),
+    ].join('|'), [propertiesWithCoords, userLocation?.latitude, userLocation?.longitude]);
+
+    const hasMapData = Boolean(
+        (userLocation?.latitude && userLocation?.longitude) || propertiesWithCoords.length > 0,
     );
 
-    // Calculate map bounds to fit all properties
-    const mapBounds = useMemo<MapBounds | null>(() => {
-        if (propertiesWithCoords.length === 0) return null;
-
-        const lats = propertiesWithCoords.map(p => p.latitude!);
-        const lngs = propertiesWithCoords.map(p => p.longitude!);
-
-        return {
-            minLat: Math.min(...lats),
-            maxLat: Math.max(...lats),
-            minLng: Math.min(...lngs),
-            maxLng: Math.max(...lngs),
-        };
-    }, [propertiesWithCoords]);
-
-    // Adjust map center to fit all properties
-    useEffect(() => {
-        if (mapBounds && propertiesWithCoords.length > 0) {
-            const centerLat = (mapBounds.minLat + mapBounds.maxLat) / 2;
-            const centerLng = (mapBounds.minLng + mapBounds.maxLng) / 2;
-            setMapCenter({ lat: centerLat, lng: centerLng });
-        } else if (userLocation && userLocation.latitude) {
-            setMapCenter({ lat: userLocation.latitude, lng: userLocation.longitude });
-        }
-    }, [mapBounds, userLocation, propertiesWithCoords.length]);
-
-    const handleMarkerClick = (property: Property) => {
-        setSelectedProperty(property);
-        if (onPropertyClick) {
-            onPropertyClick(property);
-        }
-    };
-
-    const handleViewDetails = (property: Property) => {
-        navigate(`/user/dashboard/property/${property.id}`);
-    };
-
-    // Get marker color based on distance category
     const getMarkerColor = (category?: string) => {
         switch (category) {
-            case 'very-near': return 'bg-green-500';
-            case 'near': return 'bg-orange-500';
-            case 'moderate': return 'bg-yellow-500';
-            case 'far': return 'bg-gray-400';
-            default: return 'bg-blue-500';
+            case 'very-near':
+                return '#16a34a';
+            case 'near':
+                return '#f97316';
+            case 'moderate':
+                return '#eab308';
+            case 'far':
+                return '#94a3b8';
+            default:
+                return '#2563eb';
         }
     };
 
-    // Convert lat/lng to percentage position (for placeholder map)
-    const latLngToPosition = (lat: number, lng: number, bounds: MapBounds | null) => {
-        if (!bounds) {
-            const latOffset = ((lat - mapCenter.lat) * 100) / 0.1;
-            const lngOffset = ((lng - mapCenter.lng) * 100) / 0.1;
-            return {
-                left: `${50 + lngOffset}%`,
-                top: `${50 - latOffset}%`,
-            };
+    const handleOpenWorkspace = (property: Property) => {
+        if (onOpenWorkspace) {
+            onOpenWorkspace(property);
+            return;
         }
 
-        const latRange = bounds.maxLat - bounds.minLat || 0.1;
-        const lngRange = bounds.maxLng - bounds.minLng || 0.1;
-
-        const left = ((lng - bounds.minLng) / lngRange) * 100;
-        const top = ((bounds.maxLat - lat) / latRange) * 100;
-
-        return {
-            left: `${Math.max(5, Math.min(95, left))}%`,
-            top: `${Math.max(5, Math.min(95, top))}%`,
-        };
+        navigate(`/user/properties/${property.id}`, {
+            state: {
+                backTo: '/user/dashboard',
+                backLabel: 'Back to Dashboard',
+            },
+        });
     };
 
-    return (
-        <div className="relative w-full h-full rounded-lg overflow-hidden bg-white dark:bg-gray-800">
-            {/* Map Container */}
-            <div className="relative w-full h-full">
-                {/* Google Maps Satellite Background */}
-                <iframe
-                    title="Map View"
-                    width="100%"
-                    height="100%"
-                    frameBorder={0}
-                    style={{ border: 0, position: 'absolute', inset: 0, zIndex: 0 }}
-                    src={`https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d${30000 / zoom}!2d${mapCenter.lng}!3d${mapCenter.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1sen!2suk!4v1640000000000!5m2!1sen!2suk`}
-                    allowFullScreen
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                ></iframe>
+    const handleStartFastTrack = (property: Property) => {
+        if (onStartFastTrack) {
+            onStartFastTrack(property);
+            return;
+        }
 
-                {/* Overlay for markers */}
-                <div className="absolute inset-0 z-10 pointer-events-none">
-                    <div className="relative w-full h-full pointer-events-auto">
+        navigate(`/user/properties/${property.id}?fast-track=1`, {
+            state: {
+                backTo: '/user/dashboard',
+                backLabel: 'Back to Dashboard',
+            },
+        });
+    };
 
-                        {/* User Location Marker */}
-                        {userLocation && userLocation.latitude && (
-                            <div
-                                className="absolute transform -translate-x-1/2 -translate-y-1/2 z-20"
-                                style={latLngToPosition(userLocation.latitude, userLocation.longitude, mapBounds)}
-                            >
-                                <div className="relative">
-                                    <div className="w-6 h-6 bg-blue-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center animate-pulse">
-                                        <Navigation size={14} className="text-white" />
-                                    </div>
-                                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg">
-                                        Your Location
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Property Markers */}
-                        {propertiesWithCoords.map((property) => {
-                            const position = latLngToPosition(
-                                property.latitude!,
-                                property.longitude!,
-                                mapBounds
-                            );
-
-                            return (
-                                <div
-                                    key={property.id}
-                                    className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
-                                    style={position}
-                                >
-                                    <button
-                                        onClick={() => handleMarkerClick(property)}
-                                        className="relative group"
-                                    >
-                                        <div className={`w-10 h-10 ${getMarkerColor(property.category)} rounded-full border-2 border-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform cursor-pointer`}>
-                                            <Home size={20} className="text-white" />
-                                        </div>
-
-                                        {/* Distance Badge */}
-                                        {property.distance !== null && property.distance !== undefined && (
-                                            <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {property.distance} mi
-                                            </div>
-                                        )}
-
-                                        {/* Selected Property Popup */}
-                                        {selectedProperty?.id === property.id && (
-                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-30">
-                                                <div className="flex items-start justify-between mb-2">
-                                                    <div className="flex-1">
-                                                        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1">
-                                                            {property.title || 'Property'}
-                                                        </h4>
-                                                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                                                            {property.address_line_1 || property.city || 'UK'}
-                                                        </p>
-                                                        <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
-                                                            £{property.price?.toLocaleString()}
-                                                            {property.property_type === 'rent' && '/month'}
-                                                        </p>
-                                                        {property.distance !== null && property.distance !== undefined && (
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                                {property.distance} miles away
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedProperty(null);
-                                                        }}
-                                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-2"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-3">
-                                                    {property.bedrooms && property.bedrooms > 0 && (
-                                                        <span>{property.bedrooms} Bed{property.bedrooms !== 1 ? 's' : ''}</span>
-                                                    )}
-                                                    {property.bathrooms && property.bathrooms > 0 && (
-                                                        <span>{property.bathrooms} Bath{property.bathrooms !== 1 ? 's' : ''}</span>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    onClick={() => handleViewDetails(property)}
-                                                    className="w-full px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors"
-                                                >
-                                                    View Details
-                                                </button>
-                                            </div>
-                                        )}
-                                    </button>
-                                </div>
-                            );
-                        })}
-
-                        {/* Legend */}
-                        <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 z-20">
-                            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Distance</p>
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">Very Near (&lt;1 mi)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">Near (1-3 mi)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">Moderate (3-5 mi)</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 bg-gray-400 rounded-full"></div>
-                                    <span className="text-xs text-gray-600 dark:text-gray-400">Far (5+ mi)</span>
-                                </div>
-                            </div>
+    if (!hasMapData) {
+        return (
+            <div className={`relative h-full w-full overflow-hidden rounded-lg ${compact ? 'bg-gradient-to-br from-white via-orange-50/35 to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950' : 'bg-white dark:bg-gray-800'}`}>
+                <div className={`flex h-full w-full ${compact ? 'items-start justify-start p-6 text-left sm:p-8' : 'items-center justify-center p-8 text-center'}`}>
+                    <div className={compact ? 'max-w-md' : 'max-w-sm'}>
+                        <div className={`flex items-center justify-center rounded-full ${compact ? 'mb-4 h-12 w-12 bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300' : 'mx-auto mb-4 h-14 w-14 bg-gray-100 dark:bg-gray-700'}`}>
+                            <Navigation size={24} className={compact ? '' : 'text-gray-400 dark:text-gray-500'} />
                         </div>
-
-                        {/* Zoom Controls */}
-                        <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-                            <button
-                                onClick={() => setZoom(prev => Math.min(20, prev + 1))}
-                                className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                <ZoomIn size={20} className="text-gray-700 dark:text-gray-300" />
-                            </button>
-                            <button
-                                onClick={() => setZoom(prev => Math.max(5, prev - 1))}
-                                className="w-10 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                            >
-                                <ZoomOut size={20} className="text-gray-700 dark:text-gray-300" />
-                            </button>
-                        </div>
-
-                        {/* Properties Count */}
-                        <div className="absolute top-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg px-4 py-2 z-20">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? 'Property' : 'Properties'} Nearby
-                            </p>
-                        </div>
+                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a postcode to unlock the map</h3>
+                        <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
+                            Use your profile postcode or search a location to see nearby homes without leaving the dashboard.
+                        </p>
                     </div>
                 </div>
             </div>
+        );
+    }
 
-            {/* Properties List Sidebar (Optional - can be toggled) */}
-            {selectedProperty && (
-                <div className="absolute top-4 right-4 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-30 max-h-[80vh] overflow-y-auto">
-                    <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Property Details</h3>
-                        <button
-                            onClick={() => setSelectedProperty(null)}
-                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+    if (!isMounted) {
+        return (
+            <div className="flex h-full w-full items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Loading nearby map...</span>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            className="relative isolate h-full w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-950"
+            data-nearby-map-style={mapStyle}
+        >
+            <MapContainer
+                key={mapKey}
+                center={[54.5, -3]}
+                zoom={6}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={false}
+                dragging={!compact}
+                fadeAnimation={false}
+                markerZoomAnimation={false}
+                zoomAnimation={false}
+            >
+                <MapAutoFit userLocation={userLocation} properties={propertiesWithCoords} fitSignal={fitSignal} />
+                {mapStyle === 'standard' ? (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    />
+                ) : (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
+                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    />
+                )}
+
+                {userLocation?.latitude && userLocation?.longitude ? (
+                    <CircleMarker
+                        center={[userLocation.latitude, userLocation.longitude]}
+                        radius={10}
+                        pathOptions={{ color: '#1d4ed8', fillColor: '#2563eb', fillOpacity: 0.9, weight: 3 }}
+                    >
+                        <Popup>
+                            <div className="min-w-[160px]">
+                                <p className="text-sm font-semibold text-slate-900">Your location</p>
+                                <p className="mt-1 text-xs text-slate-500">Nearby property ranking starts from here.</p>
+                            </div>
+                        </Popup>
+                    </CircleMarker>
+                ) : null}
+
+                {propertiesWithCoords.map((property) => {
+                    const isSelected = property.id === selectedPropertyID;
+                    return (
+                        <Marker
+                            key={property.id}
+                            position={[property.latitude as number, property.longitude as number]}
+                            icon={createPropertyIcon(formatCompactPrice(property.price), getMarkerColor(property.category), isSelected)}
+                            eventHandlers={{
+                                click: () => {
+                                    setIsSelectionDismissed(false);
+                                    setSelectedPropertyID(property.id);
+                                    onPropertyClick?.(property);
+                                },
+                            }}
                         >
-                            <X size={20} />
+                            <Popup>
+                                <div className="min-w-[220px] p-1">
+                                    <h4 className="text-sm font-semibold text-slate-900">
+                                        {property.title || 'Property'}
+                                    </h4>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        {[property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ') || 'UK'}
+                                    </p>
+                                    <p className="mt-2 text-sm font-bold text-orange-600">
+                                        {formatPropertyPrice(property.price)}
+                                        {property.property_type === 'rent' ? '/month' : ''}
+                                    </p>
+                                    {property.distance !== null && property.distance !== undefined ? (
+                                        <p className="mt-1 text-xs text-slate-500">{property.distance} miles away</p>
+                                    ) : null}
+                                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleOpenWorkspace(property)}
+                                            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50"
+                                        >
+                                            Open property
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleStartFastTrack(property)}
+                                            className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
+                                        >
+                                            Start fast-track
+                                        </button>
+                                    </div>
+                                </div>
+                            </Popup>
+                        </Marker>
+                    );
+                })}
+            </MapContainer>
+
+            <div className="absolute left-4 top-4 z-[1000] flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3">
+                <div className={`rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Nearby map</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? 'property' : 'properties'} nearby
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Price markers, live property actions, and fast-track access stay here.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-2xl bg-white/95 p-2 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                    <button
+                        type="button"
+                        data-nearby-map-standard
+                        onClick={() => setMapStyle('standard')}
+                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                            mapStyle === 'standard'
+                                ? 'bg-orange-500 text-white'
+                                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                        <Layers3 size={14} />
+                        {compact ? 'Map' : 'Standard'}
+                    </button>
+                    <button
+                        type="button"
+                        data-nearby-map-satellite
+                        onClick={() => setMapStyle('satellite')}
+                        className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                            mapStyle === 'satellite'
+                                ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900'
+                                : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                        }`}
+                    >
+                        <Globe size={14} />
+                        {compact ? 'Photo' : 'Satellite'}
+                    </button>
+                    <button
+                        type="button"
+                        data-nearby-map-recenter
+                        onClick={() => setFitSignal((value) => value + 1)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+                    >
+                        <LocateFixed size={14} />
+                        {compact ? 'Reset' : 'Recenter'}
+                    </button>
+                </div>
+            </div>
+
+            <div className={`absolute bottom-4 left-4 z-[1000] rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Distance</p>
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-green-500" />Very near</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-orange-500" />Near</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-yellow-500" />Moderate</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-slate-400" />Far</span>
+                </div>
+            </div>
+
+            {selectedProperty && !compact ? (
+                <div className="absolute bottom-4 right-4 z-[1000] w-[300px] max-w-[calc(100%-2rem)] rounded-[24px] bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/95 lg:w-[320px]">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Selected property</p>
+                            <h3 className="mt-2 truncate text-lg font-semibold text-gray-900 dark:text-white">
+                                {selectedProperty.title || 'Property'}
+                            </h3>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                {[selectedProperty.address_line_1, selectedProperty.city, selectedProperty.postcode].filter(Boolean).join(', ') || 'UK'}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsSelectionDismissed(true);
+                                setSelectedPropertyID(null);
+                            }}
+                            aria-label="Close selected property"
+                            className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                        >
+                            <X size={16} />
                         </button>
                     </div>
-                    <div className="space-y-2">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{selectedProperty.title}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{selectedProperty.address_line_1}</p>
-                        <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
-                            £{selectedProperty.price?.toLocaleString()}
-                            {selectedProperty.property_type === 'rent' && '/month'}
-                        </p>
-                        {selectedProperty.distance !== null && selectedProperty.distance !== undefined && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {selectedProperty.distance} miles away
-                            </p>
-                        )}
+
+                    <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-lg font-bold text-orange-600">{formatPropertyPrice(selectedProperty.price)}</p>
+                            {selectedProperty.property_type ? (
+                                <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                    {selectedProperty.property_type}
+                                </span>
+                            ) : null}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
+                            {selectedProperty.bedrooms ? <span>{selectedProperty.bedrooms} bed</span> : null}
+                            {selectedProperty.bathrooms ? <span>{selectedProperty.bathrooms} bath</span> : null}
+                            {selectedProperty.distance !== null && selectedProperty.distance !== undefined ? (
+                                <span>{selectedProperty.distance} miles away</span>
+                            ) : null}
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                        <button
+                            type="button"
+                            data-nearby-open-property
+                            onClick={() => handleOpenWorkspace(selectedProperty)}
+                            className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-semibold text-gray-900 transition-colors hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-700 dark:text-white dark:hover:bg-zinc-900"
+                        >
+                            Open property
+                        </button>
+                        <button
+                            type="button"
+                            data-nearby-open-fast-track
+                            onClick={() => handleStartFastTrack(selectedProperty)}
+                            className="rounded-xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                        >
+                            Open fast-track
+                        </button>
                     </div>
                 </div>
-            )}
+            ) : null}
+
+            {compact ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/92 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/92">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Dashboard preview</p>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                Browse the map here, then open Discover for the full browsing view.
+                            </p>
+                        </div>
+                        <div className="text-xs font-semibold text-orange-600 dark:text-orange-300">
+                            Scroll stays with the page
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 };
 
 export default NearbyPropertiesMap;
-
