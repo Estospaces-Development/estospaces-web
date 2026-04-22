@@ -64,6 +64,7 @@ import {
   type CaseFileTab,
   type WorkspaceSection,
 } from "@/lib/liveCaseWorkspace";
+import { getCaseFileSupportCopy } from "@/lib/userJourneyCopy";
 import PaginationBar from "@/components/ui/PaginationBar";
 import Modal from "@/components/ui/Modal";
 
@@ -419,7 +420,7 @@ const buildRequestChecklistSummary = ({
     statusLabel: "Needs upload",
     helper:
       request.description ||
-      "Add this document so the live case can keep moving without delays.",
+      "Add this document so your journey can keep moving without delays.",
     tone:
       "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/30 dark:bg-amber-950/20 dark:text-amber-300",
   };
@@ -474,6 +475,7 @@ const getDocumentAttributionLabel = (document: CaseFileDocument) => {
 };
 
 const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
+  const copy = getCaseFileSupportCopy(role);
   const shared = {
     applicationId: caseFile.application_id,
     viewingId: caseFile.viewing?.id,
@@ -488,16 +490,16 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
 
   return [
     {
-      label: "Continue in fast-track",
-      description: "Use the live workspace for viewing, decision, agreement, payment, and handover.",
+      label: copy.primaryLabel,
+      description: copy.primaryDescription,
       path: buildWorkspacePath(`${base}/fast-track`, {
         ...shared,
         section: "overview",
       }),
     },
     {
-      label: "Open document lane",
-      description: "Jump straight to the shared document lane inside fast-track.",
+      label: copy.secondaryLabel,
+      description: copy.secondaryDescription,
       path: buildWorkspacePath(`${base}/fast-track`, {
         ...shared,
         section: "documents",
@@ -791,6 +793,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     () => (caseFile ? buildWorkspaceLinks(role, caseFile) : []),
     [caseFile, role],
   );
+  const caseFileSupportCopy = useMemo(() => getCaseFileSupportCopy(role), [role]);
   const primaryWorkspaceLink = workspaceLinks[0] || null;
   const secondaryWorkspaceLinks = workspaceLinks.slice(1);
   const openRequests = useMemo(
@@ -1553,13 +1556,15 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
-                Shared live workspace
+                {role === "user" ? "Your 24-hour journey" : "Shared live workspace"}
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-                {caseFile.property_title || "Live case"}
+                {caseFile.property_title || (role === "user" ? "Your records" : "Live case")}
               </h2>
               <p className={`mt-2 text-sm ${stackedHeroMutedTextClass}`}>
-                Case {caseFile.case_id} - {formatLabel(caseFile.listing_type)} journey
+                {role === "user"
+                  ? `${formatLabel(caseFile.listing_type)} journey`
+                  : `Case ${caseFile.case_id} - ${formatLabel(caseFile.listing_type)} journey`}
               </p>
             </div>
             <button
@@ -1575,7 +1580,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           <div className={stackedHeroMetricsGridClass}>
             <div className={stackedHeroMetricCardClass}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
-                Live stage
+                {role === "user" ? "Where you are now" : "Live stage"}
               </p>
               <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                 {formatLabel(normalizedWorkflowStage)}
@@ -1583,7 +1588,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             </div>
             <div className={stackedHeroMetricCardClass}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
-                Open requests
+                {role === "user" ? "Open document requests" : "Open requests"}
               </p>
               <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                 {summary.openRequestCount}
@@ -1624,14 +1629,15 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
-                Shared case file
+                {role === "user" ? "Your records" : "Shared case file"}
               </p>
               <h1 className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
-                {caseFile.property_title || "Live case"}
+                {caseFile.property_title || (role === "user" ? "Your records" : "Live case")}
               </h1>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Case {caseFile.case_id} - {formatLabel(caseFile.listing_type)}{" "}
-                journey
+                {role === "user"
+                  ? `${formatLabel(caseFile.listing_type)} journey records`
+                  : <>Case {caseFile.case_id} - {formatLabel(caseFile.listing_type)}{" "}journey</>}
               </p>
             </div>
             <button
@@ -1647,7 +1653,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-3xl border border-gray-100 bg-gray-50 p-5 dark:border-zinc-800 dark:bg-zinc-900/50">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
-                Live stage
+                {role === "user" ? "Where you are now" : "Live stage"}
               </p>
               <p className="mt-3 text-lg font-semibold text-gray-900 dark:text-white">
                 {formatLabel(normalizedWorkflowStage)}
@@ -1659,7 +1665,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             <ActorWaitingCard caseFile={caseFile} />
             <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-black">
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
-                Open requests
+                {role === "user" ? "Open document requests" : "Open requests"}
               </p>
               <p className="mt-3 text-3xl font-semibold text-gray-900 dark:text-white">
                 {summary.openRequestCount}
@@ -1678,8 +1684,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 {summary.approvedCount}
               </p>
               <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                Client-facing files and journey artifacts stay attached to this
-                case through the whole flow.
+                {role === "user"
+                  ? "Your documents and record history stay attached here through the whole journey."
+                  : <>Client-facing files and journey artifacts stay attached to this case through the whole flow.</>}
               </p>
             </div>
           </div>
@@ -1745,9 +1752,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     </h2>
                   </div>
                   <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-200">
-                    The support file is clear. Continue the live journey in
-                    fast-track and keep this page for documents, audit context,
-                    and supporting requests.
+                    {caseFileSupportCopy.noBlockersDescription}
                   </p>
                 </div>
               )}
@@ -1758,13 +1763,13 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   data-case-file-live-workflow
                 >
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
-                    Live workflow
+                    {role === "user" ? "Continue your journey" : "Live workflow"}
                   </p>
                   <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
-                    Case file is support-only. Continue the journey in fast-track.
+                    {caseFileSupportCopy.supportTitle}
                   </h2>
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-                    This page keeps the shared record clean, but the live actions stay in the fast-track workspace. Open the live case when you need to move the journey forward.
+                    {caseFileSupportCopy.supportDescription}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-3">
                     <button
@@ -1844,10 +1849,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
             <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
               <div className="flex items-center gap-2 text-gray-900 dark:text-white">
                 <FolderOpen className="h-5 w-5 text-orange-500" />
-                <h2 className="text-lg font-semibold">Quick links</h2>
+                <h2 className="text-lg font-semibold">{caseFileSupportCopy.quickLinksTitle}</h2>
               </div>
               <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Open the live fast-track workspace or jump straight to its document lane.
+                {caseFileSupportCopy.quickLinksDescription}
               </p>
               <div className={workspaceLinksGridClass} data-case-file-quick-links>
                 {workspaceLinks.map((item) => (
@@ -1892,7 +1897,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   <h2 className="text-lg font-semibold">Upload all documents</h2>
                 </div>
                 <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Choose your files once, confirm where each one belongs, and upload them into the same live case without bouncing between pages.
+                  {role === "user"
+                    ? "Choose your files once, confirm where each one belongs, and upload them here without bouncing between pages."
+                    : "Choose your files once, confirm where each one belongs, and upload them into the same live case without bouncing between pages."}
                 </p>
               </div>
               <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
@@ -1926,7 +1933,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                       Upload checklist
                     </p>
                     <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                      What this case still needs
+                      {role === "user" ? "What you still need to upload" : "What this case still needs"}
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
                       Each request below shows whether the document is still missing, already uploaded, under review, or approved with a clear tick.
@@ -2025,7 +2032,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   </div>
                 ) : (
                   <div className={checklistEmptyClass}>
-                    No case-file requests are open yet. As soon as a manager or workflow asks for documents, this checklist will show exactly what to upload and whether it has been approved.
+                    {role === "user"
+                      ? "No document requests are open yet. As soon as the team asks for something, this checklist will show exactly what to upload and whether it has been approved."
+                      : "No case-file requests are open yet. As soon as a manager or workflow asks for documents, this checklist will show exactly what to upload and whether it has been approved."}
                   </div>
                 )}
                 </div>
@@ -2970,7 +2979,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   No extra support notes are published for this case yet.
-                  Continue the live workflow in fast-track from the overview.
+                  {caseFileSupportCopy.helperFooter}
                 </p>
               )}
             </div>

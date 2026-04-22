@@ -20,6 +20,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
+import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import { searchService, SavedSearch } from '@/services/searchService';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -90,6 +91,8 @@ export default function SavedPage() {
                         </button>
                     </div>
                 </div>
+
+                <UserActivitySubnav />
 
                 {/* Content */}
                 {activeTab === 'properties' ? (

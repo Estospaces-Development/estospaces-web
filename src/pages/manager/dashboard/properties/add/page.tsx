@@ -1807,7 +1807,7 @@ export default function AddPropertyPage() {
             <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">
               {mode === "edit" ? "Edit Property" : "Add New Property"}
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-300">
               {mode === "edit"
                 ? "Update your property listing"
                 : "Create a new property listing with all the details"}
@@ -1896,7 +1896,7 @@ export default function AddPropertyPage() {
                           ? "bg-primary text-white shadow-lg ring-4 ring-primary/20"
                           : isCompleted || mode === "edit"
                             ? "bg-primary/80 text-white shadow-md cursor-pointer hover:scale-110 hover:bg-primary"
-                            : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-300 cursor-not-allowed"
                       }`}
                     >
                       {isCompleted && mode === "create" ? (
@@ -1909,7 +1909,7 @@ export default function AddPropertyPage() {
                       className={`mt-2 text-xs font-medium text-center hidden md:block ${
                         isCurrentStep || isCompleted || mode === "edit"
                           ? "text-primary"
-                          : "text-gray-500 dark:text-gray-400"
+                          : "text-gray-500 dark:text-gray-300"
                       }`}
                     >
                       {step.title}
@@ -1929,7 +1929,7 @@ export default function AddPropertyPage() {
             })}
           </div>
           {mode === "edit" && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-300 mt-2 text-center">
               You can navigate to any tab. Changes will be saved when you click
               "Save Property".
             </p>
@@ -1985,7 +1985,7 @@ export default function AddPropertyPage() {
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                         formData.propertyType === type.value
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
+                          : "border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500"
                       }`}
                     >
                       {type.icon}
@@ -2012,7 +2012,7 @@ export default function AddPropertyPage() {
                         className={`px-4 py-2 rounded-lg border transition-all ${
                           formData.listingType === type.value
                             ? "border-primary bg-primary text-white"
-                            : "border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
+                            : "border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500"
                         }`}
                       >
                         {type.label}
@@ -2034,7 +2034,7 @@ export default function AddPropertyPage() {
                       />
                       <span>{reviewStatusBadge.label}</span>
                     </span>
-                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
                       {mode === "edit"
                         ? formData.status === "draft"
                           ? "This listing is still a draft. Save changes or submit it for admin approval when it is ready."
@@ -3099,10 +3099,10 @@ export default function AddPropertyPage() {
             type="button"
             onClick={handlePrevious}
             disabled={currentStep === 1}
-            className={`px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-lg flex items-center justify-center gap-2 transition-all ${
+            className={`px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
               currentStep === 1
-                ? "opacity-50 cursor-not-allowed"
-                : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                ? "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400"
+                : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200 dark:hover:bg-gray-800"
             }`}
           >
             <ChevronLeft className="w-5 h-5" />

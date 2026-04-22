@@ -39,6 +39,7 @@ import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
+const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
 
 const dashboardFilterOptions = [
   { id: 'recently_added', label: 'Recently Added' },
@@ -194,6 +195,7 @@ const DashboardClient = () => {
   const { setActiveTab } = usePropertyFilter();
   const dashboardCelebrateRequested = searchParams.get('celebrate') === '1';
   const dashboardCelebrateCaseId = searchParams.get('fastTrackCase');
+  const dashboardResetRequested = searchParams.get('reset') === '1';
 
   const [selectedPropertyType, setSelectedPropertyType] = useState<'buy' | 'rent' | 'sold'>(() => (
     mapSearchParamsToDashboardType(searchParams.get('type'), searchParams.get('status'))
@@ -592,7 +594,7 @@ const DashboardClient = () => {
     });
   };
 
-  const clearFilteredResults = () => {
+  const clearFilteredResults = useCallback(() => {
     setSelectedFilters([]);
     setSelectedPropertyType((current) => (current === 'rent' ? 'rent' : 'buy'));
     setDashboardSearchFilters({
@@ -606,7 +608,48 @@ const DashboardClient = () => {
     setShowFilteredResults(false);
     setError(null);
     setLocationMessage(null);
-  };
+  }, [selectedPropertyType]);
+
+  const clearDashboardSearchParams = useCallback(() => {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete('reset');
+      next.delete('page');
+      next.delete('filter');
+      next.delete('type');
+      next.delete('status');
+      next.delete('q');
+      next.delete('keyword');
+      next.delete('location');
+      next.delete('propertyType');
+      next.delete('minPrice');
+      next.delete('maxPrice');
+      next.delete('beds');
+      next.delete('baths');
+      next.delete('minBedrooms');
+      next.delete('minBathrooms');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    if (!dashboardResetRequested) {
+      return;
+    }
+
+    clearFilteredResults();
+    clearDashboardSearchParams();
+  }, [clearDashboardSearchParams, clearFilteredResults, dashboardResetRequested]);
+
+  useEffect(() => {
+    const handleDashboardReset = () => {
+      clearFilteredResults();
+      clearDashboardSearchParams();
+    };
+
+    window.addEventListener(USER_DASHBOARD_RESET_EVENT, handleDashboardReset);
+    return () => window.removeEventListener(USER_DASHBOARD_RESET_EVENT, handleDashboardReset);
+  }, [clearDashboardSearchParams, clearFilteredResults]);
 
   const mapLocation = activeLocation || null;
   const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
@@ -617,6 +660,9 @@ const DashboardClient = () => {
       && typeof property.longitude === 'number'
     ))
   ), [activeMapProperties]);
+  const hasNearbyMapPreview = Boolean(
+    (mapLocation?.latitude && mapLocation?.longitude) || mapProperties.length > 0,
+  );
 
   const resultHeading = selectedFilters.includes('recently_added')
     ? 'Recently Added Properties'
@@ -661,132 +707,172 @@ const DashboardClient = () => {
           : 'Your 24-hour journey is complete and ready for the next step.'}
         onComplete={() => setShowFastTrackCelebration(false)}
       />
-      <div id="greeting-section" className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px] animate-fadeIn">
-        <section className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_58%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.22)_0%,rgba(10,10,10,1)_60%)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
-            {dashboardCopy.nextStepEyebrow}
-          </p>
-          <div className="mt-3">
-            <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
-              {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span>
-            </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              {dashboardCopy.greetingSubtitle}
-            </p>
-          </div>
-          <div className="mt-5 rounded-2xl border border-white/70 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/5">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {nextStepSummary.title}
-            </h2>
-            <div className="mt-4 space-y-3 text-sm text-gray-600 dark:text-gray-300">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What is happening now?</p>
-                <p className="mt-1 text-base text-gray-900 dark:text-white">{journeySummaryLoading ? 'Loading your latest update...' : nextStepSummary.now}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What do I need to do next?</p>
-                <p className="mt-1">{journeySummaryLoading ? 'Checking your next step...' : nextStepSummary.next}</p>
-              </div>
-            </div>
-            {journeySummaryError ? (
-              <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">{journeySummaryError}</p>
-            ) : null}
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                onClick={nextStepSummary.primaryAction}
-                className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
-              >
-                {nextStepSummary.primaryLabel}
-                <ArrowRight size={16} />
-              </button>
-              <button
-                onClick={nextStepSummary.secondaryAction}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
-              >
-                {nextStepSummary.secondaryLabel}
-              </button>
-            </div>
-          </div>
-        </section>
+      {!showFilteredResults && (
+        <>
+          <div
+            id="hero-search"
+            className="relative overflow-hidden rounded-[32px] shadow-2xl animate-fadeIn group min-h-[480px] lg:min-h-[540px]"
+          >
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 group-hover:scale-105"
+              style={{
+                backgroundImage: "url('https://images.pexels.com/photos/8293778/pexels-photo-8293778.jpeg?auto=compress&cs=tinysrgb&w=1920&h=1080&dpr=2')",
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/78 via-slate-900/58 to-orange-950/30" />
+            <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/25 to-transparent" />
 
-        <div className="min-w-0">
-          <ProfileCompletionCard />
-        </div>
-      </div>
-
-      <div id="hero-search" className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 animate-fadeIn">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {dashboardCopy.searchTitle}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              {dashboardCopy.searchSubtitle}
-            </p>
-            <div className="mt-5">
-              <SearchBar
-                variant="hero"
-                navigateOnSearch={false}
-                onSearch={handleDashboardSearch}
-                initialFilters={dashboardSearchFilters}
-                className="w-full text-left"
-              />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              {dashboardFilterOptions.map((filter) => {
-                const selected = selectedFilters.includes(filter.id);
-
-                return (
-                  <button
-                    key={filter.id}
-                    onClick={() => toggleQuickFilter(filter.id)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
-                      selected
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
-                    }`}
+            <div className="relative z-10 flex min-h-[480px] lg:min-h-[540px] items-center px-4 py-10 md:px-6 lg:px-10">
+              <div className="mx-auto w-full max-w-6xl">
+                <div className="max-w-3xl text-white">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-300/90">
+                    Search sale and rental homes
+                  </p>
+                  <h1
+                    className="mt-4 text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl"
+                    style={{ textShadow: '0 4px 20px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)' }}
                   >
-                    {filter.label}
-                  </button>
-                );
-              })}
+                    Find your <span className="text-orange-400">perfect space</span>
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base text-white/88 md:text-lg">
+                    {dashboardCopy.searchSubtitle}
+                  </p>
+                </div>
+
+                <div
+                  className="mt-8 rounded-[28px] border border-white/40 bg-white/92 p-5 shadow-2xl backdrop-blur-2xl ring-1 ring-black/5 md:p-6 lg:p-8"
+                  style={{ animationDelay: '0.15s' }}
+                >
+                  <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
+                    <div>
+                      <SearchBar
+                        variant="hero"
+                        navigateOnSearch={false}
+                        onSearch={handleDashboardSearch}
+                        initialFilters={dashboardSearchFilters}
+                        className="w-full text-left"
+                      />
+
+                      <div className="mt-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                        {dashboardFilterOptions.map((filter) => {
+                          const selected = selectedFilters.includes(filter.id);
+
+                          return (
+                            <button
+                              key={filter.id}
+                              onClick={() => toggleQuickFilter(filter.id)}
+                              className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                                selected
+                                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              }`}
+                            >
+                              {filter.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-slate-200/80 bg-slate-50/95 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Quick actions</p>
+                      <div className="mt-4 grid gap-3">
+                        <button
+                          onClick={() => {
+                            setActiveTab('buy');
+                            navigate('/user/dashboard/discover?type=buy');
+                          }}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+                        >
+                          <span>{dashboardCopy.quickBuyLabel}</span>
+                          <Building2 size={16} className="text-orange-500" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveTab('rent');
+                            navigate('/user/dashboard/discover?type=rent');
+                          }}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+                        >
+                          <span>{dashboardCopy.quickRentLabel}</span>
+                          <Key size={16} className="text-orange-500" />
+                        </button>
+                        <button
+                          onClick={() => navigate('/user/saved')}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50"
+                        >
+                          <span>{dashboardCopy.quickSavedLabel}</span>
+                          <Bookmark size={16} className="text-orange-500" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">Quick actions</p>
-            <div className="mt-4 grid gap-3">
-              <button
-                onClick={() => {
-                  setActiveTab('buy');
-                  navigate('/user/dashboard/discover?type=buy');
-                }}
-                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
-              >
-                <span>{dashboardCopy.quickBuyLabel}</span>
-                <Building2 size={16} className="text-orange-500" />
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('rent');
-                  navigate('/user/dashboard/discover?type=rent');
-                }}
-                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
-              >
-                <span>{dashboardCopy.quickRentLabel}</span>
-                <Key size={16} className="text-orange-500" />
-              </button>
-              <button
-                onClick={() => navigate('/user/saved')}
-                className="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:hover:bg-gray-800"
-              >
-                <span>{dashboardCopy.quickSavedLabel}</span>
-                <Bookmark size={16} className="text-orange-500" />
-              </button>
+          <div id="greeting-section" className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_320px] animate-fadeIn">
+            <section className="rounded-3xl border border-orange-100 bg-[linear-gradient(135deg,rgba(255,247,237,1)_0%,rgba(255,255,255,1)_58%)] p-6 shadow-sm dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,rgba(124,45,18,0.22)_0%,rgba(10,10,10,1)_60%)]">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">
+                    {dashboardCopy.nextStepEyebrow}
+                  </p>
+                  <h2 className="mt-3 text-2xl lg:text-3xl font-semibold text-gray-900 dark:text-white">
+                    {getGreeting()}, <span className="text-orange-500 capitalize">{firstName}</span>
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    {dashboardCopy.greetingSubtitle}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-white/70 bg-white/85 p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {nextStepSummary.title}
+                </h3>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What is happening now?</p>
+                    <p className="mt-2 text-base text-gray-900 dark:text-white">
+                      {journeySummaryLoading ? 'Loading your latest update...' : nextStepSummary.now}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">What do I need to do next?</p>
+                    <p className="mt-2 text-base text-gray-900 dark:text-white">
+                      {journeySummaryLoading ? 'Checking your next step...' : nextStepSummary.next}
+                    </p>
+                  </div>
+                </div>
+                {journeySummaryError ? (
+                  <p className="mt-4 text-sm text-amber-700 dark:text-amber-300">{journeySummaryError}</p>
+                ) : null}
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <button
+                    onClick={nextStepSummary.primaryAction}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                  >
+                    {nextStepSummary.primaryLabel}
+                    <ArrowRight size={16} />
+                  </button>
+                  <button
+                    onClick={nextStepSummary.secondaryAction}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                  >
+                    {nextStepSummary.secondaryLabel}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <div className="min-w-0">
+              <ProfileCompletionCard />
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {!showFilteredResults && (
         <>
@@ -939,6 +1025,9 @@ const DashboardClient = () => {
               <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
                 {dashboardCopy.mapSubtitle}
               </p>
+              <p className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                This is a compact preview. Open Browse All for the full map experience.
+              </p>
             </div>
             <button
               onClick={() => navigate('/user/dashboard/discover')}
@@ -950,8 +1039,8 @@ const DashboardClient = () => {
           </div>
 
           {locationLoading ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
-              <div className="h-[600px] lg:h-[700px] flex items-center justify-center">
+            <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+              <div className="flex h-[240px] items-center justify-center sm:h-[270px] lg:h-[300px]">
                 <div className="text-center">
                   <Loader2 className="animate-spin mx-auto mb-4 text-orange-500" size={48} />
                   <p className="text-gray-600 dark:text-gray-300">Loading nearby properties...</p>
@@ -959,13 +1048,14 @@ const DashboardClient = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white dark:bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="h-[600px] lg:h-[700px]">
+            <div className="overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+              <div className={hasNearbyMapPreview ? 'h-[310px] sm:h-[350px] lg:h-[400px]' : 'h-[250px] sm:h-[280px] lg:h-[320px]'}>
                 <NearbyPropertiesMap
                   properties={mapProperties}
                   userLocation={mapLocation}
                   onPropertyClick={openPropertyFromDashboard}
                   onStartFastTrack={openFastTrackFromDashboard}
+                  compact
                 />
               </div>
             </div>

@@ -315,6 +315,9 @@ function DiscoverContent() {
                                                 onClick={() => {
                                                     if (suggestion.type === 'property' && suggestion.id) {
                                                         navigate(`/user/properties/${suggestion.id}`);
+                                                    } else if (suggestion.type === 'postcode') {
+                                                        setSearchQuery(suggestion.text);
+                                                        setLocationQuery('');
                                                     } else {
                                                         setSearchQuery(suggestion.text);
                                                         setLocationQuery(suggestion.city || suggestion.text);

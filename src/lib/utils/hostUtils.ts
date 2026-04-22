@@ -4,6 +4,13 @@
 
 export type HostedApp = 'landing' | 'app' | 'admin';
 
+const ADMIN_AUTH_ROUTE_PATHS = new Set([
+    '/login',
+    '/forgot-password',
+    '/reset-password',
+    '/verify-email',
+]);
+
 export const isLocalhostHost = (hostname: string) => hostname === 'localhost' || hostname === '127.0.0.1';
 export const isSingleOriginHostedHost = (hostname: string) => hostname.endsWith('.run.app');
 
@@ -21,6 +28,10 @@ export const resolveHostedWorkspaceRedirect = (
     currentApp: HostedApp,
     pathname: string,
 ): { path: string; role: 'user' | 'admin' } | null => {
+    if (currentApp === 'admin' && ADMIN_AUTH_ROUTE_PATHS.has(pathname)) {
+        return null;
+    }
+
     if (currentApp === 'admin' && !pathname.startsWith('/admin')) {
         return { path: '/admin', role: 'admin' };
     }

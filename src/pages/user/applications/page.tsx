@@ -35,6 +35,7 @@ import ApplicationCard from '@/components/dashboard/applications/ApplicationCard
 import ApplicationCardSkeleton from '@/components/dashboard/applications/ApplicationCardSkeleton';
 import ApplicationFilters from '@/components/dashboard/applications/ApplicationFilters';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
+import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
 import {
@@ -476,6 +477,8 @@ export default function ApplicationsPage() {
                         </button>
                     </div>
                 </div>
+
+                <UserActivitySubnav />
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

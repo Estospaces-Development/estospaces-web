@@ -84,6 +84,17 @@ const normalizeListingType = (value?: string) => {
     return value;
 };
 
+const normalizePostcodeText = (value?: string) =>
+    (value || '').trim().toLowerCase().replace(/\s+/g, '');
+
+const autocompleteSuggestionKey = (suggestion: AutocompleteSuggestion) => {
+    if (suggestion.type === 'postcode') {
+        return `${suggestion.type}:${normalizePostcodeText(suggestion.text)}`;
+    }
+
+    return `${suggestion.type}:${(suggestion.text || '').trim().toLowerCase()}`;
+};
+
 const parseImageList = (images: CoreProperty['image_urls']): string[] => {
     if (Array.isArray(images)) {
         return images.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
@@ -224,6 +235,18 @@ const buildAutocompleteFallback = async (query: string): Promise<AutocompleteSug
     const seen = new Set<string>();
 
     for (const property of fallback.data) {
+        if (property.postcode && normalizePostcodeText(property.postcode).startsWith(normalizePostcodeText(query))) {
+            const key = `postcode:${normalizePostcodeText(property.postcode)}`;
+            if (!seen.has(key)) {
+                suggestions.push({
+                    text: property.postcode,
+                    city: property.city,
+                    type: 'postcode',
+                });
+                seen.add(key);
+            }
+        }
+
         if (property.title) {
             const key = `property:${property.title.toLowerCase()}`;
             if (!seen.has(key)) {
@@ -380,7 +403,7 @@ export interface AutocompleteSuggestion {
     text: string;
     title?: string;
     city?: string;
-    type: 'location' | 'city' | 'property' | 'popular';
+    type: 'location' | 'city' | 'postcode' | 'property' | 'popular';
 }
 
 export interface AutocompleteResponse {
@@ -543,7 +566,9 @@ export const searchService = {
 
             clearPrimarySearchServiceFallback();
 
-            return suggestions;
+            return suggestions.filter((suggestion, index, all) =>
+                all.findIndex(candidate => autocompleteSuggestionKey(candidate) === autocompleteSuggestionKey(suggestion)) === index,
+            );
         } catch {
             markPrimarySearchServiceUnavailable();
 

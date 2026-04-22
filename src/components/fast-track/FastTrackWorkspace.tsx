@@ -14,6 +14,7 @@ import {
     Loader2,
     SendHorizontal,
     ShieldCheck,
+    Star,
     Upload,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -21,7 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
     usePublishWorkspaceSync,
-    useWorkflowWorkspaceRefresh,
+    useWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import {
     buildFastTrackThreadRecipientLabel,
@@ -30,7 +31,10 @@ import {
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from '@/lib/fastTrackWorkspace';
-import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    WORKSPACE_SYNC_INTERVALS,
+    WORKSPACE_SYNC_TAGS,
+} from '@/lib/workspaceSync';
 import { getDocumentAccessBlob, getDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     FastTrackCase,
@@ -48,6 +52,10 @@ import {
     sendMessage,
     upsertDirectConversation,
 } from '@/services/messagesService';
+import {
+    managerReviewsService,
+    type ManagerReview,
+} from '@/services/managerReviewsService';
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
 import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
@@ -73,6 +81,7 @@ import {
     getFastTrackWorkspacePreferences,
     updateFastTrackWorkspacePreferences,
 } from '@/services/workspacePreferencesService';
+import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
@@ -93,13 +102,6 @@ const STAGES: FastTrackStage[] = [
     'handover',
 ];
 
-const FILTERS: Array<{ value: FilterMode; label: string }> = [
-    { value: 'all', label: 'All' },
-    { value: 'active', label: 'Active' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
-];
-
 const STAGE_ICONS: Record<FastTrackStage, React.ElementType> = {
     selected: Home,
     documents: FileText,
@@ -112,21 +114,9 @@ const STAGE_ICONS: Record<FastTrackStage, React.ElementType> = {
 const formatStageLabel = (
     stage: FastTrackStage,
     journeyMode: FastTrackCase['journeyMode'],
+    role: WorkspaceRole,
 ): string => {
-    switch (stage) {
-        case 'documents':
-            return 'Documents';
-        case 'viewing':
-            return 'Viewing';
-        case 'decision':
-            return journeyMode === 'sale' ? 'Offer' : 'Decision';
-        case 'agreement':
-            return 'Agreement';
-        case 'handover':
-            return 'Handover';
-        default:
-            return 'Selected';
-    }
+    return getJourneyStageLabel(stage, journeyMode, role);
 };
 
 const formatStatusChip = (fastTrackCase: FastTrackCase) => {
@@ -149,12 +139,12 @@ const formatStatusChip = (fastTrackCase: FastTrackCase) => {
     }
 };
 
-const formatDeadline = (hoursRemaining: number) => {
+const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     if (!Number.isFinite(hoursRemaining)) {
-        return '24h window';
+        return role === 'user' ? '24 hours' : '24h window';
     }
     if (hoursRemaining <= 0) {
-        return 'Overdue';
+        return role === 'user' ? 'Needs attention' : 'Overdue';
     }
     return `${hoursRemaining}h left`;
 };
@@ -173,6 +163,50 @@ const sortCases = (cases: FastTrackCase[]) => [...cases].sort((left, right) => {
     }
     return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
 });
+
+const buildFastTrackCasesSignature = (cases: FastTrackCase[]) => JSON.stringify(
+    cases.map((item) => ({
+        caseId: item.caseId,
+        stage: item.stage,
+        finalStatus: item.workspaceFinalStatus,
+        hoursRemaining: item.hoursRemaining,
+        statusReason: item.statusReason || '',
+        nextAction: item.nextAction || '',
+        documents: item.documents.items.map((document) => ({
+            id: document.id,
+            status: document.status,
+            recordId: document.documentRecordId || '',
+            uploadedAt: document.uploadedAt || '',
+            reviewedAt: document.reviewedAt || '',
+        })),
+        viewing: {
+            status: item.viewing.status,
+            scheduledAt: item.viewing.scheduledAt || '',
+            requestedChangeAt: item.viewing.requestedChangeAt || '',
+            confirmedByUser: Boolean(item.viewing.confirmedByUser),
+        },
+        decision: {
+            status: item.decision.status,
+            amount: item.decision.amount || 0,
+            decidedAt: item.decision.decidedAt || '',
+        },
+        agreement: {
+            status: item.agreement.status,
+            paymentStatus: item.agreement.paymentStatus,
+            amountDue: item.agreement.amountDue || 0,
+            acceptedAt: item.agreement.acceptedAt || '',
+        },
+        handover: {
+            status: item.handover.status,
+            confirmedAt: item.handover.confirmedAt || '',
+            completedAt: item.handover.completedAt || '',
+        },
+        activity: {
+            count: item.activity.length,
+            lastId: item.activity[item.activity.length - 1]?.id || '',
+        },
+    })),
+);
 
 const textMatches = (source: string | undefined, query: string) =>
     String(source || '').toLowerCase().includes(query.toLowerCase());
@@ -330,6 +364,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [threadError, setThreadError] = useState<string | null>(null);
     const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
     const [celebrationPropertyTitle, setCelebrationPropertyTitle] = useState<string | null>(null);
+    const [managerReview, setManagerReview] = useState<ManagerReview | null>(null);
+    const [managerReviewLoading, setManagerReviewLoading] = useState(false);
+    const [managerReviewSubmitting, setManagerReviewSubmitting] = useState(false);
+    const [managerReviewExpanded, setManagerReviewExpanded] = useState(false);
+    const [managerReviewRating, setManagerReviewRating] = useState(0);
+    const [managerReviewComment, setManagerReviewComment] = useState('');
+    const [managerReviewError, setManagerReviewError] = useState<string | null>(null);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
         () => defaultFastTrackWorkspacePreferences(role),
     );
@@ -339,12 +380,28 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
+    const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
     const workspacePreferencesLoadedRef = useRef(false);
     const lastSavedWorkspacePreferencesRef = useRef('');
+    const lastCasesSignatureRef = useRef('');
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const searchParamsKey = searchParams.toString();
+    const journeyChromeCopy = getJourneyChromeCopy(role);
+    const filters: Array<{ value: FilterMode; label: string }> = role === 'user'
+        ? [
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'In progress' },
+            { value: 'completed', label: 'Done' },
+            { value: 'cancelled', label: 'Closed' },
+        ]
+        : [
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'cancelled', label: 'Cancelled' },
+        ];
 
     const releasePreviewObjectUrl = useCallback(() => {
         if (previewObjectUrlRef.current?.startsWith('blob:')) {
@@ -369,7 +426,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const { data, error: requestError } = await getFastTrackCases({ suppressErrorToast: true });
         if (data) {
-            setCases(sortCases(data));
+            const nextCases = sortCases(data);
+            const nextSignature = buildFastTrackCasesSignature(nextCases);
+            if (nextSignature !== lastCasesSignatureRef.current) {
+                lastCasesSignatureRef.current = nextSignature;
+                setCases(nextCases);
+            }
             setError(null);
         } else if (!silent) {
             setError(requestError || 'Unable to load fast-track cases.');
@@ -384,9 +446,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         void fetchCases();
     }, [fetchCases]);
 
-    useWorkflowWorkspaceRefresh({
+    useWorkspaceRefresh({
         tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
         refresh: () => fetchCases(true),
+        intervalMs: role === 'user' ? 60000 : WORKSPACE_SYNC_INTERVALS.DASHBOARD,
+        refreshOnFocus: true,
+        refreshOnVisible: true,
     });
 
     useEffect(() => {
@@ -483,6 +548,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [searchParamsKey],
     );
     const requestedCaseParam = selectionParams.get('case');
+    const celebrateRequested = selectionParams.get('celebrate') === '1';
 
     useEffect(() => {
         if (cases.length === 0) {
@@ -501,10 +567,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const requestedCaseStillAvailable = Boolean(
+            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
+        );
+        if (requestedCaseStillAvailable) {
+            return;
+        }
+
         if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
             setSelectedCaseId(filteredCases[0].caseId);
         }
-    }, [filteredCases, selectedCaseId]);
+    }, [cases, filteredCases, requestedCaseParam, selectedCaseId]);
 
     const totalCasePages = useMemo(
         () => Math.max(1, Math.ceil(filteredCases.length / FAST_TRACK_CASES_PAGE_SIZE)),
@@ -527,6 +600,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const requestedCaseStillAvailable = Boolean(
+            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
+        );
+        if (requestedCaseStillAvailable && requestedCaseParam !== selectedCaseId) {
+            return;
+        }
+
         if (requestedCaseParam === selectedCaseId) {
             return;
         }
@@ -536,12 +616,80 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             next.set('case', selectedCaseId);
             return next;
         });
-    }, [requestedCaseParam, selectedCaseId, setSearchParams]);
+    }, [cases, requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
         [cases, filteredCases, selectedCaseId],
     );
+    const isManagerReviewEligible = role === 'user'
+        && Boolean(selectedCase?.managerId)
+        && selectedCase?.workspaceFinalStatus !== 'cancelled';
+
+    useEffect(() => {
+        if (!isManagerReviewEligible || !selectedCase) {
+            setManagerReview(null);
+            setManagerReviewExpanded(false);
+            setManagerReviewRating(0);
+            setManagerReviewComment('');
+            setManagerReviewError(null);
+            setManagerReviewLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setManagerReviewLoading(true);
+        setManagerReviewError(null);
+
+        const loadManagerReview = async () => {
+            const result = await managerReviewsService.getManagerReviewForCase(selectedCase.caseId);
+            if (cancelled) {
+                return;
+            }
+
+            if (!result.success) {
+                setManagerReview(null);
+                setManagerReviewError(result.error || 'Unable to load manager feedback.');
+                setManagerReviewLoading(false);
+                return;
+            }
+
+            setManagerReview(result.data);
+            setManagerReviewExpanded(!result.data);
+            setManagerReviewRating(result.data?.rating || 0);
+            setManagerReviewComment(result.data?.comment || '');
+            setManagerReviewLoading(false);
+        };
+
+        void loadManagerReview();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isManagerReviewEligible, selectedCase?.caseId]);
+
+    const openManagerReviewForm = useCallback(() => {
+        if (!isManagerReviewEligible) {
+            return;
+        }
+
+        setManagerReviewExpanded(true);
+        setShowCompletionCelebration(false);
+        window.requestAnimationFrame(() => {
+            managerReviewSectionRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'nearest',
+            });
+        });
+    }, [isManagerReviewEligible]);
+
+    const openCompletionCelebration = useCallback((nextCase: FastTrackCase) => {
+        celebratedCaseIdRef.current = nextCase.caseId;
+        setCelebrationPropertyTitle(nextCase.propertyTitle);
+        toast.clearAll();
+        setShowCompletionCelebration(true);
+    }, [toast]);
 
     const workspaceFocus = useMemo(
         () => (selectedCase ? describeFastTrackWorkspaceFocus(selectedCase, role) : ''),
@@ -559,6 +707,56 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         ))));
         setSelectedCaseId(nextCase.caseId);
     }, []);
+
+    const handleSubmitManagerReview = useCallback(async () => {
+        if (!selectedCase || !isManagerReviewEligible) {
+            return;
+        }
+        if (managerReviewRating < 1 || managerReviewRating > 5) {
+            toast.error('Choose a star rating first.');
+            return;
+        }
+
+        setManagerReviewSubmitting(true);
+        setManagerReviewError(null);
+
+        const result = managerReview
+            ? await managerReviewsService.updateManagerReview(managerReview.id, {
+                rating: managerReviewRating,
+                comment: managerReviewComment.trim(),
+            })
+            : await managerReviewsService.createManagerReview({
+                fast_track_case_id: selectedCase.caseId,
+                rating: managerReviewRating,
+                comment: managerReviewComment.trim(),
+            });
+
+        setManagerReviewSubmitting(false);
+
+        if (!result.success || !result.data) {
+            const message = result.error || 'Unable to save your feedback right now.';
+            setManagerReviewError(message);
+            toast.error(message);
+            return;
+        }
+
+        setManagerReview(result.data);
+        setManagerReviewExpanded(false);
+        setManagerReviewRating(result.data.rating);
+        setManagerReviewComment(result.data.comment || '');
+        toast.success(
+            managerReview
+                ? 'Your feedback was updated.'
+                : 'Thanks. Your feedback is now pending admin approval.',
+        );
+    }, [
+        isManagerReviewEligible,
+        managerReview,
+        managerReviewComment,
+        managerReviewRating,
+        selectedCase,
+        toast,
+    ]);
 
     const runAction = useCallback(async (
         action: string,
@@ -593,7 +791,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 propertyId: data.propertyId,
             },
         });
-        toast.success(successMessage || 'Workspace updated.');
+        if (data.workspaceFinalStatus !== 'completed') {
+            toast.success(successMessage || 'Workspace updated.');
+        }
     }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase]);
 
     const handleUploadDocument = useCallback(async (item: FastTrackDocumentItem) => {
@@ -765,10 +965,26 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        celebratedCaseIdRef.current = selectedCase.caseId;
-        setCelebrationPropertyTitle(selectedCase.propertyTitle);
-        setShowCompletionCelebration(true);
-    }, [selectedCase]);
+        openCompletionCelebration(selectedCase);
+    }, [openCompletionCelebration, selectedCase]);
+
+    useEffect(() => {
+        if (!celebrateRequested || !selectedCase || selectedCase.workspaceFinalStatus !== 'completed') {
+            return;
+        }
+
+        setSearchParams((previous) => {
+            const next = new URLSearchParams(previous);
+            next.delete('celebrate');
+            return next;
+        });
+
+        if (celebratedCaseIdRef.current === selectedCase.caseId) {
+            return;
+        }
+
+        openCompletionCelebration(selectedCase);
+    }, [celebrateRequested, openCompletionCelebration, selectedCase, setSearchParams]);
 
     useEffect(() => {
         if (!previewItemId || !utilityModules.includes('preview')) {
@@ -998,6 +1214,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         let cancelled = false;
 
         const loadThread = async () => {
+            if (activeUtilityModule !== 'case_chat') {
+                return;
+            }
+
             if (!selectedCase || !user) {
                 setThreadConversation(null);
                 setThreadMessages([]);
@@ -1010,7 +1230,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 setThreadMessages([]);
                 setThreadError(
                     role === 'user'
-                        ? 'A manager or admin needs to claim this case before chat opens.'
+                        ? 'Your helper will open messages here as soon as someone joins your journey.'
                         : 'This case does not have a client attached yet.',
                 );
                 return;
@@ -1027,7 +1247,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 senderName: user.name,
                 senderEmail: user.email,
                 senderPhone: user.phone,
-                recipientName: role === 'user' ? 'Case manager' : selectedCase.clientName,
+                recipientName: role === 'user' ? 'Your helper' : selectedCase.clientName,
             };
 
             try {
@@ -1047,7 +1267,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 }
                 setThreadConversation(null);
                 setThreadMessages([]);
-                setThreadError(error?.message || 'Unable to load the case chat.');
+                setThreadError(error?.message || (role === 'user' ? 'Unable to load your messages right now.' : 'Unable to load the case chat.'));
             } finally {
                 if (!cancelled) {
                     setThreadLoading(false);
@@ -1060,7 +1280,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         return () => {
             cancelled = true;
         };
-    }, [role, selectedCase?.caseId, selectedCase?.clientName, threadRecipientId, user]);
+    }, [activeUtilityModule, role, selectedCase?.caseId, selectedCase?.clientName, threadRecipientId, user]);
 
     const handleSendThreadMessage = useCallback(async () => {
         if (!selectedCase || !user || !threadRecipientId || !threadDraft.trim()) {
@@ -1078,7 +1298,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 senderName: user.name,
                 senderEmail: user.email,
                 senderPhone: user.phone,
-                recipientName: role === 'user' ? 'Case manager' : selectedCase.clientName,
+                recipientName: role === 'user' ? 'Your helper' : selectedCase.clientName,
             });
             const nextMessage = await sendMessage({
                 conversationId: conversation.id,
@@ -1088,7 +1308,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setThreadMessages((previous) => [...previous, nextMessage]);
             setThreadDraft('');
         } catch (error: any) {
-            setThreadError(error?.message || 'Unable to send this case message.');
+            setThreadError(error?.message || (role === 'user' ? 'Unable to send your message right now.' : 'Unable to send this case message.'));
         } finally {
             setThreadSending(false);
         }
@@ -1098,7 +1318,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!previewItem) {
             return (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Pick a file from the workspace to preview it here.
+                    Pick a file to preview it here.
                 </p>
             );
         }
@@ -1203,11 +1423,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div>
                         <p className="text-base font-semibold text-gray-900 dark:text-white">{threadRecipientLabel}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-300">
-                            Messages stay attached to this case only.
+                            {role === 'user' ? 'Messages about your journey stay here.' : 'Messages stay attached to this case only.'}
                         </p>
                     </div>
                     <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
-                        Case chat
+                        {role === 'user' ? 'Messages' : 'Case chat'}
                     </span>
                 </div>
 
@@ -1217,15 +1437,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label="Case chat transcript">
+                <div className="max-h-[320px] space-y-3 overflow-y-auto rounded-3xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40" tabIndex={0} aria-label={role === 'user' ? 'Journey messages' : 'Case chat transcript'}>
                     {threadLoading ? (
                         <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Loading case messages
+                            {role === 'user' ? 'Loading your messages' : 'Loading case messages'}
                         </div>
                     ) : threadMessages.length === 0 ? (
                         <p className="text-sm text-gray-600 dark:text-gray-300">
-                            No case messages yet. Keep every update here instead of leaving the workspace.
+                            {role === 'user' ? 'No messages yet. Keep your updates here.' : 'No case messages yet. Keep every update here instead of leaving the workspace.'}
                         </p>
                     ) : threadMessages.map((message) => {
                         const mine = message.sender_id === user?.id;
@@ -1252,7 +1472,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <textarea
                         value={threadDraft}
                         onChange={(event) => setThreadDraft(event.target.value)}
-                        placeholder="Write one clear update for this case."
+                        placeholder={role === 'user' ? 'Write one clear message.' : 'Write one clear update for this case.'}
                         className="h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                     />
                     <div className="mt-4 flex justify-end">
@@ -1279,7 +1499,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!activeDocument) {
             return (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Core files will appear here when this case reaches the document lane.
+                    {role === 'user' ? 'Your documents will appear here when the document step opens.' : 'Core files will appear here when this case reaches the document lane.'}
                 </p>
             );
         }
@@ -1384,7 +1604,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         <div className="space-y-3">
             {compactActivity.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Recent case updates will appear here.
+                    {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
                 </p>
             ) : compactActivity.map((entry) => (
                 <div
@@ -1420,7 +1640,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (items.length === 0) {
             return (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Linked record ids will appear here as the case progresses.
+                    {role === 'user' ? 'More linked details will appear here as your journey moves forward.' : 'Linked record ids will appear here as the case progresses.'}
                 </p>
             );
         }
@@ -1464,8 +1684,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         return (
             <SectionShell
-                title="Selected"
-                description="This case is anchored to one property and one shared workspace."
+                title={getJourneyStageLabel('selected', selectedCase.journeyMode, role)}
+                description={role === 'user'
+                    ? 'This home is now linked to your guided journey.'
+                    : 'This case is anchored to one property and one shared workspace.'}
             >
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
@@ -1503,7 +1725,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : (
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                        The manager or admin starts the case from here. Once documents are opened, you can upload them in this same workspace.
+                        The team will open the document step here. Once that happens, you can upload what is needed on this page.
                     </div>
                 )}
             </SectionShell>
@@ -1524,8 +1746,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         return (
             <SectionShell
-                title="Documents"
-                description="A compact checklist for the mandatory files. Use the dock for preview, chat, and activity."
+                title={getJourneyStageLabel('documents', selectedCase.journeyMode, role)}
+                description={role === 'user'
+                    ? 'Share the required documents here. Extra help stays under See details.'
+                    : 'A compact checklist for the mandatory files. Use the dock for preview, chat, and activity.'}
             >
                 <div className="mb-4 flex flex-wrap gap-2">
                     <div className="rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
@@ -1538,7 +1762,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         {approvedCount} approved
                     </div>
                     <div className="rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                        Click a file row to focus it in the dock.
+                        {role === 'user' ? 'Open a file row to see more details.' : 'Click a file row to focus it in the dock.'}
                     </div>
                 </div>
 
@@ -1747,8 +1971,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title="Viewing"
-                    description="Confirm the plan or ask for one change right here."
+                    title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
+                    description="Check your viewing plan here or ask for one change."
                 >
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
@@ -1809,7 +2033,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         return (
             <SectionShell
-                title="Viewing"
+                title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
                 description="Schedule, reschedule, skip, or complete the viewing in this workspace."
             >
                 <div className="space-y-5">
@@ -1933,8 +2157,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title={decisionLabel}
-                    description="The manager or admin records the outcome here."
+                    title={getJourneyStageLabel('decision', selectedCase.journeyMode, role)}
+                    description={selectedCase.journeyMode === 'sale'
+                        ? 'We will show your latest offer update here.'
+                        : 'We will show your latest decision here.'}
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -2016,8 +2242,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title="Agreement"
-                    description="Accept the agreement here. If payment is requested, the manager will confirm it here too."
+                    title={getJourneyStageLabel('agreement', selectedCase.journeyMode, role)}
+                    description="Read and sign the agreement here. If a payment is needed, it will appear here too."
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -2028,7 +2254,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     : 'Waiting to be sent'}
                         </p>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.agreement.note || 'The agreement summary stays in this workspace.'}
+                            {selectedCase.agreement.note || 'Your agreement summary stays here.'}
                         </p>
                         {selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid' ? (
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -2043,7 +2269,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             busy={activeAction === 'confirm_agreement'}
                             disabled={selectedCase.agreement.status === 'accepted'}
                         >
-                            Accept agreement
+                            Sign agreement
                         </ActionButton>
                     </div>
                 </SectionShell>
@@ -2119,8 +2345,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (role === 'user') {
             return (
                 <SectionShell
-                    title="Handover"
-                    description="Confirm that the final handover is complete."
+                    title={getJourneyStageLabel('handover', selectedCase.journeyMode, role)}
+                    description="Confirm when the final handover is complete."
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -2131,7 +2357,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     : 'Waiting for the team'}
                         </p>
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                            {selectedCase.handover.note || 'The final handover stays in this workspace.'}
+                            {selectedCase.handover.note || 'Your final handover update stays here.'}
                         </p>
                     </div>
                     <div className="mt-5 flex flex-wrap gap-3">
@@ -2140,7 +2366,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             busy={activeAction === 'confirm_handover'}
                             disabled={selectedCase.handover.confirmedByUser}
                         >
-                            Confirm receipt
+                            Confirm I got the keys
                         </ActionButton>
                     </div>
                 </SectionShell>
@@ -2174,7 +2400,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         onClick={() => void runAction(
                             'complete_handover',
                             { note: handoverNote },
-                            'Fast-track completed.',
+                            role === 'user' ? 'Your journey is complete.' : 'Fast-track completed.',
                         )}
                         busy={activeAction === 'complete_handover'}
                     >
@@ -2182,6 +2408,136 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </ActionButton>
                 </div>
             </SectionShell>
+        );
+    };
+
+    const renderManagerReviewCard = () => {
+        if (!selectedCase || !isManagerReviewEligible) {
+            return null;
+        }
+
+        const isApproved = managerReview?.approval_status === 'approved';
+        const showForm = !isApproved && (managerReviewExpanded || !managerReview);
+
+        return (
+            <div ref={managerReviewSectionRef}>
+                <SectionShell
+                    title={selectedCase.workspaceFinalStatus === 'completed' ? 'Rate your manager' : 'Share feedback about your manager'}
+                    description={selectedCase.workspaceFinalStatus === 'completed'
+                        ? 'Your feedback helps us improve and updates the public score after admin approval.'
+                        : 'You can leave feedback now or after the journey is complete.'}
+                    icon={Star}
+                >
+                    {managerReviewLoading ? (
+                        <div className="flex items-center gap-2 rounded-2xl border border-gray-100 bg-gray-50 px-4 py-4 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-400">
+                            <Loader2 size={16} className="animate-spin" />
+                            Loading your feedback...
+                        </div>
+                    ) : isApproved ? (
+                        <div className="rounded-3xl border border-green-200 bg-green-50/80 p-5 dark:border-green-900/40 dark:bg-green-950/20">
+                            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700 dark:text-green-300">
+                                Feedback received
+                            </p>
+                            <div className="mt-3 flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                    <Star
+                                        key={value}
+                                        size={18}
+                                        className={value <= (managerReview?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-700'}
+                                    />
+                                ))}
+                            </div>
+                            <p className="mt-3 text-sm text-green-900/80 dark:text-green-100/80">
+                                {managerReview?.comment?.trim() || 'Your star rating has been approved.'}
+                            </p>
+                        </div>
+                    ) : showForm ? (
+                        <div className="space-y-4 rounded-3xl border border-gray-100 bg-gray-50/80 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+                            <div>
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">How was your manager?</p>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Leave a 1 to 5 star rating and an optional short note.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {[1, 2, 3, 4, 5].map((value) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setManagerReviewRating(value)}
+                                        className={cn(
+                                            'inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors',
+                                            value <= managerReviewRating
+                                                ? 'border-amber-200 bg-amber-50 text-amber-500 dark:border-amber-900/40 dark:bg-amber-950/30'
+                                                : 'border-gray-200 bg-white text-gray-300 hover:border-amber-200 hover:text-amber-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-600 dark:hover:border-amber-900/40',
+                                        )}
+                                        aria-label={`Rate ${value} star${value === 1 ? '' : 's'}`}
+                                    >
+                                        <Star size={18} className={value <= managerReviewRating ? 'fill-current' : ''} />
+                                    </button>
+                                ))}
+                            </div>
+                            <textarea
+                                value={managerReviewComment}
+                                onChange={(event) => setManagerReviewComment(event.target.value.slice(0, 500))}
+                                placeholder="Optional note"
+                                rows={4}
+                                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none transition focus:border-orange-300 focus:ring-2 focus:ring-orange-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-orange-800 dark:focus:ring-orange-900/40"
+                            />
+                            {managerReviewError ? (
+                                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                                    {managerReviewError}
+                                </div>
+                            ) : null}
+                            <div className="flex flex-wrap gap-3">
+                                <ActionButton onClick={() => void handleSubmitManagerReview()} busy={managerReviewSubmitting}>
+                                    {managerReview ? 'Update feedback' : 'Submit feedback'}
+                                </ActionButton>
+                                {managerReview ? (
+                                    <ActionButton
+                                        tone="secondary"
+                                        onClick={() => {
+                                            setManagerReviewExpanded(false);
+                                            setManagerReviewRating(managerReview.rating);
+                                            setManagerReviewComment(managerReview.comment || '');
+                                            setManagerReviewError(null);
+                                        }}
+                                    >
+                                        Cancel
+                                    </ActionButton>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-5 dark:border-amber-900/40 dark:bg-amber-950/20">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700 dark:text-amber-300">
+                                        Feedback submitted
+                                    </p>
+                                    <p className="mt-2 text-sm text-amber-900/80 dark:text-amber-100/80">
+                                        Your rating is pending admin approval. You can still edit it before it is approved.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <div className="flex items-center gap-1 rounded-full border border-amber-200 bg-white px-3 py-2 dark:border-amber-900/40 dark:bg-gray-950">
+                                        {[1, 2, 3, 4, 5].map((value) => (
+                                            <Star
+                                                key={value}
+                                                size={15}
+                                                className={value <= (managerReview?.rating || 0) ? 'fill-amber-400 text-amber-400' : 'text-gray-300 dark:text-gray-700'}
+                                            />
+                                        ))}
+                                    </div>
+                                    <ActionButton tone="secondary" onClick={() => setManagerReviewExpanded(true)}>
+                                        Edit feedback
+                                    </ActionButton>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </SectionShell>
+            </div>
         );
     };
 
@@ -2207,12 +2563,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     };
 
     const headerStats = useMemo(
-        () => [
-            { label: 'Active', value: stats.active },
-            { label: 'Completed', value: stats.completed },
-            { label: 'Cancelled', value: stats.cancelled },
-        ],
-        [stats.active, stats.cancelled, stats.completed],
+        () => role === 'user'
+            ? [
+                { label: 'Live', value: stats.active },
+                { label: 'Done', value: stats.completed },
+                { label: 'Closed', value: stats.cancelled },
+            ]
+            : [
+                { label: 'Active', value: stats.active },
+                { label: 'Completed', value: stats.completed },
+                { label: 'Cancelled', value: stats.cancelled },
+            ],
+        [role, stats.active, stats.cancelled, stats.completed],
     );
 
     const caseRailItems = useMemo(
@@ -2221,15 +2583,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return {
                 caseId: item.caseId,
                 title: item.propertyTitle,
-                subtitle: item.clientName,
-                stageLabel: formatStageLabel(item.stage, item.journeyMode),
-                deadlineLabel: formatDeadline(item.hoursRemaining),
+                subtitle: role === 'user'
+                    ? `${item.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home`
+                    : item.clientName,
+                stageLabel: formatStageLabel(item.stage, item.journeyMode, role),
+                deadlineLabel: formatDeadline(item.hoursRemaining, role),
                 statusLabel: chip.label,
                 statusTone: chip.tone,
                 selected: selectedCaseId === item.caseId,
             };
         }),
-        [paginatedCases, selectedCaseId],
+        [paginatedCases, role, selectedCaseId],
     );
 
     const stepperItems = useMemo(
@@ -2237,27 +2601,45 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             const Icon = STAGE_ICONS[stage];
             return {
                 key: stage,
-                label: selectedCase ? formatStageLabel(stage, selectedCase.journeyMode) : formatStageLabel(stage, 'rent'),
+                label: selectedCase
+                    ? formatStageLabel(stage, selectedCase.journeyMode, role)
+                    : formatStageLabel(stage, 'rent', role),
                 icon: <Icon size={16} />,
                 active: selectedCase?.stage === stage,
                 complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
             };
         }),
-        [selectedCase, stageIndex],
+        [role, selectedCase, stageIndex],
     );
 
     const selectedCaseSubtitle = selectedCase
-        ? `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
+        ? role === 'user'
+            ? `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`
+            : `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
         : '';
 
     return (
         <div className="space-y-6 pb-16">
             <FastTrackCelebrationOverlay
                 active={showCompletionCelebration}
-                title={role === 'user' ? 'Handover confirmed.' : 'Handover complete.'}
+                role={role}
+                title={role === 'user' ? 'Your journey is complete.' : 'Handover complete.'}
                 subtitle={celebrationPropertyTitle
-                    ? `${celebrationPropertyTitle} is fully completed and the fast-track case is now closed.`
-                    : 'The fast-track case is fully completed and closed.'}
+                    ? role === 'user'
+                        ? `${celebrationPropertyTitle} is ready for your next step.`
+                        : `${celebrationPropertyTitle} is fully completed and the fast-track case is now closed.`
+                    : role === 'user'
+                        ? 'Your 24-hour journey is complete and ready for the next step.'
+                        : 'The fast-track case is fully completed and closed.'}
+                footerAction={role === 'user' && isManagerReviewEligible && managerReview?.approval_status !== 'approved' ? (
+                    <button
+                        type="button"
+                        onClick={openManagerReviewForm}
+                        className="inline-flex items-center justify-center rounded-2xl border border-orange-300/30 bg-orange-400/10 px-4 py-3 text-sm font-semibold text-orange-100 transition hover:bg-orange-400/16"
+                    >
+                        Rate your manager
+                    </button>
+                ) : null}
                 onComplete={() => setShowCompletionCelebration(false)}
             />
             <FastTrackWorkspaceHeader
@@ -2281,9 +2663,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
                     <div className="absolute inset-y-0 left-0 w-full max-w-sm p-4">
                         <FastTrackCaseRail
+                            role={role}
                             query={query}
                             filter={filter}
-                            filters={FILTERS}
+                            filters={filters}
                             currentPage={currentCasePage}
                             totalPages={totalCasePages}
                             totalItems={filteredCases.length}
@@ -2320,9 +2703,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 {!workspacePreferences.caseRailCollapsed ? (
                     <div className="hidden xl:block">
                         <FastTrackCaseRail
+                            role={role}
                             query={query}
                             filter={filter}
-                            filters={FILTERS}
+                            filters={filters}
                             currentPage={currentCasePage}
                             totalPages={totalCasePages}
                             totalItems={filteredCases.length}
@@ -2344,12 +2728,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     {selectedCase ? (
                         <>
                             <FastTrackCaseMasthead
+                                role={role}
                                 title={selectedCase.propertyTitle}
                                 subtitle={selectedCaseSubtitle}
                                 statusLabel={statusChip?.label || 'Active'}
                                 statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
-                                deadlineLabel={formatDeadline(selectedCase.hoursRemaining)}
-                                currentStage={formatStageLabel(selectedCase.stage, selectedCase.journeyMode)}
+                                deadlineLabel={formatDeadline(selectedCase.hoursRemaining, role)}
+                                currentStage={formatStageLabel(selectedCase.stage, selectedCase.journeyMode, role)}
                                 focus={workspaceFocus}
                                 statusSummary={workspaceStatus}
                                 onOpenCustomize={() => setCustomizationOpen(true)}
@@ -2357,30 +2742,64 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                             <FastTrackStageStepper items={stepperItems} />
 
-                            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]">
+                            <div className={cn(
+                                'grid gap-4',
+                                role === 'user'
+                                    ? 'grid-cols-1'
+                                    : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
+                            )}>
                                 <div className="space-y-6">
                                     {renderActiveStage()}
+                                    {renderManagerReviewCard()}
                                 </div>
-                                <div className="space-y-6">
-                                    <FastTrackUtilityDock
-                                        density={workspacePreferences.secondaryDensity}
-                                        modules={utilityModules}
-                                        activeModule={activeUtilityModule}
-                                        onActiveModuleChange={setActiveUtilityModule}
-                                        renderModule={renderUtilityModule}
-                                    />
-                                </div>
+                                {role === 'user' ? (
+                                    <details className="group rounded-[28px] border border-gray-100 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-gray-900 dark:text-white">
+                                            <span>See details</span>
+                                            <span className="text-xs font-medium text-gray-500 transition-transform group-open:rotate-180 dark:text-gray-400">
+                                                v
+                                            </span>
+                                        </summary>
+                                        <div className="mt-4">
+                                            <FastTrackUtilityDock
+                                                role={role}
+                                                density={workspacePreferences.secondaryDensity}
+                                                modules={utilityModules}
+                                                activeModule={activeUtilityModule}
+                                                onActiveModuleChange={setActiveUtilityModule}
+                                                renderModule={renderUtilityModule}
+                                            />
+                                        </div>
+                                    </details>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <FastTrackUtilityDock
+                                            role={role}
+                                            density={workspacePreferences.secondaryDensity}
+                                            modules={utilityModules}
+                                            activeModule={activeUtilityModule}
+                                            onActiveModuleChange={setActiveUtilityModule}
+                                            renderModule={renderUtilityModule}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </>
                     ) : (
                         <div className="rounded-[32px] border border-dashed border-gray-300 bg-white px-6 py-20 text-center text-sm text-gray-500 shadow-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-                            No fast-track case is selected.
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                                {journeyChromeCopy.noSelectionTitle}
+                            </p>
+                            <p className="mt-2">
+                                {journeyChromeCopy.noSelectionDescription}
+                            </p>
                         </div>
                     )}
                 </div>
             </div>
 
             <FastTrackWorkspaceCustomizationDrawer
+                role={role}
                 open={customizationOpen}
                 preferences={workspacePreferences}
                 orderedModules={allOrderedModules}

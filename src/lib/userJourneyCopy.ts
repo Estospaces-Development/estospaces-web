@@ -154,8 +154,8 @@ export const getDashboardSimplificationCopy = () => ({
     'Choose a home yourself or ask us to help you find one nearby.',
   noJourneyPrimaryLabel: 'Find a home',
   noJourneySecondaryLabel: 'Ask us to help',
-  brokerRequestTitle: 'We are finding the best nearby broker now',
-  brokerRequestPrimaryLabel: 'Open broker request',
+  brokerRequestTitle: 'We are finding the nearest property agent now',
+  brokerRequestPrimaryLabel: 'Open agent request',
   brokerRequestSecondaryLabel: 'See details',
   activeJourneyTitle: 'Get your home in 24 hours',
   activeJourneyPrimaryLabel: 'Continue your journey',
@@ -172,33 +172,42 @@ export const getDashboardSimplificationCopy = () => ({
   mapSubtitle: 'Open a marker to see the home and take the next step.',
 });
 
-export const getBrokerRequestCopy = () => ({
+const getAgentRequestActionLabel = (requestType?: string) => {
+  switch (requestType) {
+    case 'rent':
+      return 'Request nearest letting agency';
+    case 'sell':
+      return 'Request property agent';
+    default:
+      return 'Request nearest broker';
+  }
+};
+
+export const getBrokerRequestCopy = (requestType?: string) => ({
   panelTitle: 'Ask us to help',
-  panelSubtitle: 'We can find a nearby broker and bring home choices back to you here.',
-  useDispatchTitle: 'Ask for nearby broker help',
-  useDispatchSubtitle: 'We look for available brokers closest to your preferred area first.',
-  activeRequestEyebrow: 'Broker request',
-  openRequestLabel: 'Open broker request',
-  focusRequestLabel: 'Focus broker request',
+  panelSubtitle: 'We can find the nearest property agent and bring matching home choices back here.',
+  useDispatchTitle: 'Request nearest property agent',
+  useDispatchSubtitle: 'We look for the nearest available broker or letting agency first.',
+  activeRequestEyebrow: 'Agent request',
   restartRequestLabel: 'Start another request',
   refreshRequestLabel: 'Refresh update',
   detailsToggleLabel: 'See details',
-  nearbyBrokersTitle: 'Nearby brokers',
-  nearbyBrokersSubtitle: 'These are the brokers currently closest to your preferred area.',
-  nearbyBrokersLoading: 'Looking for nearby brokers...',
-  nearbyBrokersEmpty: 'Add a postcode to see nearby brokers.',
+  nearbyBrokersTitle: 'Nearest property agents',
+  nearbyBrokersSubtitle: 'These are the nearest available property agents for your area.',
+  nearbyBrokersLoading: 'Looking for nearby property agents...',
+  nearbyBrokersEmpty: 'Add a postcode to see nearby property agents.',
   nearbyBrokerAvailableLabel: 'Available',
   nearbyBrokerQueuedLabel: 'Waiting',
   liveCountdownLabel: 'Response time',
-  matchedBrokerLabel: 'Broker found',
+  matchedBrokerLabel: 'Agent found',
   homeChoicesLabel: 'Home choices',
   requestReferenceLabel: 'Request reference',
   acceptedAtLabel: 'Accepted at',
-  requestFormAction: 'Send request',
-  requestFormActionAgain: 'Send a new request',
-  requestFormHelper: 'We will share updates here so you can move forward without guessing what happens next.',
+  requestFormAction: getAgentRequestActionLabel(requestType),
+  requestFormActionAgain: 'Send another request',
+  requestFormHelper: 'We share every update here so you always know who is responding and what happens next.',
   selectionSuccess: 'Home selected. Your 24-hour journey is ready.',
-  rematchSuccess: 'We are finding another broker for you now.',
+  rematchSuccess: 'We are finding another property agent for you now.',
 });
 
 export const getCaseFileSupportCopy = (role: UserJourneyRole) => {

@@ -34,6 +34,7 @@ interface NearbyPropertiesMapProps {
     onPropertyClick?: ((property: Property) => void) | null;
     onOpenWorkspace?: ((property: Property) => void) | null;
     onStartFastTrack?: ((property: Property) => void) | null;
+    compact?: boolean;
 }
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -155,6 +156,7 @@ const NearbyPropertiesMap = ({
     onPropertyClick = null,
     onOpenWorkspace = null,
     onStartFastTrack = null,
+    compact = false,
 }: NearbyPropertiesMapProps) => {
     const navigate = useNavigate();
     const [isMounted, setIsMounted] = useState(false);
@@ -309,15 +311,15 @@ const NearbyPropertiesMap = ({
 
     if (!hasMapData) {
         return (
-            <div className="relative h-full w-full overflow-hidden rounded-lg bg-white dark:bg-gray-800">
-                <div className="flex h-full w-full items-center justify-center p-8 text-center">
-                    <div className="max-w-sm">
-                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
-                            <Navigation size={24} className="text-gray-400 dark:text-gray-500" />
+            <div className={`relative h-full w-full overflow-hidden rounded-lg ${compact ? 'bg-gradient-to-br from-white via-orange-50/35 to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950' : 'bg-white dark:bg-gray-800'}`}>
+                <div className={`flex h-full w-full ${compact ? 'items-start justify-start p-6 text-left sm:p-8' : 'items-center justify-center p-8 text-center'}`}>
+                    <div className={compact ? 'max-w-md' : 'max-w-sm'}>
+                        <div className={`flex items-center justify-center rounded-full ${compact ? 'mb-4 h-12 w-12 bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300' : 'mx-auto mb-4 h-14 w-14 bg-gray-100 dark:bg-gray-700'}`}>
+                            <Navigation size={24} className={compact ? '' : 'text-gray-400 dark:text-gray-500'} />
                         </div>
-                        <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">Map unavailable</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Add a postcode to your profile or search for a location to view nearby properties.
+                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a postcode to unlock the map</h3>
+                        <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
+                            Use your profile postcode or search a location to see nearby homes without leaving the dashboard.
                         </p>
                     </div>
                 </div>
@@ -335,7 +337,7 @@ const NearbyPropertiesMap = ({
 
     return (
         <div
-            className="relative h-full w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-950"
+            className="relative isolate h-full w-full overflow-hidden rounded-[28px] border border-gray-100 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:border-gray-800 dark:bg-gray-950"
             data-nearby-map-style={mapStyle}
         >
             <MapContainer
@@ -343,7 +345,8 @@ const NearbyPropertiesMap = ({
                 center={[54.5, -3]}
                 zoom={6}
                 style={{ height: '100%', width: '100%' }}
-                scrollWheelZoom
+                scrollWheelZoom={false}
+                dragging={!compact}
                 fadeAnimation={false}
                 markerZoomAnimation={false}
                 zoomAnimation={false}
@@ -430,7 +433,7 @@ const NearbyPropertiesMap = ({
             </MapContainer>
 
             <div className="absolute left-4 top-4 z-[1000] flex max-w-[calc(100%-2rem)] flex-wrap items-start gap-3">
-                <div className="rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+                <div className={`rounded-2xl bg-white/95 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Nearby map</p>
                     <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {propertiesWithCoords.length} {propertiesWithCoords.length === 1 ? 'property' : 'properties'} nearby
@@ -452,7 +455,7 @@ const NearbyPropertiesMap = ({
                         }`}
                     >
                         <Layers3 size={14} />
-                        Standard
+                        {compact ? 'Map' : 'Standard'}
                     </button>
                     <button
                         type="button"
@@ -465,7 +468,7 @@ const NearbyPropertiesMap = ({
                         }`}
                     >
                         <Globe size={14} />
-                        Satellite
+                        {compact ? 'Photo' : 'Satellite'}
                     </button>
                     <button
                         type="button"
@@ -474,12 +477,12 @@ const NearbyPropertiesMap = ({
                         className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
                     >
                         <LocateFixed size={14} />
-                        Recenter
+                        {compact ? 'Reset' : 'Recenter'}
                     </button>
                 </div>
             </div>
 
-            <div className="absolute bottom-4 left-4 z-[1000] rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90">
+            <div className={`absolute bottom-4 left-4 z-[1000] rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/90 ${compact ? 'hidden' : 'hidden lg:block'}`}>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Distance</p>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
                     <span className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-green-500" />Very near</span>
@@ -489,8 +492,8 @@ const NearbyPropertiesMap = ({
                 </div>
             </div>
 
-            {selectedProperty ? (
-                <div className="absolute bottom-4 right-4 z-[1000] w-[340px] max-w-[calc(100%-2rem)] rounded-[24px] bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/95">
+            {selectedProperty && !compact ? (
+                <div className="absolute bottom-4 right-4 z-[1000] w-[300px] max-w-[calc(100%-2rem)] rounded-[24px] bg-white/95 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-sm dark:bg-gray-900/95 lg:w-[320px]">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Selected property</p>
@@ -549,6 +552,22 @@ const NearbyPropertiesMap = ({
                         >
                             Open fast-track
                         </button>
+                    </div>
+                </div>
+            ) : null}
+
+            {compact ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[999] bg-gradient-to-t from-white via-white/94 to-transparent px-4 pb-4 pt-10 dark:from-gray-950 dark:via-gray-950/92">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/92 px-4 py-3 shadow-lg ring-1 ring-black/5 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-900/92">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">Dashboard preview</p>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+                                Browse the map here, then open Discover for the full browsing view.
+                            </p>
+                        </div>
+                        <div className="text-xs font-semibold text-orange-600 dark:text-orange-300">
+                            Scroll stays with the page
+                        </div>
                     </div>
                 </div>
             ) : null}

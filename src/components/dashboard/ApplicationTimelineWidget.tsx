@@ -66,64 +66,64 @@ interface ApplicationItem {
 // --- Constants & Config ---
 
 const RENT_STAGES: Stage[] = [
-    { name: 'Property Selected', description: 'A specific property is now linked to your live journey.', icon: ArrowRight, color: 'blue' },
-    { name: 'Viewing Scheduled', description: 'A real viewing appointment is booked.', icon: Clock, color: 'orange' },
-    { name: 'Application Review', description: 'Referencing and legal compliance checks are being reviewed.', icon: FileText, color: 'purple' },
-    { name: 'Ready for Contract', description: 'The tenancy is approved and ready for the agreement stage.', icon: CheckCircle2, color: 'green' },
-    { name: 'Active Tenancy', description: 'The tenancy is complete and active.', icon: CheckCircle2, color: 'green' }
+    { name: 'Choose your home', description: 'You picked a home and your guided journey is live.', icon: ArrowRight, color: 'blue' },
+    { name: 'Book your viewing', description: 'Your viewing time is being arranged.', icon: Clock, color: 'orange' },
+    { name: 'Review in progress', description: 'Your documents and checks are being reviewed.', icon: FileText, color: 'purple' },
+    { name: 'Sign the agreement', description: 'Everything is ready for the agreement step.', icon: CheckCircle2, color: 'green' },
+    { name: 'Move-in ready', description: 'The renting journey is complete.', icon: CheckCircle2, color: 'green' }
 ];
 
 const SALE_STAGES: Stage[] = [
-    { name: 'Offer Submitted', description: 'Your offer is now recorded against the property.', icon: Send, color: 'blue' },
-    { name: 'Offer Accepted', description: 'The sale is agreed in principle.', icon: CheckCircle2, color: 'green' },
-    { name: 'Memorandum Issued', description: 'The sale memo and next legal steps are underway.', icon: FileText, color: 'purple' },
-    { name: 'Conveyancing', description: 'Legal work and checks are progressing.', icon: MessageCircle, color: 'orange' },
-    { name: 'Exchange & Completion', description: 'The purchase is approaching completion.', icon: CheckCircle2, color: 'green' }
+    { name: 'Offer sent', description: 'Your offer is recorded against the home.', icon: Send, color: 'blue' },
+    { name: 'Offer accepted', description: 'The sale is agreed in principle.', icon: CheckCircle2, color: 'green' },
+    { name: 'Legal steps started', description: 'The sale memo and legal steps are underway.', icon: FileText, color: 'purple' },
+    { name: 'Checks in progress', description: 'Legal work and checks are moving forward.', icon: MessageCircle, color: 'orange' },
+    { name: 'Ready to complete', description: 'The purchase is close to completion.', icon: CheckCircle2, color: 'green' }
 ];
 
 const BROKER_REQUEST_STAGES: Stage[] = [
-    { name: 'Request Sent', description: 'Your 10-minute broker request is live.', icon: Send, color: 'blue', tips: ['Keep this live workspace open for updates'] },
-    { name: 'Nearby Brokers Pinged', description: 'Ranked brokers are being notified in dispatch waves.', icon: Radio, color: 'orange', tips: ['Nearby available brokers are being contacted first'] },
-    { name: 'Broker Matched', description: 'A broker accepted your request and the live queue is now locked.', icon: UserCheck, color: 'green', tips: ['The same broker stays attached until the property handoff is complete'] },
-    { name: 'Properties Shared', description: 'The broker has shared a shortlist of matching properties.', icon: Eye, color: 'purple', tips: ['Choose one property to start the 24-hour fast-track'] },
-    { name: 'Property Selected', description: 'A specific property is selected and the live fast-track can continue.', icon: CheckCircle2, color: 'green', tips: ['The selected property now owns the next 24-hour workflow'] },
+    { name: 'Agent request sent', description: 'Your nearest property agent request is live.', icon: Send, color: 'blue', tips: ['Keep this page open for updates'] },
+    { name: 'Nearby agents contacted', description: 'We are contacting nearby property agents now.', icon: Radio, color: 'orange', tips: ['Closest available property agents are contacted first'] },
+    { name: 'Agent found', description: 'A property agent accepted your request.', icon: UserCheck, color: 'green', tips: ['The same property agent stays with you until you pick a home'] },
+    { name: 'Home choices shared', description: 'Your property agent shared matching homes.', icon: Eye, color: 'purple', tips: ['Choose one home to start your 24-hour journey'] },
+    { name: 'Home selected', description: 'A home is selected and your journey can continue.', icon: CheckCircle2, color: 'green', tips: ['Your chosen home now carries the next step'] },
 ];
 
 const getRentStageSummary = (application: any) => {
     switch (application.status) {
         case 'completed':
-            return { currentStage: 'Active Tenancy', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Open contract' };
+            return { currentStage: 'Move-in ready', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Open agreement' };
         case 'ready_for_contract':
         case 'approved':
-            return { currentStage: 'Ready for Contract', currentStageNumber: 4, totalStages: 5, progress: 80, nextAction: 'Review contract' };
+            return { currentStage: 'Sign the agreement', currentStageNumber: 4, totalStages: 5, progress: 80, nextAction: 'Review agreement' };
         case 'under_review':
         case 'referencing':
         case 'right_to_rent_pending':
         case 'documents_requested':
         case 'viewing_completed':
-            return { currentStage: 'Application Review', currentStageNumber: 3, totalStages: 5, progress: 60, nextAction: 'Wait for review update' };
+            return { currentStage: 'Review in progress', currentStageNumber: 3, totalStages: 5, progress: 60, nextAction: 'Wait for the next update' };
         case 'viewing_scheduled':
         case 'appointment_booked':
-            return { currentStage: 'Viewing Scheduled', currentStageNumber: 2, totalStages: 5, progress: 40, nextAction: 'Attend the viewing' };
+            return { currentStage: 'Book your viewing', currentStageNumber: 2, totalStages: 5, progress: 40, nextAction: 'Attend the viewing' };
         default:
-            return { currentStage: 'Property Selected', currentStageNumber: 1, totalStages: 5, progress: 20, nextAction: 'Schedule a viewing' };
+            return { currentStage: 'Choose your home', currentStageNumber: 1, totalStages: 5, progress: 20, nextAction: 'Wait for the next step' };
     }
 };
 
 const getSaleStageSummary = (currentStage?: string, status?: string) => {
     if (currentStage === 'completion' || status === 'completed') {
-        return { currentStage: 'Exchange & Completion', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Review completion updates' };
+        return { currentStage: 'Ready to complete', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Review the latest update' };
     }
     if (currentStage === 'exchange' || currentStage === 'conveyancing') {
-        return { currentStage: 'Conveyancing', currentStageNumber: 4, totalStages: 5, progress: 80, nextAction: 'Track legal progress' };
+        return { currentStage: 'Checks in progress', currentStageNumber: 4, totalStages: 5, progress: 80, nextAction: 'Track legal progress' };
     }
     if (currentStage === 'memorandum_issued' || currentStage === 'sale_agreed') {
-        return { currentStage: 'Memorandum Issued', currentStageNumber: 3, totalStages: 5, progress: 60, nextAction: 'Monitor the sale memo' };
+        return { currentStage: 'Legal steps started', currentStageNumber: 3, totalStages: 5, progress: 60, nextAction: 'Review the latest update' };
     }
     if (currentStage === 'offer_accepted') {
-        return { currentStage: 'Offer Accepted', currentStageNumber: 2, totalStages: 5, progress: 40, nextAction: 'Wait for the memorandum stage' };
+        return { currentStage: 'Offer accepted', currentStageNumber: 2, totalStages: 5, progress: 40, nextAction: 'Wait for the next legal step' };
     }
-    return { currentStage: 'Offer Submitted', currentStageNumber: 1, totalStages: 5, progress: 20, nextAction: 'Wait for review' };
+    return { currentStage: 'Offer sent', currentStageNumber: 1, totalStages: 5, progress: 20, nextAction: 'Wait for an update' };
 };
 
 const buildJourneyKey = (payload: {
@@ -331,7 +331,7 @@ const ApplicationTimelineWidget = () => {
                         const requestTimeline: TimelineEventType[] = [
                             {
                                 date: new Date(request.created_at || request.updated_at || Date.now()),
-                                event: '10-minute broker dispatch requested',
+                                event: 'Property agent help requested',
                                 type: 'milestone',
                             },
                         ];
@@ -339,13 +339,13 @@ const ApplicationTimelineWidget = () => {
                         if (request.matched_broker?.name) {
                             requestTimeline.push({
                                 date: new Date(request.matched_at || request.updated_at || request.created_at || Date.now()),
-                                event: `${request.matched_broker.name} accepted the live request`,
+                                event: `${request.matched_broker.name} accepted your request`,
                                 type: 'success',
                             });
                         } else {
                             requestTimeline.push({
                                 date: new Date(request.updated_at || request.created_at || Date.now()),
-                                event: `Dispatch wave ${request.dispatch_wave || 1} is notifying nearby brokers`,
+                                event: 'We are checking nearby property agents for you',
                                 type: 'info',
                             });
                         }
@@ -353,7 +353,7 @@ const ApplicationTimelineWidget = () => {
                         if ((request.property_shares?.length || 0) > 0) {
                             requestTimeline.push({
                                 date: new Date(request.updated_at || request.created_at || Date.now()),
-                                event: `${request.property_shares?.length || 0} property option${request.property_shares?.length === 1 ? '' : 's'} shared by the broker`,
+                                event: `${request.property_shares?.length || 0} home choice${request.property_shares?.length === 1 ? '' : 's'} ready to review`,
                                 type: 'action',
                             });
                         }
@@ -362,8 +362,8 @@ const ApplicationTimelineWidget = () => {
                             requestTimeline.push({
                                 date: new Date(request.updated_at || request.created_at || Date.now()),
                                 event: request.selected_property?.title
-                                    ? `${request.selected_property.title} selected for the live fast-track`
-                                    : 'A property has been selected for the live fast-track',
+                                    ? `${request.selected_property.title} selected for the 24-hour journey`
+                                    : 'A home has been selected for the 24-hour journey',
                                 type: 'success',
                             });
                         }
@@ -378,13 +378,13 @@ const ApplicationTimelineWidget = () => {
                             progress: summary.progress,
                             lastUpdated: new Date(request.updated_at || request.created_at || Date.now()),
                             nextAction: summary.nextAction,
-                            estimatedCompletion: '10-minute live broker dispatch',
+                            estimatedCompletion: 'Property agent search is live',
                             property: {
                                 id: request.id,
-                                title: request.selected_property?.title || (request.location ? `Live broker request for ${request.location}` : 'Live broker request'),
+                                title: request.selected_property?.title || (request.location ? `Property agent request for ${request.location}` : 'Property agent request'),
                                 city: request.selected_property?.city || request.location_postcode || request.location || null,
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
-                                priceLabel: request.budget ? `Budget ${request.budget}` : '10-minute live dispatch',
+                                priceLabel: request.budget ? `Budget ${request.budget}` : 'Property agent request',
                                 image_urls: request.selected_property?.image_urls ? [request.selected_property.image_urls] : [],
                             },
                             broker: request.matched_broker ? {
@@ -401,10 +401,10 @@ const ApplicationTimelineWidget = () => {
                                 ? `/user/dashboard/fast-track?case=${request.selected_fast_track_case_id}`
                                 : buildBrokerRequestWorkspacePath(request.id),
                             primaryActionLabel: request.selected_fast_track_case_id
-                                ? 'Open Live Fast-Track'
+                                ? 'Continue 24-hour journey'
                                 : request.matched_broker
-                                    ? 'Open Broker Workspace'
-                                    : 'Track Live Dispatch',
+                                    ? 'Open agent request'
+                                    : 'Track agent request',
                         };
                     });
 
@@ -562,24 +562,24 @@ const ApplicationTimelineWidget = () => {
                         </div>
                         <div>
                             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                                Real-Time Tracking
+                                Your journey progress
                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-sm font-semibold rounded-full">
                                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                     Live
                                 </span>
                             </h2>
                             <p className="text-base text-gray-600 dark:text-gray-300 mt-1">
-                                Track every step of your property journey in real-time
+                                Follow each property step in one place.
                             </p>
                         </div>
                     </div>
 
                     <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1.5">
                         <button onClick={() => handleTabChange('applications')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'applications' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
-                            My Applications ({applications.length})
+                            My journeys ({applications.length})
                         </button>
                         <button onClick={() => handleTabChange('listings')} className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'listings' ? 'bg-white dark:bg-gray-700 text-orange-600 dark:text-orange-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
-                            My Listings ({listings.length})
+                            My homes ({listings.length})
                         </button>
                     </div>
                 </div>
@@ -593,9 +593,9 @@ const ApplicationTimelineWidget = () => {
                             <FileText className="w-8 h-8 text-gray-400" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                            {activeTab === 'applications' ? 'No active applications or live broker requests' : 'No active listings'}
+                            {activeTab === 'applications' ? 'No active journeys yet' : 'No active homes yet'}
                         </h3>
-                        <p className="text-gray-500 dark:text-gray-400 mb-4">Start your property journey today</p>
+                        <p className="text-gray-500 dark:text-gray-400 mb-4">Start with one simple next step.</p>
                     </div>
                 ) : (
                     <>

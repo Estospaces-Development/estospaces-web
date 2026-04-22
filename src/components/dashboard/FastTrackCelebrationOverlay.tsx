@@ -7,6 +7,8 @@ interface FastTrackCelebrationOverlayProps {
     active: boolean;
     title: string;
     subtitle: string;
+    role?: 'user' | 'manager' | 'admin';
+    footerAction?: React.ReactNode;
     onComplete?: () => void;
 }
 
@@ -34,8 +36,8 @@ interface Particle {
 
 const COLORS = ['#f97316', '#fb923c', '#facc15', '#22c55e', '#38bdf8', '#f8fafc', '#fdba74'];
 const PARTICLE_SHAPES: ParticleShape[] = ['streamer', 'square', 'diamond', 'circle', 'spark', 'house'];
-const CELEBRATION_DURATION_MS = 5600;
-const PARTICLE_COUNT = 340;
+const CELEBRATION_DURATION_MS = 6200;
+const PARTICLE_COUNT = 420;
 
 const randomBetween = (minimum: number, maximum: number) => minimum + Math.random() * (maximum - minimum);
 
@@ -177,6 +179,8 @@ export default function FastTrackCelebrationOverlay({
     active,
     title,
     subtitle,
+    role = 'manager',
+    footerAction,
     onComplete,
 }: FastTrackCelebrationOverlayProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -289,87 +293,90 @@ export default function FastTrackCelebrationOverlay({
         return null;
     }
 
+    const overlayCopy = role === 'user'
+        ? {
+            eyebrow: 'Your 24-hour journey is complete',
+            note: 'Everything is now in place. Take a moment and enjoy the milestone.',
+            milestone: 'Keys and handover confirmed',
+            footer: 'You can open the full journey details any time from your dashboard.',
+        }
+        : {
+            eyebrow: 'Journey closed successfully',
+            note: 'Every final step is aligned and the handover is fully wrapped up.',
+            milestone: 'Completion and handover verified',
+            footer: 'The journey is now closed cleanly with the final records in place.',
+        };
+
     return (
         <div
             data-fast-track-celebration-overlay="true"
-            className="pointer-events-none fixed inset-0 z-[220] overflow-hidden"
+            className="pointer-events-none fixed inset-0 z-[10050] overflow-hidden"
         >
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(15,23,42,0.06),rgba(15,23,42,0.12))] dark:bg-[linear-gradient(180deg,rgba(2,6,23,0.22),rgba(2,6,23,0.46))]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.74),transparent_32%)] dark:bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.12),transparent_30%)]" />
-            <div className="absolute -left-10 top-4 h-72 w-72 rounded-full bg-orange-300/28 blur-3xl" />
-            <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-amber-300/18 blur-3xl" />
-            <div className="absolute bottom-0 left-1/4 h-64 w-64 rounded-full bg-emerald-300/14 blur-3xl" />
-            <div className="absolute bottom-8 right-1/4 h-64 w-64 rounded-full bg-sky-300/12 blur-3xl" />
+            <div className="absolute inset-0 bg-slate-950/54 backdrop-blur-[18px]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,146,60,0.24),transparent_28%),radial-gradient(circle_at_bottom,rgba(56,189,248,0.14),transparent_30%)]" />
+            <div className="absolute left-1/2 top-1/2 h-[34rem] w-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-400/12 blur-3xl" />
+            <div className="absolute left-1/2 top-1/2 h-[24rem] w-[24rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/5 blur-2xl" />
+            <div className="absolute -left-12 top-10 h-72 w-72 rounded-full bg-orange-400/14 blur-3xl" />
+            <div className="absolute -right-10 bottom-8 h-72 w-72 rounded-full bg-emerald-400/10 blur-3xl" />
             <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />
 
-            <div className="absolute inset-x-0 top-5 flex justify-center px-4 sm:top-8">
-                <div className="relative w-full max-w-3xl">
-                    <div className="absolute inset-0 rounded-[2.3rem] bg-[linear-gradient(135deg,rgba(249,115,22,0.28),rgba(250,204,21,0.14),rgba(34,197,94,0.18))] blur-2xl" />
-                    <div className="absolute -left-3 top-10 h-20 w-20 rounded-full border border-white/40 bg-white/30 blur-md dark:border-white/10 dark:bg-white/6" />
-                    <div className="absolute -right-4 top-16 h-24 w-24 rounded-full border border-orange-200/60 bg-orange-200/25 blur-md dark:border-orange-400/20 dark:bg-orange-500/8" />
+            <div className="absolute inset-0 flex items-center justify-center px-4 py-6 sm:px-6">
+                <div className="relative w-full max-w-2xl">
+                    <div className="absolute inset-0 rounded-[2.6rem] bg-[radial-gradient(circle,rgba(249,115,22,0.26),rgba(15,23,42,0.12)_58%,transparent_74%)] blur-3xl" />
 
-                    <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,247,237,0.9))] px-6 py-6 text-center shadow-[0_36px_120px_-38px_rgba(15,23,42,0.48)] backdrop-blur-2xl dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(2,6,23,0.92),rgba(15,23,42,0.84))] sm:px-8 sm:py-7">
-                        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.66),rgba(255,255,255,0.18))] dark:bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
-                        <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/70 to-transparent" />
+                    <div className="pointer-events-auto relative overflow-hidden rounded-[2.35rem] border border-white/12 bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(2,6,23,0.96))] px-6 py-8 text-center shadow-[0_60px_150px_-42px_rgba(0,0,0,0.82)] backdrop-blur-2xl sm:px-10 sm:py-10">
+                        <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(251,146,60,0.14),transparent_26%,rgba(255,255,255,0.04)_52%,transparent_78%)]" />
+                        <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-orange-300/60 to-transparent" />
+                        <div className="absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 rounded-full bg-orange-300/10 blur-3xl" />
 
                         <div className="relative flex flex-col items-center">
-                            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-orange-50/90 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-700 shadow-sm dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-200">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-orange-300/30 bg-orange-400/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-100">
                                 <Sparkles className="h-3.5 w-3.5" />
-                                24-Hour Fast Track
+                                {overlayCopy.eyebrow}
                             </div>
 
-                            <div className="mb-5 w-full max-w-2xl rounded-[2rem] border border-orange-100/80 bg-white/58 px-5 py-5 shadow-[0_20px_60px_-42px_rgba(249,115,22,0.6)] backdrop-blur-sm dark:border-white/10 dark:bg-white/[0.03] sm:px-6">
-                                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-center sm:gap-5">
-                                    <div className="relative flex h-24 w-24 shrink-0 items-center justify-center sm:h-28 sm:w-28">
-                                        <div className="absolute inset-0 rounded-full border border-orange-200/80 bg-[radial-gradient(circle,rgba(251,146,60,0.22),rgba(255,255,255,0.14)_60%,transparent_78%)] dark:border-orange-400/20 dark:bg-[radial-gradient(circle,rgba(249,115,22,0.24),rgba(15,23,42,0.04)_58%,transparent_78%)]" />
-                                        <div className="absolute inset-[10px] rounded-full border border-white/80 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:border-white/10 dark:bg-slate-950/72" />
-                                        <div className="relative flex h-16 w-16 items-center justify-center rounded-[1.4rem] border border-white/80 bg-[linear-gradient(160deg,#fb923c,#f97316_42%,#f59e0b)] text-white shadow-[0_20px_48px_-22px_rgba(249,115,22,0.88)] sm:h-20 sm:w-20">
-                                            <Building2 className="h-8 w-8 sm:h-9 sm:w-9" />
-                                        </div>
-                                        <div className="absolute bottom-0 right-1 flex h-8 w-8 items-center justify-center rounded-xl border border-white/90 bg-emerald-50 text-emerald-600 shadow-lg dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200">
-                                            <CheckCircle2 className="h-4.5 w-4.5" />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex max-w-md flex-col items-center text-center sm:items-start sm:text-left">
-                                        <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-500 dark:text-slate-400">
-                                            Completion verified
-                                        </p>
-                                        <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                                            Documents are aligned, the workspace is ready, and the next handoff can start without extra follow-up.
-                                        </p>
-                                        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-orange-200/80 bg-orange-50/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-700 shadow-sm dark:border-orange-400/20 dark:bg-orange-500/10 dark:text-orange-200">
-                                            <Sparkles className="h-3.5 w-3.5" />
-                                            Workspace ready
-                                        </div>
-                                    </div>
+                            <div className="relative mt-7 flex h-32 w-32 items-center justify-center sm:h-36 sm:w-36">
+                                <div className="absolute inset-0 rounded-full border border-orange-200/30 bg-orange-400/10" />
+                                <div className="absolute inset-[10px] rounded-full border border-white/12 bg-white/5" />
+                                <div className="absolute inset-[24px] rounded-[2rem] bg-[linear-gradient(160deg,#fb923c,#f97316_42%,#f59e0b)] shadow-[0_30px_90px_-26px_rgba(249,115,22,0.9)]" />
+                                <div className="absolute inset-[24px] rounded-[2rem] border border-white/30" />
+                                <div className="relative flex h-20 w-20 items-center justify-center text-white sm:h-24 sm:w-24">
+                                    <Building2 className="h-11 w-11 sm:h-12 sm:w-12" />
+                                </div>
+                                <div className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-2xl border border-white/20 bg-emerald-400/18 text-emerald-100 shadow-lg shadow-emerald-900/20">
+                                    <CheckCircle2 className="h-5 w-5" />
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em]">
-                                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50/90 px-3 py-1.5 text-emerald-700 shadow-sm dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200">
-                                    <CheckCircle2 className="h-3.5 w-3.5" />
-                                    Verified handoff
-                                </span>
-                                <span className="rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-slate-600 shadow-sm dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-200">
-                                    Estospaces workspace
-                                </span>
-                            </div>
-
-                            <div className="mt-4 h-px w-full max-w-md bg-gradient-to-r from-transparent via-orange-200/80 to-transparent dark:via-orange-400/20" />
-
                             <h2
                                 data-fast-track-celebration-title="true"
-                                className="mt-4 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-[2.35rem]"
+                                className="mt-8 text-3xl font-semibold tracking-tight text-white sm:text-[3rem]"
                             >
                                 {title}
                             </h2>
-                            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300 sm:text-base">
+                            <p className="mt-4 max-w-xl text-base leading-7 text-slate-200/92">
                                 {subtitle}
                             </p>
-                            <p className="mt-3 max-w-xl text-xs font-medium uppercase tracking-[0.2em] text-slate-500/90 dark:text-slate-400 sm:text-[13px]">
-                                Documents, viewing, and next-step handoff are aligned.
+
+                            <div className="mt-6 max-w-xl rounded-[1.6rem] border border-white/10 bg-white/6 px-5 py-4 text-sm leading-6 text-slate-200/86">
+                                {overlayCopy.note}
+                            </div>
+
+                            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em]">
+                                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-emerald-100">
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    {overlayCopy.milestone}
+                                </span>
+                            </div>
+
+                            <p className="mt-4 max-w-lg text-xs leading-5 text-slate-300/72 sm:text-sm">
+                                {overlayCopy.footer}
                             </p>
+                            {footerAction ? (
+                                <div className="mt-5 flex justify-center">
+                                    {footerAction}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
                 </div>

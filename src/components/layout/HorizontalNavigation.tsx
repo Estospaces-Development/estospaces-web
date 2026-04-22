@@ -9,20 +9,13 @@ import {
 } from "react-router-dom";
 import {
   LayoutDashboard,
-  FileText,
-  Calendar,
   MessageSquare,
-  User,
-  HelpCircle,
+  FolderKanban,
   ShoppingBag,
   Home,
-  Heart,
-  Settings,
-  BookOpen,
 } from "lucide-react";
 import { useMessages } from "../../contexts/MessagesContext";
 import { usePropertyFilter } from "../../contexts/PropertyFilterContext";
-import { useSavedProperties } from "../../contexts/SavedPropertiesContext";
 
 // Helper component for unread count badge
 const UnreadCountBadge = ({ count }: { count: number }) => {
@@ -48,20 +41,11 @@ const HorizontalNavigation = ({
 
   const { totalUnreadCount } = useMessages();
   const { setActiveTab } = usePropertyFilter();
-  const { savedProperties } = useSavedProperties();
   const [clickedTab, setClickedTab] = useState<string | null>(null);
+  const dashboardResetPath = "/user/dashboard?reset=1";
 
-  const navItems = [
+  const primaryNavItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/user/dashboard" },
-    {
-      icon: Heart,
-      label: "Saved Properties",
-      path: "/user/saved",
-      showBadge: true,
-      badgeCount: savedProperties?.length || 0,
-    },
-    { icon: FileText, label: "My Applications", path: "/user/applications" },
-    { icon: Calendar, label: "Viewings", path: "/user/dashboard/viewings" },
     {
       icon: MessageSquare,
       label: "Messages",
@@ -70,19 +54,24 @@ const HorizontalNavigation = ({
       badgeCount: totalUnreadCount,
     },
     {
-      icon: FileText,
-      label: "My Properties",
-      path: "/user/dashboard/contracts",
+      icon: FolderKanban,
+      label: "My Activity",
+      path: "/user/saved",
+      activePaths: [
+        "/user/saved",
+        "/user/applications",
+        "/user/dashboard/viewings",
+        "/user/dashboard/contracts",
+      ],
     },
-    { icon: User, label: "Profile", path: "/user/dashboard/profile" },
-    { icon: Settings, label: "Settings", path: "/user/dashboard/settings" },
-    { icon: BookOpen, label: "Docs", path: "/user/dashboard/docs" },
-    { icon: HelpCircle, label: "Help & Support", path: "/user/dashboard/help" },
   ];
 
   const getLinkPath = (path: string) => path;
 
-  const isActive = (path: string) => {
+  const isActive = (path: string, activePaths?: string[]) => {
+    if (activePaths?.some((candidate) => pathname?.startsWith(candidate))) {
+      return true;
+    }
     const checkPath = getLinkPath(path);
     if (checkPath === "/dashboard") {
       // Handle dashboard specifically if stripped
@@ -129,6 +118,12 @@ const HorizontalNavigation = ({
     setTimeout(() => setClickedTab(null), 300);
   };
 
+  const handleDashboardClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    handleNavClick("/user/dashboard");
+    navigate(dashboardResetPath);
+  };
+
   return (
     <nav
       className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-16 z-20 shadow-sm"
@@ -139,16 +134,15 @@ const HorizontalNavigation = ({
         {/* Desktop: Horizontal tabs - Centered */}
         <div className="hidden md:flex items-center justify-center gap-0.5 overflow-x-auto scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
           {/* Dashboard */}
-          {navItems.slice(0, 1).map((item) => {
+          {primaryNavItems.slice(0, 1).map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
-            const linkPath = getLinkPath(item.path);
+            const active = isActive(item.path, item.activePaths);
 
             return (
               <Link
                 key={item.path}
-                to={linkPath}
-                onClick={() => handleNavClick(item.path)}
+                to={dashboardResetPath}
+                onClick={handleDashboardClick}
                 className={`
                   relative flex items-center gap-2 px-2 py-2.5 text-sm font-medium transition-all duration-200 ease-out
                   rounded-lg
@@ -235,10 +229,10 @@ const HorizontalNavigation = ({
             </button>
           </div>
 
-          {/* Saved Properties, Applications, and rest of navigation items */}
-          {navItems.slice(1).map((item) => {
+          {/* Remaining primary items */}
+          {primaryNavItems.slice(1).map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
+            const active = isActive(item.path, item.activePaths);
             const linkPath = getLinkPath(item.path);
 
             return (
@@ -280,16 +274,15 @@ const HorizontalNavigation = ({
         {/* Mobile: Scrollable pill-style buttons - Centered */}
         <div className="md:hidden flex items-center justify-center gap-2 overflow-x-auto scrollbar-hide py-3 -mx-4 px-4">
           {/* Dashboard */}
-          {navItems.slice(0, 1).map((item) => {
+          {primaryNavItems.slice(0, 1).map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
-            const linkPath = getLinkPath(item.path);
+            const active = isActive(item.path, item.activePaths);
 
             return (
               <Link
                 key={item.path}
-                to={linkPath}
-                onClick={() => handleNavClick(item.path)}
+                to={dashboardResetPath}
+                onClick={handleDashboardClick}
                 className={`
                   relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
                   flex-shrink-0 cursor-pointer
@@ -373,50 +366,10 @@ const HorizontalNavigation = ({
             </button>
           </div>
 
-          {/* Saved Properties - Mobile - After Rent */}
-          {navItems.slice(1, 2).map((item) => {
+          {/* Remaining primary items - Mobile */}
+          {primaryNavItems.slice(1).map((item) => {
             const Icon = item.icon;
-            const active = isActive(item.path);
-            const linkPath = getLinkPath(item.path);
-
-            return (
-              <Link
-                key={item.path}
-                to={linkPath}
-                onClick={() => handleNavClick(item.path)}
-                className={`
-                  relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ease-out
-                  flex-shrink-0 cursor-pointer
-                  ${
-                    active
-                      ? "bg-orange-500 dark:bg-orange-600 text-white shadow-sm active:bg-orange-600 dark:active:bg-orange-700 active:text-white"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 active:text-gray-900 dark:active:text-gray-100"
-                  }
-                  ${clickedTab === item.path ? "scale-95 transform active:scale-90" : "scale-100"}
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2
-                `}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon
-                  size={16}
-                  className={`flex-shrink-0 transition-transform duration-300 ${
-                    clickedTab === item.path
-                      ? "rotate-12 scale-110"
-                      : "rotate-0 scale-100"
-                  }`}
-                />
-                <span className="whitespace-nowrap">{item.label}</span>
-                {item.showBadge && item.badgeCount > 0 && (
-                  <UnreadCountBadge count={item.badgeCount} />
-                )}
-              </Link>
-            );
-          })}
-
-          {/* Rest of navigation items - Mobile */}
-          {navItems.slice(2).map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
+            const active = isActive(item.path, item.activePaths);
             const linkPath = getLinkPath(item.path);
 
             return (
@@ -453,6 +406,7 @@ const HorizontalNavigation = ({
             );
           })}
         </div>
+
       </div>
     </nav>
   );

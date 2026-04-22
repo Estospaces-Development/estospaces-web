@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, Loader2, LogOut, Settings, HelpCircle } from 'lucide-react';
+import { ChevronDown, Loader2, LogOut, Settings, HelpCircle, User, BookOpen } from 'lucide-react';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
@@ -91,6 +91,26 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                     </div>
 
                                     <div className="p-2">
+                                        <button
+                                            onClick={() => {
+                                                setUserMenuOpen(false);
+                                                navigate(getLinkPath('/user/dashboard/profile'));
+                                            }}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                        >
+                                            <User size={18} className="text-gray-400" />
+                                            Profile
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setUserMenuOpen(false);
+                                                navigate(getLinkPath('/user/docs'));
+                                            }}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                        >
+                                            <BookOpen size={18} className="text-gray-400" />
+                                            Docs
+                                        </button>
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);

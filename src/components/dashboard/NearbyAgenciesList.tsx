@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { MapPin, Star, ChevronRight, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import {
     BROKER_REQUEST_WORKSPACE_EVENT,
-    buildBrokerRequestWorkspacePath,
     readBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
@@ -124,7 +123,7 @@ const NearbyAgenciesList = () => {
                 setBrokers(data || []);
                 setLoadError(null);
             } catch (err: any) {
-                setLoadError(err.message || 'Nearby brokers are not available right now.');
+                setLoadError(err.message || 'Nearby property agents are not available right now.');
             } finally {
                 setLoading(false);
             }
@@ -169,28 +168,22 @@ const NearbyAgenciesList = () => {
                         <Building2 size={20} className="text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-gray-900 dark:text-white">Nearby available brokers</h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Ranked for 10-minute live dispatch</p>
+                        <h3 className="font-bold text-gray-900 dark:text-white">Nearest property agents</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Ranked by who is nearest and ready to help</p>
                     </div>
                 </div>
-                <Link
-                    to={buildBrokerRequestWorkspacePath(activeRequest?.id)}
-                    className="text-xs font-semibold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center gap-1 shrink-0"
-                >
-                    Open broker workspace <ChevronRight size={14} />
-                </Link>
             </div>
 
             {activeRequest && (
                 <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm dark:border-blue-900/30 dark:bg-blue-950/20">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-500 dark:text-blue-300">Live request</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-500 dark:text-blue-300">Agent request</p>
                     <p className="mt-1 font-semibold text-gray-900 dark:text-white">
-                        {activeRequest.matched_broker?.name || 'Searching nearby brokers'}
+                        {activeRequest.matched_broker?.name || 'Searching nearby property agents'}
                     </p>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                         {activeRequest.dispatch_status
                             ? activeRequest.dispatch_status.replace(/[_-]+/g, ' ')
-                            : 'Live dispatch in progress'}
+                            : 'Agent search in progress'}
                         {activeRequest.location_postcode ? ` - ${activeRequest.location_postcode}` : ''}
                     </p>
                 </div>
@@ -199,15 +192,15 @@ const NearbyAgenciesList = () => {
             {effectivePostcode && (
                 <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                        {isManualSearchActive ? 'Postcode search' : 'Dispatch area'}
+                        {isManualSearchActive ? 'Postcode search' : 'Request area'}
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-3">
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{effectivePostcode}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {isManualSearchActive
-                                    ? 'Showing brokers ranked nearest to this full postcode.'
-                                    : 'Showing brokers ranked for your active live request.'}
+                                    ? 'Showing property agents ranked nearest to this full postcode.'
+                                    : 'Showing property agents ranked for your active request.'}
                             </p>
                         </div>
                         {isManualSearchActive && liveRequestPostcode && (
@@ -217,7 +210,7 @@ const NearbyAgenciesList = () => {
                                 className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                             >
                                 <X size={12} />
-                                Use live request
+                                Use active request
                             </button>
                         )}
                     </div>
@@ -235,8 +228,8 @@ const NearbyAgenciesList = () => {
             ) : brokers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
                     {effectivePostcode
-                        ? 'No available brokers are ranked for this postcode yet.'
-                        : 'Add a postcode or start a live broker request to see ranked brokers here.'}
+                        ? 'No available property agents are ranked for this postcode yet.'
+                        : 'Add a postcode or request a nearby property agent to see ranked agents here.'}
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -256,7 +249,7 @@ const NearbyAgenciesList = () => {
                                     </span>
                                 </div>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {broker.company_name || 'Independent broker'}
+                                            {broker.company_name || 'Independent agent'}
                                     {broker.postcode ? ` - ${broker.postcode}` : ''}
                                 </p>
                                 <div className="flex items-center gap-2 mt-1.5">
@@ -294,9 +287,9 @@ const NearbyAgenciesList = () => {
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find broker by postcode</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by postcode</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Enter a full UK postcode to rank available brokers nearest that area.
+                                Enter a full UK postcode to rank the nearest available property agents in that area.
                             </p>
                         </div>
                         {liveRequestPostcode && (
@@ -356,7 +349,7 @@ const NearbyAgenciesList = () => {
                     }}
                     className="w-full mt-6 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium"
                 >
-                    Find broker by postcode
+                    Find nearest agent by postcode
                 </button>
             )}
         </div>

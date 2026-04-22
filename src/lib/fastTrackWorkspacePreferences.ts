@@ -1,3 +1,5 @@
+import { getJourneyModuleLabel } from '@/lib/userJourneyCopy';
+
 export type FastTrackWorkspaceRole = 'user' | 'manager' | 'admin';
 
 export type FastTrackWorkspaceModule =
@@ -40,6 +42,11 @@ export const FAST_TRACK_WORKSPACE_MODULE_LABELS: Record<
   activity: 'Activity',
   connected_records: 'Connected records',
 };
+
+export const getFastTrackWorkspaceModuleLabel = (
+  module: FastTrackWorkspaceModule,
+  role: FastTrackWorkspaceRole,
+) => getJourneyModuleLabel(module, role);
 
 const normalizeModule = (
   value: string | null | undefined,
@@ -108,10 +115,12 @@ export const defaultFastTrackWorkspacePreferences = (
   workspaceKey: 'fast_track',
   role,
   layoutMode: 'balanced_compact',
-  caseRailCollapsed: false,
+  caseRailCollapsed: role === 'user',
   secondaryDensity: 'compact',
-  showMetricsStrip: true,
-  visibleModules: [...FAST_TRACK_WORKSPACE_MODULES],
+  showMetricsStrip: role !== 'user',
+  visibleModules: role === 'user'
+    ? ['core_files', 'case_chat', 'preview']
+    : [...FAST_TRACK_WORKSPACE_MODULES],
   moduleOrder: [...FAST_TRACK_WORKSPACE_MODULES],
   defaultActiveModule: 'core_files',
 });
@@ -175,4 +184,3 @@ export const moveFastTrackWorkspaceModule = (
   next.splice(targetIndex, 0, removed);
   return next;
 };
-

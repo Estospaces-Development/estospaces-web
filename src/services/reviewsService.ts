@@ -93,7 +93,7 @@ export async function deleteReview(reviewId: string): Promise<{ success: boolean
     }
 }
 
-export async function getPendingReviews(): Promise<{ success: boolean; data: Review[] | null; error?: string }> {
+export async function getAdminReviews(): Promise<{ success: boolean; data: Review[] | null; error?: string }> {
     try {
         const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/admin/reviews`);
         return { success: true, data: data.map(normaliseReview) };
@@ -116,6 +116,6 @@ export const reviewsService = {
     getUserReviews,
     createReview,
     deleteReview,
-    getPendingReviews,
+    getAdminReviews,
     approveReview,
 };

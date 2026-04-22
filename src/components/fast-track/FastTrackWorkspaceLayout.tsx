@@ -17,7 +17,8 @@ import type {
   FastTrackWorkspacePreferences,
   FastTrackWorkspaceRole,
 } from '@/lib/fastTrackWorkspacePreferences';
-import { FAST_TRACK_WORKSPACE_MODULE_LABELS } from '@/lib/fastTrackWorkspacePreferences';
+import { getFastTrackWorkspaceModuleLabel } from '@/lib/fastTrackWorkspacePreferences';
+import { getJourneyChromeCopy } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -65,6 +66,8 @@ export function FastTrackWorkspaceHeader({
   onToggleRail,
   onOpenCustomize,
 }: FastTrackWorkspaceHeaderProps) {
+  const copy = getJourneyChromeCopy(role);
+
   return (
     <div className="flex flex-col gap-3" data-fast-track-header>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -84,14 +87,14 @@ export function FastTrackWorkspaceHeader({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-[26px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
-                Fast-track workspace
+                {copy.headerTitle}
               </h1>
               <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                 {role}
               </span>
             </div>
             <p className="mt-1 max-w-2xl text-[13px] text-gray-600 dark:text-gray-300">
-              One calm workspace from property selection to handover. The workflow stays visible and the secondary tools stay customizable.
+              {copy.headerSubtitle}
             </p>
           </div>
         </div>
@@ -104,7 +107,7 @@ export function FastTrackWorkspaceHeader({
             className="inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
           >
             {railCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            {railCollapsed ? 'Show cases' : 'Collapse cases'}
+            {railCollapsed ? copy.showRailLabel : copy.hideRailLabel}
           </button>
           <button
             type="button"
@@ -113,7 +116,7 @@ export function FastTrackWorkspaceHeader({
             className="inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
           >
             <Settings2 size={16} />
-            Customize
+            {copy.pageOptionsLabel}
           </button>
         </div>
       </div>
@@ -140,6 +143,7 @@ export function FastTrackWorkspaceHeader({
 }
 
 interface FastTrackCaseRailProps {
+  role: FastTrackWorkspaceRole;
   query: string;
   filter: FilterMode;
   filters: Array<{ value: FilterMode; label: string }>;
@@ -157,6 +161,7 @@ interface FastTrackCaseRailProps {
 }
 
 export function FastTrackCaseRail({
+  role,
   query,
   filter,
   filters,
@@ -172,6 +177,8 @@ export function FastTrackCaseRail({
   onPageChange,
   className,
 }: FastTrackCaseRailProps) {
+  const copy = getJourneyChromeCopy(role);
+
   return (
     <aside
       className={cn(
@@ -179,16 +186,16 @@ export function FastTrackCaseRail({
         className,
       )}
       data-fast-track-case-rail
-      aria-label="Fast-track case list"
+      aria-label={role === 'user' ? 'Journey list' : 'Fast-track case list'}
     >
       <div className="space-y-2.5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
-              Cases
+              {copy.caseRailTitle}
             </p>
             <p className="mt-1 text-xs font-semibold text-gray-900 dark:text-white">
-              {totalItems} matching {totalItems === 1 ? 'case' : 'cases'}
+              {totalItems} matching {totalItems === 1 ? copy.caseSingular : copy.casePlural}
             </p>
           </div>
           <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
@@ -204,7 +211,7 @@ export function FastTrackCaseRail({
           <input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search property or client"
+            placeholder={copy.searchPlaceholder}
             className="h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200"
           />
         </div>
@@ -231,7 +238,7 @@ export function FastTrackCaseRail({
       <div className="space-y-2">
         {items.length === 0 ? (
           <div className="rounded-[28px] border border-dashed border-gray-300 bg-gray-50 px-5 py-12 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-            No fast-track cases match this filter.
+            {copy.emptyCaseList}
           </div>
         ) : (
           items.map((item) => (
@@ -277,7 +284,7 @@ export function FastTrackCaseRail({
           totalItems={totalItems}
           pageSize={pageSize}
           currentItemCount={paginatedCount}
-          itemLabel="cases"
+          itemLabel={copy.casePlural}
           stacked
         />
       ) : null}
@@ -286,6 +293,7 @@ export function FastTrackCaseRail({
 }
 
 interface FastTrackCaseMastheadProps {
+  role: FastTrackWorkspaceRole;
   title: string;
   subtitle: string;
   statusLabel: string;
@@ -298,6 +306,7 @@ interface FastTrackCaseMastheadProps {
 }
 
 export function FastTrackCaseMasthead({
+  role,
   title,
   subtitle,
   statusLabel,
@@ -308,6 +317,8 @@ export function FastTrackCaseMasthead({
   statusSummary,
   onOpenCustomize,
 }: FastTrackCaseMastheadProps) {
+  const copy = getJourneyChromeCopy(role);
+
   return (
     <section className="overflow-hidden rounded-[30px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)]" data-fast-track-masthead>
       <div className="flex flex-col gap-3">
@@ -335,15 +346,15 @@ export function FastTrackCaseMasthead({
               className="inline-flex h-9 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3.5 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
             >
               <ListFilter size={15} />
-              Tune layout
+              {copy.mastheadLayoutLabel}
             </button>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2.5">
-          <MastheadInfoCard label="24h" value={deadlineLabel} />
-          <MastheadInfoCard label="Current stage" value={currentStage} />
-          <MastheadInfoCard label="Focus" value={focus} />
+          <MastheadInfoCard label={copy.mastheadDeadlineLabel} value={deadlineLabel} />
+          <MastheadInfoCard label={copy.mastheadStageLabel} value={currentStage} />
+          <MastheadInfoCard label={copy.mastheadNextLabel} value={focus} />
         </div>
       </div>
     </section>
@@ -406,6 +417,7 @@ export function FastTrackStageStepper({ items }: FastTrackStageStepperProps) {
 }
 
 interface FastTrackUtilityDockProps {
+  role: FastTrackWorkspaceRole;
   density: FastTrackWorkspacePreferences['secondaryDensity'];
   modules: FastTrackWorkspaceModule[];
   activeModule: FastTrackWorkspaceModule;
@@ -414,6 +426,7 @@ interface FastTrackUtilityDockProps {
 }
 
 export function FastTrackUtilityDock({
+  role,
   density,
   modules,
   activeModule,
@@ -424,15 +437,17 @@ export function FastTrackUtilityDock({
     return null;
   }
 
+  const copy = getJourneyChromeCopy(role);
+
   return (
     <section className="rounded-[28px] border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
       <div className="space-y-3.5">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
-            Utility dock
+            {copy.utilityDockTitle}
           </p>
           <p className="mt-1 text-[13px] text-gray-600 dark:text-gray-300">
-            Keep the secondary tools close, but only one active at a time.
+            {copy.utilityDockDescription}
           </p>
         </div>
 
@@ -450,7 +465,7 @@ export function FastTrackUtilityDock({
                   : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
               )}
             >
-              {FAST_TRACK_WORKSPACE_MODULE_LABELS[module]}
+              {getFastTrackWorkspaceModuleLabel(module, role)}
             </button>
           ))}
         </div>
@@ -470,6 +485,7 @@ export function FastTrackUtilityDock({
 }
 
 interface FastTrackWorkspaceCustomizationDrawerProps {
+  role: FastTrackWorkspaceRole;
   open: boolean;
   preferences: FastTrackWorkspacePreferences;
   orderedModules: FastTrackWorkspaceModule[];
@@ -484,6 +500,7 @@ interface FastTrackWorkspaceCustomizationDrawerProps {
 }
 
 export function FastTrackWorkspaceCustomizationDrawer({
+  role,
   open,
   preferences,
   orderedModules,
@@ -500,6 +517,8 @@ export function FastTrackWorkspaceCustomizationDrawer({
     return null;
   }
 
+  const copy = getJourneyChromeCopy(role);
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-sm" data-fast-track-customization-drawer>
       <button
@@ -512,13 +531,13 @@ export function FastTrackWorkspaceCustomizationDrawer({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
-              Customize workspace
+              {copy.drawerEyebrow}
             </p>
             <h3 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
-              Tune the secondary layout
+              {copy.drawerTitle}
             </h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              Mandatory workflow areas stay visible. These controls only change the supporting layout.
+              {copy.drawerDescription}
             </p>
           </div>
           <button
@@ -534,14 +553,14 @@ export function FastTrackWorkspaceCustomizationDrawer({
           <CustomizationToggleRow
             testId="metrics-strip"
             title="Metrics strip"
-            description="Show the active/completed/cancelled summary at the top."
+            description={copy.metricsDescription}
             checked={preferences.showMetricsStrip}
             onChange={onToggleMetrics}
           />
           <CustomizationToggleRow
             testId="case-rail-collapsed"
-            title="Start with case rail collapsed"
-            description="Keep the main workspace in focus and open the case rail on demand."
+            title={role === 'user' ? 'Start with journeys hidden' : 'Start with case rail collapsed'}
+            description={copy.caseRailDescription}
             checked={preferences.caseRailCollapsed}
             onChange={onToggleCaseRailCollapsed}
           />
@@ -572,9 +591,13 @@ export function FastTrackWorkspaceCustomizationDrawer({
           </section>
 
           <section className="rounded-[28px] border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">Utility modules</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              {role === 'user' ? 'Helpful tools' : 'Utility modules'}
+            </p>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-              Hide or reorder the supporting dock modules. Workflow panels cannot be removed here.
+              {role === 'user'
+                ? 'Hide or reorder the extra help panels. Your main journey cannot be removed here.'
+                : 'Hide or reorder the supporting dock modules. Workflow panels cannot be removed here.'}
             </p>
             <div className="mt-4 space-y-3">
               {orderedModules.map((module, index) => {
@@ -588,12 +611,12 @@ export function FastTrackWorkspaceCustomizationDrawer({
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {FAST_TRACK_WORKSPACE_MODULE_LABELS[module]}
+                          {getFastTrackWorkspaceModuleLabel(module, role)}
                         </p>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           {preferences.defaultActiveModule === module
-                            ? 'Opens by default'
-                            : 'Available in the utility dock'}
+                            ? copy.moduleDefaultDescription
+                            : copy.moduleAvailableDescription}
                         </p>
                       </div>
                       <button
@@ -607,7 +630,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
                             : 'border border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
                         )}
                       >
-                        {visible ? 'Visible' : 'Hidden'}
+                        {visible ? copy.moduleVisibleLabel : copy.moduleHiddenLabel}
                       </button>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -618,26 +641,30 @@ export function FastTrackWorkspaceCustomizationDrawer({
                         disabled={!visible}
                         className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
                       >
-                        Make default
+                        {copy.makeDefaultLabel}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onMoveModule(module, 'up')}
-                        data-fast-track-module-up={module}
-                        disabled={index === 0}
-                        className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-                      >
-                        Move up
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onMoveModule(module, 'down')}
-                        data-fast-track-module-down={module}
-                        disabled={index === orderedModules.length - 1}
-                        className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-                      >
-                        Move down
-                      </button>
+                      {role !== 'user' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onMoveModule(module, 'up')}
+                            data-fast-track-module-up={module}
+                            disabled={index === 0}
+                            className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                          >
+                            Move up
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onMoveModule(module, 'down')}
+                            data-fast-track-module-down={module}
+                            disabled={index === orderedModules.length - 1}
+                            className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                          >
+                            Move down
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 );

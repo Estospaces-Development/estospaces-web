@@ -24,9 +24,9 @@ test('matched broker summary highlights the acceptance state', () => {
             },
         } as any),
         {
-            title: 'Broker found',
+            title: 'Agent found',
             subtitle: 'Matched with Asha Realty',
-            helper: 'Your broker is preparing home choices.',
+            helper: 'Your property agent is preparing home choices.',
         },
     );
 });
@@ -44,18 +44,18 @@ test('matched experience steps keep the user in the same live workflow', () => {
         [
             {
                 id: 'confirmed',
-                title: 'Broker confirmed',
+                title: 'Property agent confirmed',
                 description: 'Asha Realty accepted your rent request and is now helping you.',
             },
             {
                 id: 'details',
                 title: 'Your request details stay here',
-                description: 'Your location, budget, and requirements stay attached so the broker sees the same details you shared.',
+                description: 'Your location, budget, and requirements stay attached so the property agent sees the same details you shared.',
             },
             {
                 id: 'handoff',
                 title: 'Home choices are on the way',
-                description: 'Your 24-hour journey starts after your broker shares home choices and you pick one.',
+                description: 'Your 24-hour journey starts after your property agent shares home choices and you pick one.',
             },
         ],
     );
@@ -103,8 +103,8 @@ test('pending request summary keeps the submitted area and budget visible', () =
             budget: '450000 - 550000',
         } as any),
         {
-            title: 'Request sent',
-            subtitle: 'Searching brokers near Fresh Flow District - SW1A 1AA',
+            title: 'Agent request sent',
+            subtitle: 'Searching property agents near Fresh Flow District - SW1A 1AA',
             helper: 'Budget 450000 - 550000 is included in your request.',
         },
     );

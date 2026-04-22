@@ -8,7 +8,8 @@ import {
     MapPin,
     Plus,
     Loader2,
-    ArrowLeft
+    ArrowLeft,
+    Search,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
@@ -16,6 +17,7 @@ import { useToast } from '@/contexts/ToastContext';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 import Avatar from '@/components/ui/Avatar';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
+import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import { findLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
@@ -44,10 +46,21 @@ export default function ViewingsPage() {
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [filter, setFilter] = useState('all'); // all, upcoming, past, cancelled
+    const [filter, setFilter] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [viewingToCancel, setViewingToCancel] = useState<string | null>(null);
     const removedCaseNoticeRef = useRef<string | null>(null);
+
+    const filterOptions = [
+        { value: 'all', label: 'All' },
+        { value: 'today', label: 'Today' },
+        { value: 'this_week', label: 'This Week' },
+        { value: 'upcoming', label: 'Upcoming' },
+        { value: 'pending', label: 'Awaiting Reply' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'cancelled', label: 'Cancelled' },
+    ];
 
     const fetchViewings = useCallback(async () => {
         setLoading(true);
@@ -134,16 +147,39 @@ export default function ViewingsPage() {
 
     const filteredViewings = [...viewings]
         .filter(viewing => {
-            if (!viewing.date) return true;
             const viewingDate = new Date(viewing.date);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(today);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+
+            const matchesSearch = !searchQuery.trim() || [
+                viewing.propertyTitle,
+                viewing.propertyAddress,
+                viewing.agentName,
+            ]
+                .filter(Boolean)
+                .some((value) => String(value).toLowerCase().includes(searchQuery.trim().toLowerCase()));
+
+            if (!matchesSearch) {
+                return false;
+            }
+
+            if (!viewing.date) {
+                return filter === 'all';
+            }
 
             switch (filter) {
+                case 'today':
+                    return viewingDate >= today && viewingDate < new Date(today.getTime() + 24 * 60 * 60 * 1000) && viewing.status !== 'cancelled';
+                case 'this_week':
+                    return viewingDate >= today && viewingDate < weekEnd && viewing.status !== 'cancelled';
                 case 'upcoming':
                     return viewingDate >= today && viewing.status !== 'cancelled';
-                case 'past':
-                    return viewingDate < today || viewing.status === 'completed';
+                case 'pending':
+                    return viewing.status === 'pending' || viewing.status === 'rescheduled';
+                case 'completed':
+                    return viewing.status === 'completed' || viewingDate < today;
                 case 'cancelled':
                     return viewing.status === 'cancelled';
                 default:
@@ -275,7 +311,7 @@ export default function ViewingsPage() {
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Your Viewings</h1>
                             <p className="text-gray-500 dark:text-gray-400 mt-1">
-                                Manage your appointments with property agents
+                                Keep track of upcoming visits, replies, and any schedule changes in one place.
                             </p>
                         </div>
 
@@ -289,20 +325,43 @@ export default function ViewingsPage() {
                     </div>
                 </div>
 
+                <UserActivitySubnav />
+
                 {/* Filters */}
-                <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-                    {['all', 'upcoming', 'past', 'cancelled'].map((f) => (
-                        <button
-                            key={f}
-                            onClick={() => setFilter(f)}
-                            className={`px-5 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${filter === f
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm'
+                <div className="mb-8 rounded-[1.75rem] border border-gray-200/80 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="relative w-full max-w-md">
+                            <Search
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                size={16}
+                            />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder="Search by home, area, or agent"
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-700 outline-none transition-all focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-100 dark:focus:bg-gray-900"
+                            />
+                        </div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Showing {filteredViewings.length} of {viewings.length} appointments
+                        </p>
+                    </div>
+                    <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                        {filterOptions.map((option) => (
+                            <button
+                                key={option.value}
+                                onClick={() => setFilter(option.value)}
+                                className={`rounded-full px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-all ${
+                                    filter === option.value
+                                        ? 'bg-orange-500 text-white shadow-[0_14px_28px_-16px_rgba(249,115,22,0.85)]'
+                                        : 'bg-gray-50 text-gray-600 hover:bg-orange-50 hover:text-gray-900 dark:bg-gray-900/60 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100'
                                 }`}
-                        >
-                            {f.charAt(0).toUpperCase() + f.slice(1)} Viewings
-                        </button>
-                    ))}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -340,7 +399,7 @@ export default function ViewingsPage() {
                                     leadId: searchParams.get('lead') || companionFastTrackCase.leadId,
                                     propertyId: searchParams.get('property') || companionFastTrackCase.propertyId,
                                 }}
-                                title="Linked viewing controls"
+                                title="Your viewing journey"
                                 onCaseUpdated={(nextCase) => {
                                     setFastTrackCases((previous) => previous.map((caseItem) => (
                                         caseItem.caseId === nextCase.caseId ? nextCase : caseItem
@@ -351,7 +410,7 @@ export default function ViewingsPage() {
                         )}
                         {focusedViewingId && (
                             <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
-                                Your linked fast-track appointment is pinned first so you can keep the live journey moving without searching manually.
+                                Your active viewing is pinned first so you can keep this journey moving without searching for it again.
                             </div>
                         )}
                         {filteredViewings.map((viewing) => (
@@ -489,7 +548,9 @@ export default function ViewingsPage() {
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white">Nothing to see here</h3>
                         <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
-                            You don't have any {filter === 'all' ? '' : filter} viewings scheduled. Start exploring properties to book your first appointment.
+                            {searchQuery
+                                ? `No appointments matched "${searchQuery}".`
+                                : `You do not have any ${filter === 'all' ? '' : `${filterOptions.find((option) => option.value === filter)?.label.toLowerCase()} `}viewings scheduled yet. Start exploring properties to book your first appointment.`}
                         </p>
                         <button
                             onClick={() => navigate('/user/dashboard/discover')}

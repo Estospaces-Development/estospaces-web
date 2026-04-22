@@ -47,7 +47,7 @@ const secondsUntilDeadline = (deadline?: string) => {
 
 export const formatDispatchStatus = (value?: string) => {
     if (!value) {
-        return 'Request sent';
+        return 'Agent request sent';
     }
 
     return value
@@ -57,7 +57,7 @@ export const formatDispatchStatus = (value?: string) => {
 
 export const formatRequestTypeLabel = (value?: string) => {
     if (!value) {
-        return 'Broker request';
+        return 'Agent request';
     }
 
     return value
@@ -81,9 +81,9 @@ const formatRequestArea = (request: Pick<BrokerRequestRecord, 'location' | 'loca
 export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null): DispatchWorkspaceSummary => {
     if (!request) {
         return {
-            title: 'Request sent',
-            subtitle: 'We are finding a nearby broker now.',
-            helper: 'Nearby brokers are being contacted for you.',
+            title: 'Agent request sent',
+            subtitle: 'We are finding the nearest property agent now.',
+            helper: 'Nearby property agents are being contacted for you.',
         };
     }
 
@@ -109,38 +109,38 @@ export const getDispatchWorkspaceSummary = (request: BrokerRequestRecord | null)
 
     if (request.dispatch_status === 'broker_matched' || request.status === 'matched') {
         return {
-            title: 'Broker found',
-            subtitle: request.matched_broker?.name ? `Matched with ${request.matched_broker.name}` : 'A broker accepted your request',
+            title: 'Agent found',
+            subtitle: request.matched_broker?.name ? `Matched with ${request.matched_broker.name}` : 'A property agent accepted your request',
             helper: request.handoff_status === 'awaiting_portfolio'
-                ? 'Your broker is preparing home choices.'
-                : 'Your broker is reviewing your request.',
+                ? 'Your property agent is preparing home choices.'
+                : 'Your property agent is reviewing your request.',
         };
     }
 
     if (request.dispatch_status === 'expired' || request.status === 'expired') {
         return {
             title: 'Request expired',
-            subtitle: 'No broker accepted in time',
+            subtitle: 'No property agent accepted in time',
             helper: 'Start another request to try again.',
         };
     }
 
     if (request.dispatch_status === 'unavailable') {
         return {
-            title: 'Waiting for eligible brokers',
-            subtitle: 'No verified brokers are available right now',
-            helper: 'We keep checking nearby brokers during the response window.',
+            title: 'Waiting for available property agents',
+            subtitle: 'No verified property agents are available right now',
+            helper: 'We keep checking nearby property agents during the response window.',
         };
     }
 
     return {
-        title: 'Request sent',
+        title: 'Agent request sent',
         subtitle: requestArea
-            ? `Searching brokers near ${requestArea}`
+            ? `Searching property agents near ${requestArea}`
             : formatDispatchStatus(request.dispatch_status),
         helper: request.budget
             ? `Budget ${request.budget} is included in your request.`
-            : 'Nearby brokers are being contacted for you.',
+            : 'Nearby property agents are being contacted for you.',
     };
 };
 
@@ -150,10 +150,10 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
     const sharedCount = request.property_shares?.length || 0;
     const hasSelectedProperty = Boolean(request.selected_property_id || request.selected_fast_track_case_id || request.selected_property);
 
-    let handoffTitle = request.fast_track_enabled ? 'Home choices are on the way' : 'Continue with your broker request';
+    let handoffTitle = request.fast_track_enabled ? 'Home choices are on the way' : 'Continue with your agent request';
     let handoffDescription = request.fast_track_enabled
-        ? 'Your 24-hour journey starts after your broker shares home choices and you pick one.'
-        : 'Home choices, document requests, and next steps will continue in this broker request.';
+        ? 'Your 24-hour journey starts after your property agent shares home choices and you pick one.'
+        : 'Home choices, document requests, and next steps will continue in this agent request.';
 
     if (request.handoff_status === 'portfolio_shared' || sharedCount > 0) {
         handoffTitle = 'Home choices are ready';
@@ -170,13 +170,13 @@ export const getMatchedExperienceSteps = (request: BrokerRequestRecord): Matched
     return [
         {
             id: 'confirmed',
-            title: 'Broker confirmed',
+            title: 'Property agent confirmed',
             description: `${brokerName} accepted your ${requestTypeLabel} request and is now helping you.`,
         },
         {
             id: 'details',
             title: 'Your request details stay here',
-            description: 'Your location, budget, and requirements stay attached so the broker sees the same details you shared.',
+            description: 'Your location, budget, and requirements stay attached so the property agent sees the same details you shared.',
         },
         {
             id: 'handoff',

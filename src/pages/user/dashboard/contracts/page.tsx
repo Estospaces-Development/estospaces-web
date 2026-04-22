@@ -8,7 +8,6 @@ import {
   Eye,
   Clock,
   CheckCircle,
-  AlertCircle,
   ArrowLeft,
   Loader2,
   Calendar,
@@ -42,6 +41,7 @@ import {
   getSaleProgressions,
   type SaleProgression,
 } from "@/services/salesService";
+import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
@@ -375,17 +375,14 @@ export default function ContractsPage() {
       return 0;
     });
 
-  const uploadDocumentsPath = buildWorkspacePath("/user/dashboard/fast-track", {
-    applicationId:
-      searchParams.get("application") || focusedContract?.application_id,
-    caseId: searchParams.get("case") || focusedContract?.fast_track_case_id,
-    leadId: searchParams.get("lead") || focusedContract?.lead_id,
-    propertyId: searchParams.get("property") || focusedContract?.property_id,
-  });
+  const shouldShowCombinedEmptyState =
+    !hasWorkspaceFocusRequest &&
+    filteredPortfolio.length === 0 &&
+    filtered.length === 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-14">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header */}
         <div className="mb-10">
           <button
@@ -426,10 +423,56 @@ export default function ContractsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <UserActivitySubnav />
+
+        <div className="grid grid-cols-1 gap-8">
           {/* Main Contracts List */}
-          <div className="lg:col-span-8 space-y-8">
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-10">
+          <div className="space-y-8">
+            {shouldShowCombinedEmptyState ? (
+              <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
+                <div className="max-w-2xl">
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                    My Properties
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Your linked homes and contracts appear here once a rental
+                    or purchase journey reaches this stage.
+                  </p>
+                </div>
+
+                <div className="mt-8 rounded-[2rem] border border-dashed border-gray-200 bg-gray-50/70 p-8 dark:border-gray-700 dark:bg-gray-900/40">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-orange-500 shadow-sm dark:bg-gray-800">
+                    <Home size={28} />
+                  </div>
+                  <h3 className="mt-6 text-xl font-black text-gray-900 dark:text-white">
+                    Nothing is linked here yet
+                  </h3>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-gray-500 dark:text-gray-400">
+                    {searchQuery
+                      ? `No homes or contracts matched "${searchQuery}".`
+                      : "This page stays simple until you have a completed purchase or an active rental contract. When that happens, your homes and agreements will appear here automatically."}
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => navigate("/user/dashboard?reset=1")}
+                      className="rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white transition-colors hover:bg-orange-600"
+                    >
+                      Browse homes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/user/dashboard")}
+                      className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      Back to dashboard
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
@@ -572,7 +615,7 @@ export default function ContractsPage() {
               )}
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-10">
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl p-8 md:p-10">
               <div className="flex items-center justify-between mb-8">
                 <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
                   My Contracts
@@ -792,43 +835,8 @@ export default function ContractsPage() {
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="lg:col-span-4 space-y-8">
-            <div className="bg-gray-900 dark:bg-white rounded-[2.5rem] p-8 shadow-2xl text-white dark:text-gray-900 overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                <AlertCircle size={80} />
-              </div>
-              <h3 className="text-xl font-black mb-6 tracking-tight relative z-10">
-                Documents
-              </h3>
-              <p className="text-sm text-white/70 dark:text-gray-500 mb-6 relative z-10">
-                Upload your verification documents to progress your application.
-              </p>
-              <button
-                onClick={() => navigate(uploadDocumentsPath)}
-                className="w-full mt-2 py-4 bg-orange-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest active:scale-95 transition-all relative z-10"
-              >
-                Upload Documents
-              </button>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] p-8 shadow-xl border dark:border-gray-700">
-              <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6 tracking-tight">
-                Support
-              </h3>
-              <p className="text-sm text-gray-500 font-medium mb-6 leading-relaxed">
-                Questions about your legal documents? Our specialists are here
-                to help.
-              </p>
-              <button
-                onClick={() => navigate("/user/dashboard/help")}
-                className="w-full py-4 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
-              >
-                Contact Support
-              </button>
-            </div>
+            </>
+            )}
           </div>
         </div>
       </div>

@@ -35,6 +35,7 @@ import {
     getDispatchWorkspaceSummary,
     getMatchedExperienceSteps,
 } from '@/lib/brokerDispatchPresentation';
+import { getBrokerRequestCopy } from '@/lib/userJourneyCopy';
 import {
     buildBrokerRequestWorkspacePath,
     publishBrokerRequestWorkspaceSelection,
@@ -186,6 +187,29 @@ const formatUkPostcode = (value?: string | null) => {
     return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
 };
 
+const hasBrokerRequestDraft = ({
+    requestType,
+    location,
+    locationPostcode,
+    budget,
+    details,
+    fastTrackEnabled,
+}: {
+    requestType: string;
+    location: string;
+    locationPostcode: string;
+    budget: string;
+    details: string;
+    fastTrackEnabled: boolean;
+}) => (
+    requestType !== 'buy'
+    || location.trim().length > 0
+    || locationPostcode.trim().length > 0
+    || budget.trim().length > 0
+    || details.trim().length > 0
+    || fastTrackEnabled !== true
+);
+
 const BrokerRequestWidget = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -209,11 +233,24 @@ const BrokerRequestWidget = () => {
     const [rematching, setRematching] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
     const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
+    const draftStateRef = useRef(false);
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
         ? searchParams.get('request')?.trim() || null
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
+    const brokerCopy = getBrokerRequestCopy(requestType);
+
+    useEffect(() => {
+        draftStateRef.current = hasBrokerRequestDraft({
+            requestType,
+            location,
+            locationPostcode,
+            budget,
+            details,
+            fastTrackEnabled,
+        });
+    }, [budget, details, fastTrackEnabled, location, locationPostcode, requestType]);
 
     useEffect(() => {
         const interval = window.setInterval(() => {
@@ -273,7 +310,9 @@ const BrokerRequestWidget = () => {
         if (!data || data.length === 0) {
             setActiveRequest(null);
             publishBrokerRequestWorkspaceSelection(null);
-            resetWorkspaceForm();
+            if (!draftStateRef.current) {
+                resetWorkspaceForm();
+            }
             return;
         }
 
@@ -281,7 +320,9 @@ const BrokerRequestWidget = () => {
         if (!latestRequest) {
             setActiveRequest(null);
             publishBrokerRequestWorkspaceSelection(null);
-            resetWorkspaceForm();
+            if (!draftStateRef.current) {
+                resetWorkspaceForm();
+            }
             return;
         }
 
@@ -370,6 +411,7 @@ const BrokerRequestWidget = () => {
             WORKSPACE_SYNC_TAGS.MESSAGES,
         ],
         refresh: () => activeRequest?.id ? refreshActiveRequest() : loadActiveRequest(),
+        enabled: Boolean(activeRequest?.id || requestedWorkspaceRequestId),
     });
 
     const handleRematch = async () => {
@@ -383,7 +425,7 @@ const BrokerRequestWidget = () => {
         try {
             const { data, error: rematchError } = await rematchBrokerRequest(activeRequest.id);
             if (rematchError || !data) {
-                throw new Error(rematchError || 'Unable to restart the live dispatch right now.');
+                throw new Error(rematchError || 'Unable to find another property agent right now.');
             }
 
             setActiveRequest(data);
@@ -401,9 +443,9 @@ const BrokerRequestWidget = () => {
                     caseId: data.selected_fast_track_case_id || undefined,
                 },
             });
-            toast.success('Broker rematch started. Nearby brokers are being pinged again.');
+            toast.success(brokerCopy.rematchSuccess);
         } catch (actionError: any) {
-            const message = actionError?.message || 'Unable to restart the live dispatch right now.';
+            const message = actionError?.message || 'Unable to find another property agent right now.';
             setError(message);
             toast.error(message);
         } finally {
@@ -423,7 +465,7 @@ const BrokerRequestWidget = () => {
         try {
             const { data: selectedRequest, error: selectionError } = await selectBrokerRequestProperty(activeRequest.id, propertyId);
             if (selectionError || !selectedRequest) {
-                throw new Error(selectionError || 'Unable to lock this property into your workspace.');
+                throw new Error(selectionError || 'Unable to save this home to your guided journey.');
             }
 
             const selectedProperty = selectedRequest.selected_property
@@ -431,7 +473,7 @@ const BrokerRequestWidget = () => {
                 || null;
 
             if (!selectedProperty) {
-                throw new Error('The selected property could not be loaded from the broker workspace.');
+                throw new Error('The selected home could not be opened from this agent request.');
             }
 
             let nextFastTrackCaseId = selectedRequest.selected_fast_track_case_id || null;
@@ -452,7 +494,7 @@ const BrokerRequestWidget = () => {
                 });
 
                 if (fastTrackResult.error || !fastTrackResult.data) {
-                    throw new Error(fastTrackResult.error || 'Unable to start the property fast-track.');
+                    throw new Error(fastTrackResult.error || 'Unable to start your 24-hour journey.');
                 }
 
                 nextFastTrackCaseId = fastTrackResult.data.caseId;
@@ -469,7 +511,7 @@ const BrokerRequestWidget = () => {
                 params.set('case', nextFastTrackCaseId);
             }
 
-            toast.success('Property selected. Your 24-hour fast-track is now live.');
+            toast.success(brokerCopy.selectionSuccess);
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -497,7 +539,7 @@ const BrokerRequestWidget = () => {
 
     const handleOpenConversation = async () => {
         if (!activeRequest?.matched_broker_id || !user) {
-            toast.error('The matched broker conversation is not ready yet.');
+            toast.error('The matched agent conversation is not ready yet.');
             return;
         }
 
@@ -535,23 +577,6 @@ const BrokerRequestWidget = () => {
         } finally {
             setOpeningConversation(false);
         }
-    };
-
-    const openBrokerWorkspace = () => {
-        if (!activeRequest?.id) {
-            return;
-        }
-
-        if (requestedWorkspaceRequestId === activeRequest.id) {
-            setWorkspacePulse(true);
-            workspaceContainerRef.current?.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-            });
-            return;
-        }
-
-        navigate(buildBrokerRequestWorkspacePath(activeRequest.id));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -644,7 +669,7 @@ const BrokerRequestWidget = () => {
         ? {
             pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300',
             dot: 'bg-emerald-500',
-            caption: 'Broker matched',
+        caption: 'Agent found',
             eyebrow: 'Accepted',
             progress: 'bg-emerald-500',
         }
@@ -687,8 +712,8 @@ const BrokerRequestWidget = () => {
                     <Send size={20} className="text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                    <h2 className="font-bold text-gray-900 dark:text-white">Request a Broker</h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">10-minute live dispatch with nearby broker ranking</p>
+                    <h2 className="font-bold text-gray-900 dark:text-white">{brokerCopy.panelTitle}</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{brokerCopy.panelSubtitle}</p>
                 </div>
             </div>
 
@@ -701,7 +726,7 @@ const BrokerRequestWidget = () => {
                 >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">Live dispatch workspace</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500 dark:text-orange-300">{brokerCopy.activeRequestEyebrow}</p>
                             <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                                 {dispatchWorkspaceSummary.title}
                             </h3>
@@ -734,7 +759,7 @@ const BrokerRequestWidget = () => {
                     {requestIsActive && (
                         <div className="mt-4 rounded-2xl border border-white/70 bg-white/80 p-3 dark:border-zinc-900/60 dark:bg-zinc-950/50">
                             <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500 dark:text-orange-300">
-                                <span>Dispatch momentum</span>
+                                <span>Response progress</span>
                                 <span>{Math.max(0, Math.round(dispatchProgressPercent))}% time left</span>
                             </div>
                             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-orange-100/80 dark:bg-orange-950/40">
@@ -744,7 +769,7 @@ const BrokerRequestWidget = () => {
                                 />
                             </div>
                             <div className="mt-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                <span>Live ranking is checking the closest available brokers.</span>
+                                <span>We are checking the closest available property agents.</span>
                                 <span>{activeRequest.dispatched_broker_count || 0} contacted</span>
                             </div>
                         </div>
@@ -755,19 +780,19 @@ const BrokerRequestWidget = () => {
                             <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Search area</p>
                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                    {submittedArea || 'Area shared in your live request'}
+                                    {submittedArea || 'Area shared in your request'}
                                 </p>
                             </div>
                             <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Budget</p>
                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                    {submittedBudget || 'Budget available in request brief'}
+                                    {submittedBudget || 'Budget saved in your request'}
                                 </p>
                             </div>
                             <div className="rounded-xl border border-white bg-white/90 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/60">
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Requirements</p>
                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                    {formatRequirementsPreview(submittedRequirements) || 'Requirements stay attached to this workspace'}
+                                    {formatRequirementsPreview(submittedRequirements) || 'Your requirements stay attached to this request.'}
                                 </p>
                             </div>
                         </div>
@@ -780,33 +805,38 @@ const BrokerRequestWidget = () => {
                                     <div>
                                         <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:border-emerald-900/30 dark:bg-zinc-950 dark:text-emerald-300">
                                             <BadgeCheck size={12} />
-                                            Broker locked in
+                                            {brokerCopy.matchedBrokerLabel}
                                         </span>
                                         <p className="mt-4 text-2xl font-semibold text-gray-900 dark:text-white">
-                                            {matchedBroker?.name || 'Your broker is ready'}
+                                            {matchedBroker?.name || 'Your property agent is ready'}
                                         </p>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {matchedBroker?.company_name || 'Independent broker'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
+                                            {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
                                             {activeRequest.location ? ` in ${activeRequest.location}` : ''}.
                                         </p>
                                     </div>
-                                    <div className="min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
-                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Request ref</p>
-                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                            {formatWorkspaceReference(activeRequest.id)}
-                                        </p>
-                                        <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Accepted at</p>
-                                        <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
-                                            {formatAcceptedAt(activeRequest.matched_at || activeRequest.updated_at || activeRequest.created_at)}
-                                        </p>
-                                    </div>
+                                    <details className="min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
+                                        <summary className="cursor-pointer list-none text-sm font-semibold text-gray-900 dark:text-white">
+                                            {brokerCopy.detailsToggleLabel}
+                                        </summary>
+                                        <div className="mt-3">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">{brokerCopy.requestReferenceLabel}</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {formatWorkspaceReference(activeRequest.id)}
+                                            </p>
+                                            <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Accepted at</p>
+                                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                {formatAcceptedAt(activeRequest.matched_at || activeRequest.updated_at || activeRequest.created_at)}
+                                            </p>
+                                        </div>
+                                    </details>
                                 </div>
 
                                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             <MapPin size={15} className="text-orange-500" />
-                                            Requested area
+                                            Search area
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {activeRequest.location || 'Location shared in request'}
@@ -816,10 +846,10 @@ const BrokerRequestWidget = () => {
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             <Building2 size={15} className="text-orange-500" />
-                                            Broker profile
+                                            Agent profile
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {matchedBroker?.company_name || 'Independent broker'}
+                                            {matchedBroker?.company_name || 'Independent agent'}
                                             {typeof matchedBroker?.distance_miles === 'number' ? ` - ${matchedBroker.distance_miles.toFixed(1)} mi away` : ''}
                                         </p>
                                     </div>
@@ -829,18 +859,18 @@ const BrokerRequestWidget = () => {
                                             Contact route
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {matchedBroker?.phone || matchedBroker?.email || 'Contact details will appear in your live workspace'}
+                                            {matchedBroker?.phone || matchedBroker?.email || 'Contact details will appear here when they are ready.'}
                                         </p>
                                     </div>
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
                                         <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
                                             <Clock size={15} className="text-orange-500" />
-                                            Priority lane
+                                            Journey timing
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {activeRequest.fast_track_enabled
-                                                ? 'Fast-track priority is reserved for the property you choose inside this live request.'
-                                                : 'Standard live follow-up is active for this request.'}
+                                                ? 'Your 24-hour journey will start as soon as you choose a home.'
+                                                : 'Standard follow-up is active for this request.'}
                                         </p>
                                     </div>
                                 </div>
@@ -852,7 +882,7 @@ const BrokerRequestWidget = () => {
                                             className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
                                         >
                                             <Phone size={15} />
-                                            Call broker
+                                            Call agent
                                         </a>
                                     )}
                                     <button
@@ -864,16 +894,6 @@ const BrokerRequestWidget = () => {
                                         {openingConversation ? <Loader2 size={15} className="animate-spin" /> : <MessageSquare size={15} />}
                                         {openingConversation ? 'Opening thread' : 'Open messages'}
                                     </button>
-                                    {activeRequest.fast_track_enabled && (
-                                        <button
-                                            type="button"
-                                            onClick={openBrokerWorkspace}
-                                            className="inline-flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-100 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-300 dark:hover:bg-orange-950/40"
-                                        >
-                                            {requestedWorkspaceRequestId === activeRequest.id ? 'Focus broker workspace' : 'Open broker workspace'}
-                                            <ArrowRight size={15} />
-                                        </button>
-                                    )}
                                 </div>
                             </div>
 
@@ -882,7 +902,7 @@ const BrokerRequestWidget = () => {
                                     <CheckCircle2 size={18} className="text-orange-500" />
                                     <div>
                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">What happens next</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">The matched broker stays linked here until a property is shared, chosen, and attached to a real fast-track case.</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">Your property agent stays linked here until home choices are shared and you pick one.</p>
                                     </div>
                                 </div>
 
@@ -906,22 +926,22 @@ const BrokerRequestWidget = () => {
                                     <div className="mt-4 rounded-xl border border-orange-100 bg-white p-4 dark:border-orange-900/30 dark:bg-zinc-950/70">
                                         <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Broker handoff</p>
+                                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">{brokerCopy.homeChoicesLabel}</p>
                                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                                     {selectedProperty
-                                                        ? 'Selected property is now locked in'
+                                                        ? 'Your chosen home is ready'
                                                         : sharedProperties.length > 0
-                                                            ? `${sharedProperties.length} shared option${sharedProperties.length === 1 ? '' : 's'} ready to review`
-                                                            : 'Waiting for the broker shortlist'}
+                                                            ? `${sharedProperties.length} home choice${sharedProperties.length === 1 ? '' : 's'} ready to review`
+                                                            : 'Waiting for home choices'}
                                                 </p>
                                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                                     {selectedProperty
-                                                        ? 'Open the selected property or jump straight into the 24-hour fast-track workspace.'
+                                                        ? 'Open your chosen home or continue your 24-hour journey.'
                                                         : sharedProperties.length > 0
-                                                            ? 'Choose one of the broker-shared properties below to launch the canonical 24-hour fast-track.'
+                                                            ? 'Choose one of the homes below to start your 24-hour journey.'
                                                             : handoffMinutesRemaining !== null
-                                                                ? `Your broker should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
-                                                                : 'Your broker is preparing property options for this request.'}
+                                                                ? `Your property agent should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
+                                                                : 'Your property agent is preparing home choices for this request.'}
                                                 </p>
                                             </div>
                                             {handoffMinutesRemaining !== null && !selectedProperty && sharedProperties.length === 0 && (
@@ -976,7 +996,7 @@ const BrokerRequestWidget = () => {
                                                             onClick={() => navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}${activeRequest.selected_fast_track_case_id ? `&case=${activeRequest.selected_fast_track_case_id}` : ''}`)}
                                                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
                                                         >
-                                                            Open selected property
+                                                            Open this home
                                                             <ArrowRight size={15} />
                                                         </button>
                                                         {activeRequest.selected_fast_track_case_id && (
@@ -985,7 +1005,7 @@ const BrokerRequestWidget = () => {
                                                                 onClick={() => navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`)}
                                                                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                                             >
-                                                                Open live fast-track
+                                                                Continue your 24-hour journey
                                                             </button>
                                                         )}
                                                     </div>
@@ -1049,7 +1069,7 @@ const BrokerRequestWidget = () => {
                                                                     </p>
                                                                     {share.note && (
                                                                         <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4 dark:border-orange-900/30 dark:bg-orange-950/20">
-                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Broker note</p>
+                                                                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Agent note</p>
                                                                             <p className="mt-2 text-sm leading-6 text-orange-950 dark:text-orange-100">{share.note}</p>
                                                                         </div>
                                                                     )}
@@ -1061,7 +1081,7 @@ const BrokerRequestWidget = () => {
                                                                             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
                                                                         >
                                                                             {isSelecting && <Loader2 size={15} className="animate-spin" />}
-                                                                            {isSelecting ? 'Starting fast-track...' : 'Choose this property'}
+                                                                            {isSelecting ? 'Starting your journey...' : 'Choose this home'}
                                                                         </button>
                                                                         <button
                                                                             type="button"
@@ -1078,7 +1098,7 @@ const BrokerRequestWidget = () => {
                                             </div>
                                         ) : (
                                             <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100">
-                                                The request is now matched, but the broker has not shared the property shortlist yet. Once they do, you will be able to compare options and start the 24-hour fast-track from the chosen property.
+                                                Your property agent is connected, but home choices are not ready yet. Once they arrive, you can compare them here and start your 24-hour journey.
                                             </div>
                                         )}
 
@@ -1090,7 +1110,7 @@ const BrokerRequestWidget = () => {
                                                 className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                             >
                                                 {rematching && <Loader2 size={15} className="animate-spin" />}
-                                                {rematching ? 'Restarting live dispatch...' : 'Request a broker rematch'}
+                                                {rematching ? 'Finding another agent...' : 'Find another agent'}
                                             </button>
                                         )}
                                     </div>
@@ -1107,30 +1127,35 @@ const BrokerRequestWidget = () => {
                                     className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
                                 >
                                     <Radio size={14} />
-                                    Start another request
+                                    {brokerCopy.restartRequestLabel}
                                 </button>
                             </div>
                         </div>
                     ) : (
                         <>
-                            <div className="mt-4 grid gap-3 md:grid-cols-3">
-                                <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Wave</p>
-                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">Wave {activeRequest.dispatch_wave || 1}</p>
+                            <details className="mt-4 rounded-xl border border-white/70 bg-white/80 px-4 py-3 dark:border-zinc-900/60 dark:bg-zinc-950/40">
+                                <summary className="cursor-pointer list-none text-sm font-semibold text-gray-900 dark:text-white">
+                                    {brokerCopy.detailsToggleLabel}
+                                </summary>
+                                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                    <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Wave</p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">Wave {activeRequest.dispatch_wave || 1}</p>
+                                    </div>
+                                    <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Agents checked</p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {activeRequest.dispatched_broker_count || 0} / {activeRequest.available_broker_count || nearbyBrokers.length || 0}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">{brokerCopy.matchedBrokerLabel}</p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                            {activeRequest.matched_broker?.name || (requestIsExpired ? 'No agent accepted in time' : 'Looking for an agent')}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Brokers pinged</p>
-                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                        {activeRequest.dispatched_broker_count || 0} / {activeRequest.available_broker_count || nearbyBrokers.length || 0}
-                                    </p>
-                                </div>
-                                <div className="rounded-xl bg-white/80 px-4 py-3 dark:bg-zinc-950/40">
-                                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Matched broker</p>
-                                    <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                        {activeRequest.matched_broker?.name || (requestIsExpired ? 'No broker accepted in time' : 'Searching nearby brokers')}
-                                    </p>
-                                </div>
-                            </div>
+                            </details>
 
                             <div className="mt-4 flex flex-wrap gap-3">
                                 <button
@@ -1147,7 +1172,7 @@ const BrokerRequestWidget = () => {
                                     className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-700"
                                 >
                                     <Radio size={14} />
-                                    {requestIsExpired ? 'Start another request' : 'Refresh status'}
+                                    {requestIsExpired ? brokerCopy.restartRequestLabel : brokerCopy.refreshRequestLabel}
                                 </button>
                                 <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                                     <UserCheck size={14} />
@@ -1185,14 +1210,14 @@ const BrokerRequestWidget = () => {
                         className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
                     <span>
-                        <span className="block font-semibold text-gray-900 dark:text-white">Use 10-minute live dispatch</span>
-                        <span className="block text-xs text-gray-500 dark:text-gray-400">Rank brokers who are currently available and closest to the area first.</span>
+                        <span className="block font-semibold text-gray-900 dark:text-white">{brokerCopy.useDispatchTitle}</span>
+                        <span className="block text-xs text-gray-500 dark:text-gray-400">{brokerCopy.useDispatchSubtitle}</span>
                     </span>
                 </label>
 
                 {requestIsActive && (
                     <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-sm text-gray-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-gray-200">
-                        A live request is already running. You can still adjust the form below and start a new dispatch if your requirements change.
+                        An agent request is already running. You can still adjust the form below and start a new one if your needs change.
                     </div>
                 )}
 
@@ -1274,16 +1299,16 @@ const BrokerRequestWidget = () => {
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Nearby brokers</p>
-                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">Ranked by location, availability, and live response readiness.</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{brokerCopy.nearbyBrokersTitle}</p>
+                            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{brokerCopy.nearbyBrokersSubtitle}</p>
                         </div>
                         <div className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-700 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-orange-300">
                             <Clock size={13} />
-                            10-minute SLA
+                            Quick help
                         </div>
                     </div>
                     {isRankingLoading ? (
-                        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">Ranking nearby brokers...</div>
+                        <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">{brokerCopy.nearbyBrokersLoading}</div>
                     ) : nearbyBrokers.length > 0 ? (
                         <div className="mt-4 space-y-2">
                             {nearbyBrokers.map((broker, index) => (
@@ -1293,20 +1318,20 @@ const BrokerRequestWidget = () => {
                                             {index + 1}. {broker.name}
                                         </p>
                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            {broker.company_name || 'Independent broker'}
+                                            {broker.company_name || 'Independent agent'}
                                             {typeof broker.distance_miles === 'number' ? ` - ${broker.distance_miles.toFixed(1)} mi` : ''}
                                         </p>
                                     </div>
                                     <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                                         <BadgeCheck size={12} />
-                                        {broker.fast_track_eligible ? 'Available' : 'Queued'}
+                                        {broker.fast_track_eligible ? brokerCopy.nearbyBrokerAvailableLabel : brokerCopy.nearbyBrokerQueuedLabel}
                                     </span>
                                 </div>
                             ))}
                         </div>
                     ) : (
                         <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                            Add a postcode to see available brokers ranked for live dispatch.
+                            {brokerCopy.nearbyBrokersEmpty}
                         </div>
                     )}
                 </div>
@@ -1329,16 +1354,16 @@ const BrokerRequestWidget = () => {
                         <Send size={16} />
                     )}
                     {loading
-                        ? 'Dispatching...'
+                        ? 'Sending request...'
                         : requestIsActive
-                            ? 'Start another live dispatch'
+                            ? brokerCopy.requestFormActionAgain
                             : activeRequest
-                                ? 'Start another live dispatch'
-                                : 'Start live dispatch'}
+                                ? brokerCopy.requestFormActionAgain
+                                : brokerCopy.requestFormAction}
                 </button>
 
                 <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
-                    Your request will be sent to ranked brokers with a live 10-minute response window.
+                    {brokerCopy.requestFormHelper}
                 </p>
             </form>
         </div>

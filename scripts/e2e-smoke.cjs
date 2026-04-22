@@ -44,22 +44,79 @@ function resolveDevBaseUrl() {
   );
 }
 
+function parseJsonEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    throw new Error(`Invalid JSON in ${name}: ${error.message}`);
+  }
+}
+
+function decodeJwtPayload(token) {
+  const payload = token.split(".")[1];
+  if (!payload) {
+    throw new Error("Invalid JWT payload");
+  }
+
+  const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  return JSON.parse(Buffer.from(padded, "base64").toString("utf8"));
+}
+
+function getRoleSession(role) {
+  const token = process.env[role.sessionTokenEnv];
+  if (!token) {
+    return null;
+  }
+
+  const payload = decodeJwtPayload(token);
+  const storedUser = parseJsonEnv(role.sessionUserEnv) || {
+    id: payload.user_id,
+    email: payload.email,
+    role: payload.role,
+    isAuthenticated: true,
+    name: payload.email || role.name,
+  };
+
+  return {
+    token,
+    storedUser,
+  };
+}
+
 const targets = {
   dev: {
     baseUrl: resolveDevBaseUrl(),
+    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || resolveDevBaseUrl(),
+    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || resolveDevBaseUrl(),
     caseId: process.env.E2E_DEV_FAST_TRACK_CASE_ID || "",
   },
   local: {
     baseUrl: process.env.E2E_LOCAL_BASE_URL || "http://localhost:3000",
+    appBaseUrl: process.env.E2E_LOCAL_APP_BASE_URL || process.env.E2E_LOCAL_BASE_URL || "http://localhost:3000",
+    adminBaseUrl: process.env.E2E_LOCAL_ADMIN_BASE_URL || process.env.E2E_LOCAL_BASE_URL || "http://localhost:3000",
     caseId: process.env.E2E_LOCAL_FAST_TRACK_CASE_ID || "",
+  },
+  prod: {
+    baseUrl: process.env.E2E_PROD_BASE_URL || "https://app.estospaces.com",
+    appBaseUrl: process.env.E2E_PROD_APP_BASE_URL || process.env.E2E_PROD_BASE_URL || "https://app.estospaces.com",
+    adminBaseUrl: process.env.E2E_PROD_ADMIN_BASE_URL || "https://admin.estospaces.com",
+    caseId: process.env.E2E_PROD_FAST_TRACK_CASE_ID || "",
   },
 };
 
 const roles = [
   {
     name: "user",
-    email: requireEnv("E2E_USER_EMAIL"),
-    password: requireEnv("E2E_USER_PASSWORD"),
+    emailEnv: "E2E_USER_EMAIL",
+    passwordEnv: "E2E_USER_PASSWORD",
+    sessionTokenEnv: "E2E_USER_SESSION_TOKEN",
+    sessionUserEnv: "E2E_USER_SESSION_USER",
     dashboard: "/user/dashboard",
     routes: [
       "/user/dashboard",
@@ -77,8 +134,10 @@ const roles = [
   },
   {
     name: "manager",
-    email: requireEnv("E2E_MANAGER_EMAIL"),
-    password: requireEnv("E2E_MANAGER_PASSWORD"),
+    emailEnv: "E2E_MANAGER_EMAIL",
+    passwordEnv: "E2E_MANAGER_PASSWORD",
+    sessionTokenEnv: "E2E_MANAGER_SESSION_TOKEN",
+    sessionUserEnv: "E2E_MANAGER_SESSION_USER",
     dashboard: "/manager/dashboard",
     routes: [
       "/manager/dashboard",
@@ -101,8 +160,10 @@ const roles = [
   },
   {
     name: "admin",
-    email: requireEnv("E2E_ADMIN_EMAIL"),
-    password: requireEnv("E2E_ADMIN_PASSWORD"),
+    emailEnv: "E2E_ADMIN_EMAIL",
+    passwordEnv: "E2E_ADMIN_PASSWORD",
+    sessionTokenEnv: "E2E_ADMIN_SESSION_TOKEN",
+    sessionUserEnv: "E2E_ADMIN_SESSION_USER",
     dashboard: "/admin/dashboard",
     routes: [
       "/admin/dashboard",
@@ -158,6 +219,21 @@ async function ensureReachable(baseUrl) {
 }
 
 async function login(page, baseUrl, role) {
+  const session = getRoleSession(role);
+  if (session) {
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await page.evaluate(({ token, storedUser }) => {
+      localStorage.setItem("esto_token", token);
+      localStorage.setItem("esto_user", JSON.stringify(storedUser));
+    }, session);
+    await page.goto(`${baseUrl}${role.dashboard}`, { waitUntil: "domcontentloaded" });
+    await page.waitForURL((url) => url.pathname.startsWith(role.dashboard), { timeout: 30000 });
+    await page.waitForTimeout(routeSettleMs);
+    return;
+  }
+
+  const email = requireEnv(role.emailEnv);
+  const password = requireEnv(role.passwordEnv);
   await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
   const emailField = page
     .locator('input[name="email"], input[type="email"], input[placeholder*="email" i]')
@@ -167,8 +243,8 @@ async function login(page, baseUrl, role) {
     .first();
 
   await emailField.waitFor({ state: "visible", timeout: 20000 });
-  await emailField.fill(role.email);
-  await passwordField.fill(role.password);
+  await emailField.fill(email);
+  await passwordField.fill(password);
   await Promise.all([
     page.waitForURL((url) => url.pathname.startsWith(role.dashboard), { timeout: 30000 }),
     page.getByRole("button", { name: /^Sign In$/ }).click(),
@@ -204,6 +280,20 @@ async function runRouteCheck(page, baseUrl, route) {
   await page.waitForTimeout(routeSettleMs);
 }
 
+async function assertFastTrackWorkspace(page, expectedPath, roleName) {
+  await assertHealthyPage(page, expectedPath);
+  await page.waitForFunction(
+    () => document.body && /fast-track workspace/i.test(document.body.innerText),
+    undefined,
+    { timeout: 20000 },
+  );
+
+  const bodyText = await page.locator("body").innerText();
+  if (!/current stage|focus|cases/i.test(bodyText)) {
+    throw new Error(`Fast-track workspace markers missing for ${roleName}`);
+  }
+}
+
 async function runCaseChecks(page, targetName, baseUrl, caseId, roleName) {
   if (!caseId) {
     return [];
@@ -224,10 +314,12 @@ async function runCaseChecks(page, targetName, baseUrl, caseId, roleName) {
     return results;
   }
 
-  const route = `/manager/fast-track?case=${caseId}`;
+  const route = roleName === "admin"
+    ? `/admin/fast-track?case=${caseId}`
+    : `/manager/fast-track?case=${caseId}`;
+  const expectedPath = roleName === "admin" ? "/admin/fast-track" : "/manager/fast-track";
   await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
-  await assertHealthyPage(page, "/manager/fast-track");
-  await page.getByRole("button", { name: /Open message thread/i }).waitFor({ state: "visible", timeout: 20000 });
+  await assertFastTrackWorkspace(page, expectedPath, roleName);
   results.push({
     target: targetName,
     role: roleName,
@@ -243,7 +335,7 @@ async function runCaseChecks(page, targetName, baseUrl, caseId, roleName) {
   if (hasVisitedStage && nextStageCount > 0) {
     await nextStageButton.scrollIntoViewIfNeeded();
     await Promise.all([
-      page.waitForURL((url) => !url.pathname.startsWith("/manager/fast-track"), { timeout: 20000 }),
+      page.waitForURL((url) => !url.pathname.startsWith(expectedPath), { timeout: 20000 }),
       nextStageButton.click(),
     ]);
 
