@@ -1,292 +1,693 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { bookingsService, type Viewing } from '@/services/bookingsService';
+import { useToast } from '@/contexts/ToastContext';
+import Modal from '@/components/ui/Modal';
+import Avatar from '@/components/ui/Avatar';
+import DateField from '@/components/ui/DateField';
+import TimeField from '@/components/ui/TimeField';
+import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
+import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
+import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import {
-    Calendar as CalendarIcon,
-    Clock,
-    CheckCircle,
-    XCircle,
-    CalendarCheck,
-    Plus,
-    Eye,
-    Edit,
-    Trash2,
-    MapPin,
-    Loader2,
-    ArrowLeft,
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+    findLinkedFastTrackCase,
+    syncFastTrackCompanionAction,
+} from '@/lib/fastTrackCompanion';
+import {
+    usePublishWorkspaceSync,
+    useWorkflowWorkspaceRefresh,
+} from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 
-interface Appointment {
-    id: string;
-    clientName: string;
-    date: string;
-    time: string;
-    description: string;
-    status: string;
-    property?: string;
-    phone?: string;
-    email?: string;
+const FILTERS = [
+    { value: 'all', label: 'All' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'confirmed', label: 'Confirmed' },
+    { value: 'rescheduled', label: 'Rescheduled' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+];
+
+function formatDateTime(dateTime: string) {
+    const parsed = new Date(dateTime);
+    if (Number.isNaN(parsed.getTime())) {
+        return { date: 'Unknown date', time: '' };
+    }
+
+    return {
+        date: parsed.toLocaleDateString('en-GB', {
+            weekday: 'short',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        }),
+        time: parsed.toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit',
+        }),
+    };
+}
+
+function toDateInputValue(dateTime: string) {
+    const parsed = new Date(dateTime);
+    if (Number.isNaN(parsed.getTime())) {
+        return '';
+    }
+
+    const offset = parsed.getTimezoneOffset() * 60000;
+    return new Date(parsed.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function toTimeInputValue(dateTime: string) {
+    const parsed = new Date(dateTime);
+    if (Number.isNaN(parsed.getTime())) {
+        return '10:00';
+    }
+
+    return parsed.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+}
+
+function getClientName(viewing: Viewing) {
+    return viewing.client_name || viewing.client_email || (viewing.user_id ? `Client ${viewing.user_id.slice(0, 8)}` : 'Client');
+}
+
+function getPropertyName(viewing: Viewing) {
+    return viewing.property_title || viewing.property_address || (viewing.property_id ? `Property ${viewing.property_id.slice(0, 8)}` : 'Property');
+}
+
+function getStatusBadge(status: Viewing['status']) {
+    switch (status) {
+        case 'confirmed':
+            return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+        case 'pending':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+        case 'rescheduled':
+            return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
+        case 'completed':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+        case 'cancelled':
+            return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+        default:
+            return 'bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300';
+    }
 }
 
 export default function ManagerAppointmentsPage() {
     const navigate = useNavigate();
-    const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const toast = useToast();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
+    const [appointments, setAppointments] = useState<Viewing[]>([]);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [actingID, setActingID] = useState<string | null>(null);
+    const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
+    const [verificationTarget, setVerificationTarget] = useState<Viewing | null>(null);
+    const removedCaseNoticeRef = useRef<string | null>(null);
+    const [rescheduleForm, setRescheduleForm] = useState({
+        requested_date: '',
+        requested_time: '10:00',
+        manager_notes: '',
+    });
 
-    useEffect(() => {
-        // Mock data — matches legacy Appointment.tsx UK-localised
-        const mockAppointments: Appointment[] = [
-            {
-                id: '1',
-                clientName: 'Sarah Johnson',
-                date: '2026-02-28',
-                time: '14:00',
-                description: 'First viewing - Canary Wharf Apartment',
-                status: 'Confirmed',
-                property: 'Canary Wharf Apartment',
-                phone: '+44 20 7123 4567',
-                email: 'sarah.j@example.com',
-            },
-            {
-                id: '2',
-                clientName: 'Michael Chen',
-                date: '2026-03-01',
-                time: '10:30',
-                description: 'Second viewing - Kensington Townhouse',
-                status: 'Pending',
-                property: 'Kensington Townhouse',
-                phone: '+44 20 7987 6543',
-                email: 'michael.c@example.com',
-            },
-            {
-                id: '3',
-                clientName: 'Emily Wilson',
-                date: '2026-02-25',
-                time: '16:00',
-                description: 'Initial consultation',
-                status: 'Completed',
-                property: 'Shoreditch Penthouse',
-                phone: '+44 20 7456 7890',
-                email: 'emily.w@example.com',
-            },
-            {
-                id: '4',
-                clientName: 'David Brown',
-                date: '2026-03-05',
-                time: '11:00',
-                description: 'Follow-up viewing',
-                status: 'Cancelled',
-                property: 'Richmond Family Home',
-                phone: '+44 20 7234 5678',
-                email: 'david.b@example.com',
-            },
-            {
-                id: '5',
-                clientName: 'Jessica Taylor',
-                date: '2026-03-10',
-                time: '15:30',
-                description: 'Contract signing',
-                status: 'Confirmed',
-                property: 'Canary Wharf Apartment',
-                phone: '+44 20 7345 6789',
-                email: 'jessica.t@example.com',
-            },
-        ];
-
-        setTimeout(() => {
-            setAppointments(mockAppointments);
+    const fetchAppointments = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [viewingsData, fastTrackCasesResult] = await Promise.all([
+                bookingsService.getViewings(),
+                getFastTrackCases({ suppressErrorToast: true }),
+            ]);
+            setAppointments(viewingsData);
+            setFastTrackCases(fastTrackCasesResult.data || []);
+        } catch (fetchError: any) {
+            setError(fetchError?.message || 'Failed to load appointments');
+            setAppointments([]);
+        } finally {
             setLoading(false);
-        }, 300);
-    }, []);
-
-    const handleDeleteAppointment = (id: string) => {
-        setAppointments((prev) => prev.filter((apt) => apt.id !== id));
-        setShowDeleteConfirm(null);
+        }
     };
 
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' });
+    useEffect(() => {
+        fetchAppointments();
+    }, []);
+
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+        ],
+        refresh: fetchAppointments,
+    });
+
+    const rawCaseId = searchParams.get('case');
+    const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+
+    useEffect(() => {
+        if (loading || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [loading, removedCaseId, setSearchParams, toast]);
+
+    const focusedCase = useMemo(
+        () => (sanitizedCaseId
+            ? fastTrackCases.find((caseItem) => caseItem.caseId === sanitizedCaseId) || null
+            : null),
+        [fastTrackCases, sanitizedCaseId],
+    );
+
+    const focusedAppointmentId = resolveFocusedViewing(appointments, {
+        viewingId: searchParams.get('viewing'),
+        applicationId: searchParams.get('application'),
+        caseId: sanitizedCaseId,
+        leadId: searchParams.get('lead') || focusedCase?.leadId || null,
+        propertyId: searchParams.get('property') || focusedCase?.propertyId || null,
+    })?.id || null;
+
+    const filteredAppointments = useMemo(() => {
+        let filtered = appointments;
+
+        // Status Filter
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter((appointment) => appointment.status === statusFilter);
+        }
+
+        // Search Filter
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter((appointment) => {
+                const clientName = (getClientName(appointment) || '').toLowerCase();
+                const propertyName = (getPropertyName(appointment) || '').toLowerCase();
+                return clientName.includes(query) || propertyName.includes(query);
+            });
+        }
+
+        return [...filtered].sort((left, right) => {
+            if (!focusedAppointmentId) {
+                return 0;
+            }
+            if (left.id === focusedAppointmentId) {
+                return -1;
+            }
+            if (right.id === focusedAppointmentId) {
+                return 1;
+            }
+            return 0;
+        });
+    }, [appointments, focusedAppointmentId, searchQuery, statusFilter]);
+
+    const summary = useMemo(() => ({
+        total: appointments.length,
+        pending: appointments.filter((appointment) => appointment.status === 'pending').length,
+        confirmed: appointments.filter((appointment) => appointment.status === 'confirmed').length,
+        completed: appointments.filter((appointment) => appointment.status === 'completed').length,
+        cancelled: appointments.filter((appointment) => appointment.status === 'cancelled').length,
+    }), [appointments]);
+    const isSavingReschedule = Boolean(rescheduleTarget && actingID === rescheduleTarget.id);
+
+    const runAction = async (
+        appointmentID: string,
+        action: () => Promise<void>,
+        successMessage: string,
+        fastTrackSync?: { action: string; payload?: Record<string, unknown> },
+    ) => {
+        setActingID(appointmentID);
+        try {
+            const appointment = appointments.find((item) => item.id === appointmentID);
+            await action();
+            if (appointment && fastTrackSync) {
+                const linkedFastTrackCase = findLinkedFastTrackCase(fastTrackCases, {
+                    caseId: appointment.fast_track_case_id,
+                    viewingId: appointment.id,
+                    applicationId: appointment.application_id,
+                    leadId: appointment.lead_id,
+                    propertyId: appointment.property_id,
+                });
+                if (linkedFastTrackCase) {
+                    const syncResult = await syncFastTrackCompanionAction({
+                        fastTrackCase: linkedFastTrackCase,
+                        request: fastTrackSync,
+                        publishWorkspaceSync,
+                        reason: `Manager appointments companion action: ${fastTrackSync.action}`,
+                    });
+                    if (syncResult.error || !syncResult.data) {
+                        throw new Error(syncResult.error || 'Unable to sync the linked fast-track case.');
+                    }
+                    setFastTrackCases((previous) => previous.map((caseItem) => (
+                        caseItem.caseId === syncResult.data?.caseId ? syncResult.data : caseItem
+                    )));
+                }
+            }
+            toast.success(successMessage);
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.VIEWINGS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+                ],
+                reason: successMessage,
+                ids: {
+                    viewingId: appointmentID,
+                    applicationId: appointment?.application_id,
+                    caseId: appointment?.fast_track_case_id,
+                    leadId: appointment?.lead_id,
+                    propertyId: appointment?.property_id,
+                },
+            });
+            await fetchAppointments();
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to update this appointment.');
+        } finally {
+            setActingID(null);
+        }
+    };
+
+    const openReschedule = (appointment: Viewing) => {
+        setRescheduleTarget(appointment);
+        setRescheduleForm({
+            requested_date: toDateInputValue(appointment.scheduled_at),
+            requested_time: toTimeInputValue(appointment.scheduled_at),
+            manager_notes: appointment.manager_notes || '',
+        });
+    };
+
+    const submitReschedule = async () => {
+        if (!rescheduleTarget) {
+            return;
+        }
+        if (!rescheduleForm.requested_date || !rescheduleForm.requested_time) {
+            toast.error('Please choose the new date and time.');
+            return;
+        }
+
+        await runAction(
+            rescheduleTarget.id,
+            async () => {
+                await bookingsService.updateViewing(rescheduleTarget.id, {
+                    requested_date: rescheduleForm.requested_date,
+                    requested_time: rescheduleForm.requested_time,
+                    manager_notes: rescheduleForm.manager_notes,
+                });
+                setRescheduleTarget(null);
+            },
+            'Appointment rescheduled successfully.',
+            {
+                action: 'reschedule_viewing',
+                payload: {
+                    scheduled_at: new Date(`${rescheduleForm.requested_date}T${rescheduleForm.requested_time}:00`).toISOString(),
+                    note: rescheduleForm.manager_notes,
+                },
+            },
+        );
     };
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div>
-                <div className="mb-4">
+        <div className="space-y-8 pb-20">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition-colors hover:text-orange-500"
                     >
-                        <ArrowLeft className="w-5 h-5" />
-                        <span>Back</span>
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
                     </button>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Appointments</h1>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Confirm, reschedule, complete, and cancel real viewing appointments from booking-service.
+                    </p>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">Appointment</h1>
-                <p className="text-gray-600 dark:text-gray-400">Manage client appointments</p>
+                <button
+                    onClick={fetchAppointments}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh
+                </button>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
                 {[
-                    { title: 'New Appointments', value: appointments.filter(a => a.status === 'Pending').length, icon: CalendarIcon, iconColor: 'bg-blue-500', shadowColor: 'shadow-blue-500/20' },
-                    { title: 'Confirmed', value: appointments.filter(a => a.status === 'Confirmed').length, icon: CheckCircle, iconColor: 'bg-green-500', shadowColor: 'shadow-green-500/20' },
-                    { title: 'Pending', value: appointments.filter(a => a.status === 'Pending').length, icon: Clock, iconColor: 'bg-yellow-500', shadowColor: 'shadow-yellow-500/20' },
-                    { title: 'Completed', value: appointments.filter(a => a.status === 'Completed').length, icon: CalendarCheck, iconColor: 'bg-purple-500', shadowColor: 'shadow-purple-500/20' },
-                    { title: 'Cancelled', value: appointments.filter(a => a.status === 'Cancelled').length, icon: XCircle, iconColor: 'bg-red-500', shadowColor: 'shadow-red-500/20' },
+                    { label: 'Total', value: summary.total, icon: CalendarClock, accent: 'text-blue-500 bg-blue-100 dark:bg-blue-900/30' },
+                    { label: 'Pending', value: summary.pending, icon: Clock3, accent: 'text-amber-500 bg-amber-100 dark:bg-amber-900/30' },
+                    { label: 'Confirmed', value: summary.confirmed, icon: CheckCircle2, accent: 'text-green-500 bg-green-100 dark:bg-green-900/30' },
+                    { label: 'Completed', value: summary.completed, icon: CalendarCheck, accent: 'text-purple-500 bg-purple-100 dark:bg-purple-900/30' },
+                    { label: 'Cancelled', value: summary.cancelled, icon: XCircle, accent: 'text-red-500 bg-red-100 dark:bg-red-900/30' },
                 ].map((card) => (
-                    <div key={card.title} className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 transition-colors">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={`p-3 ${card.iconColor} rounded-lg shadow-lg ${card.shadowColor}`}>
-                                <card.icon className="w-6 h-6 text-white" />
-                            </div>
+                    <div key={card.label} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-black">
+                        <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${card.accent}`}>
+                            <card.icon className="h-5 w-5" />
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">{card.value}</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{card.title}</p>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                        <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-white">{card.value}</p>
                     </div>
                 ))}
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                    onClick={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
-                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${viewMode === 'calendar'
-                        ? 'bg-primary text-white border-primary'
-                        : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                        }`}
-                >
-                    <CalendarIcon className="w-4 h-4" />
-                    <span className="text-sm font-medium">Calendar</span>
-                </button>
-                <button
-                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                >
-                    <Plus className="w-4 h-4" />
-                    <span className="text-sm font-medium">Add New Appointment</span>
-                </button>
-            </div>
-
-            {/* Appointments List View */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Appointments ({appointments.length})</h2>
+            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-black">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    <div className="relative flex-1 max-w-md">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Clock3 size={18} className="text-gray-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by client or property..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="block w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl text-sm placeholder-gray-400 focus:ring-2 focus:ring-orange-500 transition-all font-medium"
+                        />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                    {FILTERS.map((filter) => (
+                        <button
+                            key={filter.value}
+                            onClick={() => setStatusFilter(filter.value)}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                                statusFilter === filter.value
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800'
+                            }`}
+                        >
+                            {filter.label}
+                        </button>
+                    ))}
                 </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-800">
-                    {loading ? (
-                        <div className="p-12 text-center">
-                            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-4" />
-                            <p className="text-gray-500 dark:text-gray-400">Loading appointments...</p>
-                        </div>
-                    ) : appointments.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <p className="text-gray-500 dark:text-gray-400 mb-4">No appointments scheduled</p>
-                            <button className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-medium">
-                                Add Your First Appointment
-                            </button>
-                        </div>
-                    ) : (
-                        appointments.map((appointment) => (
-                            <div key={appointment.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-start gap-4">
-                                            <div className="flex-shrink-0">
-                                                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                                                    <CalendarIcon className="w-6 h-6 text-primary" />
+            </div>
+        </div>
+
+            <div className="rounded-3xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-black">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center gap-4 px-6 py-20 text-center">
+                        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Loading appointments...</p>
+                    </div>
+                ) : error ? (
+                    <div className="px-6 py-16 text-center">
+                        <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>
+                    </div>
+                ) : filteredAppointments.length === 0 ? (
+                    <div className="px-6 py-16 text-center">
+                        <p className="text-lg font-semibold text-gray-900 dark:text-white">No appointments found</p>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                            When users request viewings, they will appear here with manager actions.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {focusedCase && (
+                            <div className="p-6">
+                                <FastTrackCompanionPanel
+                                    role="manager"
+                                    fastTrackCase={focusedCase}
+                                    context={{
+                                        caseId: sanitizedCaseId || focusedCase.caseId,
+                                        viewingId: focusedAppointmentId,
+                                        applicationId: searchParams.get('application') || focusedCase.applicationId,
+                                        leadId: searchParams.get('lead') || focusedCase.leadId,
+                                        propertyId: searchParams.get('property') || focusedCase.propertyId,
+                                    }}
+                                    title="Linked viewing controls"
+                                    onCaseUpdated={(nextCase) => {
+                                        setFastTrackCases((previous) => previous.map((caseItem) => (
+                                            caseItem.caseId === nextCase.caseId ? nextCase : caseItem
+                                        )));
+                                    }}
+                                    onRefresh={fetchAppointments}
+                                />
+                            </div>
+                        )}
+                        {focusedAppointmentId && (
+                            <div className="border-b border-orange-200 bg-orange-50 px-6 py-4 text-sm text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                                The appointment linked to your live workflow is pinned first so you can confirm or reschedule it without searching manually.
+                            </div>
+                        )}
+                        {filteredAppointments.map((appointment) => {
+                            const { date, time } = formatDateTime(appointment.scheduled_at);
+                            const isBusy = actingID === appointment.id;
+                            const isWorkflowLocked = Boolean(appointment.workflow_locked);
+
+                            return (
+                                <div
+                                    key={appointment.id}
+                                    className={`p-6 ${appointment.id === focusedAppointmentId ? 'bg-orange-50/70 dark:bg-orange-950/10' : ''}`}
+                                >
+                                    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                                        <div className="space-y-4">
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{getPropertyName(appointment)}</h2>
+                                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusBadge(appointment.status)}`}>
+                                                    {appointment.status}
+                                                </span>
+                                            </div>
+
+                                            <div className="grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Client</p>
+                                                    <div className="mt-2 flex items-center gap-3">
+                                                        <Avatar
+                                                            userId={appointment.user_id}
+                                                            name={getClientName(appointment)}
+                                                            size="md"
+                                                        />
+                                                        <div>
+                                                            <p className="font-medium text-gray-900 dark:text-white">{getClientName(appointment)}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">{appointment.client_email || appointment.client_phone || 'No direct contact saved'}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Scheduled</p>
+                                                    <p className="mt-1 font-medium text-gray-900 dark:text-white">{date}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{time}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Location</p>
+                                                    <p className="mt-1">{appointment.property_address || 'Address not available'}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{appointment.clientName}</h3>
-                                                    <span
-                                                        className={`px-2 py-1 text-xs font-medium rounded-full ${appointment.status === 'Confirmed'
-                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-                                                            : appointment.status === 'Pending'
-                                                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400'
-                                                                : appointment.status === 'Completed'
-                                                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400'
-                                                                    : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400'
-                                                            }`}
-                                                    >
-                                                        {appointment.status}
-                                                    </span>
+
+                                            {(appointment.user_notes || appointment.manager_notes || appointment.cancellation_reason) && (
+                                                <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-600 dark:bg-gray-900 dark:text-gray-300">
+                                                    {appointment.user_notes && <p><span className="font-semibold text-gray-900 dark:text-white">User notes:</span> {appointment.user_notes}</p>}
+                                                    {appointment.manager_notes && <p className="mt-2"><span className="font-semibold text-gray-900 dark:text-white">Manager notes:</span> {appointment.manager_notes}</p>}
+                                                    {appointment.cancellation_reason && <p className="mt-2"><span className="font-semibold text-gray-900 dark:text-white">Cancellation:</span> {appointment.cancellation_reason}</p>}
                                                 </div>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{appointment.description}</p>
-                                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
-                                                    <div className="flex items-center gap-2">
-                                                        <CalendarIcon className="w-4 h-4" />
-                                                        <span>{formatDate(appointment.date)}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock className="w-4 h-4" />
-                                                        <span>{appointment.time}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <MapPin className="w-4 h-4" />
-                                                        <span>{appointment.property || 'Property Location'}</span>
-                                                    </div>
+                                            )}
+
+                                            {isWorkflowLocked && (
+                                                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+                                                    <p className="font-semibold">Workflow locked</p>
+                                                    <p className="mt-1">{appointment.workflow_lock_reason || 'This appointment can no longer be changed because the linked deal has already advanced.'}</p>
                                                 </div>
-                                            </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col gap-3 xl:min-w-[260px]">
+                                            {appointment.user_id ? (
+                                                <button
+                                                    onClick={() => setVerificationTarget(appointment)}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                >
+                                                    <FileText className="h-4 w-4" />
+                                                    Review documents
+                                                </button>
+                                            ) : null}
+
+                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'rescheduled') && (
+                                                <button
+                                                    onClick={() => runAction(
+                                                        appointment.id,
+                                                        () => bookingsService.confirmViewing(appointment.id),
+                                                        'Appointment confirmed successfully.',
+                                                        {
+                                                            action: 'schedule_viewing',
+                                                            payload: {
+                                                                scheduled_at: appointment.scheduled_at,
+                                                                note: appointment.manager_notes,
+                                                            },
+                                                        },
+                                                    )}
+                                                    disabled={isBusy}
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                                                    Confirm
+                                                </button>
+                                            )}
+
+                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
+                                                <button
+                                                    onClick={() => openReschedule(appointment)}
+                                                    disabled={isBusy}
+                                                    className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                                                >
+                                                    Reschedule
+                                                </button>
+                                            )}
+
+                                            {!isWorkflowLocked && appointment.status === 'confirmed' && (
+                                                <button
+                                                    onClick={() => runAction(
+                                                        appointment.id,
+                                                        () => bookingsService.updateViewing(appointment.id, { status: 'completed' }).then(() => undefined),
+                                                        'Appointment marked as completed.',
+                                                        {
+                                                            action: 'complete_viewing',
+                                                            payload: {
+                                                                note: appointment.manager_notes,
+                                                            },
+                                                        },
+                                                    )}
+                                                    disabled={isBusy}
+                                                    className="rounded-2xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30"
+                                                >
+                                                    Mark Completed
+                                                </button>
+                                            )}
+
+                                            {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
+                                                <button
+                                                    onClick={() => runAction(
+                                                        appointment.id,
+                                                        () => bookingsService.cancelViewing(appointment.id, 'Cancelled by manager'),
+                                                        'Appointment cancelled successfully.',
+                                                        {
+                                                            action: 'skip_viewing',
+                                                            payload: {
+                                                                note: 'Cancelled by manager',
+                                                            },
+                                                        },
+                                                    )}
+                                                    disabled={isBusy}
+                                                    className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                            title="View"
-                                        >
-                                            <Eye className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            className="p-2 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-lg transition-colors"
-                                            title="Edit"
-                                        >
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                                            title="Delete"
-                                            onClick={() => setShowDeleteConfirm(appointment.id)}
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
                                 </div>
-                            </div>
-                        ))
-                    )}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
-            {/* Delete Confirmation Modal */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full border border-gray-200 dark:border-gray-800 shadow-2xl">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">Delete Appointment</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
-                            Are you sure you want to delete this appointment? This action cannot be undone.
-                        </p>
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={() => setShowDeleteConfirm(null)}
-                                className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleDeleteAppointment(showDeleteConfirm)}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                            >
-                                Delete
-                            </button>
-                        </div>
+            <Modal
+                isOpen={Boolean(rescheduleTarget)}
+                onClose={() => {
+                    if (!isSavingReschedule) {
+                        setRescheduleTarget(null);
+                    }
+                }}
+                title="Reschedule Appointment"
+                size="md"
+                closeOnBackdrop={!isSavingReschedule}
+                footer={rescheduleTarget ? (
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => setRescheduleTarget(null)}
+                            disabled={isSavingReschedule}
+                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                        >
+                            Close
+                        </button>
+                        <button
+                            onClick={submitReschedule}
+                            disabled={isSavingReschedule}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSavingReschedule && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Save Reschedule
+                        </button>
                     </div>
-                </div>
-            )}
+                ) : null}
+            >
+                {rescheduleTarget && (
+                    <>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{getPropertyName(rescheduleTarget)}</p>
+
+                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                            <label className="space-y-2 text-sm">
+                                <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
+                                <DateField
+                                    value={rescheduleForm.requested_date}
+                                    onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_date: nextValue }))}
+                                    className="w-full"
+                                    buttonClassName="bg-gray-50 dark:bg-gray-900"
+                                    ariaLabel="Appointment reschedule date"
+                                />
+                            </label>
+                            <label className="space-y-2 text-sm">
+                                <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
+                                <TimeField
+                                    value={rescheduleForm.requested_time}
+                                    onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_time: nextValue }))}
+                                    className="w-full"
+                                    inputClassName="bg-gray-50 dark:bg-gray-900"
+                                    ariaLabel="Appointment reschedule time"
+                                />
+                            </label>
+                        </div>
+
+                        <label className="mt-4 block space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Manager Notes</span>
+                            <textarea
+                                rows={4}
+                                value={rescheduleForm.manager_notes}
+                                onChange={(event) => setRescheduleForm((previous) => ({ ...previous, manager_notes: event.target.value }))}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                placeholder="Explain the new slot or what the client should bring."
+                            />
+                        </label>
+                    </>
+                )}
+            </Modal>
+
+            {verificationTarget?.user_id ? (
+                <UserVerificationReviewModal
+                    scope="manager"
+                    userId={verificationTarget.user_id}
+                    variant="fast_track"
+                    onUpdated={async () => {
+                        await fetchAppointments();
+                    }}
+                    onClose={() => {
+                        setVerificationTarget(null);
+                    }}
+                />
+            ) : null}
         </div>
     );
 }
-

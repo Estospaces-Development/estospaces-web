@@ -11,6 +11,7 @@ import {
 
 interface WorkspaceSyncContextValue {
     publish: (input: PublishWorkspaceSyncInput) => WorkspaceSyncEvent | null;
+    publishMany: (inputs: PublishWorkspaceSyncInput[]) => WorkspaceSyncEvent[];
     subscribe: (listener: (event: WorkspaceSyncEvent) => void) => () => void;
 }
 
@@ -23,6 +24,11 @@ interface UseWorkspaceRefreshOptions {
     refreshOnVisible?: boolean;
     debounceMs?: number;
 }
+
+type UsePresetWorkspaceRefreshOptions = Pick<
+    UseWorkspaceRefreshOptions,
+    'tags' | 'refresh' | 'enabled' | 'debounceMs'
+>;
 
 const WorkspaceSyncContext = createContext<WorkspaceSyncContextValue | undefined>(undefined);
 
@@ -37,14 +43,19 @@ export const WorkspaceSyncProvider = ({ children }: { children: React.ReactNode 
         busRef.current?.publish(input) || null
     ), []);
 
+    const publishMany = useCallback((inputs: PublishWorkspaceSyncInput[]) => (
+        busRef.current?.publishMany(inputs) || []
+    ), []);
+
     const subscribe = useCallback((listener: (event: WorkspaceSyncEvent) => void) => (
         busRef.current?.subscribe(listener) || (() => undefined)
     ), []);
 
     const value = useMemo(() => ({
         publish,
+        publishMany,
         subscribe,
-    }), [publish, subscribe]);
+    }), [publish, publishMany, subscribe]);
 
     return (
         <WorkspaceSyncContext.Provider value={value}>
@@ -129,15 +140,17 @@ export const useWorkspaceRefresh = ({
         }
 
         const handleFocus = () => {
-            if (refreshOnFocus) {
-                controllerRef.current?.trigger();
+            if (!refreshOnFocus) {
+                return;
             }
+            controllerRef.current?.trigger();
         };
 
         const handleVisibility = () => {
-            if (refreshOnVisible && document.visibilityState === 'visible') {
-                controllerRef.current?.trigger();
+            if (!refreshOnVisible || document.visibilityState !== 'visible') {
+                return;
             }
+            controllerRef.current?.trigger();
         };
 
         if (refreshOnFocus) {
@@ -167,17 +180,27 @@ export const useWorkflowWorkspaceRefresh = ({
     refresh,
     enabled = true,
     debounceMs,
-}: {
-    tags: string[];
-    refresh: () => void | Promise<void>;
-    enabled?: boolean;
-    debounceMs?: number;
-}) => useWorkspaceRefresh({
+}: UsePresetWorkspaceRefreshOptions) => useWorkspaceRefresh({
     tags,
     refresh,
     enabled,
     debounceMs,
     intervalMs: WORKSPACE_SYNC_INTERVALS.WORKFLOW,
+    refreshOnFocus: true,
+    refreshOnVisible: true,
+});
+
+export const useDashboardWorkspaceRefresh = ({
+    tags,
+    refresh,
+    enabled = true,
+    debounceMs,
+}: UsePresetWorkspaceRefreshOptions) => useWorkspaceRefresh({
+    tags,
+    refresh,
+    enabled,
+    debounceMs,
+    intervalMs: WORKSPACE_SYNC_INTERVALS.DASHBOARD,
     refreshOnFocus: true,
     refreshOnVisible: true,
 });

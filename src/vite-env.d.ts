@@ -8,10 +8,13 @@ interface ImportMetaEnv {
     readonly VITE_SEARCH_SERVICE_URL: string;
     readonly VITE_MEDIA_SERVICE_URL: string;
     readonly VITE_MESSAGING_SERVICE_URL: string;
-    readonly VITE_SUPABASE_URL: string;
-    readonly VITE_SUPABASE_ANON_KEY: string;
 }
 
 interface ImportMeta {
     readonly env: ImportMetaEnv;
+}
+
+declare module '*.md?raw' {
+    const content: string;
+    export default content;
 }

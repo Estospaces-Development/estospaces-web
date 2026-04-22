@@ -181,19 +181,41 @@ export async function resolveAddressToIds(
     if (!country) return { countryId: null, stateId: null, cityId: null, error: null };
 
     const countryId = country.id;
+    const countryStates = STATES[countryId] || [];
     let stateId: string | null = null;
     let cityId: string | null = null;
+    let resolvedState: State | undefined;
 
     // Find state
-    if (stateName && STATES[countryId]) {
-        const state = STATES[countryId].find(s => s.name.toLowerCase() === stateName.toLowerCase());
-        if (state) {
-            stateId = state.id;
-            // Find city
-            if (cityName && CITIES[stateId]) {
-                const city = CITIES[stateId].find(c => c.name.toLowerCase() === cityName.toLowerCase());
-                if (city) cityId = city.id;
+    if (stateName && countryStates.length > 0) {
+        resolvedState = countryStates.find(
+            (state) => state.name.toLowerCase() === stateName.toLowerCase(),
+        );
+        if (resolvedState) {
+            stateId = resolvedState.id;
+        }
+    }
+
+    // Some persisted listings only carry city and country.
+    // Infer the missing region from the city so edit flows can rehydrate correctly.
+    if (!resolvedState && cityName) {
+        for (const state of countryStates) {
+            const cities = CITIES[state.id] || [];
+            const city = cities.find((entry) => entry.name.toLowerCase() === cityName.toLowerCase());
+            if (city) {
+                resolvedState = state;
+                stateId = state.id;
+                cityId = city.id;
+                break;
             }
+        }
+    }
+
+    if (resolvedState && cityName && !cityId) {
+        const cities = CITIES[resolvedState.id] || [];
+        const city = cities.find((entry) => entry.name.toLowerCase() === cityName.toLowerCase());
+        if (city) {
+            cityId = city.id;
         }
     }
 

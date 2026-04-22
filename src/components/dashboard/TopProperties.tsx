@@ -2,11 +2,14 @@
 
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
+import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
+import { formatPropertyStatusLabel } from '@/lib/propertyStatusBadge';
 
 interface TopProperty {
     id: string;
+    propertyId?: string;
     name: string;
     price: string;
     views: number;
@@ -14,39 +17,56 @@ interface TopProperty {
     status: string;
 }
 
-const TopProperties = () => {
-    const { user } = useAuth();
+interface TopPropertiesProps {
+    analytics?: analyticsService.AnalyticsData | null;
+    loading?: boolean;
+}
+
+const mapTopProperties = (propertyPerformance?: analyticsService.PropertyPerformance[] | null): TopProperty[] => (
+    filterManagerLivePropertyPerformance(propertyPerformance)
+        .map((property, index) => {
+            const propertyId = property.property_id?.trim() || undefined;
+            return {
+                id: propertyId || `${property.property}-${index}`,
+                propertyId,
+                name: property.property,
+                price: '',
+                views: property.views,
+                inquiries: property.applications,
+                status: formatPropertyStatusLabel(property.status || 'available'),
+            };
+        })
+        .slice(0, 3)
+);
+
+const TopProperties = ({ analytics, loading: externalLoading = false }: TopPropertiesProps) => {
+    const navigate = useNavigate();
     const [topProperties, setTopProperties] = useState<TopProperty[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (analytics !== undefined) {
+            setTopProperties(mapTopProperties(analytics?.propertyPerformance));
+            setLoading(externalLoading);
+            return;
+        }
+
         const fetchTopProperties = async () => {
             setLoading(true);
             try {
-                const res = await analyticsService.getAnalyticsData();
+                const res = await analyticsService.getManagerAnalytics();
                 if (res.data && res.data.propertyPerformance) {
-                    const mapped = res.data.propertyPerformance.map(p => ({
-                        id: p.property, // Analytics returns property name/id
-                        name: p.property,
-                        price: '$0.00', // Analytics doesn't have price, we'd need a join or just show views
-                        views: p.views,
-                        inquiries: p.applications, // Using applications as proxy for inquiries
-                        status: 'Active'
-                    }));
-                    setTopProperties(mapped.slice(0, 3));
+                    setTopProperties(mapTopProperties(res.data.propertyPerformance));
                 } else {
                     setTopProperties([]);
                 }
-            } catch (error) {
-                console.error('Error fetching top properties:', error);
-                setTopProperties([]);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchTopProperties();
-    }, [user]);
+    }, [analytics, externalLoading]);
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm p-6">
@@ -70,14 +90,22 @@ const TopProperties = () => {
                 </div>
             ) : topProperties.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <p>No properties found. Add properties to see top performers here.</p>
+                    <p>No approved listings found. Publish a property to see top performers here.</p>
                 </div>
             ) : (
                 <div className="space-y-4">
                     {topProperties.map((property) => (
-                        <div
+                        <button
                             key={property.id}
-                            className="rounded-lg p-4 bg-white dark:bg-black shadow-sm"
+                            type="button"
+                            onClick={() => {
+                                if (property.propertyId) {
+                                    navigate(`/manager/dashboard/properties/${property.propertyId}`);
+                                }
+                            }}
+                            className={`w-full rounded-lg p-4 bg-white dark:bg-black shadow-sm text-left ${
+                                property.propertyId ? 'transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/70' : ''
+                            }`}
                         >
                             <div className="flex items-start justify-between mb-2">
                                 <h4 className="body-text font-semibold text-gray-800 dark:text-white">{property.name}</h4>
@@ -85,12 +113,12 @@ const TopProperties = () => {
                                     {property.status}
                                 </span>
                             </div>
-                            <p className="text-lg font-bold text-gray-800 dark:text-white mb-2">{property.price}</p>
+                            {property.price && <p className="text-lg font-bold text-gray-800 dark:text-white mb-2">{property.price}</p>}
                             <div className="flex items-center gap-4 secondary-label text-gray-600 dark:text-gray-400 text-sm">
                                 <span>{property.views} {property.views === 1 ? 'view' : 'views'}</span>
                                 <span>{property.inquiries} {property.inquiries === 1 ? 'Inquiry' : 'Inquiries'}</span>
                             </div>
-                        </div>
+                        </button>
                     ))}
                 </div>
             )}

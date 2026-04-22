@@ -1,33 +1,53 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, AlertCircle, MapPin, User, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, MapPin, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ClientProfileModal from './ClientProfileModal';
+import Avatar from '@/components/ui/Avatar';
 
 export type RequestStatus = 'pending' | 'responded' | 'expired';
 
 export interface BrokerRequest {
     id: string;
+    requestKind?: 'lead' | 'offer';
     propertyName: string;
     brokerName: string;
     brokerAvatar?: string;
+    userId?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    memberSince?: string;
+    interestedIn?: string;
     distance: string;
     timestamp: Date;
     status: RequestStatus;
+    secondsRemaining?: number;
+    stageLabel?: string;
+    dispatchStatus?: string;
+    primaryActionLabel?: string;
+    secondaryActionLabel?: string;
+    secondaryActionPath?: string;
+    statusReason?: string;
+    nextAction?: string;
 }
 
 interface BrokerRequestItemProps {
     request: BrokerRequest;
     onRespond: (id: string) => void;
+    onSecondaryAction?: (id: string) => void;
 }
 
-const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespond }) => {
+const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespond, onSecondaryAction }) => {
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Initialize seconds remaining based on 10 minutes minus time elapsed since timestamp
+    // Initialize seconds remaining based on the 10-minute broker SLA.
     const [secondsRemaining, setSecondsRemaining] = useState(() => {
+        if (typeof request.secondsRemaining === 'number') {
+            return Math.max(0, request.secondsRemaining);
+        }
         if (request.status !== 'pending') return 0;
         const now = new Date();
         const elapsed = Math.floor((now.getTime() - request.timestamp.getTime()) / 1000);
@@ -45,7 +65,10 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
             return;
         }
 
-        const timer = setInterval(() => {
+        const timer = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
             setSecondsRemaining((prev) => {
                 if (prev <= 1) {
                     setCurrentStatus('expired');
@@ -55,24 +78,34 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
             });
         }, 1000);
 
-        return () => clearInterval(timer);
+        return () => window.clearInterval(timer);
     }, [secondsRemaining, currentStatus]);
 
     useEffect(() => {
+        if (typeof request.secondsRemaining === 'number') {
+            setSecondsRemaining(Math.max(0, request.secondsRemaining));
+        }
         if (request.status !== 'pending') {
             setCurrentStatus(request.status);
         }
-    }, [request.status]);
+    }, [request.secondsRemaining, request.status]);
 
     const handleRespond = (e: React.MouseEvent) => {
         e.stopPropagation();
         setCurrentStatus('responded');
         onRespond(request.id);
-        navigate('/manager/messages'); // Redirect to messages
     };
 
     const handleViewProperty = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (request.secondaryActionPath) {
+            navigate(request.secondaryActionPath);
+            return;
+        }
+        if (onSecondaryAction) {
+            onSecondaryAction(request.id);
+            return;
+        }
         // Navigate to a property detail or list for now
         navigate(`/manager/dashboard/properties`);
     };
@@ -84,7 +117,7 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
     };
 
     const getProgressColor = () => {
-        if (secondsRemaining < 60) return 'bg-red-500';
+        if (secondsRemaining < 120) return 'bg-red-500';
         if (secondsRemaining < 300) return 'bg-yellow-500';
         return 'bg-green-500';
     };
@@ -120,27 +153,27 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
             <div
                 onClick={() => setIsModalOpen(true)}
                 className={`p-4 rounded-lg border transition-all duration-300 cursor-pointer ${currentStatus === 'expired'
-                    ? 'bg-gray-50 border-gray-200 dark:bg-gray-900/50 dark:border-gray-800 opacity-75'
-                    : 'bg-white border-gray-200 dark:bg-black dark:border-gray-800 hover:shadow-md hover:scale-[1.01]'
+                    ? 'bg-gray-50 border-gray-100 dark:bg-gray-900/50 dark:border-gray-800 opacity-75'
+                    : 'bg-white border-gray-100 dark:bg-black dark:border-gray-800 hover:shadow-md hover:scale-[1.01]'
                     }`}
             >
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
                         <div className="relative">
-                            {request.brokerAvatar ? (
-                                <img src={request.brokerAvatar} alt={request.brokerName} className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
-                            ) : (
-                                <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-600">
-                                    <User className="w-5 h-5" />
-                                </div>
-                            )}
+                            <Avatar
+                                userId={request.userId}
+                                src={request.brokerAvatar}
+                                name={request.brokerName}
+                                alt={request.brokerName}
+                                size="md"
+                            />
                             <div className="absolute -bottom-1 -right-1 bg-white dark:bg-black rounded-full p-0.5">
                                 <div className={`w-3 h-3 rounded-full border-2 border-white dark:border-black ${currentStatus === 'responded' ? 'bg-green-500' : currentStatus === 'pending' ? 'bg-yellow-500' : 'bg-gray-400'
                                     }`}></div>
                             </div>
                         </div>
                         <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-white text-sm hover:text-orange-500 transition-colors">{request.brokerName}</h4>
+                            <p className="font-semibold text-gray-900 dark:text-white text-sm hover:text-orange-500 transition-colors">{request.brokerName}</p>
                             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                 <MapPin className="w-3 h-3" />
                                 <span>{request.distance}</span>
@@ -181,14 +214,14 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                                 onClick={handleRespond}
                                 className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors flex items-center justify-center gap-1 group relative z-10"
                             >
-                                <span>Respond Now</span>
+                                <span>{request.primaryActionLabel || 'Respond Now'}</span>
                                 <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                             </button>
                             <button
                                 onClick={handleViewProperty}
-                                className="px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-200 dark:border-gray-700 relative z-10"
+                                className="px-3 py-2 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors border border-gray-100 dark:border-gray-700 relative z-10"
                             >
-                                View Properties
+                                {request.secondaryActionLabel || 'View Properties'}
                             </button>
                         </div>
                     </div>
@@ -196,14 +229,21 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
 
                 {currentStatus !== 'pending' && (
                     <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center text-xs">
-                        <span className="text-gray-500 dark:text-gray-400">
-                            {currentStatus === 'responded' ? 'Response sent' : 'Time limit exceeded'}
-                        </span>
+                        <div className="pr-3">
+                            <span className="text-gray-500 dark:text-gray-400">
+                                {request.stageLabel || (currentStatus === 'responded' ? 'Response sent' : 'Time limit exceeded')}
+                            </span>
+                            {request.statusReason ? (
+                                <p className="mt-1 text-[11px] leading-5 text-gray-400 dark:text-gray-500">
+                                    {request.statusReason}
+                                </p>
+                            ) : null}
+                        </div>
                         <button
                             onClick={handleViewProperty}
                             className="text-orange-500 hover:underline relative z-10"
                         >
-                            View Properties
+                            {request.nextAction || request.secondaryActionLabel || 'View Properties'}
                         </button>
                     </div>
                 )}
@@ -213,7 +253,13 @@ const BrokerRequestItem: React.FC<BrokerRequestItemProps> = ({ request, onRespon
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 clientName={request.brokerName}
+                clientId={request.userId}
                 avatar={request.brokerAvatar}
+                email={request.email}
+                phone={request.phone}
+                location={request.location || request.distance}
+                memberSince={request.memberSince}
+                interestedIn={request.interestedIn || request.propertyName}
             />
         </>
     );

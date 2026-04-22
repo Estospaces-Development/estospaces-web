@@ -41,7 +41,7 @@ const UserCard: React.FC<UserCardProps> = ({
     return (
         <div
             onClick={onClick}
-            className={`bg-white dark:bg-black rounded-xl p-5 border border-gray-200 dark:border-zinc-800 hover:shadow-md transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-800' : ''} ${className}`}
+            className={`bg-white dark:bg-black rounded-xl p-5 border border-gray-100 dark:border-zinc-800 hover:shadow-md transition-all duration-300 ${onClick ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-800' : ''} ${className}`}
         >
             <div className="flex items-start gap-4">
                 <Avatar src={avatarUrl} name={name} size="lg" status={status === 'active' ? 'online' : status === 'pending' ? 'away' : 'offline'} />

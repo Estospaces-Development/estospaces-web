@@ -19,9 +19,11 @@ import {
     X,
     Inbox,
     ArrowLeft,
-    Settings
+    Settings,
+    Zap
 } from 'lucide-react';
 import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
+import { getNotificationNavigationPath } from '@/services/notificationsService';
 
 type FilterType = 'all' | 'unread' | 'read';
 type CategoryType = 'all' | 'appointments' | 'applications' | 'messages' | 'system';
@@ -46,8 +48,8 @@ export default function NotificationsPage() {
     const filteredNotifications = useMemo(() => {
         return notifications.filter((notification: any) => {
             // Read/unread filter
-            if (filter === 'unread' && notification.read) return false;
-            if (filter === 'read' && !notification.read) return false;
+            if (filter === 'unread' && notification.is_read) return false;
+            if (filter === 'read' && !notification.is_read) return false;
 
             // Category filter
             if (category !== 'all') {
@@ -56,11 +58,28 @@ export default function NotificationsPage() {
                         NOTIFICATION_TYPES.APPOINTMENT_APPROVED,
                         NOTIFICATION_TYPES.APPOINTMENT_REJECTED,
                     ],
-                    applications: [NOTIFICATION_TYPES.APPLICATION_UPDATE],
-                    messages: [NOTIFICATION_TYPES.TICKET_RESPONSE],
+                    applications: [
+                        NOTIFICATION_TYPES.APPLICATION_UPDATE,
+                        NOTIFICATION_TYPES.APPLICATION_SUBMITTED,
+                        NOTIFICATION_TYPES.APPLICATION_APPROVED,
+                        NOTIFICATION_TYPES.DOCUMENTS_REQUESTED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED,
+                        NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED,
+                        NOTIFICATION_TYPES.FAST_TRACK_STARTED,
+                        NOTIFICATION_TYPES.FAST_TRACK_UPDATED,
+                        NOTIFICATION_TYPES.FAST_TRACK_COMPLETED,
+                    ],
+                    messages: [
+                        NOTIFICATION_TYPES.MESSAGE_RECEIVED,
+                        NOTIFICATION_TYPES.TICKET_RESPONSE,
+                    ],
                     system: [
                         NOTIFICATION_TYPES.DOCUMENT_VERIFIED,
                         NOTIFICATION_TYPES.PROFILE_VERIFIED,
+                        NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED,
+                        NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED,
                         NOTIFICATION_TYPES.SYSTEM,
                     ],
                     all: [],
@@ -89,11 +108,29 @@ export default function NotificationsPage() {
                 return <AlertCircle size={20} className="text-red-500" />;
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
                 return <FileText size={20} className="text-blue-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+                return <FileText size={20} className="text-blue-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+                return <Shield size={20} className="text-green-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+                return <AlertCircle size={20} className="text-red-500" />;
             case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
             case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+            case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
                 return <Shield size={20} className="text-green-500" />;
+            case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             case NOTIFICATION_TYPES.TICKET_RESPONSE:
                 return <MessageCircle size={20} className="text-purple-500" />;
+            case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+            case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+                return <FileText size={20} className="text-blue-500" />;
+            case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+            case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+                return <Zap size={20} className="text-orange-500" />;
             case 'property_saved':
                 return <Home size={20} className="text-orange-500" />;
             case 'price_drop':
@@ -110,13 +147,27 @@ export default function NotificationsPage() {
             case NOTIFICATION_TYPES.APPOINTMENT_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
             case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+            case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
             case 'price_drop':
                 return 'bg-green-50 dark:bg-green-900/20';
             case NOTIFICATION_TYPES.APPOINTMENT_REJECTED:
                 return 'bg-red-50 dark:bg-red-900/20';
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
+            case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+            case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+            case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+            case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
             case 'viewing_booked':
                 return 'bg-blue-50 dark:bg-blue-900/20';
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+                return 'bg-red-50 dark:bg-red-900/20';
+            case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
             case NOTIFICATION_TYPES.TICKET_RESPONSE:
                 return 'bg-purple-50 dark:bg-purple-900/20';
             case 'property_saved':
@@ -144,14 +195,17 @@ export default function NotificationsPage() {
     };
 
     const handleNotificationClick = (notification: any) => {
-        if (!notification.read) {
+        if (!notification.is_read) {
             markAsRead(notification.id);
         }
 
-        if (notification.data?.propertyId) {
-            navigate(`/user/dashboard/property/${notification.data.propertyId}`);
+        const targetPath = getNotificationNavigationPath(notification, 'user');
+        if (targetPath) {
+            navigate(targetPath);
+        } else if (notification.data?.propertyId) {
+            navigate(`/user/properties/${notification.data.propertyId}`);
         } else if (notification.data?.applicationId) {
-            navigate('/user/dashboard/applications');
+            navigate('/user/applications');
         } else if (notification.data?.viewingId) {
             navigate('/user/dashboard/viewings');
         }
@@ -368,7 +422,7 @@ export default function NotificationsPage() {
 
                                                 <div className="flex-1 min-w-0" onClick={() => handleNotificationClick(notification)}>
                                                     <div className="flex items-center justify-between gap-4">
-                                                        <h4 className={`font-bold text-gray-900 dark:text-white truncate ${!notification.read ? 'pr-6' : ''}`}>
+                                                        <h4 className={`font-bold text-gray-900 dark:text-white truncate ${!notification.is_read ? 'pr-6' : ''}`}>
                                                             {notification.title}
                                                         </h4>
                                                         <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
@@ -376,7 +430,7 @@ export default function NotificationsPage() {
                                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notification.message}</p>
                                                 </div>
 
-                                                {!notification.read && (
+                                                {!notification.is_read && (
                                                     <div className="absolute top-4 right-4 w-2 h-2 bg-orange-500 rounded-full shadow-sm shadow-orange-500/50" />
                                                 )}
 

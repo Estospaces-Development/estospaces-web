@@ -1,9 +1,6 @@
 import { useState, ReactNode } from 'react';
 import Sidebar from '../layout/Sidebar';
 import Header from '../layout/Header';
-// import DashboardFooter from '../components/Dashboard/DashboardFooter';
-// import LakshmiAssistant from '../components/Dashboard/LakshmiAssistant';
-// import { PropertiesProvider } from '../contexts/PropertiesContext';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -13,7 +10,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    // <PropertiesProvider>
     <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
       <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       <div className={`flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
@@ -28,9 +24,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           &copy; {new Date().getFullYear()} Estospaces. All rights reserved.
         </footer>
       </div>
-      {/* <LakshmiAssistant /> */}
     </div>
-    // </PropertiesProvider>
   );
 };
 

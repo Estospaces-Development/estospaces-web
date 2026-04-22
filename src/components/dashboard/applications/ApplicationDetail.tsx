@@ -20,13 +20,26 @@ import {
     History,
     Shield,
     Key,
+    Loader2,
     LucideIcon,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApplications, APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import StatusTracker from './StatusTracker';
 import UserContractModal from '@/components/dashboard/contracts/UserContractModal';
-import { getUserContracts, Contract } from '@/services/contractsService';
+import { getUserContracts } from '@/services/contractsService';
+import { messagesService } from '@/services/messagesService';
+import { type Contract } from '@/types/booking';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import Avatar from '@/components/ui/Avatar';
+import {
+    canWithdrawApplicationRecord,
+    getNextSaleJourneyActions,
+    getSaleJourneySummary,
+    isSaleProgressionRecord,
+} from '@/lib/saleJourney';
 
 interface ActivityItem {
     id: number;
@@ -48,9 +61,12 @@ interface ApplicationDetailProps {
 const ApplicationDetail = ({ applicationId, application: initialApplication, onClose, onUpdateStatus }: ApplicationDetailProps) => {
     const navigate = useNavigate();
     const { allApplications, withdrawApplication, updateApplicationStatus } = useApplications();
+    const { user } = useAuth();
+    const toast = useToast();
     const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
+    const [openingConversation, setOpeningConversation] = useState(false);
 
     // Contract state
     const [contract, setContract] = useState<Contract | null>(null);
@@ -105,7 +121,9 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         );
     }
 
-    const canWithdraw = !([APPLICATION_STATUS.WITHDRAWN, APPLICATION_STATUS.APPROVED, APPLICATION_STATUS.REJECTED] as string[]).includes(application.status);
+    const canWithdraw = canWithdrawApplicationRecord(application);
+    const isSaleProgression = isSaleProgressionRecord(application);
+    const upcomingSaleAction = getNextSaleJourneyActions(application.status)[0];
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'N/A';
@@ -134,6 +152,39 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
         if (onUpdateStatus && applicationId) {
             onUpdateStatus(applicationId, APPLICATION_STATUS.COMPLETED);
             setShowCompleteConfirm(false);
+        }
+    };
+
+    const handleOpenConversation = async () => {
+        if (!application?.managerId || !user) {
+            toast.error('The live agent conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(application.managerId, {
+                propertyId: application.propertyId,
+                propertyTitle: application.propertyTitle,
+                propertyAddress: application.propertyAddress,
+                propertyImage: application.propertyImage,
+                fastTrackCaseId: application.fastTrackCaseId,
+                listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
+                propertyPrice: application.propertyPrice,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: application.agentName || '',
+                recipientEmail: application.agentEmail || '',
+                recipientPhone: application.agentPhone || '',
+                recipientAgency: application.agentAgency || '',
+            });
+
+            navigate(`/user/dashboard/messages?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the agent conversation right now.');
+        } finally {
+            setOpeningConversation(false);
         }
     };
 
@@ -237,7 +288,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
     return (
         <div className="min-h-full bg-gray-50 dark:bg-gray-900">
             {/* Header */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+            <div className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
                     <div className="flex items-center justify-between">
                         <button
@@ -265,7 +316,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-4 lg:px-6 py-6">
                 {/* Property Header Card */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden mb-6">
                     <div className="flex flex-col lg:flex-row">
                         {/* Property Image */}
                         <div className="lg:w-80 h-48 lg:h-auto flex-shrink-0">
@@ -274,7 +325,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                 alt={application.propertyTitle}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                 }}
                             />
                         </div>
@@ -313,7 +364,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                 </div>
 
                                 <button
-                                    onClick={() => navigate(`/user/dashboard/property/${application.propertyId}`)}
+                                    onClick={() => navigate(`/user/properties/${application.propertyId}`)}
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors"
                                 >
                                     <span>View Property</span>
@@ -322,7 +373,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                             </div>
 
                             {/* Quick Info */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
                                 <div>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Submitted</p>
                                     <p className="font-semibold text-gray-900 dark:text-white">
@@ -358,8 +409,8 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                 </div>
 
                 {/* Tabs */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div className="border-b border-gray-200 dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <div className="border-b border-gray-100 dark:border-gray-700">
                         <div className="flex overflow-x-auto">
                             {tabs.map((tab) => {
                                 const Icon = tab.icon;
@@ -391,9 +442,11 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         Agent Information
                                     </h3>
                                     <div className="flex items-start gap-4">
-                                        <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                                            {application.agentName?.charAt(0)?.toUpperCase() || 'A'}
-                                        </div>
+                                        <Avatar
+                                            userId={application.managerId}
+                                            name={application.agentName}
+                                            size="lg"
+                                        />
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-semibold text-gray-900 dark:text-white">
                                                 {application.agentName}
@@ -419,11 +472,12 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => navigate('/user/dashboard/messages')}
-                                        className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors"
+                                        onClick={() => void handleOpenConversation()}
+                                        disabled={openingConversation}
+                                        className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                     >
-                                        <MessageSquare size={18} />
-                                        <span>Message Agent</span>
+                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                        <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                                     </button>
                                 </div>
 
@@ -434,19 +488,19 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                         Application Summary
                                     </h3>
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                                             <span className="text-gray-500 dark:text-gray-400">Application ID</span>
                                             <span className="font-medium text-gray-900 dark:text-white">
                                                 {application.referenceId}
                                             </span>
                                         </div>
-                                        <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                                             <span className="text-gray-500 dark:text-gray-400">Type</span>
                                             <span className="font-medium text-gray-900 dark:text-white capitalize">
                                                 {application.listingType === 'rent' ? 'Rental Application' : 'Purchase Application'}
                                             </span>
                                         </div>
-                                        <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-700">
+                                        <div className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700">
                                             <span className="text-gray-500 dark:text-gray-400">Property Value</span>
                                             <span className="font-medium text-gray-900 dark:text-white">
                                                 {formatPrice(application.propertyPrice)}
@@ -468,8 +522,35 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                     </div>
                                 </div>
 
+                                {isSaleProgression && (
+                                    <div className="lg:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gray-400">
+                                                    Purchase Journey
+                                                </p>
+                                                <h3 className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {application.journeyLabel || 'Live purchase progression'}
+                                                </h3>
+                                                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                                                    {getSaleJourneySummary(application.status, application.journeySummary)}
+                                                </p>
+                                            </div>
+                                            <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm text-orange-700 dark:border-orange-900/60 dark:bg-orange-950/30 dark:text-orange-300">
+                                                <p className="font-semibold text-gray-900 dark:text-white">Next milestone</p>
+                                                <p className="mt-2">
+                                                    {upcomingSaleAction
+                                                        ? `${upcomingSaleAction.label}. ${upcomingSaleAction.description}`
+                                                        : 'The purchase journey is already at its latest recorded stage.'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Next Steps */}
-                                {application.status !== APPLICATION_STATUS.APPROVED &&
+                                {!isSaleProgression &&
+                                    application.status !== APPLICATION_STATUS.APPROVED &&
                                     application.status !== APPLICATION_STATUS.REJECTED &&
                                     application.status !== APPLICATION_STATUS.WITHDRAWN && (
                                         <div className="lg:col-span-2 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
@@ -550,11 +631,12 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                                 </p>
                                                 <div className="flex flex-wrap gap-3">
                                                     <button
-                                                        onClick={() => navigate('/user/dashboard/messages')}
-                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors"
+                                                        onClick={() => void handleOpenConversation()}
+                                                        disabled={openingConversation}
+                                                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-green-700 hover:bg-green-50 border border-green-200 rounded-lg font-medium transition-colors disabled:cursor-wait disabled:opacity-70"
                                                     >
-                                                        <MessageSquare size={18} />
-                                                        <span>Contact Agent</span>
+                                                        {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                                                        <span>{openingConversation ? 'Opening thread' : 'Contact Agent'}</span>
                                                     </button>
 
                                                     {/* Contract Button */}
@@ -627,7 +709,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
                                     </h3>
                                     <div className="space-y-4">
                                         {['ID Proof', 'Proof of Address', 'Employment Letter', 'Bank Statements'].map((doc, index) => (
-                                            <div key={index} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                            <div key={index} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${index < 2 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'
                                                         }`}>

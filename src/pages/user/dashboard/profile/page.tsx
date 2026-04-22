@@ -1,81 +1,184 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     User,
-    Mail,
     Phone,
     MapPin,
     ArrowLeft,
-    Shield,
-    CheckCircle,
     Loader2,
-    Upload,
-    X,
     Camera,
     Edit3,
     Building,
-    Check
+    Check,
+    Save
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { updateProfile } from '@/services/authService';
+import { uploadMediaFile } from '@/services/mediaService';
+import { leadsService } from '@/services/leadsService';
+import { bookingsService } from '@/services/bookingsService';
+import { useToast } from '@/contexts/ToastContext';
+import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
-import DocumentUpload from '@/components/dashboard/DocumentUpload';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
-    const { user: currentUser } = useAuth();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
+    const { user: currentUser, refreshUser, mergeCurrentUserProfile, loading: authLoading, isAuthenticated } = useAuth();
+    const { savedCount } = useSavedProperties();
+    const toast = useToast();
     const [formData, setFormData] = useState({
-        fullName: 'Thomas Anderson',
-        email: 'thomas@example.com',
-        phone: '+44 20 1234 5678',
-        address: '123 Main St, London, SW1A 1AA',
-        postcode: 'SW1A 1AA',
+        fullName: '',
+        email: '',
+        phone: '',
+        address: '',
+        postcode: '',
+    });
+
+    const [stats, setStats] = useState({
+        saved: 0,
+        leads: 0,
+        viewings: 0
     });
 
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
+    const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
 
-    useEffect(() => {
-        if (currentUser) {
-            setFormData(prev => ({
-                ...prev,
-                email: currentUser.email || '',
-                fullName: currentUser.user_metadata?.full_name || currentUser.name || 'Thomas Anderson',
-            }));
+    const fetchStats = useCallback(async () => {
+        try {
+            const [leadsData, viewingsData] = await Promise.all([
+                leadsService.getUserLeads(),
+                bookingsService.getViewings()
+            ]);
+            
+            setStats({
+                saved: savedCount,
+                leads: leadsData.data?.length || 0,
+                viewings: Array.isArray(viewingsData) ? viewingsData.length : 0
+            });
+        } catch (error) {
         }
-    }, [currentUser]);
+    }, [savedCount]);
+
+    useEffect(() => {
+        if (authLoading) {
+            return;
+        }
+
+        if (!isAuthenticated || !currentUser) {
+            navigate('/login', { replace: true });
+            return;
+        }
+
+        setFormData({
+            email: currentUser.email || '',
+            fullName: currentUser.user_metadata?.full_name || currentUser.name || currentUser.email || '',
+            phone: currentUser.phone || '',
+            address: currentUser.address || '',
+            postcode: currentUser.postcode || '',
+        });
+        const existingAvatar = currentUser.avatar_url || currentUser.avatar || null;
+        setProfileImagePreview(existingAvatar);
+        setStoredAvatarValue(existingAvatar);
+        setSelectedAvatarFile(null);
+        fetchStats();
+    }, [authLoading, currentUser, fetchStats, isAuthenticated, navigate]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        setSaveSuccess(false);
     };
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        e.target.value = '';
         if (!file) return;
 
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please choose a valid image file.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Profile picture must be smaller than 5 MB.');
+            return;
+        }
+
         setUploadingImage(true);
+        setSaveSuccess(false);
         const reader = new FileReader();
         reader.onloadend = () => {
             setProfileImagePreview(reader.result as string);
+            setSelectedAvatarFile(file);
             setUploadingImage(false);
+        };
+        reader.onerror = () => {
+            setUploadingImage(false);
+            toast.error('Failed to read the selected image.');
         };
         reader.readAsDataURL(file);
     };
 
     const handleSaveProfile = async () => {
-        setSavingProfile(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        setSavingProfile(false);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
+        try {
+            setSavingProfile(true);
+            let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
+
+            if (selectedAvatarFile && currentUser?.id) {
+                const uploadedAvatar = await uploadMediaFile(
+                    selectedAvatarFile,
+                    'user',
+                    currentUser.id,
+                    `${formData.fullName || 'User'} profile photo`,
+                    true,
+                );
+                avatarValue = uploadedAvatar.file_url;
+            }
+
+            const { data, error } = await updateProfile({
+                first_name: formData.fullName.split(' ')[0],
+                last_name: formData.fullName.split(' ').slice(1).join(' '),
+                phone: formData.phone,
+                address: formData.address,
+                postcode: formData.postcode,
+                avatar: avatarValue,
+            });
+
+            if (error) throw new Error(error);
+
+            if (data) {
+                mergeCurrentUserProfile(data);
+            }
+
+            setProfileImagePreview(avatarValue || null);
+            setStoredAvatarValue(avatarValue || null);
+            setSelectedAvatarFile(null);
+            setSaveSuccess(true);
+            toast.success('Profile updated successfully');
+            setTimeout(() => {
+                void refreshUser();
+            }, 0);
+            setTimeout(() => setSaveSuccess(false), 3000);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to update profile');
+        } finally {
+            setSavingProfile(false);
+        }
     };
+
+    if (authLoading || (isAuthenticated && !currentUser)) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+                <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
@@ -117,9 +220,9 @@ export default function ProfilePage() {
 
                             <div className="relative mt-8 mb-6">
                                 <div className="w-32 h-32 mx-auto rounded-3xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-2xl relative">
-                                    {profileImagePreview || currentUser?.avatar_url ? (
+                                    {profileImagePreview ? (
                                         <img
-                                            src={profileImagePreview || currentUser?.avatar_url}
+                                            src={profileImagePreview}
                                             alt="Profile"
                                             className="w-full h-full object-cover"
                                         />
@@ -149,20 +252,20 @@ export default function ProfilePage() {
                                 </label>
                             </div>
 
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.fullName}</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.fullName || 'User'}</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">{formData.email}</p>
 
                             <div className="mt-8 pt-8 border-t dark:border-gray-800 grid grid-cols-3 gap-2">
                                 <div className="text-center">
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">12</div>
+                                    <div className="text-lg font-black text-gray-900 dark:text-white">{stats.saved}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Saved</div>
                                 </div>
                                 <div className="text-center border-x dark:border-gray-800">
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">5</div>
+                                    <div className="text-lg font-black text-gray-900 dark:text-white">{stats.leads}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Leads</div>
                                 </div>
                                 <div className="text-center">
-                                    <div className="text-lg font-black text-gray-900 dark:text-white">3</div>
+                                    <div className="text-lg font-black text-gray-900 dark:text-white">{stats.viewings}</div>
                                     <div className="text-[10px] font-bold text-gray-400 uppercase">Viewings</div>
                                 </div>
                             </div>
@@ -209,9 +312,8 @@ export default function ProfilePage() {
                                             type="email"
                                             name="email"
                                             value={formData.email}
-                                            onChange={handleInputChange}
-                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
-                                            placeholder="name@example.com"
+                                            disabled
+                                            className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none font-medium text-gray-500 opacity-70 cursor-not-allowed"
                                         />
                                     </div>
 
@@ -273,43 +375,26 @@ export default function ProfilePage() {
                                             </>
                                         ) : (
                                             <>
-                                                <Check size={24} strokeWidth={3} />
+                                                <Save size={24} strokeWidth={3} />
                                                 <span>Save Settings</span>
                                             </>
                                         )}
                                     </button>
                                     <button
+                                        onClick={() => navigate('/user/dashboard')}
                                         className="px-8 py-4 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold rounded-2xl transition-all"
                                     >
-                                        Discard Changes
+                                        Cancel
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-none overflow-hidden">
-                            <div className="px-8 py-6 border-b dark:border-gray-800 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                                        <Upload size={20} className="text-orange-500" />
-                                    </div>
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Profile Documents</h3>
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Identity & Residency</span>
-                            </div>
-                            <div className="p-8">
-                                <DocumentUpload
-                                    documents={[]}
-                                    onUpload={() => { }}
-                                    onDelete={() => { }}
-                                    onReplace={() => { }}
-                                />
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
+
 

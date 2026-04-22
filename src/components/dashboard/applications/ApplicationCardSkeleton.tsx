@@ -4,7 +4,7 @@ import React from 'react';
 
 const ApplicationCardSkeleton: React.FC = () => {
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-pulse">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-pulse">
             <div className="flex">
                 {/* Image Skeleton */}
                 <div className="w-32 sm:w-40 lg:w-48 min-h-[160px] bg-gray-200 dark:bg-gray-700 flex-shrink-0" />

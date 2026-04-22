@@ -9,7 +9,7 @@ export default function CookiePolicyPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+            <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
                     <button
                         onClick={() => navigate(-1)}
@@ -33,7 +33,7 @@ export default function CookiePolicyPage() {
                 </div>
 
                 {/* Policy Content */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 md:p-12 space-y-8">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12 space-y-8">
                     <section>
                         <h2 className="text-xl font-semibold text-gray-900 mb-4">1. What Are Cookies?</h2>
                         <p className="text-gray-600 leading-relaxed">

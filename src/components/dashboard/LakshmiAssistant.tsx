@@ -14,7 +14,7 @@ const LakshmiAssistant = () => {
     const { activeLocation } = useUserLocation();
     const { savedProperties } = useSavedProperties();
 
-    // Mock properties contexts for now
+    // Local history state
     const viewedProperties: any[] = [];
     const appliedProperties: any[] = [];
 
@@ -151,17 +151,15 @@ const LakshmiAssistant = () => {
         setInputValue('');
         setIsProcessing(true);
 
-        // Simulate response
-        setTimeout(() => {
-            const botMsg = {
-                id: Date.now() + 1,
-                type: 'bot',
-                text: "I'm currently in demo mode, but I can help you navigate! Try clicking on 'Dashboard', 'Saved Properties', or browsing the 'Discover' section.",
-                timestamp: new Date()
-            };
-            setMessages(prev => [...prev, botMsg]);
-            setIsProcessing(false);
-        }, 1000);
+        // TODO: AI backend not implemented yet
+        // integrate with real AI service when available
+        setMessages(prev => [...prev, {
+            id: Date.now() + 1,
+            type: 'bot',
+            text: "Hello! I'm currently being integrated with our backend systems. Real-time property assistance will be available here soon!",
+            timestamp: new Date()
+        }]);
+        setIsProcessing(false);
     };
 
     const getButtonStyle = () => {
@@ -195,7 +193,7 @@ const LakshmiAssistant = () => {
             )}
 
             {isOpen && (
-                <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl flex flex-col z-50 border border-gray-200 dark:border-gray-700 font-sans">
+                <div className="fixed bottom-6 right-6 w-96 h-[600px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl flex flex-col z-50 border border-gray-100 dark:border-gray-700 font-sans">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-4 rounded-t-lg flex items-center justify-between">
                         <div className="flex items-center gap-3">

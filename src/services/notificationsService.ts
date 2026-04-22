@@ -3,7 +3,8 @@
  * Fetches and creates notifications via the notification-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
+import { getNotificationNavigationPath as resolveNotificationNavigationPath } from '@/lib/notificationNavigation';
 
 const NOTIFICATION_URL = () => getServiceUrl('notification');
 
@@ -16,6 +17,7 @@ export const NOTIFICATION_TYPES = {
     APPOINTMENT_REMINDER: 'appointment_reminder',
     VIEWING_BOOKED: 'viewing_booked',
     VIEWING_CONFIRMED: 'viewing_confirmed',
+    VIEWING_COMPLETED: 'viewing_completed',
     VIEWING_CANCELLED: 'viewing_cancelled',
     VIEWING_RESCHEDULED: 'viewing_rescheduled',
 
@@ -25,14 +27,30 @@ export const NOTIFICATION_TYPES = {
     APPLICATION_APPROVED: 'application_approved',
     APPLICATION_REJECTED: 'application_rejected',
     DOCUMENTS_REQUESTED: 'documents_requested',
+    SALE_JOURNEY_UPDATED: 'sale_journey_updated',
+    SALE_JOURNEY_COMPLETED: 'sale_journey_completed',
+    FAST_TRACK_STARTED: 'fast_track_started',
+    FAST_TRACK_UPDATED: 'fast_track_updated',
+    FAST_TRACK_COMPLETED: 'fast_track_completed',
+    CASE_FILE_DOCUMENT_REQUESTED: 'case_file_document_requested',
+    CASE_FILE_DOCUMENT_UPLOADED: 'case_file_document_uploaded',
+    CASE_FILE_DOCUMENT_REVIEWED: 'case_file_document_reviewed',
+    CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED: 'case_file_document_reupload_requested',
 
     // Verification
     DOCUMENT_VERIFIED: 'document_verified',
     PROFILE_VERIFIED: 'profile_verified',
+    USER_VERIFICATION_SUBMITTED: 'user_verification_submitted',
+    MANAGER_VERIFICATION_SUBMITTED: 'manager_verification_submitted',
+    USER_VERIFICATION_REUPLOAD_REQUESTED: 'user_verification_reupload_requested',
+    MANAGER_VERIFICATION_REUPLOAD_REQUESTED: 'manager_verification_reupload_requested',
 
     // Messages
     MESSAGE_RECEIVED: 'message_received',
     TICKET_RESPONSE: 'ticket_response',
+    SUPPORT_TICKET_CREATED: 'support_ticket_created',
+    SUPPORT_TICKET_STATUS_UPDATED: 'support_ticket_status_updated',
+    SUPPORT_TICKET_ASSIGNED: 'support_ticket_assigned',
 
     // Properties
     PROPERTY_SAVED: 'property_saved',
@@ -65,7 +83,7 @@ export interface Notification {
     type: string;
     title: string;
     message: string;
-    data: string;
+    data: NotificationData | null;
     is_read: boolean;
     read_at?: string;
     channel: string;
@@ -78,11 +96,27 @@ export interface NotificationData {
     propertyAddress?: string;
     propertyImage?: string;
     applicationId?: string;
+    contractId?: string;
+    leadId?: string;
+    caseId?: string;
+    paymentId?: string;
+    invoiceId?: string;
+    fast_track_id?: string;
+    fastTrackId?: string;
     viewingId?: string;
     messageId?: string;
+    conversation_id?: string;
+    conversationId?: string;
     amount?: number;
     date?: string;
     time?: string;
+    target_path?: string;
+    targetPath?: string;
+    entity?: string;
+    subject_user_id?: string;
+    subject_role?: string;
+    document_category?: string;
+    profile_type?: string;
     [key: string]: any;
 }
 
@@ -95,6 +129,37 @@ export interface CreateNotificationParams {
     channel?: string;
 }
 
+const parseNotificationData = (value: unknown): NotificationData | null => {
+    if (!value) return null;
+
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as NotificationData;
+        } catch {
+            return null;
+        }
+    }
+
+    if (typeof value === 'object') {
+        return value as NotificationData;
+    }
+
+    return null;
+};
+
+const normalizeNotification = (notification: any): Notification => ({
+    id: notification.id,
+    user_id: notification.user_id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    data: parseNotificationData(notification.data),
+    is_read: Boolean(notification.is_read),
+    read_at: notification.read_at,
+    channel: notification.channel,
+    created_at: notification.created_at,
+});
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -106,7 +171,13 @@ export async function getNotifications(unreadOnly: boolean = false): Promise<{
     unread_count: number;
 }> {
     const url = `${NOTIFICATION_URL()}/api/v1/notifications${unreadOnly ? '?unread_only=true' : ''}`;
-    return apiFetch<{ notifications: Notification[]; unread_count: number }>(url);
+    const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url, {
+        suppressErrorToast: true,
+    });
+    return {
+        notifications: (data.notifications || []).map(normalizeNotification),
+        unread_count: data.unread_count || 0,
+    };
 }
 
 /**
@@ -129,6 +200,14 @@ export async function markAllRead(): Promise<void> {
         `${NOTIFICATION_URL()}/api/v1/notifications/read-all`,
         { method: 'PUT' },
     );
+}
+
+/**
+ * Dismiss a notification in the UI.
+ * The current notification-service only supports read-state mutation, not hard delete.
+ */
+export async function deleteNotification(notificationId: string): Promise<void> {
+    await markRead(notificationId);
 }
 
 /**
@@ -160,9 +239,38 @@ export async function createNotification({
         );
         return true;
     } catch (error: any) {
-        console.error('[notificationsService] createNotification error:', error.message);
+        void getErrorMessage(error);
         return false;
     }
+}
+
+export function getNotificationNavigationPath(
+    notification: Pick<Notification, 'type' | 'data'> | { type: string; data?: NotificationData | Record<string, any> | null },
+    role: string = 'user',
+): string | null {
+    return resolveNotificationNavigationPath(notification, role);
+}
+
+export function getNotificationsPagePath(role: string = 'user'): string {
+    switch (role) {
+        case 'manager':
+            return '/manager/notifications';
+        case 'admin':
+            return '/admin/notifications';
+        default:
+            return '/user/dashboard/notifications';
+    }
+}
+
+export function isPropertyWorkflowNotification(
+    notification: Pick<Notification, 'type' | 'data'> | { type: string; data?: NotificationData | Record<string, any> | null },
+): boolean {
+    if (notification.type !== NOTIFICATION_TYPES.SYSTEM) {
+        return false;
+    }
+
+    const entity = typeof notification.data?.entity === 'string' ? notification.data.entity.trim() : '';
+    return entity === 'property_review_submission' || entity === 'property_status_update';
 }
 
 // ── Convenience Wrappers ────────────────────────────────────────────────────
@@ -220,9 +328,13 @@ export const notificationsService = {
     getNotifications,
     markRead,
     markAllRead,
+    deleteNotification,
     createNotification,
     notifyViewingBooked,
     notifyPropertySaved,
     notifyViewingCancelled,
+    getNotificationNavigationPath,
+    getNotificationsPagePath,
+    isPropertyWorkflowNotification,
     NOTIFICATION_TYPES,
 };

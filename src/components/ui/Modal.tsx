@@ -68,11 +68,11 @@ const Modal: React.FC<ModalProps> = ({
 
             {/* Panel */}
             <div
-                className={`relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col border border-gray-200 dark:border-zinc-800 animate-in zoom-in-95 fade-in duration-200`}
+                className={`relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col border border-gray-100 dark:border-zinc-800 animate-in zoom-in-95 fade-in duration-200`}
             >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                    <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-zinc-800">
+                    <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-zinc-800">
                         {title && (
                             <h2
                                 id="modal-title"
@@ -98,7 +98,7 @@ const Modal: React.FC<ModalProps> = ({
 
                 {/* Footer */}
                 {footer && (
-                    <div className="p-5 border-t border-gray-200 dark:border-zinc-800">
+                    <div className="p-5 border-t border-gray-100 dark:border-zinc-800">
                         {footer}
                     </div>
                 )}

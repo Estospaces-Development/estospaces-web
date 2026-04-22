@@ -186,7 +186,7 @@ export const getUserLocation = async ({
     searchInput = null,
     profileLocation = null,
     useGeolocation = true,
-}: GetUserLocationParams): Promise<LocationData> => {
+}: GetUserLocationParams): Promise<LocationData | null> => {
     let location: LocationData | null = null;
 
     // Priority 1: Search input (postcode or address)
@@ -252,20 +252,11 @@ export const getUserLocation = async ({
                 source: 'browser_geolocation',
             };
             return location;
-        } catch (error) {
-            console.warn('Geolocation not available:', error);
+        } catch {
         }
     }
 
-    // Default: London coordinates if nothing else works
-    return {
-        type: 'default',
-        postcode: 'SW1A 1AA',
-        latitude: 51.5074,
-        longitude: -0.1278,
-        city: 'London',
-        source: 'default',
-    };
+    return null;
 };
 
 /**

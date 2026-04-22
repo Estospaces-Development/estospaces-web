@@ -124,8 +124,8 @@ const AddLeadModal = ({
 
     return createPortal(
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-800 shadow-xl">
-                <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-6 flex items-center justify-between z-10">
+            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800 shadow-xl">
+                <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-6 flex items-center justify-between z-10">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-white">
                         {existingLead ? 'Edit Lead' : 'Add New Lead'}
                     </h2>
@@ -204,7 +204,7 @@ const AddLeadModal = ({
                         </div>
                     </div>
 
-                    <div className="flex gap-3 justify-end pt-4 border-t border-gray-200 dark:border-gray-800">
+                    <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
                         <button type="button" onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                             Cancel
                         </button>

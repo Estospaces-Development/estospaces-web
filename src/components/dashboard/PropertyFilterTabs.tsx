@@ -56,7 +56,7 @@ const PropertyFilterTabs = ({ activeTab = 'all', onTabChange, loading = false }:
     const isButtonActive = activeTab === 'all' || activeTab === 'buy' || activeTab === 'rent';
 
     return (
-        <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div className="flex items-center gap-2 border-b border-gray-100 dark:border-gray-700 mb-6">
             <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={handleBrowseClick}
@@ -75,9 +75,9 @@ const PropertyFilterTabs = ({ activeTab = 'all', onTabChange, loading = false }:
                 </button>
 
                 {isDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 z-50 overflow-hidden">
                         {activeTab !== 'all' && (
-                            <button onClick={handleResetToAll} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors border-b border-gray-200 dark:border-gray-700">
+                            <button onClick={handleResetToAll} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-colors border-b border-gray-100 dark:border-gray-700">
                                 <Search size={18} className="flex-shrink-0" />
                                 <span>All Properties</span>
                             </button>

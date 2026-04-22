@@ -1,66 +1,189 @@
 "use client";
 
-import React from 'react';
-import { X, Maximize2 } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Clock3, Loader2, Maximize2, Send, Video, X } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { getVirtualTourByPropertyId, requestVirtualTour } from '@/services/virtualTourService';
 
 interface VirtualTourModalProps {
     property: {
+        id: string;
         title: string;
         virtual_tour_url?: string;
     };
     onClose: () => void;
 }
 
+const statusPresentation = {
+    unavailable: {
+        title: 'Request a virtual tour',
+        description: 'This property does not have a live walkthrough yet. Ask the manager to prepare one for you.',
+    },
+    requested: {
+        title: 'Tour requested',
+        description: 'Your request is in the queue. The manager can now prepare the walkthrough for this property.',
+    },
+    processing: {
+        title: 'Tour is being prepared',
+        description: 'The manager has picked up this request and is preparing the final walkthrough link.',
+    },
+    ready: {
+        title: '3D virtual tour',
+        description: 'Explore the property in the live virtual-tour workspace below.',
+    },
+} as const;
+
 const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }) => {
-    // Mock tour URL if none provided
-    const tourUrl = property?.virtual_tour_url || "https://my.matterport.com/show/?m=JGPnGQ6wM5l&play=1";
+    const toast = useToast();
+    const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
+    const [requestNote, setRequestNote] = useState('');
+    const [tourUrl, setTourUrl] = useState(property?.virtual_tour_url || '');
+    const [status, setStatus] = useState<'unavailable' | 'requested' | 'processing' | 'ready'>(
+        property?.virtual_tour_url ? 'ready' : 'unavailable',
+    );
+    const [requestSummary, setRequestSummary] = useState('');
+
+    const loadVirtualTourState = useCallback(async () => {
+        setLoading(true);
+        const { data, error } = await getVirtualTourByPropertyId(property.id);
+        if (error || !data) {
+            toast.error(error || 'Unable to load virtual tour state.');
+            setLoading(false);
+            return;
+        }
+
+        setStatus(data.status);
+        setTourUrl(data.virtual_tour_url || '');
+        setRequestSummary(
+            data.active_request?.request_note
+                || data.active_request?.fulfillment_note
+                || '',
+        );
+        setLoading(false);
+    }, [property.id, toast]);
+
+    useEffect(() => {
+        void loadVirtualTourState();
+    }, [loadVirtualTourState]);
+
+    const handleRequest = async () => {
+        setSubmitting(true);
+        const { data, error } = await requestVirtualTour(property.id, {
+            request_note: requestNote.trim(),
+        });
+
+        if (error) {
+            toast.error(error);
+            setSubmitting(false);
+            return;
+        }
+
+        setStatus(data?.status || 'requested');
+        setRequestSummary(data?.request_note || requestNote.trim());
+        setRequestNote('');
+        toast.success('Virtual tour request sent to the manager.');
+        setSubmitting(false);
+        await loadVirtualTourState();
+    };
+
+    const presentation = statusPresentation[status];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-            <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden shadow-2xl relative">
-
-                {/* Header */}
-                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fadeIn">
+            <div className="relative flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+                <div className="flex items-center justify-between border-b border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            3D Virtual Tour
+                        <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
+                            <span className={`h-2 w-2 rounded-full ${status === 'ready' ? 'bg-green-500' : 'bg-orange-500'}`} />
+                            {presentation.title}
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{property?.title}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => window.open(tourUrl, '_blank')}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors hidden sm:block"
-                            title="Open in new tab"
-                        >
-                            <Maximize2 size={20} className="text-gray-600 dark:text-gray-300" />
-                        </button>
+                        {tourUrl ? (
+                            <button
+                                onClick={() => window.open(tourUrl, '_blank', 'noopener,noreferrer')}
+                                className="hidden rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 sm:block"
+                                title="Open in new tab"
+                            >
+                                <Maximize2 size={20} className="text-gray-600 dark:text-gray-300" />
+                            </button>
+                        ) : null}
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                            className="rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
                             <X size={24} className="text-gray-600 dark:text-gray-300" />
                         </button>
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 bg-gray-100 dark:bg-black relative group">
-                    <iframe
-                        src={tourUrl}
-                        className="w-full h-full border-0"
-                        allow="fullscreen"
-                        title={`Virtual Tour of ${property?.title}`}
-                        loading="lazy"
-                    />
+                <div className="relative flex-1 bg-gray-100 dark:bg-black">
+                    {loading ? (
+                        <div className="flex h-full items-center justify-center gap-3 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                            <Loader2 className="h-5 w-5 animate-spin text-orange-500" />
+                            Syncing virtual tour status...
+                        </div>
+                    ) : status === 'ready' && tourUrl ? (
+                        <>
+                            <iframe
+                                src={tourUrl}
+                                className="h-full w-full border-0"
+                                allow="fullscreen"
+                                title={`Virtual Tour of ${property?.title}`}
+                                loading="lazy"
+                            />
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                                <p className="text-center text-sm font-medium text-white">
+                                    Click and drag to look around. Open the full tour in a new tab if you want a larger view.
+                                </p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-orange-500 dark:bg-orange-950/30 dark:text-orange-300">
+                                {status === 'processing' ? <Clock3 size={36} /> : <Video size={36} />}
+                            </div>
+                            <h4 className="text-2xl font-black text-gray-900 dark:text-white">{presentation.title}</h4>
+                            <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-gray-500 dark:text-gray-400">
+                                {presentation.description}
+                            </p>
 
-                    {/* Overlay hint */}
-                    <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <p className="text-white text-center text-sm font-medium">
-                            Click and drag to look around • Use arrow keys to move
-                        </p>
-                    </div>
+                            {(status === 'requested' || status === 'processing') && requestSummary ? (
+                                <div className="mt-6 rounded-2xl border border-gray-200 bg-white px-5 py-4 text-left text-sm font-medium text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                        Latest update
+                                    </p>
+                                    <p className="mt-2 leading-6">{requestSummary}</p>
+                                </div>
+                            ) : null}
+
+                            {status === 'unavailable' ? (
+                                <div className="mt-8 w-full max-w-xl rounded-[2rem] border border-gray-200 bg-white p-6 text-left shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                        Request note
+                                    </label>
+                                    <textarea
+                                        rows={4}
+                                        value={requestNote}
+                                        onChange={(event) => setRequestNote(event.target.value)}
+                                        placeholder="Tell the manager what kind of walkthrough would help you most."
+                                        className="mt-3 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm font-medium text-gray-900 outline-none transition focus:border-orange-400 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                    />
+                                    <button
+                                        type="button"
+                                        disabled={submitting}
+                                        onClick={() => void handleRequest()}
+                                        className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-5 py-4 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                        Request virtual tour
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

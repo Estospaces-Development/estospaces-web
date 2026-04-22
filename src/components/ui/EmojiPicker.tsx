@@ -38,16 +38,16 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
     return (
         <div
             ref={pickerRef}
-            className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 w-80 h-96 flex flex-col z-50"
+            className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 w-80 h-96 flex flex-col z-50"
         >
-            <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Emoji</h3>
                 <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
                     <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                 </button>
             </div>
 
-            <div className="flex gap-1 p-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+            <div className="flex gap-1 p-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto">
                 {Object.keys(emojiCategories).map((category) => (
                     <button
                         key={category}

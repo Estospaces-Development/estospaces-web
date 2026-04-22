@@ -1,19 +1,19 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { notifyPropertySaved } from '../services/notificationsService';
 import { useAuth } from './AuthContext';
-import { getSavedProperties as fetchSavedPropertiesFromService } from '@/services/propertyService';
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { Property } from './PropertyContext';
 
 interface SavedPropertiesContextType {
-    savedProperties: any[];
+    savedProperties: Property[];
     savedPropertyIds: Set<string>;
     loading: boolean;
     error: string | null;
-    saveProperty: (property: any) => Promise<any>;
+    saveProperty: (property: Property | string) => Promise<any>;
     removeProperty: (propertyId: string) => Promise<any>;
-    toggleProperty: (property: any) => Promise<any>;
+    toggleProperty: (property: Property | string) => Promise<any>;
     isPropertySaved: (propertyId: string) => boolean;
     savedCount: number;
     refreshSavedProperties: () => void;
@@ -31,35 +31,30 @@ export const useSavedProperties = () => {
 
 export const SavedPropertiesProvider = ({ children }: { children: React.ReactNode }) => {
     const { user } = useAuth();
-    const { pathname } = useLocation();
-    const [savedProperties, setSavedProperties] = useState<any[]>([]);
+    const [savedProperties, setSavedProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchSavedProperties = useCallback(async () => {
-        if (!user || user.role !== 'user' || !pathname.startsWith('/user')) {
-            setSavedProperties([]);
-            setError(null);
+        if (!user) {
             setLoading(false);
             return;
         }
 
         setLoading(true);
         try {
-            const { data, error: fetchError } = await fetchSavedPropertiesFromService();
-            if (fetchError) {
-                throw new Error(fetchError);
-            }
+            const data = await apiFetch<Property[]>(
+                `${getServiceUrl('core')}/api/v1/properties/saved`,
+            );
             setSavedProperties(data || []);
             setError(null);
         } catch (err: any) {
-            console.error('[SavedProperties] Error:', err.message);
             setSavedProperties([]);
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [pathname, user]);
+    }, [user]);
 
     useEffect(() => {
         fetchSavedProperties();

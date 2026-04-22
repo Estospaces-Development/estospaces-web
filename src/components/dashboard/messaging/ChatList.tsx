@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
+import Avatar from '@/components/ui/Avatar';
 
 interface Broker {
     id: string;
@@ -21,9 +22,9 @@ interface ChatListProps {
 
 const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) => {
     return (
-        <div className="w-full md:w-80 border-r border-gray-200 bg-white flex flex-col h-full">
+        <div className="w-full md:w-80 border-r border-gray-100 bg-white flex flex-col h-full">
             {/* Header */}
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-4 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
             </div>
 
@@ -35,7 +36,7 @@ const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) =>
                         <p className="text-sm">No conversations yet</p>
                     </div>
                 ) : (
-                    <div className="divide-y divide-gray-200">
+                    <div className="divide-y divide-gray-100">
                         {brokers.map((broker) => (
                             <button
                                 key={broker.id}
@@ -46,12 +47,10 @@ const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) =>
                                 <div className="flex items-start gap-3">
                                     {/* Avatar */}
                                     <div className="relative flex-shrink-0">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                            {broker.name.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div
-                                            className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${broker.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                                                }`}
+                                        <Avatar
+                                            name={broker.name}
+                                            size="lg"
+                                            status={broker.isOnline ? 'online' : 'offline'}
                                         />
                                     </div>
 

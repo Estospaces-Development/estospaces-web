@@ -3,9 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Search, Globe, MapPin, Eye, Bath, Bed, ArrowRight, X, Filter,
-    DollarSign, Building2, Key, Home, ChevronDown, Video, Phone, Mail,
-    Languages, Star, TrendingUp, Clock, Sparkles, Loader2, ArrowLeft
+    Search, Globe, ChevronDown, Phone, Home, Building2, Sparkles, ArrowLeft
 } from 'lucide-react';
 
 const COUNTRIES = [
@@ -19,7 +17,25 @@ const COUNTRIES = [
 export default function OverseasPage() {
     const navigate = useNavigate();
     const [selectedCountry, setSelectedCountry] = useState('ALL');
+    const [cityQuery, setCityQuery] = useState('');
     const [propertyType, setPropertyType] = useState('buy');
+
+    const handleExplore = () => {
+        const country = COUNTRIES.find(c => c.code === selectedCountry);
+        const query = [cityQuery, country?.name !== 'Global' ? country?.name : ''].filter(Boolean).join(', ');
+        navigate(`/user/search?location=${encodeURIComponent(query)}&type=${propertyType}`);
+    };
+
+    const handleAdvisorSupport = () => {
+        const country = COUNTRIES.find(c => c.code === selectedCountry);
+        const destination = [cityQuery, country?.name !== 'Global' ? country?.name : 'International'].filter(Boolean).join(', ');
+        const params = new URLSearchParams({
+            category: 'Overseas Relocation',
+            subject: `Advisor request for ${destination}`,
+            message: `I need help with an overseas ${propertyType} journey for ${destination}. Please connect me with an advisor and tell me the next steps for search, legal preparation, and relocation support.`,
+        });
+        navigate(`/user/dashboard/help?${params.toString()}`);
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
@@ -38,7 +54,7 @@ export default function OverseasPage() {
 
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
-                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none mb-3">
+                            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none mb-2">
                                 Overseas
                             </h1>
                             <p className="text-gray-500 dark:text-gray-400 font-medium">
@@ -64,8 +80,8 @@ export default function OverseasPage() {
                 </div>
 
                 {/* Hero Search Section */}
-                <div className="relative rounded-[3rem] overflow-hidden bg-gray-900 dark:bg-white mb-16 shadow-2xl">
-                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2600&auto=format&fit=crop')] bg-cover bg-center opacity-40 dark:opacity-10 group-hover:scale-105 transition-transform duration-1000"></div>
+                <div className="relative rounded-[3rem] overflow-hidden bg-gray-900 dark:bg-white mb-16 shadow-2xl group">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.35),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.28),_transparent_40%),linear-gradient(135deg,_rgba(17,24,39,0.96),_rgba(55,65,81,0.92))] dark:bg-[radial-gradient(circle_at_top_left,_rgba(249,115,22,0.18),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),_transparent_40%),linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(243,244,246,0.92))] opacity-100 group-hover:scale-105 transition-transform duration-1000"></div>
                     <div className="relative z-10 px-10 py-20 text-center max-w-3xl mx-auto">
                         <h2 className="text-4xl md:text-5xl font-black text-white dark:text-gray-900 mb-6 tracking-tight">
                             Find Your Dream <span className="text-orange-500">Global</span> Sanctuary
@@ -77,6 +93,8 @@ export default function OverseasPage() {
                                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
                                     type="text"
+                                    value={cityQuery}
+                                    onChange={(e) => setCityQuery(e.target.value)}
                                     placeholder="Which city are you dreaming of?"
                                     className="w-full bg-white dark:bg-white border-none rounded-[2rem] pl-16 pr-6 py-5 outline-none font-bold text-gray-900 dark:text-gray-900 shadow-sm"
                                 />
@@ -94,7 +112,10 @@ export default function OverseasPage() {
                                 </select>
                                 <ChevronDown size={18} className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                             </div>
-                            <button className="px-10 py-5 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-[2rem] shadow-xl shadow-orange-500/30 transition-all active:scale-95">
+                            <button 
+                                onClick={handleExplore}
+                                className="px-10 py-5 bg-orange-500 hover:bg-orange-600 text-white font-black rounded-[2rem] shadow-xl shadow-orange-500/30 transition-all active:scale-95"
+                            >
                                 Explore
                             </button>
                         </div>
@@ -104,17 +125,21 @@ export default function OverseasPage() {
                 {/* Categories Section */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
                     {[
-                        { title: 'Dubai Penthouse', count: 12, bg: 'bg-gold', icon: Sparkles },
-                        { title: 'Spanish Villas', count: 45, bg: 'bg-sunset', icon: Home },
-                        { title: 'Paris Apartments', count: 28, bg: 'bg-pearl', icon: Building2 },
-                        { title: 'Phuket Resorts', count: 19, bg: 'bg-aqua', icon: Globe },
+                        { title: 'Dubai Penthouse', query: 'Dubai, UAE', icon: Sparkles },
+                        { title: 'Spanish Villas', query: 'Spain', icon: Home },
+                        { title: 'Paris Apartments', query: 'Paris, France', icon: Building2 },
+                        { title: 'Phuket Resorts', query: 'Phuket, Thailand', icon: Globe },
                     ].map((cat) => (
-                        <div key={cat.title} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl hover:scale-[1.05] transition-all cursor-pointer group">
+                        <div 
+                            key={cat.title} 
+                            onClick={() => navigate(`/user/search?location=${encodeURIComponent(cat.query)}`)}
+                            className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl hover:scale-[1.05] transition-all cursor-pointer group"
+                        >
                             <div className="w-16 h-16 bg-orange-50 dark:bg-orange-900/20 rounded-2xl flex items-center justify-center text-orange-500 mb-6 group-hover:bg-orange-500 group-hover:text-white transition-all">
                                 <cat.icon size={28} />
                             </div>
                             <h4 className="text-xl font-black text-gray-900 dark:text-white mb-1 tracking-tight">{cat.title}</h4>
-                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{cat.count} Listings</p>
+                            <p className="text-xs font-black text-gray-400 uppercase tracking-widest">View Collection</p>
                         </div>
                     ))}
                 </div>
@@ -125,7 +150,10 @@ export default function OverseasPage() {
                     <div className="relative z-10">
                         <h3 className="text-3xl font-black mb-4 tracking-tight">Need help with international relocation?</h3>
                         <p className="text-orange-100 font-bold mb-10 max-w-xl mx-auto">Our specialist agents handle visas, legal paperwork, and currency exchange to make your global move seamless.</p>
-                        <button className="px-12 py-5 bg-white text-orange-600 font-black rounded-[2rem] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto">
+                        <button
+                            onClick={handleAdvisorSupport}
+                            className="px-12 py-5 bg-white text-orange-600 font-black rounded-[2rem] shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3 mx-auto"
+                        >
                             <Phone size={20} /> Speak to an Advisor
                         </button>
                     </div>

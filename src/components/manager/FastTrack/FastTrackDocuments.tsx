@@ -1,18 +1,17 @@
 import React from 'react';
 import { FastTrackDocuments as IFastTrackDocuments } from '../../../services/fastTrackService';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Clock } from 'lucide-react';
 
 interface FastTrackDocumentsProps {
     documents: IFastTrackDocuments;
-    onVerify: (docType: keyof IFastTrackDocuments) => void;
-    isReadOnly: boolean;
+    onVerify?: (docType: keyof IFastTrackDocuments) => void;
+    isReadOnly?: boolean;
 }
 
-const FastTrackDocuments: React.FC<FastTrackDocumentsProps> = ({ documents, onVerify, isReadOnly }) => {
+const FastTrackDocuments: React.FC<FastTrackDocumentsProps> = ({ documents }) => {
     const docLabels: { key: keyof IFastTrackDocuments; label: string }[] = [
-        { key: 'idProof', label: 'ID Proof' },
-        { key: 'incomeProof', label: 'Income Proof' },
-        { key: 'propertyDocs', label: 'Property Docs' },
+        { key: 'identityProof', label: 'Identity proof' },
+        { key: 'addressProof', label: 'Address proof' },
     ];
 
     return (
@@ -27,17 +26,9 @@ const FastTrackDocuments: React.FC<FastTrackDocumentsProps> = ({ documents, onVe
                                 <Check className="w-3 h-3" /> Verified
                             </span>
                         ) : (
-                            <button
-                                onClick={() => onVerify(key)}
-                                disabled={isReadOnly}
-                                className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full transition-colors
-                        ${isReadOnly
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40'}
-                    `}
-                            >
-                                {isReadOnly ? 'Pending' : 'Verify'}
-                            </button>
+                            <span className="flex items-center gap-1 text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                                <Clock className="w-3 h-3" /> Pending review
+                            </span>
                         )}
                     </div>
                 ))}

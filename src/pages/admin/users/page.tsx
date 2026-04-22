@@ -1,32 +1,160 @@
 "use client";
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     UserPlus, Clock, CheckCircle, XCircle, Users, Plus,
     Filter, Search, MoreVertical, Eye, Edit, Trash2,
     Mail, Phone, Download, Share2, FileDown, FileSpreadsheet,
-    Star, Shield, ArrowRight, TrendingUp, UserCheck
+    Star, Shield, TrendingUp, UserCheck, Loader2, Power
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+
+import { userService } from '@/services/userService';
+import { getPlatformAnalytics, invalidateAnalyticsCache } from '@/services/analyticsService';
+import { User } from '@/types';
+import { useToast } from '@/contexts/ToastContext';
+import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import PaginationBar from '@/components/ui/PaginationBar';
+import Avatar from '@/components/ui/Avatar';
 
 function UserManagementContent() {
-    const { user } = useAuth();
+    const navigate = useNavigate();
+    const { success: showToastSuccess, error: showToastError } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('all');
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [statsData, setStatsData] = useState<any>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [actionUserId, setActionUserId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 20;
 
-    const leads = [
-        { id: '1', name: 'James Wilson', email: 'james.w@example.com', property: 'Mayfair Penthouse', status: 'New Lead', score: 92, lastContact: '2h ago' },
-        { id: '2', name: 'Elena Rodriguez', email: 'elena.r@lifestyle.com', property: 'Chelsea Garden Flat', status: 'In Progress', score: 78, lastContact: '5h ago' },
-        { id: '3', name: 'Marcus Thorne', email: 'm.thorne@global.net', property: 'Skyline Suite 402', status: 'Approved', score: 95, lastContact: '1d ago' },
-        { id: '4', name: 'Sarah Jenkins', email: 'sarah.j@outlook.com', property: 'Notting Hill Mews', status: 'Rejected', score: 45, lastContact: '3d ago' },
-    ];
+    const fetchUsers = useCallback(async () => {
+        try {
+            setLoading(true);
+            const [{ data: userData, error: userError }, { data: analytics, error: analyticsError }] = await Promise.all([
+                userService.getAllUsers(),
+                getPlatformAnalytics()
+            ]);
+            if (userError) {
+                throw new Error(userError);
+            }
+            if (analyticsError) {
+                throw new Error(analyticsError);
+            }
+            setUsers(userData || []);
+            setStatsData(analytics);
+            setLoadError(null);
+        } catch (error: any) {
+            setLoadError(error.message || 'User registry is not available right now.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+
+    useDashboardWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.ADMIN_ANALYTICS,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+            WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+            WORKSPACE_SYNC_TAGS.ADMIN_VERIFICATIONS,
+        ],
+        refresh: async () => {
+            invalidateAnalyticsCache('platform_analytics');
+            await fetchUsers();
+        },
+    });
+
+    const handleReviewVerification = (user: User) => {
+        if (user.role === 'admin') {
+            showToastError('Admin accounts do not have a verification review screen.');
+            return;
+        }
+
+        const params = new URLSearchParams({
+            entity: user.role === 'manager' ? 'manager' : 'user',
+        });
+
+        if (user.role === 'manager') {
+            params.set('managerId', user.id);
+        } else {
+            params.set('userId', user.id);
+        }
+
+        navigate(`/admin/verifications?${params.toString()}`);
+    };
+
+    const handleToggleUserState = async (user: User) => {
+        setActionUserId(user.id);
+        const { error } = await userService.setUserActiveState(user.id, !user.is_active);
+        setActionUserId(null);
+
+        if (error) {
+            showToastError(`Failed to ${user.is_active ? 'deactivate' : 'activate'} user: ${error}`);
+            return;
+        }
+
+        showToastSuccess(`User ${user.is_active ? 'deactivated' : 'activated'} successfully.`);
+        fetchUsers();
+    };
 
     const stats = [
-        { label: 'Network Size', value: '1,280', icon: Users, color: 'text-blue-500' },
-        { label: 'Active Leads', value: '42', icon: TrendingUp, color: 'text-orange-500' },
-        { label: 'Member Growth', value: '+12%', icon: UserCheck, color: 'text-emerald-500' },
-        { label: 'Verified Props', value: '156', icon: Shield, color: 'text-indigo-500' },
+        { label: 'Network Size', value: statsData?.total_users?.toLocaleString() || '0', icon: Users, color: 'text-blue-500' },
+        { label: 'Active Leads', value: statsData?.active_leads?.toLocaleString() || '0', icon: TrendingUp, color: 'text-orange-500' },
+        { label: 'Total Brokers', value: statsData?.total_brokers?.toLocaleString() || '0', icon: UserCheck, color: 'text-emerald-500' },
+        { label: 'Total Properties', value: statsData?.total_properties?.toLocaleString() || '0', icon: Shield, color: 'text-indigo-500' },
     ];
+
+    const filteredUsers = users.filter(u => {
+        const searchLower = searchQuery.toLowerCase();
+        const displayName = u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.full_name || '';
+        const matchesSearch = u.email.toLowerCase().includes(searchLower) || displayName.toLowerCase().includes(searchLower);
+        const matchesTab = activeTab === 'all' || u.role === activeTab;
+        return matchesSearch && matchesTab;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const paginatedUsers = filteredUsers.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
+
+    const handleExportCSV = () => {
+        if (filteredUsers.length === 0) {
+            showToastError('No users to export.');
+            return;
+        }
+        const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
+        const rows = filteredUsers.map(u => {
+            const name = u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.full_name || 'No Name';
+            return [
+                name.replace(/,/g, ' '),
+                u.email,
+                u.role,
+                u.is_active ? 'Active' : 'Deactivated',
+                new Date(u.created_at).toLocaleDateString(),
+            ].join(',');
+        });
+        const csv = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `users_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToastSuccess(`Exported ${filteredUsers.length} users to CSV.`);
+    };
+
+    // Reset page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, activeTab]);
 
     return (
         <div className="space-y-10 animate-in fade-in duration-500">
@@ -52,7 +180,10 @@ function UserManagementContent() {
                             className="pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/10 font-bold text-sm w-64 shadow-sm transition-all"
                         />
                     </div>
-                    <button className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2">
+                    <button
+                        onClick={() => navigate('/register')}
+                        className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
+                    >
                         <UserPlus size={18} /> Add User
                     </button>
                 </div>
@@ -73,15 +204,21 @@ function UserManagementContent() {
                 ))}
             </div>
 
+            {loadError && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/10 dark:text-red-300">
+                    {loadError}
+                </div>
+            )}
+
             {/* Main Registry Table */}
             <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
                 <div className="px-10 py-8 border-b dark:border-gray-700 flex items-center justify-between">
                     <div className="flex gap-8">
-                        {['all', 'New Lead', 'In Progress', 'Approved'].map((tab) => (
+                        {['all', 'admin', 'manager', 'user'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === tab ? 'border-emerald-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
+                                className={`text-xs font-black uppercase tracking-widest pb-2 transition-all border-b-2 ${activeTab === tab ? 'border-emerald-50 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'
                                     }`}
                             >
                                 {tab}
@@ -89,7 +226,10 @@ function UserManagementContent() {
                         ))}
                     </div>
                     <div className="flex gap-4">
-                        <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                        >
                             <Download size={16} /> Export CSV
                         </button>
                     </div>
@@ -107,47 +247,62 @@ function UserManagementContent() {
                             </tr>
                         </thead>
                         <tbody className="divide-y dark:divide-gray-700">
-                            {leads.map((lead) => (
-                                <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
+                            {paginatedUsers.map((user) => (
+                                <tr key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors group">
                                     <td className="px-10 py-6">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center font-black text-lg">
-                                                {lead.name.charAt(0)}
-                                            </div>
+                                            <Avatar
+                                                userId={user.id}
+                                                src={user.avatar_url || user.avatar}
+                                                name={user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.full_name || user.email}
+                                                size="lg"
+                                                shape="rounded"
+                                                fallbackClassName="from-emerald-500 to-teal-600"
+                                            />
                                             <div>
-                                                <p className="font-black text-gray-900 dark:text-white text-sm">{lead.name}</p>
-                                                <p className="text-xs text-gray-400 font-bold">{lead.email}</p>
+                                                <p className="font-black text-gray-900 dark:text-white text-sm">
+                                                    {user.first_name ? `${user.first_name} ${user.last_name || ''}` : user.full_name || 'No Name'}
+                                                </p>
+                                                <p className="text-xs text-gray-400 font-bold">{user.email}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-10 py-6">
-                                        <p className="text-sm font-black text-gray-900 dark:text-white">{lead.property}</p>
-                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ref: #EP-{lead.id}024</p>
+                                        <p className="text-sm font-black text-gray-900 dark:text-white capitalize">{user.role}</p>
+                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Ref: #U-{user.id.substring(0, 6)}</p>
                                     </td>
                                     <td className="px-10 py-6">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${lead.status === 'New Lead' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-500' :
-                                            lead.status === 'In Progress' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-500' :
-                                                lead.status === 'Approved' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' :
-                                                    'bg-red-50 dark:bg-red-900/20 text-red-500'
-                                            }`}>
-                                            {lead.status}
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.is_active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' : 'bg-red-50 dark:bg-red-900/20 text-red-500'}`}>
+                                            {user.is_active ? 'Active' : 'Deactivated'}
                                         </span>
                                     </td>
                                     <td className="px-10 py-6 text-center">
                                         <div className="flex flex-col items-center">
-                                            <div className="flex items-center gap-1 mb-1">
-                                                {[1, 2, 3, 4, 5].map(s => (
-                                                    <Star key={s} size={10} className={lead.score >= s * 20 ? 'fill-emerald-500 text-emerald-500' : 'text-gray-200'} />
-                                                ))}
-                                            </div>
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Score: {lead.score}</span>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Joined: {new Date(user.created_at).toLocaleDateString()}</span>
                                         </div>
                                     </td>
                                     <td className="px-10 py-6 text-right">
-                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 hover:text-emerald-500 transition-all"><Eye size={18} /></button>
-                                            <button className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 hover:text-blue-500 transition-all"><Edit size={18} /></button>
-                                            <button className="p-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 hover:text-red-500 transition-all"><Trash2 size={18} /></button>
+                                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                                            <button
+                                                onClick={() => handleReviewVerification(user)}
+                                                disabled={user.role === 'admin'}
+                                                className="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-600 dark:text-gray-300 hover:text-emerald-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+                                            >
+                                                <Eye size={16} />
+                                                Review
+                                            </button>
+                                            <button
+                                                onClick={() => handleToggleUserState(user)}
+                                                disabled={actionUserId === user.id}
+                                                className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest ${
+                                                    user.is_active
+                                                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                                        : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                                } disabled:opacity-60`}
+                                            >
+                                                {actionUserId === user.id ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}
+                                                {user.is_active ? 'Deactivate' : 'Activate'}
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -157,16 +312,16 @@ function UserManagementContent() {
                 </div>
 
                 {/* Pagination Footer */}
-                <div className="px-10 py-8 border-t dark:border-gray-700 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/20">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Showing 1-4 of 1,280 Members</p>
-                    <div className="flex gap-2">
-                        <button className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all disabled:opacity-30" disabled>
-                            <ArrowRight size={18} className="rotate-180" />
-                        </button>
-                        <button className="p-3 bg-white dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all">
-                            <ArrowRight size={18} />
-                        </button>
-                    </div>
+                <div className="border-t bg-gray-50/50 px-10 py-8 dark:border-gray-700 dark:bg-gray-900/20">
+                    <PaginationBar
+                        currentPage={safeCurrentPage}
+                        totalPages={totalPages}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredUsers.length}
+                        pageSize={PAGE_SIZE}
+                        currentItemCount={paginatedUsers.length}
+                        itemLabel="members"
+                    />
                 </div>
             </div>
         </div>

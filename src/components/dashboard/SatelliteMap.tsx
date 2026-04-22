@@ -11,6 +11,7 @@ import {
     Filter,
     X
 } from 'lucide-react';
+import { useProperties } from '@/contexts/PropertyContext';
 import { useMap, MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 
 // We need to import leaflet CSS
@@ -65,26 +66,9 @@ interface Location {
     phone?: string;
 }
 
-// Dummy data for different location types
-const dummyLocations: Location[] = [
-    // Properties
-    { id: '1', name: 'Modern Downtown Apartment', type: 'property', lat: 51.5074, lng: -0.1278, address: '123 Main St, London, UK' },
-    { id: '2', name: 'Luxury Condo', type: 'property', lat: 51.5155, lng: -0.0932, address: '456 Oak Ave, City of London, UK' },
-    { id: '3', name: 'Spacious Penthouse', type: 'property', lat: 51.5033, lng: -0.1195, address: '789 South Bank, London, UK' },
-
-    // Estate Agents
-    { id: '6', name: 'Prime Real Estate', type: 'estate_agent', lat: 51.5100, lng: -0.1300, address: '100 Broadway, London, UK', phone: '(555) 123-4567' },
-    { id: '7', name: 'Elite Properties', type: 'estate_agent', lat: 51.5200, lng: -0.1000, address: '200 Sunset Blvd, London, UK', phone: '(555) 234-5678' },
-
-    // Supermarkets
-    { id: '11', name: 'Tesco Express', type: 'supermarket', lat: 51.5050, lng: -0.1250, address: '700 6th Ave, London, UK', phone: '(555) 333-4444' },
-
-    // Restaurants
-    { id: '14', name: 'The Grill House', type: 'restaurant', lat: 51.5080, lng: -0.1280, address: '123 5th Ave, London, UK', phone: '(555) 666-7777' },
-];
-
 const filterOptions = [
     { id: 'property', label: 'Properties', icon: Home, color: '#3b82f6' },
+    /* Non-functional filters commented out
     { id: 'estate_agent', label: 'Estate Agents', icon: Building2, color: '#10b981' },
     { id: 'locksmith', label: 'Locksmiths', icon: Wrench, color: '#f59e0b' },
     { id: 'supermarket', label: 'Supermarkets', icon: ShoppingCart, color: '#ef4444' },
@@ -93,6 +77,7 @@ const filterOptions = [
     { id: 'mechanic', label: 'Mechanic Shops', icon: Car, color: '#06b6d4' },
     { id: 'furniture', label: 'Furniture Shops', icon: Sofa, color: '#84cc16' },
     { id: 'household', label: 'Household Shops', icon: ShoppingCart, color: '#f97316' },
+    */
 ];
 
 function MapController({ center }: { center: [number, number] }) {
@@ -108,14 +93,20 @@ function MapController({ center }: { center: [number, number] }) {
     const map = useMap();
 
     useEffect(() => {
-        map.setView(center, map.getZoom());
+        try {
+            map.closePopup();
+            map.setView(center, map.getZoom());
+        } catch {
+            // Ignore transient Leaflet teardown errors during view resets.
+        }
     }, [center, map]);
 
     return null;
 }
 
 const SatelliteMap = () => {
-    const [activeFilters, setActiveFilters] = useState<string[]>(['property', 'estate_agent', 'restaurant', 'supermarket']);
+    const { properties } = useProperties();
+    const [activeFilters, setActiveFilters] = useState<string[]>(['property']);
     const [showFilters, setShowFilters] = useState(true);
     const [mapCenter] = useState<[number, number]>([51.5074, -0.1278]); // London
     const [isMounted, setIsMounted] = useState(false);
@@ -132,7 +123,24 @@ const SatelliteMap = () => {
         );
     };
 
-    const filteredLocations = dummyLocations.filter(loc => activeFilters.includes(loc.type));
+    // Map properties to Location interface
+    const propertyLocations: Location[] = properties
+        .filter(p => p.location?.latitude && p.location?.longitude)
+        .map(p => ({
+            id: p.id,
+            name: p.title,
+            type: 'property',
+            lat: p.location!.latitude!,
+            lng: p.location!.longitude!,
+            address: p.address || p.location?.addressLine1,
+            phone: p.phoneNumber || p.contact?.phone
+        }));
+
+    // Currently we only have real data for properties
+    const allLocations = [...propertyLocations];
+
+    const filteredLocations = allLocations.filter(loc => activeFilters.includes(loc.type));
+    const mapKey = [mapCenter.join(':'), ...filteredLocations.map((location) => `${location.id}:${location.lat}:${location.lng}`)].join('|');
 
     const getIconForType = (type: string) => {
         const filter = filterOptions.find(f => f.id === type);
@@ -163,7 +171,7 @@ const SatelliteMap = () => {
         <div className="relative w-full h-full min-h-[500px]">
             {/* Filter Panel */}
             {showFilters && (
-                <div className="absolute top-4 left-4 z-[500] bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-4 max-w-xs max-h-[80vh] overflow-y-auto">
+                <div className="absolute top-4 left-4 z-[500] bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 p-4 max-w-xs max-h-[80vh] overflow-y-auto">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                             <Filter className="w-5 h-5 text-gray-700 dark:text-gray-300" />
@@ -172,6 +180,7 @@ const SatelliteMap = () => {
                         <button
                             onClick={() => setShowFilters(false)}
                             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                            aria-label="Close map filters"
                         >
                             <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         </button>
@@ -181,7 +190,7 @@ const SatelliteMap = () => {
                         {filterOptions.map((filter) => {
                             const Icon = filter.icon;
                             const isActive = activeFilters.includes(filter.id);
-                            const count = dummyLocations.filter(loc => loc.type === filter.id).length;
+                            const count = allLocations.filter(loc => loc.type === filter.id).length;
 
                             return (
                                 <button
@@ -228,7 +237,7 @@ const SatelliteMap = () => {
             {!showFilters && (
                 <button
                     onClick={() => setShowFilters(true)}
-                    className="absolute top-4 left-4 z-[500] bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    className="absolute top-4 left-4 z-[500] bg-white dark:bg-gray-800 px-4 py-2 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                     <Filter className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filters</span>
@@ -237,11 +246,15 @@ const SatelliteMap = () => {
 
             {/* Map Container */}
             <MapContainer
+                key={mapKey}
                 center={mapCenter}
                 zoom={13}
                 style={{ height: '100%', width: '100%', zIndex: 0, borderRadius: '0.75rem' }}
                 zoomControl={true}
                 scrollWheelZoom={true}
+                fadeAnimation={false}
+                markerZoomAnimation={false}
+                zoomAnimation={false}
             >
                 <MapController center={mapCenter} />
 

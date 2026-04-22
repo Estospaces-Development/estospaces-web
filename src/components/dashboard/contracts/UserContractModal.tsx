@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle, PenTool, Download } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
-import { Contract, signContract } from '@/services/contractsService';
+import { signContract } from '@/services/contractsService';
+import { type Contract } from '@/types/booking';
 
 interface UserContractModalProps {
     contract: Contract;
@@ -56,7 +57,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 font-outfit">
             <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-3xl shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                             <FileText className="text-orange-500" />
@@ -81,7 +82,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
 
                 {/* Body */}
                 <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-gray-50 dark:bg-gray-900/50">
-                    <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 max-w-2xl mx-auto">
+                    <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 max-w-2xl mx-auto">
 
                         {/* Contract Title */}
                         <div className="text-center mb-8 border-b border-gray-100 dark:border-gray-700 pb-6">
@@ -130,7 +131,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
                         </div>
 
                         {/* Signatures Area */}
-                        <div className="grid grid-cols-2 gap-8 border-t border-gray-200 dark:border-gray-700 pt-8">
+                        <div className="grid grid-cols-2 gap-8 border-t border-gray-100 dark:border-gray-700 pt-8">
                             {/* Tenant Sig */}
                             <div>
                                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Tenant Signature</p>
@@ -171,7 +172,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-6 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-2xl">
+                <div className="p-6 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-2xl">
                     {!isUserSigned ? (
                         <div className="flex flex-col gap-4">
                             <label className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">

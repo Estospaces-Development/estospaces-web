@@ -60,7 +60,7 @@ const Calendar = ({ appointments, onDateClick, onAppointmentClick }: CalendarPro
     };
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6">
             {/* Calendar Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
@@ -104,7 +104,7 @@ const Calendar = ({ appointments, onDateClick, onAppointmentClick }: CalendarPro
                         <div
                             key={day}
                             onClick={() => handleDateClick(day)}
-                            className={`aspect-square border border-gray-200 dark:border-gray-800 rounded-lg p-2 cursor-pointer transition-all hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 ${isCurrentDay ? 'bg-primary/10 border-primary dark:bg-primary/20' : 'bg-white dark:bg-gray-800/50'
+                            className={`aspect-square border border-gray-100 dark:border-gray-800 rounded-lg p-2 cursor-pointer transition-all hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 ${isCurrentDay ? 'bg-primary/10 border-primary dark:bg-primary/20' : 'bg-white dark:bg-gray-800/50'
                                 }`}
                         >
                             <div className="flex flex-col h-full">

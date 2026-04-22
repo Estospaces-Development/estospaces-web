@@ -1,15 +1,19 @@
 "use client";
 
 import React, { Suspense } from 'react';
+import { Navigate } from 'react-router-dom';
 import UserHeader from '../../components/layout/UserHeader';
 import HorizontalNavigation from '../../components/layout/HorizontalNavigation';
+import { useAuth } from '../../contexts/AuthContext';
 import { LocationProvider } from '../../contexts/LocationContext';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { PropertyFilterProvider } from '../../contexts/PropertyFilterContext';
 import { MessagesProvider } from '../../contexts/MessagesContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
+import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
+import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface UserLayoutClientProps {
     children: React.ReactNode;
@@ -17,6 +21,21 @@ interface UserLayoutClientProps {
 }
 
 export default function UserLayoutClient({ children, isSubdomain = false }: UserLayoutClientProps) {
+    const { user, loading, isAuthenticated } = useAuth();
+    const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
+
+    if (shouldWaitForSession) {
+        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    if (user?.role !== 'user') {
+        return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
+    }
+
     return (
         <ThemeProvider>
             <NotificationsProvider>
@@ -35,7 +54,7 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
                                                 {children}
                                             </Suspense>
                                         </main>
-                                        {/* Lakshmi AI Assistant - Could be added here globally or per page */}
+                                        <MessageInboxFab />
                                     </div>
                                 </MessagesProvider>
                             </PropertyFilterProvider>

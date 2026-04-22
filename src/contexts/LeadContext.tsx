@@ -1,14 +1,17 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
-import { getBrokerLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import { getUserLeads, getBrokerLeads, createManualLead, updateLead as updateLeadService, deleteLead as deleteLeadService, Lead, CreateManualLeadRequest, UpdateLeadRequest } from '../services/leadsService';
+import { useAuth } from './AuthContext';
+import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 
 // Re-export Lead type
 export type { Lead } from '../services/leadsService';
 
 interface LeadContextType {
     leads: Lead[];
+    refetch: () => Promise<void>;
     addLead: (lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => Promise<Lead>;
     updateLead: (id: string, lead: Partial<Lead>) => Promise<void>;
     deleteLead: (id: string) => Promise<void>;
@@ -26,40 +29,63 @@ export const useLeads = () => {
 };
 
 export const LeadProvider = ({ children }: { children: ReactNode }) => {
-    const { pathname } = useLocation();
+    const { user } = useAuth();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
+    const syncTags = useMemo(() => [
+        WORKSPACE_SYNC_TAGS.LEADS,
+        WORKSPACE_SYNC_TAGS.CLIENTS,
+        WORKSPACE_SYNC_TAGS.BROKER_REQUESTS,
+        WORKSPACE_SYNC_TAGS.FAST_TRACK,
+        WORKSPACE_SYNC_TAGS.VERIFICATIONS,
+    ], []);
 
-    // Load leads from service
+    const fetchLeads = useCallback(async () => {
+        try {
+            const result = user?.role === 'manager' || user?.role === 'admin'
+                ? await getBrokerLeads()
+                : await getUserLeads();
+            if (result.data) {
+                setLeads(result.data.map((lead) => ({
+                    ...lead,
+                    name: lead.name || lead.email || 'Property enquiry',
+                    propertyInterested: lead.propertyInterested || lead.property_name || lead.property?.title || 'Property enquiry',
+                })));
+            }
+        } catch (error) {
+        } finally {
+            setIsInitialized(true);
+        }
+    }, [user?.role]);
+
     useEffect(() => {
-        const fetchLeads = async () => {
-            if (!pathname.startsWith('/manager/leads') && !pathname.startsWith('/manager/analytics')) {
-                setIsInitialized(true);
-                return;
-            }
+        void fetchLeads();
+    }, [fetchLeads]);
 
-            try {
-                const result = await getBrokerLeads();
-                if (result.data) {
-                    setLeads(result.data);
-                }
-            } catch (error) {
-                console.error('Error fetching leads:', error);
-            } finally {
-                setIsInitialized(true);
-            }
-        };
-
-        fetchLeads();
-    }, [pathname]);
+    useWorkspaceRefresh({
+        tags: syncTags,
+        refresh: fetchLeads,
+        enabled: isInitialized,
+    });
 
     const addLead = async (leadData: Omit<Lead, 'id' | 'created_at' | 'updated_at'>): Promise<Lead> => {
         try {
+            if (!leadData.name?.trim()) {
+                throw new Error('Lead name is required');
+            }
+            if (!leadData.email?.trim()) {
+                throw new Error('Lead email is required');
+            }
+            if (!leadData.propertyInterested?.trim()) {
+                throw new Error('Property interest is required');
+            }
+
             const req: CreateManualLeadRequest = {
-                name: leadData.name || 'Unknown',
-                email: leadData.email || 'no-email@example.com',
+                name: leadData.name,
+                email: leadData.email,
                 phone: leadData.phone,
-                property_interested: leadData.propertyInterested || 'General Inquiry',
+                property_interested: leadData.propertyInterested,
                 status: leadData.status,
                 score: leadData.score,
                 budget: leadData.budget,
@@ -69,12 +95,18 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
             const result = await createManualLead(req);
             if (result.data) {
                 setLeads((prev) => [result.data!, ...prev]);
+                publishWorkspaceSync({
+                    key: `lead:create:${result.data.id}`,
+                    source: 'mutation',
+                    tags: syncTags,
+                    reason: 'lead-created',
+                    ids: { leadId: result.data.id },
+                });
                 return result.data;
             } else {
                 throw new Error(result.error || 'Failed to create lead');
             }
         } catch (error) {
-            console.error('Error adding lead:', error);
             throw error;
         }
     };
@@ -99,11 +131,16 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
                         lead.id === id ? result.data! : lead
                     )
                 );
+                publishWorkspaceSync({
+                    key: `lead:update:${id}`,
+                    source: 'mutation',
+                    tags: syncTags,
+                    reason: 'lead-updated',
+                    ids: { leadId: id },
+                });
             } else {
-                console.error('Failed to update lead:', result.error);
             }
         } catch (error) {
-            console.error('Error updating lead:', error);
         }
     };
 
@@ -112,11 +149,16 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
             const result = await deleteLeadService(id);
             if (result.success) {
                 setLeads((prev) => prev.filter((lead) => lead.id !== id));
+                publishWorkspaceSync({
+                    key: `lead:delete:${id}`,
+                    source: 'mutation',
+                    tags: syncTags,
+                    reason: 'lead-deleted',
+                    ids: { leadId: id },
+                });
             } else {
-                console.error('Failed to delete lead:', result.error);
             }
         } catch (error) {
-            console.error('Error deleting lead:', error);
         }
     };
 
@@ -128,6 +170,7 @@ export const LeadProvider = ({ children }: { children: ReactNode }) => {
         <LeadContext.Provider
             value={{
                 leads,
+                refetch: fetchLeads,
                 addLead,
                 updateLead,
                 deleteLead,

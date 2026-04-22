@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 
 export default function ManagerLayout() {
   const domain = window.location.hostname;
-  const isSubdomain = domain.startsWith('manager.');
+  const isSubdomain = domain.startsWith('app.') || domain.startsWith('manager.');
 
   return (
     <ManagerLayoutClient isSubdomain={isSubdomain}>

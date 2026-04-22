@@ -19,7 +19,7 @@ export const PropertyFilterProvider = ({ children }: { children: React.ReactNode
     // Get initial tab from URL or default to 'all'
     const getInitialTab = useCallback(() => {
         if (pathname === '/user/dashboard/discover') {
-            const type = searchParams.get('type');
+            const type = searchParams.get('type') || searchParams.get('tab');
             if (type === 'buy' || type === 'sale') return 'buy';
             if (type === 'rent') return 'rent';
         }

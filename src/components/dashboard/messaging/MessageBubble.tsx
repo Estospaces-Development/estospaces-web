@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
-import { Check, CheckCheck, FileText, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, CheckCheck, FileText, Download, Loader2 } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
+import Avatar from '@/components/ui/Avatar';
 
 interface Attachment {
-    id: string;
-    type: string;
-    url: string;
-    name: string;
-    size?: number;
+    id?: string;
+    file_url: string;
+    file_name: string;
+    mime_type?: string;
+    file_size?: number;
 }
 
 interface Message {
@@ -22,12 +25,17 @@ interface Message {
 interface MessageBubbleProps {
     message: Message;
     isUser: boolean;
+    isSupportConversation?: boolean;
     showAvatar?: boolean;
+    agentUserId?: string;
     agentName?: string;
     agentAvatar?: string;
 }
 
-const MessageBubble = ({ message, isUser, showAvatar, agentName = '', agentAvatar }: MessageBubbleProps) => {
+const MessageBubble = ({ message, isUser, isSupportConversation = false, showAvatar, agentUserId, agentName = '', agentAvatar }: MessageBubbleProps) => {
+    const toast = useToast();
+    const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
+
     const formatTime = (timestamp: string) => {
         const date = new Date(timestamp);
         return date.toLocaleTimeString('en-US', {
@@ -37,32 +45,74 @@ const MessageBubble = ({ message, isUser, showAvatar, agentName = '', agentAvata
         });
     };
 
+    const handleOpenSupportAttachment = async (attachment: Attachment) => {
+        if (!attachment.id) {
+            toast.error('Attachment is unavailable.');
+            return;
+        }
+
+        try {
+            setOpeningAttachmentId(attachment.id);
+            await messagesService.openSupportAttachment(attachment.id);
+        } catch {
+            toast.error('Unable to open this support attachment right now.');
+        } finally {
+            setOpeningAttachmentId(null);
+        }
+    };
+
     const renderAttachment = (attachment: Attachment) => {
-        if (attachment.type.startsWith('image/')) {
+        if (isSupportConversation) {
+            const isOpening = openingAttachmentId === attachment.id;
+            return (
+                <button
+                    type="button"
+                    onClick={() => void handleOpenSupportAttachment(attachment)}
+                    className="mt-2 flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/10 p-3 text-left transition hover:border-orange-300 hover:bg-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-orange-400"
+                >
+                    <FileText size={20} className={isUser ? 'text-orange-100' : 'text-gray-600 dark:text-gray-300'} />
+                    <div className="min-w-0 flex-1">
+                        <p className={`truncate text-sm font-medium ${isUser ? 'text-white' : 'text-gray-900 dark:text-gray-100'}`}>
+                            {attachment.file_name}
+                        </p>
+                        <p className={`text-xs ${isUser ? 'text-orange-100/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : 'Support attachment'}
+                        </p>
+                    </div>
+                    {isOpening ? (
+                        <Loader2 size={16} className={`animate-spin ${isUser ? 'text-orange-100' : 'text-gray-500 dark:text-gray-400'}`} />
+                    ) : (
+                        <Download size={16} className={isUser ? 'text-orange-100' : 'text-gray-600 dark:text-gray-400'} />
+                    )}
+                </button>
+            );
+        }
+
+        if ((attachment.mime_type || '').startsWith('image/')) {
             return (
                 <div className="mt-2 rounded-lg overflow-hidden">
                     <img
-                        src={attachment.url}
-                        alt={attachment.name}
+                        src={attachment.file_url}
+                        alt={attachment.file_name}
                         className="max-w-full h-auto max-h-64 object-cover"
                     />
                 </div>
             );
-        } else if (attachment.type === 'application/pdf') {
+        } else if (attachment.mime_type === 'application/pdf') {
             return (
                 <div className="mt-2 flex items-center gap-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
                     <FileText size={20} className="text-gray-600 dark:text-gray-400" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {attachment.name}
+                            {attachment.file_name}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : 'PDF Document'}
+                            {attachment.file_size ? `${(attachment.file_size / 1024).toFixed(1)} KB` : 'PDF Document'}
                         </p>
                     </div>
                     <a
-                        href={attachment.url}
-                        download={attachment.name}
+                        href={attachment.file_url}
+                        download={attachment.file_name}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                         <Download size={16} />
@@ -75,12 +125,12 @@ const MessageBubble = ({ message, isUser, showAvatar, agentName = '', agentAvata
                     <FileText size={20} className="text-gray-600 dark:text-gray-400" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {attachment.name}
+                            {attachment.file_name}
                         </p>
                     </div>
                     <a
-                        href={attachment.url}
-                        download={attachment.name}
+                        href={attachment.file_url}
+                        download={attachment.file_name}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                     >
                         <Download size={16} />
@@ -95,17 +145,12 @@ const MessageBubble = ({ message, isUser, showAvatar, agentName = '', agentAvata
             {/* Avatar (only for agent messages) */}
             {!isUser && showAvatar && (
                 <div className="flex-shrink-0">
-                    {agentAvatar ? (
-                        <img
-                            src={agentAvatar}
-                            alt={agentName}
-                            className="w-8 h-8 rounded-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                            {agentName.charAt(0).toUpperCase()}
-                        </div>
-                    )}
+                    <Avatar
+                        userId={isSupportConversation ? undefined : agentUserId}
+                        src={agentAvatar}
+                        name={agentName}
+                        size="sm"
+                    />
                 </div>
             )}
 

@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useToast } from '../../contexts/ToastContext';
+import { useToastState } from '../../contexts/ToastContext';
 import Toast from './Toast';
 
 const NotificationContainer = () => {
-    const { toasts, removeToast } = useToast();
+    const { toasts, removeToast } = useToastState();
 
     // Group toasts by position
     const toastsByPosition = toasts.reduce<Record<string, typeof toasts>>((acc, toast) => {

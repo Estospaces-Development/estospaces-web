@@ -1,46 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Bell, Calendar, Check, CreditCard, FileText, Home, Info, MessageSquare, X } from 'lucide-react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { Bell, Check, X, Calendar, FileText, Home, MessageSquare, CreditCard, Info, Shield, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
-
-interface DisplayNotification {
-    id: string;
-    type: string;
-    title: string;
-    message: string;
-    read: boolean;
-    timestamp: string;
-    data: Record<string, any>;
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
+import {
+    getNotificationNavigationPath,
+    getNotificationsPagePath,
+    isPropertyWorkflowNotification,
+    NOTIFICATION_TYPES,
+    type Notification,
+} from '@/services/notificationsService';
+import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
 
 const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
+    const { user } = useAuth();
     const {
         notifications,
+        unreadCount,
         loading,
-        fetchNotifications,
         markAsRead,
         markAllAsRead,
+        deleteNotification,
     } = useNotifications();
-
-    const displayNotifications: DisplayNotification[] = notifications.map((notification: any) => ({
-        id: notification.id,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        read: notification.is_read ?? notification.read ?? false,
-        timestamp: notification.created_at ?? notification.timestamp,
-        data: notification.data ? (typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data) : {},
-    }));
-
-    useEffect(() => {
-        if (!isOpen) return;
-        fetchNotifications();
-    }, [fetchNotifications, isOpen]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -53,65 +39,67 @@ const NotificationDropdown = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const unreadCount = displayNotifications.filter(notification => !notification.read).length;
+    const safeNotifications = useMemo(() => {
+        if (!Array.isArray(notifications)) {
+            return [];
+        }
+        return notifications.filter((notification) => notification && typeof notification === 'object');
+    }, [notifications]);
 
-    const handleNotificationClick = async (notification: DisplayNotification) => {
-        if (!notification.read) {
-            try {
-                await markAsRead(notification.id);
-            } catch {
-                // Context state remains the source of truth.
-            }
+    const handleNotificationClick = async (notification: Notification) => {
+        if (!notification.is_read) {
+            await markAsRead(notification.id);
         }
 
         setIsOpen(false);
 
-        switch (notification.type) {
-            case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
-            case NOTIFICATION_TYPES.VIEWING_BOOKED:
-            case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-                navigate('/user/dashboard/viewings');
-                break;
-            case NOTIFICATION_TYPES.APPLICATION_UPDATE:
-            case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
-            case NOTIFICATION_TYPES.APPLICATION_APPROVED:
-                navigate('/user/dashboard/applications');
-                break;
-            case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
-                navigate('/user/dashboard/messages');
-                break;
-            case NOTIFICATION_TYPES.PROPERTY_SAVED:
-            case NOTIFICATION_TYPES.PRICE_DROP:
-            case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
-                if (notification.data?.propertyId) {
-                    navigate(`/user/dashboard/property/${notification.data.propertyId}`);
-                } else {
-                    navigate('/user/dashboard/saved');
-                }
-                break;
-            case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
-            case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-                navigate('/user/dashboard/payments');
-                break;
-            case NOTIFICATION_TYPES.CONTRACT_UPDATE:
-                navigate('/user/dashboard/contracts');
-                break;
-            default:
-                break;
+        const targetPath = getNotificationNavigationPath(notification, user?.role || 'user');
+        if (targetPath) {
+            const targetUrl = buildHostedWorkspaceUrl(targetPath, user?.role || 'user');
+            const resolved = new URL(targetUrl, window.location.origin);
+            if (resolved.origin === window.location.origin) {
+                navigate(`${resolved.pathname}${resolved.search}${resolved.hash}`);
+            } else {
+                window.location.href = resolved.toString();
+            }
         }
     };
 
-    const getIcon = (type: string) => {
+    const getIcon = (notification: Notification) => {
+        if (isPropertyWorkflowNotification(notification)) {
+            return <Home size={18} className="text-orange-500" />;
+        }
+
+        const { type } = notification;
         switch (type) {
             case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
+            case NOTIFICATION_TYPES.VIEWING_COMPLETED:
             case NOTIFICATION_TYPES.VIEWING_BOOKED:
+            case NOTIFICATION_TYPES.VIEWING_CANCELLED:
+            case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
             case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
                 return <Calendar size={18} className="text-blue-500" />;
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
             case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
                 return <FileText size={18} className="text-purple-500" />;
+            case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+                return <Shield size={18} className="text-red-500" />;
+            case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+            case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+            case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+                return <Zap size={18} className="text-orange-500" />;
+            case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
+            case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
+            case NOTIFICATION_TYPES.PROFILE_VERIFIED:
+                return <Shield size={18} className="text-orange-500" />;
             case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
                 return <MessageSquare size={18} className="text-green-500" />;
             case NOTIFICATION_TYPES.PROPERTY_SAVED:
@@ -146,14 +134,28 @@ const NotificationDropdown = () => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative p-2 rounded-lg transition-colors hover:bg-white/10"
+                className={`relative rounded-2xl border p-2 transition-all ${
+                    unreadCount > 0
+                        ? 'border-orange-200 bg-orange-50 shadow-sm shadow-orange-500/10 dark:border-orange-900/50 dark:bg-orange-950/20'
+                        : 'border-transparent hover:bg-white/10'
+                }`}
                 aria-label="Notifications"
+                title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
             >
-                <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                    <Bell size={18} className="text-gray-600 dark:text-gray-200" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    unreadCount > 0
+                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                        : 'bg-gray-100 dark:bg-gray-700'
+                }`}>
+                    <Bell size={18} className={unreadCount > 0 ? 'text-white' : 'text-gray-600 dark:text-gray-200'} />
                 </div>
                 {unreadCount > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-transparent shadow-sm indicator-pulse" />
+                    <>
+                        <span className="absolute -right-0.5 -top-0.5 h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1.5 text-[10px] font-bold text-white shadow-lg ring-4 ring-white dark:ring-gray-900">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                    </>
                 )}
             </button>
 
@@ -163,7 +165,7 @@ const NotificationDropdown = () => {
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
-                                onClick={markAllAsRead}
+                                onClick={() => void markAllAsRead()}
                                 className="text-xs font-medium text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
                             >
                                 Mark all as read
@@ -172,29 +174,29 @@ const NotificationDropdown = () => {
                     </div>
 
                     <div className="max-h-[70vh] overflow-y-auto scrollbar-thin">
-                        {loading && displayNotifications.length === 0 ? (
+                        {loading && safeNotifications.length === 0 ? (
                             <div className="p-8 text-center">
                                 <p className="text-gray-500 dark:text-gray-400 text-sm">Loading...</p>
                             </div>
-                        ) : displayNotifications.length > 0 ? (
+                        ) : safeNotifications.length > 0 ? (
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                                {displayNotifications.map(notification => (
+                                {safeNotifications.map((notification) => (
                                     <div
                                         key={notification.id}
-                                        onClick={() => handleNotificationClick(notification)}
-                                        className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative group ${!notification.read ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
+                                        onClick={() => void handleNotificationClick(notification)}
+                                        className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative group ${!notification.is_read ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
                                     >
                                         <div className="flex gap-3">
-                                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!notification.read ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                                                {getIcon(notification.type)}
+                                            <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!notification.is_read ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                                {getIcon(notification)}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-0.5">
-                                                    <p className={`text-sm font-medium truncate pr-6 ${!notification.read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
+                                                    <p className={`text-sm font-medium truncate pr-6 ${!notification.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
                                                         {notification.title}
                                                     </p>
                                                     <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
-                                                        {formatTime(notification.timestamp)}
+                                                        {formatTime(notification.created_at)}
                                                     </span>
                                                 </div>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
@@ -204,22 +206,27 @@ const NotificationDropdown = () => {
                                         </div>
 
                                         <div className="absolute right-2 top-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            {!notification.read && (
+                                            {!notification.is_read && (
                                                 <button
                                                     onClick={(event) => {
                                                         event.stopPropagation();
-                                                        markAsRead(notification.id);
+                                                        void markAsRead(notification.id);
                                                     }}
                                                     className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
                                                     title="Mark as read"
+                                                    aria-label="Mark notification as read"
                                                 >
                                                     <Check size={14} />
                                                 </button>
                                             )}
                                             <button
-                                                onClick={(event) => event.stopPropagation()}
-                                                className="p-1.5 text-gray-300 rounded-full shadow-sm transition-all cursor-default"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    deleteNotification(notification.id);
+                                                }}
+                                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white dark:hover:bg-gray-600 rounded-full shadow-sm transition-all"
                                                 title="Remove"
+                                                aria-label="Remove notification"
                                             >
                                                 <X size={14} />
                                             </button>
@@ -241,7 +248,13 @@ const NotificationDropdown = () => {
                         <button
                             onClick={() => {
                                 setIsOpen(false);
-                                navigate('/user/dashboard/notifications');
+                                const targetUrl = buildHostedWorkspaceUrl(getNotificationsPagePath(user?.role || 'user'), user?.role || 'user');
+                                const resolved = new URL(targetUrl, window.location.origin);
+                                if (resolved.origin === window.location.origin) {
+                                    navigate(`${resolved.pathname}${resolved.search}${resolved.hash}`);
+                                } else {
+                                    window.location.href = resolved.toString();
+                                }
                             }}
                             className="text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
                         >

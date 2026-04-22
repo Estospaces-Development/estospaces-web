@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     useProperties,
     PropertyStatus,
@@ -13,8 +13,18 @@ import {
 } from '@/contexts/PropertyContext';
 import { useAuth } from '@/contexts/AuthContext';
 import BackButton from '@/components/ui/BackButton';
+import PaginationBar from '@/components/ui/PaginationBar';
+import {
+    MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
+    MANAGER_LIVE_LISTINGS_VIEW,
+    buildManagerPropertySearchParams,
+    getManagerPropertyStatusFilters,
+    managerPropertyStatusFiltersEqual,
+    normalizeManagerPropertyStatusFilters,
+} from '@/lib/managerPropertyDashboard';
+import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 
-const PropertyCard = lazy(() => import('@/components/dashboard/PropertyCard'));
+const ManagerPropertyCard = lazy(() => import('@/components/dashboard/ManagerPropertyCard'));
 const SharePropertyModal = lazy(() => import('@/components/dashboard/SharePropertyModal'));
 import {
     Plus, Edit, Trash2, Filter, Download, Search, Grid, List, Map as MapIcon,
@@ -67,7 +77,6 @@ const statusOptions: { value: PropertyStatus | string; label: string; color: str
     { value: 'rented', label: 'Rented', color: 'text-purple-700 dark:text-purple-400', bgColor: 'bg-purple-100 dark:bg-purple-900/30' },
     { value: 'under_contract', label: 'Under Contract', color: 'text-orange-700 dark:text-orange-400', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
     { value: 'off_market', label: 'Off Market', color: 'text-gray-700 dark:text-gray-400', bgColor: 'bg-gray-100 dark:bg-gray-900/30' },
-    { value: 'coming_soon', label: 'Coming Soon', color: 'text-indigo-700 dark:text-indigo-400', bgColor: 'bg-indigo-100 dark:bg-indigo-900/30' },
     { value: 'online', label: 'Online', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
     { value: 'active', label: 'Active', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
     { value: 'draft', label: 'Draft', color: 'text-white', bgColor: 'bg-black/60 backdrop-blur-sm border border-white/20' },
@@ -89,6 +98,7 @@ function PropertiesContent() {
     useEffect(() => setIsMounted(true), []);
 
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const {
         filteredProperties,
@@ -109,6 +119,7 @@ function PropertiesContent() {
         setFilters,
         clearFilters,
         setSort,
+        setPage,
         exportProperties,
         getPropertyStats,
     } = useProperties();
@@ -134,17 +145,110 @@ function PropertiesContent() {
     const [selectedBedrooms, setSelectedBedrooms] = useState<number | undefined>(filters.bedroomsMin);
     const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<PropertyType[]>(filters.propertyType || []);
     const [selectedStatuses, setSelectedStatuses] = useState<(PropertyStatus | string)[]>(filters.status || []);
+    const searchParamStatuses = useMemo(
+        () => getManagerPropertyStatusFilters(searchParams),
+        [searchParams],
+    );
+    const isLiveListingsPreset = searchParams.get('view') === MANAGER_LIVE_LISTINGS_VIEW;
+
+    useEffect(() => {
+        if (isLiveListingsPreset) {
+            const presetStatuses = searchParamStatuses.length > 0
+                ? searchParamStatuses
+                : [...MANAGER_LIVE_LISTINGS_STATUS_FILTERS];
+
+            if (searchQuery) {
+                setSearchQuery('');
+            }
+            if (selectedPriceRange !== 0) {
+                setSelectedPriceRange(0);
+            }
+            if (selectedBedrooms !== undefined) {
+                setSelectedBedrooms(undefined);
+            }
+            if (selectedPropertyTypes.length > 0) {
+                setSelectedPropertyTypes([]);
+            }
+            if (!managerPropertyStatusFiltersEqual(selectedStatuses, presetStatuses)) {
+                setSelectedStatuses(presetStatuses);
+            }
+
+            const needsPresetSync = filters.search !== undefined
+                || filters.priceMin !== undefined
+                || filters.priceMax !== undefined
+                || filters.bedroomsMin !== undefined
+                || (filters.propertyType?.length ?? 0) > 0
+                || !managerPropertyStatusFiltersEqual(filters.status, presetStatuses);
+
+            if (needsPresetSync) {
+                setFilters({
+                    ...filters,
+                    search: undefined,
+                    priceMin: undefined,
+                    priceMax: undefined,
+                    bedroomsMin: undefined,
+                    propertyType: undefined,
+                    status: presetStatuses,
+                });
+            }
+            return;
+        }
+
+        if (searchParamStatuses.length > 0) {
+            if (!managerPropertyStatusFiltersEqual(selectedStatuses, searchParamStatuses)) {
+                setSelectedStatuses(searchParamStatuses);
+            }
+            if (!managerPropertyStatusFiltersEqual(filters.status, searchParamStatuses)) {
+                setFilters({
+                    ...filters,
+                    status: searchParamStatuses,
+                });
+            }
+            return;
+        }
+
+        if (selectedStatuses.length > 0) {
+            setSelectedStatuses([]);
+        }
+        if ((filters.status?.length ?? 0) > 0) {
+            setFilters({
+                ...filters,
+                status: undefined,
+            });
+        }
+    }, [
+        filters,
+        isLiveListingsPreset,
+        searchParamStatuses,
+        searchQuery,
+        selectedBedrooms,
+        selectedPriceRange,
+        selectedPropertyTypes,
+        selectedStatuses,
+        setFilters,
+    ]);
 
     // Debounced search
     useEffect(() => {
         const timer = setTimeout(() => {
-            setFilters({ ...filters, search: searchQuery || undefined });
+            const nextSearch = searchQuery.trim() || undefined;
+            if (filters.search === nextSearch) {
+                return;
+            }
+
+            setFilters({ ...filters, search: nextSearch });
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, setFilters, filters]);
+    }, [filters, searchQuery, setFilters]);
 
     const handleApplyFilters = () => {
         const priceRange = priceRanges[selectedPriceRange];
+        const normalizedStatuses = normalizeManagerPropertyStatusFilters(selectedStatuses);
+
+        setSearchParams(
+            buildManagerPropertySearchParams(searchParams, normalizedStatuses),
+            { replace: true },
+        );
         setFilters({
             ...filters,
             search: searchQuery || undefined,
@@ -152,7 +256,7 @@ function PropertiesContent() {
             priceMax: priceRange.max,
             bedroomsMin: selectedBedrooms,
             propertyType: selectedPropertyTypes.length > 0 ? selectedPropertyTypes : undefined,
-            status: selectedStatuses.length > 0 ? selectedStatuses : undefined,
+            status: normalizedStatuses.length > 0 ? normalizedStatuses : undefined,
         });
         setShowFilters(false);
     };
@@ -163,6 +267,7 @@ function PropertiesContent() {
         setSelectedBedrooms(undefined);
         setSelectedPropertyTypes([]);
         setSelectedStatuses([]);
+        setSearchParams(buildManagerPropertySearchParams(searchParams, []), { replace: true });
         clearFilters();
     };
 
@@ -186,6 +291,17 @@ function PropertiesContent() {
         await bulkUpdateStatus(selectedProperties, status as PropertyStatus);
         clearSelection();
         setShowBulkActions(false);
+    };
+
+    const handlePageChange = (nextPage: number) => {
+        if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) {
+            return;
+        }
+
+        setPage(nextPage);
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     };
 
     // Filter based on tabs
@@ -232,7 +348,7 @@ function PropertiesContent() {
             </div>
 
             {/* Toolbar */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-4 transition-colors">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 transition-colors">
                 <div className="flex flex-col lg:flex-row gap-4">
                     {/* Search */}
                     <div className="flex-1 relative">
@@ -242,7 +358,7 @@ function PropertiesContent() {
                             placeholder="Search by title, address, city..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white placeholder-gray-500 transition-all"
                         />
                         {searchQuery && (
                             <button
@@ -261,7 +377,7 @@ function PropertiesContent() {
                             onClick={() => setShowFilters(!showFilters)}
                             className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-all ${showFilters || activeFiltersCount > 0
                                 ? 'border-primary bg-primary/10 text-primary'
-                                : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                : 'border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                                 }`}
                         >
                             <Filter className="w-4 h-4" />
@@ -277,7 +393,7 @@ function PropertiesContent() {
                         <div className="relative">
                             <button
                                 onClick={() => setShowSortMenu(!showSortMenu)}
-                                className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                                className="flex items-center gap-2 px-4 py-2.5 border border-gray-100 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
                             >
                                 <ArrowUpDown className="w-4 h-4" />
                                 <span className="text-sm font-medium hidden sm:inline">Sort</span>
@@ -290,7 +406,7 @@ function PropertiesContent() {
                                         initial={{ opacity: 0, y: -10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -10 }}
-                                        className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 z-50"
+                                        className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-100 dark:border-gray-800 z-50"
                                     >
                                         {sortOptions.map((option, index) => (
                                             <button
@@ -340,7 +456,7 @@ function PropertiesContent() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden mt-4"
+                            className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden mt-4"
                         >
                             <div className="p-6 space-y-6">
                                 <div className="flex items-center justify-between">
@@ -362,7 +478,7 @@ function PropertiesContent() {
                                         <select
                                             value={selectedPriceRange}
                                             onChange={(e) => setSelectedPriceRange(Number(e.target.value))}
-                                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
+                                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
                                         >
                                             {priceRanges.map((range, index) => (
                                                 <option key={index} value={index}>{range.label}</option>
@@ -424,7 +540,7 @@ function PropertiesContent() {
                                             Status
                                         </label>
                                         <div className="flex flex-wrap gap-2">
-                                            {statusOptions.slice(0, 4).map((option) => (
+                                            {statusOptions.map((option) => (
                                                 <button
                                                     key={option.value}
                                                     onClick={() => {
@@ -446,10 +562,10 @@ function PropertiesContent() {
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                                     <button
                                         onClick={() => setShowFilters(false)}
-                                        className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                                        className="px-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
                                     >
                                         Cancel
                                     </button>
@@ -471,19 +587,13 @@ function PropertiesContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {tabFilteredProperties.map((property) => (
                         <div key={property.id} className="relative group">
-                            <PropertyCard
+                            <ManagerPropertyCard
                                 property={property}
-                                onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}
+                                onEdit={(id) => navigate(`/manager/dashboard/properties/edit/${id}`)}
+                                onView={(id) => navigate(`/manager/dashboard/properties/${id}`)}
                             />
                             {/* Quick Actions Overlay (visible on hover) */}
                             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
-                                    className="p-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                                    title="Edit"
-                                >
-                                    <Edit className="w-4 h-4" />
-                                </button>
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -512,9 +622,9 @@ function PropertiesContent() {
                     ))}
                 </div>
             ) : (
-                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
                     <table className="w-full text-left">
-                        <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                             <tr>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Property</th>
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
@@ -523,65 +633,92 @@ function PropertiesContent() {
                                 <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {tabFilteredProperties.map((property) => (
-                                <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}>
-                                    <td className="px-6 py-4">
-                                        <div>
-                                            <div className="font-medium text-gray-900 dark:text-white">{property.title}</div>
-                                            <div className="text-sm text-gray-500">{property.address || property.location?.city}</div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                                        {property.priceString}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                                            {property.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">
-                                        {property.propertyType}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm font-medium">
-                                        <div className="flex items-center gap-3">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
-                                                className="text-primary hover:text-primary-dark transition-colors"
-                                                title="Edit"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedPropertyForShare(property);
-                                                    setShowShareModal(true);
-                                                }}
-                                                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                                                title="Share"
-                                            >
-                                                <Share2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
-                                                        deleteProperty(property.id);
-                                                    }
-                                                }}
-                                                className="text-red-500 hover:text-red-700 transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {tabFilteredProperties.map((property) => {
+                                const statusBadge = getManagerPropertyStatusBadge(property.status);
+                                const inventoryCaption = formatPropertyInventoryCaption(
+                                    property.dimensions?.totalFloors ?? property.total_floors,
+                                    property.dimensions?.occupiedUnits ?? property.occupied_units,
+                                );
+
+                                return (
+                                    <tr key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => navigate(`/manager/dashboard/properties/${property.id}`)}>
+                                        <td className="px-6 py-4">
+                                            <div>
+                                                <div className="font-medium text-gray-900 dark:text-white">{property.title}</div>
+                                                <div className="text-sm text-gray-500">{property.address || property.location?.city}</div>
+                                                {inventoryCaption && (
+                                                    <div className="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">
+                                                        {inventoryCaption}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                                            {property.priceString}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${statusBadge.badgeClassName}`}>
+                                                <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
+                                                <span>{statusBadge.label}</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">
+                                            {property.propertyType}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium">
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
+                                                    className="text-primary hover:text-primary-dark transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedPropertyForShare(property);
+                                                        setShowShareModal(true);
+                                                    }}
+                                                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                                                    title="Share"
+                                                >
+                                                    <Share2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
+                                                            deleteProperty(property.id);
+                                                        }
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {tabFilteredProperties.length > 0 && pagination.totalPages > 1 && (
+                <PaginationBar
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    onPageChange={handlePageChange}
+                    totalItems={pagination.total}
+                    pageSize={pagination.limit}
+                    currentItemCount={tabFilteredProperties.length}
+                    itemLabel="properties"
+                    disabled={loading}
+                />
             )}
 
             {/* Empty State */}

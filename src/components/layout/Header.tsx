@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings } from 'lucide-react';
+import { Search, User, Shield, CheckCircle, Clock, AlertCircle, X, Menu, LogOut, Settings, BookOpen } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { useNotifications } from '../../contexts/NotificationsContext';
 import { useManagerVerification } from '../../contexts/ManagerVerificationContext';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
+import Avatar from '../ui/Avatar';
 
 interface HeaderProps {
     onMenuToggle?: () => void;
@@ -17,10 +18,16 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     const navigate = useNavigate();
     const { user, signOut, getDisplayName, getRole } = useAuth();
     const { notifications, unreadCount } = useNotifications();
-    const { verificationStatus, isLoading: isVerificationLoading } = useManagerVerification();
+    const {
+        verificationStatus,
+        isLoading: isVerificationLoading,
+        isPropertySubmissionReady,
+    } = useManagerVerification();
 
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const role = getRole();
+    const workspaceRole = role === 'broker' ? 'manager' : role;
 
     const profileRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +46,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
         e.preventDefault();
         if (searchQuery.trim()) {
             // Implement global search or redirect to search page
-            console.log('Searching for:', searchQuery);
+            // removed console.log
         }
     };
 
@@ -48,12 +55,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
             await signOut();
             navigate('/login');
         } catch (error) {
-            console.error('Error signing out:', error);
         }
     };
 
     const getVerificationBadge = () => {
-        if (getRole() !== 'manager') return null;
+        if (role !== 'manager' && role !== 'broker') return null;
 
         if (isVerificationLoading) {
             return <div className="w-20 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>;
@@ -61,6 +67,14 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
         switch (verificationStatus) {
             case 'approved':
+                if (!isPropertySubmissionReady) {
+                    return (
+                        <Link to="/manager/profile" className="flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium rounded-full border border-amber-200 dark:border-amber-800 hover:bg-amber-200 dark:hover:bg-amber-900/40 transition-colors">
+                            <AlertCircle size={12} />
+                            <span>Complete Profile</span>
+                        </Link>
+                    );
+                }
                 return (
                     <div className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium rounded-full border border-green-200 dark:border-green-800">
                         <CheckCircle size={12} />
@@ -86,7 +100,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 );
             default:
                 return (
-                    <Link to="/manager/verification" className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <Link to="/manager/verification" className="flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full border border-gray-100 dark:border-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <Shield size={12} />
                         <span>Verify Profile</span>
                     </Link>
@@ -95,7 +109,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     };
 
     return (
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
             <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
 
                 {/* Left: Mobile Menu & Search */}
@@ -131,6 +145,14 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         {getVerificationBadge()}
                     </div>
 
+                    <Link
+                        to="/manager/docs"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 transition-all hover:-translate-y-0.5 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/15"
+                    >
+                        <BookOpen className="h-4 w-4" />
+                        <span className="hidden md:inline">Docs</span>
+                    </Link>
+
                     {/* Notifications */}
                     <div className="relative">
                         <NotificationDropdown />
@@ -141,21 +163,25 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                             className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            aria-label="Open profile menu"
                         >
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white font-bold shadow-sm">
-                                {getDisplayName().charAt(0).toUpperCase()}
-                            </div>
+                            <Avatar
+                                userId={user?.id}
+                                src={user?.avatar || user?.avatar_url}
+                                name={getDisplayName()}
+                                size="sm"
+                            />
                         </button>
 
                         {isProfileOpen && (
                             <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 animate-in fade-in slide-in-from-top-2">
                                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{getDisplayName()}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{getRole()}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{role}</p>
                                 </div>
                                 <div className="py-1">
                                     <Link
-                                        to={`/${getRole()}/profile`}
+                                        to={`/${workspaceRole}/profile`}
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                         onClick={() => setIsProfileOpen(false)}
                                     >
@@ -163,7 +189,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                                         Profile
                                     </Link>
                                     <Link
-                                        to="/settings"
+                                        to="/manager/profile"
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                                         onClick={() => setIsProfileOpen(false)}
                                     >

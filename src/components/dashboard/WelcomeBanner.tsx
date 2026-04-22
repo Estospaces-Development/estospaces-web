@@ -5,8 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
+import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
 
-const WelcomeBanner = () => {
+interface WelcomeBannerProps {
+    analytics?: analyticsService.AnalyticsData | null;
+    loading?: boolean;
+}
+
+const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -21,33 +27,49 @@ const WelcomeBanner = () => {
         : (user?.email?.split('@')[0] || 'User');
 
     useEffect(() => {
+        if (analytics !== undefined) {
+            const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
+            setStats({
+                activeProperties: livePropertyPerformance.length,
+                activeLeads: analytics?.active_leads || 0,
+                totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
+            });
+            setLoading(externalLoading);
+            return;
+        }
+
         const fetchStats = async () => {
             if (!user) return;
             setLoading(true);
             try {
-                const res = await analyticsService.getAnalyticsData();
+                const res = await analyticsService.getManagerAnalytics();
                 if (res.data) {
+                    const livePropertyPerformance = filterManagerLivePropertyPerformance(res.data.propertyPerformance);
                     setStats({
-                        activeProperties: res.data.leadAnalytics?.totalProperties || 0,
-                        activeLeads: res.data.leadAnalytics?.totalLeads || 0,
-                        totalApplications: res.data.propertyPerformance?.reduce((acc, p) => acc + p.applications, 0) || 0
+                        activeProperties: livePropertyPerformance.length,
+                        activeLeads: res.data.active_leads || 0,
+                        totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
+                    });
+                } else {
+                    setStats({
+                        activeProperties: 0,
+                        activeLeads: 0,
+                        totalApplications: 0,
                     });
                 }
-            } catch (error) {
-                console.error('Error fetching dashboard stats:', error);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchStats();
-    }, [user]);
+    }, [analytics, externalLoading, user]);
 
     return (
         <div className="mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome {displayName}</h2>
+                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Welcome {displayName}</h1>
                     <p className="text-gray-600 dark:text-gray-400">
                         Manage Your Properties, ideas, and grow your business
                     </p>
@@ -66,7 +88,7 @@ const WelcomeBanner = () => {
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {loading ? '...' : `${stats.activeProperties} Active Properties`}
+                        {loading ? '...' : `${stats.activeProperties} Active Listings`}
                     </span>
                 </div>
                 <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>

@@ -3,80 +3,167 @@
  * Fetches rental/sale application data from the booking-service backend
  */
 
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
+import type { ApiFetchOptions } from "@/lib/apiUtils";
+import type {
+  JourneyState,
+  JourneyStateFields,
+  JourneyBlocker,
+  JourneyDeadline,
+  JourneyRequirement,
+  JourneyAction,
+} from "@/types/journey";
 
-const BOOKING_URL = () => getServiceUrl('booking');
+const BOOKING_URL = () => getServiceUrl("booking");
 
-export interface Application {
-    id: string;
-    property_id: string;
-    user_id: string;
-    move_in_date: string;
-    lease_duration_months?: number;
-    employment_status?: string;
-    employer_name?: string;
-    annual_income?: number;
-    current_address?: string;
-    reason_for_moving?: string;
-    references?: string;
-    document_urls?: string;
-    status: 'submitted' | 'approved' | 'rejected' | 'withdrawn';
-    reviewed_by?: string;
-    reviewed_at?: string;
-    review_notes?: string;
-    created_at: string;
-    updated_at: string;
-    // UI-mapped fields (populated from join or client-side)
-    name?: string;
-    email?: string;
-    phone?: string;
-    propertyInterested?: string;
-    score?: number;
-    budget?: string;
-    submittedDate?: string;
-    lastContact?: string;
+export interface Application extends JourneyStateFields {
+  id: string;
+  property_id: string;
+  user_id: string;
+  broker_request_id?: string | null;
+  lead_id?: string | null;
+  fast_track_case_id?: string | null;
+  manager_id?: string | null;
+  applicant_name?: string;
+  applicant_email?: string;
+  applicant_phone?: string;
+  property_title?: string;
+  property_address?: string;
+  property_image?: string;
+  property_type?: string;
+  listing_type?: string;
+  property_price?: number;
+  agent_name?: string;
+  agent_email?: string;
+  agent_phone?: string;
+  agent_agency?: string;
+  conversation_id?: string | null;
+  move_in_date: string;
+  lease_duration_months?: number;
+  employment_status?: string;
+  employer_name?: string;
+  annual_income?: number;
+  current_address?: string;
+  message?: string;
+  status: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+  journeyState?: JourneyState | null;
+  jurisdictionProfile?: string;
+  liveStage?: string;
+  stageGroup?: string;
+  journeyStatusReason?: string;
+  blockers?: JourneyBlocker[];
+  deadlines?: JourneyDeadline[];
+  requiredEvidence?: JourneyRequirement[];
+  nextActions?: JourneyAction[];
 }
 
 export interface ApplicationsResponse {
-    data: Application[] | null;
-    error: string | null;
+  data: Application[] | null;
+  error: string | null;
 }
 
 export interface ApplicationResponse {
-    data: Application | null;
-    error: string | null;
+  data: Application | null;
+  error: string | null;
 }
+
+export interface BuyerQualification {
+  id: string;
+  application_id: string;
+  status: string;
+  mortgage_in_principle_verified: boolean;
+  proof_of_funds_verified: boolean;
+  verified_at?: string | null;
+  reviewer_id?: string | null;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AMLReview {
+  id: string;
+  application_id: string;
+  status: string;
+  identity_status?: string;
+  source_of_funds_status?: string;
+  verified_at?: string | null;
+  reviewer_id?: string | null;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReferencingCheck {
+  id: string;
+  application_id: string;
+  status: string;
+  completed_at?: string | null;
+  reviewer_id?: string | null;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RightToRentCheck {
+  id: string;
+  application_id: string;
+  jurisdiction: string;
+  status: string;
+  evidence_type?: string;
+  time_limited: boolean;
+  checked_at?: string | null;
+  follow_up_due_at?: string | null;
+  reviewer_id?: string | null;
+  review_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowRecordResponse<T> {
+  data: T | null;
+  error: string | null;
+}
+
+type ServiceRequestOptions = Pick<ApiFetchOptions, "suppressErrorToast">;
 
 /**
  * Fetch applications for the logged-in user
  * GET /api/v1/applications (booking-service)
  */
-export const getApplications = async (): Promise<ApplicationsResponse> => {
-    try {
-        const data = await apiFetch<Application[]>(
-            `${BOOKING_URL()}/api/v1/applications`,
-        );
-        return { data, error: null };
-    } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
-    }
+export const getApplications = async (
+  options: ServiceRequestOptions = {},
+): Promise<ApplicationsResponse> => {
+  try {
+    const data = await apiFetch<Application[]>(
+      `${BOOKING_URL()}/api/v1/applications`,
+      options,
+    );
+    return { data: data?.map(normalizeApplication) || [], error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
 };
 
 /**
  * Fetch a single application by ID
  * GET /api/v1/applications/:id (booking-service)
  */
-export const getApplicationById = async (applicationId: string): Promise<ApplicationResponse> => {
-    try {
-        const data = await apiFetch<Application>(
-            `${BOOKING_URL()}/api/v1/applications/${applicationId}`,
-        );
-        return { data, error: null };
-    } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
-    }
+export const getApplicationById = async (
+  applicationId: string,
+): Promise<ApplicationResponse> => {
+  try {
+    const data = await apiFetch<Application>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}`,
+    );
+    return { data: data ? normalizeApplication(data) : null, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
 };
 
 /**
@@ -84,28 +171,81 @@ export const getApplicationById = async (applicationId: string): Promise<Applica
  * POST /api/v1/applications (booking-service)
  */
 export const createApplication = async (applicationData: {
-    property_id: string;
-    move_in_date: string;
-    lease_duration_months?: number;
-    employment_status?: string;
-    employer_name?: string;
-    annual_income?: number;
-    current_address?: string;
-    reason_for_moving?: string;
+  property_id: string;
+  manager_id: string;
+  lead_id?: string;
+  fast_track_case_id?: string;
+  applicant_name?: string;
+  applicant_email?: string;
+  applicant_phone?: string;
+  property_title?: string;
+  property_address?: string;
+  property_image?: string;
+  property_type?: string;
+  listing_type?: string;
+  property_price?: number;
+  agent_name?: string;
+  agent_email?: string;
+  agent_phone?: string;
+  agent_agency?: string;
+  conversation_id?: string;
+  move_in_date: string;
+  lease_duration_months?: number;
+  employment_status?: string;
+  employer_name?: string;
+  annual_income?: number;
+  current_address?: string;
+  message?: string;
 }): Promise<ApplicationResponse> => {
-    try {
-        const data = await apiFetch<Application>(
-            `${BOOKING_URL()}/api/v1/applications`,
-            {
-                method: 'POST',
-                body: JSON.stringify(applicationData),
-            },
-        );
-        return { data, error: null };
-    } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
-    }
+  try {
+    const data = await apiFetch<Application>(
+      `${BOOKING_URL()}/api/v1/applications`,
+      {
+        method: "POST",
+        body: JSON.stringify(applicationData),
+      },
+    );
+    return { data: data ? normalizeApplication(data) : null, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const updateApplicationStatus = async (
+  applicationId: string,
+  status: string,
+  reviewNotes?: string,
+  options: ServiceRequestOptions = {},
+): Promise<ApplicationResponse> => {
+  try {
+    const data = await apiFetch<Application>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/status`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status, review_notes: reviewNotes }),
+        suppressErrorToast: options.suppressErrorToast,
+      },
+    );
+    return { data: data ? normalizeApplication(data) : null, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const withdrawApplication = async (
+  applicationId: string,
+): Promise<ApplicationResponse> => {
+  try {
+    const data = await apiFetch<Application>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/withdraw`,
+      {
+        method: "PUT",
+      },
+    );
+    return { data: data ? normalizeApplication(data) : null, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
 };
 
 /**
@@ -113,21 +253,233 @@ export const createApplication = async (applicationData: {
  * PUT /api/v1/applications/:id/review (booking-service)
  */
 export const reviewApplication = async (
-    applicationId: string,
-    status: 'approved' | 'rejected',
-    reviewNotes?: string,
+  applicationId: string,
+  status: "approved" | "rejected",
+  reviewNotes?: string,
 ): Promise<ApplicationResponse> => {
-    try {
-        const data = await apiFetch<Application>(
-            `${BOOKING_URL()}/api/v1/applications/${applicationId}/review`,
-            {
-                method: 'PUT',
-                body: JSON.stringify({ status, review_notes: reviewNotes }),
-            },
-        );
-        return { data, error: null };
-    } catch (error: any) {
-        console.error('[applicationsService] Error:', error.message);
-        return { data: null, error: error.message };
-    }
+  try {
+    const data = await apiFetch<Application>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/review`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ status, review_notes: reviewNotes }),
+      },
+    );
+    return { data: data ? normalizeApplication(data) : null, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
 };
+
+export const getBuyerQualification = async (
+  applicationId: string,
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<BuyerQualification>> => {
+  try {
+    const data = await apiFetch<BuyerQualification>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/buyer-qualification`,
+      options,
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const updateBuyerQualification = async (
+  applicationId: string,
+  payload: {
+    status: string;
+    review_notes?: string;
+    verified_at?: string;
+    mortgage_in_principle_verified?: boolean;
+    proof_of_funds_verified?: boolean;
+  },
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<BuyerQualification>> => {
+  try {
+    const data = await apiFetch<BuyerQualification>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/buyer-qualification`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
+      },
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const getAMLReview = async (
+  applicationId: string,
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<AMLReview>> => {
+  try {
+    const data = await apiFetch<AMLReview>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/aml-review`,
+      options,
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const getReferencingCheck = async (
+  applicationId: string,
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<ReferencingCheck>> => {
+  try {
+    const data = await apiFetch<ReferencingCheck>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/referencing`,
+      options,
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const updateReferencingCheck = async (
+  applicationId: string,
+  payload: {
+    status: string;
+    review_notes?: string;
+  },
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<ReferencingCheck>> => {
+  try {
+    const data = await apiFetch<ReferencingCheck>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/referencing`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
+      },
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const getRightToRentCheck = async (
+  applicationId: string,
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<RightToRentCheck>> => {
+  try {
+    const data = await apiFetch<RightToRentCheck>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/right-to-rent`,
+      options,
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const updateRightToRentCheck = async (
+  applicationId: string,
+  payload: {
+    status: string;
+    review_notes?: string;
+    evidence_type?: string;
+    checked_at?: string;
+    follow_up_due_at?: string;
+    time_limited?: boolean;
+  },
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<RightToRentCheck>> => {
+  try {
+    const data = await apiFetch<RightToRentCheck>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/right-to-rent`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
+      },
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const updateAMLReview = async (
+  applicationId: string,
+  payload: {
+    status: string;
+    review_notes?: string;
+    verified_at?: string;
+    identity_status?: string;
+    source_of_funds_status?: string;
+  },
+  options: ServiceRequestOptions = {},
+): Promise<WorkflowRecordResponse<AMLReview>> => {
+  try {
+    const data = await apiFetch<AMLReview>(
+      `${BOOKING_URL()}/api/v1/applications/${applicationId}/aml-review`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+        suppressErrorToast: options.suppressErrorToast,
+      },
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+export const applicationsService = {
+  getApplications,
+  getApplicationById,
+  createApplication,
+  reviewApplication,
+  updateApplicationStatus,
+  withdrawApplication,
+  getReferencingCheck,
+  updateReferencingCheck,
+  getRightToRentCheck,
+  updateRightToRentCheck,
+  getBuyerQualification,
+  updateBuyerQualification,
+  getAMLReview,
+  updateAMLReview,
+};
+
+const normalizeApplication = (application: Application): Application => ({
+  ...application,
+  journeyState: application.journey_state || application.journeyState || null,
+  jurisdictionProfile:
+    application.jurisdiction_profile ||
+    application.jurisdictionProfile ||
+    application.journey_state?.jurisdiction_profile,
+  liveStage:
+    application.live_stage ||
+    application.liveStage ||
+    application.journey_state?.live_stage,
+  stageGroup:
+    application.stage_group ||
+    application.stageGroup ||
+    application.journey_state?.stage_group,
+  journeyStatusReason:
+    application.journey_status_reason ||
+    application.journeyStatusReason ||
+    application.journey_state?.journey_status_reason,
+  blockers: application.blockers || application.journey_state?.blockers || [],
+  deadlines:
+    application.deadlines || application.journey_state?.deadlines || [],
+  requiredEvidence:
+    application.required_evidence ||
+    application.requiredEvidence ||
+    application.journey_state?.required_evidence ||
+    [],
+  nextActions:
+    application.next_actions ||
+    application.nextActions ||
+    application.journey_state?.next_actions ||
+    [],
+});

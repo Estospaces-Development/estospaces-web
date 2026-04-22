@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Shield,
     Upload,
@@ -14,94 +14,128 @@ import {
     Phone,
     CreditCard,
     MapPin,
-    Building,
-    ArrowRight
+    ArrowRight,
 } from 'lucide-react';
-import { useNotifications, NOTIFICATION_TYPES } from '@/contexts/NotificationsContext';
+import { leadsService } from '@/services/leadsService';
 
 interface VerificationSectionProps {
     userId?: string;
     currentUser?: any;
 }
 
-const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser }) => {
-    const notifications = useNotifications();
-    const createNotification = notifications?.createNotification;
+type StepKey = 'email' | 'phone' | 'identity' | 'address';
+type StepStatus = 'pending' | 'submitted' | 'verified' | 'reupload_required';
 
+type StepState = {
+    status: StepStatus;
+};
+
+const documentTypeByStep: Partial<Record<StepKey, string>> = {
+    identity: 'identity',
+    address: 'address',
+};
+
+const mapDocumentStatus = (status?: string): StepStatus => {
+    switch (status) {
+        case 'approved':
+            return 'verified';
+        case 'rejected':
+        case 'reupload_required':
+            return 'reupload_required';
+        case 'pending':
+        case 'under_review':
+            return 'submitted';
+        default:
+            return 'pending';
+    }
+};
+
+const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [showUploadModal, setShowUploadModal] = useState<string | null>(null);
+    const [showUploadModal, setShowUploadModal] = useState<StepKey | null>(null);
     const [uploadingFile, setUploadingFile] = useState(false);
-
-    const [verificationSteps, setVerificationSteps] = useState({
-        email: { completed: false, status: 'pending' },
-        phone: { completed: false, status: 'pending' },
-        identity: { completed: false, status: 'pending' },
-        address: { completed: false, status: 'pending' },
+    const [verificationSteps, setVerificationSteps] = useState<Record<StepKey, StepState>>({
+        email: { status: 'pending' },
+        phone: { status: 'pending' },
+        identity: { status: 'pending' },
+        address: { status: 'pending' },
     });
 
     useEffect(() => {
-        if (currentUser) {
-            setVerificationSteps(prev => ({
-                ...prev,
-                email: {
-                    completed: !!currentUser.email,
-                    status: currentUser.email ? 'verified' : 'pending'
-                },
-                phone: {
-                    completed: !!currentUser.phone,
-                    status: currentUser.phone ? 'verified' : 'pending'
-                }
-            }));
-        }
+        setVerificationSteps((prev) => ({
+            ...prev,
+            email: { status: currentUser?.email ? 'verified' : 'pending' },
+            phone: { status: currentUser?.phone ? 'verified' : 'pending' },
+        }));
     }, [currentUser]);
 
-    const completedSteps = Object.values(verificationSteps).filter(step => step.completed).length;
+    useEffect(() => {
+        const syncDocuments = async () => {
+            if (!userId) return;
+
+            const { data, error: documentsError } = await leadsService.getUserDocuments();
+            if (documentsError) {
+                return;
+            }
+
+            const identityDocument = data.find((document) => document.document_category === 'identity');
+            const addressDocument = data.find((document) => document.document_category === 'address');
+
+            setVerificationSteps((prev) => ({
+                ...prev,
+                identity: { status: mapDocumentStatus(identityDocument?.status) },
+                address: { status: mapDocumentStatus(addressDocument?.status) },
+            }));
+        };
+
+        syncDocuments();
+    }, [userId]);
+
+    const completedSteps = Object.values(verificationSteps).filter(
+        (step) => step.status === 'verified' || step.status === 'submitted',
+    ).length;
     const totalSteps = Object.keys(verificationSteps).length;
     const completionPercentage = Math.round((completedSteps / totalSteps) * 100);
 
-    const handleDocumentUpload = async (type: string, file: File) => {
+    const handleDocumentUpload = async (step: StepKey, file: File) => {
         if (!file || !userId) return;
+
+        const uploadType = documentTypeByStep[step];
+        if (!uploadType) return;
 
         setUploadingFile(true);
         setError(null);
 
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            setVerificationSteps(prev => ({
-                ...prev,
-                [type]: { completed: true, status: 'verified' }
-            }));
-
-            if (createNotification) {
-                await createNotification(
-                    NOTIFICATION_TYPES.DOCUMENT_VERIFIED,
-                    '✅ Document Verified',
-                    `Your ${type === 'identity' ? 'identity document' : 'proof of address'} has been verified successfully.`,
-                    { verification_type: type }
-                );
+            const { success: uploaded, error: uploadError } = await leadsService.uploadDocument(uploadType, file);
+            if (!uploaded) {
+                throw new Error(uploadError || 'Failed to submit document for review');
             }
 
-            setSuccess(`Your ${type === 'identity' ? 'identity document' : 'proof of address'} has been verified!`);
+            setVerificationSteps((prev) => ({
+                ...prev,
+                [step]: { status: 'submitted' },
+            }));
+            setSuccess(`Your ${step === 'identity' ? 'identity document' : 'proof of address'} has been submitted for review.`);
             setShowUploadModal(null);
-        } catch (err) {
-            console.error('Upload error:', err);
-            setError('Failed to upload document. Please try again.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to upload document. Please try again.');
         } finally {
             setUploadingFile(false);
         }
     };
 
     const handleEmailVerification = async () => {
+        if (!currentUser?.email) return;
         setLoading(true);
         try {
-            await new Promise(resolve => setTimeout(resolve, 600));
-            setSuccess('Verification email sent! Please check your inbox.');
-        } catch (err) {
-            setError('Failed to send verification email.');
+            const { success: sent, error: resendError } = await leadsService.resendVerification(currentUser.email);
+            if (!sent) throw new Error(resendError || 'Failed to send verification email');
+            setSuccess('Verification email sent. Please check your inbox.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to send verification email.');
         } finally {
             setLoading(false);
         }
@@ -111,47 +145,107 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
         setSuccess('Please add your phone number in the Personal Information section above.');
     };
 
-    const VerificationStep = ({ step, title, description, icon: Icon, actionLabel, onAction }: any) => {
-        const stepData = (verificationSteps as any)[step];
-        const isCompleted = stepData?.completed;
+    const VerificationStep = ({
+        step,
+        title,
+        description,
+        icon: Icon,
+        actionLabel,
+        onAction,
+    }: {
+        step: StepKey;
+        title: string;
+        description: string;
+        icon: React.ComponentType<{ size?: number; className?: string }>;
+        actionLabel: string;
+        onAction?: () => void;
+    }) => {
+        const status = verificationSteps[step]?.status || 'pending';
+        const isVerified = status === 'verified';
+        const isSubmitted = status === 'submitted';
+        const needsReupload = status === 'reupload_required';
+
+        const containerClass = isVerified
+            ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+            : isSubmitted
+                ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800'
+                : needsReupload
+                    ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                    : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-900/30';
+
+        const iconClass = isVerified
+            ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
+            : isSubmitted
+                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                : needsReupload
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500';
+
+        const titleClass = isVerified
+            ? 'text-green-800 dark:text-green-300'
+            : isSubmitted
+                ? 'text-blue-800 dark:text-blue-300'
+                : needsReupload
+                    ? 'text-red-800 dark:text-red-300'
+                    : 'text-gray-900 dark:text-white';
+
+        const subtitleClass = isVerified
+            ? 'text-green-600 dark:text-green-400'
+            : isSubmitted
+                ? 'text-blue-600 dark:text-blue-400'
+                : needsReupload
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-gray-500 dark:text-gray-400';
+
+        const subtitle = isVerified
+            ? 'Verification complete'
+            : isSubmitted
+                ? 'Submitted for admin review'
+                : needsReupload
+                    ? 'A fresh document is required before approval'
+                    : description;
 
         return (
-            <div className={`flex items-start gap-4 p-4 rounded-2xl border transition-all ${isCompleted
-                ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
-                : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-900/30'
-                }`}>
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isCompleted
-                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500'
-                    }`}>
-                    {isCompleted ? <CheckCircle size={18} /> : <Icon size={18} />}
+            <div className={`flex items-start gap-4 p-4 rounded-2xl border transition-all ${containerClass}`}>
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${iconClass}`}>
+                    {isVerified ? <CheckCircle size={18} /> : isSubmitted ? <Clock size={18} /> : needsReupload ? <AlertCircle size={18} /> : <Icon size={18} />}
                 </div>
 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h4 className={`font-bold text-sm ${isCompleted ? 'text-green-800 dark:text-green-300' : 'text-gray-900 dark:text-white'}`}>
-                                {title}
-                            </h4>
-                            <p className={`text-xs mt-0.5 ${isCompleted ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                                {isCompleted ? 'Verified Character' : description}
-                            </p>
+                            <h4 className={`font-bold text-sm ${titleClass}`}>{title}</h4>
+                            <p className={`text-xs mt-0.5 ${subtitleClass}`}>{subtitle}</p>
                         </div>
 
-                        {!isCompleted && onAction && (
+                        {!isVerified && !isSubmitted && onAction && (
                             <button
                                 onClick={onAction}
                                 className="flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-all shadow-md active:scale-95"
                             >
-                                {actionLabel}
+                                {needsReupload ? 'Re-upload' : actionLabel}
                                 <ArrowRight size={14} />
                             </button>
                         )}
 
-                        {isCompleted && (
+                        {isVerified && (
                             <span className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-bold rounded-full">
                                 <CheckCircle size={12} />
                                 Verified
+                            </span>
+                        )}
+
+                        {isSubmitted && (
+                            <span className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded-full">
+                                <Clock size={12} />
+                                Under Review
+                            </span>
+                        )}
+
+                        {needsReupload && (
+                            <span className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-bold rounded-full">
+                                <AlertCircle size={12} />
+                                Action Needed
                             </span>
                         )}
                     </div>
@@ -213,8 +307,8 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     title="Email"
                     description="Verify your ownership"
                     icon={Mail}
-                    actionLabel="Verify"
-                    onAction={handleEmailVerification}
+                    actionLabel={loading ? 'Sending...' : 'Verify'}
+                    onAction={loading ? undefined : handleEmailVerification}
                 />
                 <VerificationStep
                     step="phone"
@@ -227,7 +321,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <VerificationStep
                     step="identity"
                     title="Identity Document"
-                    description="Government issued Passport/ID"
+                    description="Government issued passport or photo ID"
                     icon={CreditCard}
                     actionLabel="Upload"
                     onAction={() => setShowUploadModal('identity')}
@@ -235,7 +329,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <VerificationStep
                     step="address"
                     title="Proof of Address"
-                    description="Bank statement/Utility bill"
+                    description="Bank statement or utility bill"
                     icon={MapPin}
                     actionLabel="Upload"
                     onAction={() => setShowUploadModal('address')}
@@ -255,7 +349,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         </div>
 
                         <div className="p-8">
-                            <label className="block border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-3xl p-10 text-center hover:border-orange-500 dark:hover:border-orange-500 transition-all cursor-pointer group">
+                            <label className="block border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-3xl p-10 text-center hover:border-orange-500 dark:hover:border-orange-500 transition-all cursor-pointer group">
                                 <input
                                     type="file"
                                     className="hidden"
@@ -276,8 +370,8 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                             <div className="mt-8 flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl">
                                 <Info size={18} className="text-blue-500 mt-0.5" />
                                 <div>
-                                    <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300">Why verify?</h4>
-                                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Verified users are 3x more likely to be accepted by landlords and gaining access to premium listings.</p>
+                                    <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300">What happens next?</h4>
+                                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Your upload is submitted into the verification queue. Admin approval is still required before the step becomes verified.</p>
                                 </div>
                             </div>
                         </div>

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     FileText,
+    FileCheck,
     MapPin,
     User,
     Clock,
@@ -14,11 +15,15 @@ import {
     Calendar,
     Home,
     Building2,
-    TrendingUp,
-    LucideIcon
+    TrendingUp
 } from 'lucide-react';
 import { APPLICATION_STATUS, Application } from '../../../contexts/ApplicationsContext';
 import { useNavigate } from 'react-router-dom';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { messagesService } from '@/services/messagesService';
+import { getSaleJourneyProgress, getSaleJourneyStageLabel, resolveSaleJourneyDisplayStage } from '@/lib/saleJourney';
 
 interface ApplicationCardProps {
     application: Application;
@@ -27,8 +32,37 @@ interface ApplicationCardProps {
 
 const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick }) => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const toast = useToast();
+    const [openingConversation, setOpeningConversation] = useState(false);
+    const formattedPropertyPrice = new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0,
+    }).format(application.propertyPrice || 0);
+    const saleDisplayStage = application.listingType !== 'rent'
+        ? resolveSaleJourneyDisplayStage(application)
+        : null;
 
     const getStatusConfig = (status: string) => {
+        if (saleDisplayStage === 'buyer_qualification') {
+            return {
+                label: getSaleJourneyStageLabel(saleDisplayStage),
+                color: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
+                dotColor: 'bg-orange-500',
+                icon: FileCheck,
+            };
+        }
+
+        if (saleDisplayStage === 'offer') {
+            return {
+                label: getSaleJourneyStageLabel(saleDisplayStage),
+                color: 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
+                dotColor: 'bg-violet-500',
+                icon: TrendingUp,
+            };
+        }
+
         switch (status) {
             case APPLICATION_STATUS.DRAFT:
                 return {
@@ -93,6 +127,55 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     dotColor: 'bg-blue-500',
                     icon: TrendingUp,
                 };
+            case APPLICATION_STATUS.OFFER_SUBMITTED:
+                return {
+                    label: 'Offer Submitted',
+                    color: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+                    dotColor: 'bg-blue-500',
+                    icon: FileText,
+                };
+            case APPLICATION_STATUS.OFFER_UNDER_REVIEW:
+                return {
+                    label: 'Offer Under Review',
+                    color: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+                    dotColor: 'bg-amber-500',
+                    icon: Clock,
+                };
+            case APPLICATION_STATUS.OFFER_ACCEPTED:
+                return {
+                    label: 'Offer Accepted',
+                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    dotColor: 'bg-emerald-500',
+                    icon: CheckCircle,
+                };
+            case APPLICATION_STATUS.SALE_AGREED:
+                return {
+                    label: 'Sale Agreed',
+                    color: 'bg-teal-50 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400',
+                    dotColor: 'bg-teal-500',
+                    icon: CheckCircle,
+                };
+            case APPLICATION_STATUS.MEMORANDUM_ISSUED:
+                return {
+                    label: 'Memorandum Issued',
+                    color: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
+                    dotColor: 'bg-purple-500',
+                    icon: FileText,
+                };
+            case APPLICATION_STATUS.CONVEYANCING:
+                return {
+                    label: 'Conveyancing',
+                    color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
+                    dotColor: 'bg-indigo-500',
+                    icon: Building2,
+                };
+            case APPLICATION_STATUS.EXCHANGE:
+                return {
+                    label: 'Exchange',
+                    color: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
+                    dotColor: 'bg-cyan-500',
+                    icon: TrendingUp,
+                };
             case APPLICATION_STATUS.APPROVED:
                 return {
                     label: 'Approved',
@@ -132,6 +215,14 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     };
 
     const getPrimaryAction = () => {
+        if (saleDisplayStage === 'buyer_qualification') {
+            return { label: 'Qualify', action: 'view' };
+        }
+
+        if (saleDisplayStage === 'offer') {
+            return { label: 'Record Offer', action: 'view' };
+        }
+
         switch (application.status) {
             case APPLICATION_STATUS.DRAFT:
                 return { label: 'Continue', action: 'edit' };
@@ -177,13 +268,47 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const statusConfig = getStatusConfig(application.status);
     const primaryAction = getPrimaryAction();
 
-    const handleMessageAgent = (e: React.MouseEvent) => {
+    const handleMessageAgent = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        navigate('/manager/messages');
+        if (openingConversation) {
+            return;
+        }
+        if (application.conversationId && !application.fastTrackCaseId) {
+            navigate(`/manager/messages?conversation=${application.conversationId}`);
+            return;
+        }
+        if (!application.userId || !user) {
+            toast.error('The client conversation is not ready yet.');
+            return;
+        }
+
+        setOpeningConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(application.userId, {
+                propertyId: application.propertyId,
+                propertyTitle: application.propertyTitle,
+                propertyAddress: application.propertyAddress,
+                propertyImage: application.propertyImage,
+                fastTrackCaseId: application.fastTrackCaseId,
+                listingType: application.listingType === 'buy' ? 'sale' : application.listingType,
+                propertyPrice: application.propertyPrice,
+                senderName: user.user_metadata?.full_name || user.name || user.email,
+                senderEmail: user.email,
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+            });
+            navigate(`/manager/messages?conversation=${conversation.id}`);
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to open the client conversation right now.');
+        } finally {
+            setOpeningConversation(false);
+        }
     };
 
-    // Get progress percentage based on status
     const getProgressPercentage = () => {
+        if (application.listingType !== 'rent' && saleDisplayStage) {
+            return getSaleJourneyProgress(saleDisplayStage);
+        }
+
         switch (application.status) {
             case APPLICATION_STATUS.DRAFT: return 10;
             case APPLICATION_STATUS.PENDING:
@@ -194,6 +319,13 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.UNDER_REVIEW: return 55;
             case APPLICATION_STATUS.DOCUMENTS_REQUESTED: return 65;
             case APPLICATION_STATUS.VERIFICATION_IN_PROGRESS: return 80;
+            case APPLICATION_STATUS.OFFER_SUBMITTED: return 20;
+            case APPLICATION_STATUS.OFFER_UNDER_REVIEW: return 35;
+            case APPLICATION_STATUS.OFFER_ACCEPTED: return 55;
+            case APPLICATION_STATUS.SALE_AGREED: return 65;
+            case APPLICATION_STATUS.MEMORANDUM_ISSUED: return 78;
+            case APPLICATION_STATUS.CONVEYANCING: return 88;
+            case APPLICATION_STATUS.EXCHANGE: return 95;
             case APPLICATION_STATUS.APPROVED:
             case APPLICATION_STATUS.COMPLETED: return 100;
             case APPLICATION_STATUS.REJECTED:
@@ -216,41 +348,30 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
         return `${formattedDate}${time ? ` at ${time}` : ''}`;
     };
 
-    const getPropertyTypeIcon = () => {
-        const type = application.propertyType?.toLowerCase();
-        if (type === 'apartment' || type === 'flat') return Building2;
-        return Home;
-    };
-
-    const PropertyTypeIcon = getPropertyTypeIcon();
-
     return (
         <div
             onClick={onClick}
             className={`group bg-white dark:bg-gray-800 rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer hover:shadow-lg ${application.requiresAction
                     ? 'border-orange-200 dark:border-orange-800 ring-1 ring-orange-100 dark:ring-orange-900/30'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800'
+                    : 'border-gray-100 dark:border-gray-700 hover:border-orange-200 dark:hover:border-orange-800'
                 }`}
         >
             <div className="flex font-outfit">
-                {/* Property Image */}
                 <div className="relative flex-shrink-0 w-32 sm:w-40 lg:w-48">
                     <img
                         src={application.propertyImage}
                         alt={application.propertyTitle}
                         className="w-full h-full object-cover min-h-[160px]"
                         onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=200';
-                        }}
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
+                                }}
                     />
-                    {/* Status Badge Overlay */}
                     <div className="absolute top-3 left-3">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color} backdrop-blur-sm`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotColor}`}></span>
                             {statusConfig.label}
                         </span>
                     </div>
-                    {/* Action Required Badge */}
                     {application.requiresAction && (
                         <div className="absolute top-3 right-3">
                             <span className="flex items-center gap-1 px-2 py-1 bg-orange-500 text-white text-xs font-medium rounded-full shadow-sm">
@@ -261,11 +382,8 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                     )}
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 p-4 lg:p-5 flex flex-col justify-between min-w-0">
-                    {/* Top Section */}
                     <div>
-                        {/* Header */}
                         <div className="flex items-start justify-between gap-2 mb-2">
                             <div className="min-w-0">
                                 <h3 className="font-semibold text-gray-900 dark:text-white text-base lg:text-lg truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
@@ -279,7 +397,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             <ChevronRight size={20} className="text-gray-300 dark:text-gray-600 group-hover:text-orange-400 transition-colors flex-shrink-0 mt-1" />
                         </div>
 
-                        {/* Info Grid */}
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 mt-3 text-sm">
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                                 <User size={14} className="flex-shrink-0 text-gray-400" />
@@ -295,7 +412,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </div>
                         </div>
 
-                        {/* Appointment Info */}
                         {application.hasAppointment && formatAppointment() && (
                             <div className="mt-3 inline-flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-lg">
                                 <Calendar size={14} className="text-purple-600 dark:text-purple-400" />
@@ -305,7 +421,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                             </div>
                         )}
 
-                        {/* Progress Bar */}
                         {application.status !== APPLICATION_STATUS.REJECTED &&
                             application.status !== APPLICATION_STATUS.WITHDRAWN && (
                                 <div className="mt-3">
@@ -327,7 +442,6 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 </div>
                             )}
 
-                        {/* Deadline Warning */}
                         {isDeadlineWarning() && (
                             <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-lg">
                                 <Clock size={13} className="text-red-500" />
@@ -338,22 +452,20 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         )}
                     </div>
 
-                    {/* Bottom Section - Actions */}
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        {/* Price */}
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 dark:border-gray-700">
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
-                                £{application.propertyPrice?.toLocaleString()}
+                                {formattedPropertyPrice}
                             </span>
                             <span className="text-sm text-gray-500 dark:text-gray-400 ml-1">
-                                {application.propertyType === 'rent' ? '/month' : ''}
+                                {application.listingType === 'rent' || application.listingType === 'lease' ? '/month' : ''}
                             </span>
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleMessageAgent}
+                                disabled={openingConversation}
                                 className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
                                 title="Message Agent"
                             >

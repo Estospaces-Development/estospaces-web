@@ -1,6 +1,7 @@
 import { useState, Suspense, lazy } from 'react';
 import { MapPin, ExternalLink, Map, Square } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -12,7 +13,6 @@ interface PropertyData {
     propertyAddress?: string;
     propertyPrice?: number;
     propertyImage?: string;
-    // Mock coordinates for demo
     latitude?: number;
     longitude?: number;
     tourUrl?: string;
@@ -38,11 +38,11 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
     const handleViewDetails = () => {
         if (property.propertyId) {
-            navigate(`/user/dashboard/property/${property.propertyId}`);
+            navigate(`/user/properties/${property.propertyId}`);
         }
     };
 
-    // Default coordinates (London) if not provided
+    // Default coordinates if not provided
     const location = {
         lat: property.latitude || 51.5074,
         lng: property.longitude || -0.1278
@@ -60,7 +60,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
                                 alt={property.propertyTitle || 'Property'}
                                 className="w-20 h-20 rounded-lg object-cover"
                                 onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=200';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                 }}
                             />
                         </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getUserLocation } from '../services/locationService';
+import { useLocation } from 'react-router-dom';
+import { getUserLocation, extractPostcodeFromAddress } from '../services/locationService';
 import { useAuth } from './AuthContext';
 
 interface LocationContextType {
@@ -28,18 +29,31 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
     const [userLocation, setUserLocation] = useState<any>(null);
     const [searchLocation, setSearchLocation] = useState<any>(null);
     const { user } = useAuth();
+    const location = useLocation();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const normalizedPath = location.pathname.replace(/^\/user/, '');
+    const shouldAutoDetectLocation =
+        normalizedPath === '/dashboard' ||
+        normalizedPath === '/dashboard/' ||
+        normalizedPath.startsWith('/dashboard/discover');
 
-    // Get user profile location (Mock implementation for now)
+    // Get user profile location
     const getUserProfileLocation = useCallback(async () => {
-        if (!user) return null;
-        // In real app, fetch from API
-        return null;
+        if (!user || !user.address) return null;
+        const postcode = extractPostcodeFromAddress(user.address);
+        return postcode ? { postcode } : null;
     }, [user]);
 
     // Detect user location on mount
     useEffect(() => {
+        if (!shouldAutoDetectLocation) {
+            setUserLocation(null);
+            setError(null);
+            setLoading(false);
+            return;
+        }
+
         const detectLocation = async () => {
             setLoading(true);
             setError(null);
@@ -54,24 +68,15 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
                 setUserLocation(location);
             } catch (err: any) {
-                console.error('Error detecting location:', err);
                 setError(err.message);
-                // Set default location
-                setUserLocation({
-                    type: 'default',
-                    postcode: 'SW1A 1AA',
-                    latitude: 51.5074,
-                    longitude: -0.1278,
-                    city: 'London',
-                    source: 'default',
-                });
+                setUserLocation(null);
             } finally {
                 setLoading(false);
             }
         };
 
         detectLocation();
-    }, [getUserProfileLocation]);
+    }, [getUserProfileLocation, shouldAutoDetectLocation]);
 
     // Update location from search
     const updateLocationFromSearch = useCallback(async (searchInput: string) => {
@@ -88,7 +93,6 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
             setSearchLocation(location);
             return location;
         } catch (err: any) {
-            console.error('Error updating location from search:', err);
             setError(err.message);
             return null;
         } finally {
@@ -98,25 +102,11 @@ export const LocationProvider = ({ children }: { children: React.ReactNode }) =>
 
     // Get active location (search takes priority over user location)
     const getActiveLocation = useCallback(() => {
-        return searchLocation || userLocation || {
-            type: 'default',
-            postcode: 'SW1A 1AA',
-            latitude: 51.5074,
-            longitude: -0.1278,
-            city: 'London',
-            source: 'default',
-        };
+        return searchLocation || userLocation || null;
     }, [searchLocation, userLocation]);
 
     const value = {
-        userLocation: userLocation || {
-            type: 'default',
-            postcode: 'SW1A 1AA',
-            latitude: 51.5074,
-            longitude: -0.1278,
-            city: 'London',
-            source: 'default',
-        },
+        userLocation,
         searchLocation,
         activeLocation: getActiveLocation(),
         loading,

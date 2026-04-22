@@ -19,7 +19,7 @@ const TabBar = ({ activeTab, onTabChange }: TabBarProps) => {
 
     return (
         <div className="mb-8 overflow-x-auto pb-1 scrollbars-none">
-            <div className="inline-flex p-1.5 bg-gray-100/80 dark:bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-200/50 dark:border-gray-800/50 shadow-inner min-w-max">
+            <div className="inline-flex p-1.5 bg-gray-100/80 dark:bg-gray-900/50 backdrop-blur-sm rounded-2xl border border-gray-100/50 dark:border-gray-800/50 shadow-inner min-w-max">
                 {tabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;

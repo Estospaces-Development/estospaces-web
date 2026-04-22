@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
     X,
     CheckCircle,
@@ -26,12 +27,14 @@ import {
     type LucideIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import * as managerVerificationService from '@/services/managerVerificationService';
+import { openDocumentAccessUrl } from '@/services/documentAccessService';
+import Avatar from '@/components/ui/Avatar';
 import {
     ManagerProfile,
     ManagerDocument,
     AuditLogEntry,
-    ManagerDocumentType
 } from '@/services/managerVerificationService';
 
 // ============================================================================
@@ -61,7 +64,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     const [error, setError] = useState<string | null>(null);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [showRejectForm, setShowRejectForm] = useState(false);
-    const [showReuploadForm, setShowReuploadForm] = useState<ManagerDocumentType | null>(null);
+    const [showReuploadForm, setShowReuploadForm] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [reuploadReason, setReuploadReason] = useState('');
     const [approveNotes, setApproveNotes] = useState('');
@@ -85,15 +88,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 setError(result.error);
             } else if (result.data) {
                 setDetails(result.data);
-
-                // Auto-start review if status is 'submitted'
-                if (result.data.profile?.verification_status === 'submitted' && user?.id) {
-                    await managerVerificationService.startReview(managerId, user.id);
-                    const updatedResult = await managerVerificationService.getManagerVerificationDetails(managerId);
-                    if (updatedResult.data) {
-                        setDetails(updatedResult.data);
-                    }
-                }
             }
         } catch (err) {
             setError((err as Error).message);
@@ -163,7 +157,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         const userRole = getRole ? getRole() : user?.role; // Adapt for web context
         if (userRole !== 'admin') {
             setError(`Permission denied. Admin role required. Current role: ${userRole || 'none'}`);
-            console.error('Revocation attempted by non-admin user:', { userId: user.id, role: userRole });
             return;
         }
 
@@ -175,22 +168,16 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         setActionLoading('revoke');
         setError(null);
         try {
-            console.log('Revoking manager approval:', {
-                managerId,
-                adminId: user.id,
-                reasonLength: revokeReason.length,
-                userRole: user.user_metadata?.role || 'unknown'
-            });
+            // removed console.log
 
             const result = await managerVerificationService.revokeManagerApproval(managerId, user.id, revokeReason);
 
             if (result.error) {
-                console.error('Revocation error:', result.error);
                 // Keep the form open so user can see the error and try again
                 setError(result.error || 'Failed to revoke approval. Please try again.');
                 // Don't close the form on error - let user see the error message
             } else {
-                console.log('Revocation successful:', result.data);
+                // removed console.log
                 // Clear the form
                 setRevokeReason('');
                 setShowRevokeConfirm(false);
@@ -200,7 +187,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 onClose();
             }
         } catch (err) {
-            console.error('Revocation exception:', err);
             const errorMessage = err instanceof Error
                 ? err.message
                 : typeof err === 'string'
@@ -213,15 +199,15 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         }
     };
 
-    const handleRequestReupload = async (documentType: ManagerDocumentType) => {
+    const handleRequestReupload = async (documentId: string) => {
         if (!user?.id || !reuploadReason.trim()) return;
 
-        setActionLoading(`reupload-${documentType}`);
+        setActionLoading(`reupload-${documentId}`);
         try {
             const result = await managerVerificationService.requestDocumentReupload(
                 managerId,
                 user.id,
-                documentType,
+                documentId,
                 reuploadReason
             );
             if (result.error) {
@@ -295,15 +281,18 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                             {/* Premium Avatar */}
-                            <div className={`relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl ${isBroker
-                                ? 'bg-gradient-to-br from-orange-400 to-red-500'
-                                : 'bg-gradient-to-br from-blue-400 to-indigo-500'
-                                }`}>
-                                {isBroker ? (
-                                    <User className="text-white" size={28} />
-                                ) : (
-                                    <Building2 className="text-white" size={28} />
-                                )}
+                            <div className="relative">
+                                <Avatar
+                                    userId={managerId}
+                                    name={
+                                        userInfo?.full_name ||
+                                        userInfo?.email?.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) ||
+                                        'Unknown Manager'
+                                    }
+                                    size="xl"
+                                    shape="rounded"
+                                    fallbackClassName={isBroker ? 'from-orange-400 to-red-500' : 'from-blue-400 to-indigo-500'}
+                                />
                                 {/* Status indicator */}
                                 <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${statusConfig.dotColor}`}>
                                     <statusConfig.icon size={10} className="text-white" />
@@ -415,7 +404,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     </h3>
                     <div className="space-y-3">
                         {documents.length === 0 ? (
-                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100">
                                 <Sparkles className="mx-auto text-gray-300 mb-2" size={32} />
                                 <p className="text-sm text-gray-500">No documents uploaded yet</p>
                             </div>
@@ -424,16 +413,16 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 <DocumentCard
                                     key={doc.id}
                                     document={doc}
-                                    onRequestReupload={() => setShowReuploadForm(doc.document_type)}
-                                    showReuploadForm={showReuploadForm === doc.document_type}
+                                    onRequestReupload={() => setShowReuploadForm(doc.id)}
+                                    showReuploadForm={showReuploadForm === doc.id}
                                     reuploadReason={reuploadReason}
                                     setReuploadReason={setReuploadReason}
-                                    onSubmitReupload={() => handleRequestReupload(doc.document_type)}
+                                    onSubmitReupload={() => handleRequestReupload(doc.id)}
                                     onCancelReupload={() => {
                                         setShowReuploadForm(null);
                                         setReuploadReason('');
                                     }}
-                                    actionLoading={actionLoading === `reupload-${doc.document_type}`}
+                                    actionLoading={actionLoading === `reupload-${doc.id}`}
                                     disabled={profile.verification_status === 'approved'}
                                 />
                             ))
@@ -469,7 +458,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                                 <p className="font-medium text-gray-900">{formatActionType(entry.action_type)}</p>
                                                 <p className="text-xs text-gray-500">
                                                     {new Date(entry.created_at).toLocaleString()}
-                                                    {entry.actor_role && ` • ${entry.actor_role}`}
+                                                    {entry.actor_role && ` - ${entry.actor_role}`}
                                                 </p>
                                                 {entry.notes && (
                                                     <p className="text-xs text-gray-600 mt-1 bg-white px-2 py-1 rounded border">{entry.notes}</p>
@@ -500,7 +489,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                         setError(null); // Clear error when user types
                                     }}
                                     placeholder="Explain why this approval is being revoked..."
-                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                                    className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
                                     rows={3}
                                     autoFocus
                                 />
@@ -540,7 +529,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    console.log('Revoke button clicked');
                                     setShowRevokeConfirm(true);
                                 }}
                                 className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 active:bg-red-800 transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -562,7 +550,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                                 placeholder="Explain why this verification is being rejected..."
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
                                 rows={3}
                             />
                         </div>
@@ -593,7 +581,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 value={approveNotes}
                                 onChange={(e) => setApproveNotes(e.target.value)}
                                 placeholder="Add any notes for this approval..."
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+                                className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                                 rows={2}
                             />
                         </div>
@@ -659,7 +647,11 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
         };
     }, [onClose]);
 
-    return (
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             {/* Premium Backdrop */}
             <div
@@ -671,7 +663,8 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
             <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 
@@ -722,10 +715,21 @@ const DocumentCard: React.FC<{
     actionLoading,
     disabled,
 }) => {
+        const toast = useToast();
+        const [viewLoading, setViewLoading] = useState(false);
         const docStatusConfig = getDocStatusConfig(document.verification_status);
 
+        const handleOpenDocument = useCallback(async () => {
+            setViewLoading(true);
+            const { error } = await openDocumentAccessUrl(document.id);
+            if (error) {
+                toast.error(error);
+            }
+            setViewLoading(false);
+        }, [document.id, toast]);
+
         return (
-            <div className="bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors">
+            <div className="bg-white rounded-xl border border-gray-100 p-4 hover:border-gray-300 transition-colors">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
                         <div className={`p-2.5 rounded-xl ${docStatusConfig.bgColor}`}>
@@ -737,7 +741,7 @@ const DocumentCard: React.FC<{
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
                                 {document.document_name || 'Document uploaded'}
-                                {document.expiry_date && ` • Expires: ${new Date(document.expiry_date).toLocaleDateString()}`}
+                                {document.expiry_date && ` - Expires: ${new Date(document.expiry_date).toLocaleDateString()}`}
                             </p>
                             {document.document_number && (
                                 <p className="text-xs font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded mt-1 inline-block">
@@ -764,7 +768,7 @@ const DocumentCard: React.FC<{
                             value={reuploadReason}
                             onChange={(e) => setReuploadReason(e.target.value)}
                             placeholder="Explain what's wrong with this document..."
-                            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none transition-all"
+                            className="w-full px-3 py-2 text-sm border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none transition-all"
                             rows={2}
                         />
                         <div className="flex gap-2">
@@ -786,23 +790,22 @@ const DocumentCard: React.FC<{
                     </div>
                 ) : (
                     <div className="mt-4 flex items-center gap-2">
-                        <a
-                            href={document.document_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            onClick={handleOpenDocument}
+                            disabled={viewLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
-                            <Eye size={12} />
+                            {viewLoading ? <Loader2 className="animate-spin" size={12} /> : <Eye size={12} />}
                             View
-                        </a>
-                        <a
-                            href={document.document_url}
-                            download
+                        </button>
+                        <button
+                            onClick={handleOpenDocument}
+                            disabled={viewLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
                             <Download size={12} />
                             Download
-                        </a>
+                        </button>
                         {!disabled && document.verification_status !== 'rejected' && document.verification_status !== 'reupload_required' && (
                             <button
                                 onClick={onRequestReupload}
@@ -825,6 +828,8 @@ const DocumentCard: React.FC<{
 const getStatusConfig = (status: string): { label: string; icon: LucideIcon; bgColor: string; textColor: string; dotColor: string } => {
     switch (status) {
         case 'approved':
+        case 'verified':
+        case 'fully_verified':
             return {
                 label: 'Approved',
                 icon: CheckCircle,
@@ -849,12 +854,23 @@ const getStatusConfig = (status: string): { label: string; icon: LucideIcon; bgC
                 dotColor: 'bg-blue-500',
             };
         case 'submitted':
+        case 'pending':
+        case 'documents_submitted':
+        case 'basic':
             return {
-                label: 'Pending',
+                label: 'Pending Review',
                 icon: Clock,
                 bgColor: 'bg-amber-100',
                 textColor: 'text-amber-700',
                 dotColor: 'bg-amber-500',
+            };
+        case 'verification_required':
+            return {
+                label: 'Re-verification Req.',
+                icon: RefreshCw,
+                bgColor: 'bg-orange-100',
+                textColor: 'text-orange-700',
+                dotColor: 'bg-orange-500',
             };
         default:
             return {
@@ -924,3 +940,4 @@ const formatActionType = (actionType: string): string => {
 };
 
 export default ManagerReviewModal;
+

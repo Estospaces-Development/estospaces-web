@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, Suspense, useEffect, useMemo } from 'react';
+import React, { useState, Suspense, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     FileText, Clock, CheckCircle, XCircle, FileCheck, Plus, Filter,
     Search, Eye, Edit, Trash2, Mail, Phone, Download, Share2,
@@ -10,19 +11,33 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as applicationsService from '@/services/applicationsService';
+import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { useApplications, APPLICATION_STATUS, ApplicationsProvider } from '@/contexts/ApplicationsContext';
+import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
 import ApplicationDetail from '@/components/manager/applications/ApplicationDetail';
 import ApplicationFilters from '@/components/manager/applications/ApplicationFilters';
+import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
+import { resolveFocusedApplication } from '@/lib/workspaceLinks';
+import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
 
 interface ApplicationsContentProps {
     initialView?: 'list' | 'detail';
 }
 
 function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps) {
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { user } = useAuth();
     const toast = useToast();
     const {
+        applications: filteredApplications,
         allApplications,
         isLoading: contextLoading,
         searchQuery,
@@ -39,15 +54,121 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const [view, setView] = useState<'list' | 'detail'>(initialView);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
+    const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
+    const removedCaseNoticeRef = useRef<string | null>(null);
+    const rawCaseId = searchParams.get('case');
+    const requestedSection = resolveWorkspaceSection(searchParams.get('section'), 'overview');
+    const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
+        () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
+        [fastTrackCases, rawCaseId],
+    );
+    const hasWorkspaceFocusRequest = Boolean(
+        searchParams.get('application')
+        || sanitizedCaseId
+        || searchParams.get('lead')
+        || searchParams.get('property')
+        || requestedSection !== 'overview',
+    );
+    const focusedApplicationFromRoute = resolveFocusedApplication(allApplications, {
+        applicationId: searchParams.get('application'),
+        caseId: sanitizedCaseId,
+        leadId: searchParams.get('lead'),
+        propertyId: searchParams.get('property'),
+    });
+    const selectedApplication = useMemo(() => {
+        if (!selectedId) {
+            return null;
+        }
 
-    // Filtered applications are already provided by context
-    const applications = allApplications;
+        const baseApplication = allApplications.find((application) => application.id === selectedId);
+        if (!baseApplication) {
+            return null;
+        }
 
+        return attachLinkedFastTrackCase(baseApplication, fastTrackCases);
+    }, [allApplications, fastTrackCases, selectedId]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadFastTrackCases = async () => {
+            const result = await getFastTrackCases({ suppressErrorToast: true });
+            if (cancelled) {
+                return;
+            }
+            setFastTrackCases(result.data || []);
+            setFastTrackCasesReady(true);
+        };
+
+        void loadFastTrackCases();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useWorkflowWorkspaceRefresh({
+        tags: [
+            WORKSPACE_SYNC_TAGS.APPLICATIONS,
+            WORKSPACE_SYNC_TAGS.FAST_TRACK,
+            WORKSPACE_SYNC_TAGS.VIEWINGS,
+            WORKSPACE_SYNC_TAGS.CONTRACTS,
+            WORKSPACE_SYNC_TAGS.PAYMENTS,
+        ],
+        refresh: async () => {
+            const result = await getFastTrackCases({ suppressErrorToast: true });
+            setFastTrackCases(result.data || []);
+            setFastTrackCasesReady(true);
+        },
+    });
+
+    useEffect(() => {
+        setHasAppliedRouteFocus(false);
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (!fastTrackCasesReady || !removedCaseId) {
+            return;
+        }
+
+        if (removedCaseNoticeRef.current !== removedCaseId) {
+            removedCaseNoticeRef.current = removedCaseId;
+            toast.info(DELETED_FAST_TRACK_CASE_MESSAGE);
+        }
+
+        setSearchParams((previous) => stripCaseSearchParam(previous));
+    }, [fastTrackCasesReady, removedCaseId, setSearchParams, toast]);
+
+    useEffect(() => {
+        if (hasAppliedRouteFocus || !focusedApplicationFromRoute) {
+            return;
+        }
+
+        setSelectedId(focusedApplicationFromRoute.id);
+        setView('detail');
+        setHasAppliedRouteFocus(true);
+    }, [focusedApplicationFromRoute, hasAppliedRouteFocus]);
+
+    // Stats use allApplications (unfiltered) so counts are always accurate
     const stats = useMemo(() => {
-        const total = applications.length;
-        const pending = applications.filter((a: any) => a.status === APPLICATION_STATUS.PENDING || a.status === APPLICATION_STATUS.SUBMITTED).length;
-        const actionRequired = applications.filter((a: any) => a.requiresAction).length;
-        const approved = applications.filter((a: any) => a.status === APPLICATION_STATUS.APPROVED).length;
+        const total = allApplications.length;
+        const pending = allApplications.filter((a: any) => [
+            APPLICATION_STATUS.PENDING,
+            APPLICATION_STATUS.SUBMITTED,
+            APPLICATION_STATUS.BUYER_QUALIFICATION,
+            APPLICATION_STATUS.OFFER_READY,
+            APPLICATION_STATUS.OFFER_SUBMITTED,
+            APPLICATION_STATUS.OFFER_UNDER_REVIEW,
+            APPLICATION_STATUS.OFFER_ACCEPTED,
+            APPLICATION_STATUS.SALE_AGREED,
+            APPLICATION_STATUS.MEMORANDUM_ISSUED,
+            APPLICATION_STATUS.CONVEYANCING,
+            APPLICATION_STATUS.EXCHANGE,
+        ].includes(a.status)).length;
+        const actionRequired = allApplications.filter((a: any) => a.requiresAction).length;
+        const approved = allApplications.filter((a: any) => a.status === APPLICATION_STATUS.APPROVED).length;
 
         return [
             { label: 'Total Active', value: total.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -55,7 +176,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             { label: 'Action Required', value: actionRequired.toString(), icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
             { label: 'Completed', value: approved.toString(), icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
         ];
-    }, [applications]);
+    }, [allApplications]);
 
     const handleCardClick = (id: string) => {
         setSelectedId(id);
@@ -70,19 +191,25 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
 
     const handleUpdateStatus = async (id: string, status: any) => {
         try {
-            await updateApplicationStatus(id, status);
+            const result = await updateApplicationStatus(id, status);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to update application status');
+            }
             toast.success(`Application status updated to ${status.replace(/_/g, ' ')}`);
         } catch (err) {
-            toast.error('Failed to update status');
+            toast.error(err instanceof Error ? err.message : 'Failed to update status');
         }
     };
 
     if (view === 'detail' && selectedId) {
         return (
             <ApplicationDetail
+                key={selectedId}
                 applicationId={selectedId}
+                application={selectedApplication || undefined}
                 onClose={handleCloseDetail}
                 onUpdateStatus={handleUpdateStatus}
+                requestedSection={requestedSection}
             />
         );
     }
@@ -100,7 +227,11 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-md active:scale-95">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/manager/leads')}
+                        className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-md active:scale-95"
+                    >
                         <Plus size={18} /> New Application
                     </button>
                 </div>
@@ -135,14 +266,20 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                 setShowFilters={setShowFilters}
             />
 
+            {hasWorkspaceFocusRequest && !focusedApplicationFromRoute && (
+                <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                    You are in the correct applications workspace for this fast-track case, but no linked application record exists yet. It will appear here automatically as soon as the live workflow creates it.
+                </div>
+            )}
+
             {/* Applications List */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {contextLoading ? (
                     Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-[200px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-2xl border border-gray-200 dark:border-gray-700" />
+                        <div key={i} className="h-[200px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-2xl border border-gray-100 dark:border-gray-700" />
                     ))
-                ) : applications.length > 0 ? (
-                    applications.map((app) => (
+                ) : filteredApplications.length > 0 ? (
+                    filteredApplications.map((app) => (
                         <ApplicationCard
                             key={app.id}
                             application={app}
@@ -158,7 +295,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                         <p className="text-gray-500 dark:text-gray-400 max-w-sm">
                             {searchQuery || statusFilter !== 'all'
                                 ? "No applications match your current filters. Try adjusting them to see more results."
-                                : "You haven't submitted any applications yet. When you do, they'll appear here."}
+                                : "No applications have been received yet. When users submit applications for your properties, they will appear here."}
                         </p>
                         {(searchQuery || statusFilter !== 'all' || propertyTypeFilter !== 'all') && (
                             <button

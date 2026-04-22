@@ -58,7 +58,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ property, onClose }) => {
                     <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                         Property Link
                     </label>
-                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
                         <input
                             type="text"
                             readOnly

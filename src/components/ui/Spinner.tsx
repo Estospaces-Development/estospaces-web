@@ -19,7 +19,7 @@ const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className = '', label })
     return (
         <div className={`inline-flex flex-col items-center gap-3 ${className}`} role="status">
             <div
-                className={`${sizeClasses[size]} rounded-full border-gray-200 dark:border-zinc-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin`}
+                className={`${sizeClasses[size]} rounded-full border-gray-100 dark:border-zinc-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin`}
             />
             {label && <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>}
             <span className="sr-only">{label || 'Loading...'}</span>

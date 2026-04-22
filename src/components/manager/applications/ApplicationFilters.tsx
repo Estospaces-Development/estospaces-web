@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, X } from 'lucide-react';
 import { APPLICATION_STATUS } from '../../../contexts/ApplicationsContext';
+import DateField from '@/components/ui/DateField';
 
 interface ApplicationFiltersProps {
     searchQuery: string;
@@ -38,12 +39,27 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
     const statusOptions = [
         { value: 'all', label: 'All Statuses' },
         { value: APPLICATION_STATUS.DRAFT, label: 'Draft' },
+        { value: APPLICATION_STATUS.PENDING, label: 'Pending Review' },
         { value: APPLICATION_STATUS.SUBMITTED, label: 'Submitted' },
+        { value: APPLICATION_STATUS.APPOINTMENT_BOOKED, label: 'Appointment Booked' },
+        { value: APPLICATION_STATUS.VIEWING_SCHEDULED, label: 'Viewing Scheduled' },
+        { value: APPLICATION_STATUS.VIEWING_COMPLETED, label: 'Viewing Completed' },
         { value: APPLICATION_STATUS.UNDER_REVIEW, label: 'Under Review' },
         { value: APPLICATION_STATUS.DOCUMENTS_REQUESTED, label: 'Documents Requested' },
+        { value: APPLICATION_STATUS.VERIFICATION_IN_PROGRESS, label: 'Verification In Progress' },
+        { value: APPLICATION_STATUS.BUYER_QUALIFICATION, label: 'Buyer Qualification' },
+        { value: APPLICATION_STATUS.OFFER_READY, label: 'Offer Ready' },
+        { value: APPLICATION_STATUS.OFFER_SUBMITTED, label: 'Offer Submitted' },
+        { value: APPLICATION_STATUS.OFFER_UNDER_REVIEW, label: 'Offer Under Review' },
+        { value: APPLICATION_STATUS.OFFER_ACCEPTED, label: 'Offer Accepted' },
+        { value: APPLICATION_STATUS.SALE_AGREED, label: 'Sale Agreed' },
+        { value: APPLICATION_STATUS.MEMORANDUM_ISSUED, label: 'Memorandum Issued' },
+        { value: APPLICATION_STATUS.CONVEYANCING, label: 'Conveyancing' },
+        { value: APPLICATION_STATUS.EXCHANGE, label: 'Exchange' },
         { value: APPLICATION_STATUS.APPROVED, label: 'Approved' },
         { value: APPLICATION_STATUS.REJECTED, label: 'Rejected' },
         { value: APPLICATION_STATUS.WITHDRAWN, label: 'Withdrawn' },
+        { value: APPLICATION_STATUS.COMPLETED, label: 'Completed' },
     ];
 
     const propertyTypeOptions = [
@@ -125,7 +141,7 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
 
             {/* Filter Panel */}
             {showFilters && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 p-4 space-y-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Status Filter */}
                         <div>
@@ -170,23 +186,24 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
                             </label>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <input
-                                        type="date"
+                                    <DateField
                                         value={dateRangeFilter.start || ''}
-                                        onChange={(e) =>
-                                            setDateRangeFilter({ ...dateRangeFilter, start: e.target.value || null })
+                                        onChange={(nextValue) =>
+                                            setDateRangeFilter({ ...dateRangeFilter, start: nextValue || null })
                                         }
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white text-sm"
+                                        placeholder="Start date"
+                                        size="sm"
                                     />
                                 </div>
                                 <div>
-                                    <input
-                                        type="date"
+                                    <DateField
                                         value={dateRangeFilter.end || ''}
-                                        onChange={(e) =>
-                                            setDateRangeFilter({ ...dateRangeFilter, end: e.target.value || null })
+                                        onChange={(nextValue) =>
+                                            setDateRangeFilter({ ...dateRangeFilter, end: nextValue || null })
                                         }
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white text-sm"
+                                        placeholder="End date"
+                                        size="sm"
+                                        align="right"
                                     />
                                 </div>
                             </div>

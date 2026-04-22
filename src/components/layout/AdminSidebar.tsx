@@ -6,11 +6,16 @@ import {
     Users,
     Settings,
     Shield,
+    Bell,
     LogOut,
     ChevronLeft,
     ChevronRight,
     MessageSquare,
-    Activity
+    Activity,
+    Star,
+    BarChart3,
+    Zap,
+    User,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,16 +32,11 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
     const navigate = useNavigate();
 
     const handleSignOut = async () => {
-        signOut();
-        // Force a hard refresh to ensure all states/caches are cleared
-        window.location.href = '/login';
+        await signOut();
+        navigate('/login', { replace: true });
     };
 
-    const getLinkPath = (path: string) => {
-        if (!useSubdomain) return path;
-        const newPath = path.replace(/^\/admin/, '');
-        return newPath || '/';
-    };
+    const getLinkPath = (path: string) => path;
 
     const isActive = (path: string) => {
         const checkPath = getLinkPath(path);
@@ -45,19 +45,25 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Overview', path: '/admin/dashboard' },
+        { icon: Bell, label: 'Notifications', path: '/admin/notifications' },
         { icon: Users, label: 'User Management', path: '/admin/users' },
         { icon: Shield, label: 'Verifications', path: '/admin/verifications' },
         { icon: Building2, label: 'Properties', path: '/admin/properties' },
-        { icon: MessageSquare, label: 'Support Chat', path: '/admin/chat' },
+        { icon: Zap, label: 'Fast Track', path: '/admin/fast-track' },
+        { icon: MessageSquare, label: 'Help & Support', path: '/admin/help' },
+        { icon: Star, label: 'Reviews', path: '/admin/reviews' },
+        { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
+        { icon: User, label: 'Profile', path: '/admin/profile' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },
     ];
 
     return (
         <aside
-            className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'}`}
+            aria-label="Admin workspace sidebar"
+            className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${isOpen ? 'w-64' : 'w-20'}`}
         >
             {/* Logo Section */}
-            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800">
+            <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800">
                 <div className={`flex items-center gap-3 overflow-hidden ${!isOpen && 'justify-center w-full'}`}>
                     <div className="relative w-8 h-8 flex-shrink-0">
                         {/* Placeholder for logo */}
@@ -73,6 +79,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                     <button
                         onClick={onToggle}
                         className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors md:hidden"
+                        aria-label="Close sidebar"
                     >
                         <ChevronLeft size={18} />
                     </button>
@@ -83,7 +90,8 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
             {onToggle && (
                 <button
                     onClick={onToggle}
-                    className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full p-1.5 text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+                    className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full p-1.5 text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+                    aria-label={isOpen ? 'Collapse admin sidebar' : 'Expand admin sidebar'}
                 >
                     {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
                 </button>
@@ -101,7 +109,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
                                     <Link
                                         to={linkPath}
                                         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group ${active
-                                            ? 'bg-orange-600 text-white shadow-lg shadow-orange-500/30'
+                                            ? 'bg-orange-700 text-white shadow-lg shadow-orange-500/30'
                                             : 'text-gray-600 dark:text-gray-400 hover:bg-orange-50 dark:hover:bg-gray-800 hover:text-orange-600 dark:hover:text-orange-400 hover:scale-[1.02]'
                                             }`}
                                         title={!isOpen ? item.label : ''}
@@ -123,7 +131,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
             </div>
 
             {/* Sign Out */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800">
                 <button
                     onClick={handleSignOut}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300 group hover:scale-[1.02] ${!isOpen && 'justify-center'}`}

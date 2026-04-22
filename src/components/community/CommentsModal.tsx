@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { X, Send } from 'lucide-react';
-import { CommunityPost, AuthorRole } from '../../mocks/communityPosts';
+import { CommunityPost, AuthorRole, PostComment } from '@/services/communityService';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import Avatar from '@/components/ui/Avatar';
 
 interface CommentsModalProps {
     isOpen: boolean;
@@ -14,6 +16,7 @@ interface CommentsModalProps {
 
 const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, onAddComment }) => {
     const [newComment, setNewComment] = useState('');
+    const { user } = useAuth();
 
     if (!isOpen || !post) return null;
 
@@ -33,9 +36,9 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-zinc-800">
+                <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-zinc-800">
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Comments</h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -48,11 +51,13 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                 </div>
 
                 {/* Original Post */}
-                <div className="p-6 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
+                <div className="p-6 border-b border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
                     <div className="flex items-start gap-3 mb-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-semibold text-sm">{post.authorName.charAt(0)}</span>
-                        </div>
+                        <Avatar
+                            userId={post.authorId}
+                            name={post.authorName}
+                            size="md"
+                        />
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <h4 className="font-semibold text-gray-900 dark:text-white">{post.authorName}</h4>
@@ -75,11 +80,13 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                             <p className="text-gray-500 dark:text-gray-400">No comments yet. Be the first to comment!</p>
                         </div>
                     ) : (
-                        post.comments.map((comment) => (
+                        post.comments.map((comment: PostComment) => (
                             <div key={comment.commentId} className="flex gap-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white font-semibold text-xs">{comment.authorName.charAt(0)}</span>
-                                </div>
+                                <Avatar
+                                    userId={comment.authorId}
+                                    name={comment.authorName}
+                                    size="sm"
+                                />
                                 <div className="flex-1 bg-gray-50 dark:bg-zinc-950/50 rounded-lg p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="font-medium text-gray-900 dark:text-white text-sm">{comment.authorName}</span>
@@ -98,11 +105,14 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                 </div>
 
                 {/* Add Comment Form */}
-                <div className="p-6 border-t border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
+                <div className="p-6 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-950/50">
                     <form onSubmit={handleSubmit} className="flex gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-semibold text-xs">M</span>
-                        </div>
+                        <Avatar
+                            userId={user?.id}
+                            src={user?.avatar || user?.avatar_url}
+                            name={user?.name || user?.email || 'Me'}
+                            size="sm"
+                        />
                         <div className="flex-1 flex gap-2">
                             <input
                                 type="text"

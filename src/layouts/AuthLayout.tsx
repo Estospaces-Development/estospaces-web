@@ -5,7 +5,7 @@ export default function AuthLayout() {
     return (
         <div className="flex min-h-screen w-full overflow-hidden">
             {/* Left side - Image (hidden on mobile) */}
-            <div className="hidden md:block w-1/2 min-h-screen relative">
+            <div className="hidden md:block w-1/2 min-h-screen relative" aria-hidden="true">
                 <img
                     src="/images/auth/building.jpg"
                     alt="Estospaces"
@@ -15,7 +15,7 @@ export default function AuthLayout() {
             </div>
 
             {/* Right side - Form */}
-            <div className="w-full md:w-1/2 flex flex-col justify-center items-center px-6 py-12 md:px-16 bg-white dark:bg-gray-900 min-h-screen">
+            <div className="w-full md:w-1/2 flex flex-col items-center px-6 py-8 md:px-16 md:py-10 bg-white dark:bg-gray-900 min-h-screen overflow-y-auto">
                 <div className="w-full max-w-sm">
                     <Outlet />
                 </div>

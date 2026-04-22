@@ -1,51 +1,88 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
-import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
-
-const CORE_URL = () => getServiceUrl('core');
+import { uploadMediaFile } from '@/services/mediaService';
+import { userService } from '@/services/userService';
 
 export default function ManagerProfilePage() {
-    const { user } = useAuth();
-    const { managerProfile, verificationStatus, isVerified } = useManagerVerification();
+    const { user, refreshUser, mergeCurrentUserProfile } = useAuth();
+    const {
+        managerProfile,
+        verificationStatus,
+        isVerified,
+        propertySubmissionBlocker,
+        isPropertySubmissionReady,
+        refetch: refetchManagerData,
+    } = useManagerVerification();
     const [isLoading, setIsLoading] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [saveError, setSaveError] = useState('');
+    const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+    const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+    const avatarInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
         email: '',
         phone: '',
+        address: '',
+        postcode: '',
         companyName: '',
+        branchName: '',
+        businessPhone: '',
         companyAddress: '',
+        registeredOfficeAddress: '',
+        complaintsContact: '',
+        redressSchemeName: '',
+        redressMembershipNumber: '',
+        cmpProvider: '',
+        cmpCertificateUrl: '',
         website: '',
         bio: '',
         licenseNumber: '',
+        taxId: '',
     });
 
     // Populate form from auth user + broker profile
     useEffect(() => {
-        if (user) {
-            const nameParts = (user.name || '').split(' ');
-            setFormData(prev => ({
-                ...prev,
-                firstName: nameParts[0] || '',
-                lastName: nameParts.slice(1).join(' ') || '',
-                email: user.email || '',
-            }));
-        }
-        if (managerProfile) {
-            setFormData(prev => ({
-                ...prev,
-                companyName: managerProfile.company_name || '',
-                companyAddress: managerProfile.company_address || '',
-                licenseNumber: managerProfile.company_registration_number || managerProfile.license_number || '',
-                bio: managerProfile.company_description || prev.bio,
-            }));
-        }
+        const nameParts = (user?.name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        setFormData(prev => ({
+            ...prev,
+            firstName,
+            lastName,
+            email: user?.email || '',
+            phone: user?.phone || prev.phone || '',
+            address: user?.address || prev.address || '',
+            postcode: user?.postcode || prev.postcode || '',
+            bio: managerProfile?.company_description || user?.user_metadata?.bio || prev.bio || '',
+            website: user?.user_metadata?.website || prev.website || '',
+            // Broker / manager fields
+            companyName: managerProfile?.company_name || prev.companyName || '',
+            branchName: managerProfile?.branch_name || prev.branchName || '',
+            businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
+            companyAddress: managerProfile?.company_address || prev.companyAddress || '',
+            registeredOfficeAddress: managerProfile?.registered_office_address || prev.registeredOfficeAddress || '',
+            complaintsContact: managerProfile?.complaints_contact || prev.complaintsContact || '',
+            redressSchemeName: managerProfile?.redress_scheme_name || prev.redressSchemeName || '',
+            redressMembershipNumber: managerProfile?.redress_membership_number || prev.redressMembershipNumber || '',
+            cmpProvider: managerProfile?.cmp_provider || prev.cmpProvider || '',
+            cmpCertificateUrl: managerProfile?.cmp_certificate_url || prev.cmpCertificateUrl || '',
+            licenseNumber: managerProfile?.company_registration_number || managerProfile?.license_number || prev.licenseNumber || '',
+            taxId: managerProfile?.tax_id || prev.taxId || '',
+        }));
+        const existingAvatar = user?.avatar_url || user?.avatar || null;
+        setProfileImagePreview(existingAvatar);
+        setStoredAvatarValue(existingAvatar);
+        setSelectedAvatarFile(null);
     }, [user, managerProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -54,33 +91,146 @@ export default function ManagerProfilePage() {
             [e.target.name]: e.target.value
         }));
         setIsSaved(false);
+        setSaveError('');
+    };
+
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setSaveError('Please choose a valid image file.');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setSaveError('Profile picture must be smaller than 5 MB.');
+            return;
+        }
+
+        setUploadingImage(true);
+        setSaveError('');
+        setIsSaved(false);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setProfileImagePreview(typeof reader.result === 'string' ? reader.result : null);
+            setSelectedAvatarFile(file);
+            setUploadingImage(false);
+        };
+        reader.onerror = () => {
+            setUploadingImage(false);
+            setSaveError('Failed to read the selected image.');
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const openAvatarPicker = () => {
+        if (uploadingImage) {
+            return;
+        }
+        avatarInputRef.current?.click();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setSaveError('');
+        
         try {
-            await apiFetch(`${CORE_URL()}/api/v1/users/profile`, {
-                method: 'PUT',
-                body: JSON.stringify({
-                    name: `${formData.firstName} ${formData.lastName}`.trim(),
-                    email: formData.email,
-                    phone: formData.phone,
-                }),
-            });
+            const isManager = user?.role === 'manager' || user?.role === 'broker';
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            const companyName = formData.companyName.trim();
+            const businessPhone = formData.businessPhone.trim();
+            const companyAddress = formData.companyAddress.trim();
+            const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
+            const isBrokerProfile = managerProfile?.profile_type !== 'company';
+            let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
+
+            if (selectedAvatarFile && user?.id) {
+                const uploadedAvatar = await uploadMediaFile(
+                    selectedAvatarFile,
+                    'user',
+                    user.id,
+                    `${fullName || 'Manager'} profile photo`,
+                    true,
+                );
+                avatarValue = uploadedAvatar.file_url;
+            }
+            
+            const payload: any = {
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                phone: formData.phone,
+                address: formData.address,
+                postcode: formData.postcode,
+                avatar: avatarValue,
+                metadata: {
+                    bio: formData.bio,
+                    website: formData.website,
+                    profile_type: isManager ? 'company' : 'individual'
+                }
+            };
+
+            if (isManager) {
+                payload.broker_settings = {
+                    company_name: companyName || (isBrokerProfile ? fullName : ''),
+                    branch_name: formData.branchName,
+                    company_description: formData.bio,
+                    company_reg_number: formData.licenseNumber,
+                    business_phone: businessPhone || formData.phone.trim(),
+                    company_address: companyAddress || formData.address.trim(),
+                    registered_office_address: registeredOfficeAddress || companyAddress || formData.address.trim(),
+                    complaints_contact: formData.complaintsContact,
+                    redress_scheme_name: formData.redressSchemeName,
+                    redress_membership_number: formData.redressMembershipNumber,
+                    cmp_provider: formData.cmpProvider,
+                    cmp_certificate_url: formData.cmpCertificateUrl,
+                    tax_id: formData.taxId,
+                };
+            }
+
+            const { data, error } = await userService.updateProfile(payload);
+            
+            if (error) {
+                throw new Error(error);
+            }
+
+            if (data) {
+                mergeCurrentUserProfile(data);
+            }
+
+            setProfileImagePreview(avatarValue || null);
+            setStoredAvatarValue(avatarValue || null);
+            setSelectedAvatarFile(null);
             setIsSaved(true);
+            setTimeout(() => {
+                void refreshUser();
+                if (isManager) {
+                    void refetchManagerData();
+                }
+            }, 0);
             setTimeout(() => setIsSaved(false), 3000);
         } catch (err) {
-            console.error('Failed to update profile:', err);
+            setSaveError((err as Error).message || 'Failed to update your profile.');
         } finally {
             setIsLoading(false);
         }
     };
 
-    const statusLabel = isVerified ? 'Active' : (verificationStatus || 'Pending');
-    const statusColor = isVerified
+    const statusLabel = isVerified
+        ? (isPropertySubmissionReady ? 'Ready' : 'Profile incomplete')
+        : (verificationStatus || 'Pending');
+    const statusColor = isVerified && isPropertySubmissionReady
         ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
+        : isVerified
+            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
+
+    const inputClass = "w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
+    const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
@@ -98,23 +248,71 @@ export default function ManagerProfilePage() {
                 {/* Profile Card */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 flex flex-col items-center text-center">
-                        <div className="relative mb-4 group cursor-pointer">
-                            <div className="w-32 h-32 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md overflow-hidden">
-                                <span className="text-4xl font-bold text-orange-600 dark:text-orange-400">
-                                    {(formData.firstName[0] || 'M')}{(formData.lastName[0] || 'P')}
-                                </span>
-                            </div>
-                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Upload className="text-white" size={24} />
-                            </div>
+                        <div className="mb-4 flex flex-col items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={openAvatarPicker}
+                                disabled={uploadingImage}
+                                className="group relative rounded-full focus:outline-none focus:ring-4 focus:ring-orange-200 dark:focus:ring-orange-900/40 disabled:cursor-wait"
+                                aria-label="Upload manager profile picture"
+                            >
+                                <div className="w-32 h-32 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md overflow-hidden transition-transform duration-200 group-hover:scale-[1.02]">
+                                    {profileImagePreview ? (
+                                        <img
+                                            src={profileImagePreview}
+                                            alt={`${formData.firstName} ${formData.lastName}`.trim() || 'Manager profile'}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-4xl font-bold text-orange-600 dark:text-orange-400">
+                                            {(formData.firstName[0] || 'M')}{(formData.lastName[0] || 'P')}
+                                        </span>
+                                    )}
+                                    {uploadingImage && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/45">
+                                            <Loader2 className="h-7 w-7 animate-spin text-white" />
+                                        </div>
+                                    )}
+                                    <div className="absolute bottom-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg transition-all duration-200 group-hover:bg-orange-600">
+                                        <Upload size={18} />
+                                    </div>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openAvatarPicker}
+                                disabled={uploadingImage}
+                                className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-100 disabled:cursor-wait disabled:opacity-70 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-300 dark:hover:bg-orange-900/30"
+                            >
+                                {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload size={16} />}
+                                {uploadingImage ? 'Preparing image...' : 'Upload profile photo'}
+                            </button>
+                            <input
+                                id="manager-avatar-upload"
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                ref={avatarInputRef}
+                                onChange={handleImageSelect}
+                            />
                         </div>
+                        <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                            Click the profile image to upload a JPG, PNG, or WebP under 5 MB.
+                        </p>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{formData.firstName} {formData.lastName}</h2>
                         <p className="text-orange-600 dark:text-orange-400 font-medium text-sm mb-1">
-                            {isVerified ? 'Verified Manager' : 'Manager'}
+                            {isVerified
+                                ? (isPropertySubmissionReady ? 'Verified Manager' : 'Approved Manager')
+                                : 'Manager'}
                         </p>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{formData.companyName || 'No company set'}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">{formData.companyName || 'No company set'}</p>
+                        {formData.address && (
+                            <p className="text-gray-400 dark:text-gray-500 text-xs flex items-center gap-1 justify-center">
+                                <MapPin size={12} /> {formData.address}{formData.postcode ? `, ${formData.postcode}` : ''}
+                            </p>
+                        )}
 
-                        <div className="w-full pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="w-full pt-4 border-t border-gray-100 dark:border-gray-700 mt-4">
                             <div className="flex items-center justify-between text-sm mb-2">
                                 <span className="text-gray-500 dark:text-gray-400">Verification Status</span>
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
@@ -123,6 +321,13 @@ export default function ManagerProfilePage() {
                             </div>
                         </div>
                     </div>
+
+                    {isVerified && !isPropertySubmissionReady && propertySubmissionBlocker && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded-xl p-4">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Profile action required</p>
+                            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{propertySubmissionBlocker}</p>
+                        </div>
+                    )}
 
                     {/* Account Status */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
@@ -149,6 +354,7 @@ export default function ManagerProfilePage() {
                 {/* Edit Form */}
                 <div className="lg:col-span-2">
                     <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 space-y-6">
+
                         {/* Personal Details */}
                         <div>
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
@@ -159,27 +365,47 @@ export default function ManagerProfilePage() {
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
                                     <input type="text" name="firstName" value={formData.firstName} onChange={handleChange}
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        className={inputClass} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
                                     <input type="text" name="lastName" value={formData.lastName} onChange={handleChange}
-                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        className={inputClass} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
                                     <div className="relative">
                                         <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="email" name="email" value={formData.email} onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        <input type="email" name="email" value={formData.email} disabled
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
+                                    <p className="text-xs text-gray-500 mt-1">Email cannot be changed directly for security.</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
                                     <div className="relative">
                                         <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                            placeholder="+44 7700 000000"
+                                            className={iconInputClass} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Home / Location Address</label>
+                                    <div className="relative">
+                                        <MapPin size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input type="text" name="address" value={formData.address} onChange={handleChange}
+                                            placeholder="123 Example Street, London"
+                                            className={iconInputClass} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postcode</label>
+                                    <div className="relative">
+                                        <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input type="text" name="postcode" value={formData.postcode} onChange={handleChange}
+                                            placeholder="SW1A 1AA"
+                                            className={iconInputClass} />
                                     </div>
                                 </div>
                             </div>
@@ -187,7 +413,7 @@ export default function ManagerProfilePage() {
 
                         <hr className="border-gray-100 dark:border-gray-700" />
 
-                        {/* Company Details */}
+                        {/* Company / Professional Details */}
                         <div>
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                                 <Building size={18} className="text-blue-500" />
@@ -197,13 +423,39 @@ export default function ManagerProfilePage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Company Name</label>
-                                        <input type="text" name="companyName" value={formData.companyName} onChange={handleChange}
-                                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                        <div className="relative">
+                                            <Building size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <input type="text" name="companyName" value={formData.companyName} onChange={handleChange}
+                                                placeholder="Acme Properties Ltd"
+                                                className={iconInputClass} />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License Number</label>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Phone</label>
+                                        <div className="relative">
+                                            <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <input type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange}
+                                                placeholder="+44 20 0000 0000"
+                                                className={iconInputClass} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Branch Name</label>
+                                        <input type="text" name="branchName" value={formData.branchName} onChange={handleChange}
+                                            placeholder="Westminster Branch"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License / Reg Number</label>
                                         <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
-                                            className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                            placeholder="REG123456"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Tax ID</label>
+                                        <input type="text" name="taxId" value={formData.taxId} onChange={handleChange}
+                                            placeholder="GB123456789"
+                                            className={inputClass} />
                                     </div>
                                 </div>
 
@@ -212,27 +464,82 @@ export default function ManagerProfilePage() {
                                     <div className="relative">
                                         <Globe size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input type="url" name="website" value={formData.website} onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100" />
+                                            placeholder="https://yourcompany.co.uk"
+                                            className={iconInputClass} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office Address</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office / Company Address</label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
                                         <textarea name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
+                                            placeholder="1 Office Road, London, EC1A 1AA"
                                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Bio</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registered Office Address</label>
+                                    <div className="relative">
+                                        <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
+                                        <textarea name="registeredOfficeAddress" value={formData.registeredOfficeAddress} onChange={handleChange} rows={2}
+                                            placeholder="Registered office or branch legal address"
+                                            className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Complaints Contact</label>
+                                        <div className="relative">
+                                            <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                            <input type="text" name="complaintsContact" value={formData.complaintsContact} onChange={handleChange}
+                                                placeholder="complaints@agency.co.uk"
+                                                className={iconInputClass} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Scheme</label>
+                                        <input type="text" name="redressSchemeName" value={formData.redressSchemeName} onChange={handleChange}
+                                            placeholder="The Property Ombudsman"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Membership Number</label>
+                                        <input type="text" name="redressMembershipNumber" value={formData.redressMembershipNumber} onChange={handleChange}
+                                            placeholder="TPO-123456"
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Provider</label>
+                                        <input type="text" name="cmpProvider" value={formData.cmpProvider} onChange={handleChange}
+                                            placeholder="Client money protection provider"
+                                            className={inputClass} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Certificate URL</label>
+                                    <input type="url" name="cmpCertificateUrl" value={formData.cmpCertificateUrl} onChange={handleChange}
+                                        placeholder="https://..."
+                                        className={inputClass} />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Bio</label>
                                     <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4}
+                                        placeholder="Tell clients about your company, specialties, and experience..."
                                         className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
-                                    <p className="text-xs text-gray-500 mt-1">This will be displayed on your property listings.</p>
                                 </div>
                             </div>
                         </div>
+
+                        {saveError && (
+                            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-300">
+                                {saveError}
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                             {isSaved && (
@@ -241,10 +548,12 @@ export default function ManagerProfilePage() {
                                     Profile Updated
                                 </span>
                             )}
-                            <button type="submit" disabled={isLoading}
-                                className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-medium rounded-lg transition-colors shadow-sm">
+                            <button type="submit" disabled={isLoading || uploadingImage}
+                                className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors shadow-sm">
                                 {isLoading ? (
                                     <><Loader2 size={18} className="animate-spin" /> Saving...</>
+                                ) : uploadingImage ? (
+                                    <><Loader2 size={18} className="animate-spin" /> Preparing image...</>
                                 ) : (
                                     <><Save size={18} /> Save Changes</>
                                 )}

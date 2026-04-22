@@ -4,8 +4,11 @@
  */
 
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
+import type { ApiFetchOptions } from '@/lib/apiUtils';
+import { Contract, ContractTemplate } from '@/types/booking';
 
 const BOOKING_URL = () => getServiceUrl('booking');
+type ServiceRequestOptions = Pick<ApiFetchOptions, 'suppressErrorToast'>;
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -27,51 +30,76 @@ export interface Viewing {
     id: string;
     property_id: string;
     user_id: string;
+    manager_id: string;
+    broker_request_id?: string | null;
+    lead_id?: string | null;
+    fast_track_case_id?: string | null;
+    application_id?: string;
+    client_name?: string;
+    client_email?: string;
+    client_phone?: string;
+    property_title?: string;
+    property_address?: string;
+    property_image?: string;
+    property_price?: number;
+    listing_type?: string;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_agency?: string;
     scheduled_at: string;
     duration_minutes: number;
     viewing_type: 'in_person' | 'virtual';
     status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'rescheduled';
     user_notes?: string;
     manager_notes?: string;
+    cancellation_reason?: string;
+    workflow_locked?: boolean;
+    workflow_lock_reason?: string;
     created_at: string;
-    // UI-mapped fields
-    property?: {
-        title: string;
-        address_line_1: string;
-        price: number;
-        listing_type: string;
-        image_urls: string[];
-    };
-    agent?: {
-        name: string;
-        phone: string;
-    };
 }
 
-export interface Contract {
-    id: string;
+export interface CreateViewingRequest {
     property_id: string;
-    user_id: string;
     manager_id: string;
-    contract_type: 'rental' | 'purchase';
-    start_date: string;
-    end_date?: string;
-    monthly_rent?: number;
-    deposit_amount?: number;
-    contract_pdf_url?: string;
-    status: 'draft' | 'sent' | 'signed' | 'active' | 'expired' | 'terminated';
-    user_signed_at?: string;
-    created_at: string;
+    lead_id?: string;
+    fast_track_case_id?: string;
+    client_name?: string;
+    client_email?: string;
+    client_phone?: string;
+    property_title?: string;
+    property_address?: string;
+    property_image?: string;
+    property_price?: number;
+    listing_type?: string;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_agency?: string;
+    requested_date: string; // YYYY-MM-DD
+    requested_time: string; // HH:MM
+    viewing_type?: string;
+    user_notes?: string;
 }
 
-export interface ContractTemplate {
-    id: string;
-    name: string;
-    description: string;
-    type: string;
+export interface UpdateViewingRequest {
+    requested_date?: string;
+    requested_time?: string;
+    status?: Viewing['status'];
+    user_notes?: string;
+    manager_notes?: string;
+    cancellation_reason?: string;
+}
+
+export interface ViewingAvailabilitySlot {
     date: string;
-    status: string;
-    isMandatory: boolean;
+    time: string;
+    status: Viewing['status'];
+}
+
+export interface ViewingAvailability {
+    property_id: string;
+    slots: ViewingAvailabilitySlot[];
 }
 
 // ── API Functions ───────────────────────────────────────────────────────────
@@ -79,46 +107,86 @@ export interface ContractTemplate {
 /**
  * Get bookings for the current user
  */
-export async function getBookings(): Promise<{ data: Booking[] }> {
-    return apiFetch<{ data: Booking[] }>(`${BOOKING_URL()}/api/v1/bookings`);
+export async function getBookings(): Promise<Booking[]> {
+    return apiFetch<Booking[]>(`${BOOKING_URL()}/api/v1/bookings`);
+}
+
+/**
+ * Create a new viewing
+ */
+export async function createViewing(request: CreateViewingRequest, options: ServiceRequestOptions = {}): Promise<Viewing> {
+    return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+        suppressErrorToast: options.suppressErrorToast,
+    });
 }
 
 /**
  * Get viewings for the current user
  */
-export async function getViewings(): Promise<{ data: Viewing[] }> {
-    // Note: In a real implementation, the backend would join property/agent data
-    // For now, we fetch the raw viewings
-    return apiFetch<{ data: Viewing[] }>(`${BOOKING_URL()}/api/v1/viewings`);
+export async function getViewings(options: ServiceRequestOptions = {}): Promise<Viewing[]> {
+    return apiFetch<Viewing[]>(`${BOOKING_URL()}/api/v1/viewings`, options);
+}
+
+export async function getViewingAvailability(propertyId: string): Promise<ViewingAvailability> {
+    const query = new URLSearchParams({ property_id: propertyId }).toString();
+    return apiFetch<ViewingAvailability>(`${BOOKING_URL()}/api/v1/viewings/availability?${query}`);
+}
+
+export async function getViewing(id: string): Promise<Viewing> {
+    return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings/${id}`);
 }
 
 /**
  * Get contracts for the current user
  */
-export async function getContracts(): Promise<{ data: Contract[] }> {
-    return apiFetch<{ data: Contract[] }>(`${BOOKING_URL()}/api/v1/contracts/mine`);
+export async function getContracts(): Promise<Contract[]> {
+    return apiFetch<Contract[]>(`${BOOKING_URL()}/api/v1/contracts/mine`);
 }
 
 /**
  * Cancel a viewing
  */
-export async function cancelViewing(id: string): Promise<void> {
+export async function cancelViewing(id: string, reason: string, options: ServiceRequestOptions = {}): Promise<void> {
     await apiFetch(`${BOOKING_URL()}/api/v1/viewings/${id}/cancel`, {
-        method: 'POST',
+        method: 'PUT',
+        body: JSON.stringify({ reason }),
+        suppressErrorToast: options.suppressErrorToast,
+    });
+}
+
+export async function confirmViewing(id: string, options: ServiceRequestOptions = {}): Promise<void> {
+    await apiFetch(`${BOOKING_URL()}/api/v1/viewings/${id}/confirm`, {
+        method: 'PUT',
+        suppressErrorToast: options.suppressErrorToast,
+    });
+}
+
+export async function updateViewing(id: string, request: UpdateViewingRequest, options: ServiceRequestOptions = {}): Promise<Viewing> {
+    return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(request),
+        suppressErrorToast: options.suppressErrorToast,
     });
 }
 
 /**
  * Get contract templates (mandatory forms)
  */
-export async function getContractTemplates(): Promise<{ data: ContractTemplate[] }> {
-    return apiFetch<{ data: ContractTemplate[] }>(`${BOOKING_URL()}/api/v1/contract-templates`);
+export async function getContractTemplates(): Promise<ContractTemplate[]> {
+    return apiFetch<ContractTemplate[]>(`${BOOKING_URL()}/api/v1/contract-templates`);
 }
 
 export const bookingsService = {
     getBookings,
     getViewings,
+    getViewingAvailability,
+    getViewing,
+    createViewing,
     getContracts,
     getContractTemplates,
     cancelViewing,
+    confirmViewing,
+    updateViewing,
 };

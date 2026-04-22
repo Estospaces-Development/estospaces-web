@@ -39,7 +39,7 @@ export default function Error({
                 </button>
                 <button
                     onClick={() => window.location.href = '/'}
-                    className="px-6 py-3 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
+                    className="px-6 py-3 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors"
                 >
                     Go Home
                 </button>

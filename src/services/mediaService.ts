@@ -39,3 +39,26 @@ export const uploadMediaFile = async (
         body,
     });
 };
+
+export const reassignMediaEntity = async (
+    fromEntityType: string,
+    fromEntityId: string,
+    toEntityType: string,
+    toEntityId: string,
+): Promise<void> => {
+    await apiFetch(`${MEDIA_URL()}/api/v1/media/reassign`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            from_entity_type: fromEntityType,
+            from_entity_id: fromEntityId,
+            to_entity_type: toEntityType,
+            to_entity_id: toEntityId,
+        }),
+    });
+};
+
+export const deleteMediaFile = async (mediaId: string): Promise<void> => {
+    await apiFetch(`${MEDIA_URL()}/api/v1/media/${mediaId}`, {
+        method: 'DELETE',
+    });
+};

@@ -1,34 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { FastTrackCase, FastTrackStep, FastTrackDocuments as IFastTrackDocuments } from '../../../services/fastTrackService';
+import { FastTrackCase } from '../../../services/fastTrackService';
 import FastTrackProgress from './FastTrackProgress';
 import FastTrackDocuments from './FastTrackDocuments';
-import FastTrackActions from './FastTrackActions';
-import { Clock, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Clock, AlertTriangle, AlertCircle, BadgeCheck, FileClock } from 'lucide-react';
+import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import Avatar from '@/components/ui/Avatar';
 
 interface FastTrackCaseCardProps {
     caseData: FastTrackCase;
     onUpdate: (updatedCase: FastTrackCase) => void;
+    verificationSummary?: string;
+    leadStatusLabel?: string;
 }
 
-const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({ caseData, onUpdate }) => {
+const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({
+    caseData,
+    onUpdate,
+    verificationSummary,
+    leadStatusLabel,
+}) => {
     const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number } | null>(null);
-    const [isExpired, setIsExpired] = useState(caseData.finalStatus === 'expired');
 
     useEffect(() => {
         const calculateTimeLeft = () => {
-            if (caseData.finalStatus === 'completed') {
+            if (
+                caseData.finalStatus === 'completed'
+                || caseData.finalStatus === 'rejected'
+                || caseData.finalStatus === 'expired'
+            ) {
                 setTimeLeft(null);
                 return;
             }
 
-            const submitTime = new Date(caseData.submittedAt).getTime();
-            const targetTime = submitTime + 24 * 60 * 60 * 1000;
+            const targetTime = caseData.expiresAt
+                ? new Date(caseData.expiresAt).getTime()
+                : new Date(caseData.submittedAt).getTime() + 24 * 60 * 60 * 1000;
             const now = new Date().getTime();
             const diff = targetTime - now;
 
             if (diff <= 0) {
                 setTimeLeft({ hours: 0, minutes: 0 });
-                setIsExpired(true);
                 return;
             }
 
@@ -38,35 +49,25 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({ caseData, onUpdat
         };
 
         calculateTimeLeft();
-        const timer = setInterval(calculateTimeLeft, 60000);
-        return () => clearInterval(timer);
-    }, [caseData.submittedAt, caseData.finalStatus]);
+        const timer = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+            calculateTimeLeft();
+        }, 60000);
+        return () => window.clearInterval(timer);
+    }, [caseData.expiresAt, caseData.submittedAt, caseData.finalStatus]);
 
-    const handleVerifyDoc = (docType: keyof IFastTrackDocuments) => {
-        const updatedDocs = { ...caseData.documents, [docType]: 'verified' as const };
-        const updatedCase = { ...caseData, documents: updatedDocs };
-        onUpdate(updatedCase);
-    };
-
-    const handleAdvanceStep = () => {
-        let nextStep: FastTrackStep = caseData.currentStep;
-        let nextStatus = caseData.finalStatus;
-
-        switch (caseData.currentStep) {
-            case 'documents': nextStep = 'owner_approval'; break;
-            case 'owner_approval': nextStep = 'legal_check'; break;
-            case 'legal_check': nextStep = 'payment_ready'; break;
-            case 'payment_ready':
-                nextStep = 'completed';
-                nextStatus = 'completed';
-                break;
-        }
-
-        onUpdate({ ...caseData, currentStep: nextStep, finalStatus: nextStatus });
-    };
-
-    const isDocsVerified = Object.values(caseData.documents).every(status => status === 'verified');
-    const isAtRisk = timeLeft ? timeLeft.hours < 6 : false;
+    const isOverdue = isFastTrackCaseOverdue(caseData) || Boolean(
+        caseData.finalStatus === 'in_progress'
+        && timeLeft
+        && timeLeft.hours === 0
+        && timeLeft.minutes === 0,
+    );
+    const isAtRisk = !isOverdue && (timeLeft ? timeLeft.hours < 6 : false);
+    const isExpired = caseData.finalStatus === 'expired';
+    const isRejected = caseData.finalStatus === 'rejected';
+    const isLocked = isExpired || isRejected;
 
     const getTypeColor = (type: string) => {
         switch (type) {
@@ -79,34 +80,55 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({ caseData, onUpdat
 
     return (
         <div className={`bg-white dark:bg-black border rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-5 flex flex-col h-full
-        ${isExpired ? 'border-red-200 dark:border-red-900/50 opacity-90' : 'border-gray-200 dark:border-zinc-800'}
+        ${isLocked
+            ? 'border-red-200 dark:border-red-900/50 opacity-90'
+            : isOverdue
+                ? 'border-orange-200 dark:border-orange-900/50'
+                : 'border-gray-100 dark:border-zinc-800'}
     `}>
             {/* Header */}
-            <div className="flex justify-between items-start mb-3">
-                <div>
-                    <div className="flex items-center gap-2 mb-1">
+            <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                <div className="min-w-0">
+                    <div className="mb-1 flex flex-wrap items-center gap-2 pr-2">
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${getTypeColor(caseData.propertyType)}`}>
                             {caseData.propertyType}
                         </span>
-                        {isAtRisk && !isExpired && caseData.finalStatus !== 'completed' && (
+                        {isAtRisk && !isLocked && caseData.finalStatus !== 'completed' && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 flex items-center gap-1 animate-pulse">
                                 <AlertTriangle className="w-3 h-3" /> At Risk
                             </span>
                         )}
-                        {isExpired && caseData.finalStatus !== 'completed' && (
+                        {isRejected && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" /> Rejected
+                            </span>
+                        )}
+                        {isExpired && !isRejected && caseData.finalStatus !== 'completed' && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
                                 <AlertCircle className="w-3 h-3" /> Expired
                             </span>
                         )}
+                        {isOverdue && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> Overdue
+                            </span>
+                        )}
                     </div>
-                    <h3 className="font-semibold text-gray-800 dark:text-gray-100 line-clamp-1" title={caseData.propertyTitle}>
+                    <h3 className="line-clamp-1 font-semibold text-gray-800 dark:text-gray-100" title={caseData.propertyTitle}>
                         {caseData.propertyTitle}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Client: {caseData.clientName}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                        <Avatar
+                            userId={caseData.clientId}
+                            name={caseData.clientName}
+                            size="sm"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Client: {caseData.clientName}</p>
+                    </div>
                 </div>
 
                 {timeLeft && (
-                    <div className={`flex flex-col items-end ${isAtRisk ? 'text-orange-600' : 'text-gray-600'}`}>
+                    <div className={`ml-2 shrink-0 text-right ${isAtRisk ? 'text-orange-600' : 'text-gray-600'}`}>
                         <div className="flex items-center gap-1 font-mono font-bold text-lg leading-none">
                             <Clock className="w-4 h-4" />
                             {String(timeLeft.hours).padStart(2, '0')}:{String(timeLeft.minutes).padStart(2, '0')}
@@ -116,23 +138,43 @@ const FastTrackCaseCard: React.FC<FastTrackCaseCardProps> = ({ caseData, onUpdat
                 )}
             </div>
 
-            <FastTrackProgress currentStep={caseData.currentStep} />
+            <FastTrackProgress currentStep={caseData.currentStep} journeyType={caseData.journeyType} compact />
 
-            {caseData.currentStep === 'documents' && caseData.finalStatus !== 'completed' && !isExpired && (
+            {(verificationSummary || leadStatusLabel) && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {verificationSummary && (
+                        <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-gray-300">
+                            <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                <BadgeCheck className="w-3.5 h-3.5" />
+                                Verification
+                            </div>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{verificationSummary}</p>
+                        </div>
+                    )}
+                    {leadStatusLabel && (
+                        <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-gray-300">
+                            <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">
+                                <FileClock className="w-3.5 h-3.5" />
+                                Lead status
+                            </div>
+                            <p className="mt-1 text-sm font-medium text-gray-900 dark:text-white">{leadStatusLabel}</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {caseData.currentStep === 'documents_requested' && caseData.finalStatus !== 'completed' && !isLocked && (
                 <FastTrackDocuments
                     documents={caseData.documents}
-                    onVerify={handleVerifyDoc}
-                    isReadOnly={isExpired}
                 />
             )}
 
-            <div className="mt-auto">
-                <FastTrackActions
-                    currentStep={caseData.currentStep}
-                    onAdvance={handleAdvanceStep}
-                    isDocumentsVerified={isDocsVerified}
-                    isReadOnly={isExpired && caseData.finalStatus !== 'completed'}
-                />
+            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-400">Next action</p>
+                <p className="mt-1 font-medium text-gray-900 dark:text-white">{caseData.nextAction || 'Open the case for the live action'}</p>
+                {caseData.statusReason ? (
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{caseData.statusReason}</p>
+                ) : null}
             </div>
         </div>
     );

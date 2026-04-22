@@ -3,15 +3,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    X, Loader2, Home, User, Briefcase, DollarSign, Calendar,
+    X, Loader2, Home, User, Briefcase, DollarSign,
     Phone, Mail, Building2, FileText, CheckCircle, Search,
     ArrowRight, ArrowLeft, Sparkles, MapPin, Bed, Bath, Edit2,
 } from 'lucide-react';
 import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import * as propertyService from '@/services/propertyService';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import DateField from '@/components/ui/DateField';
 
 interface Property {
     id: string;
+    manager_id?: string;
     title?: string;
     address_line_1?: string;
     city?: string;
@@ -22,6 +26,11 @@ interface Property {
     image_urls?: string[] | string;
     bedrooms?: number;
     bathrooms?: number;
+    agent_name?: string;
+    agent_email?: string;
+    agent_phone?: string;
+    agent_company?: string;
+    // Keep legacy fields for compatibility
     contact_name?: string;
     contact_email?: string;
     contact_phone?: string;
@@ -91,7 +100,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         }
     }, [isOpen, step]);
 
-    // Load recent properties on modal open using direct REST API
+    // Load recent properties on modal open
     useEffect(() => {
         const fetchRecentProperties = async () => {
             if (!isOpen) {
@@ -101,29 +110,26 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             setLoadingRecent(true);
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yydtsteyknbpfpxjtlxe.supabase.co';
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHRzdGV5a25icGZweGp0bHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkzODgsImV4cCI6MjA3OTM3NTM4OH0.QTUVmTdtnoFhzZ0G6XjdzhFDxcFae0hDSraFhazdNsU';
+                const { data, error } = await propertyService.getProperties({
+                    sort_by: 'created_at',
+                    sort_order: 'desc',
+                    limit: 6
+                });
 
-                const response = await fetch(
-                    `${supabaseUrl}/rest/v1/properties?status=eq.online&order=created_at.desc&limit=6&select=id,title,address_line_1,city,postcode,price,property_type,listing_type,image_urls,bedrooms,bathrooms,contact_name,contact_email,contact_phone,company`,
-                    {
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                        },
-                    }
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[NewApplication] Fetched recent properties:', data?.length);
-                    setRecentProperties(data || []);
+                if (!error && data) {
+                    // Map service properties to local Property interface if needed
+                    const mappedData = data.map(p => ({
+                        ...p,
+                        contact_name: p.agent_name,
+                        contact_email: p.agent_email,
+                        contact_phone: p.agent_phone,
+                        company: p.agent_company
+                    }));
+                    setRecentProperties(mappedData);
                 } else {
-                    console.error('[NewApplication] Failed to fetch properties:', response.status);
                     setRecentProperties([]);
                 }
             } catch (err) {
-                console.error('[NewApplication] Error fetching recent properties:', err);
                 setRecentProperties([]);
             } finally {
                 setLoadingRecent(false);
@@ -133,7 +139,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         fetchRecentProperties();
     }, [isOpen]);
 
-    // Search properties with debounce using direct REST API
+    // Search properties with debounce
     useEffect(() => {
         const fetchProperties = async () => {
             if (!searchQuery.trim()) {
@@ -143,30 +149,24 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             setLoadingProperties(true);
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yydtsteyknbpfpxjtlxe.supabase.co';
-                const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZHRzdGV5a25icGZweGp0bHhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3OTkzODgsImV4cCI6MjA3OTM3NTM4OH0.QTUVmTdtnoFhzZ0G6XjdzhFDxcFae0hDSraFhazdNsU';
+                const { data, error } = await propertyService.getProperties({
+                    search: searchQuery,
+                    limit: 6
+                });
 
-                const encodedQuery = encodeURIComponent(searchQuery);
-                const response = await fetch(
-                    `${supabaseUrl}/rest/v1/properties?status=eq.online&or=(title.ilike.*${encodedQuery}*,city.ilike.*${encodedQuery}*,postcode.ilike.*${encodedQuery}*,address_line_1.ilike.*${encodedQuery}*)&limit=6&select=id,title,address_line_1,city,postcode,price,property_type,listing_type,image_urls,bedrooms,bathrooms,contact_name,contact_email,contact_phone,company`,
-                    {
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                        },
-                    }
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[NewApplication] Search results:', data?.length);
-                    setProperties(data || []);
+                if (!error && data) {
+                    const mappedData = data.map(p => ({
+                        ...p,
+                        contact_name: p.agent_name,
+                        contact_email: p.agent_email,
+                        contact_phone: p.agent_phone,
+                        company: p.agent_company
+                    }));
+                    setProperties(mappedData);
                 } else {
-                    console.error('[NewApplication] Search failed:', response.status);
                     setProperties([]);
                 }
             } catch (err) {
-                console.error('[NewApplication] Error searching properties:', err);
                 setProperties([]);
             } finally {
                 setLoadingProperties(false);
@@ -226,6 +226,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         if (!formData.fullName.trim()) errors.fullName = 'Name is required';
         if (!formData.email.trim()) errors.email = 'Email is required';
         else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Invalid email format';
+        if (!formData.moveInDate.trim()) errors.moveInDate = 'Move-in date is required';
 
         setFormErrors(errors);
         return Object.keys(errors).length === 0;
@@ -284,6 +285,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
             const applicationData = {
                 property_id: selectedProperty.id,
+                manager_id: selectedProperty.manager_id,
                 property_title: selectedProperty.title,
                 property_address: selectedProperty.address_line_1 || `${selectedProperty.city || ''} ${selectedProperty.postcode || ''}`.trim(),
                 property_price: selectedProperty.price,
@@ -293,20 +295,15 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 agent_name: selectedProperty.contact_name,
                 agent_email: selectedProperty.contact_email,
                 agent_phone: selectedProperty.contact_phone,
-                agent_company: selectedProperty.company,
-                personal_info: {
-                    full_name: formData.fullName,
-                    email: formData.email,
-                    phone: formData.phone,
-                },
-                financial_info: {
-                    employment_status: formData.employmentStatus,
-                    employer: formData.employer,
-                    job_title: formData.jobTitle,
-                    annual_income: formData.annualIncome ? parseFloat(formData.annualIncome) : null,
-                },
-                move_in_date: formData.moveInDate || null,
-                notes: formData.notes,
+                agent_agency: selectedProperty.company,
+                applicant_name: formData.fullName,
+                applicant_email: formData.email,
+                applicant_phone: formData.phone,
+                employment_status: formData.employmentStatus,
+                employer_name: formData.employer,
+                annual_income: formData.annualIncome ? parseFloat(formData.annualIncome) : undefined,
+                move_in_date: formData.moveInDate,
+                message: formData.notes,
             };
 
             const result = await createApplication(applicationData);
@@ -321,7 +318,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 onClose();
             }, 2500);
         } catch (err: unknown) {
-            console.error('Error submitting application:', err);
             setSubmitError((err as Error).message || 'Failed to submit application');
         } finally {
             setIsSubmitting(false);
@@ -329,7 +325,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
     };
 
     const getPropertyImage = (property: Property | null) => {
-        const fallbackImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+        const fallbackImage = PROPERTY_PLACEHOLDER_IMAGE;
 
         if (!property) return fallbackImage;
 
@@ -351,7 +347,6 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
             const validImage = images.filter(img => img && typeof img === 'string')[0];
             return validImage || fallbackImage;
         } catch (e) {
-            console.error('[NewApplication] Error getting property image:', e);
             return fallbackImage;
         }
     };
@@ -367,7 +362,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 style={{ animation: 'scaleIn 0.2s ease-out' }}
             >
                 {/* Header */}
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gradient-to-r from-orange-500 to-orange-600">
+                <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gradient-to-r from-orange-500 to-orange-600">
                     <div>
                         <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                             <Sparkles size={20} />
@@ -386,7 +381,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                 </div>
 
                 {/* Progress Steps */}
-                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                         {[1, 2, 3].map((s) => (
                             <React.Fragment key={s}>
@@ -446,7 +441,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 onKeyDown={handleKeyDown}
                                                 placeholder="Search by name, city, or postcode..."
-                                                className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                                                className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                                             />
                                             {loadingProperties && (
                                                 <Loader2 size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-500 animate-spin" />
@@ -456,7 +451,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                                     {/* Search Results */}
                                     {searchQuery && properties.length > 0 && (
-                                        <div className="border-2 border-gray-200 dark:border-gray-600 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
+                                        <div className="border-2 border-gray-100 dark:border-gray-600 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700">
                                             {properties.map((property) => (
                                                 <button
                                                     key={property.id}
@@ -469,7 +464,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                             alt={property.title || 'Property'}
                                                             className="w-full h-full object-cover"
                                                             onError={(e) => {
-                                                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                             }}
                                                         />
                                                     </div>
@@ -534,7 +529,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         alt={selectedProperty.title || 'Property'}
                                                         className="w-full h-full object-cover"
                                                         onError={(e) => {
-                                                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                         }}
                                                     />
                                                 </div>
@@ -588,7 +583,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         <button
                                                             key={property.id}
                                                             onClick={() => handlePropertySelect(property)}
-                                                            className="group text-left p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-700 transition-all"
+                                                            className="group text-left p-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl hover:border-orange-400 hover:bg-orange-50 dark:hover:bg-gray-700 transition-all"
                                                         >
                                                             <div className="w-full h-20 rounded-lg overflow-hidden bg-gray-100 mb-2">
                                                                 <img
@@ -596,7 +591,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                                     alt={property.title || 'Property'}
                                                                     className="w-full h-full object-cover"
                                                                     onError={(e) => {
-                                                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                                     }}
                                                                 />
                                                             </div>
@@ -641,7 +636,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.fullName}
                                                     onChange={handleInputChange}
                                                     onKeyDown={handleKeyDown}
-                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.fullName ? 'border-red-500' : 'border-gray-200 dark:border-gray-600 focus:border-orange-500'
+                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.fullName ? 'border-red-500' : 'border-gray-100 dark:border-gray-600 focus:border-orange-500'
                                                         }`}
                                                     placeholder="John Smith"
                                                 />
@@ -661,9 +656,9 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.email}
                                                     onChange={handleInputChange}
                                                     onKeyDown={handleKeyDown}
-                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-600 focus:border-orange-500'
+                                                    className={`w-full pl-10 pr-4 py-3 border-2 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-colors ${formErrors.email ? 'border-red-500' : 'border-gray-100 dark:border-gray-600 focus:border-orange-500'
                                                         }`}
-                                                    placeholder="john@example.com"
+                                                    placeholder="Enter your email address"
                                                 />
                                             </div>
                                             {formErrors.email && <p className="text-xs text-red-500 mt-1">{formErrors.email}</p>}
@@ -681,7 +676,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     value={formData.phone}
                                                     onChange={handleInputChange}
                                                     onKeyDown={handleKeyDown}
-                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     placeholder="+44 7XXX XXXXXX"
                                                 />
                                             </div>
@@ -691,21 +686,19 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                                 Preferred Move-in Date
                                             </label>
-                                            <div className="relative">
-                                                <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                <input
-                                                    type="date"
-                                                    name="moveInDate"
-                                                    value={formData.moveInDate}
-                                                    onChange={handleInputChange}
-                                                    min={new Date().toISOString().split('T')[0]}
-                                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
-                                                />
-                                            </div>
+                                            <DateField
+                                                name="moveInDate"
+                                                value={formData.moveInDate}
+                                                onChange={(nextValue) => setFormData((previous) => ({ ...previous, moveInDate: nextValue }))}
+                                                min={new Date().toISOString().split('T')[0]}
+                                                className="w-full"
+                                                buttonClassName="border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700"
+                                                ariaLabel="Preferred move-in date"
+                                            />
                                         </div>
                                     </div>
 
-                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-5">
+                                    <div className="border-t border-gray-100 dark:border-gray-700 pt-5">
                                         <h4 className="font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                                             <Briefcase size={18} className="text-orange-500" />
                                             Employment Information
@@ -719,7 +712,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     name="employmentStatus"
                                                     value={formData.employmentStatus}
                                                     onChange={handleInputChange}
-                                                    className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                    className="w-full px-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                 >
                                                     <option value="employed">Employed</option>
                                                     <option value="self-employed">Self-employed</option>
@@ -742,7 +735,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         onChange={handleInputChange}
                                                         onKeyDown={handleKeyDown}
                                                         placeholder="e.g. 45000"
-                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     />
                                                 </div>
                                             </div>
@@ -760,7 +753,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         onChange={handleInputChange}
                                                         onKeyDown={handleKeyDown}
                                                         placeholder="Company name"
-                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     />
                                                 </div>
                                             </div>
@@ -778,7 +771,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         onChange={handleInputChange}
                                                         onKeyDown={handleKeyDown}
                                                         placeholder="Your role"
-                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
+                                                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-orange-500"
                                                     />
                                                 </div>
                                             </div>
@@ -795,7 +788,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                             onChange={handleInputChange}
                                             rows={3}
                                             placeholder="Any additional information you'd like to share with the agent..."
-                                            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:border-orange-500"
+                                            className="w-full px-4 py-3 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:border-orange-500"
                                         />
                                     </div>
                                 </div>
@@ -822,7 +815,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     alt={selectedProperty?.title || 'Property'}
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400';
+                                    (e.target as HTMLImageElement).src = PROPERTY_PLACEHOLDER_IMAGE;
                                                     }}
                                                 />
                                             </div>
@@ -922,7 +915,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                 {/* Footer */}
                 {!submitSuccess && (
-                    <div className="p-5 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
+                    <div className="p-5 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between bg-gray-50 dark:bg-gray-800">
                         {step > 1 ? (
                             <button
                                 onClick={handlePrevStep}
