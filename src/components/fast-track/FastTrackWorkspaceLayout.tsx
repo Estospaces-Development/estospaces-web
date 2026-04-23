@@ -45,6 +45,7 @@ export interface FastTrackStepperItem {
   icon: React.ReactNode;
   active: boolean;
   complete: boolean;
+  current?: boolean;
 }
 
 interface FastTrackWorkspaceHeaderProps {
@@ -376,9 +377,10 @@ function MastheadInfoCard({ label, value }: { label: string; value: string }) {
 
 interface FastTrackStageStepperProps {
   items: FastTrackStepperItem[];
+  onSelect?: (stage: string) => void;
 }
 
-export function FastTrackStageStepper({ items }: FastTrackStageStepperProps) {
+export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepperProps) {
   return (
     <section className="sticky top-20 z-20 rounded-[24px] border border-gray-100 bg-white/92 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/92" data-fast-track-stepper>
       <div
@@ -388,19 +390,27 @@ export function FastTrackStageStepper({ items }: FastTrackStageStepperProps) {
       >
         {items.map((item, index) => (
           <React.Fragment key={item.key}>
-            <div
+            <button
+              type="button"
+              data-fast-track-stage-tab={item.key}
+              onClick={() => onSelect?.(item.key)}
+              aria-pressed={item.active}
+              title={item.current && !item.active ? 'Current workflow stage' : undefined}
               className={cn(
-                'inline-flex min-w-[96px] items-center gap-2 rounded-2xl border px-3 py-2',
+                'inline-flex min-w-[96px] items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-colors',
+                onSelect ? 'cursor-pointer hover:border-orange-200 hover:bg-orange-50/70' : 'cursor-default',
                 item.active
                   ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
                   : item.complete
                     ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300'
+                    : item.current
+                      ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300'
                     : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400',
               )}
             >
               <span className="shrink-0">{item.icon}</span>
               <span className="text-xs font-semibold">{item.label}</span>
-            </div>
+            </button>
             {index < items.length - 1 ? (
               <div
                 className={cn(
