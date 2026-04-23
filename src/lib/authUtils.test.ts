@@ -82,8 +82,8 @@ test('getHostedLoginRedirectUrl targets the correct hosted login domain', () => 
     }
 });
 
-test('shouldAwaitSessionResolution only blocks while auth is unresolved', () => {
+test('shouldAwaitSessionResolution blocks whenever auth is still resolving', () => {
     assert.equal(shouldAwaitSessionResolution(true, false), true);
-    assert.equal(shouldAwaitSessionResolution(true, true), false);
+    assert.equal(shouldAwaitSessionResolution(true, true), true);
     assert.equal(shouldAwaitSessionResolution(false, false), false);
 });

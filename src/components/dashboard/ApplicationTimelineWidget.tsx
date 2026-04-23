@@ -10,6 +10,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
+import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
 
 // --- Types & Interfaces ---
@@ -143,6 +144,8 @@ const buildJourneyKey = (payload: {
 
 const TIMELINE_PAGE_SIZE = 4;
 
+const toPropertyImages = (value: unknown) => getPropertyImages({ image_urls: value });
+
 
 
 // --- Subcomponents ---
@@ -216,6 +219,7 @@ const ApplicationTimelineWidget = () => {
     const [loading, setLoading] = useState(true);
     const [applications, setApplications] = useState<ApplicationItem[]>([]);
     const [listings, setListings] = useState<ApplicationItem[]>([]);
+    const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
     const [applicationsPage, setApplicationsPage] = useState(1);
     const [listingsPage, setListingsPage] = useState(1);
 
@@ -314,7 +318,7 @@ const ApplicationTimelineWidget = () => {
                             title: app.property_title || 'Property application',
                             city: app.property_address || null,
                             price: typeof app.property_price === 'number' ? app.property_price : null,
-                            image_urls: app.property_image ? [app.property_image] : [],
+                            image_urls: toPropertyImages(app.property_image),
                         },
                         stages: stageList.map((stage, index) => ({
                             ...stage,
@@ -385,7 +389,7 @@ const ApplicationTimelineWidget = () => {
                                 city: request.selected_property?.city || request.location_postcode || request.location || null,
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
                                 priceLabel: request.budget ? `Budget ${request.budget}` : 'Property agent request',
-                                image_urls: request.selected_property?.image_urls ? [request.selected_property.image_urls] : [],
+                                image_urls: toPropertyImages(request.selected_property?.image_urls),
                             },
                             broker: request.matched_broker ? {
                                 name: request.matched_broker.name,
@@ -429,7 +433,7 @@ const ApplicationTimelineWidget = () => {
                             title: propertyContext?.title || 'Purchase progression',
                             city: propertyContext?.address || null,
                             price: typeof propertyContext?.price === 'number' ? propertyContext.price : null,
-                            image_urls: propertyContext?.image ? [propertyContext.image] : [],
+                            image_urls: toPropertyImages(propertyContext?.image),
                         },
                         stages: SALE_STAGES.map((stage, index) => ({
                             ...stage,
@@ -473,9 +477,7 @@ const ApplicationTimelineWidget = () => {
                             title: prop.title,
                             city: prop.city || null,
                             price: typeof prop.price === 'number' ? prop.price : null,
-                            image_urls: Array.isArray(prop.images)
-                                ? prop.images.filter((image: unknown): image is string => typeof image === 'string' && image.trim().length > 0)
-                                : [],
+                            image_urls: getPropertyImages(prop),
                         },
                         stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
                         stages: SALE_STAGES.map((s, i) => ({
@@ -604,8 +606,15 @@ const ApplicationTimelineWidget = () => {
                                 <div className="px-6 py-5 cursor-pointer" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                                     <div className="flex items-start gap-5">
                                         <div className="relative flex-shrink-0">
-                                            {item.property.image_urls[0] ? (
-                                                <img src={item.property.image_urls[0]} alt={item.property.title} className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700" />
+                                            {item.property.image_urls[0] && !failedImages[item.id] ? (
+                                                <img
+                                                    src={item.property.image_urls[0]}
+                                                    alt={item.property.title}
+                                                    className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700"
+                                                    onError={() => {
+                                                        setFailedImages((previous) => ({ ...previous, [item.id]: true }));
+                                                    }}
+                                                />
                                             ) : (
                                                 <div className="w-20 h-20 rounded-xl shadow-sm bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500">
                                                     <FileText size={24} />
