@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Building2, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface FastTrackCelebrationOverlayProps {
@@ -307,7 +308,11 @@ export default function FastTrackCelebrationOverlay({
             footer: 'The journey is now closed cleanly with the final records in place.',
         };
 
-    return (
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    return createPortal(
         <div
             data-fast-track-celebration-overlay="true"
             className="pointer-events-none fixed inset-0 z-[10050] overflow-hidden"
@@ -381,6 +386,7 @@ export default function FastTrackCelebrationOverlay({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }
