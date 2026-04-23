@@ -333,6 +333,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const [cases, setCases] = useState<FastTrackCase[]>([]);
     const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+    const [activeStageOverride, setActiveStageOverride] = useState<FastTrackStage | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [query, setQuery] = useState('');
@@ -622,9 +623,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
         [cases, filteredCases, selectedCaseId],
     );
+    const visibleStage = activeStageOverride ?? selectedCase?.stage ?? 'selected';
     const isManagerReviewEligible = role === 'user'
         && Boolean(selectedCase?.managerId)
         && selectedCase?.workspaceFinalStatus !== 'cancelled';
+
+    useEffect(() => {
+        setActiveStageOverride(null);
+    }, [selectedCase?.caseId]);
 
     useEffect(() => {
         if (!isManagerReviewEligible || !selectedCase) {
@@ -2546,7 +2552,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
-        switch (selectedCase.stage) {
+        switch (visibleStage) {
             case 'documents':
                 return renderDocumentsStage();
             case 'viewing':
@@ -2596,6 +2602,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [paginatedCases, role, selectedCaseId],
     );
 
+    const handleStageSelect = useCallback((stage: string) => {
+        if (!selectedCase || !STAGES.includes(stage as FastTrackStage)) {
+            return;
+        }
+
+        const nextStage = stage as FastTrackStage;
+        setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
+    }, [selectedCase]);
+
     const stepperItems = useMemo(
         () => STAGES.map((stage, index) => {
             const Icon = STAGE_ICONS[stage];
@@ -2605,11 +2620,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     ? formatStageLabel(stage, selectedCase.journeyMode, role)
                     : formatStageLabel(stage, 'rent', role),
                 icon: <Icon size={16} />,
-                active: selectedCase?.stage === stage,
+                active: visibleStage === stage,
                 complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
+                current: selectedCase?.stage === stage,
             };
         }),
-        [role, selectedCase, stageIndex],
+        [role, selectedCase, stageIndex, visibleStage],
     );
 
     const selectedCaseSubtitle = selectedCase
@@ -2740,7 +2756,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 onOpenCustomize={() => setCustomizationOpen(true)}
                             />
 
-                            <FastTrackStageStepper items={stepperItems} />
+                            <FastTrackStageStepper items={stepperItems} onSelect={handleStageSelect} />
 
                             <div className={cn(
                                 'grid gap-4',
