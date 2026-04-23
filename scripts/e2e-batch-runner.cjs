@@ -60,8 +60,8 @@ function readJson(filePath) {
 const DEV_DEFAULT_WORKER_CAP = 2;
 const SNAPSHOT_RESULT_INTERVAL = 10;
 const SNAPSHOT_TIME_INTERVAL_MS = 30000;
-const LOGIN_ATTEMPTS = 3;
-const LOGIN_RETRY_DELAY_MS = 2500;
+const LOGIN_ATTEMPTS = 5;
+const LOGIN_RETRY_DELAY_MS = 4000;
 const LOGIN_MIN_INTERVAL_MS = 5000;
 const AUTH_STORAGE_KEY = 'esto_user';
 const AUTH_TOKEN_KEY = 'esto_token';
@@ -172,8 +172,8 @@ function buildStoredUser(rawUser, fallbackEmail = '') {
   };
 }
 
-function getAuthCacheKey(target, roleName, workerId) {
-  return `${target.name}:${workerId}:${roleName}`;
+function getAuthCacheKey(target, roleName) {
+  return `${target.name}:${roleName}`;
 }
 
 async function createAuthSession(target, roleName) {
@@ -233,7 +233,7 @@ async function createAuthSession(target, roleName) {
 
 async function getAuthSession(target, roleName, workerId, options = {}) {
   const fresh = options.fresh === true;
-  const cacheKey = getAuthCacheKey(target, roleName, workerId);
+  const cacheKey = getAuthCacheKey(target, roleName);
   if (!fresh && authSessionCache.has(cacheKey)) {
     return authSessionCache.get(cacheKey);
   }

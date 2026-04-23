@@ -94,8 +94,8 @@ export function isProtectedRoutePath(pathname: string): boolean {
     return PROTECTED_ROLE_PREFIXES.some(({ prefix }) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`));
 }
 
-export function shouldAwaitSessionResolution(loading: boolean, isAuthenticated: boolean): boolean {
-    return loading && !isAuthenticated;
+export function shouldAwaitSessionResolution(loading: boolean, _isAuthenticated: boolean): boolean {
+    return loading;
 }
 
 export function resolveProtectedRedirect(
