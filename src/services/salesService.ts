@@ -49,6 +49,8 @@ export interface SaleProgression extends JourneyStateFields {
     nextActions?: JourneyAction[];
 }
 
+export type SaleProgressionStage = SaleProgression['current_stage'];
+
 export const getSaleProgressions = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: SaleProgression[] | null; error: string | null }> => {

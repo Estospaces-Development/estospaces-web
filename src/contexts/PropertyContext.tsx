@@ -173,6 +173,8 @@ export interface Property {
     totalFloors?: number;
     occupiedUnits?: number;
   };
+  total_floors?: number;
+  occupied_units?: number;
   area?: number;
 
   // Rooms
@@ -418,7 +420,7 @@ export const PropertyProvider = ({
   const [error, setError] = useState<string | null>(null);
   const isAuthRoute = isAuthRoutePath(location.pathname);
   const syncTags = useMemo(() => {
-    const tags = [WORKSPACE_SYNC_TAGS.PROPERTIES];
+    const tags: string[] = [WORKSPACE_SYNC_TAGS.PROPERTIES];
     if (scope === "manager") {
       tags.push(
         WORKSPACE_SYNC_TAGS.MANAGER_PROPERTIES,

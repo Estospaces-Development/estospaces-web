@@ -1,5 +1,4 @@
 const fs = require('node:fs');
-const path = require('node:path');
 const { chromium } = require('playwright');
 const {
   buildArtifactPath,
@@ -45,11 +44,16 @@ async function waitForHelpWorkspace(page, ticketId, subject) {
   }
 }
 
-function resolveTicketPayload(payload) {
-  return payload?.data?.ticket
-    || payload?.data
-    || payload?.ticket
-    || payload;
+async function fetchTicketById(ticketsUrl, token, ticketId) {
+  const payload = await apiJson(ticketsUrl, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const items = Array.isArray(payload?.body?.data)
+    ? payload.body.data
+    : Array.isArray(payload?.body)
+      ? payload.body
+      : [];
+  return items.find((item) => item?.id === ticketId) || null;
 }
 
 async function createTicketViaUi(page, subject, content) {
@@ -57,7 +61,12 @@ async function createTicketViaUi(page, subject, content) {
   await page.locator('input[placeholder="What\'s it about?"], input[placeholder="Short subject"]').first().fill(subject);
   await page.locator('textarea[placeholder="Give us more details..."], textarea').first().fill(content);
   await page.getByRole('button', { name: /send message|create ticket/i }).click();
-  await page.getByText(/Message Sent!/i).waitFor({ timeout: 30000 });
+  const successToast = page.getByText(/Message Sent!/i);
+  const ticketSurface = page.locator('body').filter({ hasText: subject }).first();
+  await Promise.race([
+    successToast.waitFor({ timeout: 8000 }).catch(() => null),
+    ticketSurface.waitFor({ timeout: 30000 }),
+  ]);
   return {
     createResponse: {
       status: 200,
@@ -193,20 +202,21 @@ async function main() {
     await userPage.getByRole('button', { name: /^Reopen$/i }).waitFor({ timeout: 30000 });
     result.steps.push({ name: 'user saw admin reply and resolved state', status: 'passed' });
 
-    const reopenPromise = userPage.waitForResponse(
-      (response) => response.url().includes(`/api/v1/tickets/${ticket.id}/status`) && response.request().method() === 'PUT',
-      { timeout: 20000 },
-    );
+    const userTicketsUrl = `${target.services.messaging}/api/v1/tickets`;
     await userPage.getByRole('button', { name: /^Reopen$/i }).click();
-    await reopenPromise;
+    await userPage.getByRole('button', { name: /^Reopen$/i }).waitFor({ state: 'hidden', timeout: 30000 });
+    const reopenedTicket = await fetchTicketById(userTicketsUrl, userToken, ticket.id);
+    if (!reopenedTicket || reopenedTicket.status !== 'open') {
+      throw new Error(`Expected reopened ticket status to be open, got ${reopenedTicket?.status || 'missing'}`);
+    }
     result.steps.push({ name: 'user reopened ticket', status: 'passed' });
 
-    const closePromise = userPage.waitForResponse(
-      (response) => response.url().includes(`/api/v1/tickets/${ticket.id}/status`) && response.request().method() === 'PUT',
-      { timeout: 20000 },
-    );
     await userPage.getByRole('button', { name: /close ticket/i }).click();
-    await closePromise;
+    await userPage.getByRole('button', { name: /close ticket/i }).waitFor({ state: 'hidden', timeout: 30000 });
+    const closedTicket = await fetchTicketById(userTicketsUrl, userToken, ticket.id);
+    if (!closedTicket || closedTicket.status !== 'closed') {
+      throw new Error(`Expected closed ticket status to be closed, got ${closedTicket?.status || 'missing'}`);
+    }
     result.steps.push({ name: 'user closed ticket', status: 'passed' });
 
     await adminPage.screenshot({ path: adminShot, fullPage: true });

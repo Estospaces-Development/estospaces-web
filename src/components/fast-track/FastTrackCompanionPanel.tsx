@@ -18,7 +18,7 @@ import {
   type FastTrackCompanionContext,
   type FastTrackCompanionRole,
 } from "@/lib/fastTrackCompanion";
-import { resolveFastTrackThreadRecipientId } from "@/lib/fastTrackWorkspace";
+import { isFastTrackCaseComplete, resolveFastTrackThreadRecipientId } from "@/lib/fastTrackWorkspace";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { upsertDirectConversation } from "@/services/messagesService";
 
@@ -140,6 +140,7 @@ export default function FastTrackCompanionPanel({
   const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
   const hasValidAgreementAmount =
     Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
+  const caseComplete = isFastTrackCaseComplete(fastTrackCase);
 
   const runAction = useCallback(
     async (action: string, payload: Record<string, unknown>, successMessage: string) => {
@@ -560,6 +561,17 @@ export default function FastTrackCompanionPanel({
   };
 
   const renderHandoverActions = () => {
+    if (caseComplete) {
+      return (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
+          <p className="font-semibold">Handover complete</p>
+          <p className="mt-2">
+            The keys and final handover are already confirmed. No more receipt confirmation is needed here.
+          </p>
+        </div>
+      );
+    }
+
     if (role === "user") {
       return (
         <div className="space-y-4">

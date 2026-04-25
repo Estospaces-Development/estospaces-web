@@ -68,15 +68,15 @@ const Modal: React.FC<ModalProps> = ({
 
             {/* Panel */}
             <div
-                className={`relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col border border-gray-100 dark:border-zinc-800 animate-in zoom-in-95 fade-in duration-200`}
+                className={`relative flex max-h-[90vh] min-w-0 w-full ${sizeClasses[size]} flex-col rounded-2xl border border-gray-100 bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200 dark:border-zinc-800 dark:bg-zinc-900`}
             >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                    <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-4 dark:border-zinc-800 sm:p-5">
                         {title && (
                             <h2
                                 id="modal-title"
-                                className="text-lg font-semibold text-gray-900 dark:text-white"
+                                className="mobile-safe-text text-lg font-semibold text-gray-900 dark:text-white"
                             >
                                 {title}
                             </h2>
@@ -94,11 +94,11 @@ const Modal: React.FC<ModalProps> = ({
                 )}
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-5">{children}</div>
+                <div className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-5">{children}</div>
 
                 {/* Footer */}
                 {footer && (
-                    <div className="p-5 border-t border-gray-100 dark:border-zinc-800">
+                    <div className="border-t border-gray-100 p-4 dark:border-zinc-800 sm:p-5">
                         {footer}
                     </div>
                 )}

@@ -6,28 +6,47 @@ import { fileURLToPath } from 'node:url';
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 const DEV_PROXY_PATHS = {
-  VITE_CORE_SERVICE_URL: '/__dev_proxy/core',
-  VITE_BOOKING_SERVICE_URL: '/__dev_proxy/booking',
-  VITE_NOTIFICATION_SERVICE_URL: '/__dev_proxy/notification',
-  VITE_PAYMENT_SERVICE_URL: '/__dev_proxy/payment',
-  VITE_SEARCH_SERVICE_URL: '/__dev_proxy/search',
-  VITE_MEDIA_SERVICE_URL: '/__dev_proxy/media',
-  VITE_MESSAGING_SERVICE_URL: '/__dev_proxy/messaging',
+  core: {
+    keys: ['VITE_CORE_SERVICE_URL', 'VITE_CORE_API'],
+    prefix: '/__dev_proxy/core',
+  },
+  booking: {
+    keys: ['VITE_BOOKING_SERVICE_URL', 'VITE_BOOKING_API'],
+    prefix: '/__dev_proxy/booking',
+  },
+  notification: {
+    keys: ['VITE_NOTIFICATION_SERVICE_URL', 'VITE_NOTIFICATION_API'],
+    prefix: '/__dev_proxy/notification',
+  },
+  payment: {
+    keys: ['VITE_PAYMENT_SERVICE_URL', 'VITE_PAYMENT_API'],
+    prefix: '/__dev_proxy/payment',
+  },
+  search: {
+    keys: ['VITE_SEARCH_SERVICE_URL', 'VITE_SEARCH_API'],
+    prefix: '/__dev_proxy/search',
+  },
+  media: {
+    keys: ['VITE_MEDIA_SERVICE_URL', 'VITE_MEDIA_API'],
+    prefix: '/__dev_proxy/media',
+  },
+  messaging: {
+    keys: ['VITE_MESSAGING_SERVICE_URL', 'VITE_MESSAGING_API'],
+    prefix: '/__dev_proxy/messaging',
+  },
 } as const;
 
-const REQUIRED_SERVICE_ENV_KEYS = Object.keys(DEV_PROXY_PATHS) as Array<keyof typeof DEV_PROXY_PATHS>;
-
 const buildServiceProxy = (env: Record<string, string>) => {
-  return Object.entries(DEV_PROXY_PATHS).reduce<Record<string, string | ProxyOptions>>((proxy, [envKey, prefix]) => {
-    const target = env[envKey];
+  return Object.values(DEV_PROXY_PATHS).reduce<Record<string, string | ProxyOptions>>((proxy, service) => {
+    const target = service.keys.map((envKey) => env[envKey]?.trim()).find(Boolean);
     if (!target) {
       return proxy;
     }
 
-    proxy[prefix] = {
+    proxy[service.prefix] = {
       target,
       changeOrigin: true,
-      rewrite: (requestPath) => requestPath.replace(prefix, ''),
+      rewrite: (requestPath) => requestPath.replace(service.prefix, ''),
       configure: (proxyServer) => {
         proxyServer.on('proxyReq', (proxyRequest, request) => {
           if (request.headers.origin) {
@@ -50,7 +69,9 @@ const validateBuildServiceEnv = (mode: string, env: Record<string, string>) => {
     return;
   }
 
-  const missing = REQUIRED_SERVICE_ENV_KEYS.filter((envKey) => !env[envKey]?.trim());
+  const missing = Object.values(DEV_PROXY_PATHS)
+    .filter((service) => !service.keys.some((envKey) => env[envKey]?.trim()))
+    .map((service) => service.keys.join(' or '));
   if (missing.length === 0) {
     return;
   }

@@ -195,10 +195,10 @@ const PropertySearch = () => {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+        <div className="mx-auto w-full max-w-7xl space-y-6 overflow-x-hidden px-4 pb-20 pt-4 sm:px-6 lg:px-8 animate-in fade-in duration-500">
             {/* Search Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                <div className="min-w-0">
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Find Your Property</h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Search through verified listings</p>
                 </div>
@@ -208,7 +208,7 @@ const PropertySearch = () => {
                             setSearchName(`${query || location || 'Search'} ${new Date().toLocaleDateString()}`);
                             setIsSaveModalOpen(true);
                         }}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100 dark:border-indigo-800/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors text-sm font-semibold"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-600 transition-colors hover:bg-indigo-100 dark:border-indigo-800/50 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/30 sm:w-auto sm:shrink-0"
                     >
                         <BookmarkPlus className="w-4 h-4" />
                         Save this search
@@ -217,8 +217,8 @@ const PropertySearch = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="flex gap-3">
-                <div className="flex-1 relative">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
+                <div className="relative min-w-0 flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                         type="text"
@@ -233,7 +233,7 @@ const PropertySearch = () => {
                         }}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         placeholder="Search by location, property name..."
-                        className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                        className="w-full min-w-0 rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     />
                     {showSuggestions && locationSuggestions.length > 0 && (
                         <div
@@ -265,7 +265,7 @@ const PropertySearch = () => {
                 </div>
                 <button
                     onClick={() => setShowFilters(!showFilters)}
-                    className={`flex items-center gap-2 px-5 py-3 rounded-xl border transition-colors ${showFilters ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:border-indigo-400'
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl border px-5 py-3 transition-colors sm:w-auto sm:shrink-0 ${showFilters ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-gray-300 hover:border-indigo-400'
                         }`}
                 >
                     <SlidersHorizontal className="w-4 h-4" />
@@ -363,15 +363,25 @@ const PropertySearch = () => {
             )}
 
             {/* Results Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-start justify-between gap-3 min-[360px]:flex-row min-[360px]:items-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                     <span className="font-semibold text-gray-900 dark:text-white">{loading ? '...' : total}</span> properties found
                 </p>
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
-                    <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}>
+                    <button
+                        type="button"
+                        aria-label="Show grid view"
+                        onClick={() => setViewMode('grid')}
+                        className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}
+                    >
                         <Grid3X3 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}>
+                    <button
+                        type="button"
+                        aria-label="Show list view"
+                        onClick={() => setViewMode('list')}
+                        className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${viewMode === 'list' ? 'bg-white dark:bg-zinc-700 shadow-sm' : ''}`}
+                    >
                         <List className="w-4 h-4" />
                     </button>
                 </div>
@@ -400,24 +410,32 @@ const PropertySearch = () => {
                     {properties.map(p => {
                         const coverImg = getCoverImage(p);
                         return (
-                            <div key={p.id} className="bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
-                                <div className="bg-gray-100 dark:bg-zinc-800 rounded-lg h-40 mb-3 flex items-center justify-center overflow-hidden" onClick={() => navigate(`/user/properties/${p.id}`)}>
+                            <div key={p.id} className="min-w-0 bg-white dark:bg-black rounded-xl border border-gray-100 dark:border-zinc-800 p-4 hover:shadow-md transition-all">
+                                <div className="relative mb-3 flex h-40 items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-zinc-800" onClick={() => navigate(`/user/properties/${p.id}`)}>
+                                    <MapPin className="w-8 h-8 text-gray-300" />
                                     {coverImg ? (
-                                        <img src={coverImg} alt={p.title} className="w-full h-full object-cover cursor-pointer" />
+                                        <img
+                                            src={coverImg}
+                                            alt={p.title}
+                                            className="absolute inset-0 h-full w-full cursor-pointer object-cover"
+                                            onError={(event) => {
+                                                event.currentTarget.style.display = 'none';
+                                            }}
+                                        />
                                     ) : (
-                                        <MapPin className="w-8 h-8 text-gray-300" />
+                                        null
                                     )}
                                 </div>
-                                <h3 className="font-semibold text-gray-900 dark:text-white mb-1 truncate cursor-pointer" onClick={() => navigate(`/user/properties/${p.id}`)}>{p.title}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 truncate">{p.location || p.city || p.postcode}</p>
-                                <div className="flex items-center justify-between mt-3">
+                                <h3 className="mobile-safe-text font-semibold text-gray-900 dark:text-white mb-1 cursor-pointer" onClick={() => navigate(`/user/properties/${p.id}`)}>{p.title}</h3>
+                                <p className="mobile-safe-text text-sm text-gray-500 dark:text-gray-400 mb-2">{p.location || p.city || p.postcode}</p>
+                                <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                                     <span className="text-lg font-bold text-indigo-600">
                                         £{p.price?.toLocaleString()}
                                         {p.listing_type === 'rent' && <span className="text-sm font-normal text-gray-500">/mo</span>}
                                     </span>
                                     <span className="text-xs text-gray-500">{p.bedrooms} bed · {p.bathrooms} bath {p.square_feet ? `· ${p.square_feet} sqft` : ''}</span>
                                 </div>
-                                <div className="mt-3 flex gap-2">
+                                <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row">
                                     <button
                                         type="button"
                                         onClick={() => navigate(`/user/properties/${p.id}`)}

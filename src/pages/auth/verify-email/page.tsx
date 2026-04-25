@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, XCircle, Loader, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
+import AuthBrand from '@/components/auth/AuthBrand';
 
 const API_URL = getServiceUrl('core');
 
@@ -88,10 +89,7 @@ export default function VerifyEmailPage() {
 
     return (
         <div className="flex flex-col items-center w-full max-w-md mx-auto text-center">
-            {/* Logo */}
-            <div className="mb-8">
-                <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-            </div>
+            <AuthBrand />
 
             {status === 'loading' && (
                 <>

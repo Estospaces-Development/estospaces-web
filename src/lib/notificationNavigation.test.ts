@@ -67,7 +67,7 @@ test('admin message notifications preserve the conversation id in support chat',
     assert.equal(path, '/admin/help?conversation=conversation-5');
 });
 
-test('payment notifications deep-link the user into the exact payments workspace', () => {
+test('payment notifications route users to contracts while payments are Phase 2', () => {
     const path = getNotificationNavigationPath({
         type: 'payment_reminder',
         data: {
@@ -81,10 +81,10 @@ test('payment notifications deep-link the user into the exact payments workspace
         },
     }, 'user');
 
-    assert.equal(path, '/user/dashboard/payments?application=application-1&contract=contract-1&payment=payment-1&invoice=invoice-1&case=case-1&lead=lead-1&property=property-1');
+    assert.equal(path, '/user/dashboard/contracts?application=application-1&contract=contract-1&case=case-1&lead=lead-1&property=property-1');
 });
 
-test('payment notifications deep-link the manager into the billing workspace', () => {
+test('payment notifications route managers to contracts while billing is Phase 2', () => {
     const path = getNotificationNavigationPath({
         type: 'payment_received',
         data: {
@@ -98,7 +98,19 @@ test('payment notifications deep-link the manager into the billing workspace', (
         },
     }, 'manager');
 
-    assert.equal(path, '/manager/billing?application=application-9&contract=contract-9&payment=payment-9&invoice=invoice-9&case=case-9&lead=lead-9&property=property-9');
+    assert.equal(path, '/manager/contracts?application=application-9&contract=contract-9&case=case-9&lead=lead-9&property=property-9');
+});
+
+test('payment target paths are redirected to contracts while payments are Phase 2', () => {
+    const path = getNotificationNavigationPath({
+        type: 'payment_failed',
+        data: {
+            target_path: '/user/dashboard/payments?payment=payment-2',
+            contract_id: 'contract-2',
+        },
+    }, 'user');
+
+    assert.equal(path, '/user/dashboard/contracts?contract=contract-2');
 });
 
 test('sale journey notifications deep-link the user into the exact fast-track workspace', () => {

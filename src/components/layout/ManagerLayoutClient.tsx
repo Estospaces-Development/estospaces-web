@@ -19,7 +19,12 @@ interface ManagerLayoutClientProps {
 }
 
 export default function ManagerLayoutClient({ children, isSubdomain = false }: ManagerLayoutClientProps) {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        if (typeof window === 'undefined') {
+            return true;
+        }
+        return window.matchMedia('(min-width: 1024px)').matches;
+    });
     const { user, loading, isAuthenticated } = useAuth();
     const hasManagerAccess = user?.role === 'manager' || user?.role === 'broker';
     const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
@@ -44,11 +49,19 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                         <LeadProvider>
                             <MessagesProvider>
                                 <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
+                                    {sidebarOpen && (
+                                        <button
+                                            type="button"
+                                            aria-label="Close navigation"
+                                            className="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-sm lg:hidden"
+                                            onClick={() => setSidebarOpen(false)}
+                                        />
+                                    )}
                                     <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} useSubdomain={isSubdomain} />
-                                    <div className={`flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+                                    <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
                                         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                                        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 font-manager bg-gray-50 dark:bg-black transition-colors duration-300">
-                                            <div className="mx-auto max-w-[1600px] w-full h-full animate-fadeIn">
+                                        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
+                                            <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">
                                                 {children}
                                             </div>
                                         </main>

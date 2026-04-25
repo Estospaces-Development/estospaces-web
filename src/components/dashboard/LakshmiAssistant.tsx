@@ -151,8 +151,7 @@ const LakshmiAssistant = () => {
         setInputValue('');
         setIsProcessing(true);
 
-        // TODO: AI backend not implemented yet
-        // integrate with real AI service when available
+        // Placeholder response until the AI backend is available.
         setMessages(prev => [...prev, {
             id: Date.now() + 1,
             type: 'bot',

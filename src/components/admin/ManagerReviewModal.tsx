@@ -168,7 +168,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
         setActionLoading('revoke');
         setError(null);
         try {
-            // removed console.log
 
             const result = await managerVerificationService.revokeManagerApproval(managerId, user.id, revokeReason);
 
@@ -177,7 +176,6 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                 setError(result.error || 'Failed to revoke approval. Please try again.');
                 // Don't close the form on error - let user see the error message
             } else {
-                // removed console.log
                 // Clear the form
                 setRevokeReason('');
                 setShowRevokeConfirm(false);
@@ -366,7 +364,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         </div>
                         Profile Information
                     </h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
                         {isBroker ? (
                             <>
                                 <InfoItem icon={Hash} label="License Number" value={profile.license_number} />

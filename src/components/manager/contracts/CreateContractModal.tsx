@@ -154,7 +154,7 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">End Date (Optional)</label>
                                 <DateField
-                                    value={formData.end_date}
+                                    value={formData.end_date || ''}
                                     onChange={(nextValue) => {
                                         setSubmitError('');
                                         setFormData({ ...formData, end_date: nextValue });

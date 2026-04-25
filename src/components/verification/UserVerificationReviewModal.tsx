@@ -84,9 +84,11 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         [details?.documents, isFastTrackReview],
     );
 
-    const canApprove = isFastTrackReview
+    const verificationLevel = details?.user.verification_level || 'basic';
+    const isVerificationApproved = verificationLevel === 'verified' || verificationLevel === 'fully_verified';
+    const canApprove = !isVerificationApproved && (isFastTrackReview
         ? canCompleteFastTrackVerification(details?.documents || [])
-        : latestDocuments.has('identity') && latestDocuments.has('address');
+        : latestDocuments.has('identity') && latestDocuments.has('address'));
 
     const getDocumentReviewSuccessMessage = (
         status: 'approved' | 'reupload_required',
@@ -148,6 +150,11 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     };
 
     const handleVerificationUpdate = async (status: 'verified' | 'rejected') => {
+        if (status === 'verified' && isVerificationApproved) {
+            setError('This verification is already approved. Revoke it before approving again.');
+            return;
+        }
+
         setVerificationActionLoading(true);
         const { error: updateError } = await updateUserVerification(scope, userId, status, notes);
         setVerificationActionLoading(false);
@@ -233,7 +240,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
                 <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-5">
                     <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">User Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
                         <InfoItem icon={Mail} label="Email" value={details.user.email} />
                         <InfoItem icon={Phone} label="Phone" value={details.user.phone} />
                         <InfoItem icon={MapPin} label="Address" value={details.user.address ? `${details.user.address}, ${details.user.postcode || ''}`.trim() : 'Not provided'} />
@@ -272,7 +279,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                 loading={activeDocumentId === document.id}
                                 onView={() => handleOpenDocument(document.id)}
                                 viewLoading={openingDocumentId === document.id}
-                                disabled={Boolean(activeDocumentId) || verificationActionLoading}
+                                disabled={Boolean(activeDocumentId) || verificationActionLoading || isVerificationApproved}
                             />
                         ))
                         )}
@@ -298,7 +305,28 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             </div>
 
             <div className="p-6 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex gap-3">
+                {isVerificationApproved ? (
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+                                <CheckCircle className="text-emerald-600" size={20} />
+                            </div>
+                            <div>
+                                <p className="font-semibold text-gray-900 dark:text-white">Verification approved</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">Revoke this verification before approving it again.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => handleVerificationUpdate('rejected')}
+                            disabled={verificationActionLoading || Boolean(activeDocumentId)}
+                            className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
+                        >
+                            {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                            Revoke
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex gap-3">
                     <button
                         onClick={() => handleVerificationUpdate('rejected')}
                         disabled={verificationActionLoading || Boolean(activeDocumentId)}
@@ -315,8 +343,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                         {isFastTrackReview ? 'Complete fast-track verification' : 'Approve Verification'}
                     </button>
-                </div>
-                {isFastTrackReview && !canApprove && (
+                    </div>
+                )}
+                {isFastTrackReview && !isVerificationApproved && !canApprove && (
                     <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
                         Approve the latest identity proof and the latest address proof individually before completing the fast-track verification.
                     </p>

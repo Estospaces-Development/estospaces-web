@@ -3,6 +3,7 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, AlertCircle, CheckCircle, KeyRound } from 'lucide-react';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
+import AuthBrand from '@/components/auth/AuthBrand';
 
 const API_URL = getServiceUrl('core');
 
@@ -78,9 +79,7 @@ export default function ResetPasswordPage() {
     if (success) {
         return (
             <div className="flex flex-col items-center w-full max-w-md mx-auto text-center">
-                <div className="mb-8">
-                    <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-                </div>
+                <AuthBrand />
 
                 <div className="h-16 w-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
                     <CheckCircle className="text-green-500 h-8 w-8" />
@@ -108,9 +107,7 @@ export default function ResetPasswordPage() {
     if (!token) {
         return (
             <div className="flex flex-col items-center w-full max-w-md mx-auto text-center">
-                <div className="mb-8">
-                    <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-                </div>
+                <AuthBrand />
 
                 <div className="h-16 w-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
                     <AlertCircle className="text-red-500 h-8 w-8" />
@@ -137,10 +134,7 @@ export default function ResetPasswordPage() {
     // Normal form state
     return (
         <div className="flex flex-col items-center w-full max-w-md mx-auto">
-            {/* Logo */}
-            <div className="mb-8">
-                <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-            </div>
+            <AuthBrand />
 
             {/* Icon */}
             <div className="h-14 w-14 bg-orange-50 dark:bg-orange-900/20 rounded-full flex items-center justify-center mb-5">

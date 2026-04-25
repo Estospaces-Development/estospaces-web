@@ -58,18 +58,18 @@ const targets = {
 
 const credentials = {
   user: {
-    email: requireEnv('E2E_USER_EMAIL'),
-    password: requireEnv('E2E_USER_PASSWORD'),
+    emailEnv: 'E2E_USER_EMAIL',
+    passwordEnv: 'E2E_USER_PASSWORD',
     dashboard: '/user/dashboard',
   },
   manager: {
-    email: requireEnv('E2E_MANAGER_EMAIL'),
-    password: requireEnv('E2E_MANAGER_PASSWORD'),
+    emailEnv: 'E2E_MANAGER_EMAIL',
+    passwordEnv: 'E2E_MANAGER_PASSWORD',
     dashboard: '/manager/dashboard',
   },
   admin: {
-    email: requireEnv('E2E_ADMIN_EMAIL'),
-    password: requireEnv('E2E_ADMIN_PASSWORD'),
+    emailEnv: 'E2E_ADMIN_EMAIL',
+    passwordEnv: 'E2E_ADMIN_PASSWORD',
     dashboard: '/admin/dashboard',
   },
 };
@@ -131,15 +131,17 @@ async function parseJson(response, label) {
 
 async function loginViaApi(target, roleName) {
   const role = credentials[roleName];
+  const email = requireEnv(role.emailEnv);
+  const password = requireEnv(role.passwordEnv);
   const response = await fetch(`${target.services.core}/api/v1/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: role.email, password: role.password }),
+    body: JSON.stringify({ email, password }),
   });
-  const payload = await parseJson(response, `login ${role.email}`);
+  const payload = await parseJson(response, `login ${email}`);
   const rawUser = payload?.data?.user ?? payload?.user;
   const token = payload?.data?.token ?? payload?.token;
-  const fullName = [rawUser?.first_name, rawUser?.last_name].filter(Boolean).join(' ').trim() || rawUser?.email || role.email;
+  const fullName = [rawUser?.first_name, rawUser?.last_name].filter(Boolean).join(' ').trim() || rawUser?.email || email;
 
   return {
     token,

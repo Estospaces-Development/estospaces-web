@@ -85,6 +85,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
 
     const isAdmin = role === 'admin';
     const selectedTicketId = searchParams.get('ticket');
+    const selectedConversationId = searchParams.get('conversation');
     const hasPrefilledComposerContext = !isAdmin && hasPrefilledSupportComposerContext(searchParams);
     const canReply = Boolean(selectedTicket && selectedTicket.status !== 'closed' && (isAdmin || selectedTicket.status !== 'resolved'));
     const resumableTicket = useMemo(() => tickets.find((ticket) => ticket.status === 'open' || ticket.status === 'in_progress') || null, [tickets]);
@@ -106,6 +107,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
             setTickets(data);
             const targetTicketId = getAutoSelectedSupportTicketId({
                 selectedTicketId: selectedTicketId || '',
+                selectedConversationId: selectedConversationId || '',
                 tickets: data,
                 isAdmin,
                 hasPrefilledComposerContext,
@@ -114,6 +116,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 setSearchParams((current) => {
                     const next = new URLSearchParams(current);
                     next.set('ticket', targetTicketId);
+                    const targetTicket = data.find((ticket) => ticket.id === targetTicketId);
+                    if (targetTicket?.conversation_id) {
+                        next.set('conversation', targetTicket.conversation_id);
+                    }
                     return next;
                 }, { replace: true });
             }
@@ -122,7 +128,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [filters, hasPrefilledComposerContext, isAdmin, selectedTicketId, setSearchParams, toast]);
+    }, [filters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast]);
 
     const loadDetail = useCallback(async (ticketId: string, silent = false) => {
         if (!silent) setDetailLoading(true);
@@ -277,7 +283,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 attachments: ticketAttachments,
                 requester_context: {
                     role,
-                    name: user?.name || user?.full_name || '',
+                    name: user?.name || user?.user_metadata?.full_name || '',
                     email: user?.email || '',
                     page: window.location.pathname,
                     module: composer.category,
@@ -408,7 +414,14 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <button onClick={() => void fetchTickets()} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-orange-200 text-orange-700 dark:border-orange-500/20 dark:text-orange-200" aria-label="Refresh support tickets"><RefreshCw className="h-4 w-4" /></button>
                         </div>
                     </div>
-                    {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => setSearchParams(new URLSearchParams({ ticket: ticketId }), { replace: true })} emptyLabel={isAdmin ? 'No tickets in this queue' : 'No support tickets yet'} />}
+                    {loading ? <div className="flex min-h-[320px] items-center justify-center rounded-[2rem] border border-orange-100 bg-white dark:border-orange-500/15 dark:bg-gray-900/70"><Loader2 className="h-6 w-6 animate-spin text-orange-500" /></div> : <SupportTicketList tickets={tickets} selectedTicketId={selectedTicketId} onSelect={(ticketId) => {
+                        const ticket = tickets.find((item) => item.id === ticketId);
+                        const next = new URLSearchParams({ ticket: ticketId });
+                        if (ticket?.conversation_id) {
+                            next.set('conversation', ticket.conversation_id);
+                        }
+                        setSearchParams(next, { replace: true });
+                    }} emptyLabel={isAdmin ? 'No tickets in this queue' : 'No support tickets yet'} />}
                 </div>
 
                 <div className="space-y-5">

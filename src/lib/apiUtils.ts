@@ -28,14 +28,14 @@ const LOCAL_SERVICE_URLS = {
 
 export type ServiceName = keyof typeof LOCAL_SERVICE_URLS;
 
-const SERVICE_ENV_KEYS: Record<ServiceName, string> = {
-    core: 'VITE_CORE_SERVICE_URL',
-    booking: 'VITE_BOOKING_SERVICE_URL',
-    notification: 'VITE_NOTIFICATION_SERVICE_URL',
-    payment: 'VITE_PAYMENT_SERVICE_URL',
-    search: 'VITE_SEARCH_SERVICE_URL',
-    media: 'VITE_MEDIA_SERVICE_URL',
-    messaging: 'VITE_MESSAGING_SERVICE_URL',
+const SERVICE_ENV_KEYS: Record<ServiceName, readonly string[]> = {
+    core: ['VITE_CORE_SERVICE_URL', 'VITE_CORE_API'],
+    booking: ['VITE_BOOKING_SERVICE_URL', 'VITE_BOOKING_API'],
+    notification: ['VITE_NOTIFICATION_SERVICE_URL', 'VITE_NOTIFICATION_API'],
+    payment: ['VITE_PAYMENT_SERVICE_URL', 'VITE_PAYMENT_API'],
+    search: ['VITE_SEARCH_SERVICE_URL', 'VITE_SEARCH_API'],
+    media: ['VITE_MEDIA_SERVICE_URL', 'VITE_MEDIA_API'],
+    messaging: ['VITE_MESSAGING_SERVICE_URL', 'VITE_MESSAGING_API'],
 };
 
 const LOCAL_DEV_PROXY_PREFIXES: Record<ServiceName, string> = {
@@ -63,13 +63,15 @@ function isProductionBuild() {
 }
 
 function getConfiguredServiceUrl(service: ServiceName) {
-    const envKey = SERVICE_ENV_KEYS[service];
-    const configuredUrl = readEnvString(VITE_ENV[envKey]);
-    if (configuredUrl) {
-        return configuredUrl;
+    const envKeys = SERVICE_ENV_KEYS[service];
+    for (const envKey of envKeys) {
+        const configuredUrl = readEnvString(VITE_ENV[envKey]);
+        if (configuredUrl) {
+            return configuredUrl;
+        }
     }
     if (isProductionBuild()) {
-        throw new Error(`${envKey} must be configured for production builds.`);
+        throw new Error(`${envKeys.join(' or ')} must be configured for production builds.`);
     }
     return LOCAL_SERVICE_URLS[service];
 }
@@ -421,22 +423,6 @@ export async function apiFetchEnvelope<T>(
     const authHeader = headers.get('Authorization');
     const requestToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() || null : null;
 
-    if (isDebug) {
-        let bodyLog = '';
-        if (options.body) {
-            if (options.body instanceof FormData) {
-                bodyLog = '[FormData]';
-            } else {
-                try {
-                    bodyLog = JSON.parse(options.body as string);
-                } catch {
-                    bodyLog = '[Raw Body]';
-                }
-            }
-        }
-        console.log(`[API Request] ${method} ${url}`, bodyLog);
-    }
-
     let response: Response;
     try {
         response = await fetch(url, {
@@ -488,10 +474,6 @@ export async function apiFetchEnvelope<T>(
     const json = await parseJsonResponse<T>(response);
     if (typeof window !== 'undefined') {
         syncAuthExpiryState(getStoredAuthToken());
-    }
-
-    if (isDebug) {
-        console.log(`[API Response Success] ${method} ${url}:`, json);
     }
 
     if (json.success === false) {

@@ -46,7 +46,6 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
         e.preventDefault();
         if (searchQuery.trim()) {
             // Implement global search or redirect to search page
-            // removed console.log
         }
     };
 
@@ -110,10 +109,10 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
     return (
         <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 h-16 sticky top-0 z-40 transition-colors duration-300">
-            <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            <div className="flex h-full items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
 
                 {/* Left: Mobile Menu & Search */}
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                     <button
                         onClick={onMenuToggle}
                         className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors lg:hidden"
@@ -135,7 +134,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 </div>
 
                 {/* Right: Actions & Profile */}
-                <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                     {/* Theme Toggle */}
                     {/* Theme Toggle */}
                     <ThemeSwitcher />
@@ -147,7 +146,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                     <Link
                         to="/manager/docs"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 transition-all hover:-translate-y-0.5 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/15"
+                        className="hidden items-center gap-2 rounded-2xl border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-bold text-orange-700 transition-all hover:-translate-y-0.5 hover:bg-orange-100 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-100 dark:hover:bg-orange-500/15 sm:inline-flex"
                     >
                         <BookOpen className="h-4 w-4" />
                         <span className="hidden md:inline">Docs</span>

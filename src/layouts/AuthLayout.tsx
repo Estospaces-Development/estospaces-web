@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 
 export default function AuthLayout() {
     return (
-        <div className="flex min-h-screen w-full overflow-hidden">
+        <div className="flex min-h-screen w-full overflow-hidden bg-white dark:bg-gray-900">
             {/* Left side - Image (hidden on mobile) */}
             <div className="hidden md:block w-1/2 min-h-screen relative" aria-hidden="true">
                 <img
@@ -15,7 +15,7 @@ export default function AuthLayout() {
             </div>
 
             {/* Right side - Form */}
-            <div className="w-full md:w-1/2 flex flex-col items-center px-6 py-8 md:px-16 md:py-10 bg-white dark:bg-gray-900 min-h-screen overflow-y-auto">
+            <div className="flex min-h-screen w-full flex-col items-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 md:w-1/2 md:px-12 md:py-10 lg:px-16">
                 <div className="w-full max-w-sm">
                     <Outlet />
                 </div>

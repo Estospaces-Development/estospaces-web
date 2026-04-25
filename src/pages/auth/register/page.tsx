@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getServiceUrl } from '@/lib/apiUtils';
 import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import AuthBrand from '@/components/auth/AuthBrand';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
 import axios from 'axios';
@@ -244,9 +245,7 @@ export default function RegisterPage() {
     if (isAuthenticated && !isSwitching) {
         return (
             <div className="flex flex-col items-center text-center w-full">
-                <div className="mb-6">
-                    <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-                </div>
+                <AuthBrand className="mb-6" />
 
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     Already signed in
@@ -280,9 +279,7 @@ export default function RegisterPage() {
     if (success) {
         return (
             <div className="flex flex-col items-center text-center">
-                <div className="mb-8">
-                    <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-                </div>
+                <AuthBrand />
 
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
                     <Check className="text-green-600 dark:text-green-400" size={32} />
@@ -356,9 +353,7 @@ export default function RegisterPage() {
     return (
         <>
             <div className="flex flex-col items-center">
-                <div className="mb-6">
-                    <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-                </div>
+                <AuthBrand className="mb-6" />
 
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
                     Sign up for Estospaces

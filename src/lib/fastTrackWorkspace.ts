@@ -2,6 +2,15 @@ import type { FastTrackCase } from '@/services/fastTrackService';
 
 export type FastTrackWorkspaceRole = 'user' | 'manager' | 'admin';
 
+export const isFastTrackCaseComplete = (fastTrackCase: FastTrackCase | null | undefined) => (
+    Boolean(fastTrackCase)
+    && (
+        fastTrackCase?.workspaceFinalStatus === 'completed'
+        || fastTrackCase?.finalStatus === 'completed'
+        || fastTrackCase?.handover.status === 'completed'
+    )
+);
+
 export const resolveFastTrackSelectionCaseId = (
     cases: FastTrackCase[],
     params: URLSearchParams,
@@ -9,11 +18,6 @@ export const resolveFastTrackSelectionCaseId = (
 ) => {
     if (cases.length === 0) {
         return null;
-    }
-
-    const requestedCaseId = params.get('case');
-    if (requestedCaseId && cases.some((item) => item.caseId === requestedCaseId)) {
-        return requestedCaseId;
     }
 
     const matchByField = (
@@ -27,13 +31,25 @@ export const resolveFastTrackSelectionCaseId = (
         return match?.caseId || null;
     };
 
-    const fallbacks = [
-        matchByField(params.get('lead'), (item) => item.leadId),
-        matchByField(params.get('property'), (item) => item.propertyId),
+    const recordMatches = [
         matchByField(params.get('application'), (item) => item.applicationId),
         matchByField(params.get('viewing'), (item) => item.viewingId),
         matchByField(params.get('contract'), (item) => item.contractId),
         matchByField(params.get('payment') || params.get('invoice'), (item) => item.paymentId),
+    ];
+    const matchedRecord = recordMatches.find(Boolean);
+    if (matchedRecord) {
+        return matchedRecord;
+    }
+
+    const requestedCaseId = params.get('case');
+    if (requestedCaseId && cases.some((item) => item.caseId === requestedCaseId)) {
+        return requestedCaseId;
+    }
+
+    const fallbacks = [
+        matchByField(params.get('lead'), (item) => item.leadId),
+        matchByField(params.get('property'), (item) => item.propertyId),
     ];
 
     const matchedFallback = fallbacks.find(Boolean);
@@ -46,6 +62,44 @@ export const resolveFastTrackSelectionCaseId = (
     }
 
     return cases[0].caseId;
+};
+
+export const fastTrackCaseMatchesQuery = (
+    fastTrackCase: FastTrackCase,
+    query: string,
+) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+        return true;
+    }
+
+    const compactQuery = normalizedQuery.replace(/[^a-z0-9]/g, '');
+    const compactQueryWithoutAppPrefix = compactQuery.startsWith('app')
+        ? compactQuery.slice(3)
+        : compactQuery;
+    const queryTokens = [normalizedQuery, compactQuery, compactQueryWithoutAppPrefix]
+        .filter(Boolean);
+
+    return [
+        fastTrackCase.propertyTitle,
+        fastTrackCase.clientName,
+        fastTrackCase.caseId,
+        fastTrackCase.applicationId,
+        fastTrackCase.leadId,
+        fastTrackCase.viewingId,
+        fastTrackCase.contractId,
+        fastTrackCase.paymentId,
+        fastTrackCase.brokerRequestId,
+        fastTrackCase.propertyId,
+        fastTrackCase.managerId,
+    ].some((source) => {
+        const normalizedSource = String(source || '').toLowerCase();
+        const compactSource = normalizedSource.replace(/[^a-z0-9]/g, '');
+        return queryTokens.some((token) => (
+            normalizedSource.includes(token)
+            || compactSource.includes(token)
+        ));
+    });
 };
 
 export const resolveFastTrackThreadRecipientId = (
@@ -90,7 +144,7 @@ export const describeFastTrackWorkspaceFocus = (
     fastTrackCase: FastTrackCase,
     role: FastTrackWorkspaceRole,
 ) => {
-    if (fastTrackCase.workspaceFinalStatus === 'completed') {
+    if (isFastTrackCaseComplete(fastTrackCase)) {
         return role === 'user' ? 'Your journey is complete' : 'Case finished';
     }
     if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
@@ -131,7 +185,7 @@ export const describeFastTrackWorkspaceStatus = (
     fastTrackCase: FastTrackCase,
     role: FastTrackWorkspaceRole,
 ) => {
-    if (fastTrackCase.workspaceFinalStatus === 'completed') {
+    if (isFastTrackCaseComplete(fastTrackCase)) {
         return role === 'user'
             ? 'Every step is complete. You can keep this page for records and updates.'
             : 'Every core step was completed inside this workspace.';

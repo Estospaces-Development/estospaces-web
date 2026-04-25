@@ -133,7 +133,7 @@ async function main() {
       && directUnavailable === 0
       && result.directThreadUrl.includes(`conversation=${conversationId}`);
 
-    const newEnquiryButton = page.getByRole('button', { name: /New Enquiry|Find Property to Enquiry/i }).first();
+    const newEnquiryButton = page.getByRole('button', { name: /New Enquiry|Find Property to Enquiry|Ask about a home/i }).first();
     await newEnquiryButton.click({ timeout: 20000 });
     await page.waitForURL(/\/user\/dashboard\/discover/, { timeout: 120000 });
     result.newEnquiryOk = true;

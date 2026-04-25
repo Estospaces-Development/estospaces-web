@@ -23,7 +23,7 @@ import { resolveFocusedViewing } from '@/lib/workspaceLinks';
 import { findLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import {
     usePublishWorkspaceSync,
-    useWorkflowWorkspaceRefresh,
+    useWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
@@ -62,9 +62,12 @@ export default function ViewingsPage() {
         { value: 'cancelled', label: 'Cancelled' },
     ];
 
-    const fetchViewings = useCallback(async () => {
-        setLoading(true);
-        setLoadError(null);
+    const fetchViewings = useCallback(async (options: { silent?: boolean } = {}) => {
+        const silent = Boolean(options.silent);
+        if (!silent) {
+            setLoading(true);
+            setLoadError(null);
+        }
         try {
             const [data, fastTrackCasesResult] = await Promise.all([
                 bookingsService.getViewings({ suppressErrorToast: true }),
@@ -86,11 +89,15 @@ export default function ViewingsPage() {
             setFastTrackCases(fastTrackCasesResult.data || []);
             setLoadError(null);
         } catch (err: any) {
-            setViewings([]);
-            setFastTrackCases([]);
-            setLoadError('Your viewing schedule is temporarily unavailable. Please try again.');
+            if (!silent) {
+                setViewings([]);
+                setFastTrackCases([]);
+                setLoadError('Your viewing schedule is temporarily unavailable. Please try again.');
+            }
         } finally {
-            setLoading(false);
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, []);
 
@@ -98,13 +105,15 @@ export default function ViewingsPage() {
         fetchViewings();
     }, [fetchViewings]);
 
-    useWorkflowWorkspaceRefresh({
+    useWorkspaceRefresh({
         tags: [
             WORKSPACE_SYNC_TAGS.VIEWINGS,
             WORKSPACE_SYNC_TAGS.APPLICATIONS,
             WORKSPACE_SYNC_TAGS.FAST_TRACK,
         ],
-        refresh: fetchViewings,
+        refresh: () => fetchViewings({ silent: true }),
+        refreshOnFocus: true,
+        refreshOnVisible: true,
     });
 
     const rawCaseId = searchParams.get('case');

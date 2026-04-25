@@ -5,48 +5,97 @@ import { Link, useLocation } from "react-router-dom";
 import { Calendar, FileText, Heart, Home } from "lucide-react";
 
 const activityItems = [
-  { icon: Heart, label: "Saved Properties", path: "/user/saved" },
-  { icon: FileText, label: "My Applications", path: "/user/applications" },
-  { icon: Calendar, label: "Viewings", path: "/user/dashboard/viewings" },
-  { icon: Home, label: "My Properties", path: "/user/dashboard/contracts" },
+  {
+    icon: Heart,
+    label: "Saved homes",
+    description: "Homes you liked",
+    path: "/user/saved",
+  },
+  {
+    icon: FileText,
+    label: "Applications",
+    description: "Requests you sent",
+    path: "/user/applications",
+  },
+  {
+    icon: Calendar,
+    label: "Viewings",
+    description: "Visits and replies",
+    path: "/user/dashboard/viewings",
+  },
+  {
+    icon: Home,
+    label: "My homes",
+    description: "Rented or bought",
+    path: "/user/dashboard/contracts",
+  },
 ];
 
 const UserActivitySubnav = () => {
   const { pathname } = useLocation();
 
   return (
-    <div className="mb-8">
-      <p className="mb-3 pl-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-gray-400 dark:text-gray-500">
-        My Activity
-      </p>
-      <div className="overflow-x-auto scrollbar-hide">
-        <div className="inline-flex min-w-max items-center gap-2 rounded-full border border-gray-200/80 bg-white p-1 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.4)] dark:border-gray-700 dark:bg-gray-800">
-          {activityItems.map((item) => {
-            const Icon = item.icon;
-            const active = pathname.startsWith(item.path);
-
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                  active
-                    ? "bg-orange-500 text-white shadow-[0_14px_28px_-16px_rgba(249,115,22,0.85)]"
-                    : "text-gray-500 hover:bg-orange-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-                }`}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon
-                  size={16}
-                  className={active ? "text-white" : "text-gray-400 dark:text-gray-500"}
-                />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+    <section className="mb-8 rounded-[28px] border border-gray-200/80 bg-white/90 p-3 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur dark:border-gray-700 dark:bg-gray-900/80">
+      <div className="flex flex-col gap-1 px-2 pb-3 sm:px-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-orange-500">
+          My Activity
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-950 dark:text-white">
+              Everything you are tracking
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Saved homes, applications, viewings, and your homes in one simple place.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {activityItems.map((item) => {
+          const Icon = item.icon;
+          const active = pathname.startsWith(item.path);
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`group flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
+                active
+                  ? "border-orange-200 bg-orange-50 text-orange-700 shadow-[0_18px_40px_-28px_rgba(249,115,22,0.75)] dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200"
+                  : "border-transparent bg-gray-50 text-gray-600 hover:border-orange-100 hover:bg-white hover:text-gray-950 dark:bg-gray-800/70 dark:text-gray-400 dark:hover:border-gray-700 dark:hover:bg-gray-800 dark:hover:text-white"
+              }`}
+              aria-current={active ? "page" : undefined}
+            >
+              <span
+                className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  active
+                    ? "bg-orange-500 text-white"
+                    : "bg-white text-gray-400 group-hover:text-orange-500 dark:bg-gray-900 dark:text-gray-500"
+                }`}
+              >
+                <Icon size={18} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-bold">
+                  {item.label}
+                </span>
+                <span
+                  className={`mt-0.5 block truncate text-xs ${
+                    active
+                      ? "text-orange-700/80 dark:text-orange-100/80"
+                      : "text-gray-500 dark:text-gray-500"
+                  }`}
+                >
+                  {item.description}
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 };
 

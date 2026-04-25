@@ -8,8 +8,9 @@ import {
     normalizeSupportTicketCategory,
     resolveSupportComposerCategory,
 } from '@/lib/supportCenter';
+import type { SupportTicketSummary } from '@/services/messagesService';
 
-const tickets = [
+const tickets: SupportTicketSummary[] = [
     {
         id: 'ticket-1',
         user_id: 'user-1',
@@ -57,6 +58,26 @@ test('admin queue still auto-selects the first visible ticket', () => {
         isAdmin: true,
         hasPrefilledComposerContext: false,
     }), 'ticket-1');
+});
+
+test('admin queue resolves a selected conversation to its support ticket', () => {
+    assert.equal(getAutoSelectedSupportTicketId({
+        selectedTicketId: '',
+        selectedConversationId: 'conversation-1',
+        tickets,
+        isAdmin: true,
+        hasPrefilledComposerContext: false,
+    }), 'ticket-1');
+});
+
+test('admin queue does not fall back to the first ticket for an unknown selected conversation', () => {
+    assert.equal(getAutoSelectedSupportTicketId({
+        selectedTicketId: '',
+        selectedConversationId: 'missing-conversation',
+        tickets,
+        isAdmin: true,
+        hasPrefilledComposerContext: false,
+    }), '');
 });
 
 test('ticket creation keeps the created ticket even when attachment finalization fails', async () => {

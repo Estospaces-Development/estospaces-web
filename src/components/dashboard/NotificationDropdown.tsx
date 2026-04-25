@@ -160,7 +160,7 @@ const NotificationDropdown = () => {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-fadeIn origin-top-right">
+                <div className="absolute right-0 z-50 mt-3 w-[calc(100vw-2rem)] max-w-80 origin-top-right animate-fadeIn overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800 md:max-w-96">
                     <div className="p-4 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm z-10">
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (

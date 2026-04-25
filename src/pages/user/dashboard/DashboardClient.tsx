@@ -364,15 +364,15 @@ const DashboardClient = () => {
           .filter((caseItem) => hasFastTrackReachedCompletion(caseItem))
           .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
 
-        let freshlyCompletedCase: FastTrackCase | null = null;
-        const nextCompletionStatus: Record<string, FastTrackCase['workspaceFinalStatus']> = {};
-        fastTrackCases.forEach((caseItem) => {
-          nextCompletionStatus[caseItem.caseId] = caseItem.workspaceFinalStatus;
-          const previousStatus = completionStatusRef.current[caseItem.caseId];
-          if (!freshlyCompletedCase && previousStatus && previousStatus !== 'completed' && caseItem.workspaceFinalStatus === 'completed') {
-            freshlyCompletedCase = caseItem;
-          }
-        });
+        const previousCompletionStatus = completionStatusRef.current;
+        const freshlyCompletedCase = fastTrackCases.find((caseItem) => {
+          const previousStatus = previousCompletionStatus[caseItem.caseId];
+          return Boolean(previousStatus && previousStatus !== 'completed' && caseItem.workspaceFinalStatus === 'completed');
+        }) || null;
+        const nextCompletionStatus = fastTrackCases.reduce<Record<string, FastTrackCase['workspaceFinalStatus']>>((statusMap, caseItem) => {
+          statusMap[caseItem.caseId] = caseItem.workspaceFinalStatus;
+          return statusMap;
+        }, {});
         completionStatusRef.current = nextCompletionStatus;
 
         setActiveBrokerRequest(liveBrokerRequest);
@@ -654,7 +654,7 @@ const DashboardClient = () => {
   const mapLocation = activeLocation || null;
   const activeMapProperties = showFilteredResults ? filteredProperties : nearbyProperties;
   const mapProperties = useMemo(() => (
-    activeMapProperties.filter((property) => (
+    activeMapProperties.filter((property): property is SearchResult & { latitude: number; longitude: number } => (
       property
       && typeof property.latitude === 'number'
       && typeof property.longitude === 'number'
@@ -678,7 +678,7 @@ const DashboardClient = () => {
               ? `Results for "${dashboardSearchFilters.keyword.trim()}"`
               : 'Search Results';
 
-  const openPropertyFromDashboard = useCallback((property: SearchResult) => {
+  const openPropertyFromDashboard = useCallback((property: { id: string }) => {
     navigate(`/user/properties/${property.id}`, {
       state: {
         backTo: '/user/dashboard',
@@ -687,7 +687,7 @@ const DashboardClient = () => {
     });
   }, [navigate]);
 
-  const openFastTrackFromDashboard = useCallback((property: SearchResult) => {
+  const openFastTrackFromDashboard = useCallback((property: { id: string }) => {
     navigate(`/user/properties/${property.id}?fast-track=1`, {
       state: {
         backTo: '/user/dashboard',

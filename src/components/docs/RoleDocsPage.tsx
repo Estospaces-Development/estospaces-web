@@ -40,16 +40,13 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
             return;
         }
 
-        const previousOverflow = scrollHost.style.overflow;
         const previousOverflowX = scrollHost.style.overflowX;
         const previousOverflowY = scrollHost.style.overflowY;
 
-        scrollHost.style.overflow = 'visible';
-        scrollHost.style.overflowX = 'visible';
+        scrollHost.style.overflowX = 'hidden';
         scrollHost.style.overflowY = 'visible';
 
         return () => {
-            scrollHost.style.overflow = previousOverflow;
             scrollHost.style.overflowX = previousOverflowX;
             scrollHost.style.overflowY = previousOverflowY;
         };
@@ -153,12 +150,12 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
     return (
         <div
             ref={pageRootRef}
-            className="relative bg-[linear-gradient(180deg,#fff8f2_0%,#fffdfb_24%,#f8fafc_100%)] pb-24 dark:bg-[linear-gradient(180deg,#09090b_0%,#111827_28%,#030712_100%)]"
+            className="relative overflow-x-hidden bg-[linear-gradient(180deg,#fff8f2_0%,#fffdfb_24%,#f8fafc_100%)] pb-24 dark:bg-[linear-gradient(180deg,#09090b_0%,#111827_28%,#030712_100%)]"
         >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-[32rem] bg-[radial-gradient(circle_at_top_left,rgba(255,107,53,0.16),transparent_34%),radial-gradient(circle_at_top_right,rgba(251,191,36,0.12),transparent_36%)]" />
             <div className="pointer-events-none absolute inset-x-0 top-60 h-64 bg-[linear-gradient(180deg,rgba(255,107,53,0.06),transparent)]" />
 
-            <div className="relative mx-auto max-w-[1480px] px-4 py-8 sm:px-6 lg:px-8">
+            <div className="relative mx-auto w-full max-w-[1480px] min-w-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
                 <section className="overflow-hidden rounded-[2rem] border border-orange-100/90 bg-white/95 shadow-[0_30px_90px_-48px_rgba(255,107,53,0.45)] backdrop-blur dark:border-orange-500/10 dark:bg-gray-950/95">
                     <div className="relative overflow-hidden border-b border-orange-100/80 bg-[linear-gradient(135deg,rgba(255,107,53,0.1),rgba(255,255,255,0.98),rgba(251,191,36,0.08))] px-6 py-8 dark:border-orange-500/10 dark:bg-[linear-gradient(135deg,rgba(255,107,53,0.12),rgba(17,24,39,0.96),rgba(3,7,18,0.98))] sm:px-8 lg:px-10 lg:py-10">
                         <div className="absolute inset-y-0 right-0 hidden w-[34%] bg-[radial-gradient(circle_at_top_right,rgba(255,107,53,0.18),transparent_60%)] xl:block" />

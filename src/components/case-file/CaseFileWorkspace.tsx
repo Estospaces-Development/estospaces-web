@@ -55,6 +55,7 @@ import {
 } from "@/lib/caseFileDocuments";
 import { getCaseFileWaitingCopy } from "@/lib/caseFileWorkflow";
 import { resolveFastTrackLinkedJourney } from "@/lib/fastTrackLinkedJourney";
+import type { FastTrackCase } from "@/services/fastTrackService";
 import { deriveLiveFastTrackCurrentStep } from "@/lib/fastTrackWorkflow";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import {
@@ -122,23 +123,35 @@ interface CaseFileWorkspaceProps {
   workflowSummaryOverride?: string | null;
 }
 
-const normalizeNestedFastTrackCase = (fastTrackCase: CaseFile["fast_track_case"]) => {
+const normalizeNestedFastTrackCase = (fastTrackCase: CaseFile["fast_track_case"]): FastTrackCase | null => {
   if (!fastTrackCase) {
     return null;
   }
 
   const source = fastTrackCase as Record<string, any>;
+  const journeyType = source.journeyType || source.journey_type || "rent";
+  const journeyMode = journeyType === "buy" ? "sale" : "rent";
+  const stage = source.stage || "selected";
+  const workspaceFinalStatus = source.workspaceFinalStatus || source.workspace_final_status || "active";
+  const currentStep =
+    source.currentStep ||
+    source.liveStage ||
+    source.live_stage ||
+    source.current_step ||
+    "property_selected";
+  const rawDocuments = source.documents || {};
+
   return {
     ...source,
-    caseId: source.caseId || source.id,
-    currentStep:
-      source.currentStep ||
-      source.liveStage ||
-      source.live_stage ||
-      source.current_step ||
-      "property_selected",
+    id: source.id || source.caseId || source.case_id,
+    caseId: source.caseId || source.case_id || source.id,
+    currentStep,
+    backendCurrentStep: source.backendCurrentStep || source.backend_current_step || currentStep,
+    stage,
+    workspaceFinalStatus,
+    journeyMode,
     finalStatus: source.finalStatus || source.final_status || "in_progress",
-    journeyType: source.journeyType || source.journey_type,
+    journeyType,
     liveStage: source.liveStage || source.live_stage,
     journeyStatusReason:
       source.journeyStatusReason || source.journey_status_reason,
@@ -157,9 +170,19 @@ const normalizeNestedFastTrackCase = (fastTrackCase: CaseFile["fast_track_case"]
     submittedAt: source.submittedAt || source.submitted_at,
     expiresAt: source.expiresAt || source.expires_at,
     hoursRemaining: source.hoursRemaining || source.hours_remaining || 0,
-    documents: source.documents || {
-      identityProof: "pending",
-      addressProof: "pending",
+    overdue: Boolean(source.overdue),
+    viewing: source.viewing || { status: "pending" },
+    decision: source.decision || { mode: journeyMode, status: "pending" },
+    agreement: source.agreement || { status: "pending", paymentStatus: "pending" },
+    handover: source.handover || { status: "pending" },
+    activity: Array.isArray(source.activity) ? source.activity : [],
+    documents: {
+      identityProof: rawDocuments.identityProof || rawDocuments.identity_proof || "pending",
+      addressProof: rawDocuments.addressProof || rawDocuments.address_proof || "pending",
+      items: Array.isArray(rawDocuments.items) ? rawDocuments.items : [],
+      allUploaded: Boolean(rawDocuments.allUploaded || rawDocuments.all_uploaded),
+      allApproved: Boolean(rawDocuments.allApproved || rawDocuments.all_approved),
+      note: rawDocuments.note,
     },
   };
 };

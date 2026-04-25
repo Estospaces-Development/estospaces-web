@@ -1,3 +1,5 @@
+import type { SaleProgressionStage } from '@/services/salesService';
+
 export type SaleJourneyStage =
     | 'viewing_completed'
     | 'buyer_qualification'
@@ -162,10 +164,10 @@ export const canWithdrawApplicationRecord = (application?: ApplicationRecordLike
     return !['withdrawn', 'approved', 'rejected', 'completed'].includes(status);
 };
 
-export const saleProgressionStageForStatus = (status: string): SaleJourneyStage | null => {
+export const saleProgressionStageForStatus = (status: string): SaleProgressionStage | null => {
     switch (String(status || '').trim()) {
         case 'offer_ready':
-            return 'offer';
+            return null;
         case 'offer_submitted':
             return 'offer_submitted';
         case 'offer_under_review':

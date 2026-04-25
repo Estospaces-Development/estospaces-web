@@ -147,7 +147,7 @@ export default function DateField({
             {open ? (
                 <div
                     className={[
-                        'absolute top-full z-50 mt-3 w-[320px] rounded-[28px] border border-gray-200 bg-white/95 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95',
+                        'absolute top-full z-50 mt-3 w-[calc(100vw-2rem)] max-w-[320px] rounded-[28px] border border-gray-200 bg-white/95 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95',
                         alignClass,
                         panelClassName,
                     ].join(' ')}

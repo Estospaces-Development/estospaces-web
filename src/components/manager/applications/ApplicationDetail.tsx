@@ -105,6 +105,7 @@ import CaseFileWorkspace from "@/components/case-file/CaseFileWorkspace";
 import {
   resolveManagerApplicationOverviewFocus,
   resolveManagerApplicationTab,
+  type ManagerApplicationTab,
 } from "@/lib/managerApplicationWorkspace";
 import type { WorkspaceSection } from "@/lib/liveCaseWorkspace";
 import {
@@ -202,19 +203,19 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const [rentWorkflowAction, setRentWorkflowAction] = useState<string | null>(
     null,
   );
-  const agentInfoSectionRef = useRef<HTMLElement | null>(null);
-  const purchaseWorkspaceSectionRef = useRef<HTMLElement | null>(null);
-  const liveJourneySectionRef = useRef<HTMLElement | null>(null);
-  const rentWorkspaceSectionRef = useRef<HTMLElement | null>(null);
-  const rentDocumentsSectionRef = useRef<HTMLElement | null>(null);
-  const rentReferencingSectionRef = useRef<HTMLElement | null>(null);
-  const rentComplianceSectionRef = useRef<HTMLElement | null>(null);
-  const rentPropertyReadinessSectionRef = useRef<HTMLElement | null>(null);
-  const rentActionSectionRef = useRef<HTMLElement | null>(null);
-  const buyerQualificationSectionRef = useRef<HTMLElement | null>(null);
-  const amlSectionRef = useRef<HTMLElement | null>(null);
-  const sellerReadinessSectionRef = useRef<HTMLElement | null>(null);
-  const offerSectionRef = useRef<HTMLElement | null>(null);
+  const agentInfoSectionRef = useRef<HTMLDivElement | null>(null);
+  const purchaseWorkspaceSectionRef = useRef<HTMLDivElement | null>(null);
+  const liveJourneySectionRef = useRef<HTMLDivElement | null>(null);
+  const rentWorkspaceSectionRef = useRef<HTMLDivElement | null>(null);
+  const rentDocumentsSectionRef = useRef<HTMLDivElement | null>(null);
+  const rentReferencingSectionRef = useRef<HTMLDivElement | null>(null);
+  const rentComplianceSectionRef = useRef<HTMLDivElement | null>(null);
+  const rentPropertyReadinessSectionRef = useRef<HTMLDivElement | null>(null);
+  const rentActionSectionRef = useRef<HTMLDivElement | null>(null);
+  const buyerQualificationSectionRef = useRef<HTMLDivElement | null>(null);
+  const amlSectionRef = useRef<HTMLDivElement | null>(null);
+  const sellerReadinessSectionRef = useRef<HTMLDivElement | null>(null);
+  const offerSectionRef = useRef<HTMLDivElement | null>(null);
   const offerAmountInputRef = useRef<HTMLInputElement | null>(null);
 
   const isSaleProgression = isSaleProgressionRecord(application);
@@ -1629,7 +1630,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const activityHistory = getActivityHistory();
 
-  const tabs = [
+  const tabs: Array<{ id: ManagerApplicationTab; label: string; icon: LucideIcon }> = [
     { id: "overview", label: "Overview", icon: Home },
     { id: "documents", label: "Documents", icon: FileText },
     { id: "history", label: "Activity", icon: History },
