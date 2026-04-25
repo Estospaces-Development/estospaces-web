@@ -1,430 +1,206 @@
-# Local Testing Guide - EstoSpaces Web Application
+# Local and Dev Testing Guide
 
-This guide will help you set up and test the Next.js web application locally.
+This app is a Vite frontend served on `http://localhost:3000`. It supports two backend targets:
 
-## Prerequisites
+- `local`: all services on your machine
+- `dev`: local frontend against the shared GCP dev services
 
-- Docker and Docker Compose installed
-- Node.js 20+ (for local development without Docker)
-- npm or yarn
-- Backend services running (Core Service at minimum)
+## Standard Workflow
 
----
-
-## Option 1: Quick Start with Docker Compose
-
-### 1. Start the Web Application
-
-```bash
-# Start in detached mode
-docker-compose up -d
-
-# View logs
-docker-compose logs -f web
-
-# Check status
-docker-compose ps
-```
-
-### 2. Access the Application
-
-Open your browser and navigate to:
-- **Home Page**: http://localhost:3000
-- **Login Page**: http://localhost:3000/login
-- **Admin Dashboard**: http://localhost:3000/admin/verifications
-- **Manager Dashboard**: http://localhost:3000/manager/dashboard
-- **User Dashboard**: http://localhost:3000/dashboard
-
-### 3. Stop the Application
-
-```bash
-# Stop
-docker-compose down
-
-# Stop and remove volumes
-docker-compose down -v
-```
-
----
-
-## Option 2: Local Development (Recommended for Development)
-
-### 1. Install Dependencies
+1. Install dependencies
 
 ```bash
 npm install
-# or
-yarn install
 ```
 
-### 2. Set Up Environment
+2. Pick the backend target
 
 ```bash
-# Create .env.local file
-cat > .env.local << 'EOF'
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_APP_NAME=EstoSpaces
-
-# API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8080/api
-NEXT_PUBLIC_CORE_SERVICE_URL=http://localhost:8080
-NEXT_PUBLIC_BOOKING_SERVICE_URL=http://localhost:8081
-NEXT_PUBLIC_PAYMENT_SERVICE_URL=http://localhost:8082
-NEXT_PUBLIC_PLATFORM_SERVICE_URL=http://localhost:8083
-
-# Feature Flags
-NEXT_PUBLIC_ENABLE_CHAT=true
-NEXT_PUBLIC_ENABLE_VIRTUAL_TOURS=true
-NEXT_PUBLIC_ENABLE_FAST_TRACK=true
-EOF
+npm run env:local
 ```
 
-### 3. Start Development Server
+or
+
+```bash
+npm run env:dev
+```
+
+3. Start the app
 
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-The application will start on http://localhost:3000
+4. Open the app
 
-### 4. Build for Production
+```text
+http://localhost:3000
+```
+
+## Environment Files
+
+- `.env.local-preset`: local services on ports `8080` to `8086`
+- `.env.gcp-dev`: Cloud Run dev services
+- `.env.development`: active environment used by Vite during local development
+
+Switching environments updates `.env.development`.
+
+## Commands We Use Before Shipping
 
 ```bash
-# Build
+npm run test:fast-track
+npm run test
 npm run build
-
-# Start production server
-npm run start
+npm run test:e2e:dev
+npm run test:e2e:local
 ```
 
----
+## End-to-End Smoke Tests
 
-## Testing with Backend Services
+The checked-in browser smoke runner lives in `scripts/e2e-smoke.cjs`.
 
-### 1. Start Backend Services First
+Use these commands:
 
 ```bash
-# In estospaces-core-service directory
-cd ../estospaces-core-service
-docker-compose up -d
-
-# Verify backend is running
-curl http://localhost:8080/health
+npm run test:e2e:dev
+npm run test:e2e:local
 ```
 
-### 2. Start Web Application
+`test:e2e:dev` defaults to `http://localhost:4173`.
+`test:e2e:local` defaults to `http://localhost:3000`.
+
+Optional overrides:
+
+- `E2E_DEV_BASE_URL`
+- `E2E_LOCAL_BASE_URL`
+- `E2E_DEV_FAST_TRACK_CASE_ID`
+- `E2E_LOCAL_FAST_TRACK_CASE_ID`
+- `E2E_USER_EMAIL`
+- `E2E_USER_PASSWORD`
+- `E2E_MANAGER_EMAIL`
+- `E2E_MANAGER_PASSWORD`
+
+## Local Backend Expectations
+
+For `npm run env:local`, these services should be reachable:
+
+- `VITE_CORE_SERVICE_URL=http://localhost:8080`
+- `VITE_BOOKING_SERVICE_URL=http://localhost:8081`
+- `VITE_PAYMENT_SERVICE_URL=http://localhost:8082`
+- `VITE_NOTIFICATION_SERVICE_URL=http://localhost:8083`
+- `VITE_SEARCH_SERVICE_URL=http://localhost:8084`
+- `VITE_MEDIA_SERVICE_URL=http://localhost:8085`
+- `VITE_MESSAGING_SERVICE_URL=http://localhost:8086`
+
+If the local stack is not running, use `npm run env:dev` for frontend verification against the shared dev backend.
+
+To boot the full local stack from the repo deployment workspace:
 
 ```bash
-# In estospaces-web directory
+cd ..\\estospaces-deployment
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+## Dev Environment Workflow
+
+Use this when you want production-like integration without starting every backend locally.
+
+```bash
+npm run env:dev
 npm run dev
 ```
 
-### 3. Test Authentication Flow
+This runs the local frontend against the GCP dev services declared in `.env.gcp-dev`.
 
-1. Navigate to http://localhost:3000/login
-2. Register a new user:
-   - Email: test@example.com
-   - Password: password123
-3. Login with the credentials
-4. You should be redirected to the dashboard
+## Fast-Track Verification Checklist
 
----
+Run this checklist in both `local` and `dev` whenever the fast-track experience changes.
 
-## Available Routes
+### User flow
 
-### Public Routes
-- `/` - Landing page
-- `/about` - About page
-- `/contact` - Contact page
-- `/pricing` - Pricing page
-- `/login` - Login page
-- `/register` - Registration page
+1. Sign in as a user.
+2. Open `/user/dashboard/fast-track`.
+3. Confirm the selected case loads.
+4. Verify document states render correctly:
+   - not requested
+   - requested
+   - uploaded
+   - re-upload required
+   - verified
+5. Open the linked workspace actions:
+   - live workspace
+   - document section
+   - messages
+   - applications or offer journey
+   - viewings
+   - contracts when relevant
+   - billing or payments
 
-### User Dashboard (Requires Authentication)
-- `/dashboard` - User dashboard home
-- `/search` - Property search
-- `/properties` - Property listings
-- `/bookings` - User bookings
-- `/applications` - Rental applications
-- `/contracts` - Contracts
-- `/payments` - Payment history
-- `/favorites` - Saved properties
-- `/profile` - User profile
-- `/messages` - Messages
-- `/notifications` - Notifications
-- `/settings` - User settings
+### Manager flow
 
-### Manager Dashboard (Requires Manager Role)
-- `/manager/dashboard` - Manager home
-- `/manager/properties` - Property management
-- `/manager/leads` - Lead management
-- `/manager/bookings` - Booking management
-- `/manager/clients` - Client management
-- `/manager/analytics` - Analytics
-- `/manager/billing` - Billing
+1. Sign in as a manager.
+2. Open `/manager/fast-track`.
+3. Confirm the queue, stats, and case search load.
+4. Open a case and verify:
+   - document request state
+   - verification review handoff
+   - linked journey summary
+   - workspace section routing
+5. Confirm the manager can request documents only while the live lead is still requestable.
 
-### Admin Dashboard (Requires Admin Role)
-- `/admin/verifications` - User & property verifications
-- `/admin/properties` - Property management
-- `/admin/chat` - Support chat
-- `/admin/analytics` - Platform analytics
+### Journey coverage
 
----
+Check both major paths:
 
-## Docker Commands
+- rent: documents -> viewing -> application -> contract -> payment completion
+- buy: documents -> viewing -> buyer qualification -> sale progression -> completion
 
-### Rebuild After Code Changes
+## UI Review Checklist
 
-```bash
-# Rebuild image
-docker-compose build
+Use these checks before sign-off:
 
-# Rebuild and restart
-docker-compose up -d --build
-```
+- primary actions use the orange brand accent
+- cards and panels follow the same spacing rhythm
+- page headers lead with title, supporting copy, then actions
+- empty states are calm and informative
+- auth screens do not expose seeded credentials
+- keyboard focus is visible on interactive controls
+- layouts remain clear at mobile, tablet, and desktop widths
 
-### View Logs
+## Quick Smoke Commands
 
 ```bash
-# Follow logs
-docker-compose logs -f web
-
-# Last 100 lines
-docker-compose logs --tail=100 web
+npm run env:dev
+npm run dev
 ```
 
-### Execute Commands in Container
+In a second terminal:
 
 ```bash
-# Access shell
-docker-compose exec web sh
-
-# Check Next.js version
-docker-compose exec web node -v
-
-# Check environment variables
-docker-compose exec web env
+npm run test:fast-track
+npm run build
 ```
-
----
-
-## Testing Checklist
-
-### Frontend Features
-- [ ] Landing page loads correctly
-- [ ] Navigation works (header, sidebar)
-- [ ] Login/Register forms work
-- [ ] Authentication redirects work
-- [ ] Protected routes require login
-- [ ] Role-based access control works
-- [ ] Images and assets load
-- [ ] Tailwind CSS styles applied
-- [ ] Responsive design on mobile
-
-### Integration with Backend
-- [ ] Can register new user
-- [ ] Can login successfully
-- [ ] Token stored in cookies
-- [ ] API calls include auth header
-- [ ] Protected routes fetch data
-- [ ] Error messages display correctly
-- [ ] Loading states work
-- [ ] 401 redirects to login
-
----
 
 ## Troubleshooting
 
-### Port Already in Use
+### App starts but API data is empty
 
-```bash
-# Find process on port 3000
-lsof -i :3000
+- Confirm the selected environment with `Get-Content .env.development`
+- If you expected real integration, switch to `npm run env:dev`
 
-# Kill process
-kill -9 <PID>
+### Local API errors
 
-# Or use different port
-PORT=3001 npm run dev
-```
+- Make sure the corresponding service ports are running
+- Check browser network requests for the failing service origin
 
-### Cannot Connect to Backend
+### Fast-track page looks blank
 
-```bash
-# Check if backend is running
-curl http://localhost:8080/health
+- Confirm authentication succeeded
+- Verify the seeded environment actually contains fast-track records
+- Run `npm run test:fast-track` to separate logic regressions from environment-data issues
 
-# Check Docker network
-docker network ls
-docker network inspect estospaces-web_default
-```
+### Build or test regressions
 
-### Build Errors
-
-```bash
-# Clear Next.js cache
-rm -rf .next
-
-# Clear node_modules and reinstall
-rm -rf node_modules package-lock.json
-npm install
-
-# Rebuild
-npm run build
-```
-
-### Hot Reload Not Working
-
-```bash
-# Try running in dev mode again
-npm run dev
-
-# Or clear cache
-rm -rf .next
-npm run dev
-```
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| NEXT_PUBLIC_APP_URL | http://localhost:3000 | Application URL |
-| NEXT_PUBLIC_API_URL | http://localhost:8080/api | API base URL |
-| NEXT_PUBLIC_CORE_SERVICE_URL | http://localhost:8080 | Core service URL |
-| NEXT_PUBLIC_BOOKING_SERVICE_URL | http://localhost:8081 | Booking service URL |
-| NEXT_PUBLIC_PAYMENT_SERVICE_URL | http://localhost:8082 | Payment service URL |
-| NEXT_PUBLIC_PLATFORM_SERVICE_URL | http://localhost:8083 | Platform service URL |
-
----
-
-## Development Tips
-
-### Hot Reload
-
-```bash
-# Development server with hot reload
-npm run dev
-```
-
-### TypeScript Type Checking
-
-```bash
-# Check types
-npx tsc --noEmit
-```
-
-### Linting
-
-```bash
-# Run ESLint
-npm run lint
-
-# Fix auto-fixable issues
-npm run lint -- --fix
-```
-
-### Format Code
-
-```bash
-# Using Prettier (if installed)
-npx prettier --write .
-```
-
----
-
-## Testing User Roles
-
-### Create Test Users
-
-Use the backend API to create users with different roles:
-
-```bash
-# Create admin user
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@estospaces.com",
-    "password": "admin123",
-    "role": "admin"
-  }'
-
-# Create manager user
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "manager@estospaces.com",
-    "password": "manager123",
-    "role": "manager"
-  }'
-
-# Create regular user
-curl -X POST http://localhost:8080/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@estospaces.com",
-    "password": "user123"
-  }'
-```
-
-### Test Role-Based Access
-
-1. Login as **user** → Should access `/dashboard` only
-2. Login as **manager** → Should access `/manager/*` routes
-3. Login as **admin** → Should access `/admin/*` routes
-
----
-
-## Performance Testing
-
-### Lighthouse Audit
-
-```bash
-# Run Lighthouse
-npm install -g lighthouse
-lighthouse http://localhost:3000 --view
-```
-
-### Bundle Analysis
-
-```bash
-# Install bundle analyzer
-npm install @next/bundle-analyzer
-
-# Analyze bundle
-ANALYZE=true npm run build
-```
-
----
-
-## Quick Reference
-
-```bash
-# Development
-npm run dev
-
-# Build
-npm run build
-
-# Production
-npm run start
-
-# Docker
-docker-compose up -d
-docker-compose logs -f web
-docker-compose down
-
-# Type check
-npx tsc --noEmit
-
-# Lint
-npm run lint
-```
-
----
-
-**Last Updated**: February 6, 2026
-**Status**: Ready for Local Testing ✅
+- Run `npm run test`
+- Run `npm run build`
+- Fix failing shared UI or workflow helpers before re-testing in the browser
