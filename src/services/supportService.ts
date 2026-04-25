@@ -80,7 +80,7 @@ export const supportService = {
         });
     },
 
-    async uploadAttachments(files: File[], draftId = crypto.randomUUID()): Promise<UploadSupportAttachmentsResult> {
+    async uploadAttachments(files: File[], draftId: string = crypto.randomUUID()): Promise<UploadSupportAttachmentsResult> {
         const attachments = await Promise.all(files.map(async (file) => {
             const uploaded = await uploadMediaFile(file, SUPPORT_DRAFT_ENTITY, draftId, '', false);
             return {

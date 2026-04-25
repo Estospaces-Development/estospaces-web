@@ -149,20 +149,31 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
     };
 };
 
-const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>) => {
+const normalizePostcodeSearchToken = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
+const isFullUkPostcodeSearch = (value: string) => {
+    const token = normalizePostcodeSearchToken(value.trim());
+    return /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(token);
+};
+
+export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>) => {
     const params = new URLSearchParams();
 
     const normalizedQuery = query.trim();
     const normalizedLocation = (filters.location || '').toString().trim();
     const normalizedPostcode = (filters.postcode || '').toString().trim();
+    const locationIsPostcode = isFullUkPostcodeSearch(normalizedLocation);
     const searchParts = [normalizedQuery];
     if (normalizedPostcode) {
         searchParts.push(normalizedPostcode);
     }
+    if (locationIsPostcode) {
+        searchParts.push(normalizedLocation);
+    }
     const combinedSearch = searchParts.join(' ').trim();
 
     if (combinedSearch && normalizedLocation) {
-        params.append('search', `${combinedSearch} ${normalizedLocation}`.trim());
+        params.append('search', locationIsPostcode ? combinedSearch : `${combinedSearch} ${normalizedLocation}`.trim());
     } else if (combinedSearch) {
         params.append('search', combinedSearch);
     } else if (normalizedLocation) {

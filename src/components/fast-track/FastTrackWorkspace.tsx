@@ -28,6 +28,8 @@ import {
     buildFastTrackThreadRecipientLabel,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
+    fastTrackCaseMatchesQuery,
+    isFastTrackCaseComplete,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from '@/lib/fastTrackWorkspace';
@@ -208,9 +210,6 @@ const buildFastTrackCasesSignature = (cases: FastTrackCase[]) => JSON.stringify(
     })),
 );
 
-const textMatches = (source: string | undefined, query: string) =>
-    String(source || '').toLowerCase().includes(query.toLowerCase());
-
 const formatDateTime = (value?: string) => {
     if (!value) {
         return 'Not set';
@@ -336,7 +335,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [activeStageOverride, setActiveStageOverride] = useState<FastTrackStage | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(() => (
+        searchParams.get('search') || searchParams.get('q') || ''
+    ));
     const [filter, setFilter] = useState<FilterMode>('all');
     const [currentCasePage, setCurrentCasePage] = useState(1);
     const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -529,14 +530,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 return true;
             }
 
-            const normalizedQuery = query.trim().toLowerCase();
-            return [
-                item.propertyTitle,
-                item.clientName,
-                item.caseId,
-                item.leadId,
-                item.propertyId,
-            ].some((source) => textMatches(source, normalizedQuery));
+            return fastTrackCaseMatchesQuery(item, query);
         });
     }, [cases, filter, query]);
 
@@ -575,10 +569,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        if (query.trim()) {
+            if (!selectedCaseId) {
+                setSelectedCaseId(filteredCases[0].caseId);
+            }
+            return;
+        }
+
         if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
             setSelectedCaseId(filteredCases[0].caseId);
         }
-    }, [cases, filteredCases, requestedCaseParam, selectedCaseId]);
+    }, [cases, filteredCases, query, requestedCaseParam, selectedCaseId]);
 
     const totalCasePages = useMemo(
         () => Math.max(1, Math.ceil(filteredCases.length / FAST_TRACK_CASES_PAGE_SIZE)),
@@ -2349,6 +2350,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         if (role === 'user') {
+            if (isFastTrackCaseComplete(selectedCase)) {
+                return (
+                    <SectionShell
+                        title={getJourneyStageLabel('handover', selectedCase.journeyMode, role)}
+                        description="The final handover is complete."
+                    >
+                        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
+                            <p className="text-base font-semibold">Keys received</p>
+                            <p className="mt-2">
+                                The keys and final handover are already confirmed. This workspace is now kept for your records.
+                            </p>
+                        </div>
+                    </SectionShell>
+                );
+            }
+
             return (
                 <SectionShell
                     title={getJourneyStageLabel('handover', selectedCase.journeyMode, role)}
@@ -2406,7 +2423,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         onClick={() => void runAction(
                             'complete_handover',
                             { note: handoverNote },
-                            role === 'user' ? 'Your journey is complete.' : 'Fast-track completed.',
+                            'Fast-track completed.',
                         )}
                         busy={activeAction === 'complete_handover'}
                     >

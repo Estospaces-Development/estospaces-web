@@ -166,7 +166,7 @@ function MessagesContent() {
                                 Messages
                             </h1>
                             <p className="text-gray-500 dark:text-gray-400 mt-1">
-                                Chat with agents and property managers directly
+                                Chats about homes, agent requests, and support.
                             </p>
                         </div>
 
@@ -176,7 +176,7 @@ function MessagesContent() {
                             className="flex items-center gap-2 px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:shadow-lg transition-all active:scale-95"
                         >
                             <PlusCircle size={20} />
-                            New Enquiry
+                            Ask about a home
                         </button>
                     </div>
                 </div>
@@ -194,7 +194,7 @@ function MessagesContent() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[700px]">
+                <div className="grid min-h-[640px] grid-cols-1 gap-6 lg:grid-cols-12 lg:h-[700px]">
                     <div className="lg:col-span-4 bg-white dark:bg-gray-800 rounded-3xl shadow-xl overflow-hidden">
                         {isLoading ? (
                             <ConversationListSkeleton />
@@ -243,7 +243,7 @@ function MessagesContent() {
                                         className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all"
                                     >
                                         <PlusCircle size={18} />
-                                        New Enquiry
+                                        Ask about a home
                                     </button>
                                 </div>
                             </div>
@@ -254,17 +254,17 @@ function MessagesContent() {
                                     <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-100 rounded-full animate-ping"></div>
                                 </div>
                                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                                    Select an enquiry
+                                    Choose a conversation
                                 </h2>
                                 <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                                    Pick a conversation from the sidebar to view your messages and updates from property agents.
+                                    Pick a chat on the left to read messages, updates, and replies.
                                 </p>
                                 <button
                                     type="button"
                                     onClick={handleOpenNewEnquiry}
                                     className="mt-8 px-8 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all shadow-lg shadow-orange-500/30"
                                 >
-                                    Find Property to Enquiry
+                                    Ask about a home
                                 </button>
                             </div>
                         )}

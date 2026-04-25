@@ -17,6 +17,39 @@ export interface PropertyVirtualTourState {
     active_request?: VirtualTourRequest | null;
 }
 
+export interface VirtualTourHotspot {
+    id: string;
+    label?: string;
+    title?: string;
+    targetSceneId?: string;
+    position: {
+        x: number;
+        y: number;
+    };
+}
+
+export type Hotspot = VirtualTourHotspot;
+
+export interface TourScene {
+    id: string;
+    name: string;
+    panoramaUrl: string;
+    type?: string;
+    hotspots: VirtualTourHotspot[];
+    initialRotation?: {
+        x: number;
+        y: number;
+    };
+}
+
+export type VirtualTourScene = TourScene;
+
+export interface VirtualTour {
+    id?: string;
+    tourName: string;
+    scenes: TourScene[];
+}
+
 export interface RequestVirtualTourInput {
     request_note?: string;
 }

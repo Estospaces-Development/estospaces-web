@@ -13,13 +13,22 @@ RUN npm ci
 COPY . .
 
 # Build-time env vars (baked into the Vite bundle)
-ARG VITE_CORE_SERVICE_URL=http://localhost:8080
-ARG VITE_BOOKING_SERVICE_URL=http://localhost:8081
-ARG VITE_PAYMENT_SERVICE_URL=http://localhost:8082
-ARG VITE_NOTIFICATION_SERVICE_URL=http://localhost:8083
-ARG VITE_SEARCH_SERVICE_URL=http://localhost:8084
-ARG VITE_MEDIA_SERVICE_URL=http://localhost:8085
-ARG VITE_MESSAGING_SERVICE_URL=http://localhost:8086
+ARG VITE_CORE_SERVICE_URL
+ARG VITE_BOOKING_SERVICE_URL
+ARG VITE_PAYMENT_SERVICE_URL
+ARG VITE_NOTIFICATION_SERVICE_URL
+ARG VITE_SEARCH_SERVICE_URL
+ARG VITE_MEDIA_SERVICE_URL
+ARG VITE_MESSAGING_SERVICE_URL
+
+# Export build args so Vite can read them from process.env during the build.
+ENV VITE_CORE_SERVICE_URL=$VITE_CORE_SERVICE_URL
+ENV VITE_BOOKING_SERVICE_URL=$VITE_BOOKING_SERVICE_URL
+ENV VITE_PAYMENT_SERVICE_URL=$VITE_PAYMENT_SERVICE_URL
+ENV VITE_NOTIFICATION_SERVICE_URL=$VITE_NOTIFICATION_SERVICE_URL
+ENV VITE_SEARCH_SERVICE_URL=$VITE_SEARCH_SERVICE_URL
+ENV VITE_MEDIA_SERVICE_URL=$VITE_MEDIA_SERVICE_URL
+ENV VITE_MESSAGING_SERVICE_URL=$VITE_MESSAGING_SERVICE_URL
 
 # Build the Vite app
 RUN npm run build
@@ -31,18 +40,8 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # SPA fallback — serve index.html for all routes
-RUN echo 'server { \
-  listen 3000; \
-  root /usr/share/nginx/html; \
-  index index.html; \
-  location / { \
-  try_files $uri $uri/ /index.html; \
-  } \
-  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
-  expires 1y; \
-  add_header Cache-Control "public, immutable"; \
-  } \
-  }' > /etc/nginx/conf.d/default.conf
+COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
 

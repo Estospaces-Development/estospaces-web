@@ -45,14 +45,48 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
   }
 
   body {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
     font-family: var(--font-body);
     font-size: 15px;
     line-height: 1.6;
     letter-spacing: -0.01em;
     font-weight: 400;
+  }
+
+  #root {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  img,
+  video,
+  canvas,
+  iframe {
+    max-width: 100%;
+  }
+
+  button,
+  input,
+  textarea,
+  select,
+  [role="button"] {
+    max-width: 100%;
+    touch-action: manipulation;
+  }
+
+  input,
+  textarea,
+  select {
+    min-width: 0;
   }
 
   h1 {
@@ -459,6 +493,44 @@
 .scrollbar-hide {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
+}
+
+.page-shell {
+  width: min(100% - 2rem, 1180px);
+  margin-inline: auto;
+}
+
+.mobile-safe-text {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.mobile-scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 380px) {
+  .page-shell {
+    width: min(100% - 1rem, 1180px);
+  }
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    width: min(100% - 3rem, 1180px);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-shell {
+    width: min(100% - 4rem, 1180px);
+  }
 }
 
 /* =========================================

@@ -7,6 +7,7 @@ import {
     buildFastTrackThreadRecipientLabel,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
+    fastTrackCaseMatchesQuery,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from './fastTrackWorkspace';
@@ -75,9 +76,46 @@ test('selection resolves legacy query ids to the matching case', () => {
     assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('payment=payment-a'), null), 'case-a');
 });
 
+test('selection prefers precise linked records over a stale case query param', () => {
+    const cases = [
+        buildCase({
+            caseId: 'stale-case',
+            applicationId: 'old-application',
+            propertyId: 'property-1',
+        }),
+        buildCase({
+            caseId: 'linked-case',
+            applicationId: 'application-live',
+            propertyId: 'property-1',
+        }),
+    ];
+
+    assert.equal(
+        resolveFastTrackSelectionCaseId(
+            cases,
+            new URLSearchParams('case=stale-case&application=application-live'),
+            null,
+        ),
+        'linked-case',
+    );
+});
+
 test('selection falls back to previous case when the query does not match', () => {
     const cases = [buildCase({ caseId: 'case-a' }), buildCase({ caseId: 'case-b' })];
     assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('application=missing'), 'case-b'), 'case-b');
+});
+
+test('case search matches application and workflow identifiers', () => {
+    const fastTrackCase = buildCase({
+        caseId: 'case-live-1',
+        applicationId: 'ed1c5183-0000-4000-8000-000000000000',
+        brokerRequestId: 'request-abc',
+        clientName: 'Test User',
+    });
+
+    assert.equal(fastTrackCaseMatchesQuery(fastTrackCase, 'APP-ED1C5183'), true);
+    assert.equal(fastTrackCaseMatchesQuery(fastTrackCase, 'request-abc'), true);
+    assert.equal(fastTrackCaseMatchesQuery(fastTrackCase, 'not-present'), false);
 });
 
 test('thread recipient resolution stays case-role aware', () => {
@@ -104,4 +142,11 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     const completedCase = buildCase({ workspaceFinalStatus: 'completed' });
     assert.equal(describeFastTrackWorkspaceFocus(completedCase, 'admin'), 'Case finished');
     assert.equal(describeFastTrackWorkspaceStatus(completedCase, 'admin'), 'Every core step was completed inside this workspace.');
+
+    const completedHandoverCase = buildCase({
+        stage: 'handover',
+        handover: { status: 'completed', confirmedByUser: true },
+    });
+    assert.equal(describeFastTrackWorkspaceFocus(completedHandoverCase, 'user'), 'Your journey is complete');
+    assert.equal(describeFastTrackWorkspaceStatus(completedHandoverCase, 'user'), 'Every step is complete. You can keep this page for records and updates.');
 });

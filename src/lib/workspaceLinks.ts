@@ -1,10 +1,28 @@
-import type { Application } from '@/contexts/ApplicationsContext';
 import type { Viewing } from '@/services/bookingsService';
 import type { Invoice, Payment } from '@/services/paymentsService';
 import type { Contract } from '@/types/booking';
 import type { WorkspaceSection } from '@/lib/liveCaseWorkspace';
 
 type MaybeString = string | null | undefined;
+
+type WorkspaceApplication = {
+    id: string;
+    source?: string;
+    createdAt?: string;
+    created_at?: string;
+    updatedAt?: string;
+    updated_at?: string;
+    propertyId?: MaybeString;
+    property_id?: MaybeString;
+    userId?: MaybeString;
+    user_id?: MaybeString;
+    managerId?: MaybeString;
+    manager_id?: MaybeString;
+    leadId?: MaybeString;
+    lead_id?: MaybeString;
+    fastTrackCaseId?: MaybeString;
+    fast_track_case_id?: MaybeString;
+};
 
 export interface WorkspaceLinkOptions {
     applicationId?: MaybeString;
@@ -31,9 +49,37 @@ const toTimestamp = (value?: string | null) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const pickLatestApplication = (applications: Application[]) => (
+const getApplicationCreatedAt = (application: WorkspaceApplication) => (
+    application.createdAt || application.created_at
+);
+
+const getApplicationUpdatedAt = (application: WorkspaceApplication) => (
+    application.updatedAt || application.updated_at
+);
+
+const getApplicationPropertyId = (application: WorkspaceApplication) => (
+    application.propertyId || application.property_id
+);
+
+const getApplicationUserId = (application: WorkspaceApplication) => (
+    application.userId || application.user_id
+);
+
+const getApplicationManagerId = (application: WorkspaceApplication) => (
+    application.managerId || application.manager_id
+);
+
+const getApplicationLeadId = (application: WorkspaceApplication) => (
+    application.leadId || application.lead_id
+);
+
+const getApplicationFastTrackCaseId = (application: WorkspaceApplication) => (
+    application.fastTrackCaseId || application.fast_track_case_id
+);
+
+const pickLatestApplication = <T extends WorkspaceApplication>(applications: T[]) => (
     [...applications].sort((left, right) => (
-        toTimestamp(right.updatedAt || right.createdAt) - toTimestamp(left.updatedAt || left.createdAt)
+        toTimestamp(getApplicationUpdatedAt(right) || getApplicationCreatedAt(right)) - toTimestamp(getApplicationUpdatedAt(left) || getApplicationCreatedAt(left))
     ))[0] || null
 );
 
@@ -43,41 +89,41 @@ const pickLatestViewing = (viewings: Viewing[]) => (
     ))[0] || null
 );
 
-const isSaleProgressionApplication = (application?: Application | null) =>
+const isSaleProgressionApplication = (application?: WorkspaceApplication | null) =>
     application?.source === 'sale_progression';
 
-export const findLinkedSaleProgression = (
-    applications: Application[],
-    application?: Application | null,
+export const findLinkedSaleProgression = <T extends WorkspaceApplication>(
+    applications: T[],
+    application?: T | null,
     options: WorkspaceLinkOptions = {},
 ) => {
     if (!application) {
         return null;
     }
 
-    const caseId = normalizeId(options.caseId) || normalizeId(application.fastTrackCaseId);
-    const leadId = normalizeId(options.leadId) || normalizeId(application.leadId);
-    const propertyId = normalizeId(options.propertyId) || normalizeId(application.propertyId);
-    const userId = normalizeId(application.userId);
-    const managerId = normalizeId(application.managerId);
+    const caseId = normalizeId(options.caseId) || normalizeId(getApplicationFastTrackCaseId(application));
+    const leadId = normalizeId(options.leadId) || normalizeId(getApplicationLeadId(application));
+    const propertyId = normalizeId(options.propertyId) || normalizeId(getApplicationPropertyId(application));
+    const userId = normalizeId(getApplicationUserId(application));
+    const managerId = normalizeId(getApplicationManagerId(application));
 
     const matches = applications.filter((candidate) => {
         if (!isSaleProgressionApplication(candidate)) {
             return false;
         }
 
-        if (caseId && sameId(candidate.fastTrackCaseId, caseId)) {
+        if (caseId && sameId(getApplicationFastTrackCaseId(candidate), caseId)) {
             return true;
         }
-        if (leadId && sameId(candidate.leadId, leadId)) {
+        if (leadId && sameId(getApplicationLeadId(candidate), leadId)) {
             return true;
         }
-        if (!propertyId || !sameId(candidate.propertyId, propertyId)) {
+        if (!propertyId || !sameId(getApplicationPropertyId(candidate), propertyId)) {
             return false;
         }
 
-        const userMatches = !userId || sameId(candidate.userId, userId);
-        const managerMatches = !managerId || !normalizeId(candidate.managerId) || sameId(candidate.managerId, managerId);
+        const userMatches = !userId || sameId(getApplicationUserId(candidate), userId);
+        const managerMatches = !managerId || !normalizeId(getApplicationManagerId(candidate)) || sameId(getApplicationManagerId(candidate), managerId);
         return userMatches && managerMatches;
     });
 
@@ -119,8 +165,8 @@ export const buildWorkspacePath = (basePath: string, options: WorkspaceLinkOptio
     return query ? `${basePath}?${query}` : basePath;
 };
 
-export const resolveFocusedApplication = (
-    applications: Application[],
+export const resolveFocusedApplication = <T extends WorkspaceApplication>(
+    applications: T[],
     options: WorkspaceLinkOptions,
 ) => {
     if (normalizeId(options.applicationId)) {
@@ -134,7 +180,7 @@ export const resolveFocusedApplication = (
     }
 
     if (normalizeId(options.caseId)) {
-        const caseMatches = applications.filter((application) => sameId(application.fastTrackCaseId, options.caseId));
+        const caseMatches = applications.filter((application) => sameId(getApplicationFastTrackCaseId(application), options.caseId));
         const saleProgressionMatch = pickLatestApplication(caseMatches.filter((application) => isSaleProgressionApplication(application)));
         if (saleProgressionMatch) {
             return saleProgressionMatch;
@@ -146,7 +192,7 @@ export const resolveFocusedApplication = (
     }
 
     if (normalizeId(options.leadId)) {
-        const leadMatches = applications.filter((application) => sameId(application.leadId, options.leadId));
+        const leadMatches = applications.filter((application) => sameId(getApplicationLeadId(application), options.leadId));
         const saleProgressionMatch = pickLatestApplication(leadMatches.filter((application) => isSaleProgressionApplication(application)));
         if (saleProgressionMatch) {
             return saleProgressionMatch;
@@ -158,7 +204,7 @@ export const resolveFocusedApplication = (
     }
 
     if (normalizeId(options.propertyId)) {
-        const propertyMatches = applications.filter((application) => sameId(application.propertyId, options.propertyId));
+        const propertyMatches = applications.filter((application) => sameId(getApplicationPropertyId(application), options.propertyId));
         const saleProgressionMatch = pickLatestApplication(propertyMatches.filter((application) => isSaleProgressionApplication(application)));
         if (saleProgressionMatch) {
             return saleProgressionMatch;
@@ -310,9 +356,9 @@ export const resolveFocusedInvoice = (
     return null;
 };
 
-export const resolveContractWorkspaceContext = (
+export const resolveContractWorkspaceContext = <T extends WorkspaceApplication>(
     contracts: Contract[],
-    applications: Application[],
+    applications: T[],
     options: WorkspaceLinkOptions,
 ) => {
     const application = resolveFocusedApplication(applications, options);

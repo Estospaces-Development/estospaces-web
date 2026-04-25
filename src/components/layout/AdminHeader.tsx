@@ -56,6 +56,8 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         const q = searchQuery.toLowerCase();
         return ADMIN_PAGES.filter(p => p.label.toLowerCase().includes(q));
     }, [searchQuery]);
+    const normalizedSearchQuery = searchQuery.trim();
+    const showFastTrackSearchAction = normalizedSearchQuery.length > 0 && filteredPages.length === 0;
 
     const handleNavigate = useCallback((path: string) => {
         setSearchOpen(false);
@@ -89,29 +91,31 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
     const handleSearchKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setSelectedIdx(i => Math.min(i + 1, filteredPages.length - 1));
+            setSelectedIdx(i => Math.min(i + 1, Math.max(filteredPages.length - 1, 0)));
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setSelectedIdx(i => Math.max(i - 1, 0));
         } else if (e.key === 'Enter' && filteredPages[selectedIdx]) {
             handleNavigate(filteredPages[selectedIdx].path);
+        } else if (e.key === 'Enter' && showFastTrackSearchAction) {
+            handleNavigate(`/admin/fast-track?search=${encodeURIComponent(normalizedSearchQuery)}`);
         }
     };
 
     return (
         <>
             <header className="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-40 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
-                <div className="px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                         {onMenuToggle && (
-                            <button onClick={onMenuToggle} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors" aria-label="Open admin sidebar">
+                            <button onClick={onMenuToggle} className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden" aria-label="Open admin sidebar">
                                 <Menu size={20} />
                             </button>
                         )}
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-white tracking-tight">{getPageTitle()}</h1>
+                        <h1 className="truncate text-lg font-bold tracking-tight text-gray-800 dark:text-white sm:text-2xl">{getPageTitle()}</h1>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex shrink-0 items-center gap-2 sm:gap-4">
                         <button
                             onClick={() => setSearchOpen(true)}
                             className="hidden md:flex items-center gap-2 pl-3 pr-4 py-2 border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-300 rounded-lg hover:border-orange-300 dark:hover:border-orange-700 transition-all w-64 text-sm"
@@ -122,7 +126,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                             <kbd className="ml-auto text-[10px] font-bold bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-1.5 py-0.5 rounded">Ctrl+K</kbd>
                         </button>
 
-                        <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-2 hidden sm:block"></div>
+                        <div className="mx-1 hidden h-8 w-px bg-gray-200 dark:bg-gray-700 sm:block"></div>
 
                         <Link
                             to="/"
@@ -174,7 +178,7 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="max-h-80 overflow-y-auto p-2">
+                        <div className="h-80 overflow-y-auto p-2">
                             {filteredPages.length > 0 ? filteredPages.map((page, idx) => (
                                 <button
                                     key={page.path}
@@ -190,7 +194,17 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                         <span className="ml-auto text-[10px] font-bold text-gray-400 uppercase tracking-widest">Current</span>
                                     )}
                                 </button>
-                            )) : (
+                            )) : showFastTrackSearchAction ? (
+                                <button
+                                    onClick={() => handleNavigate(`/admin/fast-track?search=${encodeURIComponent(normalizedSearchQuery)}`)}
+                                    className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                                >
+                                    <span className="block font-semibold text-gray-900 dark:text-white">Search fast-track cases</span>
+                                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                                        Look for case, application, lead, or property ID matching "{normalizedSearchQuery}".
+                                    </span>
+                                </button>
+                            ) : (
                                 <p className="px-4 py-6 text-center text-sm text-gray-400">No matching pages</p>
                             )}
                         </div>

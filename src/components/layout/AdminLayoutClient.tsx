@@ -15,7 +15,12 @@ interface AdminLayoutClientProps {
 }
 
 export default function AdminLayoutClient({ children, isSubdomain = false }: AdminLayoutClientProps) {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(() => {
+        if (typeof window === 'undefined') {
+            return true;
+        }
+        return window.matchMedia('(min-width: 1024px)').matches;
+    });
     const { user, loading, isAuthenticated } = useAuth();
     const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
 
@@ -34,17 +39,27 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     return (
         <ThemeProvider>
             <NotificationsProvider>
-                <div className="min-h-screen bg-gray-50 dark:bg-black flex transition-colors duration-300">
+                <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors duration-300">
+                    {sidebarOpen && (
+                        <button
+                            type="button"
+                            aria-label="Close admin navigation"
+                            className="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-sm lg:hidden"
+                            onClick={() => setSidebarOpen(false)}
+                        />
+                    )}
                     <AdminSidebar
                         isOpen={sidebarOpen}
                         onToggle={() => setSidebarOpen(!sidebarOpen)}
                         useSubdomain={isSubdomain}
                     />
 
-                    <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+                    <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
                         <AdminHeader onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                        <main className="flex-1 p-6">
-                            {children}
+                        <main className="flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
+                            <div className="mx-auto w-full max-w-[1600px] min-w-0">
+                                {children}
+                            </div>
                         </main>
                     </div>
                 </div>

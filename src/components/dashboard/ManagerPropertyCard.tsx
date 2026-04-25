@@ -5,6 +5,7 @@ import { Home as HomeIcon, Bed, Bath, Maximize, MapPin, Edit, Eye } from 'lucide
 import type { ListingType, PriceInfo } from '@/contexts/PropertyContext';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface ManagerPropertyCardProps {
     property: {
@@ -86,7 +87,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
         return null;
     };
 
-    const imageUrl = getPrimaryPropertyImage(property);
+    const imageUrl = getPrimaryPropertyImage(property, PROPERTY_PLACEHOLDER_IMAGE);
     const statusConfig = getManagerPropertyStatusBadge(property.status);
     const inventoryCaption = formatPropertyInventoryCaption(
         property.dimensions?.totalFloors ?? property.total_floors,
@@ -97,17 +98,17 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
     return (
         <div className="bg-white dark:bg-black rounded-xl overflow-hidden group hover:shadow-lg transition-all duration-300">
             <div className="relative h-48 bg-gray-100 dark:bg-gray-900">
-                {imageUrl ? (
-                    <img
-                        src={imageUrl}
-                        alt={title}
-                        className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    />
-                ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <HomeIcon className="w-12 h-12 text-gray-300" />
-                    </div>
-                )}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <HomeIcon className="w-12 h-12 text-gray-300" />
+                </div>
+                <img
+                    src={imageUrl || PROPERTY_PLACEHOLDER_IMAGE}
+                    alt={title}
+                    className="relative h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    onError={(event) => {
+                        event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                    }}
+                />
 
                 <div className="absolute top-3 left-3">
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium shadow-sm ring-1 ring-inset backdrop-blur-sm ${statusConfig.badgeClassName}`}>

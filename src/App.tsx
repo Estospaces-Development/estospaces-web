@@ -112,7 +112,6 @@ const ManagerPropertyDetail = lazyPage(() => import('./pages/manager/dashboard/p
 const ManagerAnalytics = lazyPage(() => import('./pages/manager/analytics/page'));
 const ManagerApplications = lazyPage(() => import('./pages/manager/applications/page'));
 const ManagerAppointments = lazyPage(() => import('./pages/manager/appointments/page'));
-const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
 const ManagerCaseFiles = lazyPage(() => import('./pages/manager/case-files/page'));
 const ManagerClients = lazyPage(() => import('./pages/manager/clients/page'));
 const ManagerCommunity = lazyPage(() => import('./pages/manager/community/page'));
@@ -126,6 +125,8 @@ const ManagerNotifications = lazyPage(() => import('./pages/manager/notification
 const ManagerProfile = lazyPage(() => import('./pages/manager/profile/page'));
 const ManagerUserVerifications = lazyPage(() => import('./pages/manager/user-verifications/page'));
 const ManagerVerification = lazyPage(() => import('./pages/manager/verification/page'));
+// Phase 2: billing and payment collection remain in source, but are not exposed in the active launch route table.
+// const ManagerBilling = lazyPage(() => import('./pages/manager/billing/page'));
 
 // Lazy loaded pages - User
 const UserDashboard = lazyPage(() => import('./pages/user/dashboard/page'));
@@ -149,7 +150,8 @@ const UserHelp = lazyPage(() => import('./pages/user/dashboard/help/page'));
 const UserMessages = lazyPage(() => import('./pages/user/dashboard/messages/page'));
 const UserNotifications = lazyPage(() => import('./pages/user/dashboard/notifications/page'));
 const UserOverseas = lazyPage(() => import('./pages/user/dashboard/overseas/page'));
-const UserPayments = lazyPage(() => import('./pages/user/dashboard/payments/page'));
+// Phase 2: payments remain in source, but are not exposed in the active launch route table.
+// const UserPayments = lazyPage(() => import('./pages/user/dashboard/payments/page'));
 const UserReviews = lazyPage(() => import('./pages/user/dashboard/reviews/page'));
 const UserSettingsDash = lazyPage(() => import('./pages/user/dashboard/settings/page'));
 const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page'));
@@ -225,7 +227,7 @@ const App: React.FC = () => {
             <Route path="case-files" element={<ManagerCaseFiles />} />
             <Route path="contracts" element={<ManagerContracts />} />
             <Route path="docs" element={<ManagerDocs />} />
-            <Route path="billing" element={<ManagerBilling />} />
+            <Route path="billing" element={<Navigate to="dashboard" replace />} />
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<ManagerCommunity />} />
             <Route path="fast-track" element={<ManagerFastTrack />} />
@@ -251,7 +253,7 @@ const App: React.FC = () => {
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
             <Route path="dashboard/overseas" element={<UserOverseas />} />
-            <Route path="dashboard/payments" element={<UserPayments />} />
+            <Route path="dashboard/payments" element={<Navigate to="/user/dashboard" replace />} />
             <Route path="dashboard/profile" element={<UserProfile />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
             <Route path="dashboard/settings" element={<UserSettingsDash />} />

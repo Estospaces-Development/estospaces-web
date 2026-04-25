@@ -1,76 +1,233 @@
 "use client";
 
-import React from 'react';
-import { Search } from 'lucide-react';
-import { useMessages } from '@/contexts/MessagesContext';
-import Avatar from '@/components/ui/Avatar';
+import React from "react";
+import { Home, LifeBuoy, MessageSquare, Search } from "lucide-react";
+import { useMessages } from "@/contexts/MessagesContext";
+import Avatar from "@/components/ui/Avatar";
 
 interface ConversationListProps {
-    onSelectConversation: (id: string | null) => void;
-    selectedConversationId: string | null;
+  onSelectConversation: (id: string | null) => void;
+  selectedConversationId: string | null;
 }
 
-export default function ConversationList({ onSelectConversation, selectedConversationId }: ConversationListProps) {
-    const { conversations, searchQuery, setSearchQuery } = useMessages();
+type ConversationLike = {
+  id: string;
+  contactName?: string;
+  agentAvatar?: string;
+  agentId?: string;
+  isOnline?: boolean;
+  isSupportConversation?: boolean;
+  unreadCount?: number;
+  lastMessage?: string;
+  lastMessageTime?: string;
+  propertyTitle?: string;
+  propertyAddress?: string;
+  agentAgency?: string;
+};
 
-    return (
-        <div className="flex flex-col h-full bg-white dark:bg-gray-800">
-            <div className="p-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="Search conversations..."
-                        className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all text-sm"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-            </div>
+const groupDefinitions = [
+  {
+    id: "journeys",
+    label: "Home journeys",
+    hint: "Chats connected to a home or request",
+    icon: Home,
+  },
+  {
+    id: "agents",
+    label: "Property agents",
+    hint: "Direct agent conversations",
+    icon: MessageSquare,
+  },
+  {
+    id: "support",
+    label: "Support",
+    hint: "Help from Estospaces",
+    icon: LifeBuoy,
+  },
+  {
+    id: "other",
+    label: "Other messages",
+    hint: "Everything else",
+    icon: MessageSquare,
+  },
+];
 
-            <div className="flex-1 overflow-y-auto">
-                {conversations.length > 0 ? (
-                    <div className="">
-                        {conversations.map((conv: any) => (
-                            <button
-                                key={conv.id}
-                                onClick={() => onSelectConversation(conv.id)}
-                                className={`w-full p-4 flex items-center gap-3 transition-colors text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 ${selectedConversationId === conv.id ? 'bg-orange-50 dark:bg-orange-900/20 border-r-4 border-orange-500' : ''
-                                    }`}
-                            >
-                                <div className="relative flex-shrink-0">
-                                    <Avatar
-                                        userId={conv.isSupportConversation ? undefined : conv.agentId}
-                                        src={conv.agentAvatar}
-                                        name={conv.contactName}
-                                        size="lg"
-                                        status={conv.isSupportConversation ? undefined : (conv.isOnline ? 'online' : 'offline')}
-                                    />
-                                    {conv.unreadCount > 0 && (
-                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-orange-700 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">
-                                            {conv.unreadCount}
-                                        </div>
-                                    )}
-                                </div>
+const getConversationGroup = (conversation: ConversationLike) => {
+  if (conversation.isSupportConversation) return "support";
+  if (conversation.propertyTitle || conversation.propertyAddress) return "journeys";
+  if (conversation.agentAgency) return "agents";
+  return "other";
+};
 
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <p className="font-bold text-gray-900 dark:text-white truncate">{conv.contactName}</p>
-                                        <span className="text-xs text-gray-500 dark:text-gray-300 whitespace-nowrap">{conv.lastMessageTime}</span>
-                                    </div>
-                                    <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
-                                        {conv.lastMessage}
-                                    </p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="p-8 text-center">
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">No conversations found</p>
-                    </div>
-                )}
-            </div>
+const getDisplayTitle = (conversation: ConversationLike) => {
+  if (conversation.propertyTitle) return conversation.propertyTitle;
+  return conversation.contactName || "Message";
+};
+
+const getDisplaySubtitle = (conversation: ConversationLike) => {
+  if (conversation.propertyTitle) {
+    return conversation.contactName || "Property update";
+  }
+
+  if (conversation.agentAgency) return conversation.agentAgency;
+  if (conversation.propertyAddress) return conversation.propertyAddress;
+  if (conversation.isSupportConversation) return "Estospaces support";
+  return "Journey update";
+};
+
+export default function ConversationList({
+  onSelectConversation,
+  selectedConversationId,
+}: ConversationListProps) {
+  const { conversations, searchQuery, setSearchQuery } = useMessages();
+  const groupedConversations = groupDefinitions
+    .map((group) => ({
+      ...group,
+      items: (conversations as ConversationLike[]).filter(
+        (conversation) => getConversationGroup(conversation) === group.id,
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  return (
+    <div className="flex h-full flex-col bg-white dark:bg-gray-800">
+      <div className="border-b border-gray-100 p-4 dark:border-gray-700/70">
+        <div className="relative">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            size={18}
+          />
+          <input
+            type="text"
+            placeholder="Search messages..."
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-orange-500/50 dark:focus:ring-orange-500/10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
-    );
+        <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          Messages are grouped by what they are about, so repeated names are easier to understand.
+        </p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-4">
+        {groupedConversations.length > 0 ? (
+          <div className="space-y-5">
+            {groupedConversations.map((group) => {
+              const GroupIcon = group.icon;
+
+              return (
+                <section key={group.id}>
+                  <div className="mb-2 flex items-center gap-2 px-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-gray-100 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                      <GroupIcon size={15} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                        {group.label}
+                      </p>
+                      <p className="truncate text-xs text-gray-400 dark:text-gray-500">
+                        {group.hint}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {group.items.map((conversation) => {
+                      const selected = selectedConversationId === conversation.id;
+                      const unreadCount = conversation.unreadCount || 0;
+                      const title = getDisplayTitle(conversation);
+                      const subtitle = getDisplaySubtitle(conversation);
+
+                      return (
+                        <button
+                          key={conversation.id}
+                          type="button"
+                          onClick={() => onSelectConversation(conversation.id)}
+                          className={`w-full rounded-2xl border p-3 text-left transition-all ${
+                            selected
+                              ? "border-orange-200 bg-orange-50 shadow-[0_20px_40px_-30px_rgba(249,115,22,0.8)] dark:border-orange-500/40 dark:bg-orange-500/10"
+                              : "border-transparent hover:border-gray-100 hover:bg-gray-50 dark:hover:border-gray-700 dark:hover:bg-gray-700/40"
+                          }`}
+                          aria-pressed={selected}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="relative flex-shrink-0">
+                              <Avatar
+                                userId={
+                                  conversation.isSupportConversation
+                                    ? undefined
+                                    : conversation.agentId
+                                }
+                                src={conversation.agentAvatar}
+                                name={conversation.contactName || title}
+                                size="md"
+                                status={
+                                  conversation.isSupportConversation
+                                    ? undefined
+                                    : conversation.isOnline
+                                      ? "online"
+                                      : "offline"
+                                }
+                              />
+                              {unreadCount > 0 && (
+                                <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-orange-600 text-[10px] font-bold text-white dark:border-gray-800">
+                                  {unreadCount > 9 ? "9+" : unreadCount}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 flex items-center justify-between gap-3">
+                                <p className="truncate text-sm font-bold text-gray-950 dark:text-white">
+                                  {title}
+                                </p>
+                                {conversation.lastMessageTime && (
+                                  <span className="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                                    {conversation.lastMessageTime}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
+                                {subtitle}
+                              </p>
+                              {conversation.lastMessage && (
+                                <p
+                                  className={`mt-1 truncate text-sm ${
+                                    unreadCount > 0
+                                      ? "font-semibold text-gray-900 dark:text-white"
+                                      : "text-gray-500 dark:text-gray-400"
+                                  }`}
+                                >
+                                  {conversation.lastMessage}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-gray-900 dark:text-gray-500">
+              <MessageSquare size={24} />
+            </div>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              {searchQuery ? "No matching messages" : "No messages yet"}
+            </p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {searchQuery
+                ? "Try a name, home, or agent."
+                : "Chats will appear here when a home journey or enquiry starts."}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

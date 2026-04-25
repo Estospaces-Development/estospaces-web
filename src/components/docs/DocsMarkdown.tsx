@@ -11,27 +11,27 @@ interface DocsMarkdownProps {
 
 const components: Components = {
     h1: ({ children }) => (
-        <h1 className="mb-5 text-display text-gray-950 dark:text-white">{children}</h1>
+        <h1 className="mobile-safe-text mb-5 text-display text-gray-950 dark:text-white">{children}</h1>
     ),
     h2: ({ children }) => (
-        <h2 className="mt-14 mb-4 text-headline text-gray-950 dark:text-white">{children}</h2>
+        <h2 className="mobile-safe-text mt-14 mb-4 text-headline text-gray-950 dark:text-white">{children}</h2>
     ),
     h3: ({ children }) => (
-        <h3 className="mt-9 mb-3 text-title text-gray-950 dark:text-white">{children}</h3>
+        <h3 className="mobile-safe-text mt-9 mb-3 text-title text-gray-950 dark:text-white">{children}</h3>
     ),
     h4: ({ children }) => (
         <h4 className="mt-6 mb-3 text-base font-bold text-gray-900 dark:text-white">{children}</h4>
     ),
     p: ({ children }) => (
-        <p className="mb-5 max-w-[76ch] text-[16px] leading-8 text-gray-700 dark:text-gray-300">{children}</p>
+        <p className="mobile-safe-text mb-5 max-w-[76ch] text-[16px] leading-8 text-gray-700 dark:text-gray-300">{children}</p>
     ),
     ul: ({ children }) => (
-        <ul className="mb-7 ml-5 max-w-[76ch] list-disc space-y-3 text-[15px] leading-7 text-gray-700 marker:text-orange-500 dark:text-gray-300">
+        <ul className="mobile-safe-text mb-7 ml-5 max-w-[76ch] list-disc space-y-3 text-[15px] leading-7 text-gray-700 marker:text-orange-500 dark:text-gray-300">
             {children}
         </ul>
     ),
     ol: ({ children }) => (
-        <ol className="mb-7 ml-5 max-w-[76ch] list-decimal space-y-3 text-[15px] leading-7 text-gray-700 marker:font-semibold marker:text-orange-500 dark:text-gray-300">
+        <ol className="mobile-safe-text mb-7 ml-5 max-w-[76ch] list-decimal space-y-3 text-[15px] leading-7 text-gray-700 marker:font-semibold marker:text-orange-500 dark:text-gray-300">
             {children}
         </ol>
     ),
@@ -63,9 +63,9 @@ const components: Components = {
     strong: ({ children }) => (
         <strong className="font-bold text-gray-950 dark:text-white">{children}</strong>
     ),
-    code: ({ inline, children }) =>
-        inline ? (
-            <code className="rounded-lg bg-orange-50 px-1.5 py-0.5 font-mono text-[13px] text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
+    code: ({ className, children }) =>
+        !className ? (
+            <code className="mobile-safe-text rounded-lg bg-orange-50 px-1.5 py-0.5 font-mono text-[13px] text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
                 {children}
             </code>
         ) : (

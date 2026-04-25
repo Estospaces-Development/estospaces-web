@@ -20,6 +20,10 @@ import {
 import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
 import { useWorkspaceSync } from './WorkspaceSyncContext';
 import { normalizeNotificationToWorkspaceSyncEvent } from '@/lib/workspaceSync';
+import {
+    getNotificationToastDedupeKey,
+    shouldPersistNotificationToastDedupeKey,
+} from '@/lib/notificationToastDedupe';
 
 interface NotificationsContextType {
     notifications: Notification[];
@@ -58,6 +62,7 @@ const HIGH_PRIORITY_NOTIFICATION_TYPES = new Set([
 ]);
 
 const BROWSER_NOTIFICATION_ICON = '/images/logo-icon.png';
+const TOAST_DEDUPE_STORAGE_PREFIX = 'estospaces:notification-toast-dedupe:';
 
 const supportsBrowserNotifications = () =>
     typeof window !== 'undefined' && 'Notification' in window;
@@ -89,6 +94,35 @@ const showBrowserNotification = (notification: Notification, role: string) => {
     }
 };
 
+const readStoredToastDedupeKeys = (userId: string) => {
+    if (typeof window === 'undefined') {
+        return new Set<string>();
+    }
+
+    try {
+        const rawValue = window.localStorage.getItem(`${TOAST_DEDUPE_STORAGE_PREFIX}${userId}`);
+        const parsed = rawValue ? JSON.parse(rawValue) : [];
+        return new Set(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []);
+    } catch {
+        return new Set<string>();
+    }
+};
+
+const writeStoredToastDedupeKeys = (userId: string, keys: Set<string>) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(
+            `${TOAST_DEDUPE_STORAGE_PREFIX}${userId}`,
+            JSON.stringify(Array.from(keys).slice(-100)),
+        );
+    } catch {
+        // Local storage is best-effort only.
+    }
+};
+
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
     const toast = useToast();
@@ -98,12 +132,14 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     const [loading, setLoading] = useState(false);
     const hasHydratedRef = useRef(false);
     const previousUnreadIDsRef = useRef<Set<string>>(new Set());
+    const shownToastDedupeKeysRef = useRef<Set<string>>(new Set());
 
     const loadNotifications = useCallback(async (silent: boolean) => {
         if (!user) {
             setNotifications([]);
             setUnreadCount(0);
             previousUnreadIDsRef.current = new Set();
+            shownToastDedupeKeysRef.current = new Set();
             hasHydratedRef.current = false;
             return;
         }
@@ -129,6 +165,16 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
                     .slice(0, 3);
 
                 freshNotifications.forEach((notification) => {
+                    const toastDedupeKey = getNotificationToastDedupeKey(notification);
+                    if (shownToastDedupeKeysRef.current.has(toastDedupeKey)) {
+                        return;
+                    }
+
+                    shownToastDedupeKeysRef.current.add(toastDedupeKey);
+                    if (shouldPersistNotificationToastDedupeKey(notification)) {
+                        writeStoredToastDedupeKeys(user.id, shownToastDedupeKeysRef.current);
+                    }
+
                     const isHighPriority = HIGH_PRIORITY_NOTIFICATION_TYPES.has(notification.type as any);
                     if (!isDocumentHidden) {
                         const toastMethod = isHighPriority ? toast.warning : toast.info;
@@ -245,8 +291,11 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     }, [notifications]);
 
     useEffect(() => {
+        if (user?.id) {
+            shownToastDedupeKeysRef.current = readStoredToastDedupeKeys(user.id);
+        }
         void fetchNotifications();
-    }, [fetchNotifications]);
+    }, [fetchNotifications, user?.id]);
 
     useEffect(() => {
         if (!user) return;

@@ -17,6 +17,15 @@ const ROW_HEIGHT = 16;
 const formatCell = (value: string | number) => String(value ?? '').replace(/\s+/g, ' ').trim();
 const serializeRow = (row: (string | number)[]) => row.map(formatCell).join(' | ');
 const downloadBlob = (blob: Blob, filename: string) => saveAs(blob, filename);
+const toBlobPart = (value: ArrayBuffer | Uint8Array<ArrayBufferLike>): BlobPart => {
+    if (value instanceof ArrayBuffer) {
+        return value;
+    }
+
+    const copy = new Uint8Array(value.byteLength);
+    copy.set(value);
+    return copy.buffer;
+};
 
 export const exportToPDF = async (data: ExportData, filename: string = 'export') => {
     const pdf = await PDFDocument.create();
@@ -49,7 +58,7 @@ export const exportToPDF = async (data: ExportData, filename: string = 'export')
     data.rows.forEach((row) => drawLine(serializeRow(row)));
 
     const pdfBytes = await pdf.save();
-    downloadBlob(new Blob([pdfBytes], { type: 'application/pdf' }), `${filename}.pdf`);
+    downloadBlob(new Blob([toBlobPart(pdfBytes)], { type: 'application/pdf' }), `${filename}.pdf`);
 };
 
 export const exportToExcel = async (data: ExportData, filename: string = 'export') => {
@@ -69,7 +78,7 @@ export const exportToExcel = async (data: ExportData, filename: string = 'export
 
     const excelBuffer = await workbook.xlsx.writeBuffer();
     downloadBlob(
-        new Blob([excelBuffer], {
+        new Blob([toBlobPart(excelBuffer)], {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         }),
         `${filename}.xlsx`,

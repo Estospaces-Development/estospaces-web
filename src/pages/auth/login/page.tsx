@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import AuthBrand from '@/components/auth/AuthBrand';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -93,10 +94,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-col items-center" aria-labelledby="login-heading">
-      {/* Logo */}
-      <div className="mb-8">
-        <img src="/images/auth/logo.jpg" alt="Estospaces" width={160} height={40} className="h-10 w-auto" />
-      </div>
+      <AuthBrand />
 
       {isAuthenticated && !isSwitching ? (
           <div className="text-center w-full max-w-sm">

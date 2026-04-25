@@ -150,7 +150,6 @@ const roles = [
       "/manager/appointments",
       "/manager/messages",
       "/manager/analytics",
-      "/manager/billing",
       "/manager/verification",
       "/manager/profile",
       "/manager/docs",
@@ -196,6 +195,20 @@ function parseTargets(argv) {
   });
 
   return selected.length > 0 ? selected : ["local"];
+}
+
+function parseRoles(argv) {
+  const raw = parseOption(argv, "--roles") || process.env.E2E_ROLES || "";
+  if (!raw.trim()) {
+    return roles;
+  }
+
+  const requested = new Set(raw.split(",").map((role) => role.trim().toLowerCase()).filter(Boolean));
+  const selected = roles.filter((role) => requested.has(role.name));
+  if (selected.length === 0) {
+    throw new Error(`No valid roles selected from --roles=${raw}`);
+  }
+  return selected;
 }
 
 function parseOption(argv, name) {
@@ -359,6 +372,7 @@ async function runCaseChecks(page, targetName, baseUrl, caseId, roleName) {
 async function main() {
   const argv = process.argv.slice(2);
   const requestedTargets = parseTargets(argv);
+  const selectedRoles = parseRoles(argv);
   const overrideBaseUrl = parseOption(argv, "--base-url");
   const overrideCaseId = parseOption(argv, "--case-id");
   const browser = await chromium.launch({ headless: true });
@@ -379,10 +393,14 @@ async function main() {
     const defaultBaseUrl = overrideBaseUrl || target.baseUrl;
     const caseId = overrideCaseId || target.caseId;
 
-    await ensureReachable(target.appBaseUrl || defaultBaseUrl);
-    await ensureReachable(target.adminBaseUrl || defaultBaseUrl);
+    if (selectedRoles.some((role) => role.name !== "admin")) {
+      await ensureReachable(target.appBaseUrl || defaultBaseUrl);
+    }
+    if (selectedRoles.some((role) => role.name === "admin")) {
+      await ensureReachable(target.adminBaseUrl || defaultBaseUrl);
+    }
 
-    for (const role of roles) {
+    for (const role of selectedRoles) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
       const page = await context.newPage();
       const pageErrors = [];
@@ -463,6 +481,7 @@ async function main() {
   const report = {
     ranAt: new Date().toISOString(),
     requestedTargets,
+    requestedRoles: selectedRoles.map((role) => role.name),
     summary,
     results: allResults,
   };

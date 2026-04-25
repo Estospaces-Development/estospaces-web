@@ -29,17 +29,11 @@ export function getNotificationNavigationPath(
     const data = notification.data;
     const targetPath = readString(data, 'target_path', 'targetPath');
 
-    if (targetPath) {
-        return targetPath;
-    }
-
     const conversationID = readString(data, 'conversation_id', 'conversationId');
     const ticketId = readString(data, 'ticket_id', 'ticketId');
     const applicationId = readString(data, 'applicationId', 'application_id');
     const viewingId = readString(data, 'viewingId', 'viewing_id');
     const contractId = readString(data, 'contractId', 'contract_id');
-    const paymentId = readString(data, 'paymentId', 'payment_id');
-    const invoiceId = readString(data, 'invoiceId', 'invoice_id');
     const subjectUserId = readString(data, 'subject_user_id', 'subjectUserId', 'userId', 'user_id');
     const fastTrackCaseId = readString(data, 'fast_track_id', 'fastTrackId', 'caseId', 'case_id');
     const leadId = readString(data, 'leadId', 'lead_id');
@@ -96,24 +90,19 @@ export function getNotificationNavigationPath(
         leadId,
         propertyId,
     });
-    const userPaymentsPath = buildWorkspacePath('/user/dashboard/payments', {
-        applicationId,
-        contractId,
-        paymentId,
-        invoiceId,
-        caseId: fastTrackCaseId,
-        leadId,
-        propertyId,
-    });
-    const managerPaymentsPath = buildWorkspacePath('/manager/billing', {
-        applicationId,
-        contractId,
-        paymentId,
-        invoiceId,
-        caseId: fastTrackCaseId,
-        leadId,
-        propertyId,
-    });
+
+    if (targetPath) {
+        if (
+            targetPath === '/user/dashboard/payments'
+            || targetPath.startsWith('/user/dashboard/payments?')
+            || targetPath === '/manager/billing'
+            || targetPath.startsWith('/manager/billing?')
+        ) {
+            return role === 'manager' ? managerContractsPath : userContractsPath;
+        }
+
+        return targetPath;
+    }
     const managerUserVerificationPath = subjectUserId
         ? `/manager/user-verifications?user=${encodeURIComponent(subjectUserId)}`
         : '/manager/user-verifications';
@@ -201,7 +190,7 @@ export function getNotificationNavigationPath(
         case 'payment_received':
         case 'payment_reminder':
         case 'payment_failed':
-            return role === 'manager' ? managerPaymentsPath : userPaymentsPath;
+            return role === 'manager' ? managerContractsPath : userContractsPath;
         case 'contract_update':
             return role === 'manager' ? managerContractsPath : userContractsPath;
         case 'document_verified':

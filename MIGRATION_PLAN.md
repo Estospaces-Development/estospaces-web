@@ -4,8 +4,8 @@
 Migrating from React + Vite monolith to Next.js 15 with proper dashboard separation.
 
 ## Source
-- **From**: `/Users/puvendhan/Documents/repos/new/estospaces-app` (demo branch)
-- **To**: `/Users/puvendhan/Documents/repos/new/esp/estospaces-web`
+- **From**: Legacy estospaces-app
+- **To**: Next.js 15 Project (estospaces-web)
 
 ## Migration Status
 
@@ -13,6 +13,10 @@ Migrating from React + Vite monolith to Next.js 15 with proper dashboard separat
 - [x] Initialize Next.js 15 with TypeScript
 - [x] Create directory structure for all dashboards
 - [x] Set up route groups: (admin), (manager), (user), (auth), (public)
+- [x] Removed all mock data and legacy client dependencies
+- [x] Integrated real backend Go services for Auth, Properties, Leads, and Analytics
+- [x] Implemented dynamic Admin Dashboard with real-time stats
+- [x] Enabled role-based routing and account switching logic
 
 ### 🔄 In Progress
 - [ ] Create layout files for each dashboard
@@ -83,7 +87,7 @@ src/components/Dashboard/* → src/components/user/*
 - React Router → Next.js App Router
 - Context API → Zustand
 - Fetch calls → TanStack Query
-- Supabase Client → Custom API Client (Go backend)
+- Legacy data client → Custom API Client (Go backend)
 - Vite → Next.js
 
 ## Next Steps

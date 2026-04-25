@@ -93,17 +93,23 @@ export const buildPrefilledSupportComposer = ({
 
 export const getAutoSelectedSupportTicketId = ({
     selectedTicketId,
+    selectedConversationId = '',
     tickets,
     isAdmin,
     hasPrefilledComposerContext,
 }: {
     selectedTicketId: string;
+    selectedConversationId?: string;
     tickets: SupportTicketSummary[];
     isAdmin: boolean;
     hasPrefilledComposerContext: boolean;
 }): string => {
     if (selectedTicketId) {
         return selectedTicketId;
+    }
+
+    if (selectedConversationId) {
+        return tickets.find((ticket) => ticket.conversation_id === selectedConversationId)?.id || '';
     }
 
     if (!isAdmin && hasPrefilledComposerContext) {

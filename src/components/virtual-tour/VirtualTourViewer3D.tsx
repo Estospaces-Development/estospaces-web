@@ -128,7 +128,6 @@ const VirtualTourViewer3D: React.FC<VirtualTourViewer3DProps> = ({
 
                     },
                     (xhr) => {
-                        // console.log((xhr.loaded / xhr.total * 100) + '% loaded');
                     },
                     (err) => {
                         console.error('An error occurred loading EXR', err);

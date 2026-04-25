@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
 import ConversationList from '@/components/dashboard/messaging/ConversationList';
 import ConversationThread from '@/components/dashboard/messaging/ConversationThread';
@@ -10,16 +10,19 @@ import { ArrowLeft } from 'lucide-react';
 import { resolveConversationQuerySelection } from '@/lib/messagesInbox';
 
 function MessagesContent() {
-    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
+    const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
     const {
         conversations,
         allConversations,
         hasLoadedConversations,
         selectedConversationId,
         setSelectedConversationId,
+        refreshConversations,
     } = useMessages();
     const requestedConversationId = searchParams.get('conversation');
+    const normalizedRequestedConversationId = requestedConversationId?.trim() || null;
     const [isDesktop, setIsDesktop] = useState(() => (
         typeof window === 'undefined' ? true : window.matchMedia('(min-width: 768px)').matches
     ));
@@ -40,32 +43,52 @@ function MessagesContent() {
     }, []);
 
     useEffect(() => {
+        if (!normalizedRequestedConversationId) {
+            attemptedConversationRefreshesRef.current.clear();
+            conversationRefreshesInFlightRef.current.clear();
+            return;
+        }
+
+        if (conversationRefreshesInFlightRef.current.has(normalizedRequestedConversationId)) {
+            return;
+        }
+
         const queryResolution = resolveConversationQuerySelection({
-            requestedConversationId,
+            requestedConversationId: normalizedRequestedConversationId,
             hasLoadedConversations,
             availableConversationIds: allConversations.map((conversation) => conversation.id),
+            hasAttemptedRefresh: attemptedConversationRefreshesRef.current.has(normalizedRequestedConversationId),
         });
 
         if (queryResolution.status === 'wait') {
             return;
         }
 
+        if (queryResolution.status === 'refresh' && queryResolution.conversationId) {
+            attemptedConversationRefreshesRef.current.add(queryResolution.conversationId);
+            conversationRefreshesInFlightRef.current.add(queryResolution.conversationId);
+            void refreshConversations()
+                .finally(() => {
+                    conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId!);
+                });
+            return;
+        }
+
         if (queryResolution.status === 'select') {
+            if (queryResolution.conversationId) {
+                attemptedConversationRefreshesRef.current.delete(queryResolution.conversationId);
+                conversationRefreshesInFlightRef.current.delete(queryResolution.conversationId);
+            }
             if (selectedConversationId !== queryResolution.conversationId) {
                 setSelectedConversationId(queryResolution.conversationId);
             }
             return;
         }
-
-        if (queryResolution.status === 'clear') {
-            setSelectedConversationId(null);
-            navigate('/manager/messages', { replace: true });
-        }
     }, [
         allConversations,
         hasLoadedConversations,
-        navigate,
-        requestedConversationId,
+        normalizedRequestedConversationId,
+        refreshConversations,
         selectedConversationId,
         setSelectedConversationId,
     ]);

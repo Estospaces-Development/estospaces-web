@@ -221,6 +221,7 @@ export interface BrokerRequestRecord {
     title: string;
     address_line_1: string;
     city: string;
+    country?: string;
     postcode?: string;
     price: number;
     image_urls?: string;
@@ -249,6 +250,7 @@ export interface BrokerRequestPropertyShare {
     title: string;
     address_line_1: string;
     city: string;
+    country?: string;
     postcode?: string;
     price: number;
     image_urls?: string;

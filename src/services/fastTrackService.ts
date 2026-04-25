@@ -1,5 +1,13 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
+import type {
+  JourneyAction,
+  JourneyBlocker,
+  JourneyDeadline,
+  JourneyRequirement,
+  JourneyState,
+  JourneyStateFields,
+} from "@/types/journey";
 
 const BOOKING_URL = () => getServiceUrl("booking");
 type ServiceRequestOptions = Pick<ApiFetchOptions, "suppressErrorToast">;
@@ -23,6 +31,7 @@ export type FastTrackLegacyStep =
   | "completed";
 
 export type FastTrackStep = FastTrackLegacyStep;
+export type PropertyType = "rent" | "buy";
 
 export type FastTrackFinalStatus = "active" | "completed" | "cancelled";
 export type FastTrackLegacyFinalStatus =
@@ -200,7 +209,7 @@ interface BackendFastTrackWorkspaceCase {
   }>;
 }
 
-export interface FastTrackCase {
+export interface FastTrackCase extends JourneyStateFields {
   id: string;
   caseId: string;
   propertyId: string;
@@ -239,7 +248,23 @@ export interface FastTrackCase {
     | "verified";
   documentPhaseReason?: string;
   nextAction?: string;
+  nextActionTarget?: string;
   statusReason?: string;
+  journeySource?: string;
+  journeyStage?: string;
+  journeyState?: JourneyState | null;
+  jurisdiction?: string;
+  jurisdictionProfile?: string;
+  liveStage?: string;
+  stageGroup?: string;
+  journeyStatusReason?: string;
+  blockers?: JourneyBlocker[];
+  deadlines?: JourneyDeadline[];
+  requiredEvidence?: JourneyRequirement[];
+  nextActions?: JourneyAction[];
+  blockingRequirements?: string[];
+  pendingRequirements?: string[];
+  completedRequirements?: string[];
   applicationId?: string;
   viewingId?: string;
   contractId?: string;
@@ -427,8 +452,16 @@ const deriveDocumentPhaseReason = (
 const deriveNextAction = (
   stage: FastTrackStage,
   journeyMode: "rent" | "sale",
+  finalStatus: FastTrackFinalStatus,
   roleHint?: "user" | "manager" | "admin",
 ): string => {
+  if (finalStatus === "completed") {
+    return roleHint === "user" ? "Review your completed handover" : "Review completed case";
+  }
+  if (finalStatus === "cancelled") {
+    return "No action needed";
+  }
+
   switch (stage) {
     case "documents":
       return roleHint === "user" ? "Upload core files" : "Approve core files";
@@ -586,7 +619,7 @@ const mapBackendToFrontend = (
     })),
     documentPhase,
     documentPhaseReason: deriveDocumentPhaseReason(documentPhase),
-    nextAction: deriveNextAction(stage, journeyMode),
+    nextAction: deriveNextAction(stage, journeyMode, workspaceFinalStatus),
     statusReason: deriveStatusReason(stage, journeyMode, workspaceFinalStatus),
   };
 };

@@ -7,6 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "test": "node scripts/run-unit-tests.cjs",
     "test:fast-track": "tsx --test src/lib/apiUtils.test.ts src/lib/fastTrackWorkflow.test.ts src/lib/managerFastTrack.test.ts src/lib/userFastTrack.test.ts src/lib/fastTrackLinkedJourney.test.ts src/lib/fastTrackStageGuidance.test.ts src/lib/fastTrackProcessScenarios.test.ts",
     "test:e2e:dev": "node scripts/e2e-smoke.cjs --target=dev",
@@ -17,6 +18,7 @@
     "test:e2e:batch:dev": "node scripts/e2e-batch-runner.cjs --env=dev",
     "test:e2e:batch:local": "node scripts/e2e-batch-runner.cjs --env=local",
     "test:e2e:batch:review": "node scripts/e2e-batch-review.cjs",
+    "test:release-smoke:prod": "node scripts/app-release-smoke.cjs --target=prod",
     "test:messages:local": "node scripts/messages-proof.cjs --target=local",
     "test:messages:dev": "node scripts/messages-proof.cjs --target=dev",
     "test:support:local": "node scripts/support-lifecycle-proof.cjs --target=local",
@@ -40,7 +42,7 @@
     "axios": "^1.15.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.34.0",
     "leaflet": "^1.9.4",
@@ -55,7 +57,7 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
-    "uuid": "^13.0.0",
+    "uuid": "^14.0.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },
@@ -75,6 +77,9 @@
   },
   "overrides": {
     "brace-expansion": "^1.1.13",
+    "exceljs": {
+      "uuid": "^14.0.0"
+    },
     "follow-redirects": "^1.16.0",
     "minimatch": "^3.1.4"
   }

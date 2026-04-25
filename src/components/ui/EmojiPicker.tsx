@@ -38,7 +38,7 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
     return (
         <div
             ref={pickerRef}
-            className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-100 dark:border-gray-700 w-80 h-96 flex flex-col z-50"
+            className="absolute bottom-full right-0 z-50 mb-2 flex h-96 w-[calc(100vw-2rem)] max-w-80 flex-col rounded-lg border border-gray-100 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
         >
             <div className="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Emoji</h3>
@@ -63,7 +63,7 @@ const EmojiPicker = ({ onEmojiSelect, isOpen, onClose }: EmojiPickerProps) => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
-                <div className="grid grid-cols-8 gap-1">
+                <div className="grid grid-cols-7 gap-1 min-[360px]:grid-cols-8">
                     {(emojiCategories[activeCategory] || []).map((emoji, index) => (
                         <button
                             key={index}

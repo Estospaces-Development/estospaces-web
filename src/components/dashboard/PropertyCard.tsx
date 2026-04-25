@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-;
 import {
     Heart,
     Bed,
@@ -23,7 +22,9 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useProperties } from '@/contexts/PropertyContext';
 import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 
 interface PropertyCardProps {
     property: any;
@@ -91,62 +92,18 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
         }
     };
 
-    // Helper to get images
-    const getPropertyImages = () => {
-        let imagesList: any[] = [];
-
-        if (Array.isArray(property.images)) {
-            imagesList = property.images;
-        } else if (Array.isArray(property.image_urls)) {
-            imagesList = property.image_urls;
-        } else if (property.media?.images?.length > 0) {
-            imagesList = property.media.images.map((img: any) => img.url);
-        } else if (typeof property.images === 'string') {
-            try {
-                const parsed = JSON.parse(property.images);
-                if (Array.isArray(parsed)) imagesList = parsed;
-                else if (typeof parsed === 'string' && parsed.startsWith('[')) {
-                    imagesList = JSON.parse(parsed);
-                }
-            } catch {
-                if (property.images.startsWith('http') || property.images.startsWith('data:')) imagesList = [property.images];
-            }
-        } else if (typeof property.image_urls === 'string') {
-            try {
-                const parsed = JSON.parse(property.image_urls);
-                if (Array.isArray(parsed)) imagesList = parsed;
-                else if (typeof parsed === 'string' && parsed.startsWith('[')) {
-                    imagesList = JSON.parse(parsed);
-                }
-            } catch {
-                if (property.image_urls.startsWith('http') || property.image_urls.startsWith('data:')) imagesList = [property.image_urls];
-            }
-        }
-
-        // Strictly filter to strings that actually look like urls, or relative paths, filtering out empty or stringified array brackets "[]"
-        let validImages = imagesList.filter((img): img is string => typeof img === 'string' && img.length > 5 && !img.includes('[]'));
-
-        if (validImages.length === 0) {
-            const singleImage = property.image || property.image_url || property.thumbnail_url || property.photo || property.main_image;
-            if (typeof singleImage === 'string' && singleImage.length > 5 && !singleImage.includes('[]')) {
-                validImages = [singleImage];
-            }
-        }
-
-        return validImages;
-    };
-
-    const images = getPropertyImages();
+    const images = getPropertyImages(property);
+    const displayImages = images.length > 0 ? images : [PROPERTY_PLACEHOLDER_IMAGE];
     const hasMultipleImages = images.length > 1;
 
     const nextImage = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setCurrentImageIndex((prev) => (prev + 1) % images.length);
+        setCurrentImageIndex((prev) => (prev + 1) % displayImages.length);
     };
 
     const prevImage = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+        setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
     };
 
     const formatPrice = (price: number | string | any) => {
@@ -229,53 +186,51 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
             >
                 {/* Image Carousel */}
                 <div className="relative h-56 bg-gray-100 dark:bg-gray-800 overflow-hidden flex-shrink-0">
-                    {images.length > 0 ? (
-                        <>
-                            <img
-                                src={images[currentImageIndex]}
-                                alt={property.title}
-                                className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            />
+                    <>
+                        <img
+                            src={displayImages[currentImageIndex] || PROPERTY_PLACEHOLDER_IMAGE}
+                            alt={property.title || 'Property'}
+                            className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            onError={(event) => {
+                                event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
+                            }}
+                        />
 
-                            {hasMultipleImages && (
-                                <>
-                                    <button
-                                        onClick={prevImage}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                    >
-                                        <ChevronLeft size={16} className="text-gray-700" />
-                                    </button>
-                                    <button
-                                        onClick={nextImage}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-                                    >
-                                        <ChevronRight size={16} className="text-gray-700" />
-                                    </button>
+                        {hasMultipleImages && (
+                            <>
+                                <button
+                                    onClick={prevImage}
+                                    className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"
+                                >
+                                    <ChevronLeft size={16} className="text-gray-700" />
+                                </button>
+                                <button
+                                    onClick={nextImage}
+                                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"
+                                >
+                                    <ChevronRight size={16} className="text-gray-700" />
+                                </button>
 
-                                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                        {images.map((_, index) => (
-                                            <button
-                                                key={index}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setCurrentImageIndex(index);
-                                                }}
-                                                className={`h-1.5 rounded-full transition-all ${index === currentImageIndex
-                                                    ? 'bg-white w-4'
-                                                    : 'bg-white/50 w-1.5 hover:bg-white/75'
-                                                    }`}
-                                            />
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </>
-                    ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-                            <span className="text-gray-500 font-medium font-manager">No Image</span>
-                        </div>
-                    )}
+                                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                    {displayImages.map((_, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setCurrentImageIndex(index);
+                                            }}
+                                            className={`h-2 rounded-full transition-all ${index === currentImageIndex
+                                                ? 'bg-white w-5'
+                                                : 'bg-white/50 w-2 hover:bg-white/75'
+                                                }`}
+                                            aria-label={`Show property image ${index + 1}`}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </>
 
                     {(property.type || showStatusBadge) && (
                         <div className="absolute top-3 left-3 right-16 flex flex-col items-start gap-2">

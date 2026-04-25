@@ -23,7 +23,6 @@ import {
   BarChart3,
   Activity,
   UserCircle,
-  CreditCard,
   BookOpen,
   AlertCircle,
 } from "lucide-react";
@@ -80,17 +79,11 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
       path: "/manager/dashboard/properties",
     },
     { icon: Users, label: "Leads & Clients", path: "/manager/leads" },
-    {
-      icon: Shield,
-      label: "User Verifications",
-      path: "/manager/user-verifications",
-    },
     { icon: FileText, label: "Applications", path: "/manager/applications" },
     { icon: FileText, label: "Contracts", path: "/manager/contracts" },
     { icon: Calendar, label: "Appointments", path: "/manager/appointments" },
     { icon: MessageSquare, label: "Messages", path: "/manager/messages" },
     { icon: BarChart3, label: "Analytics", path: "/manager/analytics" },
-    { icon: CreditCard, label: "Billing", path: "/manager/billing" },
   ];
 
   // Manager footer items — matches legacy sidebar footer exactly
@@ -129,8 +122,8 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
   return (
     <aside
       aria-label={`${isManagerRole ? "Manager" : "User"} workspace sidebar`}
-      className={`fixed left-0 top-0 h-full flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 z-50 transition-all duration-300 ease-in-out ${
-        isOpen ? "w-64" : "w-20"
+      className={`fixed left-0 top-0 z-50 flex h-full flex-col border-r border-gray-100 bg-white transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900 ${
+        isOpen ? "w-64 translate-x-0" : "invisible w-64 -translate-x-full pointer-events-none lg:visible lg:w-20 lg:translate-x-0 lg:pointer-events-auto"
       }`}
     >
       {/* Logo Section */}
@@ -158,7 +151,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
           <button
             type="button"
             onClick={onToggle}
-            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors md:hidden"
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors lg:hidden"
             aria-label="Close sidebar"
           >
             <ChevronLeft size={18} />
@@ -171,7 +164,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
       <button
         type="button"
         onClick={onToggle}
-        className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full p-1.5 text-gray-500 hover:text-orange-500 shadow-md hidden md:flex items-center justify-center transition-transform hover:scale-110 z-50"
+        className="absolute -right-3 top-20 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full p-1.5 text-gray-500 hover:text-orange-500 shadow-md hidden lg:flex items-center justify-center transition-transform hover:scale-110 z-50"
         aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
       >
         {isOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
