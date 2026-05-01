@@ -38,7 +38,9 @@ export interface CommunityPost {
 export const getCommunityPosts = async (category?: string) => {
     try {
         const url = `${CORE_URL()}/api/v1/community/posts${category ? `?category=${category}` : ''}`;
-        const data = await apiFetch<CommunityPost[]>(url);
+        const data = await apiFetch<CommunityPost[]>(url, {
+            suppressErrorToast: true,
+        });
         return { data: data || [], error: null };
     } catch (error: any) {
         return { data: [], error: getErrorMessage(error) };
@@ -49,6 +51,7 @@ export const addComment = async (postId: string, content: string) => {
     try {
         const data = await apiFetch<PostComment>(`${CORE_URL()}/api/v1/community/posts/${postId}/comments`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify({ content })
         });
         return { data, error: null };
@@ -57,11 +60,12 @@ export const addComment = async (postId: string, content: string) => {
     }
 };
 
-export const createCommunityPost = async (content: string, tag: PostTag, visibility: PostVisibility) => {
+export const createCommunityPost = async (title: string, content: string, tag: PostTag, visibility: PostVisibility) => {
     try {
         const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts`, {
             method: 'POST',
-            body: JSON.stringify({ content, tag, visibility }),
+            suppressErrorToast: true,
+            body: JSON.stringify({ title, content, tag, visibility }),
         });
         return { data, error: null };
     } catch (error: any) {
@@ -73,6 +77,7 @@ export const toggleCommunityLike = async (postId: string, liked: boolean) => {
     try {
         const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts/${postId}/like`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify({ liked }),
         });
         return { data, error: null };
@@ -85,6 +90,7 @@ export const updateCommunityPin = async (postId: string, isPinned: boolean) => {
     try {
         const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts/${postId}/pin`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({ is_pinned: isPinned }),
         });
         return { data, error: null };
@@ -97,6 +103,7 @@ export const updateCommunityArchive = async (postId: string, archived: boolean) 
     try {
         const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts/${postId}/archive`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({ archived }),
         });
         return { data, error: null };
@@ -109,6 +116,7 @@ export const updateCommunityVisibility = async (postId: string, visibility: Post
     try {
         const data = await apiFetch<CommunityPost>(`${CORE_URL()}/api/v1/community/posts/${postId}/visibility`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({ visibility }),
         });
         return { data, error: null };

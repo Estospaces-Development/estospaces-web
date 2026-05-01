@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 
 import { resolveWorkspaceSection } from "./liveCaseWorkspace";
 import {
+  shouldShowManagerDecisionControls,
+  shouldShowManagerManagedPurchaseWorkspace,
+  shouldShowManagerWithdrawControl,
   resolveCaseFileRequestedSection,
   resolveManagerApplicationOverviewFocus,
   resolveManagerApplicationTab,
@@ -27,4 +30,41 @@ test("manager application workspace routes documents, journey, and activity to t
 
   assert.equal(resolveCaseFileRequestedSection("documents"), "documents");
   assert.equal(resolveCaseFileRequestedSection("overview"), null);
+});
+
+test("manager application detail shows manager decisions instead of user withdrawal controls", () => {
+  const submittedRentApplication = {
+    source: "application",
+    status: "submitted",
+    listingType: "rent",
+  };
+
+  assert.equal(shouldShowManagerDecisionControls(submittedRentApplication), true);
+  assert.equal(shouldShowManagerWithdrawControl(submittedRentApplication), false);
+});
+
+test("manager application detail exposes guided purchase checks for submitted sale applications", () => {
+  const submittedSaleApplication = {
+    source: "application",
+    status: "submitted",
+    listingType: "sale",
+  };
+
+  assert.equal(shouldShowManagerManagedPurchaseWorkspace(submittedSaleApplication), true);
+  assert.equal(
+    shouldShowManagerManagedPurchaseWorkspace({
+      source: "sale_progression",
+      status: "offer_submitted",
+      listingType: "sale",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldShowManagerManagedPurchaseWorkspace({
+      source: "application",
+      status: "completed",
+      listingType: "sale",
+    }),
+    false,
+  );
 });

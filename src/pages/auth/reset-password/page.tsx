@@ -6,6 +6,7 @@ import { getServiceUrl } from '@/lib/apiUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
 
 const API_URL = getServiceUrl('core');
+const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
 
 interface PasswordRule {
     label: string;
@@ -35,11 +36,12 @@ export default function ResetPasswordPage() {
 
     const allRulesPassed = rules.every(r => r.test(password));
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+    const tokenLooksValid = typeof token === 'string' && /^[A-Za-z0-9._~-]{16,}$/.test(token);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!token) {
+        if (!tokenLooksValid) {
             setError('Invalid or missing reset token. Please request a new link.');
             return;
         }
@@ -104,7 +106,7 @@ export default function ResetPasswordPage() {
     }
 
     // No token — show error immediately
-    if (!token) {
+    if (!tokenLooksValid) {
         return (
             <div className="flex flex-col items-center w-full max-w-md mx-auto text-center">
                 <AuthBrand />
@@ -118,12 +120,12 @@ export default function ResetPasswordPage() {
                 </h2>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
-                    This link is missing a reset token. Please request a new password reset link.
+                    This reset link is invalid or missing a reset token. Please request a new password reset link.
                 </p>
 
                 <Link
                     to="/forgot-password"
-                    className="w-full inline-block py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all text-center"
+                    className={`w-full inline-block py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all text-center ${authFocusClass}`}
                 >
                     Request New Reset Link
                 </Link>

@@ -19,6 +19,7 @@ export interface UserVerificationInfo {
     has_identity_doc: boolean;
     has_address_doc: boolean;
     has_financial_doc: boolean;
+    documents_uploaded: boolean;
     documents_verified: boolean;
     lead_count: number;
     pending_leads: number;
@@ -66,7 +67,7 @@ export const getPendingUserVerifications = async (
     try {
         const response = await apiFetchEnvelope<UserVerificationInfo[]>(
             `${getScopeBasePath(scope)}/users/pending-verification`,
-            options,
+            { suppressErrorToast: options.suppressErrorToast ?? true },
         );
         return { data: response.data || [], error: null };
     } catch (error: any) {
@@ -81,6 +82,7 @@ export const getUserVerificationDetails = async (
     try {
         const data = await apiFetch<UserVerificationDetails>(
             `${getScopeBasePath(scope)}/users/${userId}/verification`,
+            { suppressErrorToast: true },
         );
         return { data, error: null };
     } catch (error: any) {
@@ -97,6 +99,7 @@ export const updateUserVerification = async (
     try {
         await apiFetch(`${getScopeBasePath(scope)}/users/${userId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status,
                 notes: notes || '',
@@ -121,6 +124,7 @@ export const reviewUserDocument = async (
 
         await apiFetch(basePath, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status,
                 reject_reason: rejectReason || '',

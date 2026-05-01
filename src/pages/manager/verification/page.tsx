@@ -38,22 +38,6 @@ export default function VerificationPage() {
     const [selectedRoleForProfile, setSelectedRoleForProfile] = useState<ManagerProfileType>('broker');
     const [actionError, setActionError] = useState<string | null>(null);
     const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
-    const needsReverification = verificationStatus === 'rejected' || verificationStatus === 'verification_required';
-    const canRequestReview = verificationStatus === 'incomplete'
-        || verificationStatus === 'rejected'
-        || verificationStatus === 'verification_required';
-
-    const canUploadDocument = (status: string) => {
-        if (isSubmitting) {
-            return false;
-        }
-
-        if (needsReverification) {
-            return true;
-        }
-
-        return status === 'not_uploaded' || status === 'rejected' || status === 'reupload_required';
-    };
 
     // Restore missing functions
     const handleInitialRegistration = async () => {
@@ -125,6 +109,28 @@ export default function VerificationPage() {
 
         return missing;
     }, [managerProfile]);
+    const profileNeedsCompletion = missingProfileFields.length > 0;
+    const effectiveVerificationStatus = profileNeedsCompletion && verificationStatus === 'approved'
+        ? 'verification_required'
+        : verificationStatus;
+    const effectiveIsVerified = isVerified && !profileNeedsCompletion;
+    const needsReverification = effectiveVerificationStatus === 'rejected'
+        || effectiveVerificationStatus === 'verification_required';
+    const canRequestReview = effectiveVerificationStatus === 'incomplete'
+        || effectiveVerificationStatus === 'rejected'
+        || effectiveVerificationStatus === 'verification_required';
+
+    const canUploadDocument = (status: string) => {
+        if (isSubmitting) {
+            return false;
+        }
+
+        if (needsReverification && !profileNeedsCompletion) {
+            return true;
+        }
+
+        return status === 'not_uploaded' || status === 'rejected' || status === 'reupload_required';
+    };
 
     const getStatusColor = (status: string | null) => {
         if (!status) return 'bg-gray-400';
@@ -332,9 +338,9 @@ export default function VerificationPage() {
                         Verify your {managerProfile.profile_type} profile to unlock premium properties and features.
                     </p>
                 </div>
-                <div className={`px-5 py-2.5 rounded-3xl flex items-center gap-2.5 text-white font-bold shadow-xl transition-all duration-300 ${getStatusColor(verificationStatus)}`}>
+                <div className={`px-5 py-2.5 rounded-3xl flex items-center gap-2.5 text-white font-bold shadow-xl transition-all duration-300 ${getStatusColor(effectiveVerificationStatus)}`}>
                     <Shield className="w-5 h-5" />
-                    <span>{getStatusText(verificationStatus)}</span>
+                    <span>{getStatusText(effectiveVerificationStatus)}</span>
                 </div>
             </div>
 
@@ -369,7 +375,7 @@ export default function VerificationPage() {
                 </div>
             )}
 
-            {missingProfileFields.length > 0 && (
+            {profileNeedsCompletion && (
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-semibold text-blue-700 dark:border-blue-900/30 dark:bg-blue-900/10 dark:text-blue-300">
                     Complete your professional profile before final review. Missing: {missingProfileFields.join(', ')}. You can update these details on the manager profile page.
                 </div>
@@ -393,6 +399,7 @@ export default function VerificationPage() {
                         const isRejected = step.status === 'rejected' || step.status === 'reupload_required';
                         const isImage = isPreviewableImageDocument(doc?.mime_type, doc?.document_url);
                         const previewUrl = doc ? previewUrls[doc.id] : undefined;
+                        const uploadInputId = `manager-verification-upload-${step.id}`;
 
                         return (
                         <div
@@ -470,28 +477,40 @@ export default function VerificationPage() {
 
                             <div className="mt-6 flex flex-wrap gap-2">
                                 {isUploadEnabled && (
-                                    <button
-                                        disabled={isSubmitting}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'image/*,.pdf';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) handleDocumentUpload(step.id, file);
-                                            };
-                                            input.click();
-                                        }}
-                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
-                                            isRejected 
-                                            ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-500/20' 
-                                            : 'bg-gray-900 dark:bg-orange-500 text-white hover:scale-105'
-                                        }`}
-                                    >
-                                        <Upload className="w-3.5 h-3.5" />
-                                        {hasDocument ? 'Replace File' : 'Upload File'}
-                                    </button>
+                                    <>
+                                        <input
+                                            id={uploadInputId}
+                                            name={uploadInputId}
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
+                                            className="sr-only"
+                                            aria-label={`Upload ${step.title}`}
+                                            disabled={isSubmitting}
+                                            onChange={(event) => {
+                                                const file = event.currentTarget.files?.[0];
+                                                event.currentTarget.value = '';
+                                                if (file) {
+                                                    void handleDocumentUpload(step.id, file);
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            disabled={isSubmitting}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                document.getElementById(uploadInputId)?.click();
+                                            }}
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                                isRejected
+                                                ? 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-500/20'
+                                                : 'bg-gray-900 dark:bg-orange-500 text-white hover:scale-105'
+                                            }`}
+                                        >
+                                            <Upload className="w-3.5 h-3.5" />
+                                            {hasDocument ? 'Replace File' : 'Upload File'}
+                                        </button>
+                                    </>
                                 )}
 
                                 {hasDocument && (
@@ -530,25 +549,25 @@ export default function VerificationPage() {
                         <span>Last updated: {new Date(managerProfile.updated_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     </div>
 
-                    {!isVerified && canRequestReview ? (
+                    {!effectiveIsVerified && (canRequestReview || profileNeedsCompletion) ? (
                         <button
-                            onClick={missingProfileFields.length > 0 ? () => navigate('/manager/profile') : handleSubmitForReview}
-                            disabled={isSubmitting || (missingDocuments.length > 0 && missingProfileFields.length === 0)}
+                            onClick={profileNeedsCompletion ? () => navigate('/manager/profile') : handleSubmitForReview}
+                            disabled={isSubmitting || (missingDocuments.length > 0 && !profileNeedsCompletion)}
                             className={`w-full sm:w-auto px-10 py-4 rounded-2xl font-bold shadow-2xl transition-all flex items-center justify-center gap-2.5 group ${
-                                missingProfileFields.length > 0
+                                profileNeedsCompletion
                                 ? 'bg-orange-500 hover:bg-orange-600 text-white hover:scale-105 active:scale-95'
                                 : 'bg-gray-900 dark:bg-orange-500 hover:scale-105 active:scale-95 text-white disabled:opacity-30 disabled:hover:scale-100'
                             }`}
                         >
                             {isSubmitting ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : missingProfileFields.length > 0 ? (
+                            ) : profileNeedsCompletion ? (
                                 <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
                             ) : (
                                 <Shield className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                             )}
                             
-                            {missingProfileFields.length > 0
+                            {profileNeedsCompletion
                                 ? 'Complete profile details'
                                 : missingDocuments.length > 0
                                     ? `Upload ${missingDocuments.length} more`
@@ -556,15 +575,15 @@ export default function VerificationPage() {
                                         ? 'Resubmit for Review'
                                         : 'Submit for Final Review'}
                             
-                            {missingProfileFields.length > 0 && (
+                            {profileNeedsCompletion && (
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             )}
                         </button>
                     ) : (
                         <div className="flex items-center gap-3 px-6 py-3 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
-                            <div className={`w-2 h-2 rounded-full animate-pulse ${isVerified ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                            <div className={`w-2 h-2 rounded-full animate-pulse ${effectiveIsVerified ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                             <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                                {isVerified ? 'Your profile is fully verified' : 'We are currently reviewing your documents'}
+                                {effectiveIsVerified ? 'Your profile is fully verified' : 'We are currently reviewing your documents'}
                             </span>
                         </div>
                     )}

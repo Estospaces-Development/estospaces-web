@@ -124,8 +124,8 @@ const BrokersCommunity = () => {
         setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
     };
 
-    const handleCreatePost = async (content: string, tag: PostTag, visibility: PostVisibility) => {
-        const { data, error } = await createCommunityPost(content, tag, visibility);
+    const handleCreatePost = async (title: string, content: string, tag: PostTag, visibility: PostVisibility) => {
+        const { data, error } = await createCommunityPost(title, content, tag, visibility);
         if (error || !data) {
             toast.error(error || 'Unable to create a community post right now.');
             return;

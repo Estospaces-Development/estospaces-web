@@ -11,6 +11,7 @@ import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'luc
 import axios from 'axios';
 
 const API_URL = getServiceUrl('core');
+const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
 
 type TermsAcceptanceModalProps = {
     isOpen: boolean;
@@ -20,17 +21,25 @@ type TermsAcceptanceModalProps = {
     onReachedEnd: () => void;
 };
 
-function TermsAcceptanceModal({
+export function TermsAcceptanceModal({
     isOpen,
     canAccept,
     onClose,
     onAccept,
     onReachedEnd,
 }: TermsAcceptanceModalProps) {
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+    const previousFocusedElementRef = useRef<HTMLElement | null>(null);
+
     useEffect(() => {
         if (!isOpen) {
             return undefined;
         }
+
+        previousFocusedElementRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        window.setTimeout(() => closeButtonRef.current?.focus(), 0);
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -44,6 +53,7 @@ function TermsAcceptanceModal({
         return () => {
             document.body.style.overflow = '';
             window.removeEventListener('keydown', handleEscape);
+            previousFocusedElementRef.current?.focus();
         };
     }, [isOpen, onClose]);
 
@@ -54,22 +64,29 @@ function TermsAcceptanceModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-950/70 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-4xl rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div
+                className="relative w-full max-w-4xl rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="terms-dialog-title"
+                aria-describedby="terms-dialog-description"
+            >
                 <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-4">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-600 mb-3">
                             <FileText size={12} />
                             Required Read-Through
                         </div>
-                        <h3 className="text-xl font-black text-gray-900 dark:text-white">Review Terms & Conditions</h3>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <h3 id="terms-dialog-title" className="text-xl font-black text-gray-900 dark:text-white">Review Terms & Conditions</h3>
+                        <p id="terms-dialog-description" className="text-sm text-gray-500 mt-1">
                             Scroll through the full terms before accepting. Last updated: {TERMS_LAST_UPDATED}
                         </p>
                     </div>
                     <button
+                        ref={closeButtonRef}
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        className={`px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${authFocusClass}`}
                     >
                         Close
                     </button>
@@ -91,7 +108,10 @@ function TermsAcceptanceModal({
                 </div>
 
                 <div className="px-6 py-5 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <p className={`text-sm font-medium ${canAccept ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                    <p
+                        className={`break-words text-sm font-medium ${canAccept ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
+                        aria-live="polite"
+                    >
                         {canAccept
                             ? 'You have reached the end of the terms. You can now accept and continue.'
                             : 'Scroll to the bottom of the terms to enable acceptance.'}
@@ -100,7 +120,7 @@ function TermsAcceptanceModal({
                         type="button"
                         onClick={onAccept}
                         disabled={!canAccept}
-                        className="px-6 py-3 rounded-2xl bg-orange-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors"
+                        className={`px-6 py-3 rounded-2xl bg-orange-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors ${authFocusClass}`}
                     >
                         I Have Read and Agree
                     </button>
@@ -373,7 +393,7 @@ export default function RegisterPage() {
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'user'
                                     ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
                                     : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                                    }`}
+                                    } ${authFocusClass}`}
                             >
                                 <User size={24} className={role === 'user' ? 'text-primary' : 'text-gray-400'} />
                                 <span className="mt-2 font-medium text-sm">User</span>
@@ -385,7 +405,7 @@ export default function RegisterPage() {
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'manager'
                                     ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
                                     : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                                    }`}
+                                    } ${authFocusClass}`}
                             >
                                 <Briefcase size={24} className={role === 'manager' ? 'text-primary' : 'text-gray-400'} />
                                 <span className="mt-2 font-medium text-sm">Manager</span>
@@ -402,7 +422,7 @@ export default function RegisterPage() {
                             placeholder="Enter your full name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                            className={`w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass}`}
                         />
                     </div>
 
@@ -414,7 +434,7 @@ export default function RegisterPage() {
                             placeholder="Enter your email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                            className={`w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass}`}
                         />
                     </div>
 
@@ -427,12 +447,13 @@ export default function RegisterPage() {
                                 placeholder="Create a password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                                className={`w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass}`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 ${authFocusClass}`}
                             >
                                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -458,7 +479,7 @@ export default function RegisterPage() {
                     </ul>
 
                     {error && (
-                        <p className="text-red-500 text-sm mb-4 text-center">{error}</p>
+                        <p role="alert" className="mb-4 break-words text-center text-sm text-red-500">{error}</p>
                     )}
 
                     <div className="mb-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/60 p-4">
@@ -469,7 +490,7 @@ export default function RegisterPage() {
                                     type="checkbox"
                                     checked={agreedToTerms}
                                     onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
-                                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+                                    className={`w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer ${authFocusClass}`}
                                 />
                             </div>
                             <div className="flex-1">
@@ -487,12 +508,12 @@ export default function RegisterPage() {
                             <button
                                 type="button"
                                 onClick={openTermsModal}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm hover:bg-orange-100 transition-colors"
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm hover:bg-orange-100 transition-colors ${authFocusClass}`}
                             >
                                 <FileText size={16} />
                                 {agreedToTerms ? 'Review Terms Again' : 'Read Terms & Conditions'}
                             </button>
-                            <Link to="/privacy" className="text-sm font-medium text-primary hover:underline">
+                            <Link to="/privacy" className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}>
                                 Privacy Policy
                             </Link>
                             {acceptedTermsLabel && (
@@ -506,7 +527,7 @@ export default function RegisterPage() {
                     <button
                         type="submit"
                         disabled={loading || !agreedToTerms || !termsAcceptedAt}
-                        className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${authFocusClass}`}
                     >
                         {loading ? 'Creating account...' : 'Sign Up'}
                     </button>
@@ -514,7 +535,7 @@ export default function RegisterPage() {
 
                 <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
                     Already have an account?{' '}
-                    <Link to="/login" className="text-primary font-medium hover:underline">
+                    <Link to="/login" className={`text-primary font-medium hover:underline ${authFocusClass}`}>
                         Sign in
                     </Link>
                 </div>

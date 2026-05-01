@@ -146,7 +146,7 @@ interface ApplicationsContextType {
     setDateRangeFilter: (range: { start: string | null; end: string | null }) => void;
     fetchApplications: () => Promise<void>;
     withdrawApplication: (id: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
-    updateApplicationStatus: (id: string, status: string) => Promise<{ success: boolean; error?: string }>;
+    updateApplicationStatus: (id: string, status: string, reviewNotes?: string) => Promise<{ success: boolean; error?: string }>;
     registerConsumer: () => () => void;
 }
 
@@ -674,13 +674,13 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         return { success: true };
     };
 
-    const withdrawApplication = async (id: string) => {
+    const withdrawApplication = async (id: string, reason = 'Withdrawn by applicant') => {
         const application = applications.find((item) => item.id === id);
         if (isSaleProgressionRecord(application)) {
             return { success: false, error: 'Purchase progressions cannot be withdrawn from the applications workspace' };
         }
 
-        const { data, error: updateError } = await withdrawBackendApplication(id);
+        const { data, error: updateError } = await withdrawBackendApplication(id, reason);
 
         if (updateError || !data) {
             return { success: false, error: updateError || 'Failed to withdraw application' };
@@ -697,9 +697,9 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         return { success: true };
     };
 
-    const updateApplicationStatus = async (id: string, status: string) => {
+    const updateApplicationStatus = async (id: string, status: string, reviewNotes?: string) => {
         if (status === APPLICATION_STATUS.WITHDRAWN) {
-            return withdrawApplication(id);
+            return withdrawApplication(id, reviewNotes || 'Withdrawn by applicant');
         }
 
         const application = applications.find((item) => item.id === id);
@@ -717,7 +717,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 return { success: false, error: 'This purchase step cannot be updated from here yet' };
             }
 
-            const { data, error: updateError } = await updateSaleProgression(progressionTarget.id, stage);
+            const { data, error: updateError } = await updateSaleProgression(progressionTarget.id, stage, reviewNotes);
             if (updateError || !data) {
                 return { success: false, error: updateError || 'Failed to update purchase progression' };
             }
@@ -764,7 +764,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return { success: false, error: 'The live purchase progression is not ready yet for this case' };
         }
 
-        const { data, error: updateError } = await updateBackendApplicationStatus(id, status);
+        const { data, error: updateError } = await updateBackendApplicationStatus(id, status, reviewNotes);
 
         if (updateError || !data) {
             return { success: false, error: updateError || 'Failed to update application status' };

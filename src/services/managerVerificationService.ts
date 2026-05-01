@@ -488,6 +488,7 @@ export const createManagerProfile = async (_userId: string, data: Partial<Manage
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/register`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify(buildCreateManagerProfilePayload(data)),
         });
 
@@ -501,6 +502,7 @@ export const updateManagerProfile = async (_userId: string, data: Partial<Manage
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify(buildUpdateManagerProfilePayload(data)),
         });
 
@@ -520,6 +522,7 @@ export const uploadManagerDocument = async (
 
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 document_type: documentType,
                 document_category: mapDocumentCategory(documentType),
@@ -541,6 +544,7 @@ export const submitManagerDocument = async (data: any): Promise<{ data: ManagerD
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify(data),
         });
 
@@ -560,6 +564,7 @@ export const deleteManagerDocument = async (_managerId: string, documentType: Ma
 
         await apiFetch(`${CORE_URL()}/api/v1/documents/${document.id}`, {
             method: 'DELETE',
+            suppressErrorToast: true,
         });
 
         return { error: null };
@@ -570,7 +575,9 @@ export const deleteManagerDocument = async (_managerId: string, documentType: Ma
 
 export const getManagerVerificationDetails = async (userId: string): Promise<{ data: ManagerVerificationDetails | null; error: string | null }> => {
     try {
-        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${userId}`);
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${userId}`, {
+            suppressErrorToast: true,
+        });
         const profile = data?.profile ? mapManagerProfile(data.profile, data.user_info) : null;
         const documents = Array.isArray(data?.documents) ? data.documents.map(mapManagerDocument) : [];
         const auditLog = Array.isArray(data?.audit_log)
@@ -613,6 +620,7 @@ export const startReview = async (managerId: string, _actorId: string): Promise<
         await Promise.all(
             pendingDocuments.map((document) => apiFetch(`${CORE_URL()}/api/v1/documents/${document.id}/review`, {
                 method: 'PUT',
+                suppressErrorToast: true,
                 body: JSON.stringify({ status: 'under_review' }),
             })),
         );
@@ -627,6 +635,7 @@ export const approveManager = async (managerId: string, _actorId: string, notes?
     try {
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'approved',
                 admin_notes: notes || '',
@@ -644,6 +653,7 @@ export const rejectManager = async (managerId: string, _actorId: string, reason:
     try {
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'rejected',
                 admin_notes: reason,
@@ -661,6 +671,7 @@ export const revokeManagerApproval = async (managerId: string, _actorId: string,
     try {
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'rejected',
                 admin_notes: `Approval revoked: ${reason}`,
@@ -683,6 +694,7 @@ export const requestDocumentReupload = async (
     try {
         await apiFetch(`${CORE_URL()}/api/v1/documents/${documentId}/review`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'reupload_required',
                 reject_reason: reason,
@@ -699,6 +711,7 @@ export const submitForVerification = async (_managerId: string): Promise<{ data:
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile/submit`, {
             method: 'POST',
+            suppressErrorToast: true,
         });
 
         return { data: mapManagerProfile(result), error: null };
@@ -725,6 +738,7 @@ export interface UserVerificationInfo {
     has_identity_doc: boolean;
     has_address_doc: boolean;
     has_financial_doc: boolean;
+    documents_uploaded: boolean;
     documents_verified: boolean;
     lead_count: number;
     pending_leads: number;
@@ -755,7 +769,9 @@ export interface UserVerificationDetails {
 
 export const getManagerPendingUserVerifications = async (): Promise<{ data: UserVerificationInfo[]; error: string | null }> => {
     try {
-        const response = await apiFetchEnvelope<UserVerificationInfo[]>(`${CORE_URL()}/api/v1/manager/users/pending-verification`);
+        const response = await apiFetchEnvelope<UserVerificationInfo[]>(`${CORE_URL()}/api/v1/manager/users/pending-verification`, {
+            suppressErrorToast: true,
+        });
         return { data: response.data || [], error: null };
     } catch (error: any) {
         return { data: [], error: getErrorMessage(error) };
@@ -764,7 +780,9 @@ export const getManagerPendingUserVerifications = async (): Promise<{ data: User
 
 export const getManagerUserVerificationDetails = async (userId: string): Promise<{ data: UserVerificationDetails | null; error: string | null }> => {
     try {
-        const data = await apiFetch<UserVerificationDetails>(`${CORE_URL()}/api/v1/manager/users/${userId}/verification`);
+        const data = await apiFetch<UserVerificationDetails>(`${CORE_URL()}/api/v1/manager/users/${userId}/verification`, {
+            suppressErrorToast: true,
+        });
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
@@ -775,6 +793,7 @@ export const verifyUserByManager = async (userId: string, status: string, notes?
     try {
         await apiFetch(`${CORE_URL()}/api/v1/manager/users/${userId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status,
                 notes: notes || '',
@@ -790,6 +809,7 @@ export const reviewUserDocumentByManager = async (documentId: string, status: st
     try {
         await apiFetch(`${CORE_URL()}/api/v1/manager/documents/${documentId}/review`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status,
                 reject_reason: rejectReason || '',

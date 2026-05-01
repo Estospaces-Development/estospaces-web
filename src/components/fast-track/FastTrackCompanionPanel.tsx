@@ -18,7 +18,8 @@ import {
   type FastTrackCompanionContext,
   type FastTrackCompanionRole,
 } from "@/lib/fastTrackCompanion";
-import { isFastTrackCaseComplete, resolveFastTrackThreadRecipientId } from "@/lib/fastTrackWorkspace";
+import { getFastTrackDecisionGuard, isFastTrackCaseComplete, resolveFastTrackThreadRecipientId } from "@/lib/fastTrackWorkspace";
+import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { upsertDirectConversation } from "@/services/messagesService";
 
@@ -115,10 +116,10 @@ export default function FastTrackCompanionPanel({
       fastTrackCase.decision.amount ? String(fastTrackCase.decision.amount) : "",
     );
     setAgreementNote(fastTrackCase.agreement.note || "");
-    setPaymentRequired(
+    setPaymentRequired(PAYMENTS_ENABLED && (
       fastTrackCase.agreement.paymentStatus === "requested" ||
-        fastTrackCase.agreement.paymentStatus === "paid",
-    );
+        fastTrackCase.agreement.paymentStatus === "paid"
+    ));
     setAmountDue(
       fastTrackCase.agreement.amountDue ? String(fastTrackCase.agreement.amountDue) : "",
     );
@@ -356,6 +357,18 @@ export default function FastTrackCompanionPanel({
   };
 
   const renderDecisionActions = () => {
+    const decisionStatus = String(fastTrackCase.decision.status || "").trim().toLowerCase();
+    const isSaleDecision = fastTrackCase.journeyMode === "sale";
+    const offerReviewStarted = decisionStatus === "under_review";
+    const offerDecisionFinal = decisionStatus === "approved" || decisionStatus === "rejected";
+    const approveDecisionGuard = getFastTrackDecisionGuard(fastTrackCase, "approved", decisionAmount, role);
+    const rejectDecisionGuard = getFastTrackDecisionGuard(fastTrackCase, "rejected", decisionAmount, role);
+    const startOfferReviewGuard = isSaleDecision ? rejectDecisionGuard : null;
+    const finalOfferDecisionGuard = isSaleDecision && !offerReviewStarted && !offerDecisionFinal
+      ? "Start offer review before recording the final offer decision."
+      : null;
+    const decisionGuardMessage = finalOfferDecisionGuard || approveDecisionGuard || rejectDecisionGuard;
+
     if (role === "user") {
       return (
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
@@ -375,7 +388,12 @@ export default function FastTrackCompanionPanel({
 
     return (
       <div className="space-y-4">
-        {fastTrackCase.journeyMode === "sale" ? (
+        {decisionGuardMessage ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+            {decisionGuardMessage}
+          </div>
+        ) : null}
+        {isSaleDecision ? (
           <input
             type="number"
             min="0"
@@ -392,7 +410,37 @@ export default function FastTrackCompanionPanel({
           placeholder="Add a short decision note."
           className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
         />
+        {isSaleDecision ? (
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-200">
+            {offerDecisionFinal
+              ? `Offer ${decisionStatus.replace("_", " ")}.`
+              : offerReviewStarted
+                ? "Offer is under review."
+                : "Offer review has not started."}
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-3">
+          {isSaleDecision && !offerDecisionFinal ? (
+            <button
+              type="button"
+              onClick={() =>
+                void runAction(
+                  "start_offer_review",
+                  { note: decisionNote },
+                  "Offer review started.",
+                )
+              }
+              disabled={
+                activeAction === "start_offer_review" ||
+                Boolean(startOfferReviewGuard) ||
+                offerReviewStarted
+              }
+              title={startOfferReviewGuard || (offerReviewStarted ? "Offer review is already started." : undefined)}
+              className="rounded-2xl border border-orange-200 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950/30"
+            >
+              Start offer review
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() =>
@@ -410,7 +458,8 @@ export default function FastTrackCompanionPanel({
                 `${describeFastTrackStageLabel(fastTrackCase)} approved.`,
               )
             }
-            disabled={activeAction === "record_decision"}
+            disabled={activeAction === "record_decision" || Boolean(finalOfferDecisionGuard || approveDecisionGuard)}
+            title={finalOfferDecisionGuard || approveDecisionGuard || undefined}
             className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "record_decision" ? (
@@ -429,7 +478,8 @@ export default function FastTrackCompanionPanel({
                 `${describeFastTrackStageLabel(fastTrackCase)} rejected.`,
               )
             }
-            disabled={activeAction === "record_decision"}
+            disabled={activeAction === "record_decision" || Boolean(finalOfferDecisionGuard || rejectDecisionGuard)}
+            title={finalOfferDecisionGuard || rejectDecisionGuard || undefined}
             className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
           >
             Reject
@@ -477,7 +527,7 @@ export default function FastTrackCompanionPanel({
       );
     }
 
-    const publishNeedsAmount = paymentRequired && !hasValidAgreementAmount;
+    const publishNeedsAmount = PAYMENTS_ENABLED && paymentRequired && !hasValidAgreementAmount;
 
     return (
       <div className="space-y-4">
@@ -488,26 +538,28 @@ export default function FastTrackCompanionPanel({
           placeholder="Add a short agreement note."
           className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
         />
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+        {PAYMENTS_ENABLED ? (
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={paymentRequired}
+                onChange={(event) => setPaymentRequired(event.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              />
+              Payment required
+            </label>
             <input
-              type="checkbox"
-              checked={paymentRequired}
-              onChange={(event) => setPaymentRequired(event.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+              type="number"
+              min="0"
+              value={amountDue}
+              onChange={(event) => setAmountDue(event.target.value)}
+              placeholder="Amount due"
+              disabled={!paymentRequired}
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 md:max-w-xs"
             />
-            Payment required
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={amountDue}
-            onChange={(event) => setAmountDue(event.target.value)}
-            placeholder="Amount due"
-            disabled={!paymentRequired}
-            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 md:max-w-xs"
-          />
-        </div>
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
@@ -516,9 +568,9 @@ export default function FastTrackCompanionPanel({
                 "publish_agreement",
                 {
                   note: agreementNote,
-                  payment_required: paymentRequired && hasValidAgreementAmount,
+                  payment_required: PAYMENTS_ENABLED && paymentRequired && hasValidAgreementAmount,
                   amount_due:
-                    paymentRequired && hasValidAgreementAmount
+                    PAYMENTS_ENABLED && paymentRequired && hasValidAgreementAmount
                       ? parsedAgreementAmount
                       : undefined,
                 },
@@ -535,7 +587,7 @@ export default function FastTrackCompanionPanel({
             )}
             Publish agreement
           </button>
-          {paymentRequired ? (
+          {PAYMENTS_ENABLED && paymentRequired ? (
             <button
               type="button"
               onClick={() =>
@@ -561,6 +613,29 @@ export default function FastTrackCompanionPanel({
   };
 
   const renderHandoverActions = () => {
+    const decisionStatus = String(fastTrackCase.decision.status || "").trim().toLowerCase();
+    const agreementStatus = String(fastTrackCase.agreement.status || "").trim().toLowerCase();
+    const paymentStatus = String(fastTrackCase.agreement.paymentStatus || "").trim().toLowerCase();
+    const handoverStatus = String(fastTrackCase.handover.status || "").trim().toLowerCase();
+    const decisionAccepted = decisionStatus === "approved" || decisionStatus === "accepted";
+    const agreementAccepted = ["accepted", "signed", "completed"].includes(agreementStatus);
+    const handoverReady = handoverStatus === "ready";
+    const handoverCompleted = handoverStatus === "completed";
+    const handoverPrerequisiteGuard = !decisionAccepted
+      ? fastTrackCase.journeyMode === "sale"
+        ? "Accept the offer before starting handover."
+        : "Approve the application before starting handover."
+      : !agreementAccepted
+        ? fastTrackCase.journeyMode === "sale"
+          ? "Finish the memorandum, solicitor conveyancing, exchange, and signed agreement steps before handover."
+          : "Send and confirm the agreement before handover."
+        : PAYMENTS_ENABLED && paymentStatus === "requested"
+          ? "Confirm payment before handover."
+          : null;
+    const completeHandoverGuard = handoverPrerequisiteGuard || (!handoverReady && !handoverCompleted
+      ? "Mark handover ready before completing it."
+      : null);
+
     if (caseComplete) {
       return (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200">
@@ -588,8 +663,10 @@ export default function FastTrackCompanionPanel({
             }
             disabled={
               activeAction === "confirm_handover" ||
-              fastTrackCase.handover.confirmedByUser
+              fastTrackCase.handover.confirmedByUser ||
+              !handoverReady
             }
+            title={!handoverReady ? "The manager must mark handover ready first." : undefined}
             className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "confirm_handover" ? (
@@ -605,6 +682,11 @@ export default function FastTrackCompanionPanel({
 
     return (
       <div className="space-y-4">
+        {handoverPrerequisiteGuard ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+            {handoverPrerequisiteGuard}
+          </div>
+        ) : null}
         <textarea
           rows={3}
           value={handoverNote}
@@ -622,7 +704,13 @@ export default function FastTrackCompanionPanel({
                 "Handover marked ready.",
               )
             }
-            disabled={activeAction === "mark_handover_ready"}
+            disabled={
+              activeAction === "mark_handover_ready" ||
+              Boolean(handoverPrerequisiteGuard) ||
+              handoverReady ||
+              handoverCompleted
+            }
+            title={handoverPrerequisiteGuard || (handoverReady ? "Handover is already ready." : undefined)}
             className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "mark_handover_ready" ? (
@@ -641,7 +729,12 @@ export default function FastTrackCompanionPanel({
                 "Handover completed.",
               )
             }
-            disabled={activeAction === "complete_handover"}
+            disabled={
+              activeAction === "complete_handover" ||
+              Boolean(completeHandoverGuard) ||
+              handoverCompleted
+            }
+            title={completeHandoverGuard || (handoverCompleted ? "Handover is already complete." : undefined)}
             className="rounded-2xl border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
           >
             Complete handover

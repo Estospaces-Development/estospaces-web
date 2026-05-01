@@ -7,6 +7,7 @@ import {
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
     resolveSupportComposerCategory,
+    shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
 import type { SupportTicketSummary } from '@/services/messagesService';
 
@@ -70,6 +71,67 @@ test('admin queue resolves a selected conversation to its support ticket', () =>
     }), 'ticket-1');
 });
 
+test('admin queue recovers from a stale ticket query when the conversation still matches', () => {
+    assert.equal(getAutoSelectedSupportTicketId({
+        selectedTicketId: 'stale-ticket',
+        selectedConversationId: 'conversation-1',
+        tickets,
+        isAdmin: true,
+        hasPrefilledComposerContext: false,
+    }), 'ticket-1');
+});
+
+test('admin queue waits to load ticket detail until ticket and conversation links are resolved', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'stale-ticket',
+        selectedConversationId: 'conversation-1',
+        isAdmin: true,
+        queueLoading: true,
+        tickets,
+    }), false);
+});
+
+test('admin queue does not load a stale ticket after the queue resolves the conversation to another ticket', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'stale-ticket',
+        selectedConversationId: 'conversation-1',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+    }), false);
+});
+
+test('admin queue still loads an explicit ticket after the queue resolves', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'ticket-1',
+        selectedConversationId: 'conversation-1',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+    }), true);
+});
+
+test('admin queue still loads an explicit ticket when filters hide it from the queue', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'ticket-hidden-by-filter',
+        selectedConversationId: 'conversation-hidden-by-filter',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+    }), true);
+});
+
+test('admin queue stops loading stale ticket detail when active filters remove the selected ticket', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'ticket-hidden-by-filter',
+        selectedConversationId: 'conversation-hidden-by-filter',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+        hasActiveFilters: true,
+    }), false);
+});
+
 test('admin queue does not fall back to the first ticket for an unknown selected conversation', () => {
     assert.equal(getAutoSelectedSupportTicketId({
         selectedTicketId: '',
@@ -121,6 +183,17 @@ test('support composer resolves backend category values to the nearest visible l
             'General Inquiry',
         ),
         'General Inquiry',
+    );
+});
+
+test('support composer resolves billing URL aliases to the visible payments label', () => {
+    assert.equal(
+        resolveSupportComposerCategory(
+            'billing',
+            ['General Inquiry', 'Payments', 'Technical Issue'],
+            'General Inquiry',
+        ),
+        'Payments',
     );
 });
 

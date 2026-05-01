@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getPreferences, updatePreferences, type UserPreferences } from '../../../services/authService';
 import { useToast } from '../../../contexts/ToastContext';
+import { type PreferencesValidationErrors, validateUserPreferences } from '@/lib/preferencesValidation';
 
 const defaultPreferences: UserPreferences = {
     preferred_city: '',
@@ -35,6 +36,7 @@ export default function UserSettingsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [settings, setSettings] = useState<UserPreferences>(defaultPreferences);
+    const [preferenceErrors, setPreferenceErrors] = useState<PreferencesValidationErrors>({});
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -71,6 +73,7 @@ export default function UserSettingsPage() {
             ...prev,
             [key]: value,
         }));
+        setPreferenceErrors((prev) => ({ ...prev, [key]: undefined }));
         setIsSaved(false);
     };
 
@@ -82,10 +85,18 @@ export default function UserSettingsPage() {
             ...prev,
             [key]: value === '' ? null : Number(value),
         }));
+        setPreferenceErrors((prev) => ({ ...prev, [key]: undefined }));
         setIsSaved(false);
     };
 
     const handleSave = async () => {
+        const errors = validateUserPreferences(settings);
+        if (Object.keys(errors).length > 0) {
+            setPreferenceErrors(errors);
+            toast.error('Please correct the highlighted preference fields.');
+            return;
+        }
+
         try {
             setIsSaving(true);
             const { error } = await updatePreferences(settings);
@@ -125,8 +136,10 @@ export default function UserSettingsPage() {
                     </p>
                 </div>
                 <button
+                    type="button"
                     onClick={handleSave}
                     disabled={isSaving}
+                    aria-label="Save user preference changes"
                     className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white font-medium rounded-lg transition-colors shadow-sm"
                 >
                     {isSaving ? (
@@ -192,10 +205,11 @@ export default function UserSettingsPage() {
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Preferred City</label>
+                            <label htmlFor="settings-preferred-city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Preferred City</label>
                             <div className="relative">
                                 <MapPin size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
+                                    id="settings-preferred-city"
                                     type="text"
                                     value={settings.preferred_city}
                                     onChange={(e) => handleTextChange('preferred_city', e.target.value)}
@@ -206,88 +220,136 @@ export default function UserSettingsPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Preferred Listing Type</label>
+                            <label htmlFor="settings-preferred-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Preferred Listing Type</label>
                             <select
+                                id="settings-preferred-type"
                                 value={settings.preferred_type}
                                 onChange={(e) => handleTextChange('preferred_type', e.target.value)}
+                                aria-invalid={preferenceErrors.preferred_type ? 'true' : 'false'}
+                                aria-describedby={preferenceErrors.preferred_type ? 'settings-preferred-type-error' : undefined}
                                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                             >
                                 <option value="">No default</option>
                                 <option value="rent">Rent</option>
                                 <option value="sale">Sale</option>
                             </select>
+                            {preferenceErrors.preferred_type && (
+                                <p id="settings-preferred-type-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.preferred_type}
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Minimum Budget</label>
+                            <label htmlFor="settings-min-budget" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Minimum Budget</label>
                             <div className="relative">
                                 <PoundSterling size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
+                                    id="settings-min-budget"
                                     type="number"
                                     min="0"
                                     value={settings.min_budget ?? ''}
                                     onChange={(e) => handleNumberChange('min_budget', e.target.value)}
+                                    aria-invalid={preferenceErrors.min_budget ? 'true' : 'false'}
+                                    aria-describedby={preferenceErrors.min_budget ? 'settings-min-budget-error' : undefined}
                                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                                     placeholder="0"
                                 />
                             </div>
+                            {preferenceErrors.min_budget && (
+                                <p id="settings-min-budget-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.min_budget}
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Maximum Budget</label>
+                            <label htmlFor="settings-max-budget" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Maximum Budget</label>
                             <div className="relative">
                                 <PoundSterling size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
+                                    id="settings-max-budget"
                                     type="number"
                                     min="0"
                                     value={settings.max_budget ?? ''}
                                     onChange={(e) => handleNumberChange('max_budget', e.target.value)}
+                                    aria-invalid={preferenceErrors.max_budget ? 'true' : 'false'}
+                                    aria-describedby={preferenceErrors.max_budget ? 'settings-max-budget-error' : undefined}
                                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                                     placeholder="0"
                                 />
                             </div>
+                            {preferenceErrors.max_budget && (
+                                <p id="settings-max-budget-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.max_budget}
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Minimum Bedrooms</label>
+                            <label htmlFor="settings-min-bedrooms" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Minimum Bedrooms</label>
                             <div className="relative">
                                 <BedDouble size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
+                                    id="settings-min-bedrooms"
                                     type="number"
                                     min="0"
                                     value={settings.min_bedrooms ?? ''}
                                     onChange={(e) => handleNumberChange('min_bedrooms', e.target.value)}
+                                    aria-invalid={preferenceErrors.min_bedrooms ? 'true' : 'false'}
+                                    aria-describedby={preferenceErrors.min_bedrooms ? 'settings-min-bedrooms-error' : undefined}
                                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                                     placeholder="0"
                                 />
                             </div>
+                            {preferenceErrors.min_bedrooms && (
+                                <p id="settings-min-bedrooms-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.min_bedrooms}
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Maximum Bedrooms</label>
+                            <label htmlFor="settings-max-bedrooms" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Maximum Bedrooms</label>
                             <div className="relative">
                                 <BedDouble size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
+                                    id="settings-max-bedrooms"
                                     type="number"
                                     min="0"
                                     value={settings.max_bedrooms ?? ''}
                                     onChange={(e) => handleNumberChange('max_bedrooms', e.target.value)}
+                                    aria-invalid={preferenceErrors.max_bedrooms ? 'true' : 'false'}
+                                    aria-describedby={preferenceErrors.max_bedrooms ? 'settings-max-bedrooms-error' : undefined}
                                     className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                                     placeholder="0"
                                 />
                             </div>
+                            {preferenceErrors.max_bedrooms && (
+                                <p id="settings-max-bedrooms-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.max_bedrooms}
+                                </p>
+                            )}
                         </div>
 
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Search Radius (km)</label>
+                            <label htmlFor="settings-search-radius" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Search Radius (km)</label>
                             <input
+                                id="settings-search-radius"
                                 type="number"
                                 min="0"
                                 value={settings.search_radius_km ?? ''}
                                 onChange={(e) => handleNumberChange('search_radius_km', e.target.value)}
+                                aria-invalid={preferenceErrors.search_radius_km ? 'true' : 'false'}
+                                aria-describedby={preferenceErrors.search_radius_km ? 'settings-search-radius-error' : undefined}
                                 className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100"
                                 placeholder="25"
                             />
+                            {preferenceErrors.search_radius_km && (
+                                <p id="settings-search-radius-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    {preferenceErrors.search_radius_km}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </section>

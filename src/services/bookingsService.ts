@@ -23,6 +23,7 @@ export interface Booking {
     total_amount: number;
     currency: string;
     status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+    cancellation_reason?: string;
     created_at: string;
 }
 
@@ -57,6 +58,15 @@ export interface Viewing {
     workflow_locked?: boolean;
     workflow_lock_reason?: string;
     created_at: string;
+}
+
+export interface CreateBookingRequest {
+    property_id: string;
+    manager_id: string;
+    check_in_date: string;
+    check_out_date: string;
+    guest_count?: number;
+    special_requests?: string;
 }
 
 export interface CreateViewingRequest {
@@ -107,8 +117,33 @@ export interface ViewingAvailability {
 /**
  * Get bookings for the current user
  */
-export async function getBookings(): Promise<Booking[]> {
-    return apiFetch<Booking[]>(`${BOOKING_URL()}/api/v1/bookings`);
+export async function getBookings(options: ServiceRequestOptions = {}): Promise<Booking[]> {
+    return apiFetch<Booking[]>(`${BOOKING_URL()}/api/v1/bookings`, {
+        suppressErrorToast: options.suppressErrorToast ?? true,
+    });
+}
+
+export async function createBooking(request: CreateBookingRequest, options: ServiceRequestOptions = {}): Promise<Booking> {
+    return apiFetch<Booking>(`${BOOKING_URL()}/api/v1/bookings`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+        suppressErrorToast: options.suppressErrorToast ?? true,
+    });
+}
+
+export async function cancelBooking(id: string, reason: string, options: ServiceRequestOptions = {}): Promise<void> {
+    await apiFetch(`${BOOKING_URL()}/api/v1/bookings/${id}/cancel`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason }),
+        suppressErrorToast: options.suppressErrorToast ?? true,
+    });
+}
+
+export async function confirmBooking(id: string, options: ServiceRequestOptions = {}): Promise<void> {
+    await apiFetch(`${BOOKING_URL()}/api/v1/bookings/${id}/confirm`, {
+        method: 'PUT',
+        suppressErrorToast: options.suppressErrorToast ?? true,
+    });
 }
 
 /**
@@ -118,7 +153,7 @@ export async function createViewing(request: CreateViewingRequest, options: Serv
     return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings`, {
         method: 'POST',
         body: JSON.stringify(request),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
     });
 }
 
@@ -126,7 +161,9 @@ export async function createViewing(request: CreateViewingRequest, options: Serv
  * Get viewings for the current user
  */
 export async function getViewings(options: ServiceRequestOptions = {}): Promise<Viewing[]> {
-    return apiFetch<Viewing[]>(`${BOOKING_URL()}/api/v1/viewings`, options);
+    return apiFetch<Viewing[]>(`${BOOKING_URL()}/api/v1/viewings`, {
+        suppressErrorToast: options.suppressErrorToast ?? true,
+    });
 }
 
 export async function getViewingAvailability(propertyId: string): Promise<ViewingAvailability> {
@@ -152,14 +189,14 @@ export async function cancelViewing(id: string, reason: string, options: Service
     await apiFetch(`${BOOKING_URL()}/api/v1/viewings/${id}/cancel`, {
         method: 'PUT',
         body: JSON.stringify({ reason }),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
     });
 }
 
 export async function confirmViewing(id: string, options: ServiceRequestOptions = {}): Promise<void> {
     await apiFetch(`${BOOKING_URL()}/api/v1/viewings/${id}/confirm`, {
         method: 'PUT',
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
     });
 }
 
@@ -167,7 +204,7 @@ export async function updateViewing(id: string, request: UpdateViewingRequest, o
     return apiFetch<Viewing>(`${BOOKING_URL()}/api/v1/viewings/${id}`, {
         method: 'PUT',
         body: JSON.stringify(request),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
     });
 }
 
@@ -179,6 +216,9 @@ export async function getContractTemplates(): Promise<ContractTemplate[]> {
 }
 
 export const bookingsService = {
+    createBooking,
+    cancelBooking,
+    confirmBooking,
     getBookings,
     getViewings,
     getViewingAvailability,

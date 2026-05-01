@@ -20,13 +20,25 @@ import { adminUpdatePropertyStatus, deleteProperty as deletePropertyRequest } fr
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import PaginationBar from '@/components/ui/PaginationBar';
+import {
+    ADMIN_PROPERTY_STATUS_FILTERS,
+    ADMIN_PROPERTY_SORT_OPTIONS,
+    ADMIN_PROPERTY_TYPE_FILTERS,
+    type AdminPropertyRegistrySortOption,
+    filterAdminPropertyRegistry,
+    getAdminPropertySortControlLabel,
+    sortAdminPropertyRegistry,
+} from '@/lib/adminPropertyRegistry';
 
 function PropertyManagementContent() {
     const navigate = useNavigate();
-    const { properties, pagination, fetchProperties, loading } = useProperties();
+    const { properties, pagination, fetchProperties, loading, setPage } = useProperties();
     const { success: showSuccessToast, error: showErrorToast, warning: showWarningToast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [filteringType, setFilteringType] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [sortBy, setSortBy] = useState<AdminPropertyRegistrySortOption>('newest');
     const [updatingPropertyId, setUpdatingPropertyId] = useState<string | null>(null);
 
     const resolvePropertyId = (property: any): string | null => {
@@ -35,30 +47,36 @@ function PropertyManagementContent() {
         return id ? id.trim() : null;
     };
 
-    const filteredProperties = properties.filter((property) => {
-        const normalizedQuery = searchQuery.trim().toLowerCase();
-        const matchesSearch = normalizedQuery === ''
-            || property.title?.toLowerCase().includes(normalizedQuery)
-            || property.city?.toLowerCase().includes(normalizedQuery)
-            || property.location?.city?.toLowerCase().includes(normalizedQuery)
-            || property.status?.toLowerCase().includes(normalizedQuery)
-            || property.contactName?.toLowerCase().includes(normalizedQuery);
+    const handleSearchChange = (value: string) => {
+        setPage(1);
+        setSearchQuery(value);
+    };
 
-        if (!matchesSearch) {
-            return false;
-        }
+    const handleTypeFilterChange = (value: string) => {
+        setPage(1);
+        setFilteringType(value);
+    };
 
-        switch (filteringType) {
-            case 'sale':
-                return property.listingType === 'sale';
-            case 'rent':
-                return property.listingType === 'rent';
-            case 'commercial':
-                return property.propertyType === 'commercial';
-            default:
-                return true;
-        }
-    });
+    const handleStatusFilterChange = (value: string) => {
+        setPage(1);
+        setStatusFilter(value);
+    };
+
+    const handleResetFilters = () => {
+        setPage(1);
+        setSearchQuery('');
+        setFilteringType('all');
+        setStatusFilter('all');
+    };
+
+    const filteredProperties = sortAdminPropertyRegistry(
+        filterAdminPropertyRegistry(properties, {
+            searchQuery,
+            typeFilter: filteringType,
+            statusFilter,
+        }),
+        sortBy,
+    );
 
     const handleStatusChange = async (propertyId: string | null, nextStatus: 'published' | 'rejected' | 'suspended') => {
         if (!propertyId) {
@@ -223,7 +241,7 @@ function PropertyManagementContent() {
                             type="text"
                             placeholder="Search registry..."
                             value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onChange={(event) => handleSearchChange(event.target.value)}
                             className="w-64 rounded-2xl border bg-white py-4 pl-12 pr-6 text-sm font-bold shadow-sm outline-none transition-all focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-800"
                         />
                     </div>
@@ -237,30 +255,73 @@ function PropertyManagementContent() {
                 </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-[2rem] border bg-white p-4 shadow-xl shadow-gray-200/50 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
-                <div className="flex gap-2">
-                    {['all', 'sale', 'rent', 'commercial'].map((type) => (
-                        <button
-                            key={type}
-                            type="button"
-                            onClick={() => setFilteringType(type)}
-                            className={`rounded-xl px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
-                                filteringType === type
-                                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                                    : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
-                            }`}
-                        >
-                            {type}
-                        </button>
-                    ))}
-                </div>
-                <div className="flex items-center gap-4 border-l px-6 dark:border-gray-700">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        Total Listed: <span className="text-gray-900 dark:text-white">{pagination.total || properties.length}</span>
-                    </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        Showing: <span className="text-gray-900 dark:text-white">{filteredProperties.length}</span>
-                    </span>
+            <div className="rounded-[2rem] border bg-white p-4 shadow-xl shadow-gray-200/50 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex flex-1 flex-wrap gap-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Type</span>
+                            {ADMIN_PROPERTY_TYPE_FILTERS.map((type) => (
+                                <button
+                                    key={type.value}
+                                    type="button"
+                                    onClick={() => handleTypeFilterChange(type.value)}
+                                    className={`rounded-xl px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        filteringType === type.value
+                                            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                                            : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                                    }`}
+                                >
+                                    {type.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Status</span>
+                            {ADMIN_PROPERTY_STATUS_FILTERS.map((status) => (
+                                <button
+                                    key={status.value}
+                                    type="button"
+                                    onClick={() => handleStatusFilterChange(status.value)}
+                                    className={`rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        statusFilter === status.value
+                                            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                            : 'text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900'
+                                    }`}
+                                >
+                                    {status.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <label
+                                htmlFor="admin-property-sort"
+                                className="px-2 text-[10px] font-black uppercase tracking-widest text-gray-400"
+                            >
+                                {getAdminPropertySortControlLabel()}
+                            </label>
+                            <select
+                                id="admin-property-sort"
+                                aria-label={getAdminPropertySortControlLabel()}
+                                value={sortBy}
+                                onChange={(event) => setSortBy(event.target.value as AdminPropertyRegistrySortOption)}
+                                className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-500 outline-none transition-all hover:text-gray-900 focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                            >
+                                {ADMIN_PROPERTY_SORT_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4 border-t pt-4 dark:border-gray-700 xl:border-l xl:border-t-0 xl:px-6 xl:pt-0">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            Total Listed: <span className="text-gray-900 dark:text-white">{pagination.total || properties.length}</span>
+                        </span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                            Showing: <span className="text-gray-900 dark:text-white">{filteredProperties.length}</span>
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -272,37 +333,38 @@ function PropertyManagementContent() {
                     </div>
                 </div>
             ) : filteredProperties.length > 0 ? (
-                <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredProperties.map((property, index) => {
-                        const statusBadge = getManagerPropertyStatusBadge(property.status);
-                        const propertyId = resolvePropertyId(property);
-                        const isBusy = propertyId !== null && updatingPropertyId === propertyId;
-                        const propertyImage = getPrimaryPropertyImage(property, PROPERTY_PLACEHOLDER_IMAGE);
+                <>
+                    <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-3">
+                        {filteredProperties.map((property, index) => {
+                            const statusBadge = getManagerPropertyStatusBadge(property.status);
+                            const propertyId = resolvePropertyId(property);
+                            const isBusy = propertyId !== null && updatingPropertyId === propertyId;
+                            const propertyImage = getPrimaryPropertyImage(property, PROPERTY_PLACEHOLDER_IMAGE);
 
-                        return (
-                            <div
-                                key={propertyId || `property-card-${index}`}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => {
-                                    if (!propertyId) {
-                                        showErrorToast('Property ID missing. Please refresh and try again.');
-                                        return;
-                                    }
-                                    navigate(`/admin/properties/${propertyId}`);
-                                }}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter' || event.key === ' ') {
-                                        event.preventDefault();
+                            return (
+                                <div
+                                    key={propertyId || `property-card-${index}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => {
                                         if (!propertyId) {
                                             showErrorToast('Property ID missing. Please refresh and try again.');
                                             return;
                                         }
                                         navigate(`/admin/properties/${propertyId}`);
-                                    }
-                                }}
-                                className="group cursor-pointer overflow-hidden rounded-[3rem] border bg-white shadow-2xl shadow-gray-200/50 transition-all duration-500 hover:-translate-y-2 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none"
-                            >
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            if (!propertyId) {
+                                                showErrorToast('Property ID missing. Please refresh and try again.');
+                                                return;
+                                            }
+                                            navigate(`/admin/properties/${propertyId}`);
+                                        }
+                                    }}
+                                    className="group cursor-pointer overflow-hidden rounded-[3rem] border bg-white shadow-2xl shadow-gray-200/50 transition-all duration-500 hover:-translate-y-2 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none"
+                                >
                                 <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 dark:from-gray-800 dark:to-gray-900">
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <Home size={44} />
@@ -419,10 +481,20 @@ function PropertyManagementContent() {
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <PaginationBar
+                        currentPage={pagination.page}
+                        totalPages={pagination.totalPages}
+                        onPageChange={setPage}
+                        totalItems={pagination.total}
+                        pageSize={pagination.limit}
+                        currentItemCount={properties.length}
+                        itemLabel="properties"
+                    />
+                </>
             ) : (
                 <div className="rounded-[3rem] border-2 border-dashed bg-white p-20 text-center dark:border-gray-700 dark:bg-gray-800">
                     <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-gray-50 text-gray-300 dark:bg-gray-900">
@@ -434,10 +506,7 @@ function PropertyManagementContent() {
                     </p>
                     <button
                         type="button"
-                        onClick={() => {
-                            setSearchQuery('');
-                            setFilteringType('all');
-                        }}
+                        onClick={handleResetFilters}
                         className="rounded-2xl bg-blue-500 px-10 py-5 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/30 transition-all hover:scale-105 active:scale-95"
                     >
                         Reset Filters

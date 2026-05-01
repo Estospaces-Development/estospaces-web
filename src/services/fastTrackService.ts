@@ -368,7 +368,13 @@ const toLegacyFinalStatus = (
 };
 
 const normalizeJourneyMode = (value?: string): "rent" | "sale" => {
-  return String(value || "").trim().toLowerCase() === "sale" ? "sale" : "rent";
+  switch (String(value || "").trim().toLowerCase()) {
+    case "sale":
+    case "buy":
+      return "sale";
+    default:
+      return "rent";
+  }
 };
 
 const normalizeListingType = (
@@ -536,7 +542,7 @@ const mapBackendToFrontend = (
   }));
   const identityItem = items.find((item) => item.id === "identity");
   const addressItem = items.find((item) => item.id === "address");
-  const journeyMode = normalizeJourneyMode(raw.header?.journey_type);
+  const journeyMode = normalizeJourneyMode(raw.header?.journey_type || raw.header?.listing_type);
   const documentPhase = deriveDocumentPhase(stage, items);
 
   return {

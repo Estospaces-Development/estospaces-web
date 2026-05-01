@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { notifyViewingCancelled } from '@/services/notificationsService';
 import { useToast } from '@/contexts/ToastContext';
-import ConfirmModal from '@/components/ui/ConfirmModal';
+import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
@@ -36,6 +36,23 @@ import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackServi
 // Services
 import { bookingsService } from '@/services/bookingsService';
 
+export const MAX_VIEWING_CANCELLATION_REASON_LENGTH = 500;
+
+export function normalizeViewingCancellationReason(value: string) {
+    return value.trim().replace(/\s+/g, ' ');
+}
+
+export function validateViewingCancellationReason(value: string) {
+    const normalizedReason = normalizeViewingCancellationReason(value);
+    if (!normalizedReason) {
+        return 'Enter a cancellation reason.';
+    }
+    if (normalizedReason.length > MAX_VIEWING_CANCELLATION_REASON_LENGTH) {
+        return 'Keep the cancellation reason to 500 characters or fewer.';
+    }
+    return null;
+}
+
 export default function ViewingsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -50,7 +67,11 @@ export default function ViewingsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [cancelModalOpen, setCancelModalOpen] = useState(false);
     const [viewingToCancel, setViewingToCancel] = useState<string | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelReasonError, setCancelReasonError] = useState<string | null>(null);
+    const [cancellingViewingID, setCancellingViewingID] = useState<string | null>(null);
     const removedCaseNoticeRef = useRef<string | null>(null);
+    const cancelInFlightRef = useRef(false);
 
     const filterOptions = [
         { value: 'all', label: 'All' },
@@ -225,17 +246,48 @@ export default function ViewingsPage() {
         })
     ), [fastTrackCases, filteredViewings, focusedCase, focusedViewing, focusedViewingId, sanitizedCaseId, searchParams]);
 
+    const closeCancelModal = () => {
+        if (cancelInFlightRef.current) {
+            return;
+        }
+        setCancelModalOpen(false);
+        setViewingToCancel(null);
+        setCancelReason('');
+        setCancelReasonError(null);
+    };
+
+    const openCancelModal = (viewingId: string) => {
+        setViewingToCancel(viewingId);
+        setCancelReason('');
+        setCancelReasonError(null);
+        setCancelModalOpen(true);
+    };
+
     const handleCancelViewing = async (viewingId: string) => {
         if (!user?.id) {
             toast.error('You must be logged in to cancel a viewing.');
             return;
         }
+        if (cancelInFlightRef.current) {
+            return;
+        }
+
+        const validationError = validateViewingCancellationReason(cancelReason);
+        setCancelReasonError(validationError);
+        if (validationError) {
+            toast.error('Please enter a valid cancellation reason.');
+            return;
+        }
+
+        const normalizedReason = normalizeViewingCancellationReason(cancelReason);
+        cancelInFlightRef.current = true;
+        setCancellingViewingID(viewingId);
 
         try {
-            await bookingsService.cancelViewing(viewingId, 'Cancelled by user');
+            await bookingsService.cancelViewing(viewingId, normalizedReason);
 
             setViewings(prev => prev.map(v =>
-                v.id === viewingId ? { ...v, status: 'cancelled' } : v
+                v.id === viewingId ? { ...v, status: 'cancelled', cancellation_reason: normalizedReason } : v
             ));
 
             const viewing = viewings.find(v => v.id === viewingId);
@@ -245,7 +297,7 @@ export default function ViewingsPage() {
                     viewing.propertyTitle,
                     viewing.property_id,
                     viewing.date,
-                    'Cancelled by you'
+                    normalizedReason
                 );
             }
             publishWorkspaceSync({
@@ -265,11 +317,15 @@ export default function ViewingsPage() {
                 },
             });
             toast.success('Viewing appointment cancelled successfully.');
+            setCancelModalOpen(false);
+            setViewingToCancel(null);
+            setCancelReason('');
+            setCancelReasonError(null);
         } catch (err) {
             toast.error('Failed to cancel viewing. Please try again.');
         } finally {
-            setCancelModalOpen(false);
-            setViewingToCancel(null);
+            cancelInFlightRef.current = false;
+            setCancellingViewingID(null);
         }
     };
 
@@ -533,10 +589,7 @@ export default function ViewingsPage() {
                                                 </button>
                                                 {(viewing.status === 'pending' || viewing.status === 'confirmed') && !viewing.workflow_locked && (
                                                     <button
-                                                        onClick={() => {
-                                                            setViewingToCancel(viewing.id);
-                                                            setCancelModalOpen(true);
-                                                        }}
+                                                        onClick={() => openCancelModal(viewing.id)}
                                                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
                                                     >
                                                         Cancel Appointment
@@ -571,16 +624,66 @@ export default function ViewingsPage() {
                 )}
             </div>
 
-            <ConfirmModal
+            <Modal
                 isOpen={cancelModalOpen}
-                onClose={() => setCancelModalOpen(false)}
-                onConfirm={() => viewingToCancel && handleCancelViewing(viewingToCancel)}
+                onClose={closeCancelModal}
                 title="Cancel Viewing Appointment"
-                message="Are you sure you want to cancel this viewing appointment? This action cannot be undone."
-                confirmText="Yes, Cancel"
-                cancelText="No, Keep It"
-                variant="danger"
-            />
+                size="md"
+                closeOnBackdrop={!cancellingViewingID}
+                footer={(
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={closeCancelModal}
+                            disabled={Boolean(cancellingViewingID)}
+                            className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                        >
+                            No, Keep It
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => viewingToCancel && handleCancelViewing(viewingToCancel)}
+                            disabled={Boolean(cancellingViewingID)}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {cancellingViewingID && <Loader2 size={16} className="animate-spin" />}
+                            Yes, Cancel
+                        </button>
+                    </div>
+                )}
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        This action cannot be undone. Add a short reason so the manager can see why the appointment changed.
+                    </p>
+                    <label className="block space-y-2 text-sm">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Cancellation reason</span>
+                        <textarea
+                            rows={4}
+                            value={cancelReason}
+                            onChange={(event) => {
+                                setCancelReason(event.target.value);
+                                if (cancelReasonError) {
+                                    setCancelReasonError(null);
+                                }
+                            }}
+                            aria-describedby={cancelReasonError ? 'viewing-cancel-reason-error' : 'viewing-cancel-reason-help'}
+                            disabled={Boolean(cancellingViewingID)}
+                            className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-red-300 focus:bg-white focus:ring-2 focus:ring-red-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:bg-gray-900"
+                            placeholder="Example: Schedule changed and I need to book a later slot."
+                        />
+                        {cancelReasonError ? (
+                            <p id="viewing-cancel-reason-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                {cancelReasonError}
+                            </p>
+                        ) : (
+                            <p id="viewing-cancel-reason-help" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                {normalizeViewingCancellationReason(cancelReason).length}/{MAX_VIEWING_CANCELLATION_REASON_LENGTH}
+                            </p>
+                        )}
+                    </label>
+                </div>
+            </Modal>
         </div>
     );
 }

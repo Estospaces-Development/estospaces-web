@@ -146,6 +146,7 @@ export interface ApiResponse<T> {
 
 export interface ApiFetchOptions extends RequestInit {
     suppressErrorToast?: boolean;
+    timeoutMs?: number;
 }
 
 export interface ApiEnvelope<T> {
@@ -194,6 +195,22 @@ export class ApiRequestError extends Error {
 
 const USER_ERROR_MESSAGE = 'Invalid data provided. Please check your inputs.';
 const SYSTEM_ERROR_MESSAGE = 'The service is temporarily unreachable. We are working on a fix.';
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
+
+function isReadMethod(method: string) {
+    return method.toUpperCase() === 'GET';
+}
+
+function shouldEmitApiFailureToast(status: number | undefined, method: string) {
+    if (!status) {
+        return true;
+    }
+    if (isReadMethod(method) && status >= 400 && status < 500) {
+        return false;
+    }
+    return true;
+}
+
 function getToastPayload(status?: number) {
     if (status && status >= 400 && status < 500) {
         return {
@@ -414,7 +431,7 @@ export async function apiFetchEnvelope<T>(
 ): Promise<ApiEnvelope<T>> {
     const isDebug = VITE_ENV.DEV === true && VITE_ENV.VITE_DEBUG_API === 'true';
     const method = options.method || 'GET';
-    const { suppressErrorToast = false, ...requestOptions } = options;
+    const { suppressErrorToast = false, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, ...requestOptions } = options;
     const storedToken = getStoredAuthToken();
     const headers = new Headers({
         ...getAuthHeaders(requestOptions.body, storedToken),
@@ -423,22 +440,43 @@ export async function apiFetchEnvelope<T>(
     const authHeader = headers.get('Authorization');
     const requestToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() || null : null;
 
+    const timeoutController = new AbortController();
+    const timeoutId = timeoutMs > 0
+        ? globalThis.setTimeout(() => timeoutController.abort(), timeoutMs)
+        : null;
+    const callerSignal = requestOptions.signal;
+    const handleCallerAbort = () => timeoutController.abort();
+    if (callerSignal) {
+        if (callerSignal.aborted) {
+            timeoutController.abort();
+        }
+        callerSignal.addEventListener('abort', handleCallerAbort, { once: true });
+    }
+
     let response: Response;
     try {
         response = await fetch(url, {
             ...requestOptions,
             headers,
+            signal: timeoutController.signal,
         });
     } catch (error: any) {
-        if (!suppressErrorToast) {
+        if (!suppressErrorToast && shouldEmitApiFailureToast(undefined, method)) {
             notifyApiFailure();
         }
         throw new ApiRequestError(
-            error?.message || 'Network request failed',
+            error?.name === 'AbortError' ? 'Request timed out' : error?.message || 'Network request failed',
             SYSTEM_ERROR_MESSAGE,
             undefined,
             undefined,
         );
+    } finally {
+        if (timeoutId !== null) {
+            globalThis.clearTimeout(timeoutId);
+        }
+        if (callerSignal) {
+            callerSignal.removeEventListener('abort', handleCallerAbort);
+        }
     }
 
     if (!response.ok) {
@@ -457,7 +495,7 @@ export async function apiFetchEnvelope<T>(
             ? await handleUnauthorizedResponse(url, requestToken)
             : 'unhandled';
         if (isDebug) console.error(`[API Response Error] ${method} ${url}:`, errorMsg);
-        if (!suppressErrorToast && unauthorizedState === 'unhandled') {
+        if (!suppressErrorToast && unauthorizedState === 'unhandled' && shouldEmitApiFailureToast(response.status, method)) {
             notifyApiFailure(response.status);
         }
         throw new ApiRequestError(

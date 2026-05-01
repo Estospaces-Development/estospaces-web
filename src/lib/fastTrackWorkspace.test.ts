@@ -4,10 +4,18 @@ import test from 'node:test';
 import type { FastTrackCase } from '@/services/fastTrackService';
 
 import {
+    buildFastTrackDocumentDraftStorageKey,
+    buildFastTrackSelectionSearchParams,
+    buildFastTrackDocumentSearchParams,
+    buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
+    getFastTrackDecisionGuard,
+    isFastTrackDocumentDraftDirty,
+    resolveFastTrackDocumentSearchParam,
+    resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from './fastTrackWorkspace';
@@ -105,6 +113,79 @@ test('selection falls back to previous case when the query does not match', () =
     assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('application=missing'), 'case-b'), 'case-b');
 });
 
+test('selection restores case query params after copy-paste casing and whitespace changes', () => {
+    const cases = [buildCase({ caseId: 'case-a' }), buildCase({ caseId: 'case-b' })];
+
+    assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('case=%20CASE-B%20'), null), 'case-b');
+});
+
+test('selection search params replace stale case ids when a completed journey is selected', () => {
+    const next = buildFastTrackSelectionSearchParams(
+        new URLSearchParams('case=active-case&section=documents'),
+        'completed-case',
+    );
+
+    assert.equal(next.get('case'), 'completed-case');
+    assert.equal(next.get('section'), 'documents');
+});
+
+test('stage search params preserve manager-selected viewing stage across refresh', () => {
+    const next = buildFastTrackStageSearchParams(new URLSearchParams('case=case-1'), 'viewing');
+
+    assert.equal(next.get('case'), 'case-1');
+    assert.equal(next.get('section'), 'viewing');
+    assert.equal(resolveFastTrackStageSearchParam(next), 'viewing');
+    assert.equal(resolveFastTrackStageSearchParam(new URLSearchParams('section=bad-stage')), null);
+});
+
+test('document search params preserve selected address row across refresh', () => {
+    const next = buildFastTrackDocumentSearchParams(
+        new URLSearchParams('case=case-1&section=documents'),
+        'address',
+    );
+
+    assert.equal(next.get('document'), 'address');
+    assert.equal(resolveFastTrackDocumentSearchParam(next, ['identity', 'address']), 'address');
+    assert.equal(resolveFastTrackDocumentSearchParam(new URLSearchParams('document=missing'), ['identity', 'address']), null);
+});
+
+test('document draft helpers keep notes scoped to role and case', () => {
+    assert.equal(
+        buildFastTrackDocumentDraftStorageKey('user', ' Case 123 '),
+        'fast-track:document-drafts:user:Case%20123',
+    );
+    assert.equal(buildFastTrackDocumentDraftStorageKey('user', ''), '');
+    assert.equal(isFastTrackDocumentDraftDirty({}), false);
+    assert.equal(isFastTrackDocumentDraftDirty({ address: '   ' }), false);
+    assert.equal(isFastTrackDocumentDraftDirty({ address: 'Council tax bill attached.' }), true);
+});
+
+test('decision guard blocks manager offer actions until prerequisites are satisfied', () => {
+    const pendingSaleCase = buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        stage: 'selected',
+        viewing: { status: 'pending' },
+    });
+    assert.match(
+        getFastTrackDecisionGuard(pendingSaleCase, 'approved', '', 'manager') || '',
+        /viewing/i,
+    );
+
+    const readySaleCase = buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        stage: 'decision',
+        viewing: { status: 'completed' },
+    });
+    assert.match(
+        getFastTrackDecisionGuard(readySaleCase, 'approved', '', 'manager') || '',
+        /offer amount/i,
+    );
+    assert.equal(getFastTrackDecisionGuard(readySaleCase, 'approved', '325000', 'manager'), null);
+    assert.equal(getFastTrackDecisionGuard(readySaleCase, 'rejected', '', 'manager'), null);
+});
+
 test('case search matches application and workflow identifiers', () => {
     const fastTrackCase = buildCase({
         caseId: 'case-live-1',
@@ -137,7 +218,7 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
         stage: 'agreement',
         agreement: { status: 'sent', paymentStatus: 'requested', amountDue: 1200 },
     });
-    assert.equal(describeFastTrackWorkspaceFocus(agreementCase, 'manager'), 'Confirm payment and move to handover');
+    assert.equal(describeFastTrackWorkspaceFocus(agreementCase, 'manager'), 'Publish the agreement');
 
     const completedCase = buildCase({ workspaceFinalStatus: 'completed' });
     assert.equal(describeFastTrackWorkspaceFocus(completedCase, 'admin'), 'Case finished');

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
     ArrowLeft,
@@ -11,6 +11,7 @@ import {
     Calendar,
     CheckCircle,
     Home,
+    ImageOff,
     Loader2,
     Mail,
     MapPin,
@@ -30,6 +31,7 @@ import {
 } from '@/services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
+import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
 import VirtualTourRequestPanel from '@/components/virtual-tour/VirtualTourRequestPanel';
 
 const parseStringArray = (value: unknown): string[] => {
@@ -89,14 +91,6 @@ const formatDate = (value?: string) => {
     });
 };
 
-const getPropertyImages = (property: Property | null) => {
-    if (!property) {
-        return [];
-    }
-
-    return parseStringArray(property.image_urls);
-};
-
 const getPropertyVideos = (property: Property | null) => {
     if (!property) {
         return [];
@@ -127,7 +121,8 @@ export default function AdminPropertyDetailPage() {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
 
-    const imageUrls = useMemo(() => getPropertyImages(property), [property]);
+    const mediaState = useMemo(() => getAdminPropertyDetailMedia(property), [property]);
+    const imageUrls = mediaState.imageUrls;
     const videoUrls = useMemo(() => getPropertyVideos(property), [property]);
     const statusBadge = getManagerPropertyStatusBadge(property?.status);
     const amenities = useMemo(() => parseStringArray(property?.amenities), [property?.amenities]);
@@ -309,14 +304,14 @@ export default function AdminPropertyDetailPage() {
     if (!property) {
         return (
             <div className="space-y-6">
-                <button
-                    type="button"
-                    onClick={() => navigate('/admin/properties')}
+                <Link
+                    to="/admin/properties"
+                    data-testid="admin-property-back-to-registry"
                     className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Back to Registry
-                </button>
+                </Link>
                 <div className="rounded-[2rem] border bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-800">
                     <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-900">
                         <Home className="h-8 w-8" />
@@ -334,14 +329,14 @@ export default function AdminPropertyDetailPage() {
         <div className="space-y-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate('/admin/properties')}
+                    <Link
+                        to="/admin/properties"
+                        data-testid="admin-property-back-to-registry"
                         className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Back to Registry
-                    </button>
+                    </Link>
                     <div>
                         <div className="mb-3 flex flex-wrap items-center gap-3">
                             <span className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg ring-1 ring-inset backdrop-blur-md ${statusBadge.badgeClassName}`}>
@@ -372,15 +367,30 @@ export default function AdminPropertyDetailPage() {
                 <div className="space-y-8">
                     <div className="overflow-hidden rounded-[2rem] border bg-white shadow-xl shadow-gray-200/40 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
                         <div className="relative h-[360px] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
-                            {imageUrls[0] ? (
+                            {mediaState.primaryImageUrl ? (
                                 <img
-                                    src={imageUrls[0]}
+                                    src={mediaState.primaryImageUrl}
                                     alt={property.title}
                                     className="h-full w-full object-cover"
                                 />
                             ) : (
-                                <div className="flex h-full w-full items-center justify-center text-gray-400">
-                                    <Home className="h-16 w-16" />
+                                <div
+                                    role="img"
+                                    aria-label={mediaState.fallbackAriaLabel}
+                                    data-testid="admin-property-media-fallback"
+                                    className="flex h-full w-full flex-col items-center justify-center gap-4 px-8 text-center text-gray-500 dark:text-gray-300"
+                                >
+                                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 text-gray-400 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800/80 dark:ring-gray-700">
+                                        <ImageOff className="h-10 w-10" />
+                                    </div>
+                                    <div className="max-w-sm">
+                                        <p className="text-sm font-black uppercase tracking-widest text-gray-700 dark:text-gray-100">
+                                            {mediaState.fallbackTitle}
+                                        </p>
+                                        <p className="mt-2 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
+                                            {mediaState.fallbackDescription}
+                                        </p>
+                                    </div>
                                 </div>
                             )}
                         </div>

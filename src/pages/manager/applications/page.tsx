@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense, useEffect, useMemo, useRef } from 'react';
+import React, { useState, Suspense, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     FileText, Clock, CheckCircle, XCircle, FileCheck, Plus, Filter,
@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as applicationsService from '@/services/applicationsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
-import { useApplications, APPLICATION_STATUS, ApplicationsProvider } from '@/contexts/ApplicationsContext';
+import { useApplications, APPLICATION_STATUS, ApplicationsProvider, type Application } from '@/contexts/ApplicationsContext';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
@@ -29,6 +29,53 @@ import {
 
 interface ApplicationsContentProps {
     initialView?: 'list' | 'detail';
+}
+
+function csvSafeCell(value: unknown) {
+    let text = String(value ?? '');
+    if (/^[=+\-@]/.test(text)) {
+        text = `'${text}`;
+    }
+    return `"${text.replace(/"/g, '""')}"`;
+}
+
+function formatApplicationStatus(status?: string) {
+    return (status || 'unknown')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function buildManagerApplicationsCsv(applications: Application[]) {
+    const header = [
+        'Reference',
+        'Property',
+        'Address',
+        'Applicant',
+        'Status',
+        'Listing Type',
+        'Agent',
+        'Created',
+        'Updated',
+        'Action Required',
+        'Fast Track Case',
+    ];
+    const rows = applications.map((application) => [
+        application.referenceId || application.id,
+        application.propertyTitle || application.property?.title || 'Property not recorded',
+        application.propertyAddress || application.property?.address || 'Address not recorded',
+        application.userId || 'Applicant not recorded',
+        formatApplicationStatus(application.status),
+        application.listingType || application.propertyType || 'Not recorded',
+        application.agentName || application.agentAgency || application.managerId || 'Agent not recorded',
+        application.submittedDate || application.createdAt || '',
+        application.lastUpdated || application.updatedAt || '',
+        application.requiresAction ? 'Yes' : 'No',
+        application.fastTrackCaseId || application.fastTrackCase?.caseId || '',
+    ]);
+
+    return [header, ...rows]
+        .map((row) => row.map(csvSafeCell).join(','))
+        .join('\n');
 }
 
 function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps) {
@@ -57,7 +104,9 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
+    const [exportStatus, setExportStatus] = useState('');
     const removedCaseNoticeRef = useRef<string | null>(null);
+    const lastExportStartedAtRef = useRef(0);
     const rawCaseId = searchParams.get('case');
     const requestedSection = resolveWorkspaceSection(searchParams.get('section'), 'overview');
     const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
@@ -189,9 +238,9 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
         setSelectedId(null);
     };
 
-    const handleUpdateStatus = async (id: string, status: any) => {
+    const handleUpdateStatus = async (id: string, status: any, reviewNotes?: string) => {
         try {
-            const result = await updateApplicationStatus(id, status);
+            const result = await updateApplicationStatus(id, status, reviewNotes);
             if (!result.success) {
                 throw new Error(result.error || 'Failed to update application status');
             }
@@ -200,6 +249,30 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
             toast.error(err instanceof Error ? err.message : 'Failed to update status');
         }
     };
+
+    const handleExportApplicationsCsv = useCallback(() => {
+        if (filteredApplications.length === 0) {
+            setExportStatus('No applications match the current export filters.');
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastExportStartedAtRef.current < 1000) {
+            setExportStatus('Export already started. Please wait a moment before trying again.');
+            return;
+        }
+        lastExportStartedAtRef.current = now;
+
+        const csv = buildManagerApplicationsCsv(filteredApplications);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `manager-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        setExportStatus(`Exported ${filteredApplications.length} application${filteredApplications.length === 1 ? '' : 's'} to CSV.`);
+    }, [filteredApplications]);
 
     if (view === 'detail' && selectedId) {
         return (
@@ -216,6 +289,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
 
     return (
         <div className="space-y-6 font-outfit animate-in fade-in duration-500">
+            <p role="status" aria-live="polite" className="sr-only">{exportStatus}</p>
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
@@ -227,6 +301,14 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={handleExportApplicationsCsv}
+                        disabled={contextLoading || filteredApplications.length === 0}
+                        className="px-4 py-2.5 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-200 rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-sm hover:bg-orange-50 dark:hover:bg-orange-500/10 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95"
+                    >
+                        <Download size={18} /> Export CSV
+                    </button>
                     <button
                         type="button"
                         onClick={() => navigate('/manager/leads')}
@@ -265,6 +347,12 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                 showFilters={showFilters}
                 setShowFilters={setShowFilters}
             />
+
+            {exportStatus ? (
+                <div role="status" className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-200">
+                    {exportStatus}
+                </div>
+            ) : null}
 
             {hasWorkspaceFocusRequest && !focusedApplicationFromRoute && (
                 <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">

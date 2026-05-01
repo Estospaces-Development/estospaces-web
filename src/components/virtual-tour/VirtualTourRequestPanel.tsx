@@ -18,11 +18,13 @@ import {
     type FulfillVirtualTourInput,
     type PropertyVirtualTourState,
 } from '@/services/virtualTourService';
+import type { VirtualTourRequest } from '@/services/propertyService';
 
 interface VirtualTourRequestPanelProps {
     propertyId: string;
     propertyTitle: string;
     adminView?: boolean;
+    onTourReady?: (tourUrl: string) => void;
 }
 
 const statusCopy = {
@@ -52,9 +54,11 @@ export default function VirtualTourRequestPanel({
     propertyId,
     propertyTitle,
     adminView = false,
+    onTourReady,
 }: VirtualTourRequestPanelProps) {
     const toast = useToast();
     const [tourState, setTourState] = useState<PropertyVirtualTourState | null>(null);
+    const [propertyRequests, setPropertyRequests] = useState<VirtualTourRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [fulfillmentNote, setFulfillmentNote] = useState('');
@@ -73,9 +77,10 @@ export default function VirtualTourRequestPanel({
             return;
         }
 
-        const latestRequest = requestsResult.data
+        const requestsForProperty = requestsResult.data
             .filter((request) => request.property_id === propertyId)
-            .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0] || null;
+            .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime());
+        const latestRequest = requestsForProperty[0] || null;
 
         const nextState: PropertyVirtualTourState = {
             ...propertyResult.data,
@@ -87,6 +92,7 @@ export default function VirtualTourRequestPanel({
         };
 
         setTourState(nextState);
+        setPropertyRequests(requestsForProperty);
         setFulfillmentNote(latestRequest?.fulfillment_note || '');
         setTourUrl(propertyResult.data.virtual_tour_url || latestRequest?.virtual_tour_url || '');
         setLoading(false);
@@ -119,6 +125,9 @@ export default function VirtualTourRequestPanel({
                 ? 'Virtual tour marked ready.'
                 : 'Virtual tour request moved into processing.',
         );
+        if (input.status === 'ready' && input.virtual_tour_url) {
+            onTourReady?.(input.virtual_tour_url);
+        }
         await loadState();
         setActionLoading(false);
     };
@@ -138,6 +147,10 @@ export default function VirtualTourRequestPanel({
                     hour: '2-digit',
                     minute: '2-digit',
                 }),
+            },
+            {
+                label: 'Requester',
+                value: activeRequest.requested_by,
             },
             {
                 label: 'Status',
@@ -211,6 +224,62 @@ export default function VirtualTourRequestPanel({
                     </div>
                 )}
             </div>
+
+            {propertyRequests.length > 0 ? (
+                <div className="mt-6 rounded-2xl border bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900">
+                    <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h4 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                                Request queue
+                            </h4>
+                            <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
+                                {propertyRequests.length} request{propertyRequests.length === 1 ? '' : 's'} for this property.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        {propertyRequests.slice(0, 5).map((request) => (
+                            <div
+                                key={request.id}
+                                className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+                            >
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <p className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                                            Request {request.id}
+                                        </p>
+                                        <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                                            Requested by {request.requested_by}
+                                        </p>
+                                    </div>
+                                    <span className="w-fit rounded-full bg-orange-50 px-3 py-1 text-xs font-bold capitalize text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                                        {request.status.replace(/_/g, ' ')}
+                                    </span>
+                                </div>
+                                <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                    {request.request_note || 'No request note provided.'}
+                                </p>
+                                {request.fulfillment_note ? (
+                                    <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                        Fulfillment: {request.fulfillment_note}
+                                    </p>
+                                ) : null}
+                                {request.virtual_tour_url ? (
+                                    <a
+                                        href={request.virtual_tour_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-orange-600 hover:text-orange-700 dark:text-orange-300"
+                                    >
+                                        <ExternalLink className="h-4 w-4" />
+                                        Open request tour link
+                                    </a>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
 
             <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div className="rounded-2xl border bg-gray-50 p-5 dark:border-gray-700 dark:bg-gray-900">

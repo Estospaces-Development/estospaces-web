@@ -5,6 +5,27 @@ import { fileURLToPath } from 'node:url';
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
+const SECURITY_HEADERS = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'accelerometer=(), autoplay=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
+    "connect-src 'self' http: https: ws: wss:",
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com",
+    "form-action 'self'",
+  ].join('; '),
+};
+
 const DEV_PROXY_PATHS = {
   core: {
     keys: ['VITE_CORE_SERVICE_URL', 'VITE_CORE_API'],
@@ -95,10 +116,14 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      headers: SECURITY_HEADERS,
       fs: {
         allow: [path.resolve(rootDir, '..')],
       },
       proxy: buildServiceProxy(env),
+    },
+    preview: {
+      headers: SECURITY_HEADERS,
     },
     build: {
       outDir: 'dist',

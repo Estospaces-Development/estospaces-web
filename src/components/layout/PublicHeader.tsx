@@ -60,16 +60,18 @@ const PublicHeader = () => {
                 </div>
 
                 <button
-                    className="rounded-xl p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] md:hidden"
+                    className="rounded-xl p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-emphasis)] md:hidden"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     aria-label="Toggle navigation"
+                    aria-expanded={isMenuOpen}
+                    aria-controls="public-mobile-navigation"
                 >
                     {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </nav>
 
             {isMenuOpen && (
-                <div className="absolute left-0 top-[72px] w-full border-b border-[var(--border-soft)] bg-[var(--surface-base)] shadow-[var(--shadow-floating)] md:hidden">
+                <div id="public-mobile-navigation" className="fixed inset-x-0 top-[72px] z-50 max-h-[calc(100vh-72px)] overflow-y-auto border-b border-[var(--border-soft)] bg-white shadow-[var(--shadow-floating)] dark:bg-black md:hidden">
                     <div className="page-shell space-y-4 py-5">
                         {navLinks.map((link) => (
                             <Link
@@ -78,7 +80,7 @@ const PublicHeader = () => {
                                 className={`block rounded-2xl px-4 py-3 text-sm font-medium ${isActive(link.href)
                                     ? 'bg-[var(--accent-soft)] text-[var(--accent-emphasis)]'
                                     : 'text-[var(--text-muted)]'
-                                    }`}
+                                    } focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-emphasis)]`}
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 {link.label}
@@ -87,14 +89,14 @@ const PublicHeader = () => {
                         <div className="space-y-3 border-t border-[var(--border-soft)] pt-4">
                             <Link
                                 to="/login"
-                                className="block rounded-2xl border border-[var(--border-soft)] px-4 py-3 text-center text-sm font-medium text-[var(--text-strong)]"
+                                className="block rounded-2xl border border-[var(--border-soft)] px-4 py-3 text-center text-sm font-medium text-[var(--text-strong)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-emphasis)]"
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 Sign In
                             </Link>
                             <Link
                                 to="/register"
-                                className="block rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] px-4 py-3 text-center text-sm font-semibold text-white"
+                                className="block rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] px-4 py-3 text-center text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-emphasis)]"
                                 onClick={() => setIsMenuOpen(false)}
                             >
                                 Get Started

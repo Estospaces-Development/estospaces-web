@@ -1,9 +1,11 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import UserHeader from '../../components/layout/UserHeader';
 import HorizontalNavigation from '../../components/layout/HorizontalNavigation';
+import PublicHeader from '../../components/layout/PublicHeader';
+import Footer from '../../components/layout/Footer';
 import { useAuth } from '../../contexts/AuthContext';
 import { LocationProvider } from '../../contexts/LocationContext';
 import { PropertyProvider } from '../../contexts/PropertyContext';
@@ -13,7 +15,7 @@ import { NotificationsProvider } from '../../contexts/NotificationsContext';
 import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
-import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getRedirectPath, isPublicUserPropertyDetailPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface UserLayoutClientProps {
     children: React.ReactNode;
@@ -22,17 +24,37 @@ interface UserLayoutClientProps {
 
 export default function UserLayoutClient({ children, isSubdomain = false }: UserLayoutClientProps) {
     const { user, loading, isAuthenticated } = useAuth();
+    const location = useLocation();
     const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
+    const isPublicPropertyDetail = isPublicUserPropertyDetailPath(location.pathname);
+
+    const publicPropertyDetailShell = (
+        <div className="min-h-screen overflow-x-hidden bg-white">
+            <PublicHeader />
+            <main className="pt-[72px]">
+                {children}
+            </main>
+            <Footer />
+        </div>
+    );
 
     if (shouldWaitForSession) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
     if (!isAuthenticated) {
+        if (isPublicPropertyDetail) {
+            return publicPropertyDetailShell;
+        }
+
         return <Navigate to="/login" replace />;
     }
 
     if (user?.role !== 'user') {
+        if (isPublicPropertyDetail) {
+            return publicPropertyDetailShell;
+        }
+
         return <Navigate to={getRedirectPath(user?.role || 'user')} replace />;
     }
 

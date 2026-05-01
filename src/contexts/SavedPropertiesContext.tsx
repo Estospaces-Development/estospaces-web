@@ -1,10 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { notifyPropertySaved } from '../services/notificationsService';
 import { useAuth } from './AuthContext';
 import { apiFetch, getServiceUrl } from '@/lib/apiUtils';
 import type { Property } from './PropertyContext';
+import { isSameSavedPropertyId, normalizeSavedPropertyId } from '@/lib/savedPropertyState';
 
 interface SavedPropertiesContextType {
     savedProperties: Property[];
@@ -34,9 +35,13 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
     const [savedProperties, setSavedProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const pendingPropertyIds = useRef(new Set<string>());
+    const canUseSavedProperties = (user?.role || '').trim().toLowerCase() === 'user';
 
     const fetchSavedProperties = useCallback(async () => {
-        if (!user) {
+        if (!user || !canUseSavedProperties) {
+            setSavedProperties([]);
+            setError(null);
             setLoading(false);
             return;
         }
@@ -54,14 +59,29 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, canUseSavedProperties]);
 
     useEffect(() => {
         fetchSavedProperties();
     }, [fetchSavedProperties]);
 
+    const isPropertySaved = useCallback((propertyId: string) => {
+        return savedProperties.some(p => isSameSavedPropertyId(p.id, propertyId));
+    }, [savedProperties]);
+
     const saveProperty = useCallback(async (property: any) => {
-        const propertyId = typeof property === 'string' ? property : property.id;
+        const propertyId = normalizeSavedPropertyId(typeof property === 'string' ? property : property.id);
+        if (!canUseSavedProperties) {
+            return { success: false, error: 'Saved properties are only available to user accounts' };
+        }
+        if (!propertyId) {
+            return { success: false, error: 'Missing property id' };
+        }
+        if (pendingPropertyIds.current.has(propertyId) || isPropertySaved(propertyId)) {
+            return { success: true, skipped: true };
+        }
+
+        pendingPropertyIds.current.add(propertyId);
         try {
             await apiFetch<any>(
                 `${getServiceUrl('core')}/api/v1/properties/${propertyId}/save`,
@@ -72,39 +92,54 @@ export const SavedPropertiesProvider = ({ children }: { children: React.ReactNod
         } catch (err: any) {
             setError(err.message);
             return { success: false, error: err.message };
+        } finally {
+            pendingPropertyIds.current.delete(propertyId);
         }
-    }, [fetchSavedProperties]);
+    }, [canUseSavedProperties, fetchSavedProperties, isPropertySaved]);
 
     const removeProperty = useCallback(async (propertyId: string) => {
+        const normalizedPropertyId = normalizeSavedPropertyId(propertyId);
+        if (!canUseSavedProperties) {
+            return { success: false, error: 'Saved properties are only available to user accounts' };
+        }
+        if (!normalizedPropertyId) {
+            return { success: false, error: 'Missing property id' };
+        }
+        if (pendingPropertyIds.current.has(normalizedPropertyId) || !isPropertySaved(normalizedPropertyId)) {
+            return { success: true, skipped: true };
+        }
+
+        pendingPropertyIds.current.add(normalizedPropertyId);
         try {
             await apiFetch<any>(
-                `${getServiceUrl('core')}/api/v1/properties/${propertyId}/save`,
+                `${getServiceUrl('core')}/api/v1/properties/${normalizedPropertyId}/save`,
                 { method: 'DELETE' },
             );
-            setSavedProperties(prev => prev.filter(p => p.id !== propertyId));
+            setSavedProperties(prev => prev.filter(p => !isSameSavedPropertyId(p.id, normalizedPropertyId)));
             return { success: true };
         } catch (err: any) {
             setError(err.message);
             return { success: false, error: err.message };
+        } finally {
+            pendingPropertyIds.current.delete(normalizedPropertyId);
         }
-    }, []);
+    }, [canUseSavedProperties, isPropertySaved]);
 
     const toggleProperty = useCallback(async (property: any) => {
-        const propertyId = typeof property === 'string' ? property : property.id;
-        const isSaved = savedProperties.some(p => p.id === propertyId);
+        const propertyId = normalizeSavedPropertyId(typeof property === 'string' ? property : property.id);
+        const isSaved = isPropertySaved(propertyId);
 
         if (isSaved) {
             return await removeProperty(propertyId);
         } else {
             return await saveProperty(property);
         }
-    }, [savedProperties, saveProperty, removeProperty]);
+    }, [isPropertySaved, saveProperty, removeProperty]);
 
-    const isPropertySaved = useCallback((propertyId: string) => {
-        return savedProperties.some(p => p.id === propertyId);
-    }, [savedProperties]);
-
-    const savedPropertyIds = new Set(savedProperties.map(p => p.id));
+    const savedPropertyIds = useMemo(
+        () => new Set(savedProperties.map(p => normalizeSavedPropertyId(p.id)).filter(Boolean)),
+        [savedProperties],
+    );
     const savedCount = savedProperties.length;
 
     return (

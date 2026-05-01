@@ -108,6 +108,25 @@ export const isPropertyContractReady = (
     return status === 'contract_ready' || status === 'move_in_ready';
 };
 
+export const getPropertyCompliancePublishBlockerMessage = (
+    readiness: PropertyComplianceReadiness | null | undefined,
+) => {
+    const blockers = dedupeJourneyBlockers(readiness?.blockers);
+    if (blockers.length === 0) {
+        return '';
+    }
+
+    const titles = blockers
+        .map((item) => String(item.title || '').trim())
+        .filter(Boolean);
+
+    if (titles.length === 0) {
+        return 'Resolve compliance readiness before publishing.';
+    }
+
+    return `Resolve compliance readiness before publishing: ${titles.join('; ')}.`;
+};
+
 export const createPropertyComplianceDrafts = (
     requirements: JourneyRequirement[],
     evidenceMap: Map<string, PropertyComplianceEvidence>,

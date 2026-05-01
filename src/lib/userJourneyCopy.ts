@@ -50,6 +50,12 @@ export const getJourneyStageLabel = (
   if (stage === 'decision' && journeyMode === 'sale') {
     return 'Review the offer';
   }
+  if (stage === 'agreement' && journeyMode === 'sale') {
+    return 'Legal, exchange, and agreement';
+  }
+  if (stage === 'handover' && journeyMode === 'sale') {
+    return 'Completion and keys';
+  }
 
   return USER_STAGE_LABELS[stage];
 };
@@ -141,8 +147,8 @@ export const getJourneyChromeCopy = (role: UserJourneyRole) => {
     moduleHiddenLabel: 'Hidden',
     moduleDefaultDescription: 'Opens first in Helpful tools',
     moduleAvailableDescription: 'Available under Helpful tools',
-    noSelectionTitle: 'No journey is selected.',
-    noSelectionDescription: 'Open a journey from the list to continue.',
+      noSelectionTitle: 'Choose a journey to continue.',
+      noSelectionDescription: 'Open a journey from the list when you want to switch context.',
   };
 };
 

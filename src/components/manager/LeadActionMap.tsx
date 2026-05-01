@@ -203,6 +203,9 @@ export default function LeadActionMap({
                                         key={lead.id}
                                         position={[lead.property?.latitude as number, lead.property?.longitude as number]}
                                         icon={createLeadMarkerIcon(isSelected)}
+                                        title={`${lead.lead_number || lead.id} ${lead.property?.title || lead.property_name || 'property enquiry'} ${formatLeadStage(stage)}`}
+                                        alt={`${lead.lead_number || lead.id} map marker`}
+                                        keyboard
                                         eventHandlers={{ click: () => setSelectedLeadID(lead.id) }}
                                     >
                                         <Popup>

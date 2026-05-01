@@ -99,6 +99,8 @@ export default function MessageInput({ conversationId, onSend }: MessageInputPro
             <input
                 ref={fileInputRef}
                 type="file"
+                name="message-attachments"
+                aria-label="Attach files to message"
                 multiple
                 accept={MESSAGE_ATTACHMENT_ACCEPT}
                 className="hidden"

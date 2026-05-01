@@ -1,4 +1,5 @@
-import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '../lib/apiUtils';
+import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '../lib/apiUtils';
+import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
 
 const API_URL = getServiceUrl('search');
@@ -33,6 +34,7 @@ type CoreProperty = {
     price?: number;
     property_type?: string;
     listing_type?: string;
+    status?: string;
     address_line_1?: string;
     city?: string;
     postcode?: string;
@@ -57,6 +59,16 @@ type CorePropertyListPayload = {
     };
 };
 
+type CorePropertySection = {
+    title?: string;
+    type?: string;
+    properties?: CoreProperty[];
+};
+
+type CorePropertySectionsPayload = {
+    sections?: CorePropertySection[];
+};
+
 const toNumber = (value: unknown, fallback = 0) => {
     if (typeof value === 'number' && Number.isFinite(value)) {
         return value;
@@ -73,16 +85,20 @@ const toNumber = (value: unknown, fallback = 0) => {
 };
 
 const normalizeListingType = (value?: string) => {
-    if (!value || value === 'all') {
+    const normalized = (value || '').toString().trim().toLowerCase();
+
+    if (!normalized || normalized === 'all') {
         return undefined;
     }
 
-    if (value === 'buy') {
+    if (normalized === 'buy') {
         return 'sale';
     }
 
-    return value;
+    return normalized;
 };
+
+const hasFilterValue = (value: unknown) => value !== undefined && value !== null && value !== '';
 
 const normalizePostcodeText = (value?: string) =>
     (value || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -129,7 +145,8 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
         description: property.description || '',
         price: toNumber(property.price),
         property_type: property.property_type || '',
-        listing_type: property.listing_type || '',
+        listing_type: normalizeListingType(property.listing_type) || property.listing_type || '',
+        status: property.status || '',
         location: address || property.city || property.postcode || '',
         city: property.city || '',
         postcode: property.postcode || '',
@@ -149,6 +166,12 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
     };
 };
 
+export const mapCorePropertySectionToSearchSection = (section: CorePropertySection): SearchResultSection => ({
+    title: section.title || 'Properties',
+    type: section.type || 'properties',
+    properties: (section.properties || []).map(mapCorePropertyToSearchResult),
+});
+
 const normalizePostcodeSearchToken = (value: string) => value.replace(/\s+/g, '').toUpperCase();
 
 const isFullUkPostcodeSearch = (value: string) => {
@@ -159,7 +182,7 @@ const isFullUkPostcodeSearch = (value: string) => {
 export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>) => {
     const params = new URLSearchParams();
 
-    const normalizedQuery = query.trim();
+    const normalizedQuery = normalizeSearchQueryInput(query);
     const normalizedLocation = (filters.location || '').toString().trim();
     const normalizedPostcode = (filters.postcode || '').toString().trim();
     const locationIsPostcode = isFullUkPostcodeSearch(normalizedLocation);
@@ -180,8 +203,8 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
         params.append('city', normalizedLocation);
     }
 
-    if (filters.minPrice) params.append('min_price', String(filters.minPrice));
-    if (filters.maxPrice) params.append('max_price', String(filters.maxPrice));
+    if (hasFilterValue(filters.minPrice)) params.append('min_price', String(filters.minPrice));
+    if (hasFilterValue(filters.maxPrice)) params.append('max_price', String(filters.maxPrice));
     if (filters.propertyType && filters.propertyType !== 'all') params.append('type', String(filters.propertyType));
     if (filters.status) params.append('status', String(filters.status));
 
@@ -190,8 +213,8 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
         params.append('listing_type', listingType);
     }
 
-    if (filters.minBedrooms) params.append('min_bedrooms', String(filters.minBedrooms));
-    if (filters.minBathrooms) params.append('min_bathrooms', String(filters.minBathrooms));
+    if (hasFilterValue(filters.minBedrooms)) params.append('min_bedrooms', String(filters.minBedrooms));
+    if (hasFilterValue(filters.minBathrooms)) params.append('min_bathrooms', String(filters.minBathrooms));
     if (filters.verifiedOnly) params.append('is_verified', 'true');
     if (filters.page) params.append('page', String(filters.page));
     if (filters.limit) params.append('limit', String(filters.limit));
@@ -239,6 +262,18 @@ const coreSearchFallback = async (
         },
     };
 };
+
+const failedSearchResponse = (filters: Record<string, any>, error?: string): SearchResponse => ({
+    success: false,
+    data: [],
+    error,
+    pagination: {
+        total: 0,
+        page: Number(filters.page || 1),
+        limit: Number(filters.limit || 10),
+    },
+});
+
 
 const buildAutocompleteFallback = async (query: string): Promise<AutocompleteSuggestion[]> => {
     const fallback = await coreSearchFallback(query, { page: 1, limit: 10 });
@@ -381,6 +416,7 @@ export interface SearchResult {
     price: number;
     property_type: string;
     listing_type: string;
+    status?: string;
     location: string;
     city: string;
     postcode: string;
@@ -402,6 +438,7 @@ export interface SearchResult {
 export interface SearchResponse {
     success: boolean;
     data: SearchResult[];
+    error?: string;
     pagination: {
         total: number;
         page: number;
@@ -415,6 +452,18 @@ export interface AutocompleteSuggestion {
     title?: string;
     city?: string;
     type: 'location' | 'city' | 'postcode' | 'property' | 'popular';
+}
+
+export interface SearchResultSection {
+    title: string;
+    type: string;
+    properties: SearchResult[];
+}
+
+export interface PropertySectionsResponse {
+    success: boolean;
+    data: SearchResultSection[];
+    error?: string;
 }
 
 export interface AutocompleteResponse {
@@ -468,6 +517,69 @@ export interface SavedSearch {
     created_at: string;
 }
 
+export interface SearchHistoryEntry {
+    id: string;
+    user_id?: string;
+    query: string;
+    filters?: string;
+    result_count: number;
+    location?: string;
+    postcode?: string;
+    created_at: string;
+}
+
+const normalizeLooseClientText = (value?: string) =>
+    (value || '').trim().replace(/\s+/g, ' ').slice(0, 120).trim();
+
+const normalizeSearchOptionText = (value?: string) =>
+    (value || '').trim().replace(/\s+/g, ' ').toLowerCase().slice(0, 64).trim();
+
+const toOptionalPrice = (value: unknown) => {
+    const normalized = normalizePriceBoundInput(String(value ?? ''));
+    return normalized === '' ? undefined : Number(normalized);
+};
+
+const toOptionalRoomCount = (value: unknown) => {
+    const normalized = normalizeRoomBoundInput(String(value ?? ''));
+    return normalized === '' ? undefined : Number(normalized);
+};
+
+const normalizeSavedSearchFeatures = (features?: string) => {
+    if (!features?.trim()) {
+        return '[]';
+    }
+
+    try {
+        const parsed = JSON.parse(features);
+        if (!Array.isArray(parsed)) {
+            return '[]';
+        }
+        const normalized = parsed
+            .filter((feature): feature is string => typeof feature === 'string')
+            .map(feature => normalizeLooseClientText(feature).slice(0, 64))
+            .filter(Boolean);
+
+        return JSON.stringify(normalized);
+    } catch {
+        return '[]';
+    }
+};
+
+const normalizeSavedSearchPayload = (data: Partial<SavedSearch>): Partial<SavedSearch> => ({
+    ...data,
+    name: normalizeLooseClientText(data.name),
+    query: normalizeSearchQueryInput(data.query || ''),
+    location: normalizeLooseClientText(data.location),
+    postcode: normalizeLooseClientText(data.postcode),
+    property_type: normalizeSearchOptionText(data.property_type),
+    listing_type: normalizeListingType(data.listing_type),
+    min_price: toOptionalPrice(data.min_price),
+    max_price: toOptionalPrice(data.max_price),
+    bedrooms: toOptionalRoomCount(data.bedrooms),
+    bathrooms: toOptionalRoomCount(data.bathrooms),
+    features: normalizeSavedSearchFeatures(data.features),
+});
+
 export const searchService = {
     /**
      * Main search endpoint for properties
@@ -476,35 +588,30 @@ export const searchService = {
         query: string,
         filters: Record<string, any> = {}
     ): Promise<SearchResponse> => {
+        const normalizedQuery = normalizeSearchQueryInput(query);
+
         if (shouldBypassPrimarySearchService()) {
             try {
-                return await coreSearchFallback(query, filters);
-            } catch {
-                return {
-                    success: false,
-                    data: [],
-                    pagination: {
-                        total: 0,
-                        page: Number(filters.page || 1),
-                        limit: Number(filters.limit || 10),
-                    },
-                };
+                return await coreSearchFallback(normalizedQuery, filters);
+            } catch (error) {
+                return failedSearchResponse(filters, getErrorMessage(error));
             }
         }
 
         try {
             const params = new URLSearchParams();
-            if (query) params.append('q', query);
+            if (normalizedQuery) params.append('q', normalizedQuery);
 
             if (filters.location) params.append('location', filters.location);
             if (filters.postcode) params.append('postcode', filters.postcode);
-            if (filters.minPrice) params.append('min_price', filters.minPrice.toString());
-            if (filters.maxPrice) params.append('max_price', filters.maxPrice.toString());
+            if (hasFilterValue(filters.minPrice)) params.append('min_price', filters.minPrice.toString());
+            if (hasFilterValue(filters.maxPrice)) params.append('max_price', filters.maxPrice.toString());
             if (filters.propertyType) params.append('property_type', filters.propertyType);
-            if (filters.listingType && filters.listingType !== 'all') params.append('listing_type', filters.listingType);
+            const listingType = normalizeListingType(filters.listingType);
+            if (listingType) params.append('listing_type', listingType);
             if (filters.status) params.append('status', filters.status);
-            if (filters.minBedrooms) params.append('bedrooms', filters.minBedrooms.toString());
-            if (filters.minBathrooms) params.append('bathrooms', filters.minBathrooms.toString());
+            if (hasFilterValue(filters.minBedrooms)) params.append('bedrooms', filters.minBedrooms.toString());
+            if (hasFilterValue(filters.minBathrooms)) params.append('bathrooms', filters.minBathrooms.toString());
             if (filters.verifiedOnly) params.append('verified_only', 'true');
             if (filters.fastTrack) params.append('fast_track', 'true');
 
@@ -518,7 +625,7 @@ export const searchService = {
             );
 
             if (looksLikePlaceholderSearchResults(response.data || [])) {
-                return await coreSearchFallback(query, filters);
+                return await coreSearchFallback(normalizedQuery, filters);
             }
 
             clearPrimarySearchServiceFallback();
@@ -532,22 +639,44 @@ export const searchService = {
                     limit: response.pagination?.limit || Number(filters.limit || 10),
                 },
             };
-        } catch {
+        } catch (error) {
+            const status = getErrorStatus(error);
+            if (status === 429) {
+                return failedSearchResponse(filters, getErrorMessage(error, 'Too many requests. Please slow down.'));
+            }
+
             markPrimarySearchServiceUnavailable();
 
             try {
-                return await coreSearchFallback(query, filters);
+                return await coreSearchFallback(normalizedQuery, filters);
             } catch {
-                return {
-                    success: false,
-                    data: [],
-                    pagination: {
-                        total: 0,
-                        page: Number(filters.page || 1),
-                        limit: Number(filters.limit || 10),
-                    },
-                };
+                return failedSearchResponse(filters);
             }
+        }
+    },
+
+    getPropertySections: async (country = 'UK'): Promise<PropertySectionsResponse> => {
+        try {
+            const params = new URLSearchParams();
+            if (country.trim()) {
+                params.set('country', country.trim());
+            }
+
+            const response = await apiFetchEnvelope<CorePropertySectionsPayload>(
+                `${CORE_API_URL}/api/v1/properties/sections?${params.toString()}`,
+                { suppressErrorToast: true },
+            );
+
+            return {
+                success: true,
+                data: (response.data?.sections || []).map(mapCorePropertySectionToSearchSection),
+            };
+        } catch (error) {
+            return {
+                success: false,
+                data: [],
+                error: getErrorMessage(error, 'Failed to fetch property sections.'),
+            };
         }
     },
 
@@ -555,11 +684,12 @@ export const searchService = {
      * Get autocomplete suggestions
      */
     autocomplete: async (query: string): Promise<AutocompleteSuggestion[]> => {
-        if (!query || query.length < 2) return [];
+        const normalizedQuery = normalizeSearchQueryInput(query);
+        if (!normalizedQuery || normalizedQuery.length < 2) return [];
 
         if (shouldBypassPrimarySearchService()) {
             try {
-                return await buildAutocompleteFallback(query);
+                return await buildAutocompleteFallback(normalizedQuery);
             } catch {
                 return [];
             }
@@ -567,7 +697,7 @@ export const searchService = {
 
         try {
             const data = await apiFetch<{ suggestions: AutocompleteSuggestion[] }>(
-                `${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(query)}`,
+                `${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(normalizedQuery)}`,
                 { suppressErrorToast: true },
             );
             const suggestions = data?.suggestions || [];
@@ -584,7 +714,7 @@ export const searchService = {
             markPrimarySearchServiceUnavailable();
 
             try {
-                return await buildAutocompleteFallback(query);
+                return await buildAutocompleteFallback(normalizedQuery);
             } catch {
                 return [];
             }
@@ -646,9 +776,11 @@ export const searchService = {
      */
     saveSearch: async (data: Partial<SavedSearch>): Promise<{ success: boolean; data?: SavedSearch; error?: string }> => {
         try {
+            const payload = normalizeSavedSearchPayload(data);
             const response = await apiFetchEnvelope<SavedSearch>(`${API_URL}/api/v1/search/saved`, {
                 method: 'POST',
-                body: JSON.stringify(data),
+                suppressErrorToast: true,
+                body: JSON.stringify(payload),
             });
             return {
                 success: true,
@@ -663,7 +795,9 @@ export const searchService = {
      * Get user's saved searches
      */
     getSavedSearches: async (): Promise<SavedSearch[]> => {
-        const data = await apiFetch<SavedSearch[]>(`${API_URL}/api/v1/search/saved`);
+        const data = await apiFetch<SavedSearch[]>(`${API_URL}/api/v1/search/saved`, {
+            suppressErrorToast: true,
+        });
         return data || [];
     },
 
@@ -672,7 +806,8 @@ export const searchService = {
      */
     deleteSavedSearch: async (id: string): Promise<boolean> => {
         await apiFetch(`${API_URL}/api/v1/search/saved/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            suppressErrorToast: true,
         });
         return true;
     },
@@ -683,8 +818,22 @@ export const searchService = {
     toggleAlert: async (id: string, enabled: boolean): Promise<boolean> => {
         await apiFetch(`${API_URL}/api/v1/search/saved/${id}/alert`, {
             method: 'PUT',
-            body: JSON.stringify({ enabled })
+            suppressErrorToast: true,
+            body: JSON.stringify({ enabled }),
         });
         return true;
+    },
+
+    getSearchHistory: async (limit: number = 8): Promise<SearchHistoryEntry[]> => {
+        const safeLimit = Math.min(50, Math.max(1, Math.trunc(limit) || 8));
+        try {
+            const data = await apiFetch<SearchHistoryEntry[]>(
+                `${API_URL}/api/v1/search/history?limit=${safeLimit}`,
+                { suppressErrorToast: true },
+            );
+            return data || [];
+        } catch {
+            return [];
+        }
     }
 };

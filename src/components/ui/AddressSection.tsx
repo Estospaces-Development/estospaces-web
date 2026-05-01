@@ -39,6 +39,7 @@ interface AddressSectionProps {
     initialCountryCode?: string;
     initialState?: string;
     initialCity?: string;
+    fieldIdPrefix?: string;
 }
 
 const AddressSection = ({
@@ -51,6 +52,7 @@ const AddressSection = ({
     initialCountryCode,
     initialState,
     initialCity,
+    fieldIdPrefix = '',
 }: AddressSectionProps) => {
     // Data states
     const [countries, setCountries] = useState<Country[]>([]);
@@ -335,7 +337,7 @@ const AddressSection = ({
     }, [value.stateId, states.length]);
 
     // Handlers
-    const handleCountryChange = useCallback((countryId: string) => {
+    const handleCountryChange = useCallback(async (countryId: string) => {
         const country = countries.find(c => c.id === countryId);
 
         onChange({
@@ -354,9 +356,23 @@ const AddressSection = ({
         // Clear states and cities
         setStates([]);
         setCities([]);
+
+        if (!countryId) {
+            return;
+        }
+
+        setLoadingStates(true);
+        setStateError(null);
+        const { data, error } = await getStatesByCountry(countryId);
+        if (error) {
+            setStateError(error);
+        } else {
+            setStates(data || []);
+        }
+        setLoadingStates(false);
     }, [countries, value, onChange]);
 
-    const handleStateChange = useCallback((stateId: string) => {
+    const handleStateChange = useCallback(async (stateId: string) => {
         const state = states.find(s => s.id === stateId);
 
         // Clear cities first before updating state
@@ -371,6 +387,20 @@ const AddressSection = ({
             cityId: '',
             cityName: '',
         });
+
+        if (!stateId) {
+            return;
+        }
+
+        setLoadingCities(true);
+        setCityError(null);
+        const { data, error } = await getCitiesByState(stateId);
+        if (error) {
+            setCityError(error);
+        } else {
+            setCities(data || []);
+        }
+        setLoadingCities(false);
     }, [states, value, onChange]);
 
     const handleCityChange = useCallback((cityId: string) => {
@@ -446,9 +476,15 @@ const AddressSection = ({
         return disabled || !value.stateId || loadingCities;
     }, [disabled, value.stateId, loadingCities]);
 
+    const getFieldId = useCallback((field: string) => (
+        fieldIdPrefix ? `${fieldIdPrefix}-${field}` : field
+    ), [fieldIdPrefix]);
+
+    const getFieldErrorId = useCallback((field: string) => `${getFieldId(field)}-error`, [getFieldId]);
+
     // Render dropdown with loading and error states
     const renderSelect = (
-        id: string,
+        field: string,
         label: string,
         value: string,
         options: { id: string; name: string }[],
@@ -459,7 +495,16 @@ const AddressSection = ({
         onRetry: () => void,
         placeholder: string,
         validationError?: string
-    ) => (
+    ) => {
+        const id = getFieldId(field);
+        const loadErrorId = `${id}-load-error`;
+        const validationErrorId = getFieldErrorId(field);
+        const describedBy = [
+            error ? loadErrorId : null,
+            validationError && !error ? validationErrorId : null,
+        ].filter(Boolean).join(' ') || undefined;
+
+        return (
         <div>
             <label
                 htmlFor={id}
@@ -473,6 +518,8 @@ const AddressSection = ({
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={isDisabled || isLoading}
+                    aria-invalid={Boolean(error || validationError)}
+                    aria-describedby={describedBy}
                     className={`
             w-full px-3 py-2.5 pr-10 appearance-none
             border rounded-lg
@@ -506,7 +553,7 @@ const AddressSection = ({
 
             {/* Error message with retry */}
             {error && (
-                <div className="mt-1 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                <div id={loadErrorId} role="alert" className="mt-1 flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
                     <AlertCircle className="w-4 h-4" />
                     <span>{error}</span>
                     <button
@@ -522,10 +569,11 @@ const AddressSection = ({
 
             {/* Validation error */}
             {validationError && !error && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{validationError}</p>
+                <p id={validationErrorId} role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{validationError}</p>
             )}
         </div>
-    );
+        );
+    };
 
     return (
         <div className="space-y-6">
@@ -590,17 +638,19 @@ const AddressSection = ({
                 {/* Address Line 1 */}
                 <div>
                     <label
-                        htmlFor="addressLine1"
+                        htmlFor={getFieldId('addressLine1')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
                         Street Address {required && <span className="text-red-500">*</span>}
                     </label>
                     <input
-                        id="addressLine1"
+                        id={getFieldId('addressLine1')}
                         type="text"
                         value={value.addressLine1}
                         onChange={(e) => handleTextChange('addressLine1', e.target.value)}
                         disabled={disabled}
+                        aria-invalid={Boolean(errors.addressLine1)}
+                        aria-describedby={errors.addressLine1 ? getFieldErrorId('addressLine1') : undefined}
                         placeholder="Enter street address"
                         className={`
               w-full px-3 py-2.5
@@ -616,20 +666,20 @@ const AddressSection = ({
             `}
                     />
                     {errors.addressLine1 && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.addressLine1}</p>
+                        <p id={getFieldErrorId('addressLine1')} role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.addressLine1}</p>
                     )}
                 </div>
 
                 {/* Address Line 2 */}
                 <div>
                     <label
-                        htmlFor="addressLine2"
+                        htmlFor={getFieldId('addressLine2')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
                         Address Line 2
                     </label>
                     <input
-                        id="addressLine2"
+                        id={getFieldId('addressLine2')}
                         type="text"
                         value={value.addressLine2}
                         onChange={(e) => handleTextChange('addressLine2', e.target.value)}
@@ -655,19 +705,21 @@ const AddressSection = ({
                 {/* Postal Code */}
                 <div>
                     <label
-                        htmlFor="postalCode"
+                        htmlFor={getFieldId('postalCode')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
                         Postcode {required && <span className="text-red-500">*</span>}
                     </label>
                     <input
-                        id="postalCode"
+                        id={getFieldId('postalCode')}
                         type="text"
                         inputMode="text"
                         pattern="[A-Za-z0-9 ]*"
                         value={value.postalCode}
                         onChange={handlePostalCodeChange}
                         disabled={disabled}
+                        aria-invalid={Boolean(errors.postalCode)}
+                        aria-describedby={errors.postalCode ? getFieldErrorId('postalCode') : undefined}
                         placeholder="e.g. SW1A 1AA"
                         className={`
               w-full px-3 py-2.5
@@ -683,20 +735,20 @@ const AddressSection = ({
             `}
                     />
                     {errors.postalCode && (
-                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.postalCode}</p>
+                        <p id={getFieldErrorId('postalCode')} role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.postalCode}</p>
                     )}
                 </div>
 
                 {/* Neighborhood */}
                 <div>
                     <label
-                        htmlFor="neighborhood"
+                        htmlFor={getFieldId('neighborhood')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
                         Neighborhood
                     </label>
                     <input
-                        id="neighborhood"
+                        id={getFieldId('neighborhood')}
                         type="text"
                         value={value.neighborhood}
                         onChange={(e) => handleTextChange('neighborhood', e.target.value)}
@@ -719,13 +771,13 @@ const AddressSection = ({
                 {/* Landmark */}
                 <div>
                     <label
-                        htmlFor="landmark"
+                        htmlFor={getFieldId('landmark')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
                         Nearby Landmark
                     </label>
                     <input
-                        id="landmark"
+                        id={getFieldId('landmark')}
                         type="text"
                         value={value.landmark}
                         onChange={(e) => handleTextChange('landmark', e.target.value)}

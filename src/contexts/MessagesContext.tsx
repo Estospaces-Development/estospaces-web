@@ -46,6 +46,9 @@ interface Conversation {
     lastMessageTime: string;
     unreadCount: number;
     messages: Message[];
+    messagesPage: number;
+    hasOlderMessages: boolean;
+    isLoadingOlderMessages: boolean;
 }
 
 interface MessagesContextType {
@@ -65,6 +68,7 @@ interface MessagesContextType {
     createConversation: (agentData: any, propertyData: any) => Promise<string>;
     sendMessage: (conversationId: string, text: string, attachments?: any[]) => Promise<void>;
     markAsRead: (conversationId: string) => Promise<void>;
+    loadOlderMessages: (conversationId: string) => Promise<void>;
     archiveConversation: (conversationId: string) => Promise<void>;
     unarchiveConversation: (conversationId: string) => Promise<void>;
     muteConversation: (conversationId: string) => Promise<void>;
@@ -95,6 +99,7 @@ const quickReplyTemplates = [
 
 const CONVERSATION_POLL_INTERVAL_MS = 5000;
 const MESSAGE_POLL_INTERVAL_MS = 3000;
+const MESSAGE_PAGE_SIZE = 20;
 
 const parseMetadata = (metadata: messagesService.Conversation['metadata']) => {
     if (!metadata) {
@@ -180,6 +185,9 @@ const createPlaceholderConversation = (conversationId: string): Conversation => 
     lastMessageTime: '',
     unreadCount: 0,
     messages: [],
+    messagesPage: 0,
+    hasOlderMessages: false,
+    isLoadingOlderMessages: false,
 });
 
 export const MessagesProvider = ({ children }: { children: React.ReactNode }) => {
@@ -255,6 +263,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             lastMessageTime: formatMessageTime(lastMessage?.timestamp || backendConversation.updated_at),
             unreadCount: Number(backendConversation.unread_count ?? existingConversation?.unreadCount ?? 0),
             messages: existingConversation?.messages || [],
+            messagesPage: existingConversation?.messagesPage || 0,
+            hasOlderMessages: existingConversation?.hasOlderMessages || false,
+            isLoadingOlderMessages: existingConversation?.isLoadingOlderMessages || false,
         };
     }, [mapBackendMessage]);
 
@@ -355,7 +366,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
 
     const loadConversationMessages = useCallback(async (conversationId: string) => {
         try {
-            const backendMessages = await messagesService.getMessages(conversationId);
+            const backendMessages = await messagesService.getMessages(conversationId, 1, MESSAGE_PAGE_SIZE);
             const mappedMessages = backendMessages.map(mapBackendMessage);
 
             setConversations((previous) =>
@@ -370,6 +381,9 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                         return {
                             ...conversation,
                             messages: mappedMessages,
+                            messagesPage: 1,
+                            hasOlderMessages: backendMessages.length === MESSAGE_PAGE_SIZE,
+                            isLoadingOlderMessages: false,
                             lastMessage: mappedMessages[mappedMessages.length - 1]?.text || conversation.lastMessage,
                             lastMessageTime: mappedMessages.length > 0
                                 ? mappedMessages[mappedMessages.length - 1].time
@@ -385,6 +399,8 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
                         {
                             ...createPlaceholderConversation(conversationId),
                             messages: mappedMessages,
+                            messagesPage: 1,
+                            hasOlderMessages: backendMessages.length === MESSAGE_PAGE_SIZE,
                             lastMessage: mappedMessages[mappedMessages.length - 1]?.text || '',
                             lastMessageTime: mappedMessages.length > 0
                                 ? mappedMessages[mappedMessages.length - 1].time
@@ -404,6 +420,51 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             return false;
         }
     }, [handleUnavailableConversationThread, mapBackendMessage]);
+
+    const loadOlderMessages = useCallback(async (conversationId: string) => {
+        const conversation = conversations.find((item) => item.id === conversationId);
+        if (!conversation || conversation.isLoadingOlderMessages || !conversation.hasOlderMessages) {
+            return;
+        }
+
+        const nextPage = Math.max(conversation.messagesPage, 1) + 1;
+        setConversations((previous) =>
+            previous.map((item) =>
+                item.id === conversationId ? { ...item, isLoadingOlderMessages: true } : item,
+            ),
+        );
+
+        try {
+            const backendMessages = await messagesService.getMessages(conversationId, nextPage, MESSAGE_PAGE_SIZE);
+            const mappedMessages = backendMessages.map(mapBackendMessage);
+            setConversations((previous) =>
+                previous.map((item) => {
+                    if (item.id !== conversationId) {
+                        return item;
+                    }
+
+                    const existingIds = new Set(item.messages.map((message) => message.id));
+                    const olderMessages = mappedMessages.filter((message) => !existingIds.has(message.id));
+                    return {
+                        ...item,
+                        messages: [...olderMessages, ...item.messages],
+                        messagesPage: nextPage,
+                        hasOlderMessages: backendMessages.length === MESSAGE_PAGE_SIZE,
+                        isLoadingOlderMessages: false,
+                    };
+                }),
+            );
+        } catch (error) {
+            if (handleUnavailableConversationThread(conversationId, error)) {
+                return;
+            }
+            setConversations((previous) =>
+                previous.map((item) =>
+                    item.id === conversationId ? { ...item, isLoadingOlderMessages: false } : item,
+                ),
+            );
+        }
+    }, [conversations, handleUnavailableConversationThread, mapBackendMessage]);
 
     useWorkspaceRefresh({
         tags: [WORKSPACE_SYNC_TAGS.MESSAGES, WORKSPACE_SYNC_TAGS.SUPPORT],
@@ -737,6 +798,7 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
         createConversation,
         sendMessage,
         markAsRead,
+        loadOlderMessages,
         archiveConversation,
         unarchiveConversation,
         muteConversation,

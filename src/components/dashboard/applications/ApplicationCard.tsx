@@ -23,6 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { APPLICATION_STATUS, Application } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { canWithdrawApplicationRecord } from '@/lib/saleJourney';
 import { messagesService } from '@/services/messagesService';
 
 
@@ -235,6 +236,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
 
     const statusConfig = getStatusConfig(application.status);
     const primaryAction = getPrimaryAction();
+    const canWithdraw = canWithdrawApplicationRecord(application);
 
     const handleMessageAgent = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -446,9 +448,21 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                                 disabled={openingConversation}
                                 className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors disabled:cursor-wait disabled:opacity-60"
                                 title={openingConversation ? 'Opening thread' : 'Message Agent'}
+                                aria-label={openingConversation ? 'Opening agent conversation' : 'Message agent'}
                             >
                                 {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
                             </button>
+                            {canWithdraw && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onClick();
+                                    }}
+                                    className="px-3 py-2 border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                                >
+                                    Withdraw
+                                </button>
+                            )}
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();

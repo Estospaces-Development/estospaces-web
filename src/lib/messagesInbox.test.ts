@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { ApiRequestError } from '@/lib/apiUtils';
 import {
+    buildConversationListUrl,
     isUnavailableConversationThreadError,
     resolveConversationQuerySelection,
 } from '@/lib/messagesInbox';
@@ -30,6 +31,32 @@ test('conversation query selection accepts an accessible deep-linked conversatio
         }),
         {
             status: 'select',
+            conversationId: 'conversation-1',
+        },
+    );
+});
+
+test('conversation list URL removes only the selected conversation query', () => {
+    assert.equal(
+        buildConversationListUrl('/manager/messages', '?conversation=thread-1&tab=open'),
+        '/manager/messages?tab=open',
+    );
+    assert.equal(
+        buildConversationListUrl('/manager/messages', '?conversation=thread-1'),
+        '/manager/messages',
+    );
+});
+
+test('conversation query selection ignores a conversation currently being dismissed', () => {
+    assert.deepEqual(
+        resolveConversationQuerySelection({
+            requestedConversationId: 'conversation-1',
+            hasLoadedConversations: true,
+            availableConversationIds: ['conversation-1'],
+            ignoredConversationId: 'conversation-1',
+        }),
+        {
+            status: 'ignore',
             conversationId: 'conversation-1',
         },
     );

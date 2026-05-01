@@ -1,4 +1,5 @@
 import type { FastTrackStep } from '@/services/fastTrackService';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 import type { FastTrackLinkedJourney } from './fastTrackLinkedJourney';
 
@@ -41,8 +42,9 @@ const isPendingInvoiceTask = (item: FinanceTask) => {
 };
 
 export const hasPendingRentFinanceTasks = (linkedJourney?: LinkedJourneyLike) => (
-    (linkedJourney?.payments || []).some(isPendingPaymentTask)
+    PAYMENTS_ENABLED && ((linkedJourney?.payments || []).some(isPendingPaymentTask)
     || (linkedJourney?.invoices || []).some(isPendingInvoiceTask)
+    )
 );
 
 export const getPurchaseWorkspaceLabel = (_linkedJourney?: Pick<FastTrackLinkedJourney, 'liveStage' | 'saleProgression'> | null) => 'Open linked purchase details';

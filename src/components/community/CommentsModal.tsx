@@ -45,7 +45,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                             {post.commentsCount} {post.commentsCount === 1 ? 'comment' : 'comments'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                    <button onClick={onClose} aria-label="Close comments" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
                         <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
                 </div>
@@ -119,11 +119,14 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                                 value={newComment}
                                 onChange={(e) => setNewComment(e.target.value)}
                                 placeholder="Write a comment..."
+                                aria-label="Write a comment"
+                                required
                                 className="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             />
                             <button
                                 type="submit"
                                 disabled={!newComment.trim()}
+                                aria-label="Send comment"
                                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 <Send className="w-4 h-4" />

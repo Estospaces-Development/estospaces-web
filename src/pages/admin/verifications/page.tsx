@@ -163,12 +163,14 @@ function VerificationsContent() {
       <div className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <button
           onClick={() => handleEntityTabChange('user')}
+          aria-pressed={entityTab === 'user'}
           className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${entityTab === 'user' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
         >
           User
         </button>
         <button
           onClick={() => handleEntityTabChange('manager')}
+          aria-pressed={entityTab === 'manager'}
           className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${entityTab === 'manager' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'}`}
         >
           Manager
@@ -199,6 +201,7 @@ function VerificationsContent() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
                 <input
                   type="text"
+                  aria-label="Search managers"
                   placeholder="Search managers..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -207,6 +210,8 @@ function VerificationsContent() {
               </div>
               <button
                 onClick={handleRefresh}
+                aria-label="Refresh manager verification queue"
+                title="Refresh manager verification queue"
                 className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
               >
                 <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
@@ -220,8 +225,12 @@ function VerificationsContent() {
               <button
                 key={stat.id}
                 onClick={() => setActiveTab(stat.id === 'submitted' ? 'pending' : stat.id === 'under_review' ? 'review' : stat.id as TabType)}
+                aria-pressed={(activeTab === 'pending' && stat.id === 'submitted') ||
+                  (activeTab === 'review' && stat.id === 'under_review') ||
+                  activeTab === stat.id}
+                aria-label={`${stat.label}: ${stat.count} managers`}
                 className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
-                  (activeTab === 'pending' && stat.id === 'submitted') || 
+                  (activeTab === 'pending' && stat.id === 'submitted') ||
                   (activeTab === 'review' && stat.id === 'under_review') ||
                   activeTab === stat.id
                   ? 'bg-white dark:bg-gray-800 border-orange-500 shadow-2xl scale-105 z-10'
@@ -265,8 +274,8 @@ function VerificationsContent() {
             <button className="text-xs font-black uppercase tracking-widest pb-2 border-b-2 border-transparent text-gray-400 hover:text-gray-600">Archived</button>
           </div>
           <div className="flex gap-2">
-            <button className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"><LayoutGrid size={18} /></button>
-            <button className="p-2 text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-lg transition-all"><List size={18} /></button>
+            <button aria-label="Show manager verifications as grid" className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"><LayoutGrid size={18} /></button>
+            <button aria-label="Show manager verifications as list" aria-pressed="true" className="p-2 text-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-lg transition-all"><List size={18} /></button>
           </div>
         </div>
 
@@ -285,7 +294,7 @@ function VerificationsContent() {
                   key={manager.id}
                   className="group p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-100 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl"
                 >
-                  <div className="flex items-center gap-6">
+                  <div className="flex min-w-0 items-center gap-6">
                     <Avatar
                       userId={manager.id}
                       name={displayName}
@@ -293,17 +302,17 @@ function VerificationsContent() {
                       shape="rounded"
                       fallbackClassName={manager.profile_type === 'broker' ? 'from-blue-500 to-indigo-600' : 'from-orange-500 to-amber-600'}
                     />
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{displayName}</h3>
+                        <h3 className="min-w-0 text-lg font-black text-gray-900 dark:text-white tracking-tight break-words [overflow-wrap:anywhere]">{displayName}</h3>
                         <div className={`w-2 h-2 rounded-full ${isPending(manager.verification_status) ? 'bg-amber-500' :
                           isReview(manager.verification_status) ? 'bg-blue-500' : 
                           isApproved(manager.verification_status) ? 'bg-green-500' : 'bg-red-500'
                           }`}></div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex min-w-0 flex-wrap items-center gap-4">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{manager.profile_type}</span>
-                        <span className="text-xs text-gray-500 font-bold">- {manager.authorized_representative_email || 'No Email'}</span>
+                        <span className="min-w-0 text-xs text-gray-500 font-bold break-all">- {manager.authorized_representative_email || 'No Email'}</span>
                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                           isPending(manager.verification_status) ? 'bg-amber-100 text-amber-600' :
                           isReview(manager.verification_status) ? 'bg-blue-100 text-blue-600' :
@@ -329,8 +338,9 @@ function VerificationsContent() {
                         next.set('entity', 'manager');
                         next.set('managerId', manager.id);
                         next.delete('userId');
-                        setSearchParams(next, { replace: true });
+                        setSearchParams(next);
                       }}
+                      aria-label={`Review profile for ${displayName}`}
                       className="px-10 py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2 group-hover:bg-orange-500 group-hover:text-white"
                     >
                       Review Profile <ArrowRight size={16} />

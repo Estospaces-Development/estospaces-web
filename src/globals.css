@@ -83,6 +83,23 @@
     touch-action: manipulation;
   }
 
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid #f97316;
+    outline-offset: 3px;
+  }
+
+  .case-file-workspace :where(button, a, input, textarea, select, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid #f97316 !important;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18);
+  }
+
   input,
   textarea,
   select {

@@ -24,7 +24,9 @@ export interface ManagerReview {
 
 export async function getManagerReviewForCase(caseId: string) {
     try {
-        const response = await apiFetchEnvelope<ManagerReview | null>(`${CORE_URL()}/api/v1/manager-reviews/case/${caseId}`);
+        const response = await apiFetchEnvelope<ManagerReview | null>(`${CORE_URL()}/api/v1/manager-reviews/case/${caseId}`, {
+            suppressErrorToast: true,
+        });
         const data = response.data ?? null;
         return { success: true, data, error: null as string | null };
     } catch (error: any) {
@@ -40,6 +42,7 @@ export async function createManagerReview(reviewData: {
     try {
         const data = await apiFetch<ManagerReview>(`${CORE_URL()}/api/v1/manager-reviews`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify(reviewData),
         });
         return { success: true, data, error: null as string | null };
@@ -55,6 +58,7 @@ export async function updateManagerReview(reviewId: string, reviewData: {
     try {
         const data = await apiFetch<ManagerReview>(`${CORE_URL()}/api/v1/manager-reviews/${reviewId}`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify(reviewData),
         });
         return { success: true, data, error: null as string | null };
@@ -66,7 +70,9 @@ export async function updateManagerReview(reviewId: string, reviewData: {
 export async function getAdminManagerReviews(status: 'all' | 'pending' | 'approved' = 'pending') {
     try {
         const query = status === 'all' ? '' : `?status=${encodeURIComponent(status)}`;
-        const data = await apiFetch<ManagerReview[]>(`${CORE_URL()}/api/v1/admin/manager-reviews${query}`);
+        const data = await apiFetch<ManagerReview[]>(`${CORE_URL()}/api/v1/admin/manager-reviews${query}`, {
+            suppressErrorToast: true,
+        });
         return { success: true, data, error: null as string | null };
     } catch (error: any) {
         return { success: false, data: null, error: getErrorMessage(error) };
@@ -77,6 +83,7 @@ export async function approveManagerReview(reviewId: string) {
     try {
         await apiFetch(`${CORE_URL()}/api/v1/admin/manager-reviews/${reviewId}/approve`, {
             method: 'PUT',
+            suppressErrorToast: true,
         });
         return { success: true, error: null as string | null };
     } catch (error: any) {
@@ -88,6 +95,7 @@ export async function deleteManagerReview(reviewId: string) {
     try {
         await apiFetch(`${CORE_URL()}/api/v1/admin/manager-reviews/${reviewId}`, {
             method: 'DELETE',
+            suppressErrorToast: true,
         });
         return { success: true, error: null as string | null };
     } catch (error: any) {

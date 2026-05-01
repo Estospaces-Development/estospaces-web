@@ -48,7 +48,9 @@ export async function getPropertyReviews(propertyId: string): Promise<ReviewResp
             reviews: Review[];
             average_rating: number;
             total_reviews: number;
-        }>(`${CORE_URL()}/api/v1/reviews/property/${propertyId}`);
+        }>(`${CORE_URL()}/api/v1/reviews/property/${propertyId}`, {
+            suppressErrorToast: true,
+        });
         return {
             success: true,
             data: { ...data, reviews: data.reviews.map(normaliseReview) },
@@ -60,7 +62,9 @@ export async function getPropertyReviews(propertyId: string): Promise<ReviewResp
 
 export async function getUserReviews(): Promise<{ success: boolean; data: Review[] | null; error?: string }> {
     try {
-        const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/reviews/mine`);
+        const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/reviews/mine`, {
+            suppressErrorToast: true,
+        });
         return { success: true, data: data.map(normaliseReview) };
     } catch (error: any) {
         return { success: false, data: null, error: getErrorMessage(error) };
@@ -76,6 +80,7 @@ export async function createReview(reviewData: {
     try {
         const data = await apiFetch<Review>(`${CORE_URL()}/api/v1/reviews`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify(reviewData),
         });
         return { success: true, data: normaliseReview(data) };
@@ -86,7 +91,10 @@ export async function createReview(reviewData: {
 
 export async function deleteReview(reviewId: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiFetch(`${CORE_URL()}/api/v1/reviews/${reviewId}`, { method: 'DELETE' });
+        await apiFetch(`${CORE_URL()}/api/v1/reviews/${reviewId}`, {
+            method: 'DELETE',
+            suppressErrorToast: true,
+        });
         return { success: true };
     } catch (error: any) {
         return { success: false, error: getErrorMessage(error) };
@@ -95,7 +103,9 @@ export async function deleteReview(reviewId: string): Promise<{ success: boolean
 
 export async function getAdminReviews(): Promise<{ success: boolean; data: Review[] | null; error?: string }> {
     try {
-        const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/admin/reviews`);
+        const data = await apiFetch<Review[]>(`${CORE_URL()}/api/v1/admin/reviews`, {
+            suppressErrorToast: true,
+        });
         return { success: true, data: data.map(normaliseReview) };
     } catch (error: any) {
         return { success: false, data: null, error: getErrorMessage(error) };
@@ -104,7 +114,10 @@ export async function getAdminReviews(): Promise<{ success: boolean; data: Revie
 
 export async function approveReview(reviewId: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiFetch(`${CORE_URL()}/api/v1/reviews/${reviewId}/approve`, { method: 'PUT' });
+        await apiFetch(`${CORE_URL()}/api/v1/reviews/${reviewId}/approve`, {
+            method: 'PUT',
+            suppressErrorToast: true,
+        });
         return { success: true };
     } catch (error: any) {
         return { success: false, error: getErrorMessage(error) };

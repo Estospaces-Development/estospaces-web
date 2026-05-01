@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Clock3, Loader2, Maximize2, Send, Video, X } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { getVirtualTourByPropertyId, requestVirtualTour } from '@/services/virtualTourService';
@@ -35,6 +35,7 @@ const statusPresentation = {
 
 const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }) => {
     const toast = useToast();
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [requestNote, setRequestNote] = useState('');
@@ -67,6 +68,19 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
         void loadVirtualTourState();
     }, [loadVirtualTourState]);
 
+    useEffect(() => {
+        closeButtonRef.current?.focus();
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     const handleRequest = async () => {
         setSubmitting(true);
         const { data, error } = await requestVirtualTour(property.id, {
@@ -90,11 +104,23 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
     const presentation = statusPresentation[status];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fadeIn">
-            <div className="relative flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-fadeIn"
+            onClick={onClose}
+        >
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="virtual-tour-modal-title"
+                className="relative flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900"
+                onClick={(event) => event.stopPropagation()}
+            >
                 <div className="flex items-center justify-between border-b border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
                     <div>
-                        <h3 className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
+                        <h3
+                            id="virtual-tour-modal-title"
+                            className="flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white"
+                        >
                             <span className={`h-2 w-2 rounded-full ${status === 'ready' ? 'bg-green-500' : 'bg-orange-500'}`} />
                             {presentation.title}
                         </h3>
@@ -103,15 +129,21 @@ const VirtualTourModal: React.FC<VirtualTourModalProps> = ({ property, onClose }
                     <div className="flex items-center gap-2">
                         {tourUrl ? (
                             <button
+                                type="button"
                                 onClick={() => window.open(tourUrl, '_blank', 'noopener,noreferrer')}
                                 className="hidden rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 sm:block"
+                                aria-label="Open virtual tour in a new tab"
                                 title="Open in new tab"
                             >
                                 <Maximize2 size={20} className="text-gray-600 dark:text-gray-300" />
                             </button>
                         ) : null}
                         <button
+                            ref={closeButtonRef}
+                            type="button"
                             onClick={onClose}
+                            aria-label="Close virtual tour"
+                            title="Close virtual tour"
                             className="rounded-full p-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                         >
                             <X size={24} className="text-gray-600 dark:text-gray-300" />

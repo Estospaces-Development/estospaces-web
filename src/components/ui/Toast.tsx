@@ -58,6 +58,8 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
 
     const currentStyle = styles[type] || styles.success;
     const Icon = currentStyle.icon;
+    const liveRole = type === 'error' ? 'alert' : 'status';
+    const livePriority = type === 'error' ? 'assertive' : 'polite';
     // const positionClass = positionClasses[position] || positionClasses['top-right']; // Handled by container usually, but ok here if used independently
 
     return (
@@ -69,6 +71,9 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
+                    role={liveRole}
+                    aria-live={livePriority}
+                    aria-atomic="true"
                     className={`relative ${currentStyle.bg} ${currentStyle.border} flex w-[calc(100vw-2rem)] min-w-0 max-w-[420px] items-start gap-3 rounded-xl border-2 p-4 text-white shadow-2xl pointer-events-auto`}
                 >
                     <Icon className={`${currentStyle.iconColor} flex-shrink-0 mt-0.5`} size={22} />
@@ -80,7 +85,7 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 text-white"
+                        className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                         aria-label="Close notification"
                     >
                         <X size={18} />

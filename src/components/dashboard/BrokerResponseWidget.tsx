@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Info, BellRing, Loader2, MapPin, MoreHorizontal, Send, Zap } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Info, BellRing, Loader2, MapPin, MoreHorizontal, Search, Send, Zap } from 'lucide-react';
 import BrokerRequestItem, { BrokerRequest } from './BrokerRequestItem';
 import {
     formatWorkspaceReference,
@@ -10,6 +10,7 @@ import {
     selectManagerTrackerItems,
     getManagerWorkspaceAction,
     getManagerWorkspaceStateLabel,
+    type ManagerTrackerItem,
 } from '@/lib/brokerDispatchPresentation';
 import {
     acceptBrokerRequestOffer,
@@ -94,7 +95,13 @@ const formatWorkspaceStartedAt = (value?: string) => {
 };
 
 const MATCHED_WORKSPACES_ID = 'matched-client-workspaces';
+const PROPERTY_SHARE_PICKER_LIMIT = 12;
+const TRACKER_ITEM_LIMIT = 4;
 const getMatchedWorkspaceCardId = (requestId: string) => `matched-workspace-${requestId}`;
+
+type TrackerFilter = 'all' | 'pending' | 'responded' | 'expired';
+type TrackerSort = 'priority' | 'newest' | 'oldest';
+type TrackerRequest = BrokerRequest & ManagerTrackerItem;
 
 type ManagerPortfolioProperty = {
     id: string;
@@ -109,7 +116,7 @@ type ManagerPortfolioProperty = {
 const BrokerResponseWidget: React.FC = () => {
     const navigate = useNavigate();
     const toast = useToast();
-    const [requests, setRequests] = useState<BrokerRequest[]>([]);
+    const [requests, setRequests] = useState<TrackerRequest[]>([]);
     const [matchedRequests, setMatchedRequests] = useState<BrokerRequestRecord[]>([]);
     const [managerProperties, setManagerProperties] = useState<ManagerPortfolioProperty[]>([]);
     const [shareSelections, setShareSelections] = useState<Record<string, string[]>>({});
@@ -120,6 +127,12 @@ const BrokerResponseWidget: React.FC = () => {
     const [availabilityLoading, setAvailabilityLoading] = useState(false);
     const [availabilityBlockedReason, setAvailabilityBlockedReason] = useState<string | null>(null);
     const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+    const [propertyPickerSearch, setPropertyPickerSearch] = useState('');
+    const [propertyPickerSort, setPropertyPickerSort] = useState<'price_desc' | 'price_asc' | 'title_asc'>('price_desc');
+    const [shareStatusMessage, setShareStatusMessage] = useState('');
+    const [availabilityStatusMessage, setAvailabilityStatusMessage] = useState('');
+    const [trackerFilter, setTrackerFilter] = useState<TrackerFilter>('all');
+    const [trackerSort, setTrackerSort] = useState<TrackerSort>('priority');
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const fetchRequests = useCallback(async (silent: boolean = false) => {
@@ -130,7 +143,7 @@ const BrokerResponseWidget: React.FC = () => {
         try {
             const [leadsResult, offersResult, availabilityResult, propertiesResult] = await Promise.all([
                 getBrokerLeads(),
-                getBrokerRequestOffers(),
+                getBrokerRequestOffers({ limit: 40, sort: 'created_at_desc' }),
                 getBrokerAvailability(),
                 getUserProperties({
                     limit: 40,
@@ -217,7 +230,7 @@ const BrokerResponseWidget: React.FC = () => {
                 };
             });
 
-            setRequests(selectManagerTrackerItems([...mappedOffers, ...mappedLeads], 4));
+            setRequests([...mappedOffers, ...mappedLeads] as TrackerRequest[]);
             setMatchedRequests(sortBrokerRequestsByPriority((offersResult.data || []).filter((offer) => (
                 (offer.dispatch_status === 'broker_matched' || offer.status === 'matched')
                 && Boolean(offer.matched_broker_id)
@@ -289,6 +302,53 @@ const BrokerResponseWidget: React.FC = () => {
         return () => window.clearTimeout(timeout);
     }, [focusedWorkspaceRequestId]);
 
+    const visibleManagerProperties = useMemo(() => {
+        const search = propertyPickerSearch.trim().toLowerCase();
+        const filtered = managerProperties.filter((property) => {
+            if (!search) {
+                return true;
+            }
+            return [
+                property.title,
+                property.city,
+                property.postcode,
+                property.listing_type,
+            ].some((value) => String(value || '').toLowerCase().includes(search));
+        });
+
+        filtered.sort((left, right) => {
+            if (propertyPickerSort === 'price_asc') {
+                return (left.price || 0) - (right.price || 0);
+            }
+            if (propertyPickerSort === 'title_asc') {
+                return left.title.localeCompare(right.title, undefined, { sensitivity: 'base' });
+            }
+            return (right.price || 0) - (left.price || 0);
+        });
+
+        return filtered.slice(0, PROPERTY_SHARE_PICKER_LIMIT);
+    }, [managerProperties, propertyPickerSearch, propertyPickerSort]);
+
+    const visibleRequests = useMemo(() => {
+        const filtered = trackerFilter === 'all'
+            ? requests
+            : requests.filter((request) => request.status === trackerFilter);
+
+        if (trackerSort === 'newest') {
+            return [...filtered]
+                .sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime())
+                .slice(0, TRACKER_ITEM_LIMIT);
+        }
+
+        if (trackerSort === 'oldest') {
+            return [...filtered]
+                .sort((left, right) => left.timestamp.getTime() - right.timestamp.getTime())
+                .slice(0, TRACKER_ITEM_LIMIT);
+        }
+
+        return selectManagerTrackerItems(filtered, TRACKER_ITEM_LIMIT);
+    }, [requests, trackerFilter, trackerSort]);
+
     const handleRespond = async (id: string) => {
         try {
             const selectedRequest = requests.find((request) => request.id === id);
@@ -344,6 +404,11 @@ const BrokerResponseWidget: React.FC = () => {
     };
 
     const togglePropertySelection = (requestId: string, propertyId: string) => {
+        const currentSelection = shareSelections[requestId] || [];
+        if (!currentSelection.includes(propertyId) && currentSelection.length >= PROPERTY_SHARE_PICKER_LIMIT) {
+            setShareStatusMessage(`Share ${PROPERTY_SHARE_PICKER_LIMIT} properties or fewer.`);
+            return;
+        }
         setShareSelections((previous) => {
             const current = previous[requestId] || [];
             const nextSelection = current.includes(propertyId)
@@ -360,6 +425,7 @@ const BrokerResponseWidget: React.FC = () => {
     const savePropertyShares = async (requestId: string) => {
         const selectedPropertyIds = shareSelections[requestId] || [];
         if (selectedPropertyIds.length === 0) {
+            setShareStatusMessage('Choose at least one property before sharing the shortlist.');
             toast.error('Choose at least one property before sharing the shortlist.');
             return;
         }
@@ -379,6 +445,7 @@ const BrokerResponseWidget: React.FC = () => {
                 throw new Error(error || 'Unable to share the shortlisted properties right now.');
             }
 
+            setShareStatusMessage('Property shortlist shared with the matched client.');
             toast.success('Property shortlist shared with the matched client.');
             publishWorkspaceSync({
                 source: 'mutation',
@@ -395,7 +462,9 @@ const BrokerResponseWidget: React.FC = () => {
             });
             await fetchRequests(true);
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to share the shortlist right now.');
+            const message = actionError?.message || 'Unable to share the shortlist right now.';
+            setShareStatusMessage(message);
+            toast.error(message);
         } finally {
             setShareSavingRequestId(null);
         }
@@ -403,12 +472,14 @@ const BrokerResponseWidget: React.FC = () => {
 
     const toggleAvailability = async () => {
         if (availabilityBlockedReason && !availableForFastResponse) {
+            setAvailabilityStatusMessage(availabilityBlockedReason);
             navigate('/manager/verification');
             return;
         }
 
         setAvailabilityLoading(true);
         setAvailabilityError(null);
+        setAvailabilityStatusMessage('');
 
         const nextAvailability = !availableForFastResponse;
         const response = await updateBrokerAvailability(nextAvailability);
@@ -417,6 +488,7 @@ const BrokerResponseWidget: React.FC = () => {
 
         if (response.error) {
             setAvailabilityError(response.error);
+            setAvailabilityStatusMessage(response.error);
             await fetchRequests(true);
             return;
         }
@@ -424,6 +496,10 @@ const BrokerResponseWidget: React.FC = () => {
         if (response.data) {
             setAvailableForFastResponse(response.data.available_for_fast_response);
             setAvailabilityBlockedReason(response.data.blocked_reason || null);
+            setAvailabilityStatusMessage(
+                response.data.blocked_reason
+                    || (response.data.available_for_fast_response ? 'Live queue is on.' : 'Live queue paused.')
+            );
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -452,6 +528,9 @@ const BrokerResponseWidget: React.FC = () => {
 
     return (
         <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 ring-2 ring-blue-500/10">
+            <div role="status" aria-live="polite" className="sr-only">
+                {[shareStatusMessage, availabilityStatusMessage].filter(Boolean).join(' ')}
+            </div>
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg animate-pulse">
@@ -514,11 +593,39 @@ const BrokerResponseWidget: React.FC = () => {
                 </button>
             </div>
 
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Status
+                    <select
+                        value={trackerFilter}
+                        onChange={(event) => setTrackerFilter(event.target.value as TrackerFilter)}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-black dark:text-gray-200"
+                    >
+                        <option value="all">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="responded">Responded</option>
+                        <option value="expired">Expired</option>
+                    </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                    Sort
+                    <select
+                        value={trackerSort}
+                        onChange={(event) => setTrackerSort(event.target.value as TrackerSort)}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-black dark:text-gray-200"
+                    >
+                        <option value="priority">Priority</option>
+                        <option value="newest">Newest</option>
+                        <option value="oldest">Oldest</option>
+                    </select>
+                </label>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {loading ? (
                     <div className="col-span-full py-8 text-center text-gray-400">Loading requests...</div>
-                ) : requests.length > 0 ? (
-                    requests.map((request) => (
+                ) : visibleRequests.length > 0 ? (
+                    visibleRequests.map((request) => (
                         <BrokerRequestItem
                             key={request.id}
                             request={request}
@@ -666,8 +773,39 @@ const BrokerResponseWidget: React.FC = () => {
                                         <>
                                             {managerProperties.length > 0 ? (
                                                 <>
+                                                    <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                                                        <label className="relative block">
+                                                            <span className="sr-only">Search portfolio properties</span>
+                                                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                                            <input
+                                                                type="text"
+                                                                aria-label="Search portfolio properties"
+                                                                value={propertyPickerSearch}
+                                                                onChange={(event) => setPropertyPickerSearch(event.target.value)}
+                                                                maxLength={120}
+                                                                placeholder="Search portfolio..."
+                                                                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-black dark:text-white"
+                                                            />
+                                                        </label>
+                                                        <label className="block">
+                                                            <span className="sr-only">Sort portfolio properties</span>
+                                                            <select
+                                                                aria-label="Sort portfolio properties"
+                                                                value={propertyPickerSort}
+                                                                onChange={(event) => setPropertyPickerSort(event.target.value as 'price_desc' | 'price_asc' | 'title_asc')}
+                                                                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-black dark:text-white"
+                                                            >
+                                                                <option value="price_desc">Highest price</option>
+                                                                <option value="price_asc">Lowest price</option>
+                                                                <option value="title_asc">Title A-Z</option>
+                                                            </select>
+                                                        </label>
+                                                    </div>
+                                                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+                                                        Showing {visibleManagerProperties.length} of {managerProperties.length} portfolio properties
+                                                    </p>
                                                     <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                                                        {managerProperties.map((property) => {
+                                                        {visibleManagerProperties.map((property) => {
                                                             const isSelected = selectedIds.includes(property.id);
 
                                                             return (

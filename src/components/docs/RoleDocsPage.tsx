@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 import type { RoleDocsConfig, RoleDocsDocument } from '@/lib/roleDocs';
 import { getSectionPreview, getWordCount } from '@/lib/roleDocsPreview';
+import { normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import DocsMarkdown from './DocsMarkdown';
 
 interface RoleDocsPageProps {
@@ -23,6 +24,7 @@ interface RoleDocsPageProps {
 }
 
 const AVERAGE_READING_SPEED = 210;
+const MAX_DOCS_SEARCH_LENGTH = 120;
 
 const matchesQuery = (query: string, value: string) => value.toLowerCase().includes(query);
 
@@ -31,7 +33,10 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
     const [openFaq, setOpenFaq] = useState('');
     const [activeSection, setActiveSection] = useState(docsDocument.sections[0]?.slug ?? '');
     const pageRootRef = useRef<HTMLDivElement | null>(null);
-    const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+    const rawQuery = query.trim();
+    const queryTooLong = rawQuery.length > MAX_DOCS_SEARCH_LENGTH;
+    const normalizedQuery = queryTooLong ? '' : normalizeSearchQueryInput(query);
+    const deferredQuery = useDeferredValue(normalizedQuery);
 
     useEffect(() => {
         const pageRoot = pageRootRef.current;
@@ -80,14 +85,19 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
         return () => window.removeEventListener('hashchange', scrollToHash);
     }, [docsDocument.sections]);
 
-    const visibleSections = deferredQuery
+    const visibleSections = queryTooLong
+        ? []
+        : deferredQuery
         ? docsDocument.sections.filter((section) =>
               matchesQuery(deferredQuery, `${section.title}\n${section.body}`),
           )
         : docsDocument.sections;
 
-    const tocSections = visibleSections.length > 0 ? visibleSections : docsDocument.sections;
+    const tocSections = visibleSections;
     const hasResults = visibleSections.length > 0;
+    const noResultsMessage = queryTooLong
+        ? `Search text must be ${MAX_DOCS_SEARCH_LENGTH} characters or fewer.`
+        : 'Search by the goal you are working on, like "fast-track", "contracts", "verification", or "share properties".';
 
     useEffect(() => {
         if (tocSections.length === 0) {
@@ -298,22 +308,30 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                 <div className="relative">
                                     <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-400" />
                                     <input
+                                        aria-label={`Search ${config.label}`}
+                                        aria-invalid={queryTooLong}
+                                        aria-describedby={queryTooLong ? `${config.role}-docs-search-error` : undefined}
                                         type="text"
                                         value={query}
                                         onChange={(event) => setQuery(event.target.value)}
                                         placeholder={config.searchPlaceholder}
-                                        className="input-field h-12 rounded-2xl border-orange-100 bg-orange-50/70 pl-11 pr-28 focus:bg-white dark:border-orange-500/10 dark:bg-gray-900"
+                                        className="input-field h-12 rounded-2xl border-orange-100 bg-orange-50/70 pl-11 pr-28 focus:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/10 dark:bg-gray-900 dark:focus-visible:ring-offset-gray-950"
                                     />
                                     {query ? (
                                         <button
                                             type="button"
                                             onClick={() => setQuery('')}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl border border-orange-200 bg-white px-3 py-2 text-xs font-bold text-orange-600 transition-colors hover:bg-orange-50 dark:border-orange-500/20 dark:bg-gray-950 dark:text-orange-200"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl border border-orange-200 bg-white px-3 py-2 text-xs font-bold text-orange-600 transition-colors hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:border-orange-500/20 dark:bg-gray-950 dark:text-orange-200 dark:focus-visible:ring-offset-gray-950"
                                         >
                                             Clear
                                         </button>
                                     ) : null}
                                 </div>
+                                {queryTooLong ? (
+                                    <p id={`${config.role}-docs-search-error`} role="alert" className="text-sm font-semibold text-red-600 dark:text-red-300">
+                                        {noResultsMessage}
+                                    </p>
+                                ) : null}
 
                                 <div className="flex flex-wrap items-center gap-3">
                                     <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-orange-600 shadow-sm dark:border-orange-500/20 dark:bg-gray-950 dark:text-orange-200">
@@ -450,7 +468,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                             </div>
                         </section>
 
-                        {!hasResults && deferredQuery ? (
+                        {!hasResults && (deferredQuery || queryTooLong) ? (
                             <section className="rounded-[1.75rem] border border-orange-100 bg-white p-8 text-center shadow-sm dark:border-orange-500/10 dark:bg-gray-950">
                                 <p className="text-xs font-black uppercase tracking-[0.24em] text-orange-500">
                                     No direct match
@@ -459,7 +477,7 @@ export default function RoleDocsPage({ config, docsDocument }: RoleDocsPageProps
                                     Try a simpler search phrase
                                 </h2>
                                 <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                                    Search by the goal you are working on, like "fast-track", "contracts", "verification", or "share properties".
+                                    {noResultsMessage}
                                 </p>
                             </section>
                         ) : (

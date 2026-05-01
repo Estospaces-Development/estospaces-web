@@ -54,6 +54,7 @@ export const NOTIFICATION_TYPES = {
 
     // Properties
     PROPERTY_SAVED: 'property_saved',
+    PROPERTY_SELECTED: 'property_selected',
     PRICE_DROP: 'price_drop',
     NEW_PROPERTY_MATCH: 'new_property_match',
     PROPERTY_AVAILABLE: 'property_available',
@@ -160,6 +161,58 @@ const normalizeNotification = (notification: any): Notification => ({
     created_at: notification.created_at,
 });
 
+const readNotificationDataString = (data: NotificationData | null | undefined, ...keys: string[]) => {
+    if (!data) return '';
+
+    for (const key of keys) {
+        const value = data[key];
+        if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+        }
+    }
+
+    return '';
+};
+
+const getNotificationDisplayDedupeKey = (notification: Notification) => {
+    if (notification.type !== NOTIFICATION_TYPES.PROPERTY_SELECTED) {
+        return notification.id;
+    }
+
+    const brokerRequestId = readNotificationDataString(notification.data, 'broker_request_id', 'brokerRequestId');
+    const propertyId = readNotificationDataString(notification.data, 'property_id', 'propertyId');
+    if (!brokerRequestId || !propertyId) {
+        return notification.id;
+    }
+
+    return `${notification.user_id}:${notification.type}:${brokerRequestId}:${propertyId}`;
+};
+
+export const dedupeNotificationsForDisplay = (notifications: Notification[]): Notification[] => {
+    const deduped: Notification[] = [];
+    const indexes = new Map<string, number>();
+
+    notifications.forEach((notification) => {
+        const key = getNotificationDisplayDedupeKey(notification);
+        const existingIndex = indexes.get(key);
+        if (existingIndex !== undefined) {
+            if (!notification.is_read) {
+                deduped[existingIndex] = {
+                    ...deduped[existingIndex],
+                    is_read: false,
+                    read_at: undefined,
+                };
+            }
+            return;
+        }
+
+        indexes.set(key, deduped.length);
+        deduped.push(notification);
+    });
+
+    return deduped;
+};
+
 // ── API Functions ───────────────────────────────────────────────────────────
 
 /**
@@ -174,9 +227,10 @@ export async function getNotifications(unreadOnly: boolean = false): Promise<{
     const data = await apiFetch<{ notifications?: any[]; unread_count?: number }>(url, {
         suppressErrorToast: true,
     });
+    const notifications = dedupeNotificationsForDisplay((data.notifications || []).map(normalizeNotification));
     return {
-        notifications: (data.notifications || []).map(normalizeNotification),
-        unread_count: data.unread_count || 0,
+        notifications,
+        unread_count: notifications.filter((notification) => !notification.is_read).length,
     };
 }
 
@@ -187,7 +241,10 @@ export async function getNotifications(unreadOnly: boolean = false): Promise<{
 export async function markRead(notificationId: string): Promise<void> {
     await apiFetch<any>(
         `${NOTIFICATION_URL()}/api/v1/notifications/${notificationId}/read`,
-        { method: 'PUT' },
+        {
+            method: 'PUT',
+            suppressErrorToast: true,
+        },
     );
 }
 
@@ -198,7 +255,10 @@ export async function markRead(notificationId: string): Promise<void> {
 export async function markAllRead(): Promise<void> {
     await apiFetch<any>(
         `${NOTIFICATION_URL()}/api/v1/notifications/read-all`,
-        { method: 'PUT' },
+        {
+            method: 'PUT',
+            suppressErrorToast: true,
+        },
     );
 }
 
@@ -227,6 +287,7 @@ export async function createNotification({
             `${NOTIFICATION_URL()}/api/v1/notifications`,
             {
                 method: 'POST',
+                suppressErrorToast: true,
                 body: JSON.stringify({
                     user_id: userId,
                     type,

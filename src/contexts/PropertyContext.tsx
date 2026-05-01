@@ -774,6 +774,11 @@ export const PropertyProvider = ({
       serviceProps.minimum_lease = p.minimumLease;
     if (p.inclusions !== undefined) serviceProps.inclusions = p.inclusions;
     if (p.exclusions !== undefined) serviceProps.exclusions = p.exclusions;
+    const auditReason = (p as any).auditReason || (p as any).audit_reason;
+    if (auditReason !== undefined) {
+      serviceProps.audit_reason = auditReason;
+      serviceProps.change_reason = auditReason;
+    }
 
     return serviceProps;
   };

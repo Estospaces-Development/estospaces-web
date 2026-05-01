@@ -18,6 +18,7 @@ interface TimeFieldProps {
     max?: string;
     step?: number;
     name?: string;
+    ariaDescribedBy?: string;
 }
 
 export default function TimeField({
@@ -33,6 +34,7 @@ export default function TimeField({
     max,
     step,
     name,
+    ariaDescribedBy,
 }: TimeFieldProps) {
     const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -88,6 +90,7 @@ export default function TimeField({
                 step={step}
                 disabled={disabled}
                 aria-label={ariaLabel}
+                aria-describedby={ariaDescribedBy}
                 onClick={openPicker}
                 onChange={(event) => onChange(event.target.value)}
                 data-time-field-input="true"

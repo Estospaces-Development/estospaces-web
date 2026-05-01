@@ -22,6 +22,13 @@ const buildSupportPath = (basePath: string, ticketId: string, conversationId: st
     return query ? `${basePath}?${query}` : basePath;
 };
 
+const isPathOrNestedPath = (path: string, basePath: string) => (
+    path === basePath
+    || path.startsWith(`${basePath}?`)
+    || path.startsWith(`${basePath}/`)
+    || path.startsWith(`${basePath}#`)
+);
+
 export function getNotificationNavigationPath(
     notification: { type: string; data?: NotificationNavigationData },
     role: string = 'user',
@@ -93,10 +100,8 @@ export function getNotificationNavigationPath(
 
     if (targetPath) {
         if (
-            targetPath === '/user/dashboard/payments'
-            || targetPath.startsWith('/user/dashboard/payments?')
-            || targetPath === '/manager/billing'
-            || targetPath.startsWith('/manager/billing?')
+            isPathOrNestedPath(targetPath, '/user/dashboard/payments')
+            || isPathOrNestedPath(targetPath, '/manager/billing')
         ) {
             return role === 'manager' ? managerContractsPath : userContractsPath;
         }

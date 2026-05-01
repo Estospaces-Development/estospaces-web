@@ -21,7 +21,7 @@ import {
   canUserSignContract,
   normalizeContractStatus,
 } from "@/lib/contractStatus";
-import { getUserContracts, signContract } from "@/services/contractsService";
+import { getContract, getUserContracts, signContract } from "@/services/contractsService";
 import { type Contract } from "@/types/booking";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -41,6 +41,10 @@ import {
   getSaleProgressions,
   type SaleProgression,
 } from "@/services/salesService";
+import {
+  loadContractsWorkspaceInitialData,
+  loadContractsWorkspaceSaleProgressions,
+} from "@/lib/contractsWorkspaceLoad";
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import {
   usePublishWorkspaceSync,
@@ -72,6 +76,8 @@ export default function ContractsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [signingId, setSigningId] = useState<string | null>(null);
   const [viewContract, setViewContract] = useState<Contract | null>(null);
+  const [viewContractLoading, setViewContractLoading] = useState(false);
+  const [viewContractError, setViewContractError] = useState<string | null>(null);
   const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
   const removedCaseNoticeRef = React.useRef<string | null>(null);
   const hasLoadedInitialDataRef = React.useRef(false);
@@ -100,25 +106,23 @@ export default function ContractsPage() {
 
       const request = (async () => {
         try {
-          const [
-            contractsResult,
-            applicationsResult,
-            fastTrackResult,
-            saleProgressionsResult,
-          ] = await Promise.all([
-            getUserContracts({ suppressErrorToast: true }),
-            getApplications({ suppressErrorToast: true }),
-            getFastTrackCases({ suppressErrorToast: true }),
-            getSaleProgressions({ suppressErrorToast: true }),
-          ]);
-          if (contractsResult.error) throw new Error(contractsResult.error);
-          setContracts(
-            Array.isArray(contractsResult.data) ? contractsResult.data : [],
-          );
-          setApplications(applicationsResult.data || []);
-          setFastTrackCases(fastTrackResult.data || []);
-          setSaleProgressions(saleProgressionsResult.data || []);
+          const initialData = await loadContractsWorkspaceInitialData({
+            getContracts: () => getUserContracts({ suppressErrorToast: true }),
+            getApplications: () => getApplications({ suppressErrorToast: true }),
+            getFastTrackCases: () =>
+              getFastTrackCases({ suppressErrorToast: true }),
+          });
+
+          setContracts(initialData.contracts);
+          setApplications(initialData.applications);
+          setFastTrackCases(initialData.fastTrackCases);
           hasLoadedInitialDataRef.current = true;
+
+          void loadContractsWorkspaceSaleProgressions(() =>
+            getSaleProgressions({ suppressErrorToast: true }),
+          ).then((nextSaleProgressions) => {
+            setSaleProgressions(nextSaleProgressions);
+          });
         } catch (error: any) {
           toast.error("Failed to load contracts");
         } finally {
@@ -210,6 +214,9 @@ export default function ContractsPage() {
       }
       toast.success("Contract signed successfully!");
       setContracts((prev) => prev.map((c) => (c.id === id ? data : c)));
+      if (viewContract?.id === id) {
+        setViewContract(data);
+      }
       publishWorkspaceSync({
         source: "mutation",
         tags: [
@@ -229,6 +236,28 @@ export default function ContractsPage() {
       });
     }
     setSigningId(null);
+  };
+
+  const openContractDetail = async (contract: Contract) => {
+    setViewContract(contract);
+    setViewContractError(null);
+    setViewContractLoading(true);
+
+    const { data, error } = await getContract(contract.id, { suppressErrorToast: true });
+    if (data) {
+      setViewContract(data);
+      setContracts((previous) => previous.map((item) => item.id === data.id ? data : item));
+    } else if (error) {
+      setViewContractError(error);
+    }
+
+    setViewContractLoading(false);
+  };
+
+  const closeContractDetail = () => {
+    setViewContract(null);
+    setViewContractError(null);
+    setViewContractLoading(false);
   };
 
   const getStatusStyles = (status: string) => {
@@ -802,12 +831,23 @@ export default function ContractsPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => setViewContract(contract)}
+                            onClick={() => openContractDetail(contract)}
+                            aria-label={`Open contract ${contract.id}`}
                             className={`${needsSignature ? "" : "flex-1"} py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all flex items-center justify-center gap-2`}
                           >
                             <Eye size={14} /> View Document
                           </button>
-                          <button className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors">
+                          <button
+                            type="button"
+                            aria-label={`Download contract ${contract.id}`}
+                            disabled={!contract.contract_pdf_url}
+                            onClick={() => {
+                              if (contract.contract_pdf_url) {
+                                window.open(contract.contract_pdf_url, "_blank", "noopener,noreferrer");
+                              }
+                            }}
+                            className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm text-gray-400 hover:text-orange-500 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                          >
                             <Download size={18} />
                           </button>
                         </div>
@@ -844,9 +884,12 @@ export default function ContractsPage() {
       {viewContract && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={() => setViewContract(null)}
+          onClick={closeContractDetail}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-contract-detail-title"
             className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] bg-white p-8 shadow-2xl dark:bg-gray-800"
             onClick={(event) => event.stopPropagation()}
           >
@@ -855,7 +898,7 @@ export default function ContractsPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-400">
                   Linked contract
                 </p>
-                <h2 className="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                <h2 id="user-contract-detail-title" className="mt-2 text-2xl font-black text-gray-900 dark:text-white">
                   {(viewContract.contract_type || "Contract").replace(
                     /\b\w/g,
                     (character) => character.toUpperCase(),
@@ -866,12 +909,22 @@ export default function ContractsPage() {
                 </p>
               </div>
               <button
-                onClick={() => setViewContract(null)}
+                onClick={closeContractDetail}
+                aria-label="Close contract detail"
                 className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-900"
               >
                 <X size={18} />
               </button>
             </div>
+
+            <p role="status" aria-live="polite" className="mt-4 text-sm font-semibold text-gray-500 dark:text-gray-400">
+              {viewContractLoading ? "Loading latest contract details..." : "Contract detail loaded."}
+            </p>
+            {viewContractError && (
+              <div role="alert" className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                Could not refresh the latest contract record. Showing the saved contract from your list.
+              </div>
+            )}
 
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
@@ -927,6 +980,42 @@ export default function ContractsPage() {
                 signing workflow continues.
               </div>
             )}
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className={`rounded-2xl border p-4 ${viewContract.user_signed_at ? "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/20" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"}`}>
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Your signature</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                  {viewContract.user_signed_at ? `Signed ${new Date(viewContract.user_signed_at).toLocaleDateString("en-GB")}` : "Pending"}
+                </p>
+              </div>
+              <div className={`rounded-2xl border p-4 ${viewContract.manager_signed_at ? "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/20" : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"}`}>
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Manager signature</p>
+                <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                  {viewContract.manager_signed_at ? `Signed ${new Date(viewContract.manager_signed_at).toLocaleDateString("en-GB")}` : "Pending"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={closeContractDetail}
+                className="rounded-2xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+              >
+                Close
+              </button>
+              {canUserSignContract(viewContract.status, viewContract.user_signed_at) && (
+                <button
+                  type="button"
+                  onClick={() => handleSign(viewContract.id)}
+                  disabled={signingId === viewContract.id}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-black text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {signingId === viewContract.id ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
+                  {signingId === viewContract.id ? "Signing..." : "Sign Contract"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

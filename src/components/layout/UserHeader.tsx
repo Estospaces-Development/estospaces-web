@@ -7,6 +7,7 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -21,6 +22,11 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     // Get user display name and email
     const displayName = getDisplayName();
     const userEmail = user?.email || '';
+    const profileMenuLabel = getProfileMenuControlLabel({
+        displayName,
+        role: user?.role || 'user',
+        isOpen: userMenuOpen,
+    });
 
     const handleSignOut = async () => {
         setIsSigningOut(true);
@@ -64,6 +70,9 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
                             className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-white/10"
+                            aria-label={profileMenuLabel}
+                            aria-haspopup="menu"
+                            aria-expanded={userMenuOpen}
                         >
                             <Avatar
                                 userId={user?.id}

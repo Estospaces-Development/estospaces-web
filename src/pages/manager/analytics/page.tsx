@@ -12,7 +12,11 @@ import { getManagerAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/
 import { getApplications, Application } from '@/services/applicationsService';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
-import { isManagerLivePropertyStatus } from '@/lib/managerPropertyDashboard';
+import {
+    formatManagerAnalyticsPercentage,
+    isManagerLivePropertyStatus,
+    normalizeManagerAnalyticsPercentage,
+} from '@/lib/managerPropertyDashboard';
 
 const Analytics = () => {
     const { properties } = useProperties();
@@ -90,7 +94,7 @@ const Analytics = () => {
         property: p.property,
         views: p.views,
         applications: p.applications,
-        conversionRate: p.conversionRate
+        conversionRate: normalizeManagerAnalyticsPercentage(p.conversionRate)
     })) || [];
 
     const leadFunnel = [
@@ -113,6 +117,10 @@ const Analytics = () => {
             color: 'green',
         },
     ];
+    const managerConversionRate = normalizeManagerAnalyticsPercentage(
+        analyticsData?.conversion_rate ?? analyticsData?.leadAnalytics?.conversionRate ?? 0,
+    );
+    const managerConversionRateLabel = formatManagerAnalyticsPercentage(managerConversionRate);
 
     const handleExportReport = () => {
         if (propertyPerformance.length === 0) {
@@ -209,7 +217,7 @@ const Analytics = () => {
                     },
                     { 
                         label: 'Conv. Rate', 
-                        value: `${analyticsData?.conversion_rate || analyticsData?.leadAnalytics?.conversionRate || 0}%`, 
+                        value: managerConversionRateLabel,
                         icon: Target, 
                         color: 'green', 
                         growth: analyticsData?.conversion_growth || '0%' 
@@ -463,7 +471,7 @@ const Analytics = () => {
                             <div>
                                 <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">Platform Insight</h4>
                                 <p className="text-xs text-orange-600/80 dark:text-orange-400/60 leading-relaxed mt-1">
-                                    {((analyticsData?.conversion_rate || analyticsData?.leadAnalytics?.conversionRate || 0) > 20)
+                                    {(managerConversionRate > 20)
                                         ? "Your conversion rate is above industry average. Keep up the great work!"
                                         : "Focus on converting your active negotiations to hit your growth targets."}
                                 </p>

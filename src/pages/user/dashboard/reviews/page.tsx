@@ -6,16 +6,23 @@ import { Star, MessageSquare, ArrowLeft, Loader2, Calendar, Trash2, Plus, X, Sea
 import { reviewsService, type Review } from '@/services/reviewsService';
 import { useToast } from '@/contexts/ToastContext';
 
+const REVIEW_COMMENT_MAX_LENGTH = 1000;
+type ReviewStatusFilter = 'all' | 'pending' | 'approved';
+type ReviewSortMode = 'newest' | 'oldest' | 'highest' | 'lowest';
+
 export default function ReviewsPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const [reviews, setReviews] = useState<Review[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('all');
+    const [sortMode, setSortMode] = useState<ReviewSortMode>('newest');
     const [isLoading, setIsLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [showWriteForm, setShowWriteForm] = useState(false);
-    const [writeForm, setWriteForm] = useState({ property_id: '', rating: 5, comment: '' });
+    const [writeForm, setWriteForm] = useState({ property_id: '', rating: 0, comment: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const reviewCommentHelpId = 'review-comment-length';
 
     const fetchReviews = async () => {
         try {
@@ -35,13 +42,31 @@ export default function ReviewsPage() {
     }, []);
 
     const filteredReviews = React.useMemo(() => {
-        if (!searchQuery.trim()) return reviews;
-        const query = searchQuery.toLowerCase();
-        return reviews.filter(r => 
-            r.comment.toLowerCase().includes(query) || 
-            r.property_id.toLowerCase().includes(query)
-        );
-    }, [reviews, searchQuery]);
+        const query = searchQuery.trim().toLowerCase();
+        const matched = reviews.filter((review) => {
+            if (statusFilter !== 'all' && review.status !== statusFilter) {
+                return false;
+            }
+            if (!query) {
+                return true;
+            }
+            return review.comment.toLowerCase().includes(query)
+                || review.property_id.toLowerCase().includes(query);
+        });
+
+        return [...matched].sort((left, right) => {
+            if (sortMode === 'oldest') {
+                return new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
+            }
+            if (sortMode === 'highest') {
+                return right.rating - left.rating;
+            }
+            if (sortMode === 'lowest') {
+                return left.rating - right.rating;
+            }
+            return new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+        });
+    }, [reviews, searchQuery, sortMode, statusFilter]);
 
     const handleDelete = async (id: string) => {
         setDeletingId(id);
@@ -61,12 +86,24 @@ export default function ReviewsPage() {
             toast.error('Please enter a property ID');
             return;
         }
+        if (writeForm.rating < 1) {
+            toast.error('Please choose a rating');
+            return;
+        }
+        if (!writeForm.comment.trim()) {
+            toast.error('Please enter a review comment');
+            return;
+        }
+        if (writeForm.comment.length > REVIEW_COMMENT_MAX_LENGTH) {
+            toast.error(`Review comments must be ${REVIEW_COMMENT_MAX_LENGTH} characters or less`);
+            return;
+        }
         setIsSubmitting(true);
         const result = await reviewsService.createReview(writeForm);
         if (result.success) {
             toast.success('Review submitted — pending moderation');
             setShowWriteForm(false);
-            setWriteForm({ property_id: '', rating: 5, comment: '' });
+            setWriteForm({ property_id: '', rating: 0, comment: '' });
             fetchReviews();
         } else {
             toast.error(result.error || 'Failed to submit review');
@@ -74,20 +111,40 @@ export default function ReviewsPage() {
         setIsSubmitting(false);
     };
 
+    const isReviewFormReady = writeForm.property_id.trim().length > 0
+        && writeForm.comment.trim().length > 0
+        && writeForm.rating > 0;
+
     const renderStars = (rating: number, interactive = false, onChange?: (r: number) => void) => (
-        <div className="flex gap-1">
+        <div
+            className="flex gap-1"
+            role={interactive ? 'radiogroup' : undefined}
+            aria-label={interactive ? 'Review rating' : `${rating} out of 5 stars`}
+            aria-required={interactive ? 'true' : undefined}
+        >
             {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                    key={star}
-                    type={interactive ? 'button' : undefined}
-                    onClick={interactive && onChange ? () => onChange(star) : undefined}
-                    className={interactive ? 'cursor-pointer' : 'cursor-default'}
-                >
-                    <Star
-                        size={interactive ? 24 : 16}
-                        className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} ${interactive ? 'hover:text-yellow-400' : ''}`}
-                    />
-                </button>
+                interactive ? (
+                    <button
+                        key={star}
+                        type="button"
+                        onClick={onChange ? () => onChange(star) : undefined}
+                        aria-label={`Set rating to ${star} ${star === 1 ? 'star' : 'stars'}`}
+                        aria-pressed={rating === star}
+                        className="cursor-pointer rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    >
+                        <Star
+                            size={24}
+                            className={`${star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'} hover:text-yellow-400`}
+                        />
+                    </button>
+                ) : (
+                    <span key={star} aria-hidden="true">
+                        <Star
+                            size={16}
+                            className={star <= rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
+                        />
+                    </span>
+                )
             ))}
         </div>
     );
@@ -130,12 +187,36 @@ export default function ReviewsPage() {
                                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                                 <input
                                     type="text"
+                                    aria-label="Search reviews"
                                     placeholder="Search reviews..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full pl-11 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-orange-500 transition-all shadow-sm"
                                 />
                             </div>
+                            <label className="sr-only" htmlFor="user-review-status-filter">Filter reviews by status</label>
+                            <select
+                                id="user-review-status-filter"
+                                value={statusFilter}
+                                onChange={(event) => setStatusFilter(event.target.value as ReviewStatusFilter)}
+                                className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 sm:w-44"
+                            >
+                                <option value="all">All statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                            </select>
+                            <label className="sr-only" htmlFor="user-review-sort">Sort reviews</label>
+                            <select
+                                id="user-review-sort"
+                                value={sortMode}
+                                onChange={(event) => setSortMode(event.target.value as ReviewSortMode)}
+                                className="w-full rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 sm:w-44"
+                            >
+                                <option value="newest">Newest first</option>
+                                <option value="oldest">Oldest first</option>
+                                <option value="highest">Highest rating</option>
+                                <option value="lowest">Lowest rating</option>
+                            </select>
                             <button
                                 onClick={() => setShowWriteForm(true)}
                                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-orange-500/25 transition-all active:scale-95"
@@ -152,7 +233,7 @@ export default function ReviewsPage() {
                     <div className="mb-8 bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 border border-orange-200 dark:border-orange-800/40 animate-in fade-in slide-in-from-top-4 duration-300">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-black text-gray-900 dark:text-white">Leave a Review</h2>
-                            <button onClick={() => setShowWriteForm(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                            <button onClick={() => setShowWriteForm(false)} aria-label="Close review form" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
                                 <X size={18} className="text-gray-500" />
                             </button>
                         </div>
@@ -164,6 +245,7 @@ export default function ReviewsPage() {
                                     value={writeForm.property_id}
                                     onChange={(e) => setWriteForm((prev) => ({ ...prev, property_id: e.target.value }))}
                                     placeholder="Paste the property ID from the listing"
+                                    aria-required="true"
                                     className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                     required
                                 />
@@ -179,13 +261,18 @@ export default function ReviewsPage() {
                                     value={writeForm.comment}
                                     onChange={(e) => setWriteForm((prev) => ({ ...prev, comment: e.target.value }))}
                                     placeholder="Share your experience with this property..."
+                                    maxLength={REVIEW_COMMENT_MAX_LENGTH}
+                                    aria-describedby={reviewCommentHelpId}
                                     className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white resize-none"
                                     required
                                 />
+                                <p id={reviewCommentHelpId} className="text-xs font-bold text-gray-400">
+                                    {writeForm.comment.length}/{REVIEW_COMMENT_MAX_LENGTH} characters
+                                </p>
                             </div>
                             <button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !isReviewFormReady}
                                 className="w-full py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Star size={18} />}
@@ -225,6 +312,7 @@ export default function ReviewsPage() {
                                         <button
                                             onClick={() => handleDelete(review.id)}
                                             disabled={deletingId === review.id}
+                                            aria-label={`Delete review for property ${review.property_id}`}
                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all disabled:opacity-40"
                                             title="Delete review"
                                         >

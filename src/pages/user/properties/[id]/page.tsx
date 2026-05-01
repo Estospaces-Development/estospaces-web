@@ -23,6 +23,7 @@ import {
     Upload,
     X,
     Heart,
+    Star,
 } from 'lucide-react';
 import { getPropertyById, Property } from '../../../../services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
@@ -31,6 +32,9 @@ import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserD
 import { createFastTrackCase, FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
+import { createApplication as submitRentalApplication } from '@/services/applicationsService';
+import { createOffer } from '@/services/salesService';
+import { reviewsService, type Review } from '@/services/reviewsService';
 import PropertyContactInfo from '@/components/dashboard/PropertyContactInfo';
 import PropertyFastTrackModal from '@/components/dashboard/PropertyFastTrackModal';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
@@ -39,10 +43,12 @@ import {
     buildFastTrackVerificationContent,
     filterDocumentsForLead,
     getFastTrackStartAction,
-    isLeadActive,
     normalizeWorkspaceDocuments,
-    resolveLeadStage,
 } from '@/lib/fastTrackWorkflow';
+import {
+    resolvePropertyFastTrackPanelLabels,
+    resolvePropertyFastTrackWorkspaceSelection,
+} from '@/lib/propertyFastTrackWorkspace';
 import {
     formatImmersiveGalleryTransformOrigin,
     IMMERSIVE_GALLERY_DEFAULT_ZOOM_POINT,
@@ -51,6 +57,11 @@ import {
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { getPropertyImages } from '@/lib/propertyImages';
+import {
+    MAX_SALE_OFFER_NOTES_LENGTH,
+    buildSaleOfferPayload,
+    isSaleOfferListingType,
+} from '@/lib/saleOfferEntry';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -62,6 +73,37 @@ const VIEWING_TIME_SLOTS = [
 ];
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTH_LABEL_FORMATTER = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const VIEWING_CALENDAR_DAY_LABEL_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+});
+
+type ViewingRequestForm = {
+    requested_date: string;
+    requested_time: string;
+    user_notes: string;
+};
+
+type ViewingRequestValidationErrors = Partial<Record<'requested_date' | 'requested_time', string>>;
+
+type ViewingTimeSlot = (typeof VIEWING_TIME_SLOTS)[number];
+
+const MAX_RENTAL_APPLICATION_MESSAGE_LENGTH = 1000;
+const MAX_RENTAL_APPLICATION_LEASE_MONTHS = 60;
+
+type RentalApplicationForm = {
+    moveInDate: string;
+    leaseDurationMonths: string;
+    employmentStatus: string;
+    employerName: string;
+    annualIncome: string;
+    currentAddress: string;
+    message: string;
+};
+
+type RentalApplicationValidationErrors = Partial<Record<keyof RentalApplicationForm, string>>;
 
 const toDateValue = (date: Date) => {
     const year = date.getFullYear();
@@ -96,6 +138,22 @@ const buildCalendarDays = (month: Date, minimumDateValue: string) => {
         };
     });
 };
+
+type ViewingCalendarDay = ReturnType<typeof buildCalendarDays>[number];
+
+export function getViewingCalendarDayAriaLabel(day: ViewingCalendarDay, selected: boolean) {
+    const parsed = new Date(`${day.value}T12:00:00`);
+    const dateLabel = Number.isNaN(parsed.getTime())
+        ? day.value
+        : VIEWING_CALENDAR_DAY_LABEL_FORMATTER.format(parsed);
+    const stateLabel = selected
+        ? 'Selected viewing date'
+        : day.isDisabled
+            ? 'Unavailable viewing date'
+            : 'Select viewing date';
+
+    return `${stateLabel}: ${dateLabel}`;
+}
 
 const isPastViewingTimeSlot = (dateValue: string, timeValue: string) => {
     if (!dateValue || !timeValue) {
@@ -146,6 +204,27 @@ const findNextAvailableViewingSelection = (
     return null;
 };
 
+export function shouldLoadViewingAvailability(propertyId: string | undefined, user?: unknown): propertyId is string {
+    return Boolean(propertyId && user);
+}
+
+export function getPropertyDetailFallbackBackTarget(fastTrackQuery: string | null, user?: unknown) {
+    if (!user) {
+        return '/search';
+    }
+
+    return fastTrackQuery === '1' ? '/user/dashboard' : '/user/dashboard/discover';
+}
+
+export function shouldUseBrowserHistoryForPropertyDetailBack(user?: unknown) {
+    return Boolean(user);
+}
+
+export function getImmersiveGalleryDialogLabel(propertyTitle: string) {
+    const title = propertyTitle.trim();
+    return title ? `Immersive gallery for ${title}` : 'Immersive property gallery';
+}
+
 const formatPreviewDate = (dateValue: string) => {
     if (!dateValue) {
         return 'Choose a day';
@@ -183,6 +262,87 @@ const formatPreviewTime = (timeValue: string) => {
         hour: '2-digit',
         minute: '2-digit',
     });
+};
+
+export function getViewingRequestValidationErrors(form: Pick<ViewingRequestForm, 'requested_date' | 'requested_time'>) {
+    const errors: ViewingRequestValidationErrors = {};
+
+    if (!form.requested_date.trim()) {
+        errors.requested_date = 'Choose a viewing date.';
+    }
+
+    if (!form.requested_time.trim()) {
+        errors.requested_time = 'Choose a viewing time.';
+    }
+
+    return errors;
+}
+
+export function clearViewingSelectionOutsideMonth(form: ViewingRequestForm, month: Date): ViewingRequestForm {
+    if (!form.requested_date) {
+        return form;
+    }
+
+    const selectedDate = new Date(`${form.requested_date}T12:00:00`);
+    if (isSameMonth(selectedDate, month)) {
+        return form;
+    }
+
+    return {
+        ...form,
+        requested_date: '',
+        requested_time: '',
+    };
+}
+
+const normalizeRentalApplicationText = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+const normalizeRentalApplicationForm = (form: RentalApplicationForm): RentalApplicationForm => ({
+    moveInDate: form.moveInDate.trim(),
+    leaseDurationMonths: form.leaseDurationMonths.trim(),
+    employmentStatus: normalizeRentalApplicationText(form.employmentStatus).toLowerCase(),
+    employerName: normalizeRentalApplicationText(form.employerName),
+    annualIncome: form.annualIncome.trim(),
+    currentAddress: normalizeRentalApplicationText(form.currentAddress),
+    message: normalizeRentalApplicationText(form.message),
+});
+
+const getRentalApplicationValidationErrors = (
+    form: RentalApplicationForm,
+    minimumMoveInDate: string,
+): RentalApplicationValidationErrors => {
+    const normalized = normalizeRentalApplicationForm(form);
+    const errors: RentalApplicationValidationErrors = {};
+    const leaseMonths = Number(normalized.leaseDurationMonths);
+    const annualIncome = normalized.annualIncome ? Number(normalized.annualIncome) : null;
+
+    if (!normalized.moveInDate) {
+        errors.moveInDate = 'Choose a move-in date.';
+    } else if (normalized.moveInDate < minimumMoveInDate) {
+        errors.moveInDate = `Move-in date must be on or after ${minimumMoveInDate}.`;
+    }
+
+    if (!Number.isInteger(leaseMonths) || leaseMonths < 1 || leaseMonths > MAX_RENTAL_APPLICATION_LEASE_MONTHS) {
+        errors.leaseDurationMonths = 'Enter a lease length between 1 and 60 months.';
+    }
+
+    if (!normalized.employmentStatus) {
+        errors.employmentStatus = 'Choose an employment status.';
+    }
+
+    if (annualIncome !== null && (!Number.isFinite(annualIncome) || annualIncome < 0)) {
+        errors.annualIncome = 'Annual income cannot be negative.';
+    }
+
+    if (!normalized.currentAddress) {
+        errors.currentAddress = 'Enter your current address.';
+    }
+
+    if (normalized.message.length > MAX_RENTAL_APPLICATION_MESSAGE_LENGTH) {
+        errors.message = 'Message must be 1000 characters or fewer.';
+    }
+
+    return errors;
 };
 
 const normalizeListValue = (value: string[] | string | undefined) => {
@@ -232,23 +392,332 @@ const formatLeadStage = (value?: string) => {
         .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const formatMinutesRemaining = (deadline?: string) => {
-    if (!deadline) {
-        return '10-minute live response';
-    }
+interface SaleOfferEntryCardProps {
+    priceLabel: string;
+    offerAmount: string;
+    offerNotes: string;
+    error?: string;
+    isSubmitting: boolean;
+    onAmountChange: (value: string) => void;
+    onNotesChange: (value: string) => void;
+    onSubmit: React.FormEventHandler<HTMLFormElement>;
+}
 
-    const remainingMs = new Date(deadline).getTime() - Date.now();
-    if (!Number.isFinite(remainingMs)) {
-        return '10-minute live response';
-    }
+export const SaleOfferEntryCard = ({
+    priceLabel,
+    offerAmount,
+    offerNotes,
+    error = '',
+    isSubmitting,
+    onAmountChange,
+    onNotesChange,
+    onSubmit,
+}: SaleOfferEntryCardProps) => (
+    <form
+        onSubmit={onSubmit}
+        className="rounded-[1.7rem] border border-emerald-200/80 bg-emerald-50/80 p-4 shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/20"
+    >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between xl:flex-col">
+            <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700 dark:text-emerald-300">
+                    Sale offer
+                </p>
+                <h4 className="mt-2 text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                    Submit Offer
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    Send your offer to the assigned broker for review against the guide price of {priceLabel}.
+                </p>
+            </div>
+            <span className="w-fit rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-emerald-300">
+                Buyer action
+            </span>
+        </div>
 
-    const minutes = Math.max(Math.ceil(remainingMs / 60000), 0);
-    if (minutes === 0) {
-        return 'Response window ending now';
-    }
+        <label className="mt-4 block text-sm text-gray-700 dark:text-gray-300">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Offer amount
+            </span>
+            <input
+                type="number"
+                min="1"
+                step="1000"
+                value={offerAmount}
+                onChange={(event) => onAmountChange(event.target.value)}
+                placeholder="425000"
+                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-emerald-500 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-white"
+            />
+        </label>
 
-    return `${minutes} minute${minutes === 1 ? '' : 's'} left`;
-};
+        <label className="mt-3 block text-sm text-gray-700 dark:text-gray-300">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Notes for the offer
+            </span>
+            <textarea
+                rows={3}
+                value={offerNotes}
+                onChange={(event) => onNotesChange(event.target.value)}
+                placeholder="Timing, conditions, or proof-of-funds context"
+                className="w-full rounded-xl border border-emerald-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-emerald-500 dark:border-emerald-900/50 dark:bg-zinc-950 dark:text-white"
+            />
+        </label>
+
+        {error ? (
+            <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {error}
+            </p>
+        ) : null}
+
+        <button
+            type="submit"
+            disabled={isSubmitting}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+            {isSubmitting && <Loader2 size={15} className="animate-spin" />}
+            {isSubmitting ? 'Submitting offer...' : 'Submit Offer'}
+        </button>
+    </form>
+);
+
+interface RentalApplicationEntryCardProps {
+    minimumMoveInDate: string;
+    form: RentalApplicationForm;
+    errors: RentalApplicationValidationErrors;
+    isSubmitting: boolean;
+    onChange: (field: keyof RentalApplicationForm, value: string) => void;
+    onSubmit: React.FormEventHandler<HTMLFormElement>;
+}
+
+const RentalApplicationEntryCard = ({
+    minimumMoveInDate,
+    form,
+    errors,
+    isSubmitting,
+    onChange,
+    onSubmit,
+}: RentalApplicationEntryCardProps) => (
+    <form
+        onSubmit={onSubmit}
+        className="rounded-[1.7rem] border border-sky-200/80 bg-sky-50/80 p-4 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/20"
+    >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between xl:flex-col">
+            <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
+                    Rental application
+                </p>
+                <h4 className="mt-2 text-lg font-semibold tracking-tight text-gray-900 dark:text-white">
+                    Submit Rental Application
+                </h4>
+            </div>
+            <span className="w-fit rounded-full border border-sky-200 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-sky-300">
+                Tenant action
+            </span>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <label className="block text-sm text-gray-700 dark:text-gray-300">
+                <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                    Move-in date
+                </span>
+                <input
+                    type="date"
+                    min={minimumMoveInDate}
+                    value={form.moveInDate}
+                    onChange={(event) => onChange('moveInDate', event.target.value)}
+                    aria-invalid={Boolean(errors.moveInDate)}
+                    aria-describedby={errors.moveInDate ? 'rental-application-move-in-error' : undefined}
+                    className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+                />
+                {errors.moveInDate && (
+                    <p id="rental-application-move-in-error" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                        {errors.moveInDate}
+                    </p>
+                )}
+            </label>
+
+            <label className="block text-sm text-gray-700 dark:text-gray-300">
+                <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                    Lease months
+                </span>
+                <input
+                    type="number"
+                    min="1"
+                    max={MAX_RENTAL_APPLICATION_LEASE_MONTHS}
+                    step="1"
+                    value={form.leaseDurationMonths}
+                    onChange={(event) => onChange('leaseDurationMonths', event.target.value)}
+                    aria-invalid={Boolean(errors.leaseDurationMonths)}
+                    aria-describedby={errors.leaseDurationMonths ? 'rental-application-lease-error' : undefined}
+                    className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+                />
+                {errors.leaseDurationMonths && (
+                    <p id="rental-application-lease-error" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                        {errors.leaseDurationMonths}
+                    </p>
+                )}
+            </label>
+        </div>
+
+        <label className="mt-3 block text-sm text-gray-700 dark:text-gray-300">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Employment status
+            </span>
+            <select
+                value={form.employmentStatus}
+                onChange={(event) => onChange('employmentStatus', event.target.value)}
+                aria-invalid={Boolean(errors.employmentStatus)}
+                aria-describedby={errors.employmentStatus ? 'rental-application-employment-error' : undefined}
+                className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+            >
+                <option value="">Select status</option>
+                <option value="employed">Employed</option>
+                <option value="self_employed">Self-employed</option>
+                <option value="student">Student</option>
+                <option value="retired">Retired</option>
+                <option value="other">Other</option>
+            </select>
+            {errors.employmentStatus && (
+                <p id="rental-application-employment-error" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                    {errors.employmentStatus}
+                </p>
+            )}
+        </label>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <label className="block text-sm text-gray-700 dark:text-gray-300">
+                <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                    Employer
+                </span>
+                <input
+                    value={form.employerName}
+                    onChange={(event) => onChange('employerName', event.target.value)}
+                    placeholder="Company or institution"
+                    className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+                />
+            </label>
+
+            <label className="block text-sm text-gray-700 dark:text-gray-300">
+                <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                    Annual income
+                </span>
+                <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={form.annualIncome}
+                    onChange={(event) => onChange('annualIncome', event.target.value)}
+                    aria-invalid={Boolean(errors.annualIncome)}
+                    aria-describedby={errors.annualIncome ? 'rental-application-income-error' : undefined}
+                    placeholder="85000"
+                    className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+                />
+                {errors.annualIncome && (
+                    <p id="rental-application-income-error" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                        {errors.annualIncome}
+                    </p>
+                )}
+            </label>
+        </div>
+
+        <label className="mt-3 block text-sm text-gray-700 dark:text-gray-300">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Current address
+            </span>
+            <textarea
+                rows={2}
+                value={form.currentAddress}
+                onChange={(event) => onChange('currentAddress', event.target.value)}
+                aria-invalid={Boolean(errors.currentAddress)}
+                aria-describedby={errors.currentAddress ? 'rental-application-address-error' : undefined}
+                className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+            />
+            {errors.currentAddress && (
+                <p id="rental-application-address-error" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                    {errors.currentAddress}
+                </p>
+            )}
+        </label>
+
+        <label className="mt-3 block text-sm text-gray-700 dark:text-gray-300">
+            <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                Message
+            </span>
+            <textarea
+                rows={3}
+                value={form.message}
+                onChange={(event) => onChange('message', event.target.value)}
+                aria-invalid={Boolean(errors.message)}
+                aria-describedby={errors.message ? 'rental-application-message-error' : undefined}
+                maxLength={MAX_RENTAL_APPLICATION_MESSAGE_LENGTH + 1}
+                placeholder="Move-in timing, pets, references, or other context"
+                className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
+            />
+            {errors.message && (
+                <p id="rental-application-message-error" className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                    {errors.message}
+                </p>
+            )}
+        </label>
+
+        <button
+            type="submit"
+            disabled={isSubmitting}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-sky-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/20 transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+            {isSubmitting && <Loader2 size={15} className="animate-spin" />}
+            {isSubmitting ? 'Submitting application...' : 'Submit Rental Application'}
+        </button>
+    </form>
+);
+
+interface ViewingTimeSlotButtonProps {
+    slot: ViewingTimeSlot;
+    selected: boolean;
+    unavailable: boolean;
+    unavailableReason: string;
+    onSelect: () => void;
+}
+
+export function ViewingTimeSlotButton({
+    slot,
+    selected,
+    unavailable,
+    unavailableReason,
+    onSelect,
+}: ViewingTimeSlotButtonProps) {
+    return (
+        <button
+            type="button"
+            onClick={() => {
+                if (!unavailable) {
+                    onSelect();
+                }
+            }}
+            disabled={unavailable}
+            aria-label={`Select ${slot.label} viewing time`}
+            aria-pressed={selected}
+            className={`rounded-xl border px-3 py-2.5 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
+                selected
+                    ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                    : unavailable
+                        ? 'cursor-not-allowed border-stone-200 bg-stone-100 text-gray-400 opacity-70 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500'
+                        : 'border-stone-200 bg-stone-50 text-gray-800 hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-800'
+            }`}
+        >
+            <p className="text-[13px] font-semibold">{slot.label}</p>
+            <p className={`mt-1 text-[10px] ${
+                selected
+                    ? 'text-white/80'
+                    : unavailable
+                        ? 'text-gray-400 dark:text-zinc-500'
+                        : 'text-gray-400'
+            }`}
+            >
+                {unavailable ? unavailableReason : slot.hint}
+            </p>
+        </button>
+    );
+}
 
 const UserPropertyDetail = () => {
     const { id } = useParams<{ id: string }>();
@@ -260,15 +729,22 @@ const UserPropertyDetail = () => {
     const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
-    const { toggleProperty, isPropertySaved } = useSavedProperties();
+    const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
 
     const [property, setProperty] = useState<Property | null>(null);
+    const [propertyReviews, setPropertyReviews] = useState<Review[]>([]);
+    const [propertyReviewAverage, setPropertyReviewAverage] = useState(0);
+    const [propertyReviewTotal, setPropertyReviewTotal] = useState(0);
+    const [propertyReviewsLoading, setPropertyReviewsLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isUpdatingSavedProperty, setIsUpdatingSavedProperty] = useState(false);
+    const [savedPropertyStatusMessage, setSavedPropertyStatusMessage] = useState('');
     const [isStartingFastTrack, setIsStartingFastTrack] = useState(false);
     const [isCreatingConversation, setIsCreatingConversation] = useState(false);
     const [isSchedulingViewing, setIsSchedulingViewing] = useState(false);
+    const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+    const [isSubmittingRentalApplication, setIsSubmittingRentalApplication] = useState(false);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [isImmersiveZoomActive, setIsImmersiveZoomActive] = useState(false);
@@ -284,17 +760,40 @@ const UserPropertyDetail = () => {
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), 1);
     });
-    const [viewingForm, setViewingForm] = useState({
+    const [viewingForm, setViewingForm] = useState<ViewingRequestForm>({
         requested_date: '',
-        requested_time: '10:00',
+        requested_time: '',
         user_notes: '',
     });
+    const [viewingFormErrors, setViewingFormErrors] = useState<ViewingRequestValidationErrors>({});
+    const [offerForm, setOfferForm] = useState({
+        amount: '',
+        notes: '',
+    });
+    const [offerFormError, setOfferFormError] = useState('');
+    const [rentalApplicationForm, setRentalApplicationForm] = useState<RentalApplicationForm>({
+        moveInDate: '',
+        leaseDurationMonths: '12',
+        employmentStatus: '',
+        employerName: '',
+        annualIncome: '',
+        currentAddress: '',
+        message: '',
+    });
+    const [rentalApplicationErrors, setRentalApplicationErrors] = useState<RentalApplicationValidationErrors>({});
     const [viewingAvailability, setViewingAvailability] = useState<ViewingAvailability | null>(null);
     const immersiveGalleryImageRef = useRef<HTMLImageElement | null>(null);
+    const immersiveGalleryCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+    const immersiveGalleryTriggerRef = useRef<HTMLElement | null>(null);
+    const wasImmersiveGalleryOpenRef = useRef(false);
+    const fastTrackTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const wasFastTrackModalOpenRef = useRef(false);
+    const offerInFlightRef = useRef(false);
+    const rentalApplicationInFlightRef = useRef(false);
     const navigationState = (location.state && typeof location.state === 'object'
         ? location.state
         : null) as { backTo?: string; backLabel?: string } | null;
-    const fallbackBackTarget = fastTrackQuery === '1' ? '/user/dashboard' : '/user/dashboard/discover';
+    const fallbackBackTarget = getPropertyDetailFallbackBackTarget(fastTrackQuery, user);
     const backLabel = navigationState?.backLabel || 'Back';
 
     const handleBackNavigation = () => {
@@ -303,7 +802,7 @@ const UserPropertyDetail = () => {
             return;
         }
 
-        if (window.history.length > 1) {
+        if (shouldUseBrowserHistoryForPropertyDetailBack(user) && window.history.length > 1) {
             navigate(-1);
             return;
         }
@@ -337,6 +836,42 @@ const UserPropertyDetail = () => {
         fetchProperty();
     }, [id]);
 
+    useEffect(() => {
+        if (!id) {
+            setPropertyReviews([]);
+            setPropertyReviewAverage(0);
+            setPropertyReviewTotal(0);
+            return;
+        }
+
+        let isCancelled = false;
+        setPropertyReviewsLoading(true);
+
+        const fetchPropertyReviews = async () => {
+            const result = await reviewsService.getPropertyReviews(id);
+            if (isCancelled) {
+                return;
+            }
+
+            if (result.success && result.data) {
+                setPropertyReviews(result.data.reviews);
+                setPropertyReviewAverage(result.data.average_rating);
+                setPropertyReviewTotal(result.data.total_reviews);
+            } else {
+                setPropertyReviews([]);
+                setPropertyReviewAverage(0);
+                setPropertyReviewTotal(0);
+            }
+            setPropertyReviewsLoading(false);
+        };
+
+        void fetchPropertyReviews();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [id]);
+
     const images = useMemo(() => {
         const resolvedImages = getPropertyImages(property);
         return resolvedImages.length > 0 ? resolvedImages : [PROPERTY_PLACEHOLDER_IMAGE];
@@ -357,6 +892,19 @@ const UserPropertyDetail = () => {
     const propertyMapAddress = propertyMapState.displayAddress || propertyAddress || locationLabel;
     const preferredMapsLabel = propertyMapState.provider === 'apple' ? 'Apple Maps' : 'Google Maps';
     const minimumViewingDate = useMemo(() => toDateValue(new Date()), []);
+    const minimumRentalApplicationMoveInDate = useMemo(() => {
+        const todayValue = toDateValue(new Date());
+        if (!property?.available_from) {
+            return todayValue;
+        }
+
+        const availableDate = new Date(`${property.available_from}T00:00:00`);
+        if (Number.isNaN(availableDate.getTime())) {
+            return todayValue;
+        }
+
+        return toDateValue(availableDate) > todayValue ? toDateValue(availableDate) : todayValue;
+    }, [property?.available_from]);
     const bookedViewingSlotsByDate = useMemo(() => {
         const entries: Record<string, Set<string>> = {};
         (viewingAvailability?.slots || []).forEach((slot) => {
@@ -491,15 +1039,32 @@ const UserPropertyDetail = () => {
         [bookedViewingSlotsByDate, calendarMonth, minimumViewingDate],
     );
     const canGoToPreviousMonth = calendarMonth.getTime() > currentMonthStart.getTime();
+    const changeViewingCalendarMonth = (offset: number) => {
+        const nextMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + offset, 1);
+        setCalendarMonth(nextMonth);
+        setViewingForm((previous) => clearViewingSelectionOutsideMonth(previous, nextMonth));
+        setViewingFormErrors((previous) => ({
+            ...previous,
+            requested_date: undefined,
+            requested_time: undefined,
+        }));
+    };
     const showPreviousImage = () => {
         setSelectedImageIndex((previous) => (previous === 0 ? images.length - 1 : previous - 1));
     };
     const showNextImage = () => {
         setSelectedImageIndex((previous) => (previous === images.length - 1 ? 0 : previous + 1));
     };
-    const openGallery = (index = selectedImageIndex) => {
+    const openGallery = (index = selectedImageIndex, trigger?: HTMLElement | null) => {
+        immersiveGalleryTriggerRef.current = trigger || (document.activeElement as HTMLElement | null);
         setSelectedImageIndex(index);
         setIsGalleryOpen(true);
+    };
+    const closeGallery = () => {
+        setIsGalleryOpen(false);
+    };
+    const closeFastTrackModal = () => {
+        setIsFastTrackModalOpen(false);
     };
     const handleImmersiveGalleryMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
         const imageRect = immersiveGalleryImageRef.current?.getBoundingClientRect();
@@ -578,19 +1143,12 @@ const UserPropertyDetail = () => {
                 .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime());
             const workspaceDocuments = normalizeWorkspaceDocuments(documentsResult.data, documentsResult.error);
 
-            const matchingLead = (
-                propertyLeads.find((lead) => brokerRequestQuery && lead.broker_request_id === brokerRequestQuery && isLeadActive(lead))
-                || propertyLeads.find((lead) => isLeadActive(lead))
-                || propertyLeads[0]
-                || null
-            );
-            const matchingCase = (
-                propertyCases.find((fastTrackCase) => requestedCaseId && fastTrackCase.caseId === requestedCaseId)
-                || propertyCases.find((fastTrackCase) => brokerRequestQuery && fastTrackCase.brokerRequestId === brokerRequestQuery && fastTrackCase.finalStatus === 'in_progress')
-                || propertyCases.find((fastTrackCase) => fastTrackCase.finalStatus === 'in_progress')
-                || propertyCases[0]
-                || null
-            );
+            const { lead: matchingLead, fastTrackCase: matchingCase } = resolvePropertyFastTrackWorkspaceSelection({
+                propertyLeads,
+                propertyCases,
+                requestedCaseId,
+                brokerRequestQuery,
+            });
             const reconciledCase = await reconcileFastTrackCaseContext(matchingCase, matchingLead);
 
             setActiveLead(matchingLead);
@@ -633,7 +1191,7 @@ const UserPropertyDetail = () => {
 
         const handleGalleryKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                setIsGalleryOpen(false);
+                closeGallery();
                 return;
             }
 
@@ -654,6 +1212,28 @@ const UserPropertyDetail = () => {
             window.removeEventListener('keydown', handleGalleryKeyDown);
         };
     }, [images.length, isGalleryOpen]);
+
+    useEffect(() => {
+        if (isGalleryOpen) {
+            wasImmersiveGalleryOpenRef.current = true;
+            const frame = window.requestAnimationFrame(() => {
+                immersiveGalleryCloseButtonRef.current?.focus();
+            });
+            return () => window.cancelAnimationFrame(frame);
+        }
+
+        if (!wasImmersiveGalleryOpenRef.current) {
+            return;
+        }
+
+        wasImmersiveGalleryOpenRef.current = false;
+        const trigger = immersiveGalleryTriggerRef.current;
+        immersiveGalleryTriggerRef.current = null;
+        const frame = window.requestAnimationFrame(() => {
+            trigger?.focus();
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [isGalleryOpen]);
 
     useEffect(() => {
         if (!isGalleryOpen) {
@@ -685,6 +1265,24 @@ const UserPropertyDetail = () => {
     }, [isFastTrackModalOpen]);
 
     useEffect(() => {
+        if (isFastTrackModalOpen) {
+            wasFastTrackModalOpenRef.current = true;
+            return;
+        }
+
+        if (!wasFastTrackModalOpenRef.current) {
+            return;
+        }
+
+        wasFastTrackModalOpenRef.current = false;
+        const trigger = fastTrackTriggerRef.current;
+        const frame = window.requestAnimationFrame(() => {
+            trigger?.focus();
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [isFastTrackModalOpen]);
+
+    useEffect(() => {
         if (!viewingForm.requested_date) {
             return;
         }
@@ -704,22 +1302,23 @@ const UserPropertyDetail = () => {
     }, [viewingForm.requested_date]);
 
     useEffect(() => {
-        if (!property?.id) {
-            setViewingAvailability(null);
+        const propertyId = property?.id;
+        if (!shouldLoadViewingAvailability(propertyId, user)) {
+            setViewingAvailability(propertyId ? { property_id: propertyId, slots: [] } : null);
             return;
         }
 
         let cancelled = false;
         const loadViewingAvailability = async () => {
             try {
-                const availability = await bookingsService.getViewingAvailability(property.id);
+                const availability = await bookingsService.getViewingAvailability(propertyId);
                 if (!cancelled) {
                     setViewingAvailability(availability);
                 }
             } catch {
                 if (!cancelled) {
                     setViewingAvailability({
-                        property_id: property.id,
+                        property_id: propertyId,
                         slots: [],
                     });
                 }
@@ -731,40 +1330,19 @@ const UserPropertyDetail = () => {
         return () => {
             cancelled = true;
         };
-    }, [property?.id]);
+    }, [property?.id, user]);
 
     useEffect(() => {
         const currentSelectionIsValid = selectedDateAvailableTimeSlots.some((slot) => slot.value === viewingForm.requested_time);
-        if (viewingForm.requested_date && currentSelectionIsValid) {
-            return;
-        }
-
-        const nextSelection = viewingForm.requested_date && selectedDateAvailableTimeSlots.length > 0
-            ? {
-                requested_date: viewingForm.requested_date,
-                requested_time: selectedDateAvailableTimeSlots[0].value,
-            }
-            : findNextAvailableViewingSelection(minimumViewingDate, bookedViewingSlotsByDate);
-
-        if (!nextSelection) {
-            return;
-        }
-
-        if (
-            nextSelection.requested_date === viewingForm.requested_date
-            && nextSelection.requested_time === viewingForm.requested_time
-        ) {
+        if (!viewingForm.requested_date || !viewingForm.requested_time || currentSelectionIsValid) {
             return;
         }
 
         setViewingForm((previous) => ({
             ...previous,
-            requested_date: nextSelection.requested_date,
-            requested_time: nextSelection.requested_time,
+            requested_time: '',
         }));
     }, [
-        bookedViewingSlotsByDate,
-        minimumViewingDate,
         selectedDateAvailableTimeSlots,
         viewingForm.requested_date,
         viewingForm.requested_time,
@@ -888,18 +1466,27 @@ const UserPropertyDetail = () => {
         if (!property || !id || !ensureAuthenticated()) {
             return;
         }
+        if (isUpdatingSavedProperty) {
+            return;
+        }
 
         setIsUpdatingSavedProperty(true);
         try {
-            const result = await toggleProperty(id);
+            const result = isSaved ? await removeProperty(id) : await saveProperty(id);
             if (result?.success) {
-                toast.success(isSaved ? 'Property removed from your saved list.' : 'Property saved successfully.');
+                const message = isSaved ? 'Property removed from your saved list.' : 'Property saved successfully.';
+                setSavedPropertyStatusMessage(message);
+                toast.success(message);
                 return;
             }
 
-            toast.error(result?.error || 'Unable to update your saved properties.');
+            const message = result?.error || 'Unable to update your saved properties.';
+            setSavedPropertyStatusMessage(message);
+            toast.error(message);
         } catch (actionError: any) {
-            toast.error(actionError?.message || 'Unable to update your saved properties.');
+            const message = actionError?.message || 'Unable to update your saved properties.';
+            setSavedPropertyStatusMessage(message);
+            toast.error(message);
         } finally {
             setIsUpdatingSavedProperty(false);
         }
@@ -946,8 +1533,17 @@ const UserPropertyDetail = () => {
         () => buildFastTrackVerificationContent(liveDocumentItems),
         [liveDocumentItems],
     );
-    const liveLeadStageLabel = formatLeadStage(resolveLeadStage(activeLead, leadScopedDocuments));
-    const liveLeadDeadlineLabel = formatMinutesRemaining(activeLead?.response_deadline_at || activeLead?.sla_deadline);
+    const liveLeadPanelLabels = resolvePropertyFastTrackPanelLabels(
+        activeLead,
+        leadScopedDocuments,
+        activeFastTrackCase,
+    );
+    const liveLeadStageLabel = liveLeadPanelLabels.stage;
+    const liveLeadDeadlineLabel = liveLeadPanelLabels.deadline;
+    const liveLeadDispatchLabel =
+        activeFastTrackCase?.workspaceFinalStatus === 'active' || activeFastTrackCase?.finalStatus === 'in_progress'
+            ? formatLeadStage(activeFastTrackCase.stage)
+            : formatLeadStage(activeLead?.dispatch_status || (activeLead?.matched_broker ? 'broker_matched' : 'matching'));
     const liveLeadBrokerLabel =
         activeLead?.matched_broker?.name ||
         activeLead?.matched_broker?.company_name ||
@@ -1089,6 +1685,151 @@ const UserPropertyDetail = () => {
         }
     };
 
+    const handleSubmitOffer = async (event: React.FormEvent) => {
+        event.preventDefault();
+
+        if (offerInFlightRef.current) {
+            return;
+        }
+
+        if (!ensureAuthenticated()) {
+            return;
+        }
+
+        const { payload, error: payloadError } = buildSaleOfferPayload({
+            property,
+            lead: activeLead,
+            fastTrackCase: activeFastTrackCase,
+            amount: offerForm.amount,
+            notes: offerForm.notes,
+        });
+
+        if (payloadError || !payload) {
+            setOfferFormError(payloadError || 'Unable to prepare the offer.');
+            toast.error(payloadError || 'Unable to prepare the offer.');
+            return;
+        }
+
+        offerInFlightRef.current = true;
+        setIsSubmittingOffer(true);
+        setOfferFormError('');
+        try {
+            const offerResult = await createOffer(payload, { suppressErrorToast: true });
+            if (offerResult.error || !offerResult.data) {
+                throw new Error(offerResult.error || 'Unable to submit the offer.');
+            }
+
+            setOfferForm({ amount: '', notes: '' });
+            toast.success('Offer submitted. Your broker can review it in the live sale workspace.');
+            await loadFastTrackWorkspace({ silent: true });
+        } catch (actionError: any) {
+            setOfferFormError(actionError?.message || 'Unable to submit the offer.');
+            toast.error(actionError?.message || 'Unable to submit the offer.');
+        } finally {
+            offerInFlightRef.current = false;
+            setIsSubmittingOffer(false);
+        }
+    };
+
+    const handleSaleOfferAmountChange = (amount: string) => {
+        setOfferForm((previous) => ({ ...previous, amount }));
+        setOfferFormError('');
+    };
+
+    const handleSaleOfferNotesChange = (notes: string) => {
+        setOfferForm((previous) => ({ ...previous, notes }));
+        if (
+            notes.trim().replace(/\s+/g, ' ').length <=
+            MAX_SALE_OFFER_NOTES_LENGTH
+        ) {
+            setOfferFormError('');
+        } else {
+            setOfferFormError('Offer notes must be 1000 characters or fewer.');
+        }
+    };
+
+    const handleRentalApplicationChange = (field: keyof RentalApplicationForm, value: string) => {
+        setRentalApplicationForm((previous) => ({ ...previous, [field]: value }));
+        setRentalApplicationErrors((previous) => {
+            if (!previous[field]) {
+                return previous;
+            }
+            const next = { ...previous };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const handleSubmitRentalApplication = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!property || !ensureAuthenticated()) {
+            return;
+        }
+
+        const managerId = ensureWorkflowManagerReady();
+        if (!managerId) {
+            return;
+        }
+
+        const normalizedForm = normalizeRentalApplicationForm(rentalApplicationForm);
+        const validationErrors = getRentalApplicationValidationErrors(normalizedForm, minimumRentalApplicationMoveInDate);
+        setRentalApplicationErrors(validationErrors);
+        if (Object.keys(validationErrors).length > 0) {
+            toast.error('Please check the rental application details.');
+            return;
+        }
+
+        if (rentalApplicationInFlightRef.current) {
+            return;
+        }
+
+        rentalApplicationInFlightRef.current = true;
+        setIsSubmittingRentalApplication(true);
+        try {
+            const leaseDurationMonths = Number(normalizedForm.leaseDurationMonths);
+            const annualIncome = normalizedForm.annualIncome ? Number(normalizedForm.annualIncome) : undefined;
+            const result = await submitRentalApplication({
+                property_id: property.id,
+                manager_id: managerId,
+                lead_id: activeLead?.id || activeFastTrackCase?.leadId,
+                fast_track_case_id: activeFastTrackCase?.id,
+                applicant_name: displayName,
+                applicant_email: user?.email,
+                applicant_phone: user?.phone || user?.user_metadata?.phone || '',
+                property_title: property.title,
+                property_address: propertyAddress,
+                property_country: property.country,
+                property_image: coverImage,
+                property_type: property.property_type,
+                listing_type: 'rent',
+                property_price: typeof property.price === 'number' ? property.price : undefined,
+                agent_name: workflowRecipientName,
+                agent_email: workflowRecipientEmail,
+                agent_phone: workflowRecipientPhone,
+                agent_agency: workflowRecipientAgency,
+                move_in_date: normalizedForm.moveInDate,
+                lease_duration_months: leaseDurationMonths,
+                employment_status: normalizedForm.employmentStatus,
+                employer_name: normalizedForm.employerName,
+                annual_income: annualIncome,
+                current_address: normalizedForm.currentAddress,
+                message: normalizedForm.message,
+            });
+
+            if (result.error || !result.data) {
+                throw new Error(result.error || 'Unable to submit the rental application.');
+            }
+
+            toast.success('Rental application submitted.');
+            navigate('/user/dashboard/applications');
+        } catch (actionError: any) {
+            toast.error(actionError?.message || 'Unable to submit the rental application.');
+        } finally {
+            rentalApplicationInFlightRef.current = false;
+            setIsSubmittingRentalApplication(false);
+        }
+    };
+
     const handleScheduleViewing = async (event: React.FormEvent) => {
         event.preventDefault();
 
@@ -1101,7 +1842,10 @@ const UserPropertyDetail = () => {
             return;
         }
 
-        if (!viewingForm.requested_date || !viewingForm.requested_time) {
+        const validationErrors = getViewingRequestValidationErrors(viewingForm);
+        setViewingFormErrors(validationErrors);
+
+        if (Object.keys(validationErrors).length > 0) {
             toast.error('Please choose a viewing date and time.');
             return;
         }
@@ -1180,6 +1924,9 @@ const UserPropertyDetail = () => {
 
     return (
         <div className="relative mx-auto max-w-[1480px] px-4 py-8 pb-20">
+            <p role="status" aria-live="polite" className="sr-only">
+                {savedPropertyStatusMessage}
+            </p>
             <div className="pointer-events-none absolute inset-x-10 top-12 -z-10 h-64 rounded-[3rem] bg-orange-50/90 blur-3xl dark:bg-orange-950/20" />
             <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
             <div className="mb-8 flex items-center justify-between">
@@ -1195,6 +1942,7 @@ const UserPropertyDetail = () => {
                     onClick={() => void handleSaveToggle()}
                     disabled={isUpdatingSavedProperty}
                     aria-pressed={isSaved}
+                    aria-label={isSaved ? `Remove ${property.title} from saved properties` : `Save ${property.title}`}
                     className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-70 ${
                         isSaved
                             ? 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 hover:text-orange-800 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-300 dark:hover:border-orange-800 dark:hover:text-orange-200'
@@ -1216,11 +1964,11 @@ const UserPropertyDetail = () => {
                         <div
                             role="button"
                             tabIndex={0}
-                            onClick={() => openGallery()}
+                            onClick={(event) => openGallery(undefined, event.currentTarget)}
                             onKeyDown={(event) => {
                                 if (event.key === 'Enter' || event.key === ' ') {
                                     event.preventDefault();
-                                    openGallery();
+                                    openGallery(undefined, event.currentTarget);
                                 }
                             }}
                             className="relative cursor-zoom-in focus:outline-none"
@@ -1259,7 +2007,7 @@ const UserPropertyDetail = () => {
                                     type="button"
                                     onClick={(event) => {
                                         event.stopPropagation();
-                                        openGallery();
+                                        openGallery(undefined, event.currentTarget);
                                     }}
                                     className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-white"
                                 >
@@ -1317,8 +2065,8 @@ const UserPropertyDetail = () => {
                                             <div className="flex items-center justify-between gap-3">
                                                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Switch photos directly</p>
                                                 <button
-                                                    type="button"
-                                                    onClick={() => openGallery(selectedImageIndex)}
+                                                        type="button"
+                                                        onClick={(event) => openGallery(selectedImageIndex, event.currentTarget)}
                                                     className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                                                 >
                                                     <ImageIcon size={15} className="text-orange-500" />
@@ -1373,21 +2121,24 @@ const UserPropertyDetail = () => {
                                         <div className="mt-4 flex flex-wrap gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() => openGallery(selectedImageIndex)}
+                                                onClick={(event) => openGallery(selectedImageIndex, event.currentTarget)}
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
                                             >
                                                 <ImageIcon size={16} />
                                                 <span>Open immersive view</span>
                                             </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleStartFastTrack}
-                                        disabled={isStartingFastTrack}
-                                        className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
-                                    >
-                                        {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
-                                        <span>{isStartingFastTrack ? 'Checking live status...' : '24-hour fast track'}</span>
-                                    </button>
+                                            <button
+                                                type="button"
+                                                onClick={(event) => {
+                                                    fastTrackTriggerRef.current = event.currentTarget;
+                                                    void handleStartFastTrack();
+                                                }}
+                                                disabled={isStartingFastTrack}
+                                                className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
+                                            >
+                                                {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
+                                                <span>{isStartingFastTrack ? 'Checking live status...' : '24-hour fast track'}</span>
+                                            </button>
                                 </div>
                             </div>
 
@@ -1408,7 +2159,7 @@ const UserPropertyDetail = () => {
                                             <div className="rounded-[1.1rem] border border-white/80 bg-white px-3 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400">Dispatch</p>
                                                 <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
-                                                    {formatLeadStage(activeLead?.dispatch_status || (activeLead?.matched_broker ? 'broker_matched' : 'matching'))}
+                                                    {liveLeadDispatchLabel}
                                                 </p>
                                             </div>
                                             <div className="rounded-[1.1rem] border border-white/80 bg-white px-3 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
@@ -1530,6 +2281,62 @@ const UserPropertyDetail = () => {
                             </div>
                         </section>
                     </div>
+
+                    <section
+                        aria-labelledby="property-reviews-heading"
+                        className="rounded-[2.1rem] border border-stone-200/80 bg-white/95 p-6 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90 md:p-7"
+                    >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Reviews & ratings</p>
+                                <h3 id="property-reviews-heading" className="mt-3 text-[1.9rem] font-semibold leading-tight tracking-tight text-gray-900 dark:text-white">
+                                    Public feedback for this listing
+                                </h3>
+                            </div>
+                            <div className="w-fit rounded-[1.4rem] border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm font-semibold text-yellow-700 shadow-sm dark:border-yellow-900/50 dark:bg-yellow-950/30 dark:text-yellow-300">
+                                {propertyReviewTotal > 0
+                                    ? `${propertyReviewAverage.toFixed(1)} average from ${propertyReviewTotal} review${propertyReviewTotal === 1 ? '' : 's'}`
+                                    : 'No public rating yet'}
+                            </div>
+                        </div>
+
+                        {propertyReviewsLoading ? (
+                            <div className="mt-6 rounded-[1.5rem] border border-dashed border-stone-200 bg-stone-50 p-6 text-sm font-medium text-gray-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-400">
+                                Loading public reviews...
+                            </div>
+                        ) : propertyReviews.length > 0 ? (
+                            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                {propertyReviews.slice(0, 3).map((review, index) => (
+                                    <article
+                                        key={review.id}
+                                        className="rounded-[1.5rem] border border-stone-200/80 bg-stone-50 px-4 py-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+                                        aria-label={`Approved review ${index + 1}: ${review.rating} out of 5 stars`}
+                                    >
+                                        <div className="flex items-center gap-1" aria-hidden="true">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <Star
+                                                    key={star}
+                                                    size={16}
+                                                    className={star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 dark:text-gray-700'}
+                                                />
+                                            ))}
+                                        </div>
+                                        <p className="mt-4 text-sm font-medium leading-6 text-gray-700 dark:text-gray-300">
+                                            "{review.comment}"
+                                        </p>
+                                        <div className="mt-4 flex items-center justify-between gap-3 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                            <span>Approved review</span>
+                                            <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString()}</time>
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="mt-6 rounded-[1.5rem] border border-dashed border-stone-300 bg-stone-50 p-6 text-sm leading-6 text-gray-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-gray-300">
+                                No approved public reviews are available for this property yet. Reviews will appear here after admin moderation.
+                            </div>
+                        )}
+                    </section>
 
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1.16fr)_minmax(320px,0.84fr)] lg:items-start">
                         <section className="rounded-[2.1rem] border border-stone-200/80 bg-[#fcfaf6] p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 md:p-7">
@@ -1683,7 +2490,11 @@ const UserPropertyDetail = () => {
 
                         <div className="mt-5 grid gap-3">
                             <button
-                                onClick={handleStartFastTrack}
+                                ref={fastTrackTriggerRef}
+                                onClick={(event) => {
+                                    fastTrackTriggerRef.current = event.currentTarget;
+                                    void handleStartFastTrack();
+                                }}
                                 disabled={isStartingFastTrack}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -1707,6 +2518,34 @@ const UserPropertyDetail = () => {
                         <div className="mt-4 rounded-[1.35rem] border border-stone-200/80 bg-stone-50 px-4 py-3 text-sm leading-6 text-gray-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
                             Every action stays inside your dashboard, so follow-ups, confirmations, and messages remain in one place.
                         </div>
+
+                        {isSaleOfferListingType(property.listing_type) && (
+                            <div className="mt-5">
+                                <SaleOfferEntryCard
+                                    priceLabel={priceLabel}
+                                    offerAmount={offerForm.amount}
+                                    offerNotes={offerForm.notes}
+                                    error={offerFormError}
+                                    isSubmitting={isSubmittingOffer}
+                                    onAmountChange={handleSaleOfferAmountChange}
+                                    onNotesChange={handleSaleOfferNotesChange}
+                                    onSubmit={handleSubmitOffer}
+                                />
+                            </div>
+                        )}
+
+                        {property.listing_type === 'rent' && (
+                            <div className="mt-5">
+                                <RentalApplicationEntryCard
+                                    minimumMoveInDate={minimumRentalApplicationMoveInDate}
+                                    form={rentalApplicationForm}
+                                    errors={rentalApplicationErrors}
+                                    isSubmitting={isSubmittingRentalApplication}
+                                    onChange={handleRentalApplicationChange}
+                                    onSubmit={handleSubmitRentalApplication}
+                                />
+                            </div>
+                        )}
 
                         <form onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
                             <div className="border-b border-stone-200/80 px-5 py-5 dark:border-zinc-800 md:px-6 md:py-6">
@@ -1741,7 +2580,7 @@ const UserPropertyDetail = () => {
                                         <div className="flex items-center gap-1.5">
                                             <button
                                                 type="button"
-                                                onClick={() => setCalendarMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() - 1, 1))}
+                                                onClick={() => changeViewingCalendarMonth(-1)}
                                                 disabled={!canGoToPreviousMonth}
                                                 className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-gray-700 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-300"
                                                 aria-label="Show previous month"
@@ -1750,7 +2589,7 @@ const UserPropertyDetail = () => {
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => setCalendarMonth((previous) => new Date(previous.getFullYear(), previous.getMonth() + 1, 1))}
+                                                onClick={() => changeViewingCalendarMonth(1)}
                                                 className="flex h-9 w-9 items-center justify-center rounded-full border border-stone-200 bg-white text-gray-700 transition hover:border-orange-300 hover:text-orange-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-300"
                                                 aria-label="Show next month"
                                             >
@@ -1775,9 +2614,26 @@ const UserPropertyDetail = () => {
                                                 <button
                                                     key={day.value}
                                                     type="button"
-                                                    onClick={() => !day.isDisabled && setViewingForm((previous) => ({ ...previous, requested_date: day.value }))}
+                                                    aria-label={getViewingCalendarDayAriaLabel(day, isSelected)}
+                                                    aria-pressed={isSelected}
+                                                    onClick={() => {
+                                                        if (day.isDisabled) {
+                                                            return;
+                                                        }
+                                                        setViewingForm((previous) => ({
+                                                            ...previous,
+                                                            requested_date: day.value,
+                                                            requested_time: previous.requested_time && !isViewingTimeSlotUnavailable(day.value, previous.requested_time, bookedViewingSlotsByDate)
+                                                                ? previous.requested_time
+                                                                : '',
+                                                        }));
+                                                        setViewingFormErrors((previous) => ({
+                                                            ...previous,
+                                                            requested_date: undefined,
+                                                        }));
+                                                    }}
                                                     disabled={day.isDisabled}
-                                                    className={`relative flex h-9 items-center justify-center rounded-lg border text-[13px] font-medium transition ${
+                                                    className={`relative flex h-9 items-center justify-center rounded-lg border text-[13px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
                                                         isSelected
                                                             ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20'
                                                             : day.isCurrentMonth
@@ -1793,6 +2649,11 @@ const UserPropertyDetail = () => {
                                             );
                                         })}
                                     </div>
+                                    {viewingFormErrors.requested_date && (
+                                        <p className="mt-3 text-xs font-semibold text-red-600 dark:text-red-300" role="alert">
+                                            {viewingFormErrors.requested_date}
+                                        </p>
+                                    )}
 
                                     <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                                         <span className="rounded-full bg-stone-100 px-3 py-1.5 text-gray-500 dark:bg-zinc-900 dark:text-gray-400">
@@ -1834,38 +2695,31 @@ const UserPropertyDetail = () => {
                                             {VIEWING_TIME_SLOTS.map((slot) => {
                                                 const isSelected = viewingForm.requested_time === slot.value;
                                                 const isUnavailable = Boolean(viewingForm.requested_date && isViewingTimeSlotUnavailable(viewingForm.requested_date, slot.value, bookedViewingSlotsByDate));
+                                                const unavailableReason = isPastViewingTimeSlot(viewingForm.requested_date, slot.value) ? 'Time passed' : 'Already booked';
 
                                                 return (
-                                                    <button
+                                                    <ViewingTimeSlotButton
                                                         key={slot.value}
-                                                        type="button"
-                                                        onClick={() => !isUnavailable && setViewingForm((previous) => ({ ...previous, requested_time: slot.value }))}
-                                                        disabled={isUnavailable}
-                                                        className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                                                            isSelected
-                                                                ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                                                : isUnavailable
-                                                                    ? 'cursor-not-allowed border-stone-200 bg-stone-100 text-gray-400 opacity-70 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-500'
-                                                                    : 'border-stone-200 bg-stone-50 text-gray-800 hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-800'
-                                                        }`}
-                                                    >
-                                                        <p className="text-[13px] font-semibold">{slot.label}</p>
-                                                        <p className={`mt-1 text-[10px] ${
-                                                            isSelected
-                                                                ? 'text-white/80'
-                                                                : isUnavailable
-                                                                    ? 'text-gray-400 dark:text-zinc-500'
-                                                                    : 'text-gray-400'
-                                                        }`}
-                                                        >
-                                                            {isUnavailable
-                                                                ? (isPastViewingTimeSlot(viewingForm.requested_date, slot.value) ? 'Time passed' : 'Already booked')
-                                                                : slot.hint}
-                                                        </p>
-                                                    </button>
+                                                        slot={slot}
+                                                        selected={isSelected}
+                                                        unavailable={isUnavailable}
+                                                        unavailableReason={unavailableReason}
+                                                        onSelect={() => {
+                                                            setViewingForm((previous) => ({ ...previous, requested_time: slot.value }));
+                                                            setViewingFormErrors((previous) => ({
+                                                                ...previous,
+                                                                requested_time: undefined,
+                                                            }));
+                                                        }}
+                                                    />
                                                 );
                                             })}
                                         </div>
+                                        {viewingFormErrors.requested_time && (
+                                            <p className="mt-3 text-xs font-semibold text-red-600 dark:text-red-300" role="alert">
+                                                {viewingFormErrors.requested_time}
+                                            </p>
+                                        )}
                                         {viewingForm.requested_date && selectedDateAvailableTimeSlots.length === 0 && (
                                             <p className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300">
                                                 Every time on this day is booked. Choose another day to continue.
@@ -1927,7 +2781,7 @@ const UserPropertyDetail = () => {
                 userDocuments={userDocuments}
                 isRefreshing={isFastTrackPanelLoading}
                 uploadingType={uploadingFastTrackDocumentType}
-                onClose={() => setIsFastTrackModalOpen(false)}
+                onClose={closeFastTrackModal}
                 onUploadDocument={handleUploadFastTrackDocument}
                 onOpenDashboard={openFastTrackDashboard}
                 onOpenMessages={handleOpenConversation}
@@ -1936,7 +2790,7 @@ const UserPropertyDetail = () => {
             {isGalleryOpen && (
                 <div
                     className="fixed inset-0 z-[140] overflow-y-auto bg-[rgba(8,15,30,0.92)] px-3 py-3 backdrop-blur-md sm:px-5 sm:py-5"
-                    onClick={() => setIsGalleryOpen(false)}
+                    onClick={closeGallery}
                 >
                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
                         <img
@@ -1951,6 +2805,9 @@ const UserPropertyDetail = () => {
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_34%),linear-gradient(180deg,rgba(10,15,28,0.2),rgba(10,15,28,0.88)_72%)]" />
                     </div>
                     <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={getImmersiveGalleryDialogLabel(property.title)}
                         className="relative mx-auto flex min-h-full max-w-[1500px] flex-col"
                         onClick={(event) => event.stopPropagation()}
                     >
@@ -1968,8 +2825,9 @@ const UserPropertyDetail = () => {
                                     {selectedImageIndex + 1} / {images.length}
                                 </div>
                                 <button
+                                    ref={immersiveGalleryCloseButtonRef}
                                     type="button"
-                                    onClick={() => setIsGalleryOpen(false)}
+                                    onClick={closeGallery}
                                     className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/15"
                                     aria-label="Close property gallery"
                                 >

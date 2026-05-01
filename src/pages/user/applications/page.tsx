@@ -16,6 +16,7 @@ import {
     Bell,
     Inbox,
     X,
+    XCircle,
     AlertCircle,
     Calendar,
     User,
@@ -36,6 +37,8 @@ import ApplicationCardSkeleton from '@/components/dashboard/applications/Applica
 import ApplicationFilters from '@/components/dashboard/applications/ApplicationFilters';
 import FastTrackCompanionPanel from '@/components/fast-track/FastTrackCompanionPanel';
 import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
+import Modal from '@/components/ui/Modal';
+import DateField from '@/components/ui/DateField';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
 import { buildWorkspacePath, resolveFocusedApplication } from '@/lib/workspaceLinks';
 import {
@@ -47,6 +50,7 @@ import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
+    canWithdrawApplicationRecord,
     getNextSaleJourneyActions,
     getSaleJourneySummary,
     getSaleJourneyStageLabel,
@@ -54,16 +58,113 @@ import {
     resolveSaleJourneyDisplayStage,
 } from '@/lib/saleJourney';
 
+export const APPLICATION_DETAIL_DRAWER_CLOSE_LABEL = 'Close application detail panel';
+const MAX_APPLICATION_WITHDRAW_REASON_LENGTH = 500;
+const MAX_NEW_APPLICATION_MESSAGE_LENGTH = 1000;
+
+type NewApplicationForm = {
+    property_id: string;
+    manager_id: string;
+    move_in_date: string;
+    applicant_name: string;
+    applicant_email: string;
+    applicant_phone: string;
+    message: string;
+};
+
+type NewApplicationFormErrors = Partial<Record<keyof NewApplicationForm, string>>;
+
+const EMPTY_NEW_APPLICATION_FORM: NewApplicationForm = {
+    property_id: '',
+    manager_id: '',
+    move_in_date: '',
+    applicant_name: '',
+    applicant_email: '',
+    applicant_phone: '',
+    message: '',
+};
+
+const normalizeApplicationWithdrawReason = (value: string) => value.trim().replace(/\s+/g, ' ');
+const normalizeNewApplicationText = (value: string) => value.trim().replace(/\s+/g, ' ');
+
+function parseApplicationDate(value: string) {
+    const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+        return null;
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsed = new Date(year, month - 1, day);
+    if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+        return null;
+    }
+
+    return parsed;
+}
+
+function validateNewApplicationForm(form: NewApplicationForm): NewApplicationFormErrors {
+    const errors: NewApplicationFormErrors = {};
+    const moveInDate = form.move_in_date.trim() ? parseApplicationDate(form.move_in_date) : null;
+
+    if (!form.property_id.trim()) {
+        errors.property_id = 'Enter a property ID.';
+    }
+    if (!form.manager_id.trim()) {
+        errors.manager_id = 'Enter a manager ID.';
+    }
+    if (!form.move_in_date.trim()) {
+        errors.move_in_date = 'Choose a move-in date.';
+    } else if (!moveInDate) {
+        errors.move_in_date = 'Enter a valid move-in date.';
+    }
+    if (normalizeNewApplicationText(form.message).length > MAX_NEW_APPLICATION_MESSAGE_LENGTH) {
+        errors.message = 'Keep the application message to 1000 characters or fewer.';
+    }
+
+    return errors;
+}
+
+const validateApplicationWithdrawReason = (value: string) => {
+    const normalized = normalizeApplicationWithdrawReason(value);
+    if (!normalized) {
+        return { normalized, error: 'Enter a withdrawal reason.' };
+    }
+    if (normalized.length > MAX_APPLICATION_WITHDRAW_REASON_LENGTH) {
+        return { normalized, error: 'Withdrawal reason must be 500 characters or fewer.' };
+    }
+    return { normalized, error: '' };
+};
+
 function ApplicationDetailDrawer({ application, onClose }: { application: Application; onClose: () => void }) {
     const navigate = useNavigate();
-    const { fetchApplications } = useApplications();
+    const { fetchApplications, withdrawApplication } = useApplications();
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
+    const [showWithdrawForm, setShowWithdrawForm] = useState(false);
+    const [withdrawReason, setWithdrawReason] = useState('');
+    const [withdrawReasonError, setWithdrawReasonError] = useState('');
+    const [isWithdrawing, setIsWithdrawing] = useState(false);
+    const withdrawInFlightRef = useRef(false);
     const isSaleProgression = isSaleProgressionRecord(application);
+    const canWithdraw = canWithdrawApplicationRecord(application);
     const saleDisplayStage = resolveSaleJourneyDisplayStage(application);
     const showsSaleJourney = application.listingType !== 'rent' && Boolean(saleDisplayStage);
     const nextSaleAction = getNextSaleJourneyActions(application.status)[0];
+    const journeyBlockers = application.blockers || [];
+    const journeyDeadlines = application.deadlines || [];
+    const journeyRequiredEvidence = application.requiredEvidence || [];
+    const shouldShowApplicationTracker = Boolean(
+        application.liveStage
+        || application.stageGroup
+        || application.journeyStatusReason
+        || journeyBlockers.length
+        || journeyDeadlines.length
+        || journeyRequiredEvidence.length
+        || application.fastTrackCase,
+    );
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
@@ -122,6 +223,34 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
         }
     };
 
+    const handleWithdrawApplication = async (event: React.FormEvent) => {
+        event.preventDefault();
+        const { normalized, error } = validateApplicationWithdrawReason(withdrawReason);
+        setWithdrawReasonError(error);
+        if (error || withdrawInFlightRef.current) {
+            return;
+        }
+
+        withdrawInFlightRef.current = true;
+        setIsWithdrawing(true);
+        try {
+            const result = await withdrawApplication(application.id, normalized);
+            if (!result.success) {
+                throw new Error(result.error || 'Unable to withdraw application.');
+            }
+
+            toast.success('Application withdrawn.');
+            setShowWithdrawForm(false);
+            setWithdrawReason('');
+            onClose();
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to withdraw application.');
+        } finally {
+            withdrawInFlightRef.current = false;
+            setIsWithdrawing(false);
+        }
+    };
+
     const uploadDocumentsPath = buildWorkspacePath('/user/dashboard/fast-track', {
         applicationId: application.id,
         caseId: application.fastTrackCaseId,
@@ -142,7 +271,13 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Application Detail</h2>
                         <p className="text-xs text-gray-400 font-mono mt-0.5">{application.referenceId || application.id.slice(0, 8)}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label={APPLICATION_DETAIL_DRAWER_CLOSE_LABEL}
+                        title={APPLICATION_DETAIL_DRAWER_CLOSE_LABEL}
+                        className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+                    >
                         <X size={20} />
                     </button>
                 </div>
@@ -261,6 +396,81 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                         </div>
                     )}
 
+                    {shouldShowApplicationTracker && (
+                        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Application Tracker</p>
+                                    <h4 className="mt-2 text-base font-bold capitalize text-gray-900 dark:text-white">
+                                        {application.liveStage ? application.liveStage.replace(/_/g, ' ') : 'Workflow status'}
+                                    </h4>
+                                    {application.journeyStatusReason && (
+                                        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                            {application.journeyStatusReason}
+                                        </p>
+                                    )}
+                                </div>
+                                {application.stageGroup && (
+                                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold capitalize text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                                        {application.stageGroup.replace(/_/g, ' ')}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
+                                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Blockers</p>
+                                    {journeyBlockers.length ? (
+                                        <ul className="mt-3 space-y-2">
+                                            {journeyBlockers.map((blocker) => (
+                                                <li key={blocker.code} className="text-sm text-gray-700 dark:text-gray-200">
+                                                    <span className="font-semibold">{blocker.title}</span>
+                                                    {blocker.description && <span className="block text-xs text-gray-500 dark:text-gray-400">{blocker.description}</span>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">None recorded</p>
+                                    )}
+                                </div>
+
+                                <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
+                                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Deadlines</p>
+                                    {journeyDeadlines.length ? (
+                                        <ul className="mt-3 space-y-2">
+                                            {journeyDeadlines.map((deadline) => (
+                                                <li key={deadline.code} className="text-sm text-gray-700 dark:text-gray-200">
+                                                    <span className="font-semibold">{deadline.label}</span>
+                                                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                                                        {deadline.due_at ? formatDate(deadline.due_at) : deadline.status || 'Pending'}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">None recorded</p>
+                                    )}
+                                </div>
+
+                                <div className="rounded-2xl bg-gray-50 p-3 dark:bg-gray-800">
+                                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Required Evidence</p>
+                                    {journeyRequiredEvidence.length ? (
+                                        <ul className="mt-3 space-y-2">
+                                            {journeyRequiredEvidence.map((requirement) => (
+                                                <li key={requirement.code} className="text-sm text-gray-700 dark:text-gray-200">
+                                                    <span className="font-semibold">{requirement.label}</span>
+                                                    {requirement.status && <span className="block text-xs capitalize text-gray-500 dark:text-gray-400">{requirement.status.replace(/_/g, ' ')}</span>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">None recorded</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Actions */}
                     <div className="space-y-3">
                         {application.status === APPLICATION_STATUS.DOCUMENTS_REQUESTED && (
@@ -279,6 +489,15 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                             {openingConversation ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
                             <span>{openingConversation ? 'Opening thread' : 'Message Agent'}</span>
                         </button>
+                        {canWithdraw && (
+                            <button
+                                type="button"
+                                onClick={() => setShowWithdrawForm(true)}
+                                className="w-full py-3 border border-red-200 dark:border-red-900/60 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-600 dark:text-red-300 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all"
+                            >
+                                <XCircle size={18} /> Withdraw Application
+                            </button>
+                        )}
                         {application.propertyId && (
                             <button
                                 onClick={() => { onClose(); navigate(`/user/properties/${application.propertyId}`); }}
@@ -288,6 +507,55 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                             </button>
                         )}
                     </div>
+
+                    {showWithdrawForm && (
+                        <form
+                            onSubmit={handleWithdrawApplication}
+                            className="rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20"
+                        >
+                            <label className="block text-sm font-semibold text-red-900 dark:text-red-100">
+                                Reason for withdrawal
+                                <textarea
+                                    value={withdrawReason}
+                                    onChange={(event) => {
+                                        setWithdrawReason(event.target.value);
+                                        if (withdrawReasonError) {
+                                            setWithdrawReasonError('');
+                                        }
+                                    }}
+                                    rows={3}
+                                    maxLength={MAX_APPLICATION_WITHDRAW_REASON_LENGTH + 1}
+                                    aria-invalid={Boolean(withdrawReasonError)}
+                                    aria-describedby={withdrawReasonError ? 'application-withdraw-reason-error' : undefined}
+                                    className="mt-2 w-full rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-red-500 dark:border-red-900/60 dark:bg-zinc-950 dark:text-white"
+                                />
+                            </label>
+                            {withdrawReasonError && (
+                                <p id="application-withdraw-reason-error" className="mt-2 text-xs font-semibold text-red-700 dark:text-red-300">
+                                    {withdrawReasonError}
+                                </p>
+                            )}
+                            <div className="mt-3 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowWithdrawForm(false);
+                                        setWithdrawReasonError('');
+                                    }}
+                                    className="flex-1 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-50 dark:border-red-900/60 dark:bg-zinc-950 dark:text-red-300"
+                                >
+                                    Keep Application
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isWithdrawing}
+                                    className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {isWithdrawing ? 'Withdrawing...' : 'Confirm Withdrawal'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
                 </div>
             </div>
         </div>
@@ -307,7 +575,8 @@ export default function ApplicationsPage() {
         setPropertyTypeFilter,
         dateRangeFilter,
         setDateRangeFilter,
-        fetchApplications
+        fetchApplications,
+        createApplication
     } = useApplications();
     const navigate = useNavigate();
     const toast = useToast();
@@ -317,9 +586,14 @@ export default function ApplicationsPage() {
     const [showFilters, setShowFilters] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
+    const [newApplicationModalOpen, setNewApplicationModalOpen] = useState(false);
+    const [newApplicationForm, setNewApplicationForm] = useState<NewApplicationForm>(EMPTY_NEW_APPLICATION_FORM);
+    const [newApplicationErrors, setNewApplicationErrors] = useState<NewApplicationFormErrors>({});
+    const [isSubmittingApplication, setIsSubmittingApplication] = useState(false);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [fastTrackCasesReady, setFastTrackCasesReady] = useState(false);
     const removedCaseNoticeRef = useRef<string | null>(null);
+    const newApplicationInFlightRef = useRef(false);
     const rawCaseId = searchParams.get('case');
     const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
         () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
@@ -337,6 +611,78 @@ export default function ApplicationsPage() {
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
     });
+
+    const updateNewApplicationField = (field: keyof NewApplicationForm, value: string) => {
+        setNewApplicationForm((previous) => ({ ...previous, [field]: value }));
+        setNewApplicationErrors((previous) => {
+            if (!previous[field]) {
+                return previous;
+            }
+            const { [field]: _removedError, ...remainingErrors } = previous;
+            return remainingErrors;
+        });
+    };
+
+    const openNewApplicationModal = () => {
+        setNewApplicationForm({
+            ...EMPTY_NEW_APPLICATION_FORM,
+            property_id: searchParams.get('property') || '',
+        });
+        setNewApplicationErrors({});
+        setNewApplicationModalOpen(true);
+    };
+
+    const closeNewApplicationModal = () => {
+        if (newApplicationInFlightRef.current) {
+            return;
+        }
+        setNewApplicationModalOpen(false);
+        setNewApplicationForm(EMPTY_NEW_APPLICATION_FORM);
+        setNewApplicationErrors({});
+    };
+
+    const submitNewApplication = async () => {
+        if (newApplicationInFlightRef.current) {
+            return;
+        }
+
+        const validationErrors = validateNewApplicationForm(newApplicationForm);
+        setNewApplicationErrors(validationErrors);
+        if (Object.keys(validationErrors).length > 0) {
+            toast.error('Please fix the application details.');
+            return;
+        }
+
+        newApplicationInFlightRef.current = true;
+        setIsSubmittingApplication(true);
+        try {
+            const result = await createApplication({
+                property_id: newApplicationForm.property_id.trim(),
+                manager_id: newApplicationForm.manager_id.trim(),
+                move_in_date: newApplicationForm.move_in_date.trim(),
+                applicant_name: normalizeNewApplicationText(newApplicationForm.applicant_name),
+                applicant_email: normalizeNewApplicationText(newApplicationForm.applicant_email),
+                applicant_phone: normalizeNewApplicationText(newApplicationForm.applicant_phone),
+                listing_type: 'rent',
+                message: normalizeNewApplicationText(newApplicationForm.message),
+            });
+
+            if (!result.success) {
+                throw new Error(result.error || 'Unable to submit application.');
+            }
+
+            toast.success('Application submitted.');
+            setNewApplicationModalOpen(false);
+            setNewApplicationForm(EMPTY_NEW_APPLICATION_FORM);
+            setNewApplicationErrors({});
+        } catch (error: any) {
+            toast.error(error?.message || 'Unable to submit application.');
+        } finally {
+            newApplicationInFlightRef.current = false;
+            setIsSubmittingApplication(false);
+        }
+    };
+
     const drawerApplication = useMemo(() => {
         if (!selectedApplication) {
             return null;
@@ -434,6 +780,143 @@ export default function ApplicationsPage() {
                     onClose={() => setSelectedApplication(null)}
                 />
             )}
+            <Modal
+                isOpen={newApplicationModalOpen}
+                onClose={closeNewApplicationModal}
+                title="Submit Rental Application"
+                size="md"
+                closeOnBackdrop={!isSubmittingApplication}
+                footer={(
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={closeNewApplicationModal}
+                            disabled={isSubmittingApplication}
+                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                        >
+                            Close
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => void submitNewApplication()}
+                            disabled={isSubmittingApplication}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSubmittingApplication && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Submit Application
+                        </button>
+                    </div>
+                )}
+            >
+                <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Property ID</span>
+                            <input
+                                type="text"
+                                value={newApplicationForm.property_id}
+                                onChange={(event) => updateNewApplicationField('property_id', event.target.value)}
+                                aria-describedby={newApplicationErrors.property_id ? 'new-application-property-error' : undefined}
+                                disabled={isSubmittingApplication}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            />
+                            {newApplicationErrors.property_id ? (
+                                <p id="new-application-property-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                    {newApplicationErrors.property_id}
+                                </p>
+                            ) : null}
+                        </label>
+                        <label className="space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Manager ID</span>
+                            <input
+                                type="text"
+                                value={newApplicationForm.manager_id}
+                                onChange={(event) => updateNewApplicationField('manager_id', event.target.value)}
+                                aria-describedby={newApplicationErrors.manager_id ? 'new-application-manager-error' : undefined}
+                                disabled={isSubmittingApplication}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            />
+                            {newApplicationErrors.manager_id ? (
+                                <p id="new-application-manager-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                    {newApplicationErrors.manager_id}
+                                </p>
+                            ) : null}
+                        </label>
+                    </div>
+
+                    <label className="block space-y-2 text-sm">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Move-in date</span>
+                        <DateField
+                            value={newApplicationForm.move_in_date}
+                            onChange={(value) => updateNewApplicationField('move_in_date', value)}
+                            ariaLabel="Application move-in date"
+                            ariaDescribedBy={newApplicationErrors.move_in_date ? 'new-application-move-in-error' : undefined}
+                            disabled={isSubmittingApplication}
+                            buttonClassName="bg-gray-50 dark:bg-gray-900"
+                        />
+                        {newApplicationErrors.move_in_date ? (
+                            <p id="new-application-move-in-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                {newApplicationErrors.move_in_date}
+                            </p>
+                        ) : null}
+                    </label>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Applicant name</span>
+                            <input
+                                type="text"
+                                value={newApplicationForm.applicant_name}
+                                onChange={(event) => updateNewApplicationField('applicant_name', event.target.value)}
+                                disabled={isSubmittingApplication}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            />
+                        </label>
+                        <label className="space-y-2 text-sm">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">Email</span>
+                            <input
+                                type="email"
+                                value={newApplicationForm.applicant_email}
+                                onChange={(event) => updateNewApplicationField('applicant_email', event.target.value)}
+                                disabled={isSubmittingApplication}
+                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            />
+                        </label>
+                    </div>
+
+                    <label className="block space-y-2 text-sm">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Phone</span>
+                        <input
+                            type="tel"
+                            value={newApplicationForm.applicant_phone}
+                            onChange={(event) => updateNewApplicationField('applicant_phone', event.target.value)}
+                            disabled={isSubmittingApplication}
+                            className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                    </label>
+
+                    <label className="block space-y-2 text-sm">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">Message</span>
+                        <textarea
+                            rows={4}
+                            value={newApplicationForm.message}
+                            onChange={(event) => updateNewApplicationField('message', event.target.value)}
+                            aria-describedby={newApplicationErrors.message ? 'new-application-message-error' : 'new-application-message-count'}
+                            disabled={isSubmittingApplication}
+                            className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                        />
+                        {newApplicationErrors.message ? (
+                            <p id="new-application-message-error" role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">
+                                {newApplicationErrors.message}
+                            </p>
+                        ) : (
+                            <p id="new-application-message-count" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                {normalizeNewApplicationText(newApplicationForm.message).length}/{MAX_NEW_APPLICATION_MESSAGE_LENGTH}
+                            </p>
+                        )}
+                    </label>
+                </div>
+            </Modal>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Back Button */}
@@ -469,11 +952,11 @@ export default function ApplicationsPage() {
                         </div>
 
                         <button
-                            onClick={() => navigate('/user/search')}
+                            onClick={openNewApplicationModal}
                             className="flex items-center gap-2 px-5 py-3 bg-gray-900 dark:bg-white dark:text-gray-900 text-white font-bold rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-gray-200 dark:shadow-none"
                         >
                             <Plus size={18} />
-                            <span>New Search</span>
+                            <span>New Application</span>
                         </button>
                     </div>
                 </div>
@@ -614,10 +1097,10 @@ export default function ApplicationsPage() {
                         </p>
                         {!searchQuery && statusFilter === 'all' && propertyTypeFilter === 'all' && (
                             <button
-                                onClick={() => navigate('/user/search')}
+                                onClick={openNewApplicationModal}
                                 className="mt-8 px-6 py-3 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors shadow-md shadow-orange-200 dark:shadow-none"
                             >
-                                Discover Properties
+                                Submit Application
                             </button>
                         )}
                     </div>

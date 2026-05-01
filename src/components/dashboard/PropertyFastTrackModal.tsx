@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
     ArrowUpRight,
     CalendarDays,
@@ -99,6 +99,7 @@ const PropertyFastTrackModal = ({
     onClose,
     onOpenDashboard,
 }: PropertyFastTrackModalProps) => {
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
     const documentSummary = useMemo(() => {
         const items = fastTrackCase?.documents.items || [];
         return {
@@ -110,14 +111,31 @@ const PropertyFastTrackModal = ({
 
     const stageIndex = useMemo(() => stageIndexForCase(fastTrackCase), [fastTrackCase]);
 
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            closeButtonRef.current?.focus();
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [open]);
+
     if (!open) {
         return null;
     }
 
     return (
-        <div className="fixed inset-0 z-[80] overflow-y-auto bg-gray-950/55 px-4 py-6 backdrop-blur-sm sm:px-6 sm:py-8">
+        <div
+            className="fixed inset-0 z-[80] overflow-y-auto bg-gray-950/55 px-4 py-6 backdrop-blur-sm sm:px-6 sm:py-8"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="property-fast-track-modal-title"
+        >
             <div className="relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-[36px] border border-orange-100 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_26%,#fffdf8_100%)] shadow-[0_32px_120px_rgba(15,23,42,0.26)] dark:border-orange-900/40 dark:bg-[linear-gradient(180deg,#1c1917_0%,#0f172a_24%,#020617_100%)]">
                 <button
+                    ref={closeButtonRef}
                     type="button"
                     onClick={onClose}
                     className="absolute right-5 top-5 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/70 bg-white/85 text-gray-700 transition hover:border-orange-300 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-700 dark:hover:text-orange-300"
@@ -139,7 +157,7 @@ const PropertyFastTrackModal = ({
                             ) : null}
                         </div>
 
-                        <h2 className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-gray-900 dark:text-white xl:text-[3.1rem] xl:leading-[1.05]">
+                        <h2 id="property-fast-track-modal-title" className="mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-gray-900 dark:text-white xl:text-[3.1rem] xl:leading-[1.05]">
                             Keep the whole journey in one clean workspace.
                         </h2>
                         <p className="mt-4 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300">

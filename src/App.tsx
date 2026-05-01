@@ -23,7 +23,7 @@ class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
         return this.props.children;
     }
 }
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 const CHUNK_RELOAD_KEY = 'estospaces:lazy-route-reload';
 
@@ -74,6 +74,8 @@ import UserLayout from './layouts/UserLayout';
 const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
 
 // Lazy loaded pages - Public
+const HomePage = lazyPage(() => import('./pages/public/home/page'));
+const AboutPage = lazyPage(() => import('./pages/public/about/page'));
 const ContactPage = lazyPage(() => import('./pages/public/contact/page'));
 const CookiesPage = lazyPage(() => import('./pages/public/cookies/page'));
 const FAQPage = lazyPage(() => import('./pages/public/faq/page'));
@@ -160,6 +162,20 @@ import SubdomainRouter from './components/routing/SubdomainRouter';
 import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
 
+function RouteScrollReset() {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (location.hash) {
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname, location.search, location.hash]);
+
+  return null;
+}
+
 const App: React.FC = () => {
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -170,13 +186,14 @@ const App: React.FC = () => {
   return (
     <Suspense fallback={<Loading />}>
       <SubdomainRouter>
+        <RouteScrollReset />
         <PageErrorBoundary>
           <RouteAccessBoundary>
             <Routes>
-            <Route path="/" element={<StartupRedirect />} />
-
           {/* Public Routes */}
-          <Route element={<PublicLayout />}>
+          <Route path="/" element={<PublicLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/cookies" element={<CookiesPage />} />
             <Route path="/faq" element={<FAQPage />} />
@@ -200,6 +217,7 @@ const App: React.FC = () => {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="chat" element={<AdminChat />} />
+            <Route path="community" element={<ManagerCommunity />} />
             <Route path="help" element={<AdminHelp />} />
             <Route path="fast-track" element={<AdminFastTrack />} />
             <Route path="notifications" element={<AdminNotifications />} />
@@ -227,7 +245,7 @@ const App: React.FC = () => {
             <Route path="case-files" element={<ManagerCaseFiles />} />
             <Route path="contracts" element={<ManagerContracts />} />
             <Route path="docs" element={<ManagerDocs />} />
-            <Route path="billing" element={<Navigate to="dashboard" replace />} />
+            <Route path="billing/*" element={<Navigate to="/manager/contracts" replace />} />
             <Route path="clients" element={<ManagerClients />} />
             <Route path="community" element={<ManagerCommunity />} />
             <Route path="fast-track" element={<ManagerFastTrack />} />
@@ -253,7 +271,7 @@ const App: React.FC = () => {
             <Route path="dashboard/messages" element={<UserMessages />} />
             <Route path="dashboard/notifications" element={<UserNotifications />} />
             <Route path="dashboard/overseas" element={<UserOverseas />} />
-            <Route path="dashboard/payments" element={<Navigate to="/user/dashboard" replace />} />
+            <Route path="dashboard/payments/*" element={<Navigate to="/user/dashboard/contracts" replace />} />
             <Route path="dashboard/profile" element={<UserProfile />} />
             <Route path="dashboard/reviews" element={<UserReviews />} />
             <Route path="dashboard/settings" element={<UserSettingsDash />} />

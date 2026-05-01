@@ -43,6 +43,9 @@ export interface AnalyticsData {
     avg_response_time: number;
     pending_verifications: number;
     total_documents: number;
+    total_bookings?: number;
+    total_applications?: number;
+    active_listings?: number;
     total_revenue?: number;
     revenue_growth?: string;
     property_growth?: string;
@@ -103,6 +106,7 @@ export const getPlatformAnalytics = async (forceRefresh = false): Promise<Analyt
     try {
         const data = await apiFetch<AnalyticsData>(
             `${CORE_URL()}/api/v1/admin/analytics`,
+            { suppressErrorToast: true },
         );
         analyticsCache[cacheKey] = { data, timestamp: now };
         return { data, error: null };
@@ -129,6 +133,7 @@ export const getManagerAnalytics = async (forceRefresh = false): Promise<Analyti
     try {
         const data = await apiFetch<AnalyticsData>(
             `${CORE_URL()}/api/v1/manager/analytics`,
+            { suppressErrorToast: true },
         );
         analyticsCache[cacheKey] = { data, timestamp: now };
         return { data, error: null };

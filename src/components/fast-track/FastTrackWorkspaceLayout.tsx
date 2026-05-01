@@ -23,6 +23,20 @@ import { cn } from '@/lib/utils';
 
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 
+function activateOnEnterOrSpace(
+  event: React.KeyboardEvent<HTMLButtonElement>,
+  action: () => void,
+) {
+  if (event.key !== 'Enter' && event.key !== ' ') {
+    return;
+  }
+
+  event.preventDefault();
+  action();
+}
+
+const fastTrackFocusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950';
+
 export interface FastTrackWorkspaceStat {
   label: string;
   value: number;
@@ -76,7 +90,10 @@ export function FastTrackWorkspaceHeader({
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            className={cn(
+              'inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              fastTrackFocusRing,
+            )}
             aria-label="Back to dashboard"
             title="Back to dashboard"
           >
@@ -105,7 +122,10 @@ export function FastTrackWorkspaceHeader({
             type="button"
             onClick={onToggleRail}
             data-fast-track-toggle-rail
-            className="inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            className={cn(
+              'inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              fastTrackFocusRing,
+            )}
           >
             {railCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             {railCollapsed ? copy.showRailLabel : copy.hideRailLabel}
@@ -114,7 +134,10 @@ export function FastTrackWorkspaceHeader({
             type="button"
             onClick={onOpenCustomize}
             data-fast-track-customize-open
-            className="inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            className={cn(
+              'inline-flex h-10 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              fastTrackFocusRing,
+            )}
           >
             <Settings2 size={16} />
             {copy.pageOptionsLabel}
@@ -213,7 +236,10 @@ export function FastTrackCaseRail({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder={copy.searchPlaceholder}
-            className="h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200"
+            className={cn(
+              'h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-700 outline-none transition-colors focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-200',
+              fastTrackFocusRing,
+            )}
           />
         </div>
 
@@ -225,6 +251,7 @@ export function FastTrackCaseRail({
               onClick={() => onFilterChange(item.value)}
               className={cn(
                 'inline-flex h-8 items-center rounded-full px-3 text-[11px] font-semibold transition-colors',
+                fastTrackFocusRing,
                 filter === item.value
                   ? 'bg-orange-700 text-white'
                   : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
@@ -250,6 +277,7 @@ export function FastTrackCaseRail({
               onClick={() => onSelectCase(item.caseId)}
               className={cn(
                 'w-full rounded-[20px] border px-3 py-3 text-left transition-colors',
+                fastTrackFocusRing,
                 item.selected
                   ? 'border-orange-300 bg-orange-50 shadow-[0_12px_28px_-16px_rgba(234,88,12,0.35)] dark:border-orange-800 dark:bg-orange-950/20'
                   : 'border-gray-100 bg-white hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900',
@@ -277,7 +305,7 @@ export function FastTrackCaseRail({
         )}
       </div>
 
-      {totalItems > pageSize ? (
+      {totalItems > 0 ? (
         <PaginationBar
           currentPage={currentPage}
           totalPages={totalPages}
@@ -285,8 +313,9 @@ export function FastTrackCaseRail({
           totalItems={totalItems}
           pageSize={pageSize}
           currentItemCount={paginatedCount}
-          itemLabel={copy.casePlural}
+          itemLabel={totalItems === 1 ? copy.caseSingular : copy.casePlural}
           stacked
+          showWhenSinglePage
         />
       ) : null}
     </aside>
@@ -344,7 +373,10 @@ export function FastTrackCaseMasthead({
               type="button"
               onClick={onOpenCustomize}
               data-fast-track-customize-open-inline
-              className="inline-flex h-9 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3.5 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+              className={cn(
+                'inline-flex h-9 items-center gap-2 rounded-2xl border border-white/70 bg-white/80 px-3.5 text-sm font-semibold text-gray-700 backdrop-blur transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+                fastTrackFocusRing,
+              )}
             >
               <ListFilter size={15} />
               {copy.mastheadLayoutLabel}
@@ -398,6 +430,7 @@ export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepper
               title={item.current && !item.active ? 'Current workflow stage' : undefined}
               className={cn(
                 'inline-flex min-w-[96px] items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-colors',
+                fastTrackFocusRing,
                 onSelect ? 'cursor-pointer hover:border-orange-200 hover:bg-orange-50/70' : 'cursor-default',
                 item.active
                   ? 'border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/20 dark:text-orange-300'
@@ -470,6 +503,7 @@ export function FastTrackUtilityDock({
               data-fast-track-utility-tab={module}
               className={cn(
                 'inline-flex h-8 items-center rounded-full px-3 text-[11px] font-semibold transition-colors',
+                fastTrackFocusRing,
                 activeModule === module
                   ? 'bg-orange-700 text-white'
                   : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
@@ -528,6 +562,14 @@ export function FastTrackWorkspaceCustomizationDrawer({
   }
 
   const copy = getJourneyChromeCopy(role);
+  const caseRailTitle = role === 'user' ? 'Start with journeys hidden' : 'Start with case rail collapsed';
+  const statusMessage = [
+    `Metrics strip ${preferences.showMetricsStrip ? 'visible' : 'hidden'}`,
+    role === 'user'
+      ? `Journey list ${preferences.caseRailCollapsed ? 'hidden' : 'visible'}`
+      : `Case rail ${preferences.caseRailCollapsed ? 'collapsed' : 'visible'}`,
+    `Secondary density ${preferences.secondaryDensity}`,
+  ].join('. ');
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-sm" data-fast-track-customization-drawer>
@@ -553,13 +595,27 @@ export function FastTrackWorkspaceCustomizationDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+            aria-label="Close workspace customization drawer"
+            className={cn(
+              'inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-500 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+              fastTrackFocusRing,
+            )}
           >
             <ChevronRight className="rotate-180" size={16} />
           </button>
         </div>
 
         <div className="mt-6 space-y-6">
+          <p
+            role="status"
+            aria-live="polite"
+            aria-label="Workspace preferences status"
+            className="sr-only"
+            data-fast-track-preferences-status
+          >
+            {statusMessage}
+          </p>
+
           <CustomizationToggleRow
             testId="metrics-strip"
             title="Metrics strip"
@@ -569,7 +625,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
           />
           <CustomizationToggleRow
             testId="case-rail-collapsed"
-            title={role === 'user' ? 'Start with journeys hidden' : 'Start with case rail collapsed'}
+            title={caseRailTitle}
             description={copy.caseRailDescription}
             checked={preferences.caseRailCollapsed}
             onChange={onToggleCaseRailCollapsed}
@@ -580,15 +636,24 @@ export function FastTrackWorkspaceCustomizationDrawer({
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
               Balance between more breathing room and more information on screen.
             </p>
-            <div className="mt-4 flex gap-2">
+            <div
+              className="mt-4 flex gap-2"
+              role="radiogroup"
+              aria-label="Secondary density"
+            >
               {(['compact', 'comfortable'] as const).map((density) => (
                 <button
                   key={density}
                   type="button"
+                  role="radio"
+                  aria-checked={preferences.secondaryDensity === density}
+                  aria-label={`Use ${density} secondary density`}
                   onClick={() => onDensityChange(density)}
+                  onKeyDown={(event) => activateOnEnterOrSpace(event, () => onDensityChange(density))}
                   data-fast-track-density={density}
                   className={cn(
                     'inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold transition-colors',
+                    fastTrackFocusRing,
                     preferences.secondaryDensity === density
                       ? 'bg-orange-700 text-white'
                       : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
@@ -612,6 +677,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
             <div className="mt-4 space-y-3">
               {orderedModules.map((module, index) => {
                 const visible = preferences.visibleModules.includes(module);
+                const moduleLabel = getFastTrackWorkspaceModuleLabel(module, role);
                 return (
                   <div
                     key={module}
@@ -621,7 +687,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {getFastTrackWorkspaceModuleLabel(module, role)}
+                          {moduleLabel}
                         </p>
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           {preferences.defaultActiveModule === module
@@ -631,10 +697,14 @@ export function FastTrackWorkspaceCustomizationDrawer({
                       </div>
                       <button
                         type="button"
+                        role="switch"
+                        aria-checked={visible}
+                        aria-label={`${moduleLabel} module`}
                         onClick={() => onToggleModule(module)}
                         data-fast-track-module-toggle={module}
                         className={cn(
                           'inline-flex h-8 items-center rounded-full px-3 text-xs font-semibold transition-colors',
+                          fastTrackFocusRing,
                           visible
                             ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
                             : 'border border-gray-200 bg-white text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
@@ -646,10 +716,14 @@ export function FastTrackWorkspaceCustomizationDrawer({
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
+                        aria-label={`Open ${moduleLabel} first`}
                         onClick={() => onSetDefaultModule(module)}
                         data-fast-track-module-default={module}
                         disabled={!visible}
-                        className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                        className={cn(
+                          'inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
+                          fastTrackFocusRing,
+                        )}
                       >
                         {copy.makeDefaultLabel}
                       </button>
@@ -657,19 +731,27 @@ export function FastTrackWorkspaceCustomizationDrawer({
                         <>
                           <button
                             type="button"
+                            aria-label={`Move ${moduleLabel} up`}
                             onClick={() => onMoveModule(module, 'up')}
                             data-fast-track-module-up={module}
                             disabled={index === 0}
-                            className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                            className={cn(
+                              'inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
+                              fastTrackFocusRing,
+                            )}
                           >
                             Move up
                           </button>
                           <button
                             type="button"
+                            aria-label={`Move ${moduleLabel} down`}
                             onClick={() => onMoveModule(module, 'down')}
                             data-fast-track-module-down={module}
                             disabled={index === orderedModules.length - 1}
-                            className="inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                            className={cn(
+                              'inline-flex h-8 items-center rounded-full border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
+                              fastTrackFocusRing,
+                            )}
                           >
                             Move down
                           </button>
@@ -687,7 +769,10 @@ export function FastTrackWorkspaceCustomizationDrawer({
               type="button"
               onClick={onReset}
               data-fast-track-reset-layout
-              className="inline-flex h-11 items-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300"
+              className={cn(
+                'inline-flex h-11 items-center rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:bg-orange-950/20 dark:hover:text-orange-300',
+                fastTrackFocusRing,
+              )}
             >
               Reset layout
             </button>
@@ -695,7 +780,10 @@ export function FastTrackWorkspaceCustomizationDrawer({
               type="button"
               onClick={onClose}
               data-fast-track-customization-done
-              className="inline-flex h-11 items-center rounded-2xl bg-orange-700 px-5 text-sm font-semibold text-white hover:bg-orange-800"
+              className={cn(
+                'inline-flex h-11 items-center rounded-2xl bg-orange-700 px-5 text-sm font-semibold text-white hover:bg-orange-800',
+                fastTrackFocusRing,
+              )}
             >
               Done
             </button>
@@ -728,10 +816,14 @@ function CustomizationToggleRow({
         </div>
         <button
           type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={title}
           onClick={onChange}
           data-fast-track-toggle={testId}
           className={cn(
             'relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300',
+            fastTrackFocusRing,
             checked
               ? 'bg-orange-500 shadow-lg shadow-orange-500/30'
               : 'bg-gray-200 dark:bg-gray-700',

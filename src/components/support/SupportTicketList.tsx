@@ -8,6 +8,9 @@ interface SupportTicketListProps {
     selectedTicketId: string | null;
     onSelect: (ticketId: string) => void;
     emptyLabel: string;
+    emptyDescription?: string;
+    emptyActionLabel?: string;
+    onEmptyAction?: () => void;
 }
 
 export function SupportTicketList({
@@ -15,6 +18,9 @@ export function SupportTicketList({
     selectedTicketId,
     onSelect,
     emptyLabel,
+    emptyDescription,
+    emptyActionLabel,
+    onEmptyAction,
 }: SupportTicketListProps) {
     if (tickets.length === 0) {
         return (
@@ -22,8 +28,17 @@ export function SupportTicketList({
                 <Inbox className="mb-4 h-10 w-10 text-orange-400" />
                 <p className="text-base font-semibold text-gray-900 dark:text-white">{emptyLabel}</p>
                 <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
-                    New ticket activity will appear here as soon as a support request is created.
+                    {emptyDescription || 'New ticket activity will appear here as soon as a support request is created.'}
                 </p>
+                {onEmptyAction && (
+                    <button
+                        type="button"
+                        onClick={onEmptyAction}
+                        className="mt-4 rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10"
+                    >
+                        {emptyActionLabel || 'Clear filters'}
+                    </button>
+                )}
             </div>
         );
     }

@@ -86,6 +86,24 @@ const normalizeModuleList = (
   return normalized.length > 0 ? normalized : [...fallback];
 };
 
+const normalizeModuleOrder = (
+  values: Array<string | FastTrackWorkspaceModule> | null | undefined,
+  fallback: FastTrackWorkspaceModule[],
+): FastTrackWorkspaceModule[] => {
+  const normalized = normalizeModuleList(values, fallback);
+  const seen = new Set<FastTrackWorkspaceModule>(normalized);
+
+  for (const module of fallback) {
+    if (seen.has(module)) {
+      continue;
+    }
+    normalized.push(module);
+    seen.add(module);
+  }
+
+  return normalized;
+};
+
 const normalizeDensity = (
   value: string | null | undefined,
 ): FastTrackWorkspaceSecondaryDensity =>
@@ -134,7 +152,7 @@ export const normalizeFastTrackWorkspacePreferences = (
     raw?.visibleModules,
     defaults.visibleModules,
   );
-  const moduleOrder = normalizeModuleList(raw?.moduleOrder, defaults.moduleOrder);
+  const moduleOrder = normalizeModuleOrder(raw?.moduleOrder, defaults.moduleOrder);
   let defaultActiveModule = normalizeModule(raw?.defaultActiveModule);
 
   if (!defaultActiveModule) {

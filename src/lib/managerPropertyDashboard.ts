@@ -15,6 +15,25 @@ const LIVE_PROPERTY_STATUSES = new Set<string>([
 
 const normalizeStatusToken = (value?: string | null) => value?.trim().toLowerCase() || '';
 
+export const normalizeManagerAnalyticsPercentage = (value?: number | null) => {
+    const numericValue = Number(value ?? 0);
+
+    if (!Number.isFinite(numericValue)) {
+        return 0;
+    }
+
+    return Math.min(Math.max(numericValue, 0), 100);
+};
+
+export const formatManagerAnalyticsPercentage = (value?: number | null) => {
+    const normalizedValue = normalizeManagerAnalyticsPercentage(value);
+    const formattedValue = Number.isInteger(normalizedValue)
+        ? `${normalizedValue}`
+        : normalizedValue.toFixed(2).replace(/\.?0+$/, '');
+
+    return `${formattedValue}%`;
+};
+
 export const normalizeManagerPropertyStatusFilters = (
     statuses?: readonly (string | null | undefined)[],
 ) => {

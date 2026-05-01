@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle, ChevronDown, ChevronUp, Search, Home, User, CreditCard, FileText, Shield } from 'lucide-react';
+import { normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 
 export default function FAQPage() {
     const navigate = useNavigate();
@@ -50,11 +51,13 @@ export default function FAQPage() {
         setOpenItems(prev => ({ ...prev, [id]: !prev[id] }));
     };
 
+    const normalizedSearchQuery = normalizeSearchQueryInput(searchQuery);
+
     const filteredFaqs = faqs.filter(faq => {
         const matchesCategory = activeCategory === 'all' || faq.category === activeCategory;
-        const matchesSearch = searchQuery === '' ||
-            faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            faq.answer.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = normalizedSearchQuery === '' ||
+            faq.question.toLowerCase().includes(normalizedSearchQuery) ||
+            faq.answer.toLowerCase().includes(normalizedSearchQuery);
         return matchesCategory && matchesSearch;
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Heart,
@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getPropertyImages } from '@/lib/propertyImages';
 import { getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 
 interface PropertyCardProps {
     property: any;
@@ -41,6 +42,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
     const [isSaving, setIsSaving] = useState(false);
     const [saveToastMessage, setSaveToastMessage] = useState('');
     const [showSaveToast, setShowSaveToast] = useState(false);
+    const virtualTourTriggerRef = useRef<HTMLButtonElement | null>(null);
 
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
@@ -70,6 +72,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
     const handleSave = async (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
+        if (isSaving) {
+            return;
+        }
 
         const wasAlreadySaved = isSaved;
         setIsSaving(true);
@@ -104,6 +109,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
     const prevImage = (e: React.MouseEvent) => {
         e.stopPropagation();
         setCurrentImageIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
+    };
+
+    const closeVirtualTour = () => {
+        setShowVirtualTour(false);
+        window.requestAnimationFrame(() => virtualTourTriggerRef.current?.focus());
     };
 
     const formatPrice = (price: number | string | any) => {
@@ -147,6 +157,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
         return (
             <div
                 className="fixed bottom-8 left-1/2 z-[99999] pointer-events-auto transform -translate-x-1/2"
+                role="status"
+                aria-live="polite"
             >
                 <div
                     className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl ${saveToastMessage.includes('removed') || saveToastMessage.includes('Failed')
@@ -201,13 +213,13 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                             <>
                                 <button
                                     onClick={prevImage}
-                                    className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"
+                                    className="absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 sm:opacity-0 sm:group-hover:opacity-100"
                                 >
                                     <ChevronLeft size={16} className="text-gray-700" />
                                 </button>
                                 <button
                                     onClick={nextImage}
-                                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white sm:opacity-0 sm:group-hover:opacity-100"
+                                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 opacity-100 shadow-md transition-opacity hover:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 sm:opacity-0 sm:group-hover:opacity-100"
                                 >
                                     <ChevronRight size={16} className="text-gray-700" />
                                 </button>
@@ -220,7 +232,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                                                 e.stopPropagation();
                                                 setCurrentImageIndex(index);
                                             }}
-                                            className={`h-2 rounded-full transition-all ${index === currentImageIndex
+                                            className={`h-2 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${index === currentImageIndex
                                                 ? 'bg-white w-5'
                                                 : 'bg-white/50 w-2 hover:bg-white/75'
                                                 }`}
@@ -258,11 +270,11 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className={`p-2 rounded-full backdrop-blur-sm transition-all ${isSaved
+                            className={`p-2 rounded-full backdrop-blur-sm transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${isSaved
                                 ? 'bg-red-500 text-white shadow-lg'
                                 : 'bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 shadow-sm'
                                 } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            aria-label={isSaved ? 'Remove from saved' : 'Save property'}
+                            aria-label={isSaved ? `Remove ${property.title || 'property'} from saved properties` : `Save ${property.title || 'property'}`}
                             title={isSaved ? 'Saved' : 'Save property'}
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Heart size={16} className={isSaved ? 'fill-current' : ''} />}
@@ -302,7 +314,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                         <span className="line-clamp-1">
                             {typeof property.location === 'string'
                                 ? property.location
-                                : (property.address || property.location?.addressLine1 || property.location?.city || 'Location unavailable')}
+                                : getSavedPropertyLocationLabel(property)}
                         </span>
                     </p>
 
@@ -364,17 +376,21 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                     <div className="mt-auto pt-4 flex gap-2">
                         <button
                             onClick={handleViewDetails}
-                            className="flex-1 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 shadow-sm hover:shadow-md"
+                            className="flex-1 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-orange-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 active:bg-orange-700 dark:focus:ring-offset-gray-900"
                         >
                             View Details
                         </button>
 
                         <button
+                            ref={virtualTourTriggerRef}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setShowVirtualTour(true);
                             }}
-                            className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium transition-all duration-200"
+                            aria-haspopup="dialog"
+                            aria-expanded={showVirtualTour}
+                            aria-label={`Open virtual tour for ${property.title}`}
+                            className="rounded-xl bg-gray-50 px-4 py-2.5 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900"
                         >
                             Virtual Tour
                         </button>
@@ -383,7 +399,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
                                 e.stopPropagation();
                                 setShowShareModal(true);
                             }}
-                            className="p-2.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-xl transition-all duration-200"
+                            className="rounded-xl bg-gray-50 p-2.5 text-gray-600 transition-all duration-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-offset-gray-900"
                             title="Share Property"
                         >
                             <Share2 size={16} />
@@ -395,7 +411,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onViewDetails, on
             {showVirtualTour && (
                 <VirtualTourModal
                     property={property}
-                    onClose={() => setShowVirtualTour(false)}
+                    onClose={closeVirtualTour}
                 />
             )}
 

@@ -14,8 +14,10 @@ import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
     getAutoSelectedSupportTicketId,
+    hasActiveSupportFilters,
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
+    shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
 import { supportService, type SupportAttachmentDraft } from '@/services/supportService';
 import type { Message, SupportTicketDetail, SupportTicketSummary } from '@/services/messagesService';
@@ -38,19 +40,77 @@ const ROLE_COPY: Record<Role, { title: string; subtitle: string; docsPath: strin
     },
     admin: {
         title: 'Admin Help & Support',
-        subtitle: 'Run the full support queue from one place with ticket selection, assignment, priorities, transcript review, and clean status transitions.',
+        subtitle: 'Run release, operations, and platform support from one place with ticket selection, assignment, priorities, transcript review, and clean status transitions.',
         docsPath: '/admin/help',
         categories: ['Support'],
     },
 };
 
-const ADMIN_QUEUE_TABS = [
-    { label: 'All', status: '', assignee: '' },
-    { label: 'Unassigned', status: '', assignee: 'unassigned' },
-    { label: 'Assigned to me', status: '', assignee: 'me' },
-    { label: 'Resolved', status: 'resolved', assignee: '' },
-    { label: 'Closed', status: 'closed', assignee: '' },
+const ADMIN_OPERATION_GUIDANCE = [
+    {
+        id: 'release-operations',
+        title: 'Release operations',
+        description: 'Use the queue to track release blockers, failed smoke checks, rollback requests, and post-deploy verification work.',
+    },
+    {
+        id: 'platform-operations',
+        title: 'Platform operations',
+        description: 'Triage Cloud Run, service health, auth, notification, search, payment, and booking issues with requester context attached.',
+    },
+    {
+        id: 'recovery-guidance',
+        title: 'Recovery guidance',
+        description: 'Move incidents through owner assignment, priority changes, transcript updates, resolution notes, and closure without losing audit history.',
+    },
 ];
+
+const ADMIN_QUEUE_TABS = [
+    { label: 'All tickets', status: '', assignee: '' },
+    { label: 'Unassigned tickets', status: '', assignee: 'unassigned' },
+    { label: 'Assigned to me', status: '', assignee: 'me' },
+    { label: 'Resolved tickets', status: 'resolved', assignee: '' },
+    { label: 'Closed tickets', status: 'closed', assignee: '' },
+];
+
+const supportSearchText = (ticket: SupportTicketSummary) => [
+    ticket.subject,
+    ticket.category,
+    ticket.status,
+    ticket.priority,
+    ticket.requester_role,
+    ticket.requester_context?.name,
+    ticket.requester_context?.email,
+    ticket.requester_context?.module,
+    ticket.last_message?.content,
+].filter(Boolean).join(' ').toLowerCase();
+
+const ticketMatchesFilters = (
+    ticket: SupportTicketSummary,
+    filters: SupportFilterState,
+    currentUserId?: string,
+) => {
+    if (filters.status && ticket.status !== filters.status) {
+        return false;
+    }
+    if (filters.priority && ticket.priority !== filters.priority) {
+        return false;
+    }
+    if (filters.requesterRole && ticket.requester_role !== filters.requesterRole) {
+        return false;
+    }
+    if (filters.assignee === 'unassigned' && ticket.assignee_id) {
+        return false;
+    }
+    if (filters.assignee === 'me' && ticket.assignee_id !== currentUserId) {
+        return false;
+    }
+    if (filters.assignee && !['unassigned', 'me'].includes(filters.assignee) && ticket.assignee_id !== filters.assignee) {
+        return false;
+    }
+
+    const query = filters.search.trim().toLowerCase();
+    return !query || supportSearchText(ticket).includes(query);
+};
 
 interface SupportCenterProps {
     role: Role;
@@ -60,6 +120,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const { user } = useAuth();
     const toast = useToast();
     const [searchParams, setSearchParams] = useSearchParams();
+    const [allTickets, setAllTickets] = useState<SupportTicketSummary[]>([]);
     const [tickets, setTickets] = useState<SupportTicketSummary[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<SupportTicketDetail | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -87,39 +148,77 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const selectedTicketId = searchParams.get('ticket');
     const selectedConversationId = searchParams.get('conversation');
     const hasPrefilledComposerContext = !isAdmin && hasPrefilledSupportComposerContext(searchParams);
+    const hasActiveFilters = hasActiveSupportFilters(filters);
     const canReply = Boolean(selectedTicket && selectedTicket.status !== 'closed' && (isAdmin || selectedTicket.status !== 'resolved'));
     const resumableTicket = useMemo(() => tickets.find((ticket) => ticket.status === 'open' || ticket.status === 'in_progress') || null, [tickets]);
+    const clearSupportFilters = useCallback(() => {
+        setFilters({ search: '', status: '', priority: '', requesterRole: '', assignee: '' });
+    }, []);
+    const adminQueueTabs = useMemo(() => ADMIN_QUEUE_TABS.map((tab) => {
+        const tabFilters: SupportFilterState = {
+            search: filters.search,
+            priority: filters.priority,
+            requesterRole: filters.requesterRole,
+            status: tab.status,
+            assignee: tab.assignee,
+        };
+
+        return {
+            ...tab,
+            count: allTickets.filter((ticket) => ticketMatchesFilters(ticket, tabFilters, user?.id)).length,
+        };
+    }), [allTickets, filters.priority, filters.requesterRole, filters.search, user?.id]);
+
+    useEffect(() => {
+        const visibleTickets = allTickets.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
+        setTickets(visibleTickets);
+
+        const activeSelectedTicketId = selectedTicketId || selectedTicket?.id || '';
+        if (isAdmin && hasActiveFilters && activeSelectedTicketId && !visibleTickets.some((ticket) => ticket.id === activeSelectedTicketId)) {
+            setSelectedTicket(null);
+            setMessages([]);
+            setSearchParams((current) => {
+                const next = new URLSearchParams(current);
+                next.delete('ticket');
+                next.delete('conversation');
+                return next;
+            }, { replace: true });
+        }
+    }, [allTickets, filters, hasActiveFilters, isAdmin, selectedTicket?.id, selectedTicketId, setSearchParams, user?.id]);
 
     const fetchTickets = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const requestParams = {
-                search: filters.search,
-                status: filters.status,
-                priority: filters.priority,
-                requester_role: isAdmin ? filters.requesterRole : undefined,
-                assignee: isAdmin ? filters.assignee : undefined,
-                limit: isAdmin ? 100 : 20,
-            };
             const data = isAdmin
-                ? await supportService.getAllTickets(requestParams)
-                : await supportService.getTickets(requestParams);
-            setTickets(data);
+                ? await supportService.getAllTickets({ limit: 100 })
+                : await supportService.getTickets({ limit: 100 });
+            setAllTickets(data);
+            const visibleTickets = data.filter((ticket) => ticketMatchesFilters(ticket, filters, user?.id));
+            setTickets(visibleTickets);
             const targetTicketId = getAutoSelectedSupportTicketId({
                 selectedTicketId: selectedTicketId || '',
                 selectedConversationId: selectedConversationId || '',
-                tickets: data,
+                tickets: visibleTickets,
                 isAdmin,
                 hasPrefilledComposerContext,
             });
-            if (targetTicketId && data.some((ticket) => ticket.id === targetTicketId)) {
+            if (targetTicketId && visibleTickets.some((ticket) => ticket.id === targetTicketId)) {
                 setSearchParams((current) => {
                     const next = new URLSearchParams(current);
                     next.set('ticket', targetTicketId);
-                    const targetTicket = data.find((ticket) => ticket.id === targetTicketId);
+                    const targetTicket = visibleTickets.find((ticket) => ticket.id === targetTicketId);
                     if (targetTicket?.conversation_id) {
                         next.set('conversation', targetTicket.conversation_id);
                     }
+                    return next;
+                }, { replace: true });
+            } else if (selectedTicketId && hasActiveFilters && !visibleTickets.some((ticket) => ticket.id === selectedTicketId)) {
+                setSelectedTicket(null);
+                setMessages([]);
+                setSearchParams((current) => {
+                    const next = new URLSearchParams(current);
+                    next.delete('ticket');
+                    next.delete('conversation');
                     return next;
                 }, { replace: true });
             }
@@ -128,7 +227,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
         } finally {
             if (!silent) setLoading(false);
         }
-    }, [filters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast]);
+    }, [filters, hasActiveFilters, hasPrefilledComposerContext, isAdmin, selectedConversationId, selectedTicketId, setSearchParams, toast, user?.id]);
 
     const loadDetail = useCallback(async (ticketId: string, silent = false) => {
         if (!silent) setDetailLoading(true);
@@ -137,6 +236,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
             setSelectedTicket(detail);
             setMessages(await supportService.getTranscript(detail.conversation_id));
         } catch (error: any) {
+            if (!silent) {
+                setSelectedTicket(null);
+                setMessages([]);
+            }
             toast.error(error.message || 'Failed to load support thread');
         } finally {
             if (!silent) setDetailLoading(false);
@@ -151,13 +254,28 @@ export function SupportCenter({ role }: SupportCenterProps) {
     }, [fetchTickets, isAdmin]);
 
     useEffect(() => {
-        if (selectedTicketId) {
-            void loadDetail(selectedTicketId);
-        } else {
+        const selectedTicketHiddenByActiveFilters = Boolean(
+            isAdmin
+            && hasActiveFilters
+            && selectedTicketId
+            && !loading
+            && !tickets.some((ticket) => ticket.id === selectedTicketId),
+        );
+
+        if (shouldLoadSupportTicketDetail({
+            selectedTicketId: selectedTicketId || '',
+            selectedConversationId: selectedConversationId || '',
+            isAdmin,
+            queueLoading: loading,
+            tickets,
+            hasActiveFilters,
+        })) {
+            void loadDetail(selectedTicketId || '');
+        } else if (!selectedTicketId || selectedTicketHiddenByActiveFilters) {
             setSelectedTicket(null);
             setMessages([]);
         }
-    }, [loadDetail, selectedTicketId]);
+    }, [hasActiveFilters, isAdmin, loadDetail, loading, selectedConversationId, selectedTicketId, tickets]);
 
     useEffect(() => {
         setReply('');
@@ -363,23 +481,52 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 </div>
             </section>
 
+            {isAdmin && (
+                <section
+                    aria-labelledby="admin-operations-guidance-heading"
+                    className="rounded-[2rem] border border-orange-100 bg-white/90 p-5 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80"
+                >
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Platform guidance</p>
+                    <h2 id="admin-operations-guidance-heading" className="mt-2 text-xl font-black text-gray-950 dark:text-white">
+                        Release and operations support
+                    </h2>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {ADMIN_OPERATION_GUIDANCE.map((item) => (
+                            <article key={item.id} id={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-white">{item.title}</h3>
+                                <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{item.description}</p>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+            )}
+
             <SupportFilters filters={filters} onChange={setFilters} mode={isAdmin ? 'admin' : 'requester'} />
 
             {isAdmin && (
-                <div className="flex flex-wrap gap-3">
-                    {ADMIN_QUEUE_TABS.map((tab) => {
+                <div className="flex flex-wrap gap-3" aria-label="Support queue quick filters">
+                    {adminQueueTabs.map((tab) => {
                         const active = filters.status === tab.status && (filters.assignee || '') === tab.assignee;
+                        const countLabel = tab.count === 1 ? 'ticket' : 'tickets';
                         return (
                             <button
                                 key={tab.label}
+                                type="button"
                                 onClick={() => setFilters((current) => ({ ...current, status: tab.status, assignee: tab.assignee }))}
-                                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                                aria-pressed={active}
+                                aria-label={`${tab.label}: ${tab.count} ${countLabel}`}
+                                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${
                                     active
                                         ? 'bg-orange-700 text-white shadow-lg shadow-orange-500/20'
                                         : 'border border-gray-200 bg-white text-gray-700 hover:border-orange-200 hover:text-orange-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-orange-500/20 dark:hover:text-orange-200'
                                 }`}
                             >
-                                {tab.label}
+                                <span>{tab.label}</span>
+                                <span className={`rounded-full px-2 py-0.5 text-xs ${
+                                    active
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
+                                }`}>{tab.count}</span>
                             </button>
                         );
                     })}
@@ -421,7 +568,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             next.set('conversation', ticket.conversation_id);
                         }
                         setSearchParams(next, { replace: true });
-                    }} emptyLabel={isAdmin ? 'No tickets in this queue' : 'No support tickets yet'} />}
+                    }} emptyLabel={hasActiveFilters ? 'No tickets match these filters' : (isAdmin ? 'No tickets in this queue' : 'No support tickets yet')} emptyDescription={hasActiveFilters ? 'The active search, status, priority, requester, or assignee filters removed every ticket from this view.' : undefined} emptyActionLabel={hasActiveFilters ? 'Clear filters' : undefined} onEmptyAction={hasActiveFilters ? clearSupportFilters : undefined} />}
                 </div>
 
                 <div className="space-y-5">
@@ -432,8 +579,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                 <select value={composer.category} onChange={(event) => setComposer((current) => ({ ...current, category: event.target.value }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket category">{ROLE_COPY[role].categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
                                 <select value={composer.priority} onChange={(event) => setComposer((current) => ({ ...current, priority: event.target.value as SupportTicketSummary['priority'] }))} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" aria-label="Support ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
                             </div>
-                            <input value={composer.subject} onChange={(event) => setComposer((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" className="mt-4 w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" />
-                            <div className="mt-4"><SupportComposer value={composer.message} onChange={(value) => setComposer((current) => ({ ...current, message: value }))} onSubmit={() => void handleCreateTicket()} onFilesSelected={(files) => void handleFiles('ticket', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('ticket', localId)} attachments={ticketAttachments} disabled={submitting} placeholder="Describe the blocker, the screen you were on, what you expected, and what needs to happen next." submitLabel={submitting ? 'Submitting' : 'Create ticket'} /></div>
+                            <input value={composer.subject} onChange={(event) => setComposer((current) => ({ ...current, subject: event.target.value }))} placeholder="Short subject" aria-label="Support ticket subject" required minLength={3} maxLength={120} className="mt-4 w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-medium dark:bg-gray-800 dark:text-white" />
+                            <div className="mt-4"><SupportComposer value={composer.message} onChange={(value) => setComposer((current) => ({ ...current, message: value }))} onSubmit={() => void handleCreateTicket()} onFilesSelected={(files) => void handleFiles('ticket', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('ticket', localId)} attachments={ticketAttachments} disabled={submitting} canSubmit={Boolean(composer.subject.trim() && (composer.message.trim() || ticketAttachments.length > 0))} placeholder="Describe the blocker, the screen you were on, what you expected, and what needs to happen next." submitLabel={submitting ? 'Submitting' : 'Create ticket'} /></div>
                         </div>
                     )}
 
@@ -457,7 +604,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                                 <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
                                 <SupportTranscript messages={messages} currentUserId={user?.id} otherLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Estospaces Support'} onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)} />
-                                {canReply && <div className="mt-6"><SupportComposer value={reply} onChange={setReply} onSubmit={() => void handleReply()} onFilesSelected={(files) => void handleFiles('reply', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('reply', localId)} attachments={replyAttachments} disabled={submitting} placeholder={isAdmin ? 'Reply as the Estospaces Team' : 'Reply to support'} submitLabel={submitting ? 'Sending' : 'Send reply'} /></div>}
+                                {canReply && <div className="mt-6"><SupportComposer value={reply} onChange={setReply} onSubmit={() => void handleReply()} onFilesSelected={(files) => void handleFiles('reply', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('reply', localId)} attachments={replyAttachments} disabled={submitting} canSubmit={Boolean(reply.trim() || replyAttachments.length > 0)} placeholder={isAdmin ? 'Reply as the Estospaces Team' : 'Reply to support'} submitLabel={submitting ? 'Sending' : 'Send reply'} /></div>}
                             </div>
                         </>
                     )}

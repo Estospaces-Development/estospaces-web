@@ -20,6 +20,7 @@ import {
 import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { buildAdminDashboardSnapshot, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNotificationNavigationPath,
@@ -27,6 +28,16 @@ import {
     NOTIFICATION_TYPES,
     type Notification,
 } from '@/services/notificationsService';
+
+const snapshotIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?: number }>> = {
+    activity: Activity,
+    building: Building2,
+    eye: Activity,
+    file: FileText,
+    trending: TrendingUp,
+    users: Users,
+    zap: Shield,
+};
 
 const formatNotificationTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -141,12 +152,7 @@ export default function AdminDashboard() {
         activeTransactions: data?.leadAnalytics?.totalLeads || data?.active_leads || 0
     };
 
-    const platformSnapshot = [
-        { id: 'users', label: 'Total Users', value: data?.total_users || 0, icon: Users, color: 'text-blue-500' },
-        { id: 'properties', label: 'Total Properties', value: data?.total_properties || 0, icon: Building2, color: 'text-emerald-500' },
-        { id: 'brokers', label: 'Verified Brokers', value: data?.total_brokers || 0, icon: Shield, color: 'text-purple-500' },
-        { id: 'pending', label: 'Pending Verifications', value: data?.pending_verifications || 0, icon: Activity, color: 'text-orange-500' },
-    ];
+    const platformSnapshot = buildAdminDashboardSnapshot(data);
 
     const recentNotifications = [...notifications]
         .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
@@ -366,6 +372,49 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
+                    <section
+                        id="role-docs-preview"
+                        aria-labelledby="admin-role-docs-preview-heading"
+                        className="rounded-2xl border border-orange-100 bg-white p-6 shadow-sm dark:border-orange-900/30 dark:bg-black"
+                    >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">RoleDocs preview</p>
+                                <h2 id="admin-role-docs-preview-heading" className="mt-2 text-xl font-bold text-gray-900 dark:text-white">
+                                    Platform operations guidance
+                                </h2>
+                                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
+                                    Jump to release operations, platform operations, and recovery guidance before changing support status or closing incidents.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => navigate('/admin/help#release-operations')}
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-950/30"
+                            >
+                                <FileText size={16} />
+                                Open guidance
+                            </button>
+                        </div>
+                        <div className="mt-5 grid gap-3 md:grid-cols-3">
+                            {[
+                                ['Release operations', '/admin/help#release-operations', 'Release blockers, smoke checks, rollback requests, and post-deploy verification.'],
+                                ['Platform operations', '/admin/help#platform-operations', 'Service health, auth, notification, search, payment, and booking support triage.'],
+                                ['Recovery guidance', '/admin/help#recovery-guidance', 'Assignment, priority, transcript, resolution, and closure workflow.'],
+                            ].map(([label, href, description]) => (
+                                <button
+                                    key={label}
+                                    type="button"
+                                    onClick={() => navigate(href)}
+                                    className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-left transition-colors hover:border-orange-200 hover:bg-orange-50/70 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-orange-500/20 dark:hover:bg-orange-950/20"
+                                >
+                                    <span className="text-sm font-bold text-gray-900 dark:text-white">{label}</span>
+                                    <span className="mt-2 block text-sm leading-6 text-gray-500 dark:text-gray-400">{description}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+
                     {/* Banner */}
                     <div className="rounded-2xl bg-gray-900 dark:bg-black p-8 text-white relative overflow-hidden border border-white/10 dark:border-gray-800">
                         <div className="absolute right-0 top-0 w-64 h-64 bg-orange-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
@@ -402,20 +451,24 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="space-y-4">
-                            {platformSnapshot.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
-                                            <item.icon size={16} />
+                            {platformSnapshot.map((item) => {
+                                const SnapshotIcon = snapshotIconMap[item.icon];
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
+                                                <SnapshotIcon size={16} />
+                                            </div>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
                                         </div>
-                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value}</p>
                                     </div>
-                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value.toLocaleString()}</p>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">

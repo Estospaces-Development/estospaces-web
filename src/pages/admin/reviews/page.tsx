@@ -146,6 +146,7 @@ export default function AdminReviewsPage() {
                 <button
                     type="button"
                     onClick={handleRefresh}
+                    aria-label="Refresh review moderation queue"
                     className="rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
                 >
                     <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
@@ -161,6 +162,7 @@ export default function AdminReviewsPage() {
                         key={mode.id}
                         type="button"
                         onClick={() => setReviewMode(mode.id)}
+                        aria-pressed={reviewMode === mode.id}
                         className={`rounded-2xl px-5 py-2.5 text-sm font-bold transition-all ${
                             reviewMode === mode.id
                                 ? 'bg-orange-500 text-white shadow-xl shadow-orange-500/20'
@@ -182,6 +184,7 @@ export default function AdminReviewsPage() {
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
+                        aria-pressed={activeTab === tab.id}
                         className={`flex items-center gap-2 whitespace-nowrap rounded-2xl px-5 py-2.5 text-sm font-bold transition-all ${
                             activeTab === tab.id
                                 ? 'bg-gray-900 text-white shadow-xl dark:bg-white dark:text-gray-900'
@@ -243,6 +246,7 @@ export default function AdminReviewsPage() {
                                         type="button"
                                         onClick={() => void handleApprove(review.id)}
                                         disabled={actionId === review.id}
+                                        aria-label={`Approve review for property ${review.property_id}`}
                                         className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-600 disabled:opacity-50"
                                     >
                                         {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
@@ -253,6 +257,7 @@ export default function AdminReviewsPage() {
                                     type="button"
                                     onClick={() => void handleDelete(review.id)}
                                     disabled={actionId === review.id}
+                                    aria-label={`Delete review for property ${review.property_id}`}
                                     className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
                                 >
                                     {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
@@ -308,6 +313,7 @@ export default function AdminReviewsPage() {
                                                 type="button"
                                                 onClick={() => void handleApprove(review.id)}
                                                 disabled={actionId === review.id}
+                                                aria-label={`Approve manager review from ${review.user_name || review.user_id}`}
                                                 className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-600 disabled:opacity-50"
                                             >
                                                 {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
@@ -319,6 +325,7 @@ export default function AdminReviewsPage() {
                                                 type="button"
                                                 onClick={() => void handleDelete(review.id)}
                                                 disabled={actionId === review.id}
+                                                aria-label={`Reject manager review from ${review.user_name || review.user_id}`}
                                                 className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
                                             >
                                                 {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}

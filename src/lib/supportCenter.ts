@@ -54,7 +54,8 @@ export const resolveSupportComposerCategory = (
         return directMatch;
     }
 
-    const mappedLabel = SUPPORT_CATEGORY_VALUE_TO_LABEL[normalizedValue];
+    const backendValue = SUPPORT_CATEGORY_LABEL_TO_VALUE[normalizedValue] || normalizedValue;
+    const mappedLabel = SUPPORT_CATEGORY_VALUE_TO_LABEL[backendValue];
     if (mappedLabel) {
         const compatibleLabel = availableCategories.find((category) => normalizeCategoryKey(category) === normalizeCategoryKey(mappedLabel));
         if (compatibleLabel) {
@@ -105,6 +106,10 @@ export const getAutoSelectedSupportTicketId = ({
     hasPrefilledComposerContext: boolean;
 }): string => {
     if (selectedTicketId) {
+        if (selectedConversationId && !tickets.some((ticket) => ticket.id === selectedTicketId)) {
+            return tickets.find((ticket) => ticket.conversation_id === selectedConversationId)?.id || selectedTicketId;
+        }
+
         return selectedTicketId;
     }
 
@@ -117,6 +122,53 @@ export const getAutoSelectedSupportTicketId = ({
     }
 
     return isAdmin ? (tickets[0]?.id || '') : '';
+};
+
+type SupportFilterLike = {
+    search?: string;
+    status?: string;
+    priority?: string;
+    requesterRole?: string;
+    assignee?: string;
+};
+
+export const hasActiveSupportFilters = (filters: SupportFilterLike): boolean => (
+    Object.values(filters).some((value) => Boolean(String(value || '').trim()))
+);
+
+export const shouldLoadSupportTicketDetail = ({
+    selectedTicketId,
+    selectedConversationId = '',
+    isAdmin,
+    queueLoading,
+    tickets = [],
+    hasActiveFilters = false,
+}: {
+    selectedTicketId: string;
+    selectedConversationId?: string;
+    isAdmin: boolean;
+    queueLoading: boolean;
+    tickets?: SupportTicketSummary[];
+    hasActiveFilters?: boolean;
+}): boolean => {
+    if (!selectedTicketId) {
+        return false;
+    }
+
+    if (!isAdmin || !selectedConversationId) {
+        return true;
+    }
+
+    if (queueLoading) {
+        return false;
+    }
+
+    if (hasActiveFilters && !tickets.some((ticket) => ticket.id === selectedTicketId)) {
+        return false;
+    }
+
+    const conversationTicket = tickets.find((ticket) => ticket.conversation_id === selectedConversationId);
+    return !conversationTicket || conversationTicket.id === selectedTicketId;
 };
 
 export const finalizeCreatedSupportTicket = async ({

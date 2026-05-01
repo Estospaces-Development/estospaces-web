@@ -53,6 +53,26 @@ test('orderVisibleFastTrackWorkspaceModules follows module order', () => {
   ]);
 });
 
+test('normalizeFastTrackWorkspacePreferences backfills legacy module order', () => {
+  const preferences = normalizeFastTrackWorkspacePreferences(
+    {
+      role: 'manager',
+      visibleModules: ['core_files', 'case_chat'],
+      moduleOrder: ['core_files'],
+      defaultActiveModule: 'core_files',
+    },
+    'manager',
+  );
+
+  assert.deepEqual(preferences.moduleOrder, [
+    'core_files',
+    'case_chat',
+    'activity',
+    'preview',
+    'connected_records',
+  ]);
+});
+
 test('moveFastTrackWorkspaceModule reorders module positions safely', () => {
   const defaults = defaultFastTrackWorkspacePreferences('user');
   assert.deepEqual(
@@ -64,4 +84,3 @@ test('moveFastTrackWorkspaceModule reorders module positions safely', () => {
     defaults.moduleOrder,
   );
 });
-

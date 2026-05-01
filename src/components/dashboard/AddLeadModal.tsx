@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useProperties } from '@/contexts/PropertyContext';
@@ -9,7 +9,7 @@ import { Lead } from '@/contexts/LeadContext';
 interface AddLeadModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => void;
+    onSave: (lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) => void | Promise<void>;
     existingLead?: Lead | null;
 }
 
@@ -32,7 +32,9 @@ const AddLeadModal = ({
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -64,6 +66,18 @@ const AddLeadModal = ({
             });
         }
     }, [existingLead, isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !mounted) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            closeButtonRef.current?.focus();
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [isOpen, mounted]);
 
     const handleInputChange = (field: keyof typeof formData, value: string | number) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
@@ -98,21 +112,28 @@ const AddLeadModal = ({
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (validate()) {
-            onSave(formData);
-            setFormData({
-                name: '',
-                email: '',
-                phone: '',
-                propertyInterested: '',
-                status: 'New Lead',
-                score: 0,
-                budget: '',
-                lastContact: 'Just now',
-            });
-            onClose();
+            setIsSubmitting(true);
+            try {
+                await onSave(formData);
+                setFormData({
+                    name: '',
+                    email: '',
+                    phone: '',
+                    propertyInterested: '',
+                    status: 'New Lead',
+                    score: 0,
+                    budget: '',
+                    lastContact: 'Just now',
+                });
+                onClose();
+            } catch {
+                return;
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
@@ -120,14 +141,22 @@ const AddLeadModal = ({
 
     return createPortal(
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800 shadow-xl">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="manual-lead-modal-title"
+                className="bg-white dark:bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-gray-800 shadow-xl"
+            >
                 <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-6 flex items-center justify-between z-10">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+                    <h2 id="manual-lead-modal-title" className="text-xl font-bold text-gray-800 dark:text-white">
                         {existingLead ? 'Edit Lead' : 'Add New Lead'}
                     </h2>
                     <button
+                        ref={closeButtonRef}
+                        type="button"
                         onClick={onClose}
                         className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        aria-label="Close manual lead modal"
                     >
                         <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                     </button>
@@ -292,15 +321,17 @@ const AddLeadModal = ({
                         <button
                             type="button"
                             onClick={onClose}
+                            disabled={isSubmitting}
                             className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                            disabled={isSubmitting}
+                            className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {existingLead ? 'Update Lead' : 'Create Lead'}
+                            {isSubmitting ? 'Saving...' : existingLead ? 'Update Lead' : 'Create Lead'}
                         </button>
                     </div>
                 </form>

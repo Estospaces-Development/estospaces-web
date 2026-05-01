@@ -78,6 +78,14 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
         setIsMounted(true);
     }, []);
 
+    const validHouses = useMemo(() => houses.filter(h => h.lat != null && h.lng != null), [houses]);
+    const validAgencies = useMemo(() => agencies.filter(a => a.lat != null && a.lng != null), [agencies]);
+    const mapKey = useMemo(() => [
+        mapStyle,
+        ...validHouses.map((house) => `house:${house.id}:${house.lat}:${house.lng}`),
+        ...validAgencies.map((agency) => `agency:${agency.id}:${agency.lat}:${agency.lng}`),
+    ].join('|'), [mapStyle, validAgencies, validHouses]);
+
     if (!isMounted) {
         return (
             <div className="w-full h-full bg-gray-100 dark:bg-gray-800 animate-pulse flex items-center justify-center rounded-lg">
@@ -85,15 +93,6 @@ const MapView: React.FC<MapViewProps> = ({ houses = [], agencies = [], onOpenPro
             </div>
         );
     }
-
-    // Filter out items without coordinates
-    const validHouses = houses.filter(h => h.lat != null && h.lng != null);
-    const validAgencies = agencies.filter(a => a.lat != null && a.lng != null);
-    const mapKey = useMemo(() => [
-        mapStyle,
-        ...validHouses.map((house) => `house:${house.id}:${house.lat}:${house.lng}`),
-        ...validAgencies.map((agency) => `agency:${agency.id}:${agency.lat}:${agency.lng}`),
-    ].join('|'), [mapStyle, validAgencies, validHouses]);
 
     // Center on London by default if no houses
     const defaultCenter: [number, number] = [51.5074, -0.1278];

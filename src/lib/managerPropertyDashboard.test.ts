@@ -5,6 +5,8 @@ import {
     MANAGER_LIVE_LISTINGS_VIEW,
     buildManagerActiveListingsPath,
     buildManagerPropertySearchParams,
+    formatManagerAnalyticsPercentage,
+    normalizeManagerAnalyticsPercentage,
     filterManagerLivePropertyPerformance,
     getManagerPropertyStatusFilters,
     isManagerLivePropertyStatus,
@@ -19,6 +21,18 @@ test('live listing status detection only includes approved public statuses', () 
     assert.equal(isManagerLivePropertyStatus('active'), true);
     assert.equal(isManagerLivePropertyStatus('pending_approval'), false);
     assert.equal(isManagerLivePropertyStatus('draft'), false);
+});
+
+test('normalizeManagerAnalyticsPercentage clamps impossible conversion values', () => {
+    assert.equal(normalizeManagerAnalyticsPercentage(377.78), 100);
+    assert.equal(normalizeManagerAnalyticsPercentage(-12), 0);
+    assert.equal(normalizeManagerAnalyticsPercentage(null), 0);
+});
+
+test('formatManagerAnalyticsPercentage keeps bounded readable percentages', () => {
+    assert.equal(formatManagerAnalyticsPercentage(377.78), '100%');
+    assert.equal(formatManagerAnalyticsPercentage(12.345), '12.35%');
+    assert.equal(formatManagerAnalyticsPercentage(12.3), '12.3%');
 });
 
 test('normalizeManagerPropertyStatusFilters trims, lowercases, and de-duplicates values', () => {

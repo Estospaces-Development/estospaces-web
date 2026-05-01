@@ -5,6 +5,8 @@ import { MapPin, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/contexts/ToastContext';
 
+const nearestBrokerFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
+
 const NearestBrokerWidget = () => {
     const navigate = useNavigate();
     const { success: showToastSuccess } = useToast();
@@ -69,9 +71,9 @@ const NearestBrokerWidget = () => {
                             <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></span>
                         )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{broker.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{broker.agency}</p>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                        <p className="break-words text-sm font-semibold text-gray-900 dark:text-gray-100">{broker.name}</p>
+                        <p className="break-words text-xs text-gray-500 dark:text-gray-400">{broker.agency}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800/50 py-1.5 px-3 rounded-lg w-fit">
@@ -115,7 +117,7 @@ const NearestBrokerWidget = () => {
                     {status === 'idle' ? (
                         <button
                             onClick={handleConnect}
-                            className="w-full px-4 py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-medium text-sm transition-all shadow-sm hover:shadow-md transform active:scale-[0.98] flex items-center justify-center gap-2"
+                            className={`flex w-full transform items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-orange-600 hover:shadow-md active:scale-[0.98] active:bg-orange-700 ${nearestBrokerFocusClass}`}
                         >
                             Connect Now
                         </button>
@@ -123,13 +125,13 @@ const NearestBrokerWidget = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => showToastSuccess(`Calling ${broker.name}...`)}
-                                className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-orange-500 dark:hover:border-orange-500 text-gray-700 dark:text-gray-200 rounded-xl font-medium text-xs transition-colors"
+                                className={`rounded-xl border border-gray-100 bg-white px-4 py-2 text-xs font-medium text-gray-700 transition-colors hover:border-orange-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-orange-500 ${nearestBrokerFocusClass}`}
                             >
                                 Call
                             </button>
                             <button
                                 onClick={() => navigate('/user/dashboard/discover')}
-                                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium text-xs transition-colors shadow-sm"
+                                className={`rounded-xl bg-orange-500 px-4 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-orange-600 ${nearestBrokerFocusClass}`}
                             >
                                 Message
                             </button>

@@ -2,10 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildCaseFileDocumentRequestDraftStorageKey,
+  CASE_FILE_REQUIREMENT_CODE_FORMAT,
   filterReusableDocumentsForRequest,
   inferCaseFileUploadDescriptor,
+  isCaseFileDocumentRequestDraftDirty,
   matchCaseFileRequestForFileName,
+  parseCaseFileRequirementCodes,
   summarizeCaseFileDocuments,
+  validateCaseFileDocumentRequestDraft,
 } from "./caseFileDocuments";
 
 test("case-file upload descriptor maps identity and address requests to verification uploads", () => {
@@ -231,4 +236,77 @@ test("request matching leaves the upload for manual review when multiple request
 
   assert.equal(match.request, null);
   assert.equal(match.ambiguous, true);
+});
+
+test("case-file document request validation requires title, codes, and due date", () => {
+  assert.deepEqual(
+    validateCaseFileDocumentRequestDraft({
+      title: "",
+      requirement_codes: "",
+      due_at: "",
+    }),
+    {
+      title: "Add a short title for the document request.",
+      requirement_codes: CASE_FILE_REQUIREMENT_CODE_FORMAT,
+      due_at: "Choose a due date for the document request.",
+    },
+  );
+});
+
+test("case-file requirement code validation documents comma-separated lowercase codes", () => {
+  assert.deepEqual(
+    parseCaseFileRequirementCodes(" proof_of_funds, mortgage_in_principle "),
+    ["proof_of_funds", "mortgage_in_principle"],
+  );
+
+  assert.deepEqual(
+    validateCaseFileDocumentRequestDraft({
+      title: "Proof of funds",
+      requirement_codes: "Proof Of Funds,proof-of-address",
+      due_at: "2026-05-10",
+    }),
+    {
+      requirement_codes: CASE_FILE_REQUIREMENT_CODE_FORMAT,
+    },
+  );
+
+  assert.deepEqual(
+    validateCaseFileDocumentRequestDraft({
+      title: "Proof of funds",
+      requirement_codes: "proof_of_funds,mortgage_in_principle",
+      due_at: "2026-05-10",
+    }),
+    {},
+  );
+});
+
+test("case-file document request drafts use stable storage keys and dirty checks", () => {
+  assert.equal(
+    buildCaseFileDocumentRequestDraftStorageKey("manager", " Case 123 "),
+    "case-file:document-request-draft:manager:Case%20123",
+  );
+  assert.equal(buildCaseFileDocumentRequestDraftStorageKey("manager", ""), "");
+
+  assert.equal(
+    isCaseFileDocumentRequestDraftDirty({
+      title: "",
+      description: "",
+      requirement_codes: "",
+      visibility: "shared_with_user",
+      link_family: "client_reusable",
+      due_at: "",
+    }),
+    false,
+  );
+  assert.equal(
+    isCaseFileDocumentRequestDraftDirty({
+      title: "",
+      description: "Bring the last bank statement.",
+      requirement_codes: "",
+      visibility: "shared_with_user",
+      link_family: "client_reusable",
+      due_at: "",
+    }),
+    true,
+  );
 });

@@ -28,8 +28,13 @@ import UserVerificationReviewModal from '@/components/verification/UserVerificat
 import Avatar from '@/components/ui/Avatar';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import {
+    getUserVerificationQueueStats,
+    userMatchesVerificationTab,
+    type UserVerificationQueueTab,
+} from '@/lib/userVerificationQueue';
 
-type TabType = 'all' | 'unverified' | 'pending_docs' | 'verified';
+type TabType = UserVerificationQueueTab;
 
 interface UserVerificationQueueProps {
     scope: VerificationScope;
@@ -71,6 +76,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     const isAdmin = scope === 'admin';
     const [activeTab, setActiveTab] = useState<TabType>('all');
     const [searchQuery, setSearchQuery] = useState('');
+    const [sortMode, setSortMode] = useState<'recent' | 'name' | 'leads'>('recent');
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [users, setUsers] = useState<UserVerificationInfo[]>([]);
@@ -125,37 +131,23 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     };
 
     const stats = useMemo(() => {
-        const unverified = users.filter(
-            (user) => user.verification_level === 'basic' && !user.has_identity_doc && !user.has_address_doc,
-        ).length;
-        const pendingDocs = users.filter(
-            (user) => user.verification_level === 'basic' || !user.has_identity_doc || !user.has_address_doc,
-        ).length;
-        const verified = users.filter(
-            (user) => user.verification_level === 'verified' || user.verification_level === 'fully_verified',
-        ).length;
+        const queueStats = getUserVerificationQueueStats(users);
 
         return [
-            { id: 'all', label: 'All Users', count: users.length, icon: User, color: 'text-gray-500', bg: 'bg-gray-50' },
-            { id: 'unverified', label: 'Unverified', count: unverified, icon: ShieldAlert, color: 'text-red-500', bg: 'bg-red-50' },
-            { id: 'pending_docs', label: 'Pending Docs', count: pendingDocs, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
-            { id: 'verified', label: 'Verified', count: verified, icon: BadgeCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { id: 'all', label: 'All Users', count: queueStats.all, icon: User, color: 'text-gray-500', bg: 'bg-gray-50' },
+            { id: 'unverified', label: 'Unverified', count: queueStats.unverified, icon: ShieldAlert, color: 'text-red-500', bg: 'bg-red-50' },
+            { id: 'pending_docs', label: 'Pending Docs', count: queueStats.pendingDocs, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+            { id: 'verified', label: 'Verified', count: queueStats.verified, icon: BadgeCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
         ];
     }, [users]);
 
-    const filteredUsers = useMemo(() => (
-        users.filter((user) => {
-            if (activeTab === 'unverified' && (user.verification_level !== 'basic' || user.has_identity_doc || user.has_address_doc)) {
-                return false;
-            }
-            if (activeTab === 'pending_docs' && user.verification_level === 'fully_verified') {
-                return false;
-            }
-            if (activeTab === 'verified' && user.verification_level !== 'verified' && user.verification_level !== 'fully_verified') {
+    const filteredUsers = useMemo(() => {
+        const searchLower = searchQuery.trim().toLowerCase();
+        const matchedUsers = users.filter((user) => {
+            if (!userMatchesVerificationTab(user, activeTab)) {
                 return false;
             }
 
-            const searchLower = searchQuery.toLowerCase();
             if (!searchLower) {
                 return true;
             }
@@ -165,8 +157,20 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 || user.email.toLowerCase().includes(searchLower)
                 || (user.phone || '').toLowerCase().includes(searchLower)
             );
-        })
-    ), [activeTab, searchQuery, users]);
+        });
+
+        return [...matchedUsers].sort((left, right) => {
+            if (sortMode === 'name') {
+                return left.full_name.localeCompare(right.full_name);
+            }
+            if (sortMode === 'leads') {
+                return (right.pending_leads || 0) - (left.pending_leads || 0);
+            }
+
+            return new Date(right.last_active || right.created_at).getTime()
+                - new Date(left.last_active || left.created_at).getTime();
+        });
+    }, [activeTab, searchQuery, sortMode, users]);
 
     return (
         <div className="space-y-10 animate-in fade-in duration-500">
@@ -189,14 +193,28 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         <Search className={`absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors ${content.focusText}`} size={18} />
                         <input
                             type="text"
+                            aria-label="Search users"
                             placeholder="Search users..."
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
                             className={`pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 font-bold text-sm w-64 shadow-sm transition-all ${content.accentRing}`}
                         />
                     </div>
+                    <label className="sr-only" htmlFor={`${scope}-verification-sort`}>Sort verification queue</label>
+                    <select
+                        id={`${scope}-verification-sort`}
+                        value={sortMode}
+                        onChange={(event) => setSortMode(event.target.value as 'recent' | 'name' | 'leads')}
+                        className="rounded-2xl border bg-white px-4 py-4 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-4 focus:ring-orange-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                        <option value="recent">Recent activity</option>
+                        <option value="name">Name</option>
+                        <option value="leads">Pending leads</option>
+                    </select>
                     <button
                         onClick={handleRefresh}
+                        aria-label="Refresh verification queue"
+                        title="Refresh verification queue"
                         className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border dark:border-gray-700 hover:scale-105 transition-all text-gray-600 dark:text-gray-400"
                     >
                         <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
@@ -209,6 +227,8 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                     <button
                         key={stat.id}
                         onClick={() => setActiveTab(stat.id as TabType)}
+                        aria-pressed={activeTab === stat.id}
+                        aria-label={`${stat.label}: ${stat.count} users`}
                         className={`p-8 rounded-[2.5rem] border transition-all text-left relative overflow-hidden group ${
                             activeTab === stat.id
                                 ? `bg-white dark:bg-gray-800 ${content.activeBorder} shadow-2xl scale-105 z-10`
@@ -290,8 +310,8 @@ const UserVerificationCard: React.FC<{
     const levelLabel = getVerificationLevelLabel(user.verification_level);
 
     return (
-        <div className="p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl">
-            <div className="flex items-center gap-6">
+        <div className="p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl overflow-hidden">
+            <div className="flex min-w-0 items-center gap-6">
                 <Avatar
                     userId={user.user_id}
                     src={user.avatar}
@@ -300,24 +320,24 @@ const UserVerificationCard: React.FC<{
                     shape="rounded"
                     fallbackClassName={isAdmin ? 'from-orange-500 to-amber-600' : 'from-blue-500 to-indigo-600'}
                 />
-                <div>
-                    <div className="flex items-center gap-3 mb-1">
-                        <h3 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">{user.full_name}</h3>
+                <div className="min-w-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-3 mb-1">
+                        <h3 className="min-w-0 text-lg font-black text-gray-900 dark:text-white tracking-tight break-words [overflow-wrap:anywhere]">{user.full_name}</h3>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${levelConfig.bg} ${levelConfig.text}`}>
                             {levelLabel}
                         </span>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
-                        <span className="text-xs text-gray-500 font-bold flex items-center gap-1">
+                        <span className="min-w-0 text-xs text-gray-500 font-bold flex items-center gap-1 break-all">
                             <Mail size={12} /> {user.email}
                         </span>
                         {user.phone && (
-                            <span className="text-xs text-gray-500 font-bold flex items-center gap-1">
+                            <span className="min-w-0 text-xs text-gray-500 font-bold flex items-center gap-1 break-words [overflow-wrap:anywhere]">
                                 <Phone size={12} /> {user.phone}
                             </span>
                         )}
                         {user.address && (
-                            <span className="text-xs text-gray-500 font-bold flex items-center gap-1">
+                            <span className="min-w-0 text-xs text-gray-500 font-bold flex items-center gap-1 break-words [overflow-wrap:anywhere]">
                                 <MapPin size={12} /> {user.address}
                             </span>
                         )}
@@ -341,6 +361,7 @@ const UserVerificationCard: React.FC<{
 
                 <button
                     onClick={onViewDetails}
+                    aria-label={`Review verification for ${user.full_name}`}
                     className={`px-8 py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2 ${hoverClass} hover:text-white dark:hover:text-white`}
                 >
                     Review <ArrowRight size={16} />

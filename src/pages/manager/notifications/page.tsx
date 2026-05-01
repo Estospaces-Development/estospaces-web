@@ -17,10 +17,34 @@ export default function ManagerNotificationsPage() {
     const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Pre-process notifications to ensure safety
     const safeNotifications = useMemo(() => {
         if (!notifications || !Array.isArray(notifications)) return [];
-        return notifications.filter(n => n && typeof n === 'object');
+        const deduped: any[] = [];
+        const byContent = new Map<string, any>();
+
+        notifications
+            .filter(n => n && typeof n === 'object')
+            .forEach((notification: any) => {
+                const key = [
+                    String(notification.type || ''),
+                    String(notification.title || '').trim().toLowerCase(),
+                    String(notification.message || '').trim().toLowerCase(),
+                    String(notification.data?.propertyId || notification.data?.property_id || ''),
+                    String(notification.data?.caseId || notification.data?.case_id || notification.data?.fastTrackId || ''),
+                ].join('|');
+                const existing = byContent.get(key);
+                if (existing) {
+                    existing.duplicateCount += 1;
+                    existing.is_read = existing.is_read && notification.is_read;
+                    return;
+                }
+
+                const next = { ...notification, duplicateCount: 1 };
+                byContent.set(key, next);
+                deduped.push(next);
+            });
+
+        return deduped;
     }, [notifications]);
 
     const filteredNotifications = useMemo(() => {
@@ -152,6 +176,11 @@ export default function ManagerNotificationsPage() {
                                 <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                                     {String(n.message ?? '')}
                                 </p>
+                                {Number((n as any).duplicateCount || 1) > 1 && (
+                                    <span className="mt-2 inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                        Repeated {(n as any).duplicateCount} times
+                                    </span>
+                                )}
                             </div>
                         </div>
                     ))}

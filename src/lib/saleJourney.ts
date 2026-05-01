@@ -22,6 +22,11 @@ type ApplicationRecordLike = {
     listing_type?: string | null;
 };
 
+const isPurchaseListingType = (application: ApplicationRecordLike) => {
+    const listingType = String(application.listingType || application.listing_type || '').trim().toLowerCase();
+    return ['sale', 'buy', 'purchase'].includes(listingType);
+};
+
 export interface SaleJourneyAction {
     status: string;
     label: string;
@@ -57,6 +62,9 @@ export const resolveSaleJourneyDisplayStage = (application?: ApplicationRecordLi
     }
 
     switch (String(application.status || '').trim()) {
+        case 'submitted':
+        case 'pending':
+            return isPurchaseListingType(application) ? 'viewing_completed' : null;
         case 'viewing_completed':
             return 'viewing_completed';
         case 'buyer_qualification':

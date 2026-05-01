@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Shield,
     Upload,
@@ -15,8 +15,9 @@ import {
     CreditCard,
     MapPin,
     ArrowRight,
+    Trash2,
 } from 'lucide-react';
-import { leadsService } from '@/services/leadsService';
+import { leadsService, type UserDocument } from '@/services/leadsService';
 
 interface VerificationSectionProps {
     userId?: string;
@@ -34,6 +35,7 @@ const documentTypeByStep: Partial<Record<StepKey, string>> = {
     identity: 'identity',
     address: 'address',
 };
+const VERIFICATION_DOCUMENT_ACCEPT = 'application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg';
 
 const mapDocumentStatus = (status?: string): StepStatus => {
     switch (status) {
@@ -56,6 +58,9 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     const [success, setSuccess] = useState<string | null>(null);
     const [showUploadModal, setShowUploadModal] = useState<StepKey | null>(null);
     const [uploadingFile, setUploadingFile] = useState(false);
+    const [documents, setDocuments] = useState<UserDocument[]>([]);
+    const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+    const documentVaultRef = useRef<HTMLDivElement | null>(null);
     const [verificationSteps, setVerificationSteps] = useState<Record<StepKey, StepState>>({
         email: { status: 'pending' },
         phone: { status: 'pending' },
@@ -71,27 +76,37 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
         }));
     }, [currentUser]);
 
-    useEffect(() => {
-        const syncDocuments = async () => {
-            if (!userId) return;
+    const syncDocuments = useCallback(async () => {
+        if (!userId) return;
 
-            const { data, error: documentsError } = await leadsService.getUserDocuments();
-            if (documentsError) {
-                return;
-            }
+        const { data, error: documentsError } = await leadsService.getUserDocuments();
+        if (documentsError) {
+            setError(documentsError);
+            return;
+        }
 
-            const identityDocument = data.find((document) => document.document_category === 'identity');
-            const addressDocument = data.find((document) => document.document_category === 'address');
+        setDocuments(data);
+        const identityDocument = data.find((document) => document.document_category === 'identity');
+        const addressDocument = data.find((document) => document.document_category === 'address');
 
-            setVerificationSteps((prev) => ({
-                ...prev,
-                identity: { status: mapDocumentStatus(identityDocument?.status) },
-                address: { status: mapDocumentStatus(addressDocument?.status) },
-            }));
-        };
-
-        syncDocuments();
+        setVerificationSteps((prev) => ({
+            ...prev,
+            identity: { status: mapDocumentStatus(identityDocument?.status) },
+            address: { status: mapDocumentStatus(addressDocument?.status) },
+        }));
     }, [userId]);
+
+    useEffect(() => {
+        syncDocuments();
+    }, [syncDocuments]);
+
+    const documentMetrics = useMemo(() => {
+        const pending = documents.filter((document) => document.status === 'pending').length;
+        const underReview = documents.filter((document) => document.status === 'under_review').length;
+        const approved = documents.filter((document) => document.status === 'approved').length;
+
+        return { pending, underReview, approved };
+    }, [documents]);
 
     const completedSteps = Object.values(verificationSteps).filter(
         (step) => step.status === 'verified' || step.status === 'submitted',
@@ -120,11 +135,33 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
             }));
             setSuccess(`Your ${step === 'identity' ? 'identity document' : 'proof of address'} has been submitted for review.`);
             setShowUploadModal(null);
+            await syncDocuments();
+            requestAnimationFrame(() => documentVaultRef.current?.focus());
         } catch (err: any) {
             setError(err.message || 'Failed to upload document. Please try again.');
         } finally {
             setUploadingFile(false);
         }
+    };
+
+    const handleDeleteDocument = async (document: UserDocument) => {
+        if (document.status !== 'pending') {
+            setError('Only pending documents can be deleted before review starts.');
+            return;
+        }
+
+        setDeletingDocumentId(document.id);
+        setError(null);
+        const { success: deleted, error: deleteError } = await leadsService.deleteDocument(document.id);
+        setDeletingDocumentId(null);
+        if (!deleted) {
+            setError(deleteError || 'Failed to delete document.');
+            return;
+        }
+
+        setSuccess(`${document.file_name} was removed from your document vault.`);
+        await syncDocuments();
+        requestAnimationFrame(() => documentVaultRef.current?.focus());
     };
 
     const handleEmailVerification = async () => {
@@ -144,6 +181,10 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     const handlePhoneVerification = () => {
         setSuccess('Please add your phone number in the Personal Information section above.');
     };
+
+    const formatDocumentStatus = (status: string) => (
+        status.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+    );
 
     const VerificationStep = ({
         step,
@@ -336,6 +377,69 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 />
             </div>
 
+            <div
+                id="document-vault"
+                ref={documentVaultRef}
+                tabIndex={-1}
+                className="border-t border-gray-100 p-6 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700"
+            >
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Document vault</h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Pending files can be removed before review starts.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">{documentMetrics.pending} pending</span>
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{documentMetrics.underReview} review</span>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{documentMetrics.approved} approved</span>
+                    </div>
+                </div>
+
+                {documents.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+                        No documents are stored yet.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {documents.map((document) => {
+                            const canDelete = document.status === 'pending';
+                            const isDeleting = deletingDocumentId === document.id;
+
+                            return (
+                                <div
+                                    key={document.id}
+                                    className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-bold text-gray-900 dark:text-white">{document.file_name}</p>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {formatDocumentStatus(document.document_category)} - {formatDocumentStatus(document.status)}
+                                        </p>
+                                        {document.reject_reason && (
+                                            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                                                {document.reject_reason}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleDeleteDocument(document)}
+                                        disabled={!canDelete || isDeleting || Boolean(deletingDocumentId)}
+                                        aria-label={`Delete ${document.file_name}`}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/20"
+                                    >
+                                        {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                        Delete
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
             {showUploadModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
                     <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
@@ -352,8 +456,11 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                             <label className="block border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-3xl p-10 text-center hover:border-orange-500 dark:hover:border-orange-500 transition-all cursor-pointer group">
                                 <input
                                     type="file"
-                                    className="hidden"
-                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    id={`${showUploadModal}-verification-document-upload`}
+                                    name={`${showUploadModal}-verification-document`}
+                                    aria-label={`Upload ${showUploadModal === 'identity' ? 'identity document' : 'proof of address'}`}
+                                    className="sr-only"
+                                    accept={VERIFICATION_DOCUMENT_ACCEPT}
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) handleDocumentUpload(showUploadModal, file);

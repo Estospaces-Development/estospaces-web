@@ -20,6 +20,8 @@ interface DateFieldProps {
     align?: 'left' | 'right';
     size?: DateFieldSize;
     name?: string;
+    id?: string;
+    ariaDescribedBy?: string;
 }
 
 const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -51,6 +53,8 @@ export default function DateField({
     align = 'left',
     size = 'md',
     name,
+    id,
+    ariaDescribedBy,
 }: DateFieldProps) {
     const wrapperRef = useRef<HTMLDivElement | null>(null);
     const selectedDate = useMemo(() => parseDateValue(value), [value]);
@@ -126,8 +130,10 @@ export default function DateField({
         <div ref={wrapperRef} className={`relative ${className}`.trim()}>
             {name ? <input type="hidden" name={name} value={value} /> : null}
             <button
+                id={id}
                 type="button"
                 aria-label={ariaLabel || placeholder}
+                aria-describedby={ariaDescribedBy}
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
                 className={[

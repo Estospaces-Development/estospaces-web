@@ -5,15 +5,18 @@ import { useNavigate } from 'react-router-dom';
 import * as analyticsService from '@/services/analyticsService';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
+import { bookingsService, type Booking } from '@/services/bookingsService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
 import {
   buildManagerActiveListingsPath,
   filterManagerLivePropertyPerformance,
+  formatManagerAnalyticsPercentage,
   isManagerLivePropertyStatus,
 } from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
-import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X } from 'lucide-react';
+import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { useToast } from '@/contexts/ToastContext';
 
 // Components
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
@@ -26,6 +29,8 @@ import Avatar from '@/components/ui/Avatar';
 import PaginationBar from '@/components/ui/PaginationBar';
 import ManagerPropertyCard from '@/components/dashboard/ManagerPropertyCard';
 import ManualFastTrackModal from '@/components/manager/FastTrack/ManualFastTrackModal';
+import RoleDocsPreviewCard from '@/components/docs/RoleDocsPreviewCard';
+import { managerDocs } from '@/lib/roleDocsContent';
 
 const MANAGER_PROPERTIES_PAGE_SIZE = 6;
 
@@ -55,10 +60,12 @@ const managerPropertyStatusOptions = [
 
 function DashboardContent() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [propertySearchQuery, setPropertySearchQuery] = useState('');
@@ -69,6 +76,8 @@ function DashboardContent() {
   const [propertyTotalPages, setPropertyTotalPages] = useState(1);
   const [propertyError, setPropertyError] = useState<string | null>(null);
   const [fastTrackError, setFastTrackError] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const [confirmingBookingID, setConfirmingBookingID] = useState<string | null>(null);
 
   const fetchDashboardData = useCallback(async (forceRefresh = false, silent = false) => {
     if (!silent) {
@@ -80,19 +89,29 @@ function DashboardContent() {
         analyticsService.invalidateAnalyticsCache('manager_analytics');
       }
 
-      const [analyticsRes, fastTrackRes] = await Promise.all([
+      const [analyticsRes, fastTrackRes, bookingsRes] = await Promise.allSettled([
         analyticsService.getManagerAnalytics(forceRefresh),
         getFastTrackCases({ suppressErrorToast: true }),
+        bookingsService.getBookings({ suppressErrorToast: true }),
       ]);
 
-      if (analyticsRes.data) {
-        setAnalytics(analyticsRes.data);
+      if (analyticsRes.status === 'fulfilled' && analyticsRes.value.data) {
+        setAnalytics(analyticsRes.value.data);
       }
-      if (fastTrackRes.data) {
-        setFastTrackCases(fastTrackRes.data);
+      if (fastTrackRes.status === 'fulfilled' && fastTrackRes.value.data) {
+        setFastTrackCases(fastTrackRes.value.data);
         setFastTrackError(null);
-      } else if (fastTrackRes.error) {
-        setFastTrackError(fastTrackRes.error);
+      } else if (fastTrackRes.status === 'fulfilled' && fastTrackRes.value.error) {
+        setFastTrackError(fastTrackRes.value.error);
+      } else if (fastTrackRes.status === 'rejected') {
+        setFastTrackError(fastTrackRes.reason?.message || 'Fast-track lane failed to load.');
+      }
+      if (bookingsRes.status === 'fulfilled') {
+        setBookings(bookingsRes.value || []);
+        setBookingError(null);
+      } else {
+        setBookings([]);
+        setBookingError(bookingsRes.reason?.message || 'Reservations failed to load.');
       }
     } finally {
       if (!silent) {
@@ -201,6 +220,16 @@ function DashboardContent() {
     caseItem.finalStatus === 'in_progress' && caseItem.hoursRemaining > 0 && caseItem.hoursRemaining <= 6
   )).length;
   const completedFastTrackCount = fastTrackCases.filter((caseItem) => caseItem.finalStatus === 'completed').length;
+  const reservationSummary = {
+    pending: bookings.filter((booking) => booking.status === 'pending').length,
+    confirmed: bookings.filter((booking) => booking.status === 'confirmed').length,
+    completed: bookings.filter((booking) => booking.status === 'completed').length,
+    cancelled: bookings.filter((booking) => booking.status === 'cancelled').length,
+  };
+  const pendingReservations = bookings
+    .filter((booking) => booking.status === 'pending')
+    .sort((left, right) => new Date(left.check_in_date).getTime() - new Date(right.check_in_date).getTime())
+    .slice(0, 4);
   const livePropertiesFallback = properties.filter((property) => isManagerLivePropertyStatus(property.status));
   const livePropertyCountFallback = livePropertiesFallback.length;
   const livePropertyViewsFallback = livePropertiesFallback.reduce((total, property) => (
@@ -227,7 +256,9 @@ function DashboardContent() {
         : livePropertyViewsFallback,
     ),
     totalViewsChange: analytics?.views_growth || '0%',
-    conversionRate: `${(analytics?.conversion_rate || analytics?.leadAnalytics?.conversionRate || 0).toFixed(1)}%`,
+    conversionRate: formatManagerAnalyticsPercentage(
+      analytics?.conversion_rate ?? analytics?.leadAnalytics?.conversionRate ?? 0,
+    ),
     conversionRateChange: analytics?.conversion_growth || '0%',
   };
 
@@ -266,6 +297,24 @@ function DashboardContent() {
   const handleManualFastTrackCreated = async (createdCase: FastTrackCase) => {
     void fetchDashboardData(true, true);
     navigate(`/manager/fast-track?case=${createdCase.caseId}`);
+  };
+
+  const handleConfirmReservation = async (booking: Booking) => {
+    setConfirmingBookingID(booking.id);
+    setBookingError(null);
+    try {
+      await bookingsService.confirmBooking(booking.id, { suppressErrorToast: true });
+      setBookings((previous) => previous.map((item) => (
+        item.id === booking.id ? { ...item, status: 'confirmed' } : item
+      )));
+      toast.success('Reservation confirmed.');
+    } catch (error: any) {
+      const message = error?.message || 'Unable to confirm this reservation.';
+      setBookingError(message);
+      toast.error(message);
+    } finally {
+      setConfirmingBookingID(null);
+    }
   };
 
   const hasPropertyFilters = propertySearchQuery.trim() || propertyTypeFilter !== 'all' || propertyStatusFilter !== 'all';
@@ -322,6 +371,77 @@ function DashboardContent() {
 
           {/* Broker Response Widget (USP) */}
           <BrokerResponseWidget />
+
+          <RoleDocsPreviewCard
+            title="Manager workflow guide"
+            subtitle="Open the exact docs sections for live response, fast-track, applications, appointments, contracts, and support recovery."
+            hrefBase="/manager/docs"
+            docsDocument={managerDocs.document}
+          />
+
+          <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-xl">
+                  <CalendarCheck className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white font-outfit">Reservation approvals</h2>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Pending booking reservations from your properties are ready to confirm here.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 sm:min-w-[360px]">
+                {[
+                  { label: 'Pending', value: reservationSummary.pending },
+                  { label: 'Confirmed', value: reservationSummary.confirmed },
+                  { label: 'Completed', value: reservationSummary.completed },
+                  { label: 'Cancelled', value: reservationSummary.cancelled },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-2xl bg-gray-50 px-3 py-2 dark:bg-gray-900">
+                    <p>{item.label}</p>
+                    <p className="mt-1 text-lg font-bold text-gray-900 dark:text-white">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {bookingError ? (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50/80 px-5 py-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+                {bookingError}
+              </div>
+            ) : null}
+
+            <div className="mt-6 space-y-3">
+              {pendingReservations.length > 0 ? pendingReservations.map((booking) => (
+                <div
+                  key={booking.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-gray-100 px-5 py-4 dark:border-gray-800 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">Booking {booking.id.slice(0, 8)}</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      Property {booking.property_id.slice(0, 8)} - {new Date(booking.check_in_date).toLocaleDateString()} to {new Date(booking.check_out_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleConfirmReservation(booking)}
+                    disabled={confirmingBookingID === booking.id}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {confirmingBookingID === booking.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Confirm Reservation
+                  </button>
+                </div>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-gray-200 px-5 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                  Pending reservations will appear here as users reserve bookings from your listings.
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">

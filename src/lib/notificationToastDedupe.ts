@@ -2,6 +2,7 @@ import { NOTIFICATION_TYPES, type Notification } from '@/services/notificationsS
 
 const DEDUPED_NOTIFICATION_TYPES = new Set<string>([
     NOTIFICATION_TYPES.FAST_TRACK_COMPLETED,
+    NOTIFICATION_TYPES.PROPERTY_SELECTED,
 ]);
 
 const readString = (data: Record<string, any> | null | undefined, ...keys: string[]) => {
@@ -35,6 +36,10 @@ export const getNotificationToastDedupeKey = (
         'case_id',
         'fast_track_case_id',
         'fastTrackCaseId',
+        'broker_request_id',
+        'brokerRequestId',
+        'property_id',
+        'propertyId',
     );
 
     if (entityId) {

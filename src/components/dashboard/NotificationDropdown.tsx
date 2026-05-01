@@ -17,6 +17,7 @@ import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
 const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
     const navigate = useNavigate();
     const { user } = useAuth();
     const {
@@ -38,6 +39,21 @@ const NotificationDropdown = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+
+            event.preventDefault();
+            setIsOpen(false);
+            buttonRef.current?.focus();
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen]);
 
     const safeNotifications = useMemo(() => {
         if (!Array.isArray(notifications)) {
@@ -133,6 +149,7 @@ const NotificationDropdown = () => {
     return (
         <div className="relative" ref={dropdownRef}>
             <button
+                ref={buttonRef}
                 onClick={() => setIsOpen(!isOpen)}
                 className={`relative rounded-2xl border p-2 transition-all ${
                     unreadCount > 0
@@ -140,6 +157,9 @@ const NotificationDropdown = () => {
                         : 'border-transparent hover:bg-white/10'
                 }`}
                 aria-label="Notifications"
+                aria-expanded={isOpen}
+                aria-haspopup="dialog"
+                aria-controls={isOpen ? 'notification-dropdown-panel' : undefined}
                 title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
             >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -160,7 +180,12 @@ const NotificationDropdown = () => {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 z-50 mt-3 w-[calc(100vw-2rem)] max-w-80 origin-top-right animate-fadeIn overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800 md:max-w-96">
+                <div
+                    id="notification-dropdown-panel"
+                    role="dialog"
+                    aria-label="Notifications"
+                    className="absolute right-0 z-50 mt-3 w-[calc(100vw-2rem)] max-w-80 origin-top-right animate-fadeIn overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-gray-800 md:max-w-96"
+                >
                     <div className="p-4 flex items-center justify-between sticky top-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm z-10">
                         <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                         {unreadCount > 0 && (

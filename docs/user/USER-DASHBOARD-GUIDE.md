@@ -179,6 +179,23 @@ Once a property is selected from a broker shortlist or another active journey, t
 - your contract and payment state
 - the linked fast-track case
 
+## Bookings, Viewings, Documents, and Support
+
+### When booking guidance matters
+Use booking guidance when a viewing has moved into a reservation, appointment confirmation, cancellation, or handover step. Bookings should stay tied to the same selected property and fast-track case.
+
+### Route and evidence checklist
+| Need | Route | What to confirm |
+| --- | --- | --- |
+| Booking or reservation status | [/user/bookings](/user/bookings) | The booking belongs to the active property and shows the current status before you act. |
+| Viewing appointment | [/user/dashboard/viewings](/user/dashboard/viewings) | The date, time, property, and manager response match the live case. |
+| Document evidence | [/user/dashboard/docs](/user/dashboard/docs) | Uploaded files are attached to the right case and do not replace the fast-track next step. |
+| Profile readiness | [/user/dashboard/profile](/user/dashboard/profile) | Your contact, verification, and identity details are current before applications or bookings move forward. |
+| Human support | [/user/dashboard/help](/user/dashboard/help) | Use support when booking, document, payment, or contract state is wrong or unclear. |
+
+### Long-link wrapping fixture
+External guidance links should wrap safely inside the docs body, including long URLs such as [Estospaces booking support reference](https://support.estospaces.com/articles/user-bookings-viewings-documents-support-reference-with-a-very-long-slug-that-must-wrap-inside-the-dashboard-docs-layout-without-horizontal-overflow).
+
 ## Messages, Notifications, and Help
 
 ### Where these live
