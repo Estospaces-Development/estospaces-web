@@ -1,246 +1,180 @@
-Estospaces gives users one connected dashboard for search, live broker help, active property tracking, and support. This guide is focused on the current user dashboard, the redesigned Fast-track 24h workspace, and the linked routes that now stay tied to one case.
+Estospaces helps users move from property discovery to one active property journey. This guide explains the current user dashboard in plain language: where to start, how search connects to Fast Track, how documents and the case file work, and when to use messages or support.
 
-Use it whenever you need to answer three questions fast: what can I do from here, what is my active property journey, and where should I go next.
+Use this guide when onboarding, testing, supporting users, or checking whether the user dashboard flow is behaving correctly.
 
-> The best user habit on Estospaces is to start from the dashboard, confirm the active property and active stage, and only then move into the next task.
+> Treat the dashboard as the user's home base. Search can start anywhere, but once a property is selected, Fast Track and the linked case context should become the center of the journey.
 
-## User Dashboard Overview
+## Start Here
 
-### Where to start
+### Who this is for
+Users who want to buy, rent, compare, shortlist, or progress a property journey.
+
+### What it is
+This is the orientation section for the current user experience. It explains the dashboard as one connected journey instead of a set of separate pages.
+
+### Where to go in the app
 - Dashboard: [/user/dashboard](/user/dashboard)
-- Fast-track 24h: [/user/dashboard/fast-track](/user/dashboard/fast-track)
-- Full search: [/user/search](/user/search)
-- Saved properties: [/user/saved](/user/saved)
-- Docs: [/user/docs](/user/docs)
-
-### What the dashboard shows
-- your greeting and profile completion state
-- the large hero search area
-- quick filters and a link to full search
-- the live broker request workspace
-- shortcut cards for buy, rent, and saved properties
-- the Real-Time Tracking module
-- the nearby properties map
-- the active Fast-track 24h case when a property is already in motion
-
-### Start-of-session checklist
-1. Open the dashboard first.
-2. Check whether you have an active broker request, fast-track case, or application.
-3. Confirm which property is currently active before uploading documents or agreeing to next steps.
-4. Use search or saved properties only after you know whether a live case already needs attention.
-
-## Search, Quick Filters, and Full Search
-
-### Where to work
-- Dashboard search: [/user/dashboard](/user/dashboard)
-- Buy discovery: [/user/dashboard/discover?type=buy](/user/dashboard/discover?type=buy)
-- Rent discovery: [/user/dashboard/discover?type=rent](/user/dashboard/discover?type=rent)
-- Full search: [/user/search](/user/search)
-
-### What the dashboard search does
-The hero search lets you search directly from the dashboard and then switches the page into a filtered-results view when you apply criteria.
-
-### Which quick filters exist
-- Recently Added
-- Most Viewed
-- High Demand
-- Budget Friendly
-
-### What happens when filters are active
-The dashboard temporarily swaps the overview widgets for property results. Use `Clear Results` when you want to return to the full dashboard view.
-
-### When to use full search
-Use [/user/search](/user/search) when the dashboard search is too narrow and you want broader filtering, repeat searches, or a wider property workflow.
-
-## Buy, Rent, Saved, and Property Discovery
-
-### What the shortcut cards are for
-The shortcut cards under the broker workspace are the fastest way to move into the main browsing flows:
-- Buy Property
-- Rent Property
-- Saved
-
-### Which routes they open
-- Buy: [/user/dashboard/discover?type=buy](/user/dashboard/discover?type=buy)
-- Rent: [/user/dashboard/discover?type=rent](/user/dashboard/discover?type=rent)
-- Saved: [/user/saved](/user/saved)
-
-### How to use them well
-- browse broadly at the beginning
-- save only realistic options
-- narrow quickly once your budget, area, and timing are clear
-- do not lose track of an already active live case while browsing
-
-## Live Broker Request Workspace
-
-### What it is
-The broker request workspace is the user-side live dispatch panel for asking a manager or broker to help.
-
-### Where it lives
-- Dashboard: [/user/dashboard](/user/dashboard)
-- Messages after matching: [/user/dashboard/messages](/user/dashboard/messages)
-
-### What you can do there
-- create a live request
-- set location, postcode, budget, and requirements
-- see nearby brokers ranked for live dispatch
-- track the 10-minute response window
-- refresh, rematch, or start another request
-- choose a shared property once a broker is matched
-
-### What the 10-minute window means
-It is the live response stage only. It does not mean your full home journey ends in 10 minutes. It means the broker-matching step is time-boxed.
-
-### What happens after a broker matches
-The same workspace becomes the place where you review the broker's shortlist, open the conversation, and choose one property to start the next stage.
-
-## Fast-track 24h Workspace
-
-### What it is
-The Fast-track 24h workspace is now the main live case workspace after a property is selected. It keeps the case rail, mandatory stepper, current stage, current focus, and utility dock together on one page.
-
-### Where to work
-- Fast-track workspace: [/user/dashboard/fast-track](/user/dashboard/fast-track)
-- Messages companion route: [/user/dashboard/messages](/user/dashboard/messages)
-- Viewings companion route: [/user/dashboard/viewings](/user/dashboard/viewings)
-- Contracts companion route: [/user/dashboard/contracts](/user/dashboard/contracts)
-
-### What stays mandatory there
-- the selected case
-- the current stage and focus
-- the 24-hour timer
-- the stage stepper
-- the active stage work area
-
-### What is customizable there
-- case rail collapsed state
-- utility dock tab visibility and order
-- the default utility module
-- layout density for the secondary tools
-
-### What the utility dock is for
-Use the utility dock for secondary tools like core files, preview, case chat, activity, and connected records. It supports the workflow, but it does not replace the main stage work area.
-
-## Real-Time Tracking
-
-### What it is
-The Real-Time Tracking module is the dashboard area that shows active applications, live broker requests, sale progress, and listing-related journey updates.
-
-### What the tabs mean
-- `My Applications` shows active journey progress.
-- `My Listings` shows tracked listing-side progress where relevant.
-
-### What it helps you answer
-- what stage the journey is in
-- what step number you are on
-- what changed recently
-- which page should be opened next
-
-### How to use it
-Open the expanded item when you need the current stage, the timeline, and the primary action for that journey.
-
-## Nearby Map and Property Review
-
-### What it is
-When the dashboard is in its normal overview mode, it shows a nearby properties map so you can review properties visually and open details quickly.
-
-### Where to work
-- Dashboard map: [/user/dashboard](/user/dashboard)
-- Property details open from the cards and map results
-
-### How to use it well
-- use the map for context, not only for browsing volume
-- open details before treating a property as a serious option
-- compare the mapped result with your saved and active journey context
-
-## Active Journey After Property Selection
-
-### What changes when you choose a property
-Once a property is selected from a broker shortlist or another active journey, that property becomes the center of the next workflow.
-
-### Which routes usually matter next
-- Fast-track: [/user/dashboard/fast-track](/user/dashboard/fast-track)
+- Search: [/user/search](/user/search)
+- Discover buy or rent: [/user/dashboard/discover](/user/dashboard/discover)
+- Saved homes: [/user/saved](/user/saved)
+- Fast Track: [/user/dashboard/fast-track](/user/dashboard/fast-track)
 - Case file: [/user/dashboard/case-file](/user/dashboard/case-file)
-- Viewings: [/user/dashboard/viewings](/user/dashboard/viewings)
-- Contracts: [/user/dashboard/contracts](/user/dashboard/contracts)
-- Payments: [/user/dashboard/payments](/user/dashboard/payments)
-
-### Which route owns what now
-- Fast-track owns the workflow stage and the next required step.
-- Applications, viewings, and contracts act as linked companion pages and should stay in sync with the same case.
-- Messages keep the case-specific thread tied to the same selected property.
-- Case file is support context only. It is no longer the route where you continue the workflow.
-
-### What should stay aligned
-- the selected property
-- your messages
-- your documents
-- your next appointment
-- your contract and payment state
-- the linked fast-track case
-
-## Bookings, Viewings, Documents, and Support
-
-### When booking guidance matters
-Use booking guidance when a viewing has moved into a reservation, appointment confirmation, cancellation, or handover step. Bookings should stay tied to the same selected property and fast-track case.
-
-### Route and evidence checklist
-| Need | Route | What to confirm |
-| --- | --- | --- |
-| Booking or reservation status | [/user/bookings](/user/bookings) | The booking belongs to the active property and shows the current status before you act. |
-| Viewing appointment | [/user/dashboard/viewings](/user/dashboard/viewings) | The date, time, property, and manager response match the live case. |
-| Document evidence | [/user/dashboard/docs](/user/dashboard/docs) | Uploaded files are attached to the right case and do not replace the fast-track next step. |
-| Profile readiness | [/user/dashboard/profile](/user/dashboard/profile) | Your contact, verification, and identity details are current before applications or bookings move forward. |
-| Human support | [/user/dashboard/help](/user/dashboard/help) | Use support when booking, document, payment, or contract state is wrong or unclear. |
-
-### Long-link wrapping fixture
-External guidance links should wrap safely inside the docs body, including long URLs such as [Estospaces booking support reference](https://support.estospaces.com/articles/user-bookings-viewings-documents-support-reference-with-a-very-long-slug-that-must-wrap-inside-the-dashboard-docs-layout-without-horizontal-overflow).
-
-## Messages, Notifications, and Help
-
-### Where these live
 - Messages: [/user/dashboard/messages](/user/dashboard/messages)
-- Notifications: [/user/dashboard/notifications](/user/dashboard/notifications)
-- Help & Support: [/user/dashboard/help](/user/dashboard/help)
+- Help and support: [/user/dashboard/help](/user/dashboard/help)
 
-### How to use them
-Use messages for live coordination, notifications to spot changes, and Help & Support when the app state needs a human review instead of another guess.
+### Why it matters
+Most confusion happens when users treat browsing, documents, messages, and applications as separate tasks. The current product works best when one selected property becomes the center of the journey.
 
-### When to contact support
-Contact support if the live case looks wrong, a document step is blocked, a contract or payment looks mismatched, or the active property context seems incorrect.
+### Current journey in one table
 
-## Case File and Support Context
+| Stage | What the user does | Main area | Success signal |
+| --- | --- | --- | --- |
+| Explore | Search, filter, and save homes | Search, Discover, Saved homes | A realistic shortlist exists |
+| Decide | Open property detail and choose whether to act | Property detail | One property is serious enough |
+| Request help | Ask for manager help or start Fast Track | Broker request, Fast Track | A manager or workflow owns the next step |
+| Prepare | Upload or reuse documents | Virtual Storage, Case file | Required evidence is ready |
+| Coordinate | Confirm messages and viewings | Messages, Viewings, Notifications | Everyone knows the next action |
+| Progress | Move through Fast Track and applications | Fast Track, Applications | The selected case keeps moving |
+| Resolve | Ask for help when state is unclear | Help and support | The blocker is reviewed or routed |
 
-### What the shared case file is for
-The shared case file is now a support and reference route. Use it for overview context, documents, tasks, activity, and quick links back into fast-track.
+## Dashboard Map
 
-### What it is not for
-Do not treat the case file as the workflow owner. If you need to continue documents, viewing, decision, agreement, or handover, go back to Fast-track 24h.
+### What it is
+The dashboard is the user's operating center. It answers: what is active, what changed, what needs me, and where should I go next?
 
-## Profile, Settings, Reviews, and Overseas
+### Main areas
 
-### Where these routes live
-- Profile: [/user/dashboard/profile](/user/dashboard/profile)
-- Settings: [/user/dashboard/settings](/user/dashboard/settings)
-- Reviews: [/user/dashboard/reviews](/user/dashboard/reviews)
-- Overseas: [/user/dashboard/overseas](/user/dashboard/overseas)
+| Area | Purpose | When to use it |
+| --- | --- | --- |
+| [/user/dashboard](/user/dashboard) | Main overview and active journey tracking | Start every user session here |
+| [/user/search](/user/search) | Full property search | When the user wants broad filtering |
+| [/user/dashboard/discover](/user/dashboard/discover) | Buy and rent discovery shortcuts | When starting from the dashboard |
+| [/user/saved](/user/saved) | Saved and revisitable properties | When comparing options |
+| [/user/properties/:id](/user/properties/:id) | Property detail | Before starting serious action |
+| [/user/dashboard/fast-track](/user/dashboard/fast-track) | Active selected-property journey | After selection or fast-track start |
+| [/user/dashboard/case-file](/user/dashboard/case-file) | Shared case record | For documents, requests, and journey context |
+| [/user/virtual-storage](/user/virtual-storage) | Private reusable document storage | Before or during document requests |
+| [/user/applications](/user/applications) | Application progress | Once the journey becomes formal |
+| [/user/dashboard/viewings](/user/dashboard/viewings) | Viewing coordination | When a visit or appointment is proposed |
+| [/user/dashboard/contracts](/user/dashboard/contracts) | Contract status and review | Near formal commitment |
+| [/user/dashboard/messages](/user/dashboard/messages) | Case and manager communication | When a decision or clarification is needed |
+| [/user/dashboard/notifications](/user/dashboard/notifications) | Change alerts | When the app says something changed |
+| [/user/dashboard/reviews](/user/dashboard/reviews) | Review and feedback management | After a property or journey experience |
+| [/user/dashboard/overseas](/user/dashboard/overseas) | International discovery support | When the search is outside the normal local flow |
+| [/user/dashboard/profile](/user/dashboard/profile) | User identity and contact details | Before documents, applications, or contracts |
+| [/user/dashboard/settings](/user/dashboard/settings) | Account preferences | When changing notification or account behavior |
+| [/user/dashboard/help](/user/dashboard/help) | Support and issue recovery | When the current state is unclear |
 
-### What they are for
-These routes support the dashboard journey rather than replace it. Profile and settings protect readiness. Reviews and Overseas are specialist tools for feedback and international search support.
+### Best habit
+Start at the dashboard, then open the active journey card before browsing unrelated pages.
 
-## Common User Scenarios
+## Search And Property Choice
 
-### What if I see filtered results instead of the normal dashboard
-You likely used the search bar or a quick filter. Clear the results to return to the standard dashboard layout.
+### What it is
+Search, discover, saved homes, and property detail help the user move from many possible homes to one serious property.
 
-### What if no broker accepts in time
-The live request expired without a match. Retry, change the brief, or continue browsing instead of waiting in uncertainty.
+### Why it exists
+Good discovery reduces weak applications, wasted viewings, and unclear manager requests.
 
-### What if I selected the wrong property
-Stop and confirm the active property through your dashboard and messages before uploading more documents or moving into contract or payment steps.
+### How it works
+1. The user searches by location, property type, budget, and needs.
+2. The user saves realistic options.
+3. The user opens property detail for serious options.
+4. The user either continues browsing, asks for manager help, or starts Fast Track.
 
-### What if messages stop moving
-Check the active stage, notifications, and Help & Support before assuming the journey is still progressing.
+### Property detail decision questions
+- Does the location fit?
+- Does the price fit?
+- Is the property type right?
+- Is the timing realistic?
+- Would the user be comfortable progressing this property?
 
-### What is the best user rule to remember
-Start from the dashboard, confirm the active property and active stage, then take the next step from Fast-track unless the companion page clearly owns only that one manual action.
+### Example
+A user searches for a rental home, saves three options, opens the strongest property detail page, and starts Fast Track only after confirming the property is realistic.
+
+## Broker Request And Fast Track
+
+### What broker request is
+Broker request is the live help path where a user asks for manager support. It is useful when the user wants a fast human response or a curated shortlist.
+
+### What Fast Track is
+Fast Track is the active selected-property journey. It keeps the current focus, required actions, files, case activity, and linked workspaces together.
+
+### Why they exist
+The product needs a clear moment where browsing becomes action. Broker request helps users get help. Fast Track helps everyone work from one selected property.
+
+### How the 10-minute response fits
+The 10-minute response window makes urgency visible. The user should not wait without knowing whether a manager has responded.
+
+### How Fast Track changes the journey
+- One property becomes the focus.
+- Documents matter more.
+- Messages become operational.
+- The next milestone becomes easier to identify.
+- Applications, viewings, contracts, and case file context stay linked.
+
+### Example
+A user starts Fast Track for a flat. The manager responds, requests address proof, schedules a viewing, and the user tracks every step from the same journey workspace.
+
+## Documents, Case File, And Applications
+
+### What Virtual Storage is
+Virtual Storage is the user's private reusable document vault. It helps the user prepare identity, address, income, or other readiness documents before a live case needs them.
+
+### What the case file is
+The case file is the shared journey record for one selected property. It keeps document requests, uploaded files, activity, and case context together.
+
+### What applications are
+Applications are the formal progression stage after interest becomes serious. They use the selected property and readiness context from the active journey.
+
+### Why this matters
+Document confusion is one of the fastest ways to slow a property journey. The current product should make it clear what is needed, why it is needed, and where the user should upload it.
+
+### Common document purposes
+
+| Purpose | Examples | Why it matters |
+| --- | --- | --- |
+| Identity | Passport, ID card, licence | Confirms who is progressing |
+| Address | Utility bill, bank statement, official letter | Supports residency or correspondence checks |
+| Financial readiness | Payslips, employment proof, bank evidence | Shows ability to proceed |
+| Journey support | References, declarations, requested forms | Supports the active application or review |
+
+### Example
+A manager requests address proof. The user opens the case file, uploads the document from Virtual Storage, and the request status updates inside the same active journey.
+
+## Contracts, Messages, Notifications, And Support
+
+### Contracts
+Contracts are the formal commitment surface. Users should review contract context carefully and confirm it belongs to the correct selected property and journey.
+
+### Messages
+Messages are for written coordination. Users should use messages to confirm dates, document questions, and next actions.
+
+### Notifications
+Notifications tell the user that something changed. Important notifications should lead the user back to the linked workspace, not be treated as the whole task.
+
+### Support
+Support is the recovery path for unclear or blocked journeys. Users should use support when the app state, document status, property link, application, viewing, or contract context looks wrong.
+
+### Example
+A user receives a notification that a document was requested. They open the linked Fast Track case, upload the document, and message the manager only if the request needs clarification.
+
+## User Troubleshooting
+
+### What if the broker request expires?
+Retry with a clearer brief, continue browsing, or use support if the request state looks inconsistent.
+
+### What if the manager shares no suitable properties?
+Use messages to clarify the brief and ask for a better shortlist. Do not select a property just to move forward.
+
+### What if the wrong property is selected?
+Stop and confirm the active journey through dashboard, messages, and support before uploading more documents or progressing further.
+
+### What if documents are missing?
+Tell the manager what is missing, when it can be provided, and whether a substitute exists.
+
+### What if the contract looks wrong?
+Pause and verify through messages or support. Do not continue if the property, status, or details look mismatched.
+
+### Best user rule
+When confused, ask: which property is active, what is the next action, and who owns it?

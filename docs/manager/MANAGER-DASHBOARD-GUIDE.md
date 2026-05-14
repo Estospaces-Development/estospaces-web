@@ -1,253 +1,215 @@
-Estospaces gives managers one working dashboard for live response, shortlist sharing, fast-track follow-through, and property operations. This guide is focused on the current manager workspace, the redesigned Fast Track 24h flow, and the routes you actually open during the day.
+Estospaces gives managers one operating workspace for readiness, property inventory, live response, shortlist sharing, Fast Track progression, documents, appointments, applications, contracts, messages, analytics, and support. This guide explains the current manager dashboard in plain language for onboarding, QA, support, operations, and product review.
 
-Use it to answer three questions fast: what is live, what is blocked, and which route owns the next action.
+Use this guide when checking whether a manager can understand what to do next and whether the active case is moving through the correct current product surface.
 
-> The best manager habit on Estospaces is to keep every active case tied to one real property, one real client context, and one real next step.
+> Managers succeed fastest when they respond only when they can follow through, share only suitable live properties, and keep every selected-property case tied to one clear next action.
 
-## Manager Dashboard Overview
+## Start Here
 
-### Where to start
+### Who this is for
+Managers, brokers, agents, and property operators using the manager dashboard.
+
+### What it is
+This is the orientation section for the current manager experience. The manager dashboard is not only a property list. It is the operating center for live response and active case progression.
+
+### Where to work in the app
 - Dashboard: [/manager/dashboard](/manager/dashboard)
 - Leads and clients: [/manager/leads](/manager/leads)
 - Properties: [/manager/dashboard/properties](/manager/dashboard/properties)
-- Fast Track 24h: [/manager/fast-track](/manager/fast-track)
-
-### What the overview page shows
-- KPI cards for revenue, listings, views, and conversion
-- a top tab bar for overview, properties, leads, applications, and analytics
-- the Live Response Tracker
-- the Fast Track 24h lane
-- recent activity and top properties
-- the Your Properties workspace with search, filters, and pagination
-- the routes that now mirror linked fast-track case state instead of owning separate workflow truth
-
-### Start-of-session checklist
-1. Confirm your verification and profile are usable.
-2. Decide whether live response should be on or off.
-3. Review pending requests in the Live Response Tracker.
-4. Check Fast Track 24h for closing-soon or overdue cases.
-5. Confirm your live inventory before promising options.
-
-## Tabs, Routes, and Navigation
-
-### What the dashboard tabs do
-
-| Tab | Route | Use it for |
-| --- | --- | --- |
-| Overview | [/manager/dashboard](/manager/dashboard) | Daily command view |
-| Properties | [/manager/dashboard/properties](/manager/dashboard/properties) | Inventory work |
-| Leads | [/manager/leads](/manager/leads) | Intake and matched clients |
-| Application | [/manager/applications](/manager/applications) | Formal active progression |
-| Analytics | [/manager/analytics](/manager/analytics) | Performance review |
-
-### What the sidebar covers
-- Dashboard
-- Fast Track 24h
-- Properties
-- Leads & Clients
-- User Verifications
-- Applications
-- Contracts
-- Appointments
-- Messages
-- Analytics
-- Billing
-
-### What the footer links are for
-- Verification: [/manager/verification](/manager/verification)
-- Profile: [/manager/profile](/manager/profile)
-- Docs: [/manager/docs](/manager/docs)
-- Help & Support: [/manager/help](/manager/help)
-
-## Live Response Tracker
-
-### What it is
-The Live Response Tracker is the manager's intake desk for live broker dispatch and matched client workspaces.
-
-### What you can do there
-- turn live availability on or off
-- review pending requests
-- accept an offer or respond to a lead
-- open the matched workspace
-- rank and share shortlisted properties directly from the dashboard
-
-### How to use it well
-1. Go live only when you can follow through after acceptance.
-2. Read the brief before responding.
-3. Accept only requests that fit your area, inventory, and capacity.
-4. Move into shortlist sharing quickly once matched.
-
-### What the countdown means
-The user journey is built around a 10-minute live dispatch window. If the request is expired or inactive, stop treating it as live intake and move to the active workspace, fast-track case, or support path instead.
-
-## Matched Workspaces and Shortlist Sharing
-
-### Where to work
-- Leads and clients: [/manager/leads](/manager/leads)
-- Properties: [/manager/dashboard/properties](/manager/dashboard/properties)
-- Messages: [/manager/messages](/manager/messages)
-
-### How shortlist sharing works
-Select from your live inventory, rank the chosen properties, and share them into the matched workspace. The ranking matters because the user reads it as a recommendation, not as a dump of listings.
-
-### Which properties should be shared
-- live
-- relevant to the brief
-- actually available
-- strong enough that you can defend why they were chosen
-
-### Which properties should not be shared
-- draft listings
-- pending approval listings unless the platform explicitly allows it
-- rejected listings
-- sold or rented listings
-- anything you already know is unavailable
-
-## Fast Track 24h Lane
-
-### What it is
-The Fast Track 24h module is the live queue for selected-property cases that now need close follow-through. It opens the main workflow workspace, not a summary-only lane.
-
-### Where it lives
-- Dashboard: [/manager/dashboard](/manager/dashboard)
-- Full queue: [/manager/fast-track](/manager/fast-track)
-
-### What the dashboard lane shows
-- active cases
-- closing-soon cases
-- completed cases
-- the latest case cards with a short status summary
-
-### What to do there
-- open the full queue
-- use the redesigned workspace to work stage by stage
-- review the next required action before the case goes overdue
-- keep case chat, file review, preview, and activity in the utility dock instead of jumping across routes
-
-### What the redesigned workspace now keeps together
-- a denser case rail with search, filters, and pagination
-- the current case masthead with timer, stage, and focus
-- the mandatory workflow stepper
-- the active stage work area
-- the utility dock for files, preview, case chat, activity, and connected records
-
-## Companion Routes for Live Cases
-
-### Which routes are companions now
+- Fast Track: [/manager/fast-track](/manager/fast-track)
+- Case files: [/manager/case-files](/manager/case-files)
 - Applications: [/manager/applications](/manager/applications)
 - Appointments: [/manager/appointments](/manager/appointments)
 - Contracts: [/manager/contracts](/manager/contracts)
 - Messages: [/manager/messages](/manager/messages)
-
-### How they should be used
-- Applications should handle linked decision-stage work.
-- Appointments should handle linked viewing-stage work.
-- Contracts should handle linked agreement, payment, and handover work.
-- Messages should keep the case-specific thread clear.
-
-### What remains the workflow owner
-Fast Track 24h remains the workflow owner. Companion routes can still perform their relevant manual actions, but they should reflect the linked fast-track case rather than diverge from it.
-
-## Your Properties Workspace
-
-### What it is
-The Your Properties section is the fast inventory panel for searching, filtering, and jumping into the full property workspace.
-
-### Where it lives
-- Dashboard panel: [/manager/dashboard](/manager/dashboard)
-- Full workspace: [/manager/dashboard/properties](/manager/dashboard/properties)
-- Add property: [/manager/dashboard/properties/add](/manager/dashboard/properties/add)
-
-### What you can do from the dashboard panel
-- search by title, city, or description
-- filter by property type
-- filter by status
-- page through inventory
-- open or edit a property
-- jump into the full workspace
-- add a new property
-
-### Which statuses matter most
-
-| Status | Meaning | Operating rule |
-| --- | --- | --- |
-| Draft | Not ready for review or sharing | Finish preparation first |
-| Pending approval | Submitted and waiting for review | Do not assume it is shareable |
-| Published / Active / Online | Live in the platform flow | Safe candidates for shortlist review |
-| Sold / Rented | No longer available | Remove from active recommendation thinking |
-| Rejected | Needs correction before approval | Fix before re-submitting |
-
-## Verification, Profile, and User Readiness
-
-### Where to work
-- Verification: [/manager/verification](/manager/verification)
-- Profile: [/manager/profile](/manager/profile)
-- User verifications: [/manager/user-verifications](/manager/user-verifications)
+- Analytics: [/manager/analytics](/manager/analytics)
+- Help and support: [/manager/help](/manager/help)
 
 ### Why it matters
-If your own verification is incomplete, live dispatch or publishing can be limited. If the user's documents are incomplete, the case can stall later even when your shortlist was good.
+Manager work affects user trust immediately. A slow response, weak shortlist, stale property, vague document request, or unclear appointment can stall the whole journey.
 
-### What the Estospaces Team may review
-- manager identity and readiness
-- property publication readiness
-- user document quality
-- compliance-sensitive progression checkpoints
+### Current manager journey in one table
 
-## Messages, Appointments, Applications, Contracts, and Billing
+| Stage | What the manager does | Main area | Success signal |
+| --- | --- | --- | --- |
+| Prepare | Complete profile and verification readiness | Dashboard, Profile, Verification | Manager is operational |
+| Publish | Create and maintain accurate listings | Properties | Inventory is live and shareable |
+| Respond | Accept suitable user requests quickly | Leads, 10-minute response | User gets a clear response |
+| Recommend | Share a relevant shortlist | Matched workspace, Properties | User can choose a property |
+| Progress | Manage selected-property case work | Fast Track, Case files, Messages | The active case keeps moving |
+| Formalize | Coordinate applications, appointments, and contracts | Applications, Appointments, Contracts | Late-stage work stays aligned |
+| Improve | Review performance and escalate blockers | Analytics, Help | Manager improves and stuck cases are routed |
 
-### Where these routes live
-- Messages: [/manager/messages](/manager/messages)
-- Appointments: [/manager/appointments](/manager/appointments)
-- Applications: [/manager/applications](/manager/applications)
-- Case files: [/manager/case-files](/manager/case-files)
-- Contracts: [/manager/contracts](/manager/contracts)
-- Billing: [/manager/billing](/manager/billing)
+## Manager Dashboard Map
 
-### How to use them together
-Use messages to keep the record clear, appointments to handle timing, applications to handle formal decision work, contracts to handle agreement and handover work, and billing to verify financial state. For the main workflow view, return to Fast Track 24h.
+### What it is
+The dashboard is the manager command center. It shows readiness, live work, active case pressure, and links into the current operating routes.
 
-### What should always stay aligned
-- the selected property
-- the active client
-- the current stage
-- the next requested document or action
-- the linked fast-track case
+### Main areas
 
-## Case File and Support Context
+| Area | Purpose | When to use it |
+| --- | --- | --- |
+| [/manager/dashboard](/manager/dashboard) | Work overview and status widgets | Start every manager session here |
+| [/manager/profile](/manager/profile) | Manager identity and account details | Before operating or after profile changes |
+| [/manager/verification](/manager/verification) | Manager verification readiness | Before publishing or receiving serious work |
+| [/manager/user-verifications](/manager/user-verifications) | User readiness touchpoints | When user documents affect progress |
+| [/manager/dashboard/properties](/manager/dashboard/properties) | Property inventory | Create, edit, submit, or review listings |
+| [/manager/leads](/manager/leads) | Incoming demand and client pipeline | Handle live requests and matched workspaces |
+| [/manager/clients](/manager/clients) | Searchable client list | Reconnect name, status, and active context |
+| [/manager/fast-track](/manager/fast-track) | Active selected-property cases | Progress cases that need close follow-through |
+| [/manager/case-files](/manager/case-files) | Shared evidence and case history | Review documents, requests, and activity |
+| [/manager/messages](/manager/messages) | Written client coordination | Confirm next actions and clarify blockers |
+| [/manager/appointments](/manager/appointments) | Viewing and schedule coordination | Confirm or adjust appointments |
+| [/manager/applications](/manager/applications) | Formal application tracking | Review progress after user intent becomes formal |
+| [/manager/contracts](/manager/contracts) | Contract status and late-stage context | Confirm contract readiness and linkage |
+| [/manager/notifications](/manager/notifications) | Work triage inbox | Open linked leads, documents, messages, or cases |
+| [/manager/analytics](/manager/analytics) | Performance and activity insight | Review response quality and operational patterns |
+| [/manager/community](/manager/community) | Broader manager coordination | Share relevant operational context |
+| [/manager/help](/manager/help) | Support and escalation | Route blockers that need platform help |
 
-### What case file is for now
-Case file is support context only. Use it for overview, activity, quick links, and supporting documents around the case.
+### Best habit
+Open the dashboard first, then prioritize readiness, live response, Fast Track, and inventory before lower-urgency work.
 
-### What it should not be used for
-Do not treat case file as the place where the live workflow continues. When the case needs documents, viewing, decision, agreement, payment, or handover work, return to Fast Track 24h or the correct companion route.
+## Readiness And Verification
 
-## Analytics, Notifications, Docs, and Support
+### What it is
+Readiness is the trust layer that controls whether a manager is prepared to operate. It includes profile quality, manager verification, and user verification touchpoints.
 
-### Where these live
-- Analytics: [/manager/analytics](/manager/analytics)
-- Notifications: [/manager/notifications](/manager/notifications)
-- Docs: [/manager/docs](/manager/docs)
-- Help & Support: [/manager/help](/manager/help)
+### Why it exists
+Managers handle properties, users, documents, viewings, applications, and contracts. The platform needs enough trust context before serious activity continues.
+
+### Manager readiness checklist
+- Profile details are accurate.
+- Verification status is understood.
+- Contact details are current.
+- Property inventory is accurate.
+- The manager is available only when they can respond.
+
+### User verification touchpoints
+User readiness matters when documents, identity, or case evidence affect the next milestone. Managers should ask for exact documents, not vague proof.
+
+### Example
+A manager sees that a user has uploaded identity but not address proof. The manager requests address proof from the case file instead of sending a generic message.
+
+## Property Inventory
+
+### What it is
+Property inventory is the manager's listing workspace. It covers property creation, editing, status review, and shareability.
+
+### Why it exists
+Users should only see and receive properties that are accurate, available, and suitable.
+
+### Current property states to understand
+
+| State | Meaning | Usually shareable? |
+| --- | --- | --- |
+| Draft | Still being prepared | No |
+| Pending approval | Submitted for review | No |
+| Published or active | Live on the platform | Yes |
+| Sold or rented | No longer available | No |
+| Rejected | Not approved in its current form | No |
+
+### How to manage inventory well
+1. Confirm availability before sharing.
+2. Keep pricing and description current.
+3. Upload relevant media.
+4. Submit only when review-ready.
+5. Remove or update stale listings quickly.
+
+### Example
+A manager updates a property's status after it is rented so it does not appear in a user's shortlist.
+
+## Leads, Shortlists, And 10-Minute Response
+
+### What leads are
+Leads are manager-visible user demand. A lead may come from a broker request, property interest, or active journey context.
+
+### What the 10-minute response means
+The live response window makes speed visible. Managers should respond only when they can actually follow through.
+
+### What a matched workspace is
+The matched workspace is where a live response becomes useful help. It is where managers review the user's brief and share relevant properties.
+
+### How to handle the live window
+1. Go available only when ready.
+2. Read the user brief.
+3. Accept only if the request fits your area, inventory, and capacity.
+4. Message quickly after accepting.
+5. Share a focused shortlist from live inventory.
+
+### Shortlist quality rule
+A good shortlist is curated. Relevance matters more than volume.
+
+### Example
+A manager receives a request for a two-bed rental, accepts with five minutes left, shares two suitable live properties, and explains which one best matches the user's timeline.
+
+## Fast Track, Case Files, And Documents
+
+### What Fast Track is
+Fast Track is the manager's active selected-property execution workspace. It should show the current case focus, files, messages, activity, and linked next actions.
+
+### What the case file is
+The case file is the shared record for one selected property journey. It keeps documents, requests, activity, and case context together.
+
+### What document requests are
+Document requests are structured asks for exact evidence. They should be specific, timely, and linked to the active case.
+
+### Why this matters
+Fast Track loses value when managers treat it like a passive board. The manager should repeatedly review active cases and move the clearest next action.
+
+### How to operate this stage
+- Confirm the selected property.
+- Confirm who owns the next action.
+- Request only the documents needed now.
+- Review uploads in the case context.
+- Use messages to explain unclear requests.
+- Escalate when the blocker is platform review or inconsistent state.
+
+### Example
+A user uploads income proof. The manager opens the case file, sees the linked Fast Track case, and confirms whether the application can move forward.
+
+## Applications, Appointments, Contracts, And Support
+
+### Applications
+Applications are the formal review workspace after a user decides to move forward. They should stay linked to the selected property and active case.
+
+### Appointments
+Appointments coordinate viewings and schedule changes. Clear timing protects trust.
+
+### Contracts
+Contracts are the late-stage commitment workspace. Managers should confirm the contract belongs to the right property and case before asking a user to continue.
+
+### Support
+Support is the escalation path when normal manager actions cannot resolve a blocker.
 
 ### When to use support
-Use support when the blocker is not solvable by normal manager-side action, especially for approval delays, incorrect live states, verification issues, contract confusion, or billing mismatches.
+Use support for:
+- verification blockers
+- property review delays
+- incorrect live states
+- document confusion
+- case linkage issues
+- contract context mismatches
 
-## Common Manager Scenarios
+### Example
+A manager sees a contract workspace for the correct user but no linked contract yet. They return to Fast Track or applications to confirm the actual next action instead of asking the user to act blindly.
 
-### What if a property does not appear for shortlist sharing
-Check the actual listing status first. Draft, pending approval, rejected, sold, rented, or otherwise unavailable properties should not be treated as live shortlist options.
+## Manager Troubleshooting
 
-### What if the request is no longer active
-Stop repeating expired lead actions. Move to the matched workspace, the fast-track case, or support depending on the real current state.
+### What if a property does not appear in shortlist sharing?
+Check whether it is draft, pending approval, rejected, sold, rented, or otherwise not shareable.
 
-### What if the case feels stuck
-Check ownership in this order:
-1. property status
-2. request or fast-track status
-3. messages
-4. documents
-5. notifications
-6. support escalation
+### What if a lead is no longer active?
+Treat it as historical context. Move to the currently active matched workspace, Fast Track case, or support path.
 
-### What is the best manager rule to remember
-Keep every action anchored to the live state, the real property status, the linked fast-track case, and the next milestone. If any one of those is unclear, clarify first and act second.
+### What if the user cannot see the shortlist?
+Confirm the matched workspace, message thread, and selected property context. If the state is inconsistent, escalate with the exact user and case details.
+
+### What if documents are missing or poor quality?
+Ask for the exact replacement and explain why it is needed. Avoid vague requests like "send more documents."
+
+### What if the blocker is unclear?
+Check the active property, case file, messages, and notifications. If ownership is still unclear, use support.
+
+### Best manager rule
+When confused, ask: is this the right user, right property, right case, and right next action?

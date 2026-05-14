@@ -14,7 +14,7 @@ const userConfig: RoleDocsConfig = {
     subtitle:
         'Use this guide to understand the user dashboard as it exists today: hero search, buy and rent shortcuts, saved properties, the 10-minute broker request workspace, the redesigned 24-hour fast-track workspace, linked applications and contracts, and the routes that now own the next action.',
     audience: ['Buyers', 'Renters', 'Applicants', 'Fast-track users'],
-    searchPlaceholder: 'Search this guide for broker request, dashboard search, fast-track, saved properties, messages, or payments',
+    searchPlaceholder: 'Search this guide for broker request, dashboard search, fast-track, saved properties, documents, messages, or support',
     supportTitle: 'Need action, not just guidance?',
     supportDescription:
         'Use Help & Support whenever your case needs an actual response from the team, not just process guidance.',
@@ -89,9 +89,9 @@ const userConfig: RoleDocsConfig = {
                 'The request expired without a live match. Retry, change the brief, or continue browsing instead of waiting in uncertainty.',
         },
         {
-            question: 'Where should I go if a contract, payment, or document step looks wrong?',
+            question: 'Where should I go if a contract, document, or case step looks wrong?',
             answer:
-                'Open Messages or Help & Support when the live case needs a real review. Do not keep progressing if the wrong property, wrong amount, or wrong document state is shown.',
+                'Open Messages or Help & Support when the live case needs a real review. Do not keep progressing if the wrong property, contract context, or document state is shown.',
         },
     ],
     glossary: [
@@ -113,7 +113,7 @@ const userConfig: RoleDocsConfig = {
         {
             term: 'Selected property',
             definition:
-                'The property that now owns the active fast-track, documents, contracts, and payment journey.',
+                'The property that now owns the active fast-track, documents, applications, viewings, and contract journey.',
         },
         {
             term: 'Fast-track 24h',
@@ -123,7 +123,7 @@ const userConfig: RoleDocsConfig = {
         {
             term: 'Help & Support',
             definition:
-                'The support route you use when the app state, document flow, or contract and payment context needs human intervention.',
+                'The support route you use when the app state, document flow, case linkage, or contract context needs human intervention.',
         },
         {
             term: 'Companion pages',
@@ -141,7 +141,7 @@ const managerConfig: RoleDocsConfig = {
     subtitle:
         'Use this guide to understand the manager dashboard as it exists today: the KPI overview, tab routes, live response tracker, matched workspace shortlist sharing, the redesigned Fast Track 24h workspace, linked applications, appointments, contracts, readiness checks, and the routes that own ongoing client execution.',
     audience: ['Managers', 'Brokers', 'Property publishers', 'Fast-track operators'],
-    searchPlaceholder: 'Search this guide for live response, shortlist sharing, fast-track, properties, verification, or billing',
+    searchPlaceholder: 'Search this guide for live response, shortlist sharing, fast-track, properties, verification, documents, or support',
     supportTitle: 'Need platform support?',
     supportDescription:
         'Use Help & Support when a case, verification, listing, or compliance issue needs intervention from the team.',
@@ -218,7 +218,7 @@ const managerConfig: RoleDocsConfig = {
         {
             question: 'When should I escalate to support?',
             answer:
-                'Escalate when you are blocked by verification, document integrity, platform state, approval delays, payment questions, or contract issues that cannot be resolved by normal manager-side actions.',
+                'Escalate when you are blocked by verification, document integrity, platform state, approval delays, case linkage, or contract issues that cannot be resolved by normal manager-side actions.',
         },
     ],
     glossary: [
@@ -260,7 +260,7 @@ const managerConfig: RoleDocsConfig = {
         {
             term: 'Manager support',
             definition:
-                'The help route used when a case, listing, verification, billing, or contract issue needs platform intervention.',
+                'The help route used when a case, listing, verification, document, or contract issue needs platform intervention.',
         },
         {
             term: 'Utility dock',
