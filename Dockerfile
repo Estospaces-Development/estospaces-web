@@ -36,12 +36,14 @@ RUN npm run build
 # Production stage — serve static files with Nginx
 FROM nginx:alpine
 
+ARG NGINX_CONF=nginx.conf
+
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # SPA fallback — serve index.html for all routes
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
 
 EXPOSE 3000
 

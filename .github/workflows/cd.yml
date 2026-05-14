@@ -39,7 +39,12 @@ jobs:
       - name: Build and Push
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          NGINX_CONF="nginx.prod.conf"
+          if [ "${TARGET_ENV}" = "dev" ]; then
+            NGINX_CONF="nginx.gcp-dev.conf"
+          fi
           docker build \
+            --build-arg NGINX_CONF="$NGINX_CONF" \
             --build-arg VITE_CORE_SERVICE_URL=${{ vars.CORE_SERVICE_URL }} \
             --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.BOOKING_SERVICE_URL }} \
             --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.PAYMENT_SERVICE_URL }} \
