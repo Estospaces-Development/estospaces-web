@@ -15,8 +15,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
+import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
+import { toDiscoverNearbyMapProperties } from '@/lib/discoverMap';
 import {
     getCountryAwarePropertyGroups,
     getPriceBoundAdjustmentMessage,
@@ -28,6 +30,14 @@ import {
     normalizeSearchQueryInput,
     readSearchUrlFilters,
 } from '@/lib/propertySearchControls';
+import {
+    formatLaunchCurrency,
+    formatLaunchPropertyLocation,
+    formatLaunchPropertyText,
+    isValidLaunchPinCode,
+    LAUNCH_COUNTRY_CODE,
+    normalizeLaunchPinCode,
+} from '@/lib/launchLocale';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -105,7 +115,7 @@ const buildFilterOptionsFromProperties = (properties: SearchResult[]): FilterOpt
     for (const property of properties) {
         if (property.property_type) propertyTypes.add(property.property_type);
         if (property.listing_type) listingTypes.add(property.listing_type);
-        if (property.city) locations.add(property.city);
+        if (property.city) locations.add(formatLaunchPropertyLocation(property.city));
 
         const price = Number(property.price || 0);
         if (Number.isFinite(price) && price > 0) {
@@ -209,10 +219,15 @@ const buildSectionSuggestions = (properties: SearchResult[], query: string): Aut
     const seen = new Set<string>();
 
     for (const property of properties) {
+        const displayTitle = formatLaunchPropertyText(property.title);
+        const displayCity = formatLaunchPropertyLocation(property.city);
+        const displayPinCode = isValidLaunchPinCode(property.postcode)
+            ? normalizeLaunchPinCode(property.postcode)
+            : '';
         const candidates = ([
-            { id: property.id, text: property.title, title: property.title, city: property.city, type: 'property' },
-            { text: property.city, city: property.city, type: 'city' },
-            { text: property.postcode, city: property.city, type: 'postcode' },
+            { id: property.id, text: displayTitle, title: displayTitle, city: displayCity, type: 'property' },
+            { text: displayCity, city: displayCity, type: 'city' },
+            { text: displayPinCode, city: displayCity, type: 'postcode' },
         ] as AutocompleteSuggestion[]).filter((suggestion) => (
             suggestion.text && suggestion.text.toLowerCase().includes(normalizedQuery)
         ));
@@ -229,78 +244,6 @@ const buildSectionSuggestions = (properties: SearchResult[], query: string): Aut
     }
 
     return suggestions;
-};
-
-const StableDiscoveryMap = ({
-    houses,
-    onOpenProperty,
-    onStartFastTrack,
-}: {
-    houses: Array<{ id: string; title: string; price: string; address: string; lat?: number | null; lng?: number | null }>;
-    onOpenProperty: (property: { id: string }) => void;
-    onStartFastTrack: (property: { id: string }) => void;
-}) => {
-    return (
-        <div className="grid min-h-[520px] gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-800 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div
-                className="relative min-h-[360px] overflow-hidden rounded-xl border border-orange-100 bg-[linear-gradient(135deg,#f8fafc_0%,#e0f2fe_45%,#fef3c7_100%)] dark:border-orange-900/30 dark:bg-[linear-gradient(135deg,#0f172a_0%,#164e63_48%,#431407_100%)]"
-                aria-label="Property map preview"
-            >
-                <div className="absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(255,255,255,.55)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.55)_1px,transparent_1px)] [background-size:44px_44px] dark:opacity-20" />
-                {houses.length === 0 ? (
-                    <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium text-gray-600 dark:text-gray-200">
-                        No mapped properties match the current filters.
-                    </div>
-                ) : houses.map((house, index) => {
-                    const x = 14 + ((index * 23) % 70);
-                    const y = 16 + ((index * 31) % 66);
-                    return (
-                        <button
-                            key={house.id}
-                            type="button"
-                            aria-label={`Open ${house.title} on the map`}
-                            onClick={() => onOpenProperty(house)}
-                            className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg shadow-orange-900/20 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                            style={{ left: `${x}%`, top: `${y}%` }}
-                        >
-                            <MapPin size={18} />
-                        </button>
-                    );
-                })}
-            </div>
-
-            <div className="min-h-0 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/60">
-                <p className="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                    Map results
-                </p>
-                <div className="mt-3 space-y-3">
-                    {houses.map((house) => (
-                        <article key={house.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-950">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{house.title}</h3>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{house.address}</p>
-                            <p className="mt-2 text-sm font-bold text-orange-600 dark:text-orange-300">{house.price}</p>
-                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenProperty(house)}
-                                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:border-orange-300 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-orange-950/20"
-                                >
-                                    Open property
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => onStartFastTrack(house)}
-                                    className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-950"
-                                >
-                                    Start fast-track
-                                </button>
-                            </div>
-                        </article>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
 };
 
 function DiscoverContent() {
@@ -368,7 +311,7 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections('UK');
+            const result = await searchService.getPropertySections(LAUNCH_COUNTRY_CODE);
 
             if (!result.success) {
                 setProperties([]);
@@ -468,22 +411,6 @@ function DiscoverContent() {
         setCurrentPage(1);
     };
 
-    const transformForMap = (props: SearchResult[]) => {
-        return props
-            .map(p => ({
-                id: p.id,
-                title: p.title,
-                lat: p.latitude,
-                lng: p.longitude,
-                price: new Intl.NumberFormat('en-GB', {
-                    style: 'currency',
-                    currency: 'GBP',
-                    maximumFractionDigits: 0,
-                }).format(p.price || 0),
-                address: p.location || p.city || 'Unknown Location'
-            }));
-    };
-
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
             <p role="status" aria-live="polite" className="sr-only" data-discovery-status>
@@ -510,7 +437,7 @@ function DiscoverContent() {
                                     ? 'Showing properties for sale'
                                     : activeTab === 'rent'
                                         ? 'Showing properties for rent'
-                                        : 'Find your next home across the UK'}
+                                        : 'Find your next home across India'}
                         </p>
                     </div>
 
@@ -623,7 +550,7 @@ function DiscoverContent() {
                                     id="discover-min-price"
                                     type="number"
                                     aria-label="Min Price"
-                                    placeholder={filterOptions?.price_range?.min ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min"}
+                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : "Min"}
                                     value={priceRange.min}
                                     min={0}
                                     max={priceRange.max || filterOptions?.price_range?.max}
@@ -642,7 +569,7 @@ function DiscoverContent() {
                                     id="discover-max-price"
                                     type="number"
                                     aria-label="Max Price"
-                                    placeholder={filterOptions?.price_range?.max ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max"}
+                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : "Max"}
                                     value={priceRange.max}
                                     min={0}
                                     max={filterOptions?.price_range?.max}
@@ -769,11 +696,14 @@ function DiscoverContent() {
 
                 {/* Content */}
                 {viewMode === 'map' ? (
-                    <StableDiscoveryMap
-                        houses={transformForMap(filteredProperties)}
-                        onOpenProperty={(property) => navigate(`/user/properties/${property.id}`)}
-                        onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
-                    />
+                    <div className="h-[min(72vh,720px)] min-h-[520px]">
+                        <NearbyPropertiesMap
+                            properties={toDiscoverNearbyMapProperties(filteredProperties)}
+                            onPropertyClick={(property) => navigate(`/user/properties/${property.id}`)}
+                            onOpenWorkspace={(property) => navigate(`/user/properties/${property.id}`)}
+                            onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                        />
+                    </div>
                 ) : (
                     <>
                         {loading ? (
@@ -804,7 +734,11 @@ function DiscoverContent() {
                         ) : paginatedProperties.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {paginatedProperties.map((property) => (
-                                    <PropertyCard key={property.id} property={property} />
+                                    <PropertyCard
+                                        key={property.id}
+                                        property={property}
+                                        onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                                    />
                                 ))}
                             </div>
                         ) : (
@@ -814,7 +748,7 @@ function DiscoverContent() {
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">No properties match your search</h3>
                                 <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                                    Try adjusting your filters or search terms. We're constantly adding new listings across the UK.
+                                    Try adjusting your filters or search terms. We're constantly adding new listings across India.
                                 </p>
                                 <button
                                     onClick={handleClearFilters}

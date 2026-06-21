@@ -12,6 +12,115 @@ import axios from 'axios';
 
 const API_URL = getServiceUrl('core');
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
+export const REGISTER_DRAFT_STORAGE_KEY = 'estospaces:register:draft:v1';
+
+type RegisterDraft = {
+    name: string;
+    email: string;
+    role: string;
+};
+
+const commonMistypedEmailTlds = new Set([
+    'cim',
+    'cmo',
+    'cm',
+    'con',
+    'comm',
+    'coom',
+    'nett',
+    'orrg',
+]);
+
+export function normalizeRegisterEmail(value: string): string {
+    return value.trim().toLowerCase();
+}
+
+export function validateRegisterName(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return 'Please enter your name';
+    }
+    if (trimmed.length < 2) {
+        return 'Name must be at least 2 characters';
+    }
+    if (trimmed.length > 80) {
+        return 'Name must be 80 characters or fewer';
+    }
+    if (!/^[A-Za-z .'-]+$/.test(trimmed)) {
+        return 'Name can only include letters, spaces, apostrophes, periods, and hyphens';
+    }
+    if ((trimmed.match(/[A-Za-z]/g) || []).length < 2) {
+        return 'Name must include at least 2 letters';
+    }
+    return null;
+}
+
+export function validateRegisterEmail(value: string): string | null {
+    const trimmed = normalizeRegisterEmail(value);
+    if (!trimmed) {
+        return 'Please enter a valid email address';
+    }
+    if (trimmed.length > 254 || /\s/.test(trimmed)) {
+        return 'Please enter a valid email address';
+    }
+    if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,24}$/.test(trimmed)) {
+        return 'Please enter a valid email address';
+    }
+
+    const tld = trimmed.split('.').pop() || '';
+    if (commonMistypedEmailTlds.has(tld)) {
+        return 'Please enter a valid email address';
+    }
+
+    return null;
+}
+
+function normalizeRegisterRole(value: string): string {
+    return value === 'manager' ? 'manager' : 'user';
+}
+
+function readRegisterDraft(): RegisterDraft | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const rawDraft = window.sessionStorage.getItem(REGISTER_DRAFT_STORAGE_KEY);
+        if (!rawDraft) {
+            return null;
+        }
+        const parsed = JSON.parse(rawDraft) as Partial<RegisterDraft>;
+        return {
+            name: typeof parsed.name === 'string' ? parsed.name : '',
+            email: typeof parsed.email === 'string' ? parsed.email : '',
+            role: normalizeRegisterRole(typeof parsed.role === 'string' ? parsed.role : 'user'),
+        };
+    } catch {
+        window.sessionStorage.removeItem(REGISTER_DRAFT_STORAGE_KEY);
+        return null;
+    }
+}
+
+function saveRegisterDraft(draft: RegisterDraft) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.setItem(
+        REGISTER_DRAFT_STORAGE_KEY,
+        JSON.stringify({
+            name: draft.name,
+            email: draft.email,
+            role: normalizeRegisterRole(draft.role),
+        }),
+    );
+}
+
+function clearRegisterDraft() {
+    if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(REGISTER_DRAFT_STORAGE_KEY);
+    }
+}
 
 type TermsAcceptanceModalProps = {
     isOpen: boolean;
@@ -134,6 +243,7 @@ export default function RegisterPage() {
     const navigate = useNavigate();
     const { isAuthenticated, loading: authLoading, getRole, register, signOut, user: authUser } = useAuth();
     const resendCooldownTimerRef = useRef<number | null>(null);
+    const registerDraftSaveReadyRef = useRef(false);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -142,6 +252,8 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [nameError, setNameError] = useState('');
+    const [emailError, setEmailError] = useState('');
     const [success, setSuccess] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
@@ -182,6 +294,29 @@ export default function RegisterPage() {
         }
     }, []);
 
+    useEffect(() => {
+        const draft = readRegisterDraft();
+        if (!draft) {
+            return;
+        }
+
+        setName(draft.name);
+        setEmail(draft.email);
+        setRole(normalizeRegisterRole(draft.role));
+    }, []);
+
+    useEffect(() => {
+        if (success) {
+            return;
+        }
+        if (!registerDraftSaveReadyRef.current) {
+            registerDraftSaveReadyRef.current = true;
+            return;
+        }
+
+        saveRegisterDraft({ name, email, role });
+    }, [email, name, role, success]);
+
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);
         setIsTermsModalOpen(true);
@@ -210,15 +345,36 @@ export default function RegisterPage() {
         setIsTermsModalOpen(false);
     };
 
+    const handleNameChange = (value: string) => {
+        setName(value);
+        setError('');
+        if (nameError) {
+            setNameError(validateRegisterName(value) || '');
+        }
+    };
+
+    const handleEmailChange = (value: string) => {
+        setEmail(value);
+        setError('');
+        if (emailError) {
+            setEmailError(validateRegisterEmail(value) || '');
+        }
+    };
+
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!name.trim()) {
-            setError('Please enter your name');
+        const nextNameError = validateRegisterName(name);
+        const nextEmailError = validateRegisterEmail(email);
+        setNameError(nextNameError || '');
+        setEmailError(nextEmailError || '');
+
+        if (nextNameError) {
+            setError(nextNameError);
             return;
         }
-        if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
-            setError('Please enter a valid email');
+        if (nextEmailError) {
+            setError(nextEmailError);
             return;
         }
         if (!allRulesPassed) {
@@ -232,9 +388,11 @@ export default function RegisterPage() {
 
         setLoading(true);
         setError('');
+        const normalizedEmail = normalizeRegisterEmail(email);
+        setEmail(normalizedEmail);
 
         try {
-            const result = await register(name, email, password, role, {
+            const result = await register(name.trim(), normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
             });
@@ -245,6 +403,7 @@ export default function RegisterPage() {
                 return;
             }
 
+            clearRegisterDraft();
             setSuccess(true);
         } catch {
             setError('An unexpected error occurred. Please try again.');
@@ -267,9 +426,9 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center text-center w-full">
                 <AuthBrand className="mb-6" />
 
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     Already signed in
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
                     You are currently signed in as <strong>{authUser?.email}</strong>.
@@ -277,12 +436,14 @@ export default function RegisterPage() {
 
                 <div className="space-y-3 w-full">
                     <button
+                        type="button"
                         onClick={() => void continueWithRole(getRole())}
                         className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all"
                     >
                         Continue to Dashboard
                     </button>
                     <button
+                        type="button"
                         onClick={async () => {
                             await signOut();
                             navigate('/register?switch=true');
@@ -305,9 +466,9 @@ export default function RegisterPage() {
                     <Check className="text-green-600 dark:text-green-400" size={32} />
                 </div>
 
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     Account Created!
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
                     We sent a verification link to <strong>{email}</strong>.
@@ -325,6 +486,7 @@ export default function RegisterPage() {
                 )}
 
                 <button
+                    type="button"
                     onClick={async () => {
                         setResending(true);
                         setResendMessage('');
@@ -375,9 +537,9 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center">
                 <AuthBrand className="mb-6" />
 
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
                     Sign up for Estospaces
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 text-center">
                     Create your account to get started
@@ -385,10 +547,11 @@ export default function RegisterPage() {
 
                 <form onSubmit={handleSignup} className="w-full">
                     <div className="mb-5">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">I am a</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <p id="register-role-label" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">I am a</p>
+                        <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"
+                                aria-pressed={role === 'user'}
                                 onClick={() => setRole('user')}
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'user'
                                     ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
@@ -401,6 +564,7 @@ export default function RegisterPage() {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={role === 'manager'}
                                 onClick={() => setRole('manager')}
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'manager'
                                     ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
@@ -415,33 +579,56 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
+                        <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
                         <input
+                            id="register-name"
+                            name="name"
                             type="text"
                             autoComplete="name"
                             placeholder="Enter your full name"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className={`w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass}`}
+                            onChange={(e) => handleNameChange(e.target.value)}
+                            onBlur={() => setNameError(validateRegisterName(name) || '')}
+                            maxLength={80}
+                            aria-invalid={Boolean(nameError)}
+                            aria-describedby={nameError ? 'register-name-error' : undefined}
+                            className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${nameError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
                         />
+                        {nameError && (
+                            <p id="register-name-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                {nameError}
+                            </p>
+                        )}
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+                        <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                         <input
+                            id="register-email"
+                            name="email"
                             type="email"
                             autoComplete="email"
                             placeholder="Enter your email"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className={`w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass}`}
+                            onChange={(e) => handleEmailChange(e.target.value)}
+                            onBlur={() => setEmailError(validateRegisterEmail(email) || '')}
+                            aria-invalid={Boolean(emailError)}
+                            aria-describedby={emailError ? 'register-email-error' : undefined}
+                            className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${emailError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
                         />
+                        {emailError && (
+                            <p id="register-email-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                {emailError}
+                            </p>
+                        )}
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Password</label>
+                        <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Password</label>
                         <div className="relative">
                             <input
+                                id="register-password"
+                                name="password"
                                 type={showPassword ? 'text' : 'password'}
                                 autoComplete="new-password"
                                 placeholder="Create a password"
@@ -513,9 +700,13 @@ export default function RegisterPage() {
                                 <FileText size={16} />
                                 {agreedToTerms ? 'Review Terms Again' : 'Read Terms & Conditions'}
                             </button>
-                            <Link to="/privacy" className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}>
-                                Privacy Policy
-                            </Link>
+                                <Link
+                                    to="/privacy"
+                                    onClick={() => saveRegisterDraft({ name, email, role })}
+                                    className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
+                                >
+                                    Privacy Policy
+                                </Link>
                             {acceptedTermsLabel && (
                                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                     Accepted on {acceptedTermsLabel}
