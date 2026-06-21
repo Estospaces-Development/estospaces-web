@@ -32,6 +32,14 @@ import {
     useWorkflowWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import {
+    formatLaunchCurrency,
+    formatLaunchPinCode,
+    formatLaunchPropertyLocation,
+    formatLaunchPropertyText,
+    LAUNCH_COUNTRY_NAME,
+} from '@/lib/launchLocale';
 
 const formatOfferSummary = (dispatchStatus?: string, matchedBrokerName?: string | null) => {
     if (matchedBrokerName) {
@@ -69,12 +77,25 @@ const formatPropertyPrice = (price?: number) => {
         return 'Price on request';
     }
 
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0,
-    }).format(price);
+    return formatLaunchCurrency(price);
 };
+
+const formatRequestArea = (location?: string | null, postcode?: string | null) => (
+    formatLaunchPropertyLocation([
+        location,
+        formatLaunchPinCode(postcode) || undefined,
+    ])
+);
+
+const formatPortfolioPropertyLocation = (property: {
+    address_line_1?: string | null;
+    city?: string | null;
+    postcode?: string | null;
+}) => formatLaunchPropertyLocation([
+    property.address_line_1,
+    property.city,
+    formatLaunchPinCode(property.postcode) || undefined,
+]);
 
 const formatWorkspaceStartedAt = (value?: string) => {
     if (!value) {
@@ -95,6 +116,7 @@ const formatWorkspaceStartedAt = (value?: string) => {
 };
 
 const MATCHED_WORKSPACES_ID = 'matched-client-workspaces';
+const LIVE_RESPONSE_OPTIONS_MENU_ID = 'live-response-options-menu';
 const PROPERTY_SHARE_PICKER_LIMIT = 12;
 const TRACKER_ITEM_LIMIT = 4;
 const getMatchedWorkspaceCardId = (requestId: string) => `matched-workspace-${requestId}`;
@@ -133,6 +155,7 @@ const BrokerResponseWidget: React.FC = () => {
     const [availabilityStatusMessage, setAvailabilityStatusMessage] = useState('');
     const [trackerFilter, setTrackerFilter] = useState<TrackerFilter>('all');
     const [trackerSort, setTrackerSort] = useState<TrackerSort>('priority');
+    const [liveResponseOptionsOpen, setLiveResponseOptionsOpen] = useState(false);
     const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const fetchRequests = useCallback(async (silent: boolean = false) => {
@@ -151,36 +174,51 @@ const BrokerResponseWidget: React.FC = () => {
                 }),
             ]);
 
-            const mappedLeads = (leadsResult.data || []).map((lead) => ({
-                id: lead.id,
-                requestKind: 'lead' as const,
-                propertyName: lead.property?.title || lead.propertyInterested || lead.property_name || 'Unknown Property',
-                brokerName: lead.name || lead.email || 'Interested client',
-                userId: lead.user_id,
-                email: lead.email,
-                phone: lead.phone,
-                location: [lead.property?.address_line_1, lead.property?.city, lead.property?.postcode].filter(Boolean).join(', ') || lead.propertyInterested || 'Location not available',
-                interestedIn: lead.property?.title || lead.propertyInterested || lead.property_name || 'Property enquiry',
-                distance: lead.property?.city || lead.property?.postcode || 'UK',
-                timestamp: new Date(lead.created_at),
-                status: resolveLeadStage(lead) === 'matching'
-                    ? 'pending' as const
-                    : resolveLeadStage(lead) === 'expired'
-                        ? 'expired' as const
-                        : 'responded' as const,
-                secondsRemaining: typeof lead.sla_remaining_seconds === 'number' ? lead.sla_remaining_seconds : undefined,
-                stageLabel: formatLeadStage(resolveLeadStage(lead)),
-                dispatchStatus: lead.dispatch_status,
-                primaryActionLabel: 'Respond Now',
-                secondaryActionLabel: 'Open leads',
-                statusReason: lead.status_reason,
-                nextAction: lead.next_action,
-                trackerLane: resolveLeadStage(lead) === 'matching'
-                    ? 'lead_pending' as const
-                    : resolveLeadStage(lead) === 'expired'
-                        ? 'expired' as const
-                        : 'lead_responded' as const,
-            }));
+            const mappedLeads = (leadsResult.data || []).map((lead) => {
+                const propertyLocation = formatPortfolioPropertyLocation({
+                    address_line_1: lead.property?.address_line_1,
+                    city: lead.property?.city,
+                    postcode: lead.property?.postcode,
+                });
+                const propertyTitle = formatLaunchPropertyText(
+                    lead.property?.title || lead.propertyInterested || lead.property_name,
+                    'Unknown Property',
+                );
+
+                return {
+                    id: lead.id,
+                    requestKind: 'lead' as const,
+                    propertyName: propertyTitle,
+                    brokerName: lead.name || lead.email || 'Interested client',
+                    userId: lead.user_id,
+                    email: lead.email,
+                    phone: lead.phone,
+                    location: propertyLocation || formatLaunchPropertyText(lead.propertyInterested, 'Location not available'),
+                    interestedIn: propertyTitle || 'Property enquiry',
+                    distance: formatLaunchPropertyLocation([
+                        lead.property?.city,
+                        formatLaunchPinCode(lead.property?.postcode) || undefined,
+                    ]),
+                    timestamp: new Date(lead.created_at),
+                    status: resolveLeadStage(lead) === 'matching'
+                        ? 'pending' as const
+                        : resolveLeadStage(lead) === 'expired'
+                            ? 'expired' as const
+                            : 'responded' as const,
+                    secondsRemaining: typeof lead.sla_remaining_seconds === 'number' ? lead.sla_remaining_seconds : undefined,
+                    stageLabel: formatLeadStage(resolveLeadStage(lead)),
+                    dispatchStatus: lead.dispatch_status,
+                    primaryActionLabel: 'Respond Now',
+                    secondaryActionLabel: 'Open leads',
+                    statusReason: lead.status_reason,
+                    nextAction: lead.next_action,
+                    trackerLane: resolveLeadStage(lead) === 'matching'
+                        ? 'lead_pending' as const
+                        : resolveLeadStage(lead) === 'expired'
+                            ? 'expired' as const
+                            : 'lead_responded' as const,
+                };
+            });
 
             const mappedOffers = (offersResult.data || []).map((offer) => {
                 const workspaceAction = getManagerWorkspaceAction(offer);
@@ -189,17 +227,19 @@ const BrokerResponseWidget: React.FC = () => {
                 const hasSharedShortlist = (offer.property_shares?.length || 0) > 0;
                 const isMatchedOffer = offer.dispatch_status === 'broker_matched' || offer.status === 'matched';
 
+                const offerArea = formatRequestArea(offer.location, offer.location_postcode);
+
                 return {
                     id: offer.id,
                     requestKind: 'offer' as const,
-                propertyName: `${(offer.request_type || 'broker').replace(/\b\w/g, (character) => character.toUpperCase())} request${offer.location ? ` - ${offer.location}` : ''}`,
+                propertyName: `${(offer.request_type || 'broker').replace(/\b\w/g, (character) => character.toUpperCase())} request${offerArea ? ` - ${offerArea}` : ''}`,
                 brokerName: offer.requester_name || offer.requester_email || 'Marketplace client',
                 userId: offer.user_id,
                 email: offer.requester_email,
                 phone: offer.requester_phone,
-                location: [offer.location, offer.location_postcode].filter(Boolean).join(' - ') || 'Location not available',
+                location: offerArea || 'Location not available',
                 interestedIn: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
-                distance: offer.location_postcode || offer.location || 'UK',
+                distance: formatLaunchPinCode(offer.location_postcode) || offerArea || LAUNCH_COUNTRY_NAME,
                 timestamp: new Date(offer.created_at || offer.dispatch_started_at || new Date().toISOString()),
                 status: offer.dispatch_status === 'broker_matched'
                     ? 'responded' as const
@@ -207,7 +247,7 @@ const BrokerResponseWidget: React.FC = () => {
                         ? 'expired' as const
                         : 'pending' as const,
                 secondsRemaining: getManagerTrackerResponseCountdown(offer),
-                stageLabel: `${formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null)} • Workspace ${workspaceReference}`,
+                stageLabel: `${formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null)} - Workspace ${workspaceReference}`,
                 dispatchStatus: offer.dispatch_status,
                     primaryActionLabel: 'Accept Offer',
                     secondaryActionLabel: offer.dispatch_status === 'broker_matched' ? workspaceAction.label : 'Open leads',
@@ -237,9 +277,9 @@ const BrokerResponseWidget: React.FC = () => {
             ))));
             setManagerProperties((propertiesResult.data || []).map((property: any) => ({
                 id: property.id,
-                title: property.title,
-                city: property.city,
-                postcode: property.postcode,
+                title: formatLaunchPropertyText(property.title, 'Property'),
+                city: formatLaunchPropertyLocation(property.city),
+                postcode: formatLaunchPinCode(property.postcode),
                 price: property.price,
                 listing_type: property.listing_type,
                 image_urls: Array.isArray(property.images) && typeof property.images[0] === 'string'
@@ -525,9 +565,14 @@ const BrokerResponseWidget: React.FC = () => {
                 ? `${pendingCount} waiting user${pendingCount === 1 ? '' : 's'} are shown below with their own countdown.`
                 : 'Waiting users will appear here with their own 10-minute countdown.'
             : 'Go live when you want to start receiving user requests.';
+    const visibleRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-request');
+    const matchedRequestKeyFor = createDuplicateSafeKeyResolver('broker-response-matched-request');
 
     return (
-        <div className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 ring-2 ring-blue-500/10">
+        <div
+            data-testid="broker-response-widget"
+            className="bg-white dark:bg-black rounded-lg shadow-sm border border-gray-100 dark:border-gray-800 p-6 ring-2 ring-blue-500/10"
+        >
             <div role="status" aria-live="polite" className="sr-only">
                 {[shareStatusMessage, availabilityStatusMessage].filter(Boolean).join(' ')}
             </div>
@@ -548,9 +593,60 @@ const BrokerResponseWidget: React.FC = () => {
                         <p className="text-xs text-gray-500 dark:text-gray-400">Real-time emergency assistance requests</p>
                     </div>
                 </div>
-                <button type="button" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" aria-label="Open live response options">
-                    <MoreHorizontal className="w-5 h-5" />
-                </button>
+                <div className="relative">
+                    <button
+                        type="button"
+                        className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-900 dark:hover:text-gray-300"
+                        aria-label="Open live response options"
+                        aria-haspopup="menu"
+                        aria-expanded={liveResponseOptionsOpen}
+                        aria-controls={LIVE_RESPONSE_OPTIONS_MENU_ID}
+                        onClick={() => setLiveResponseOptionsOpen((open) => !open)}
+                    >
+                        <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                    {liveResponseOptionsOpen && (
+                        <div
+                            id={LIVE_RESPONSE_OPTIONS_MENU_ID}
+                            role="menu"
+                            className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-gray-100 bg-white py-2 text-sm font-semibold text-gray-700 shadow-xl dark:border-gray-800 dark:bg-black dark:text-gray-200"
+                        >
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                    setLiveResponseOptionsOpen(false);
+                                    navigate('/manager/leads');
+                                }}
+                                className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950/30 dark:hover:text-orange-200"
+                            >
+                                Open lead desk
+                            </button>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                    setLiveResponseOptionsOpen(false);
+                                    navigate('/manager/dashboard/properties');
+                                }}
+                                className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950/30 dark:hover:text-orange-200"
+                            >
+                                Manage properties
+                            </button>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                    setTrackerFilter('pending');
+                                    setLiveResponseOptionsOpen(false);
+                                }}
+                                className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950/30 dark:hover:text-orange-200"
+                            >
+                                Show pending requests
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40 lg:flex-row lg:items-center lg:justify-between">
@@ -581,7 +677,7 @@ const BrokerResponseWidget: React.FC = () => {
                             ? 'bg-amber-500 text-white hover:bg-amber-600'
                             : availableForFastResponse
                                 ? 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100'
-                                : 'bg-orange-500 text-white hover:bg-orange-600'
+                                : 'brand-orange-action'
                     } disabled:cursor-not-allowed disabled:opacity-60`}
                 >
                     {availabilityLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
@@ -625,9 +721,9 @@ const BrokerResponseWidget: React.FC = () => {
                 {loading ? (
                     <div className="col-span-full py-8 text-center text-gray-400">Loading requests...</div>
                 ) : visibleRequests.length > 0 ? (
-                    visibleRequests.map((request) => (
+                    visibleRequests.map((request, requestIndex) => (
                         <BrokerRequestItem
-                            key={request.id}
+                            key={visibleRequestKeyFor(request.id, requestIndex)}
                             request={request}
                             onRespond={handleRespond}
                             onSecondaryAction={handleSecondaryAction}
@@ -661,16 +757,17 @@ const BrokerResponseWidget: React.FC = () => {
                     </div>
 
                     <div className="mt-5 space-y-5">
-                        {matchedRequests.map((request) => {
+                        {matchedRequests.map((request, requestIndex) => {
                             const selectedIds = shareSelections[request.id] || [];
                             const sharedCount = request.property_shares?.length || 0;
                             const selectedProperty = request.selected_property;
                             const selectedWorkspaceAction = getManagerWorkspaceAction(request);
                             const isSaving = shareSavingRequestId === request.id;
+                            const propertyKeyFor = createDuplicateSafeKeyResolver(`broker-response-property-${request.id}`);
 
                             return (
                                 <div
-                                    key={request.id}
+                                    key={matchedRequestKeyFor(request.id, requestIndex)}
                                     id={getMatchedWorkspaceCardId(request.id)}
                                     className={`scroll-mt-28 rounded-3xl border bg-white p-5 shadow-sm transition-all dark:bg-black ${
                                         focusedWorkspaceRequestId === request.id
@@ -706,8 +803,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                 <span>Started {formatWorkspaceStartedAt(request.created_at || request.updated_at)}</span>
                                             </div>
                                             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                                {request.location || 'Location shared in request'}
-                                                {request.location_postcode ? ` - ${request.location_postcode}` : ''}
+                                                {formatRequestArea(request.location, request.location_postcode) || 'Location shared in request'}
                                             </p>
                                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                                 {selectedProperty
@@ -721,7 +817,7 @@ const BrokerResponseWidget: React.FC = () => {
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">Request area</p>
                                             <p className="mt-2 flex items-center gap-2 font-medium text-gray-900 dark:text-white">
                                                 <MapPin className="h-4 w-4 text-orange-500" />
-                                                {request.location_postcode || request.location || 'UK'}
+                                                {formatRequestArea(request.location, request.location_postcode)}
                                             </p>
                                         </div>
                                     </div>
@@ -744,7 +840,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                     </div>
                                                     <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">{selectedProperty.title}</p>
                                                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                                        {[selectedProperty.address_line_1, selectedProperty.city, selectedProperty.postcode].filter(Boolean).join(', ')}
+                                                        {formatPortfolioPropertyLocation(selectedProperty)}
                                                     </p>
                                                     <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                                         {formatPropertyPrice(selectedProperty.price)}
@@ -752,7 +848,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                     <div className="mt-4 flex flex-wrap gap-3">
                                                         <button
                                                             onClick={() => navigate(selectedWorkspaceAction.path || '/manager/leads')}
-                                                            className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                                                            className="brand-orange-action inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors"
                                                         >
                                                             {selectedWorkspaceAction.label}
                                                             <ArrowRight className="h-4 w-4" />
@@ -805,12 +901,12 @@ const BrokerResponseWidget: React.FC = () => {
                                                         Showing {visibleManagerProperties.length} of {managerProperties.length} portfolio properties
                                                     </p>
                                                     <div className="mt-5 grid gap-3 lg:grid-cols-2">
-                                                        {visibleManagerProperties.map((property) => {
+                                                        {visibleManagerProperties.map((property, propertyIndex) => {
                                                             const isSelected = selectedIds.includes(property.id);
 
                                                             return (
                                                                 <button
-                                                                    key={`${request.id}-${property.id}`}
+                                                                    key={propertyKeyFor(property.id, propertyIndex)}
                                                                     type="button"
                                                                     onClick={() => togglePropertySelection(request.id, property.id)}
                                                                     className={`overflow-hidden rounded-2xl border text-left transition ${
@@ -842,7 +938,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                                                         <p className="text-sm font-semibold text-gray-900 dark:text-white">{property.title}</p>
                                                                                     </div>
                                                                                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                                                                        {[property.city, property.postcode].filter(Boolean).join(', ') || 'Location unavailable'}
+                                                                                        {formatPortfolioPropertyLocation(property) || 'Location unavailable'}
                                                                                     </p>
                                                                                 </div>
                                                                                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
@@ -869,7 +965,7 @@ const BrokerResponseWidget: React.FC = () => {
                                                         <button
                                                             onClick={() => void savePropertyShares(request.id)}
                                                             disabled={isSaving || selectedIds.length === 0}
-                                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            className="brand-orange-action inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                                         >
                                                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                                                             {isSaving ? 'Sharing shortlist...' : sharedCount > 0 ? 'Update shared shortlist' : 'Share selected properties'}

@@ -15,7 +15,11 @@ import {
     ArrowRight,
     Loader2,
     FileText,
-    Info
+    Info,
+    ClipboardList,
+    Calendar,
+    Search,
+    X,
 } from 'lucide-react';
 import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { useNotifications } from '@/contexts/NotificationsContext';
@@ -24,10 +28,11 @@ import { buildAdminDashboardSnapshot, type AdminAnalyticsIconKey } from '@/lib/a
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNotificationNavigationPath,
-    isPropertyWorkflowNotification,
     NOTIFICATION_TYPES,
     type Notification,
 } from '@/services/notificationsService';
+import { getNotificationIconColorClass, getNotificationTone } from '@/lib/notificationVisuals';
+import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 
 const snapshotIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?: number }>> = {
     activity: Activity,
@@ -55,24 +60,67 @@ const formatNotificationTime = (isoString: string) => {
 };
 
 const getNotificationIcon = (notification: Notification) => {
-    if (isPropertyWorkflowNotification(notification)) {
-        return <Building2 size={16} className="text-blue-500" />;
-    }
-
     const { type } = notification;
+    const iconClass = getNotificationIconColorClass(notification);
+    const tone = getNotificationTone(notification);
+
     switch (type) {
         case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
         case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return <Shield size={16} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            return <Shield size={16} className={iconClass} />;
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_UPDATE:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+        case NOTIFICATION_TYPES.APPLICATION_REJECTED:
         case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
-            return <FileText size={16} className="text-purple-500" />;
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+        case NOTIFICATION_TYPES.CONTRACT_UPDATE:
+        case NOTIFICATION_TYPES.CONTRACT_EXPIRING:
+            return <FileText size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
+        case NOTIFICATION_TYPES.TICKET_RESPONSE:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_CREATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_STATUS_UPDATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_ASSIGNED:
+            return <MessageSquare size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.APPOINTMENT_APPROVED:
+        case NOTIFICATION_TYPES.APPOINTMENT_REJECTED:
+        case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
+        case NOTIFICATION_TYPES.VIEWING_BOOKED:
+        case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
+        case NOTIFICATION_TYPES.VIEWING_COMPLETED:
+        case NOTIFICATION_TYPES.VIEWING_CANCELLED:
+        case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
+            return <Calendar size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.PAYMENT_REMINDER:
+        case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
+        case NOTIFICATION_TYPES.PAYMENT_FAILED:
+            return <FileText size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.PROPERTY_SAVED:
+        case NOTIFICATION_TYPES.PROPERTY_SELECTED:
+        case NOTIFICATION_TYPES.PRICE_DROP:
+        case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
+        case NOTIFICATION_TYPES.PROPERTY_AVAILABLE:
+        case NOTIFICATION_TYPES.PROPERTY_UNAVAILABLE:
+            return <Building2 size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+        case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+        case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+        case NOTIFICATION_TYPES.SALE_JOURNEY_UPDATED:
+        case NOTIFICATION_TYPES.SALE_JOURNEY_COMPLETED:
+            return <Zap size={16} className={iconClass} />;
         default:
-            return <Info size={16} className="text-gray-500" />;
+            if (tone === 'orange') {
+                return <Building2 size={16} className={iconClass} />;
+            }
+            return <Info size={16} className={iconClass} />;
     }
 };
 
@@ -81,6 +129,7 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [recentNotificationSearch, setRecentNotificationSearch] = useState('');
     const {
         notifications,
         loading: notificationsLoading,
@@ -154,9 +203,24 @@ export default function AdminDashboard() {
 
     const platformSnapshot = buildAdminDashboardSnapshot(data);
 
+    const recentNotificationSearchTerm = recentNotificationSearch.trim().toLowerCase();
     const recentNotifications = [...notifications]
         .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+        .filter((notification) => {
+            if (!recentNotificationSearchTerm) {
+                return true;
+            }
+
+            const displayCopy = getLaunchSafeNotificationCopy(notification);
+            return [
+                displayCopy.title,
+                displayCopy.message,
+                notification.type,
+                formatNotificationTime(notification.created_at),
+            ].join(' ').toLowerCase().includes(recentNotificationSearchTerm);
+        })
         .slice(0, 5);
+    const hasRecentNotificationSearch = recentNotificationSearchTerm.length > 0;
 
     const handleRecentNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
@@ -369,51 +433,26 @@ export default function AdminDashboard() {
                                     <ArrowRight size={16} />
                                 </div>
                             </button>
-                        </div>
-                    </div>
 
-                    <section
-                        id="role-docs-preview"
-                        aria-labelledby="admin-role-docs-preview-heading"
-                        className="rounded-2xl border border-orange-100 bg-white p-6 shadow-sm dark:border-orange-900/30 dark:bg-black"
-                    >
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-500">RoleDocs preview</p>
-                                <h2 id="admin-role-docs-preview-heading" className="mt-2 text-xl font-bold text-gray-900 dark:text-white">
-                                    Platform operations guidance
-                                </h2>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
-                                    Jump to release operations, platform operations, and recovery guidance before changing support status or closing incidents.
-                                </p>
-                            </div>
                             <button
-                                type="button"
-                                onClick={() => navigate('/admin/help#release-operations')}
-                                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 px-4 py-3 text-sm font-semibold text-orange-700 transition-colors hover:bg-orange-50 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-950/30"
+                                onClick={() => navigate('/admin/research')}
+                                className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/30 transition-all text-left flex items-center justify-between"
                             >
-                                <FileText size={16} />
-                                Open guidance
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
+                                        <ClipboardList size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Observational Research</h3>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">Shadow journeys and review friction</p>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
+                                    <ArrowRight size={16} />
+                                </div>
                             </button>
                         </div>
-                        <div className="mt-5 grid gap-3 md:grid-cols-3">
-                            {[
-                                ['Release operations', '/admin/help#release-operations', 'Release blockers, smoke checks, rollback requests, and post-deploy verification.'],
-                                ['Platform operations', '/admin/help#platform-operations', 'Service health, auth, notification, search, payment, and booking support triage.'],
-                                ['Recovery guidance', '/admin/help#recovery-guidance', 'Assignment, priority, transcript, resolution, and closure workflow.'],
-                            ].map(([label, href, description]) => (
-                                <button
-                                    key={label}
-                                    type="button"
-                                    onClick={() => navigate(href)}
-                                    className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-left transition-colors hover:border-orange-200 hover:bg-orange-50/70 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-orange-500/20 dark:hover:bg-orange-950/20"
-                                >
-                                    <span className="text-sm font-bold text-gray-900 dark:text-white">{label}</span>
-                                    <span className="mt-2 block text-sm leading-6 text-gray-500 dark:text-gray-400">{description}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </section>
+                    </div>
 
                     {/* Banner */}
                     <div className="rounded-2xl bg-gray-900 dark:bg-black p-8 text-white relative overflow-hidden border border-white/10 dark:border-gray-800">
@@ -494,6 +533,40 @@ export default function AdminDashboard() {
                             </span>
                         </div>
 
+                        <div className="mb-4">
+                            <label
+                                htmlFor="recent-notification-search"
+                                className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300"
+                            >
+                                Search recent notifications
+                            </label>
+                            <div className="relative">
+                                <Search
+                                    size={16}
+                                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                    id="recent-notification-search"
+                                    type="search"
+                                    value={recentNotificationSearch}
+                                    onChange={(event) => setRecentNotificationSearch(event.target.value)}
+                                    aria-label="Search recent notifications"
+                                    placeholder="Search recent notifications"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-10 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100 dark:border-gray-800 dark:bg-gray-800/70 dark:text-white dark:focus:border-orange-700 dark:focus:bg-gray-900 dark:focus:ring-orange-950"
+                                />
+                                {recentNotificationSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setRecentNotificationSearch('')}
+                                        aria-label="Clear recent notification search"
+                                        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
                         {notificationsLoading && recentNotifications.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
                                 <Loader2 size={20} className="mx-auto mb-3 animate-spin text-orange-500" />
@@ -507,24 +580,31 @@ export default function AdminDashboard() {
                                     <Bell size={18} />
                                 </div>
                                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    No recent notifications
+                                    {hasRecentNotificationSearch
+                                        ? 'No recent notifications match this search'
+                                        : 'No recent notifications'}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    New user and manager verification submissions will appear here.
+                                    {hasRecentNotificationSearch
+                                        ? 'Try another title, type, message, or time keyword.'
+                                        : 'New user and manager verification submissions will appear here.'}
                                 </p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {recentNotifications.map((notification) => (
-                                    <button
-                                        key={notification.id}
-                                        onClick={() => handleRecentNotificationClick(notification)}
-                                        className={`w-full rounded-xl border px-4 py-4 text-left transition-all hover:shadow-sm ${
-                                            notification.is_read
-                                                ? 'border-gray-100 bg-gray-50/70 hover:border-gray-200 dark:border-gray-800 dark:bg-gray-800/30 dark:hover:border-gray-700'
-                                                : 'border-orange-100 bg-orange-50/60 hover:border-orange-200 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:border-orange-800/60'
-                                        }`}
-                                    >
+                                {recentNotifications.map((notification) => {
+                                    const displayCopy = getLaunchSafeNotificationCopy(notification);
+
+                                    return (
+                                        <button
+                                            key={notification.id}
+                                            onClick={() => handleRecentNotificationClick(notification)}
+                                            className={`w-full rounded-xl border px-4 py-4 text-left transition-all hover:shadow-sm ${
+                                                notification.is_read
+                                                    ? 'border-gray-100 bg-gray-50/70 hover:border-gray-200 dark:border-gray-800 dark:bg-gray-800/30 dark:hover:border-gray-700'
+                                                    : 'border-orange-100 bg-orange-50/60 hover:border-orange-200 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:border-orange-800/60'
+                                            }`}
+                                        >
                                         <div className="flex items-start gap-3">
                                             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-900">
                                                 {getNotificationIcon(notification)}
@@ -532,16 +612,16 @@ export default function AdminDashboard() {
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                                                {notification.title}
+                                                        <div className="flex items-start gap-2">
+                                                            <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-gray-900 dark:text-white">
+                                                                {displayCopy.title}
                                                             </p>
                                                             {!notification.is_read && (
-                                                                <span className="h-2 w-2 rounded-full bg-orange-500" />
+                                                                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange-500" />
                                                             )}
                                                         </div>
                                                         <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                                                            {notification.message}
+                                                            {displayCopy.message}
                                                         </p>
                                                     </div>
                                                     <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
@@ -550,8 +630,9 @@ export default function AdminDashboard() {
                                                 </div>
                                             </div>
                                         </div>
-                                    </button>
-                                ))}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
