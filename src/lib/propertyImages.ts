@@ -39,8 +39,36 @@ const normalizeImageValue = (value: unknown): string[] => {
     return [];
 };
 
+const isPrivateMediaBucketUrl = (image: string) => {
+    try {
+        const url = new URL(image);
+        const isGoogleStorageHost = url.hostname === 'storage.googleapis.com' || url.hostname === 'storage.cloud.google.com';
+        return isGoogleStorageHost && /^\/estospaces-media-[^/]+\//.test(url.pathname);
+    } catch {
+        return image.includes('storage.googleapis.com/estospaces-media-')
+            || image.includes('storage.cloud.google.com/estospaces-media-');
+    }
+};
+
+const isPlaceholderUrl = (image: string) => {
+    try {
+        const url = new URL(image);
+        return url.hostname === 'example.com';
+    } catch {
+        return false;
+    }
+};
+
+const isUsableImage = (image: string) => {
+    const trimmed = image.trim();
+    return trimmed.length > 0
+        && trimmed !== '[]'
+        && !isPrivateMediaBucketUrl(trimmed)
+        && !isPlaceholderUrl(trimmed);
+};
+
 const uniqueImages = (images: string[]) =>
-    Array.from(new Set(images.filter((image) => image.trim().length > 0 && image !== '[]')));
+    Array.from(new Set(images.map((image) => image.trim()).filter(isUsableImage)));
 
 export const getPropertyImages = (property: unknown): string[] => {
     if (!isRecord(property)) {

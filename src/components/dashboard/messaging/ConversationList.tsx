@@ -4,6 +4,7 @@ import React from "react";
 import { Home, LifeBuoy, MessageSquare, Search } from "lucide-react";
 import { useMessages } from "@/contexts/MessagesContext";
 import Avatar from "@/components/ui/Avatar";
+import { createDuplicateSafeKeyResolver } from "@/lib/reactListKeys";
 
 interface ConversationListProps {
   onSelectConversation: (id: string | null) => void;
@@ -89,6 +90,7 @@ export default function ConversationList({
       ),
     }))
     .filter((group) => group.items.length > 0);
+  const conversationKeyFor = createDuplicateSafeKeyResolver("conversation");
 
   return (
     <div className="flex h-full flex-col bg-white dark:bg-gray-800">
@@ -134,17 +136,17 @@ export default function ConversationList({
                   </div>
 
                   <div className="space-y-1.5">
-                    {group.items.map((conversation) => {
+                    {group.items.map((conversation, conversationIndex) => {
                       const selected = selectedConversationId === conversation.id;
                       const unreadCount = conversation.unreadCount || 0;
                       const title = getDisplayTitle(conversation);
                       const subtitle = getDisplaySubtitle(conversation);
-                      const unreadLabel = unreadCount > 0 ? `${unreadCount} unread` : "Read, 0 unread";
+                      const unreadLabel = unreadCount > 0 ? `${unreadCount} unread` : "Read";
                       const notificationLabel = conversation.isMuted ? "Muted" : "Notifications on";
 
                       return (
                         <button
-                          key={conversation.id}
+                          key={conversationKeyFor(conversation.id, conversationIndex)}
                           type="button"
                           onClick={() => onSelectConversation(conversation.id)}
                           className={`w-full rounded-2xl border p-3 text-left transition-all ${
@@ -199,17 +201,13 @@ export default function ConversationList({
                               <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
                                 {subtitle}
                               </p>
+                              {unreadCount > 0 && (
+                                <span className="mt-2 inline-flex rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                  {unreadLabel}
+                                </span>
+                              )}
                               <span
-                                className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                  unreadCount > 0
-                                    ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"
-                                    : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300"
-                                }`}
-                              >
-                                {unreadLabel}
-                              </span>
-                              <span
-                                className={`ml-2 mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                className={`${unreadCount > 0 ? "ml-2" : ""} mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                                   conversation.isMuted
                                     ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
                                     : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300"

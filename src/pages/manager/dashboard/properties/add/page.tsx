@@ -41,7 +41,6 @@ import {
   TreePine,
   Camera,
   Video,
-  Globe,
   Phone,
   Mail,
   User,
@@ -55,7 +54,6 @@ import {
 } from "lucide-react";
 import DateField from "@/components/ui/DateField";
 import PropertyCompliancePanel from "@/components/dashboard/PropertyCompliancePanel";
-import VirtualTourRequestPanel from "@/components/virtual-tour/VirtualTourRequestPanel";
 import AddressSection, {
   AddressFormData,
 } from "@/components/ui/AddressSection";
@@ -80,6 +78,7 @@ import { ApiRequestError } from "@/lib/apiUtils";
 import { getManagerPropertySubmissionBlocker } from "@/lib/managerPropertySubmission";
 import {
   getManagerPropertyFirstErrorStep,
+  PROPERTY_DESCRIPTION_MAX_LENGTH,
   PROPERTY_NUMERIC_LIMITS,
   validateManagerPropertyField,
   validateManagerPropertyForm,
@@ -97,15 +96,19 @@ import {
   getManagerPropertySubmitIntent,
   getManagerPropertyUploadControlCopy,
 } from "@/lib/managerPropertyFormAccessibility";
+import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
+import { VIRTUAL_TOUR_ENABLED } from "@/lib/launchFlags";
+import { getCurrencySymbol } from "@/lib/utils/currency";
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
+type PendingNavigationTarget = string | number;
 
-// Countries list — UK only
+// Launch country list. India-only for this phase so new listings use rupees.
 const countries = [
-  { code: "GB", name: "United Kingdom", currency: "GBP" as CurrencyCode },
+  { code: "IN", name: "India", currency: "INR" as CurrencyCode },
 ];
 
 // Property types with icons
@@ -419,7 +422,7 @@ const initialFormData: FormData = {
   status: "draft" as PropertyStatus,
 
   priceAmount: 0,
-  currency: "USD",
+  currency: "INR",
   negotiable: false,
 
   addressLine1: "",
@@ -490,7 +493,7 @@ const initialFormData: FormData = {
 
 const resolveCountryCurrency = (countryCode: string): CurrencyCode => {
   const country = countries.find((entry) => entry.code === countryCode);
-  return country?.currency || "USD";
+  return country?.currency || "INR";
 };
 
 const normalizeDateInputValue = (value?: string): string => {
@@ -533,6 +536,7 @@ export default function AddPropertyPage() {
   const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const formContentRef = useRef<HTMLFormElement | null>(null);
 
   // Determine mode based on presence of ID
   const mode: FormMode = idValue ? "edit" : "create";
@@ -550,6 +554,10 @@ export default function AddPropertyPage() {
   const [mediaListLoading, setMediaListLoading] = useState(false);
   const [mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingUnsavedNavigation, setPendingUnsavedNavigation] =
+    useState<PendingNavigationTarget | null>(null);
+  const [pendingMediaDelete, setPendingMediaDelete] =
+    useState<MediaFile | null>(null);
   const [loadingProperty, setLoadingProperty] = useState(isEditMode);
   const [propertyNotFound, setPropertyNotFound] = useState(false);
 
@@ -586,6 +594,43 @@ export default function AddPropertyPage() {
   const hideToast = useCallback(() => {
     setToast((prev) => ({ ...prev, visible: false }));
   }, []);
+
+  const scrollToFormTop = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, []);
+
+  const focusFirstErrorField = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      const [firstErrorField] = Object.keys(fieldErrors);
+      if (!firstErrorField || typeof window === "undefined") {
+        return;
+      }
+
+      window.setTimeout(() => {
+        const field = document.getElementById(
+          getManagerPropertyFieldId(firstErrorField),
+        ) as HTMLElement | null;
+
+        if (!field) {
+          formContentRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+          return;
+        }
+
+        field.focus({ preventScroll: true });
+        field.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 80);
+    },
+    [],
+  );
 
   const parseServiceList = useCallback((value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -679,6 +724,10 @@ export default function AddPropertyPage() {
     }
   }, [currentStep, refreshMediaFiles]);
 
+  useEffect(() => {
+    scrollToFormTop();
+  }, [currentStep, scrollToFormTop]);
+
   const hydrateLoadedAddressFields = useCallback(
     async (loadedFormData: FormData): Promise<FormData> => {
       const shouldResolveAddress =
@@ -749,6 +798,7 @@ export default function AddPropertyPage() {
       const currentYear = new Date().getFullYear();
       const resolvedCountryCode =
         (property as any).country_code ||
+        (property.country?.toLowerCase() === "india" ? "IN" : "") ||
         (property.country?.toLowerCase() === "united kingdom" ? "GB" : "");
 
       return {
@@ -758,7 +808,7 @@ export default function AddPropertyPage() {
         status: (property.status || "draft") as PropertyStatus,
 
         priceAmount: property.price || 0,
-        currency: (property.currency as CurrencyCode) || "GBP",
+        currency: (property.currency as CurrencyCode) || "INR",
         negotiable: false,
 
         addressLine1: property.address_line_1 || "",
@@ -860,21 +910,55 @@ export default function AddPropertyPage() {
     };
   }, [isDirty, saving]);
 
+  const navigateToTarget = useCallback(
+    (target: PendingNavigationTarget) => {
+      if (typeof target === "number") {
+        navigate(target);
+        return;
+      }
+      navigate(target);
+    },
+    [navigate],
+  );
+
   // Custom navigation wrapper that warns about unsaved changes
   const safeNavigate = useCallback(
     (path: string) => {
       if (isDirty && !saving) {
-        const confirmLeave = window.confirm(
-          "You have unsaved changes. Are you sure you want to leave? Your changes will be lost.",
-        );
-        if (!confirmLeave) {
-          return;
-        }
+        setPendingUnsavedNavigation(path);
+        return;
       }
-      navigate(path);
+      navigateToTarget(path);
     },
-    [isDirty, saving, navigate],
+    [isDirty, navigateToTarget, saving],
   );
+
+  const requestUnsavedNavigation = useCallback(
+    (target: PendingNavigationTarget) => {
+      if (isDirty && !saving) {
+        setPendingUnsavedNavigation(target);
+        return;
+      }
+      navigateToTarget(target);
+    },
+    [isDirty, navigateToTarget, saving],
+  );
+
+  const closeUnsavedNavigationDialog = () => {
+    if (saving) {
+      return;
+    }
+    setPendingUnsavedNavigation(null);
+  };
+
+  const confirmUnsavedNavigation = () => {
+    const target = pendingUnsavedNavigation;
+    if (target === null) {
+      return;
+    }
+    setPendingUnsavedNavigation(null);
+    navigateToTarget(target);
+  };
 
   // Load existing property for edit mode
   useEffect(() => {
@@ -1067,6 +1151,7 @@ export default function AddPropertyPage() {
       totalFloors: data.totalFloors,
       yearBuilt: data.yearBuilt,
       facing: data.facing,
+      description: data.description,
       hasImages: data.images.length > 0 || imagePreviews.length > 0,
       contactName: data.contactName,
       contactEmail: data.contactEmail,
@@ -1126,6 +1211,7 @@ export default function AddPropertyPage() {
 
     setErrors(mappedErrors);
     setCurrentStep(getManagerPropertyFirstErrorStep(mappedErrors));
+    focusFirstErrorField(mappedErrors);
     showToast(
       "Please correct the highlighted fields before continuing.",
       "error",
@@ -1139,6 +1225,9 @@ export default function AddPropertyPage() {
       getValidationValues(formData),
     );
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstErrorField(newErrors);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -1562,7 +1651,7 @@ export default function AddPropertyPage() {
 
       images,
       videos,
-      virtualTourUrl: formData.virtualTourUrl,
+      virtualTourUrl: VIRTUAL_TOUR_ENABLED ? formData.virtualTourUrl : undefined,
       media: {
         images: images.map((url, i) => ({
           id: `img-${i}`,
@@ -1580,7 +1669,9 @@ export default function AddPropertyPage() {
           uploadedAt: new Date().toISOString(),
         })),
         floorPlans: [],
-        virtualTourUrl: formData.virtualTourUrl,
+        ...(VIRTUAL_TOUR_ENABLED
+          ? { virtualTourUrl: formData.virtualTourUrl }
+          : {}),
       },
 
       contact: {
@@ -1628,6 +1719,19 @@ export default function AddPropertyPage() {
     if (draftEntityId === propertyId) {
       return null;
     }
+    if (
+      !shouldReassignDraftPropertyMedia({
+        existingPropertyId: idValue,
+        draftEntityId,
+        createdPropertyId: propertyId,
+        imageEntries: formData.images,
+        videoEntries: formData.videos,
+        mediaFiles,
+      })
+    ) {
+      draftMediaEntityIdRef.current = propertyId;
+      return null;
+    }
     try {
       await reassignMediaEntity(
         "property",
@@ -1666,20 +1770,31 @@ export default function AddPropertyPage() {
     }
   };
 
-  const handleDeleteMediaFile = async (file: MediaFile) => {
-    const fileName = file.original_name || file.file_name || file.id;
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Remove ${fileName} from this property media list?`)
-    ) {
+  const handleDeleteMediaFile = (file: MediaFile) => {
+    setPendingMediaDelete(file);
+  };
+
+  const closeMediaDeleteDialog = () => {
+    if (mediaListLoading) {
       return;
     }
+    setPendingMediaDelete(null);
+  };
+
+  const confirmDeleteMediaFile = async () => {
+    if (!pendingMediaDelete) {
+      return;
+    }
+
+    const file = pendingMediaDelete;
+    const fileName = file.original_name || file.file_name || file.id;
 
     setMediaListLoading(true);
     try {
       await deleteMediaFile(file.id);
       setMediaAttachMessage(`Removed ${fileName} from this property media list.`);
       await refreshMediaFiles();
+      setPendingMediaDelete(null);
       showToast("Media removed.", "success");
     } catch (error: any) {
       setMediaAttachMessage(error?.message || "Unable to remove media.");
@@ -1772,6 +1887,7 @@ export default function AddPropertyPage() {
       setErrors(allErrors);
       const firstErrorStep = getManagerPropertyFirstErrorStep(allErrors);
       setCurrentStep(firstErrorStep);
+      focusFirstErrorField(allErrors);
 
       const errorMessage =
         isEditSubmission || mode === "create"
@@ -1929,6 +2045,7 @@ export default function AddPropertyPage() {
   const videoUploadCopy = getManagerPropertyUploadControlCopy("videos");
   const imageUploadHelpId = `${getManagerPropertyFieldId("images")}-upload-help`;
   const videoUploadHelpId = `${getManagerPropertyFieldId("videos")}-upload-help`;
+  const descriptionCharacterCountId = "manager-property-description-character-count";
   const imageUploadDescription = [
     imageUploadHelpId,
     errors.images ? getManagerPropertyErrorId("images") : null,
@@ -1936,6 +2053,7 @@ export default function AddPropertyPage() {
   const videoUploadDescription = videoUploadHelpId;
   const mediaSourceEntityId = draftMediaEntityIdRef.current;
   const mediaTargetEntityId = idValue || "Created property after save";
+  const displayCurrency = getCurrencySymbol(formData.currency);
   const canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
   const selectedStagedUploadCount = [
     ...formData.images,
@@ -1978,15 +2096,7 @@ export default function AddPropertyPage() {
             <div className="mb-4">
               {/* Custom back button that respects unsaved changes */}
               <button
-                onClick={() => {
-                  if (isDirty && !saving) {
-                    const confirmLeave = window.confirm(
-                      "You have unsaved changes. Are you sure you want to leave? Your changes will be lost.",
-                    );
-                    if (!confirmLeave) return;
-                  }
-                  navigate(-1);
-                }}
+                onClick={() => requestUnsavedNavigation(-1)}
                 className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -2136,6 +2246,7 @@ export default function AddPropertyPage() {
 
       {/* Form Content */}
       <form
+        ref={formContentRef}
         className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6"
         onSubmit={handleFormSubmit}
         onKeyDown={handleFormKeyDown}
@@ -2235,7 +2346,7 @@ export default function AddPropertyPage() {
                       }
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                         formData.propertyType === type.value
-                          ? "border-primary bg-primary/10 text-primary"
+                          ? "border-primary bg-primary/10 text-orange-800"
                           : "border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500"
                       }`}
                     >
@@ -2337,7 +2448,7 @@ export default function AddPropertyPage() {
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                      {formData.currency}
+                      {displayCurrency}
                     </span>
                     <input
                       {...fieldState("priceAmount")}
@@ -2395,7 +2506,7 @@ export default function AddPropertyPage() {
                       <Star className="w-4 h-4" />
                       Mark as Featured Property
                     </span>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-300 mt-1">
+                    <p className="text-xs text-yellow-800 dark:text-yellow-200 mt-1">
                       Featured properties get more visibility and appear at the
                       top of search results
                     </p>
@@ -2484,7 +2595,7 @@ export default function AddPropertyPage() {
                     handleInputChange("latitude", e.target.value)
                   }
                   className={getFieldClassName("latitude")}
-                  placeholder="e.g. 51.5007"
+                  placeholder="e.g. 13.0827"
                 />
                 {renderFieldError("latitude")}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2508,7 +2619,7 @@ export default function AddPropertyPage() {
                     handleInputChange("longitude", e.target.value)
                   }
                   className={getFieldClassName("longitude")}
-                  placeholder="e.g. -0.1246"
+                  placeholder="e.g. 80.2707"
                 />
                 {renderFieldError("longitude")}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2929,9 +3040,26 @@ export default function AddPropertyPage() {
                       onChange={(e) =>
                         handleInputChange("description", e.target.value)
                       }
+                      maxLength={PROPERTY_DESCRIPTION_MAX_LENGTH}
+                      aria-invalid={Boolean(errors.description)}
+                      aria-describedby={[
+                        errors.description
+                          ? getManagerPropertyErrorId("description")
+                          : null,
+                        descriptionCharacterCountId,
+                      ].filter(Boolean).join(" ")}
                       className="w-full p-4 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       placeholder="Enter a detailed property description..."
                     />
+                  </div>
+                  <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    {renderFieldError("description")}
+                    <p
+                      id={descriptionCharacterCountId}
+                      className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:ml-auto"
+                    >
+                      {formData.description.length}/{PROPERTY_DESCRIPTION_MAX_LENGTH} characters
+                    </p>
                   </div>
                 </div>
               </div>
@@ -3158,42 +3286,6 @@ export default function AddPropertyPage() {
                       </button>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-
-            {/* Virtual Tour */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-primary" />
-                Virtual Tour
-              </h2>
-
-              <label
-                htmlFor={getManagerPropertyFieldId("virtualTourUrl")}
-                className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-              >
-                Virtual tour URL
-              </label>
-              <input
-                id={getManagerPropertyFieldId("virtualTourUrl")}
-                type="url"
-                value={formData.virtualTourUrl}
-                onChange={(e) =>
-                  handleInputChange("virtualTourUrl", e.target.value)
-                }
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
-                placeholder="https://your-virtual-tour-url.com"
-              />
-              {isEditMode && idValue && (
-                <div className="mt-6">
-                  <VirtualTourRequestPanel
-                    propertyId={idValue}
-                    propertyTitle={formData.title || "Selected property"}
-                    onTourReady={(nextTourUrl) =>
-                      handleInputChange("virtualTourUrl", nextTourUrl)
-                    }
-                  />
                 </div>
               )}
             </div>
@@ -3444,7 +3536,7 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("deposit")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Security Deposit ({formData.currency})
+                    Security Deposit ({displayCurrency})
                   </label>
                   <input
                     {...fieldState("deposit")}
@@ -3470,7 +3562,7 @@ export default function AddPropertyPage() {
                     htmlFor={getManagerPropertyFieldId("maintenanceCharges")}
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Maintenance Charges ({formData.currency}/month)
+                    Maintenance Charges ({displayCurrency}/month)
                   </label>
                   <input
                     {...fieldState("maintenanceCharges")}
@@ -3613,6 +3705,86 @@ export default function AddPropertyPage() {
       {isEditMode && idValue && (
         <div className="mt-6">
           <PropertyCompliancePanel propertyId={idValue} />
+        </div>
+      )}
+
+      {pendingUnsavedNavigation !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={closeUnsavedNavigationDialog}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Unsaved property changes confirmation"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Leave with unsaved changes?
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              Your property changes have not been saved. Leaving now will discard the current edits.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeUnsavedNavigationDialog}
+                disabled={saving}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Stay here
+              </button>
+              <button
+                type="button"
+                onClick={confirmUnsavedNavigation}
+                disabled={saving}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Leave page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingMediaDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={closeMediaDeleteDialog}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Remove property media confirmation"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Remove media
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              Remove {pendingMediaDelete.original_name || pendingMediaDelete.file_name || pendingMediaDelete.id} from this property media list?
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeMediaDeleteDialog}
+                disabled={mediaListLoading}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteMediaFile()}
+                disabled={mediaListLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {mediaListLoading ? "Removing..." : "Remove media"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

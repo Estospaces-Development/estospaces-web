@@ -1,0 +1,27 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - europe-west2-docker.pkg.dev/project-37e22fd7-55ee-4b1f-841/estospaces/estospaces-web:codex-project5-155-183-final-20260621
+      - --build-arg
+      - VITE_CORE_SERVICE_URL=https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - VITE_BOOKING_SERVICE_URL=https://estospaces-booking-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - VITE_PAYMENT_SERVICE_URL=https://estospaces-payment-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - VITE_NOTIFICATION_SERVICE_URL=https://estospaces-notification-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - VITE_SEARCH_SERVICE_URL=https://estospaces-search-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - VITE_MEDIA_SERVICE_URL=https://estospaces-media-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - VITE_MESSAGING_SERVICE_URL=https://estospaces-messaging-service-dev-zaryfkxmeq-nw.a.run.app
+      - --build-arg
+      - NGINX_CONF=nginx.gcp-dev.conf
+      - .
+images:
+  - europe-west2-docker.pkg.dev/project-37e22fd7-55ee-4b1f-841/estospaces/estospaces-web:codex-project5-155-183-final-20260621
+options:
+  logging: CLOUD_LOGGING_ONLY

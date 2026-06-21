@@ -62,6 +62,8 @@ import {
     buildSaleOfferPayload,
     isSaleOfferListingType,
 } from '@/lib/saleOfferEntry';
+import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -155,6 +157,18 @@ export function getViewingCalendarDayAriaLabel(day: ViewingCalendarDay, selected
     return `${stateLabel}: ${dateLabel}`;
 }
 
+export function getViewingCalendarDayTone(day: ViewingCalendarDay, selected: boolean) {
+    if (selected) {
+        return 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20';
+    }
+
+    if (day.isCurrentMonth) {
+        return 'border-stone-200 bg-stone-50 text-gray-800 hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-800';
+    }
+
+    return 'border-stone-100 bg-white text-gray-600 hover:border-orange-200 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:border-orange-900';
+}
+
 const isPastViewingTimeSlot = (dateValue: string, timeValue: string) => {
     if (!dateValue || !timeValue) {
         return false;
@@ -222,7 +236,7 @@ export function shouldUseBrowserHistoryForPropertyDetailBack(user?: unknown) {
 
 export function getImmersiveGalleryDialogLabel(propertyTitle: string) {
     const title = propertyTitle.trim();
-    return title ? `Immersive gallery for ${title}` : 'Immersive property gallery';
+    return title ? `Full-screen gallery for ${title}` : 'Full-screen property gallery';
 }
 
 const formatPreviewDate = (dateValue: string) => {
@@ -441,7 +455,7 @@ export const SaleOfferEntryCard = ({
             <input
                 type="number"
                 min="1"
-                step="1000"
+                step="1"
                 value={offerAmount}
                 onChange={(event) => onAmountChange(event.target.value)}
                 placeholder="425000"
@@ -471,7 +485,7 @@ export const SaleOfferEntryCard = ({
         <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-emerald-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
             {isSubmitting && <Loader2 size={15} className="animate-spin" />}
             {isSubmitting ? 'Submitting offer...' : 'Submit Offer'}
@@ -662,7 +676,7 @@ const RentalApplicationEntryCard = ({
         <button
             type="submit"
             disabled={isSubmitting}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-sky-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-600/20 transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-sky-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-700/20 transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
             {isSubmitting && <Loader2 size={15} className="animate-spin" />}
             {isSubmitting ? 'Submitting application...' : 'Submit Rental Application'}
@@ -730,6 +744,7 @@ const UserPropertyDetail = () => {
     const toast = useToast();
     const { user } = useAuth();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
+    const publishWorkspaceSync = usePublishWorkspaceSync();
 
     const [property, setProperty] = useState<Property | null>(null);
     const [propertyReviews, setPropertyReviews] = useState<Review[]>([]);
@@ -1630,7 +1645,32 @@ const UserPropertyDetail = () => {
                 throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
             }
 
-            await loadFastTrackWorkspace();
+            try {
+                const refreshedWorkspace = await loadFastTrackWorkspace();
+                if (!refreshedWorkspace.fastTrackCase) {
+                    setActiveLead(leadToUse);
+                    setActiveFastTrackCase(fastTrackResult.data);
+                }
+                setLiveWorkspaceLoaded(Boolean(refreshedWorkspace.lead || refreshedWorkspace.fastTrackCase || fastTrackResult.data));
+            } catch {
+                setActiveLead(leadToUse);
+                setActiveFastTrackCase(fastTrackResult.data);
+                setLiveWorkspaceLoaded(true);
+            }
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                    WORKSPACE_SYNC_TAGS.LEADS,
+                ],
+                reason: 'User started fast-track from property detail',
+                ids: {
+                    caseId: fastTrackResult.data.caseId,
+                    leadId: leadToUse.id,
+                    propertyId: property.id,
+                },
+            });
             setIsFastTrackModalOpen(true);
             toast.success('Fast-track started. You can track the roadmap and upload supporting files here.');
         } catch (actionError: any) {
@@ -1912,6 +1952,7 @@ const UserPropertyDetail = () => {
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{error || 'Property Not Found'}</h2>
                     <p className="text-gray-500 dark:text-gray-400 mb-8">The property you are looking for might have been removed or is temporarily unavailable.</p>
                     <button
+                        type="button"
                         onClick={() => navigate('/user/search')}
                         className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-md"
                     >
@@ -1931,6 +1972,7 @@ const UserPropertyDetail = () => {
             <div className="pointer-events-none absolute right-0 top-72 -z-10 h-56 w-56 rounded-full bg-stone-100 blur-3xl dark:bg-zinc-900/80" />
             <div className="mb-8 flex items-center justify-between">
                 <button
+                    type="button"
                     onClick={handleBackNavigation}
                     className="flex items-center gap-2 text-gray-600 transition-colors group hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-300"
                 >
@@ -1961,20 +2003,13 @@ const UserPropertyDetail = () => {
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1.36fr)_minmax(420px,0.92fr)] xl:items-start">
                 <div className="min-w-0 space-y-8">
                     <div className="overflow-hidden rounded-[2.4rem] border border-stone-200/80 bg-[#fcfbf8] shadow-[0_32px_80px_-42px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-900">
-                        <div
-                            role="button"
-                            tabIndex={0}
-                            onClick={(event) => openGallery(undefined, event.currentTarget)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault();
-                                    openGallery(undefined, event.currentTarget);
-                                }
-                            }}
-                            className="relative cursor-zoom-in focus:outline-none"
-                            aria-label={`Open image gallery for ${property.title}`}
-                        >
-                            <div className="aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-zinc-800 md:aspect-[16/9]">
+                        <div className="relative">
+                            <button
+                                type="button"
+                                onClick={(event) => openGallery(undefined, event.currentTarget)}
+                                className="relative block aspect-[4/3] w-full cursor-zoom-in overflow-hidden bg-gray-100 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:bg-zinc-800 md:aspect-[16/9]"
+                                aria-label={`Open image gallery for ${property.title}`}
+                            >
                                 <img
                                     src={coverImage}
                                     alt={property.title}
@@ -1983,13 +2018,13 @@ const UserPropertyDetail = () => {
                                         event.currentTarget.src = PROPERTY_PLACEHOLDER_IMAGE;
                                     }}
                                 />
-                            </div>
-                            <div className="pointer-events-none absolute inset-0 bg-black/10" />
-                            <div className="absolute left-5 top-5 flex flex-wrap gap-2">
+                                <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                            </button>
+                            <div className="pointer-events-none absolute left-5 top-5 flex flex-wrap gap-2">
                                 <span className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] shadow-lg ${
                                     property.listing_type === 'rent'
-                                        ? 'bg-sky-500 text-white'
-                                        : 'bg-emerald-500 text-white'
+                                        ? 'bg-sky-700 text-white'
+                                        : 'bg-emerald-700 text-white'
                                 }`}>
                                     {listingLabel}
                                 </span>
@@ -2000,7 +2035,7 @@ const UserPropertyDetail = () => {
                                 )}
                             </div>
                             <div className="absolute right-5 top-5 flex items-center gap-2">
-                                <div className="rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg backdrop-blur">
+                                <div className="pointer-events-none rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-semibold text-gray-900 shadow-lg backdrop-blur">
                                     {selectedImageIndex + 1} / {images.length}
                                 </div>
                                 <button
@@ -2041,8 +2076,8 @@ const UserPropertyDetail = () => {
                                     </button>
                                 </>
                             )}
-                            <div className="absolute bottom-5 left-5 rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-medium text-gray-900 shadow-lg backdrop-blur">
-                                Tap the image for the immersive viewer
+                            <div className="pointer-events-none absolute bottom-5 left-5 rounded-full border border-white/75 bg-white/88 px-4 py-2 text-sm font-medium text-gray-900 shadow-lg backdrop-blur">
+                                Tap the image for the full-screen gallery
                             </div>
                         </div>
                         <div className="border-t border-stone-200/80 bg-white px-6 py-6 dark:border-zinc-800 dark:bg-zinc-900">
@@ -2057,7 +2092,7 @@ const UserPropertyDetail = () => {
                                         <span>{propertyAddress || locationLabel}</span>
                                     </div>
                                     <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
-                                        Start with the lead image here, switch between the curated photo set below, and open the immersive viewer whenever you want a larger, distraction-free look.
+                                        Start with the lead image here, switch between the curated photo set below, and open the full-screen gallery whenever you want a larger, distraction-free look.
                                     </p>
 
                                     {images.length > 1 ? (
@@ -2078,6 +2113,7 @@ const UserPropertyDetail = () => {
                                                     <button
                                                         key={`${image}-${index}`}
                                                         type="button"
+                                                        aria-pressed={index === selectedImageIndex}
                                                         onClick={() => setSelectedImageIndex(index)}
                                                         className={`group relative h-28 w-32 shrink-0 overflow-hidden rounded-[1.45rem] border bg-white shadow-sm transition ${
                                                             index === selectedImageIndex
@@ -2125,7 +2161,7 @@ const UserPropertyDetail = () => {
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] bg-orange-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
                                             >
                                                 <ImageIcon size={16} />
-                                                <span>Open immersive view</span>
+                                                <span>Open full-screen gallery</span>
                                             </button>
                                             <button
                                                 type="button"
@@ -2197,7 +2233,7 @@ const UserPropertyDetail = () => {
                                     </div>
 
                                     <div className="rounded-[1.5rem] border border-stone-200/80 bg-white px-4 py-4 text-sm leading-6 text-gray-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-300">
-                                        Open the immersive viewer for a full-screen look, use the thumbnail rail to jump between angles quickly, and keep the key facts close enough to compare while the image stays front and centre.
+                                        Open the full-screen gallery for a closer look, use the thumbnail rail to jump between angles quickly, and keep the key facts close enough to compare while the image stays front and centre.
                                     </div>
                                 </div>
                             </div>
@@ -2491,6 +2527,7 @@ const UserPropertyDetail = () => {
                         <div className="mt-5 grid gap-3">
                             <button
                                 ref={fastTrackTriggerRef}
+                                type="button"
                                 onClick={(event) => {
                                     fastTrackTriggerRef.current = event.currentTarget;
                                     void handleStartFastTrack();
@@ -2501,12 +2538,14 @@ const UserPropertyDetail = () => {
                                 {isStartingFastTrack ? 'Starting Fast-Track...' : 'Start 24-Hour Fast Track'}
                             </button>
                             <button
+                                type="button"
                                 onClick={openFastTrackDashboard}
                                 className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                             >
                                 Open live workspace
                             </button>
                             <button
+                                type="button"
                                 onClick={handleOpenConversation}
                                 disabled={isCreatingConversation}
                                 className="flex w-full items-center justify-center gap-2 rounded-[1.35rem] border border-stone-200 bg-stone-50 py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:opacity-60 disabled:cursor-not-allowed dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:hover:border-orange-800 dark:hover:bg-zinc-900"
@@ -2634,11 +2673,7 @@ const UserPropertyDetail = () => {
                                                     }}
                                                     disabled={day.isDisabled}
                                                     className={`relative flex h-9 items-center justify-center rounded-lg border text-[13px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 ${
-                                                        isSelected
-                                                            ? 'border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20'
-                                                            : day.isCurrentMonth
-                                                                ? 'border-stone-200 bg-stone-50 text-gray-800 hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-200 dark:hover:border-orange-800'
-                                                                : 'border-transparent bg-transparent text-gray-300 dark:text-zinc-700'
+                                                        getViewingCalendarDayTone(day, isSelected)
                                                     } ${day.isDisabled ? 'cursor-not-allowed opacity-35' : ''}`}
                                                 >
                                                     <span>{day.dayNumber}</span>
@@ -2757,7 +2792,7 @@ const UserPropertyDetail = () => {
                                 </div>
                                 <div>
                                     <div className="text-sm font-bold text-gray-900 dark:text-white">{property.agent_name || 'Verified Broker'}</div>
-                                    <div className="mt-1 text-xs text-green-600 font-medium flex items-center gap-1 dark:text-green-400">
+                                    <div className="mt-1 text-xs text-green-700 font-medium flex items-center gap-1 dark:text-green-300">
                                         <Clock size={12} />
                                         SLA: 10-minute live response
                                     </div>
@@ -2813,7 +2848,7 @@ const UserPropertyDetail = () => {
                     >
                         <div className="flex items-start justify-between gap-4 rounded-[1.75rem] border border-white/10 bg-white/6 px-5 py-4 text-white shadow-[0_18px_50px_-28px_rgba(15,23,42,0.7)] backdrop-blur-xl">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Immersive gallery</p>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Full-screen gallery</p>
                                 <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[2rem]">{property.title}</h2>
                                 <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
                                     <MapPin size={15} className="text-orange-400" />
@@ -2962,11 +2997,12 @@ const UserPropertyDetail = () => {
                                         </div>
                                         <div className="mt-4 flex gap-3 overflow-x-auto pb-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
                                             {images.map((image, index) => (
-                                                <button
-                                                    key={`${image}-${index}-fullscreen`}
-                                                    type="button"
-                                                    onClick={() => setSelectedImageIndex(index)}
-                                                    className={`group relative h-24 w-28 shrink-0 overflow-hidden rounded-[1.25rem] border transition lg:h-28 lg:w-full ${
+                                                    <button
+                                                        key={`${image}-${index}-fullscreen`}
+                                                        type="button"
+                                                        aria-pressed={index === selectedImageIndex}
+                                                        onClick={() => setSelectedImageIndex(index)}
+                                                        className={`group relative h-24 w-28 shrink-0 overflow-hidden rounded-[1.25rem] border transition lg:h-28 lg:w-full ${
                                                         index === selectedImageIndex
                                                             ? 'border-orange-400 ring-2 ring-orange-300/45'
                                                             : 'border-white/10 hover:border-white/30'
