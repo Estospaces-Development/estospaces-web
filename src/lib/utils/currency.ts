@@ -87,15 +87,15 @@ export function formatCurrency(
 /**
  * Get currency symbol
  */
-export function getCurrencySymbol(currency: CurrencyCode): string {
-  return CURRENCY_SYMBOLS[currency] || currency;
+export function getCurrencySymbol(currency: string): string {
+  return CURRENCY_SYMBOLS[currency as CurrencyCode] || currency;
 }
 
 /**
  * Get currency name
  */
-export function getCurrencyName(currency: CurrencyCode): string {
-  return CURRENCY_NAMES[currency] || currency;
+export function getCurrencyName(currency: string): string {
+  return CURRENCY_NAMES[currency as CurrencyCode] || currency;
 }
 
 /**

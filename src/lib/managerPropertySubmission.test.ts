@@ -50,6 +50,12 @@ test('blocks submission when operational broker fields are missing', () => {
         getManagerPropertySubmissionBlocker({
             verification_status: 'approved',
             agency_verification_status: 'approved',
+            profile_type: 'broker',
+            company_name: 'Belfast Estates',
+            business_phone: '+44 20 0000 0000',
+            company_address: '1 Office Street',
+            license_number: 'BRK-1',
+            company_registration_number: '',
             branch_name: '',
             registered_office_address: '',
             complaints_contact: 'ops@example.com',
@@ -63,11 +69,41 @@ test('blocks submission when operational broker fields are missing', () => {
     );
 });
 
+test('blocks submission when approved manager is missing professional identity details', () => {
+    assert.equal(
+        getManagerPropertySubmissionBlocker({
+            verification_status: 'approved',
+            agency_verification_status: 'approved',
+            profile_type: 'broker',
+            company_name: 'Estospaces Launch Manager',
+            business_phone: '+44 20 7946 0958',
+            company_address: '1 Launch Square, Westminster',
+            license_number: '',
+            company_registration_number: '',
+            branch_name: 'Westminster Pilot Branch',
+            registered_office_address: '1 Launch Square, Westminster',
+            complaints_contact: 'complaints@example.com',
+            redress_scheme_name: 'The Property Ombudsman',
+            redress_membership_number: 'TPO-DEV-001',
+            cmp_provider: 'CMP Development Provider',
+            cmp_certificate_url: 'https://example.com/cmp/dev-certificate.pdf',
+            has_client_money: true,
+        }),
+        'Complete your professional profile before you submit a property for admin approval: broker license number.',
+    );
+});
+
 test('requires CMP details when the agency holds client money', () => {
     assert.equal(
         getManagerPropertySubmissionBlocker({
             verification_status: 'approved',
             agency_verification_status: 'approved',
+            profile_type: 'broker',
+            company_name: 'Belfast Estates',
+            business_phone: '+44 20 0000 0000',
+            company_address: '1 Office Street',
+            license_number: 'BRK-1',
+            company_registration_number: '',
             branch_name: 'Belfast',
             registered_office_address: '1 Office Street',
             complaints_contact: 'ops@example.com',
@@ -86,6 +122,12 @@ test('allows submission once verification and operational details are complete',
         getManagerPropertySubmissionBlocker({
             verification_status: 'approved',
             agency_verification_status: 'approved',
+            profile_type: 'broker',
+            company_name: 'Belfast Estates',
+            business_phone: '+44 20 0000 0000',
+            company_address: '1 Office Street',
+            license_number: 'BRK-1',
+            company_registration_number: '',
             branch_name: 'Belfast',
             registered_office_address: '1 Office Street',
             complaints_contact: 'ops@example.com',

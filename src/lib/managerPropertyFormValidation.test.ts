@@ -13,16 +13,16 @@ const baseValues: ManagerPropertyValidationValues = {
   title: "Example Property",
   priceAmount: 250000,
   addressLine1: "10 Example Street",
-  country: "United Kingdom",
-  countryId: "GB",
-  countryCode: "GB",
-  state: "Belfast",
+  country: "India",
+  countryId: "2",
+  countryCode: "IN",
+  state: "Tamil Nadu",
   stateId: "state-1",
-  city: "Belfast",
+  city: "Chennai",
   cityId: "city-1",
-  postalCode: "BT9 7GG",
-  latitude: "54.5973",
-  longitude: "-5.9301",
+  postalCode: "600001",
+  latitude: "13.0827",
+  longitude: "80.2707",
   totalArea: 900,
   carpetArea: 750,
   bedrooms: 3,
@@ -32,10 +32,11 @@ const baseValues: ManagerPropertyValidationValues = {
   floorNumber: 1,
   totalFloors: 2,
   yearBuilt: 2024,
+  description: "A clear and useful property description.",
   hasImages: true,
   contactName: "Alex Agent",
   contactEmail: "alex@example.com",
-  contactPhone: "+441234567890",
+  contactPhone: "+919876543210",
   alternatePhone: "",
   availableFrom: "2026-04-10",
   listingType: "rent",
@@ -73,13 +74,24 @@ test("validateManagerPropertyField validates coordinate bounds and precision", (
 test("validateManagerPropertyForm returns the first invalid step correctly", () => {
   const fieldErrors = validateManagerPropertyForm({
     ...baseValues,
-    postalCode: "INVALID",
+    postalCode: "SW1A 1AA",
     contactPhone: "123",
   });
 
-  assert.equal(fieldErrors.postalCode, "Please enter a valid UK postcode");
+  assert.equal(fieldErrors.postalCode, "Please enter a valid 6-digit Indian PIN code");
   assert.equal(fieldErrors.contactPhone, "Please enter a valid phone number");
   assert.equal(getManagerPropertyFirstErrorStep(fieldErrors), 2);
+});
+
+test("validateManagerPropertyForm blocks non-India launch countries", () => {
+  const fieldErrors = validateManagerPropertyForm({
+    ...baseValues,
+    country: "United Kingdom",
+    countryId: "GB",
+    countryCode: "GB",
+  });
+
+  assert.equal(fieldErrors.country, "Only India listings are supported for this launch");
 });
 
 test("validateManagerPropertyForm enforces floor relationships and optional money rules", () => {
@@ -115,5 +127,15 @@ test("validateManagerPropertyField accepts optional blank coordinates and altern
       alternatePhone: "",
     }),
     null,
+  );
+});
+
+test("validateManagerPropertyField enforces full description length", () => {
+  assert.equal(
+    validateManagerPropertyField("description", {
+      ...baseValues,
+      description: "x".repeat(1001),
+    }),
+    "Full description must be 1000 characters or fewer",
   );
 });

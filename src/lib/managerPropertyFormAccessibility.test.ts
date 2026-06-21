@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
   getManagerPropertyAddressRevalidationFields,
@@ -11,6 +13,11 @@ import {
   getManagerPropertySubmitIntent,
   getManagerPropertyUploadControlCopy,
 } from './managerPropertyFormAccessibility';
+
+const managerPropertyFormPage = readFileSync(
+  resolve(process.cwd(), 'src/pages/manager/dashboard/properties/add/page.tsx'),
+  'utf8',
+);
 
 test('manager property form field helpers create stable label and error wiring', () => {
   assert.equal(getManagerPropertyFieldId('title'), 'manager-property-title');
@@ -130,4 +137,26 @@ test('manager property audit summary exposes actor action and reason', () => {
     }),
     'Audit trail preview. Actor: Current manager. Action: Create Basic Info. Status: draft. Reason: Manager created property listing.',
   );
+});
+
+test('manager property form uses in-app dialogs for unsaved navigation and media removal', () => {
+  assert.doesNotMatch(managerPropertyFormPage, /window\.confirm/);
+  assert.match(managerPropertyFormPage, /aria-label="Unsaved property changes confirmation"/);
+  assert.match(managerPropertyFormPage, /aria-label="Remove property media confirmation"/);
+});
+
+test('manager property create form defaults launch currency to Indian rupees', () => {
+  assert.match(managerPropertyFormPage, /code:\s*"IN",\s*name:\s*"India",\s*currency:\s*"INR"/);
+  assert.doesNotMatch(
+    managerPropertyFormPage,
+    /code:\s*"GB",\s*name:\s*"United Kingdom",\s*currency:\s*"GBP"/,
+  );
+});
+
+test('manager property money fields display the selected currency symbol', () => {
+  assert.match(managerPropertyFormPage, /import\s*\{\s*getCurrencySymbol\s*\}\s*from\s*"@\/lib\/utils\/currency"/);
+  assert.match(managerPropertyFormPage, /const\s+displayCurrency\s*=\s*getCurrencySymbol\(formData\.currency\)/);
+  assert.match(managerPropertyFormPage, /\{displayCurrency\}[\s\S]*<input[\s\S]*\{renderFieldError\("priceAmount"\)\}/);
+  assert.match(managerPropertyFormPage, /Security Deposit \(\{displayCurrency\}\)/);
+  assert.match(managerPropertyFormPage, /Maintenance Charges \(\{displayCurrency\}\/month\)/);
 });
