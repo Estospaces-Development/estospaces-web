@@ -33,6 +33,7 @@ import {
     userMatchesVerificationTab,
     type UserVerificationQueueTab,
 } from '@/lib/userVerificationQueue';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 type TabType = UserVerificationQueueTab;
 
@@ -56,7 +57,7 @@ const scopeContent = {
     },
     manager: {
         badge: 'Manager Portal',
-        badgeClass: 'bg-blue-500 shadow-blue-500/20',
+        badgeClass: 'bg-blue-700 shadow-blue-700/20',
         accentText: 'text-blue-500',
         accentRing: 'focus:ring-blue-500/10',
         focusText: 'group-focus-within:text-blue-500',
@@ -171,9 +172,10 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 - new Date(left.last_active || left.created_at).getTime();
         });
     }, [activeTab, searchQuery, sortMode, users]);
+    const userCardKeyFor = createDuplicateSafeKeyResolver(`${scope}-verification-user`);
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-500">
+        <div data-testid="user-verification-queue" className="space-y-10 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -239,7 +241,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                             <stat.icon size={28} />
                         </div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
-                        <h3 className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</h3>
+                        <p className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</p>
                     </button>
                 ))}
             </div>
@@ -264,9 +266,9 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                         </div>
                     ) : filteredUsers.length > 0 ? (
                         <div className="grid grid-cols-1 gap-6">
-                            {filteredUsers.map((user) => (
+                            {filteredUsers.map((user, userIndex) => (
                                 <UserVerificationCard
-                                    key={user.user_id}
+                                    key={userCardKeyFor(user.user_id, userIndex)}
                                     user={user}
                                     onViewDetails={() => setSelectedUserId(user.user_id)}
                                     hoverClass={content.actionHover}

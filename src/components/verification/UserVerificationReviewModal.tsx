@@ -34,6 +34,7 @@ import {
     getLatestFastTrackReviewDocuments,
     latestDocumentByCategory,
 } from '@/lib/fastTrackWorkflow';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 interface UserVerificationReviewModalProps {
     scope: VerificationScope;
@@ -41,6 +42,7 @@ interface UserVerificationReviewModalProps {
     onClose: () => void;
     onUpdated?: () => void | Promise<void>;
     variant?: 'queue' | 'fast_track';
+    missingUserContext?: UserVerificationReviewMissingUserContext;
 }
 
 export const USER_VERIFICATION_REVIEW_CLOSE_LABEL = 'Close verification review panel';
@@ -48,6 +50,38 @@ const VERIFICATION_NOTES_MAX_LENGTH = 1000;
 const VERIFICATION_REASON_MAX_LENGTH = 500;
 type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
 type VerificationSortMode = 'newest' | 'oldest' | 'status';
+
+export interface UserVerificationReviewMissingUserContext {
+    name?: string | null;
+    email?: string | null;
+    source?: 'appointment' | 'verification';
+}
+
+export const getVerificationReviewErrorMessage = (
+    error: string | null,
+    missingUserContext?: UserVerificationReviewMissingUserContext,
+) => {
+    const normalizedError = (error || '').trim().toLowerCase();
+
+    if (missingUserContext && normalizedError.includes('user not found')) {
+        const label = missingUserContext.name || missingUserContext.email || 'this client';
+        const sourceLabel = missingUserContext.source === 'appointment'
+            ? 'This appointment'
+            : 'This review';
+
+        return `Verification record not available for ${label}. ${sourceLabel} is not linked to a core user profile yet, so document review cannot open here. Use the linked case file or messages while the user profile is connected.`;
+    }
+
+    if (
+        missingUserContext?.source === 'appointment'
+        && normalizedError.includes('properties assigned')
+    ) {
+        const label = missingUserContext.name || missingUserContext.email || 'this client';
+        return `Document review is not available for ${label} from this appointment. The core verification service did not expose an assigned property review record for this client, so document review cannot open here yet. Use the linked case file or messages while the assignment is corrected.`;
+    }
+
+    return error || 'Failed to load user details';
+};
 
 const dedupeDocumentsById = (documents: UserDocument[]) => {
     const seen = new Set<string>();
@@ -60,12 +94,24 @@ const dedupeDocumentsById = (documents: UserDocument[]) => {
     });
 };
 
+const isVerificationDocumentApproved = (document: UserDocument | undefined) => {
+    const status = String(document?.status || '').trim().toLowerCase();
+    return status === 'approved' || status === 'verified';
+};
+
+export const canCompleteUserVerification = (documents: UserDocument[]) => {
+    const latestDocuments = latestDocumentByCategory(documents);
+    return isVerificationDocumentApproved(latestDocuments.get('identity'))
+        && isVerificationDocumentApproved(latestDocuments.get('address'));
+};
+
 const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = ({
     scope,
     userId,
     onClose,
     onUpdated,
     variant = 'queue',
+    missingUserContext,
 }) => {
     const isAdmin = scope === 'admin';
     const isFastTrackReview = variant === 'fast_track';
@@ -100,10 +146,6 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         fetchDetails();
     }, [fetchDetails]);
 
-    const latestDocuments = useMemo(
-        () => latestDocumentByCategory(details?.documents || []),
-        [details?.documents],
-    );
     const reviewDocuments = useMemo(
         () => isFastTrackReview
             ? getLatestFastTrackReviewDocuments(details?.documents || [])
@@ -130,7 +172,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const isVerificationApproved = verificationLevel === 'verified' || verificationLevel === 'fully_verified';
     const canApprove = !isVerificationApproved && (isFastTrackReview
         ? canCompleteFastTrackVerification(details?.documents || [])
-        : latestDocuments.has('identity') && latestDocuments.has('address'));
+        : canCompleteUserVerification(details?.documents || []));
 
     const getDocumentReviewSuccessMessage = (
         status: 'approved' | 'reupload_required' | 'rejected',
@@ -248,7 +290,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             <ModalWrapper onClose={onClose}>
                 <div className="text-center py-16">
                     <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
-                    <p className="text-gray-600">{error || 'Failed to load user details'}</p>
+                    <p className="text-gray-600">{getVerificationReviewErrorMessage(error, missingUserContext)}</p>
                     <button onClick={onClose} className="mt-4 px-6 py-2 bg-gray-900 text-white rounded-xl font-medium">
                         Close
                     </button>
@@ -279,6 +321,8 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
 
         return sortedLeads.slice(0, 5);
     })();
+    const reviewDocumentKeyFor = createDuplicateSafeKeyResolver('verification-review-document');
+    const recentLeadKeyFor = createDuplicateSafeKeyResolver('verification-recent-lead');
 
     return (
         <ModalWrapper onClose={onClose}>
@@ -381,9 +425,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                 </p>
                             </div>
                         ) : (
-                            visibleReviewDocuments.map((document) => (
+                            visibleReviewDocuments.map((document, documentIndex) => (
                                 <DocumentReviewCard
-                                    key={document.id}
+                                    key={reviewDocumentKeyFor(document.id, documentIndex)}
                                 document={document}
                                 onApprove={() => handleDocumentReview(document.id, 'approved')}
                                 onRequestChanges={(reason) => handleDocumentReview(document.id, 'reupload_required', reason)}
@@ -435,9 +479,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {recentLeads.map((lead) => (
+                            {recentLeads.map((lead, leadIndex) => (
                                 <div
-                                    key={lead.id}
+                                    key={recentLeadKeyFor(lead.id, leadIndex)}
                                     className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800"
                                 >
                                     <div className="min-w-0">
@@ -448,7 +492,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{lead.status}</p>
-                                        <p className="mt-1 text-xs text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</p>
+                                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</p>
                                     </div>
                                 </div>
                             ))}
@@ -547,7 +591,7 @@ const DocumentReviewCard: React.FC<{
     const config = (() => {
         switch (document.status) {
             case 'approved':
-                return { label: 'Approved', bg: 'bg-emerald-100', text: 'text-emerald-700', icon: CheckCircle };
+                return { label: 'Approved', bg: 'bg-emerald-100', text: 'text-emerald-800', icon: CheckCircle };
             case 'rejected':
                 return { label: 'Rejected', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
             case 'reupload_required':
@@ -578,7 +622,7 @@ const DocumentReviewCard: React.FC<{
                     <div>
                         <p className="font-medium text-gray-900 dark:text-white">{document.file_name}</p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                            {document.document_category} • {new Date(document.created_at).toLocaleDateString()}
+                            {document.document_category} - {new Date(document.created_at).toLocaleDateString()}
                         </p>
                         {document.reject_reason && (
                             <p className="text-xs text-red-600 mt-1 bg-red-50 px-2 py-1 rounded">
@@ -716,6 +760,7 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
             <div
+                data-testid="user-verification-review-modal"
                 role="dialog"
                 aria-modal="true"
                 aria-label="User verification review"

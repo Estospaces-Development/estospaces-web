@@ -4,7 +4,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { USER_VERIFICATION_REVIEW_CLOSE_LABEL } from './UserVerificationReviewModal';
+import {
+    USER_VERIFICATION_REVIEW_CLOSE_LABEL,
+    canCompleteUserVerification,
+    getVerificationReviewErrorMessage,
+} from './UserVerificationReviewModal';
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(path.resolve(testDir, 'UserVerificationReviewModal.tsx'), 'utf8');
@@ -13,4 +17,92 @@ test('user verification review modal names the close control and restores focus'
     assert.equal(USER_VERIFICATION_REVIEW_CLOSE_LABEL, 'Close verification review panel');
     assert.match(source, /aria-label=\{USER_VERIFICATION_REVIEW_CLOSE_LABEL\}/);
     assert.match(source, /previousFocusRef\.current\?\.focus\(\)/);
+});
+
+test('user verification review modal explains missing appointment-linked users clearly', () => {
+    const message = getVerificationReviewErrorMessage('user not found', {
+        name: 'Local QA Client',
+        email: 'qa-client@example.com',
+        source: 'appointment',
+    });
+
+    assert.match(message, /Verification record not available for Local QA Client\./);
+    assert.match(message, /This appointment is not linked to a core user profile yet/);
+    assert.match(message, /not linked to a core user profile yet/);
+});
+
+test('user verification review modal explains appointment assignment access failures clearly', () => {
+    const message = getVerificationReviewErrorMessage("you don't have any properties assigned", {
+        name: 'Local QA Client',
+        email: 'qa-client@example.com',
+        source: 'appointment',
+    });
+
+    assert.match(message, /Document review is not available for Local QA Client from this appointment\./);
+    assert.match(message, /core verification service did not expose an assigned property review record/);
+    assert.doesNotMatch(message, /you don't have any properties assigned/i);
+});
+
+test('user verification approval requires approved identity and address documents', () => {
+    const baseDocument = {
+        id: 'doc-1',
+        user_id: 'user-1',
+        document_type: 'government_id',
+        file_name: 'document.pdf',
+        file_url: 'https://example.com/document.pdf',
+        reject_reason: '',
+        created_at: '2026-06-16T10:00:00.000Z',
+        updated_at: '2026-06-16T10:00:00.000Z',
+    };
+
+    assert.equal(canCompleteUserVerification([
+        { ...baseDocument, id: 'identity-pending', document_category: 'identity', status: 'pending' },
+        { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
+    ] as any), false);
+
+    assert.equal(canCompleteUserVerification([
+        { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
+    ] as any), false);
+
+    assert.equal(canCompleteUserVerification([
+        { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
+        { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
+    ] as any), true);
+});
+
+test('user verification review surfaces are cleanly scoped and avoid mojibake', () => {
+    for (let index = 0; index < source.length; index += 1) {
+        const code = source.codePointAt(index);
+        assert.notEqual(code, 0x00c2);
+        assert.notEqual(code, 0xfffd);
+        assert.notDeepEqual(
+            [
+                source.codePointAt(index),
+                source.codePointAt(index + 1),
+                source.codePointAt(index + 2),
+            ],
+            [0x00e2, 0x20ac, 0x00a2],
+        );
+    }
+
+    const queueSource = readFileSync(path.resolve(testDir, 'UserVerificationQueue.tsx'), 'utf8');
+    assert.match(queueSource, /data-testid="user-verification-queue"/);
+    assert.match(source, /data-testid="user-verification-review-modal"/);
+    assert.match(source, /document\.document_category\} - /);
+});
+
+test('verification approved status pills use contrast-safe text colors', () => {
+    const adminVerificationPage = readFileSync(path.resolve(testDir, '../../pages/admin/verifications/page.tsx'), 'utf8');
+    const userVerificationService = readFileSync(path.resolve(testDir, '../../services/userVerificationService.ts'), 'utf8');
+
+    assert.doesNotMatch(source, /bg-emerald-100', text: 'text-emerald-700'/);
+    assert.match(source, /bg-emerald-100', text: 'text-emerald-800'/);
+    assert.doesNotMatch(userVerificationService, /text-(blue|emerald|amber)-700/);
+    assert.match(userVerificationService, /bg-blue-100', text: 'text-blue-800'/);
+    assert.match(userVerificationService, /bg-emerald-100', text: 'text-emerald-800'/);
+    assert.match(userVerificationService, /bg-amber-100', text: 'text-amber-800'/);
+    assert.doesNotMatch(source, /<p className="mt-1 text-xs text-gray-400">\{new Date\(lead\.created_at\)/);
+    assert.match(source, /<p className="mt-1 text-xs text-gray-600 dark:text-gray-400">\{new Date\(lead\.created_at\)/);
+    assert.doesNotMatch(adminVerificationPage, /bg-green-100 text-green-600/);
+    assert.match(adminVerificationPage, /bg-green-100 text-green-800/);
 });

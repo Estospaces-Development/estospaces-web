@@ -241,7 +241,7 @@ function VerificationsContent() {
               <stat.icon size={28} />
                 </div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none mb-2">{stat.label}</p>
-                <h3 className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</h3>
+                <p className="text-3xl font-black text-gray-900 dark:text-white">{stat.count}</p>
                 {((activeTab === 'pending' && stat.id === 'submitted') || 
                   (activeTab === 'review' && stat.id === 'under_review') ||
                   activeTab === stat.id) && (
@@ -304,7 +304,7 @@ function VerificationsContent() {
                     />
                     <div className="min-w-0">
                       <div className="flex items-center gap-3 mb-1">
-                        <h3 className="min-w-0 text-lg font-black text-gray-900 dark:text-white tracking-tight break-words [overflow-wrap:anywhere]">{displayName}</h3>
+                        <h2 className="min-w-0 text-lg font-black text-gray-900 dark:text-white tracking-tight break-words [overflow-wrap:anywhere]">{displayName}</h2>
                         <div className={`w-2 h-2 rounded-full ${isPending(manager.verification_status) ? 'bg-amber-500' :
                           isReview(manager.verification_status) ? 'bg-blue-500' : 
                           isApproved(manager.verification_status) ? 'bg-green-500' : 'bg-red-500'
@@ -316,7 +316,7 @@ function VerificationsContent() {
                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${
                           isPending(manager.verification_status) ? 'bg-amber-100 text-amber-600' :
                           isReview(manager.verification_status) ? 'bg-blue-100 text-blue-600' :
-                          isApproved(manager.verification_status) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                          isApproved(manager.verification_status) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'
                         }`}>
                           {manager.verification_status.replace('_', ' ')}
                         </span>

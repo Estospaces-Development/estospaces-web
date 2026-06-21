@@ -152,10 +152,10 @@ export const getVerificationLevelColor = (
 ): { bg: string; text: string } => {
     switch (level) {
         case 'fully_verified':
-            return { bg: 'bg-emerald-100', text: 'text-emerald-700' };
+            return { bg: 'bg-emerald-100', text: 'text-emerald-800' };
         case 'verified':
-            return { bg: 'bg-blue-100', text: 'text-blue-700' };
+            return { bg: 'bg-blue-100', text: 'text-blue-800' };
         default:
-            return { bg: 'bg-amber-100', text: 'text-amber-700' };
+            return { bg: 'bg-amber-100', text: 'text-amber-800' };
     }
 };
