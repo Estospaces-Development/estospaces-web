@@ -402,6 +402,7 @@ export default function ViewingsPage() {
                             />
                             <input
                                 type="text"
+                                aria-label="Search viewings"
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Search by home, area, or agent"
@@ -590,7 +591,7 @@ export default function ViewingsPage() {
                                                 {(viewing.status === 'pending' || viewing.status === 'confirmed') && !viewing.workflow_locked && (
                                                     <button
                                                         onClick={() => openCancelModal(viewing.id)}
-                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
+                                                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-bold text-red-700 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-lg transition-colors"
                                                     >
                                                         Cancel Appointment
                                                     </button>

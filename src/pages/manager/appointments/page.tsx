@@ -546,6 +546,7 @@ export default function ManagerAppointmentsPage() {
                         </div>
                         <input
                             type="text"
+                            aria-label="Search appointments"
                             placeholder="Search by client or property..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -703,7 +704,7 @@ export default function ManagerAppointmentsPage() {
                                                         },
                                                     )}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
                                                     {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                                                     Confirm
@@ -913,6 +914,11 @@ export default function ManagerAppointmentsPage() {
                     scope="manager"
                     userId={verificationTarget.user_id}
                     variant="fast_track"
+                    missingUserContext={{
+                        name: verificationTarget.client_name,
+                        email: verificationTarget.client_email,
+                        source: 'appointment',
+                    }}
                     onUpdated={async () => {
                         await fetchAppointments();
                     }}

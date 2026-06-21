@@ -68,8 +68,9 @@ export default function ManagerContractsPage() {
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
     const removedCaseNoticeRef = React.useRef<string | null>(null);
+    const requestedContractId = String(searchParams.get('contract') || '').trim();
     const hasWorkspaceFocusRequest = Boolean(
-        searchParams.get('contract')
+        requestedContractId
         || searchParams.get('application')
         || searchParams.get('case')
         || searchParams.get('lead')
@@ -133,13 +134,13 @@ export default function ManagerContractsPage() {
     const handleCountersign = async (id: string) => {
         setSigningId(id);
         const { data, error } = await signContract(id, 'manager');
-        if (error) {
-            toastError(error);
-        } else if (data) {
+        const latestContractResult = await getContract(id, { suppressErrorToast: true });
+        const signedContract = latestContractResult.data || data;
+        if (signedContract?.manager_signed_at) {
             success('Contract confirmed successfully!');
             // Update in list
-            setContracts(prev => prev.map(c => c.id === id ? data : c));
-            if (viewContract?.id === id) setViewContract(data);
+            setContracts(prev => prev.map(c => c.id === id ? signedContract : c));
+            setViewContract(current => current?.id === id ? signedContract : current);
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -150,13 +151,15 @@ export default function ManagerContractsPage() {
                 ],
                 reason: 'Manager confirmed contract',
                 ids: {
-                    contractId: data.id,
-                    applicationId: data.application_id,
-                    caseId: data.fast_track_case_id,
-                    leadId: data.lead_id,
-                    propertyId: data.property_id,
+                    contractId: signedContract.id,
+                    applicationId: signedContract.application_id,
+                    caseId: signedContract.fast_track_case_id,
+                    leadId: signedContract.lead_id,
+                    propertyId: signedContract.property_id,
                 },
             });
+        } else if (error) {
+            toastError(error);
         }
         setSigningId(null);
     };
@@ -298,6 +301,7 @@ export default function ManagerContractsPage() {
             propertyId: searchParams.get('property'),
         },
     );
+    const hasInvalidRequestedContract = !loading && requestedContractId !== '' && !focusedContract;
     const focusedFastTrackCase = resolveExactFastTrackCase(
         fastTrackCases,
         sanitizedCaseId,
@@ -352,7 +356,7 @@ export default function ManagerContractsPage() {
         setHasAppliedRouteFocus(true);
     }, [focusedContract, hasAppliedRouteFocus]);
 
-    const filteredContracts = contracts.filter(c => {
+    const filteredContracts = (hasInvalidRequestedContract ? [] : contracts.filter(c => {
         const normalizedStatus = normalizeContractStatus(c.status);
         // Tab filter
         const matchesTab = activeTab === 'all' 
@@ -377,7 +381,7 @@ export default function ManagerContractsPage() {
         }
 
         return true;
-    }).sort((left, right) => {
+    })).sort((left, right) => {
         if (!focusedContract) {
             return 0;
         }
@@ -406,6 +410,15 @@ export default function ManagerContractsPage() {
     return (
         <div className="p-6 md:p-8 font-outfit">
             {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    Contracts
+                </h1>
+                <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Manage tenancy agreements, signatures, and handover readiness.
+                </p>
+            </div>
+
             {/* Search and Actions */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                 <div className="relative flex-1 max-w-md">
@@ -414,6 +427,7 @@ export default function ManagerContractsPage() {
                     </div>
                     <input
                         type="text"
+                        aria-label="Search contracts"
                         placeholder="Search contracts by tenant or property..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -450,7 +464,12 @@ export default function ManagerContractsPage() {
                                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                     >
-                        {tab.label} <span className="ml-1 opacity-70">({tab.count})</span>
+                        {tab.label}{' '}
+                        {activeTab === tab.key ? (
+                            <span className="ml-1 text-white">({tab.count})</span>
+                        ) : (
+                            <span className="ml-1 text-gray-700 dark:text-gray-200">({tab.count})</span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -466,25 +485,43 @@ export default function ManagerContractsPage() {
             {!loading && filteredContracts.length === 0 && (
                 <div className="text-center py-20">
                     <FileText className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
-                    {hasWorkspaceFocusRequest && !focusedContract && (
+                    {hasInvalidRequestedContract ? (
+                        <p role="alert" className="mx-auto mb-4 max-w-xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                            The requested contract was not found.
+                        </p>
+                    ) : hasWorkspaceFocusRequest && !focusedContract && (
                         <p className="mx-auto mb-4 max-w-xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                             You are in the correct contracts workspace for this fast-track case, but no live tenancy contract has been created yet.
                         </p>
                     )}
-                    <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">No contracts found</h3>
+                    <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">
+                        {hasInvalidRequestedContract ? 'Contract not found' : 'No contracts found'}
+                    </h3>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                        Tenancy contracts are created from approved rental applications. Purchase journeys continue in the sale progression workspace.
+                        {hasInvalidRequestedContract
+                            ? 'Clear the invalid contract link to return to the full contracts list.'
+                            : 'Tenancy contracts are created from approved rental applications. Purchase journeys continue in the sale progression workspace.'}
                     </p>
                     <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                        <button
-                            type="button"
-                            aria-label="Create contract from approved application"
-                            onClick={handleCreateContractEntry}
-                            disabled={createContractEntryState.status === 'loading'}
-                            className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            Create contract
-                        </button>
+                        {hasInvalidRequestedContract ? (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/manager/contracts')}
+                                className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                            >
+                                Show all contracts
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                aria-label="Create contract from approved application"
+                                onClick={handleCreateContractEntry}
+                                disabled={createContractEntryState.status === 'loading'}
+                                className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Create contract
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => navigate('/manager/applications')}
@@ -499,7 +536,7 @@ export default function ManagerContractsPage() {
             {/* Contract Cards */}
             {!loading && filteredContracts.length > 0 && (
                 <div className="grid gap-4">
-                    {hasWorkspaceFocusRequest && !focusedContract && (
+                    {hasWorkspaceFocusRequest && !focusedContract && !hasInvalidRequestedContract && (
                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                             <p className="font-semibold">
                                 {focusedJourneyType === 'buy'
@@ -618,11 +655,11 @@ export default function ManagerContractsPage() {
 
                                         {/* Signature Status */}
                                         <div className="flex items-center gap-4 mt-3 text-xs">
-                                            <span className={`flex items-center gap-1 ${contract.user_signed_at ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                            <span className={`flex items-center gap-1 ${contract.user_signed_at ? 'text-green-700 dark:text-green-300' : 'text-gray-400 dark:text-gray-500'}`}>
                                                 {contract.user_signed_at ? <CheckCircle size={12} /> : <Clock size={12} />}
                                                 Tenant {contract.user_signed_at ? `signed ${formatDate(contract.user_signed_at)}` : 'not signed'}
                                             </span>
-                                            <span className={`flex items-center gap-1 ${contract.manager_signed_at ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                            <span className={`flex items-center gap-1 ${contract.manager_signed_at ? 'text-green-700 dark:text-green-300' : 'text-gray-400 dark:text-gray-500'}`}>
                                                 {contract.manager_signed_at ? <CheckCircle size={12} /> : <Clock size={12} />}
                                                 You {contract.manager_signed_at ? `signed ${formatDate(contract.manager_signed_at)}` : 'not signed'}
                                             </span>

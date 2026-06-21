@@ -268,7 +268,7 @@ export default function ContractsPage() {
         return "bg-orange-50 text-orange-600 border-orange-200";
       case "draft":
       case "pending_manager_signature":
-        return "bg-yellow-50 text-yellow-600 border-yellow-100";
+        return "bg-yellow-50 text-yellow-800 border-yellow-200";
       case "terminated":
         return "bg-red-50 text-red-600 border-red-100";
       default:
@@ -379,6 +379,7 @@ export default function ContractsPage() {
   if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <h1 className="sr-only">My Properties</h1>
         <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
       </div>
     );
@@ -444,6 +445,7 @@ export default function ContractsPage() {
             />
             <input
               type="text"
+              aria-label="Search homes or contracts"
               placeholder="Search homes or contracts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -546,6 +548,7 @@ export default function ContractsPage() {
                     <button
                       key={item.id}
                       type="button"
+                      aria-label={`Open property workspace for ${item.propertyTitle}`}
                       onClick={() => navigate(item.targetPath)}
                       className="group text-left rounded-[2rem] border border-gray-100 bg-gray-50 p-5 transition-all hover:border-orange-200 hover:shadow-lg dark:border-gray-700 dark:bg-gray-900/50"
                     >
