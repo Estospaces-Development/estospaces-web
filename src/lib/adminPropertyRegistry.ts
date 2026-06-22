@@ -1,5 +1,7 @@
 export type AdminPropertyRegistryProperty = {
     id?: string;
+    propertyId?: string;
+    property_id?: string;
     title?: string;
     city?: string;
     location?: {
@@ -93,6 +95,9 @@ const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: st
     }
 
     return [
+        property.id,
+        property.propertyId,
+        property.property_id,
         property.title,
         property.city,
         property.location?.city,

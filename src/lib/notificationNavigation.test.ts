@@ -67,6 +67,20 @@ test('admin message notifications preserve the conversation id in support chat',
     assert.equal(path, '/admin/help?conversation=conversation-5');
 });
 
+test('admin property notification detail targets open the filtered property registry', () => {
+    const path = getNotificationNavigationPath({
+        type: 'system',
+        data: {
+            entity: 'property_status_update',
+            property_id: 'b0e2f0aa-6097-45c4-860a-ab56dcad5ab6',
+            property_title: 'Mobile Live Approval mobile-live-1781167247728317',
+            target_path: '/admin/properties/b0e2f0aa-6097-45c4-860a-ab56dcad5ab6',
+        },
+    }, 'admin');
+
+    assert.equal(path, '/admin/properties?search=Mobile+Live+Approval+mobile-live-1781167247728317');
+});
+
 test('payment notifications route users to contracts while payments are Phase 2', () => {
     const path = getNotificationNavigationPath({
         type: 'payment_reminder',
@@ -164,4 +178,28 @@ test('saved-property notifications without a property id fall back to the real s
     }, 'user');
 
     assert.equal(path, '/user/saved');
+});
+
+test('generic user notifications do not jump to help without support context', () => {
+    const path = getNotificationNavigationPath({
+        type: 'system',
+        data: {
+            target_path: '/user/dashboard/help',
+        },
+    }, 'user');
+
+    assert.equal(path, '/user/dashboard/notifications');
+});
+
+test('support notifications still deep-link to help when ticket context exists', () => {
+    const path = getNotificationNavigationPath({
+        type: 'ticket_response',
+        data: {
+            target_path: '/user/dashboard/help',
+            ticket_id: 'ticket-123',
+            conversation_id: 'conversation-123',
+        },
+    }, 'user');
+
+    assert.equal(path, '/user/dashboard/help?ticket=ticket-123&conversation=conversation-123');
 });

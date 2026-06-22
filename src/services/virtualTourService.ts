@@ -6,6 +6,7 @@ import {
     type VirtualTourRequest,
     type VirtualTourStatus,
 } from '@/services/propertyService';
+import type { PublicVirtualTour } from '@/components/virtual-tour/ImmersiveVirtualTourViewer';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -132,5 +133,22 @@ export const fulfillVirtualTourRequest = async (
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getPublicVirtualTour = async (
+    tourId: string,
+): Promise<{ data: PublicVirtualTour | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<PublicVirtualTour>(
+            `${CORE_URL()}/api/v1/virtual-tours/${tourId}`,
+            {
+                auth: false,
+                suppressErrorToast: true,
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error, 'Unable to load this virtual tour.') };
     }
 };

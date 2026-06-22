@@ -219,6 +219,16 @@ test('resolveFocusedContract falls back to the fast-track case id when the direc
     assert.equal(focused?.id, 'contract-1');
 });
 
+test('resolveFocusedContract does not fall back when an explicit contract id is invalid', () => {
+    const focused = resolveFocusedContract(contracts, {
+        contractId: 'missing-contract',
+        applicationId: 'application-1',
+        caseId: 'case-1',
+    });
+
+    assert.equal(focused, null);
+});
+
 test('resolveContractWorkspaceContext can focus a linked contract from a legacy case route', () => {
     const legacyContracts: Contract[] = [
         {

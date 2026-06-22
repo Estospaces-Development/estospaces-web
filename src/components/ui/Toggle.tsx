@@ -6,10 +6,15 @@ interface ToggleProps {
     checked: boolean;
     onChange: () => void;
     disabled?: boolean;
+    ariaLabel: string;
 }
 
-const Toggle: React.FC<ToggleProps> = ({ checked, onChange, disabled = false }) => (
+const Toggle: React.FC<ToggleProps> = ({ checked, onChange, disabled = false, ariaLabel }) => (
     <button
+        type="button"
+        role="switch"
+        aria-label={ariaLabel}
+        aria-checked={checked}
         onClick={onChange}
         disabled={disabled}
         className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 ${checked

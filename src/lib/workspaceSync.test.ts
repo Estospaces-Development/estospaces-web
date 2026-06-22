@@ -32,7 +32,7 @@ test('normalizeNotificationToWorkspaceSyncEvent maps property workflow notificat
     assert.ok(event.tags.includes(WORKSPACE_SYNC_TAGS.MANAGER_ANALYTICS));
 });
 
-test('normalizeNotificationToWorkspaceSyncEvent infers billing and support refresh tags from payloads and paths', () => {
+test('normalizeNotificationToWorkspaceSyncEvent routes inactive billing notifications through contracts only', () => {
     const paymentEvent = normalizeNotificationToWorkspaceSyncEvent({
         id: 'notif-payment-1',
         type: NOTIFICATION_TYPES.PAYMENT_RECEIVED,
@@ -44,10 +44,16 @@ test('normalizeNotificationToWorkspaceSyncEvent infers billing and support refre
 
     assert.ok(paymentEvent);
     assert.equal(paymentEvent.ids?.invoiceId, 'invoice-9');
-    assert.ok(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS));
-    assert.ok(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.BILLING));
     assert.ok(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.CONTRACTS));
+    assert.equal(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS), false);
+    assert.equal(paymentEvent.tags.includes(WORKSPACE_SYNC_TAGS.BILLING), false);
 
+    const paymentPathTags = resolveWorkspaceSyncTagsFromPath('/user/dashboard/payments?invoice=invoice-9');
+    assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.PAYMENTS), false);
+    assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.BILLING), false);
+});
+
+test('normalizeNotificationToWorkspaceSyncEvent infers support refresh tags from payloads and paths', () => {
     const supportEvent = normalizeNotificationToWorkspaceSyncEvent({
         id: 'notif-support-1',
         type: NOTIFICATION_TYPES.SUPPORT_TICKET_STATUS_UPDATED,

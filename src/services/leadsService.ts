@@ -205,6 +205,9 @@ export interface UserDocument {
   user_id: string;
   document_type: string;
   document_category: string;
+  category_id?: string | null;
+  virtual_storage_state?: "saved" | "case_only" | "pending_user_save" | "declined" | string;
+  document_source?: "user_upload" | "manager_upload" | "system" | string;
   file_name: string;
   file_url: string;
   file_size: number;
@@ -214,6 +217,20 @@ export interface UserDocument {
   reviewed_by?: string;
   reviewed_at?: string;
   lead_id?: string | null;
+  saved_to_virtual_storage_at?: string | null;
+  declined_virtual_storage_at?: string | null;
+  linked_entities?: Array<{
+    type: string;
+    id: string;
+    fast_track_case_id?: string;
+    lead_id?: string | null;
+    application_id?: string | null;
+    contract_id?: string | null;
+    property_id?: string | null;
+    request_id?: string | null;
+    visibility?: string;
+    status?: string;
+  }>;
   created_at: string;
   updated_at: string;
 }
@@ -355,6 +372,8 @@ export interface DocumentUploadOptions {
   reusable?: boolean;
   documentType?: string;
   documentCategory?: string;
+  categoryId?: string;
+  virtualStorageState?: "saved" | "case_only" | "pending_user_save" | "declined" | string;
 }
 
 /**
@@ -1019,6 +1038,8 @@ export const uploadDocument = async (
           visibility: options.visibility || "",
           requirement_codes: options.requirementCodes || [],
           reusable: options.reusable ?? false,
+          category_id: options.categoryId || "",
+          virtual_storage_state: options.virtualStorageState || "",
         }),
       },
     );

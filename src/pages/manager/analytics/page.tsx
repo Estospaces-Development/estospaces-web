@@ -17,6 +17,42 @@ import {
     isManagerLivePropertyStatus,
     normalizeManagerAnalyticsPercentage,
 } from '@/lib/managerPropertyDashboard';
+import { buildCsvContent } from '@/lib/csvExport';
+
+type ManagerAnalyticsColor = 'blue' | 'orange' | 'green' | 'purple';
+type ManagerFunnelColor = 'blue' | 'orange' | 'green';
+
+const managerMetricColorClasses: Record<ManagerAnalyticsColor, { iconWrap: string; icon: string }> = {
+    blue: { iconWrap: 'bg-blue-500/10', icon: 'text-blue-500' },
+    orange: { iconWrap: 'bg-orange-500/10', icon: 'text-orange-500' },
+    green: { iconWrap: 'bg-green-500/10', icon: 'text-green-500' },
+    purple: { iconWrap: 'bg-purple-500/10', icon: 'text-purple-500' },
+};
+
+const managerSummaryColorClasses: Record<ManagerAnalyticsColor, { card: string; value: string }> = {
+    blue: {
+        card: 'border-blue-100 bg-blue-500/5 dark:border-blue-900/30',
+        value: 'text-blue-600 dark:text-blue-400',
+    },
+    green: {
+        card: 'border-green-100 bg-green-500/5 dark:border-green-900/30',
+        value: 'text-green-600 dark:text-green-400',
+    },
+    orange: {
+        card: 'border-orange-100 bg-orange-500/5 dark:border-orange-900/30',
+        value: 'text-orange-600 dark:text-orange-400',
+    },
+    purple: {
+        card: 'border-purple-100 bg-purple-500/5 dark:border-purple-900/30',
+        value: 'text-purple-600 dark:text-purple-400',
+    },
+};
+
+const managerFunnelColorClasses: Record<ManagerFunnelColor, string> = {
+    blue: 'bg-blue-500',
+    orange: 'bg-orange-500',
+    green: 'bg-green-500',
+};
 
 const Analytics = () => {
     const { properties } = useProperties();
@@ -127,15 +163,15 @@ const Analytics = () => {
             return;
         }
 
-        const csv = [
-            ['Property', 'Views', 'Applications', 'Conversion Rate'].join(','),
+        const csv = buildCsvContent([
+            ['Property', 'Views', 'Applications', 'Conversion Rate'],
             ...propertyPerformance.map((item) => [
-                `"${item.property.replace(/"/g, '""')}"`,
+                item.property,
                 item.views,
                 item.applications,
                 item.conversionRate,
-            ].join(',')),
-        ].join('\n');
+            ]),
+        ]);
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -190,6 +226,8 @@ const Analytics = () => {
                     </div>
                     <button
                         type="button"
+                        aria-label="Export analytics CSV"
+                        title="Export analytics CSV"
                         onClick={handleExportReport}
                         className="p-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                     >
@@ -229,13 +267,16 @@ const Analytics = () => {
                         color: 'purple', 
                         growth: analyticsData?.views_growth || '0%' 
                     }
-                ].map((metric, i) => (
+                ].map((metric, i) => {
+                    const colorClasses = managerMetricColorClasses[metric.color as ManagerAnalyticsColor] || managerMetricColorClasses.blue;
+
+                    return (
                     <div key={i} className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 bg-${metric.color}-500/10 rounded-2xl group-hover:scale-110 transition-transform`}>
-                                <metric.icon className={`w-6 h-6 text-${metric.color}-500`} />
+                            <div className={`p-3 ${colorClasses.iconWrap} rounded-2xl group-hover:scale-110 transition-transform`}>
+                                <metric.icon className={`w-6 h-6 ${colorClasses.icon}`} />
                             </div>
-                            <div className="flex items-center gap-1 text-green-500 text-xs font-bold bg-green-500/10 px-2 py-1 rounded-lg">
+                            <div className="flex items-center gap-1 text-green-700 text-xs font-bold bg-green-100 px-2 py-1 rounded-lg dark:bg-green-950/40 dark:text-green-300">
                                 <ArrowUpRight className="w-3 h-3" />
                                 {metric.growth}
                             </div>
@@ -243,7 +284,8 @@ const Analytics = () => {
                         <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{metric.value}</h3>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{metric.label}</p>
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* SLA & Response Performance */}
@@ -374,12 +416,16 @@ const Analytics = () => {
                                     { label: 'Avg Monthly', value: `$${(averageRevenue / 1000).toFixed(0)}k`, color: 'green' },
                                     { label: 'Peak Performance', value: bestMonth.month, color: 'orange' },
                                     { label: 'Projected Growth', value: `+${growthRate.toFixed(1)}%`, color: 'purple' }
-                                ].map((item, i) => (
-                                    <div key={i} className={`p-5 rounded-2xl border border-${item.color}-100 dark:border-${item.color}-900/30 bg-${item.color}-500/5`}>
+                                ].map((item, i) => {
+                                    const colorClasses = managerSummaryColorClasses[item.color as ManagerAnalyticsColor] || managerSummaryColorClasses.blue;
+
+                                    return (
+                                    <div key={i} className={`p-5 rounded-2xl border ${colorClasses.card}`}>
                                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{item.label}</p>
-                                        <p className={`text-2xl font-black text-${item.color}-600 dark:text-${item.color}-400`}>{item.value}</p>
+                                        <p className={`text-2xl font-black ${colorClasses.value}`}>{item.value}</p>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             {/* Custom Bar Chart for Revenue */}
@@ -448,7 +494,10 @@ const Analytics = () => {
                 <div className="bg-white dark:bg-black rounded-3xl border border-gray-100 dark:border-gray-800 p-8 shadow-sm">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-8">Lead Conversion Tunnel</h2>
                     <div className="space-y-6">
-                        {leadFunnel.map((item, i) => (
+                        {leadFunnel.map((item, i) => {
+                            const colorClass = managerFunnelColorClasses[item.color as ManagerFunnelColor] || managerFunnelColorClasses.blue;
+
+                            return (
                             <div key={i} className="space-y-2">
                                 <div className="flex items-center justify-between text-sm font-bold">
                                     <span className="text-gray-700 dark:text-gray-300">{item.label}</span>
@@ -456,12 +505,13 @@ const Analytics = () => {
                                 </div>
                                 <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                                     <div 
-                                        className={`h-full bg-${item.color}-500 rounded-full transition-all duration-1000`} 
+                                        className={`h-full ${colorClass} rounded-full transition-all duration-1000`}
                                         style={{ width: `${item.total > 0 ? (item.value / item.total) * 100 : 0}%` }}
                                     ></div>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                     <div className="mt-8 p-6 bg-orange-500/5 rounded-2xl border border-orange-500/10">
                         <div className="flex items-start gap-4">
@@ -470,7 +520,7 @@ const Analytics = () => {
                             </div>
                             <div>
                                 <h4 className="text-sm font-bold text-orange-700 dark:text-orange-400">Platform Insight</h4>
-                                <p className="text-xs text-orange-600/80 dark:text-orange-400/60 leading-relaxed mt-1">
+                                <p className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed mt-1">
                                     {(managerConversionRate > 20)
                                         ? "Your conversion rate is above industry average. Keep up the great work!"
                                         : "Focus on converting your active negotiations to hit your growth targets."}
@@ -486,7 +536,7 @@ const Analytics = () => {
                 <div className="p-8 border-b border-gray-50 dark:border-gray-900">
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">Property Performance Rankings</h2>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" tabIndex={0} aria-label="Scrollable property performance rankings table">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50">

@@ -66,6 +66,7 @@ import { resolveFastTrackLinkedJourney } from "@/lib/fastTrackLinkedJourney";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { deriveLiveFastTrackCurrentStep } from "@/lib/fastTrackWorkflow";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
+import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import {
   caseFileTabToWorkspaceSection,
   resolveWorkspaceSection,
@@ -133,10 +134,12 @@ interface CaseFileWorkspaceProps {
 
 interface CaseFileBulkFileChooserProps {
   onFilesSelected: (files: FileList | null) => void;
+  disabled?: boolean;
 }
 
 export const CaseFileBulkFileChooser = ({
   onFilesSelected,
+  disabled = false,
 }: CaseFileBulkFileChooserProps) => (
   <span className="relative inline-flex">
     <input
@@ -146,7 +149,8 @@ export const CaseFileBulkFileChooser = ({
       multiple
       accept="application/pdf,image/*,.pdf"
       aria-label="Choose case-file documents to upload"
-      className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      disabled={disabled}
+      className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
       onChange={(event) => {
         onFilesSelected(event.target.files);
         event.currentTarget.value = "";
@@ -154,7 +158,11 @@ export const CaseFileBulkFileChooser = ({
     />
     <span
       aria-hidden="true"
-      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 peer-focus-visible:ring-2 peer-focus-visible:ring-orange-400/60 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-black"
+      className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-orange-400/60 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-black ${
+        disabled
+          ? "bg-gray-300 text-gray-500 dark:bg-zinc-800 dark:text-gray-500"
+          : "bg-orange-500 hover:bg-orange-600"
+      }`}
     >
       <Upload className="h-4 w-4" />
       Choose files
@@ -543,7 +551,7 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
     viewingId: caseFile.viewing?.id,
     contractId: caseFile.contract_id,
     paymentId: undefined,
-    invoiceId: caseFile.invoices[0]?.id,
+    invoiceId: PAYMENTS_ENABLED ? caseFile.invoices[0]?.id : undefined,
     caseId: caseFile.case_id,
     leadId: caseFile.lead_id,
     propertyId: caseFile.property_id,
@@ -932,6 +940,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       ),
     [caseFile],
   );
+  const documentLimit = caseFile?.document_limit || 30;
+  const documentCount = caseFile?.document_count ?? caseFile?.documents.length ?? 0;
+  const remainingDocumentSlots = Math.max(0, documentLimit - documentCount);
+  const documentLimitReached = documentLimit > 0 && documentCount >= documentLimit;
   const workspaceLinks = useMemo(
     () => (caseFile ? buildWorkspaceLinks(role, caseFile) : []),
     [caseFile, role],
@@ -1138,6 +1150,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     if (!caseFile) {
       return;
     }
+    if (documentLimitReached) {
+      toast.error(`This fast-track case already has ${documentLimit}/${documentLimit} documents.`);
+      return;
+    }
 
     const descriptor = inferCaseFileUploadDescriptor(request);
     const context = buildCaseFileMutationContext(caseFile, request);
@@ -1191,6 +1207,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     if (!caseFile) {
       return;
     }
+    if (documentLimitReached) {
+      toast.error(`This fast-track case already has ${documentLimit}/${documentLimit} documents.`);
+      return;
+    }
 
     const descriptor = inferCaseFileUploadDescriptor(request);
     const actionKey = `upload:${request.id}`;
@@ -1241,6 +1261,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     if (!fileList || fileList.length === 0) {
       return;
     }
+    if (documentLimitReached) {
+      toast.error(`This fast-track case already has ${documentLimit}/${documentLimit} documents.`);
+      return;
+    }
 
     const nextItems = Array.from(fileList).map((file, index) => {
       const requestMatch = matchCaseFileRequestForFileName(file.name, openRequests);
@@ -1263,7 +1287,14 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       };
     });
 
-    setBulkUploadItems((previous) => [...previous, ...nextItems]);
+    setBulkUploadItems((previous) => {
+      const queuedCount = previous.filter((item) => item.status !== "uploaded").length;
+      const openSlots = Math.max(0, remainingDocumentSlots - queuedCount);
+      if (nextItems.length > openSlots) {
+        toast.error(`Only ${openSlots} document slot${openSlots === 1 ? "" : "s"} remain for this fast-track case.`);
+      }
+      return [...previous, ...nextItems.slice(0, openSlots)];
+    });
     setTab("documents");
   };
 
@@ -1342,6 +1373,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     );
     if (queuedItems.length === 0) {
       toast.info("Choose at least one file before starting the upload.");
+      return;
+    }
+    if (documentLimitReached || queuedItems.length > remainingDocumentSlots) {
+      toast.error(`This fast-track case supports ${documentLimit} documents. Remove a queued file or unlink an existing document first.`);
       return;
     }
 
@@ -2048,8 +2083,34 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     : "Choose your files once, confirm where each one belongs, and upload them into the same live case without bouncing between pages."}
                 </p>
               </div>
-              <CaseFileBulkFileChooser onFilesSelected={handleQueueBulkFiles} />
+              <CaseFileBulkFileChooser
+                onFilesSelected={handleQueueBulkFiles}
+                disabled={documentLimitReached}
+              />
             </div>
+
+            <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+              documentLimitReached
+                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-200"
+                : "border-orange-100 bg-orange-50 text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-200"
+            }`}>
+              {documentCount}/{documentLimit} documents
+              {documentLimitReached
+                ? " - document limit reached for this 24-hour fast-track case."
+                : ` - ${remainingDocumentSlots} slot${remainingDocumentSlots === 1 ? "" : "s"} remaining.`}
+            </div>
+            {(caseFile.manager_suggested_categories || []).length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(caseFile.manager_suggested_categories || []).map((category) => (
+                  <span
+                    key={category.id}
+                    className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-500/30 dark:bg-black dark:text-orange-200"
+                  >
+                    {category.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
             <div className={documentsGridClass}>
               <div className={checklistPanelClass}>
@@ -2430,7 +2491,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={() => void handleUploadAllDocuments()}
-                    disabled={bulkUploading}
+                    disabled={bulkUploading || documentLimitReached}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {bulkUploading ? (
@@ -2718,7 +2779,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                                         request,
                                       )
                                     }
-                                    disabled={busyKey === actionKey}
+                                    disabled={documentLimitReached || busyKey === actionKey}
                                     className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
                                   >
                                     {busyKey === actionKey ? (
@@ -2743,7 +2804,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                       </div>
 
                       {(role === "user" || role === "manager") &&
-                      canUploadAgainstRequest(request) ? (
+                      canUploadAgainstRequest(request) &&
+                      !documentLimitReached ? (
                         <label className="flex cursor-pointer flex-col justify-between rounded-2xl border border-dashed border-orange-300 bg-orange-50 p-4 transition hover:border-orange-400 hover:bg-orange-100/60 dark:border-orange-900/40 dark:bg-orange-950/20 dark:hover:bg-orange-950/30">
                           <input
                             type="file"
@@ -2789,7 +2851,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                             Request status
                           </p>
                           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            {role === "manager"
+                            {documentLimitReached
+                              ? `This fast-track case already has ${documentCount}/${documentLimit} documents. Remove an existing link before adding another.`
+                              : role === "manager"
                               ? "This request is already satisfied or in review. Use the document controls below to approve it, request a replacement, or remove the link."
                               : "The manager will review the linked or uploaded file directly from this shared case file."}
                           </p>
@@ -3084,8 +3148,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 ))
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Contracts, invoices, receipts, and progression files will
-                  appear here when they are generated.
+                  Contracts and progression files will appear here when they
+                  are generated.
                 </p>
               )}
             </div>

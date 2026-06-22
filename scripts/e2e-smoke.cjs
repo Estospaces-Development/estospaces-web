@@ -40,7 +40,7 @@ function resolveDevBaseUrl() {
     process.env.E2E_DEV_BASE_URL
     || readFrontendUrlFromEnvFile(".env.development")
     || readFrontendUrlFromEnvFile(".env.gcp-dev")
-    || "http://localhost:4173"
+    || "http://localhost:3000"
   );
 }
 
@@ -391,13 +391,15 @@ async function main() {
     }
 
     const defaultBaseUrl = overrideBaseUrl || target.baseUrl;
+    const targetAppBaseUrl = overrideBaseUrl || target.appBaseUrl || defaultBaseUrl;
+    const targetAdminBaseUrl = overrideBaseUrl || target.adminBaseUrl || defaultBaseUrl;
     const caseId = overrideCaseId || target.caseId;
 
     if (selectedRoles.some((role) => role.name !== "admin")) {
-      await ensureReachable(target.appBaseUrl || defaultBaseUrl);
+      await ensureReachable(targetAppBaseUrl);
     }
     if (selectedRoles.some((role) => role.name === "admin")) {
-      await ensureReachable(target.adminBaseUrl || defaultBaseUrl);
+      await ensureReachable(targetAdminBaseUrl);
     }
 
     for (const role of selectedRoles) {
@@ -425,8 +427,8 @@ async function main() {
 
       try {
         const roleBaseUrl = role.name === "admin"
-          ? (target.adminBaseUrl || defaultBaseUrl)
-          : (target.appBaseUrl || defaultBaseUrl);
+          ? targetAdminBaseUrl
+          : targetAppBaseUrl;
 
         console.error(`[${targetName}/${role.name}] login -> ${roleBaseUrl}`);
         await login(page, roleBaseUrl, role);

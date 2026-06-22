@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, ArrowLeft, Loader2, CreditCard, Search, Plus } from 'lucide-react';
+import { Calendar, Clock, MapPin, ArrowLeft, Loader2, Search, Plus } from 'lucide-react';
 import { bookingsService, type Booking } from '../../../services/bookingsService';
 import { useToast } from '../../../contexts/ToastContext';
 import Modal from '@/components/ui/Modal';
@@ -117,6 +117,25 @@ export function groupBookingsByStatus<T extends { status: string }>(bookings: T[
     }));
 }
 
+export function buildBookingDetailRows(booking: Booking) {
+    const rows = [
+        { label: 'Booking ID', value: booking.id },
+        { label: 'Status', value: booking.status },
+        { label: 'Property ID', value: booking.property_id },
+        { label: 'Manager ID', value: booking.manager_id },
+        { label: 'Check-in', value: new Date(booking.check_in_date).toLocaleDateString() },
+        { label: 'Check-out', value: new Date(booking.check_out_date).toLocaleDateString() },
+        { label: 'Guests', value: String(booking.guest_count) },
+        { label: 'Total', value: `${booking.currency}${booking.total_amount.toLocaleString()}` },
+    ];
+
+    if (booking.cancellation_reason) {
+        rows.push({ label: 'Cancellation reason', value: booking.cancellation_reason });
+    }
+
+    return rows;
+}
+
 export default function BookingsPage() {
     const navigate = useNavigate();
     const toast = useToast();
@@ -127,6 +146,7 @@ export default function BookingsPage() {
     const [reservationForm, setReservationForm] = useState<BookingReservationForm>(EMPTY_RESERVATION_FORM);
     const [reservationErrors, setReservationErrors] = useState<BookingReservationValidationErrors>({});
     const [savingReservation, setSavingReservation] = useState(false);
+    const [detailTarget, setDetailTarget] = useState<Booking | null>(null);
     const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
     const [cancelReason, setCancelReason] = useState('');
     const [cancelReasonError, setCancelReasonError] = useState<string | null>(null);
@@ -163,11 +183,11 @@ export default function BookingsPage() {
     const getStatusStyles = (status: string) => {
         switch (status.toLowerCase()) {
             case 'confirmed':
-                return 'bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:border-green-800';
+                return 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:border-green-800';
             case 'pending':
-                return 'bg-yellow-50 text-yellow-600 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-800';
+                return 'bg-yellow-50 text-yellow-800 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-800';
             case 'cancelled':
-                return 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:border-red-800';
+                return 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:border-red-800';
             case 'completed':
                 return 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:border-blue-800';
             default:
@@ -199,6 +219,14 @@ export default function BookingsPage() {
         setReservationModalOpen(false);
         setReservationForm(EMPTY_RESERVATION_FORM);
         setReservationErrors({});
+    };
+
+    const openDetailModal = (booking: Booking) => {
+        setDetailTarget(booking);
+    };
+
+    const closeDetailModal = () => {
+        setDetailTarget(null);
     };
 
     const submitReservation = async () => {
@@ -383,27 +411,28 @@ export default function BookingsPage() {
                                                     <p className="font-bold text-gray-900 dark:text-white">{new Date(booking.check_out_date).toLocaleDateString()}</p>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Paid</p>
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total</p>
                                                     <p className="font-black text-orange-500 text-xl">{booking.currency}{booking.total_amount.toLocaleString()}</p>
                                                 </div>
                                             </div>
 
                                             <div className="mt-8 flex gap-3">
-                                                <button className="flex-1 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openDetailModal(booking)}
+                                                    className="flex-1 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-xs font-black uppercase tracking-widest active:scale-[0.98] transition-all"
+                                                >
                                                     View Details
                                                 </button>
                                                 {(booking.status === 'pending' || booking.status === 'confirmed') && (
                                                     <button
                                                         type="button"
                                                         onClick={() => openCancelModal(booking)}
-                                                        className="flex-1 rounded-2xl bg-red-50 py-4 text-xs font-black uppercase tracking-widest text-red-600 transition-all active:scale-[0.98] hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                                                        className="flex-1 rounded-2xl bg-red-50 py-4 text-xs font-black uppercase tracking-widest text-red-700 transition-all active:scale-[0.98] hover:bg-red-100 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                                                     >
                                                         Cancel
                                                     </button>
                                                 )}
-                                                <button className="p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl text-gray-400 hover:text-orange-500 transition-colors">
-                                                    <CreditCard size={20} />
-                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -582,6 +611,42 @@ export default function BookingsPage() {
                         )}
                     </label>
                 </div>
+            </Modal>
+
+            <Modal
+                isOpen={Boolean(detailTarget)}
+                onClose={closeDetailModal}
+                title="Booking Details"
+                size="md"
+                footer={(
+                    <button
+                        type="button"
+                        onClick={closeDetailModal}
+                        className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                    >
+                        Close
+                    </button>
+                )}
+            >
+                {detailTarget && (
+                    <div className="space-y-4">
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            Stay booking for property {detailTarget.property_id.slice(0, 8)}
+                        </p>
+                        <dl className="grid gap-3 sm:grid-cols-2">
+                            {buildBookingDetailRows(detailTarget).map((row) => (
+                                <div key={row.label} className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900">
+                                    <dt className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                                        {row.label}
+                                    </dt>
+                                    <dd className="mt-1 break-words text-sm font-bold text-gray-900 dark:text-white">
+                                        {row.value}
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </div>
+                )}
             </Modal>
 
             <Modal

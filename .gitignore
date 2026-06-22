@@ -22,6 +22,7 @@
 /dist
 /dist-verify*
 /output/
+/outputs/
 /.playwright-cli/
 build_output*.txt
 build_error*.txt
@@ -41,6 +42,8 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+!.env.local-preset
+!.env.gcp-dev
 
 # vercel
 .vercel

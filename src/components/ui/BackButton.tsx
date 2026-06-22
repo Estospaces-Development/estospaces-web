@@ -14,7 +14,7 @@ const BackButton = ({ label = 'Back', className = '' }: BackButtonProps) => {
     return (
         <button
             onClick={() => navigate(-1)}
-            className={`flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors ${className}`}
+            className={`flex items-center gap-2 text-gray-800 dark:text-gray-200 hover:text-gray-950 dark:hover:text-white transition-colors ${className}`}
         >
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">{label}</span>

@@ -37,21 +37,21 @@ const Footer: React.FC = () => {
                                 <span className="text-xs uppercase tracking-[0.18em] text-orange-200/70">Property platform</span>
                             </div>
                         </div>
-                        <p className="mb-6 max-w-sm text-sm leading-relaxed text-gray-400">
-                            Premium property journeys for discovery, fast-track progression, contracts, and completion across the UK.
+                        <p className="mb-6 max-w-sm text-sm leading-relaxed text-gray-200">
+                            Premium property journeys for discovery, fast-track progression, contracts, and completion across India.
                         </p>
                         <div className="space-y-2 text-sm">
                             <div className="flex items-center gap-2">
                                 <Mail className="h-4 w-4 text-orange-300/70" />
-                                <span>hello@estospaces.co.uk</span>
+                                <span>hello@estospaces.com</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Phone className="h-4 w-4 text-orange-300/70" />
-                                <span>+44 20 7123 4567</span>
+                                <span>+91 44 7123 4567</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-orange-300/70" />
-                                <span>London, United Kingdom</span>
+                                <span>Chennai, India</span>
                             </div>
                         </div>
                     </div>
@@ -64,7 +64,7 @@ const Footer: React.FC = () => {
                                     <li key={link.label}>
                                         <Link
                                             to={link.href}
-                                            className="text-sm text-gray-400 transition-colors hover:text-orange-200"
+                                            className="text-sm text-gray-200 transition-colors hover:text-white"
                                         >
                                             {link.label}
                                         </Link>
@@ -76,13 +76,13 @@ const Footer: React.FC = () => {
                 </div>
 
                 <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 md:flex-row">
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-300">
                         Copyright {currentYear} Estospaces. All rights reserved.
                     </p>
-                    <div className="flex items-center gap-6 text-xs text-gray-500">
-                        <Link to="/privacy" className="transition-colors hover:text-orange-200">Privacy</Link>
-                        <Link to="/terms" className="transition-colors hover:text-orange-200">Terms</Link>
-                        <Link to="/contact" className="transition-colors hover:text-orange-200">Contact</Link>
+                    <div className="flex items-center gap-6 text-xs text-gray-300">
+                        <Link to="/privacy" className="transition-colors hover:text-white">Privacy</Link>
+                        <Link to="/terms" className="transition-colors hover:text-white">Terms</Link>
+                        <Link to="/contact" className="transition-colors hover:text-white">Contact</Link>
                     </div>
                 </div>
             </div>

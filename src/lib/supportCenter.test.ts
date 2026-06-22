@@ -4,6 +4,7 @@ import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
     getAutoSelectedSupportTicketId,
+    getLaunchSafeSupportCategoryLabel,
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
     resolveSupportComposerCategory,
@@ -59,6 +60,16 @@ test('admin queue still auto-selects the first visible ticket', () => {
         isAdmin: true,
         hasPrefilledComposerContext: false,
     }), 'ticket-1');
+});
+
+test('admin queue preserves guidance anchors instead of auto-selecting a ticket', () => {
+    assert.equal(getAutoSelectedSupportTicketId({
+        selectedTicketId: '',
+        tickets,
+        isAdmin: true,
+        hasPrefilledComposerContext: false,
+        hasLocationHash: true,
+    }), '');
 });
 
 test('admin queue resolves a selected conversation to its support ticket', () => {
@@ -171,7 +182,8 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 
 test('support category normalization maps UI-only labels to backend-safe values', () => {
     assert.equal(normalizeSupportTicketCategory('Buying Help'), 'general inquiry');
-    assert.equal(normalizeSupportTicketCategory('Billing'), 'payments');
+    assert.equal(normalizeSupportTicketCategory('Billing'), 'contracts');
+    assert.equal(normalizeSupportTicketCategory('Payments'), 'contracts');
     assert.equal(normalizeSupportTicketCategory('Technical Issue'), 'technical issue');
 });
 
@@ -186,15 +198,31 @@ test('support composer resolves backend category values to the nearest visible l
     );
 });
 
-test('support composer resolves billing URL aliases to the visible payments label', () => {
+test('support composer resolves finance URL aliases to the visible contracts label', () => {
     assert.equal(
         resolveSupportComposerCategory(
             'billing',
-            ['General Inquiry', 'Payments', 'Technical Issue'],
+            ['General Inquiry', 'Payments', 'Contracts', 'Technical Issue'],
             'General Inquiry',
         ),
-        'Payments',
+        'Contracts',
     );
+
+    assert.equal(
+        resolveSupportComposerCategory(
+            'payments',
+            ['General Inquiry', 'Payments', 'Contracts', 'Technical Issue'],
+            'General Inquiry',
+        ),
+        'Contracts',
+    );
+});
+
+test('support category labels hide inactive payment and invoice workspace copy', () => {
+    assert.equal(getLaunchSafeSupportCategoryLabel('Payments'), 'Contracts');
+    assert.equal(getLaunchSafeSupportCategoryLabel('billing'), 'Contracts');
+    assert.equal(getLaunchSafeSupportCategoryLabel('Invoices'), 'Contracts');
+    assert.equal(getLaunchSafeSupportCategoryLabel('Technical Issue'), 'Technical Issue');
 });
 
 test('support composer prefill builds the visible draft from query params', () => {

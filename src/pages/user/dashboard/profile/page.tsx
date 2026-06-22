@@ -309,9 +309,9 @@ export default function ProfilePage() {
                             <div className="p-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>
-                                        <input
-                                            id="user-full-name"
+                                            <label htmlFor="user-full-name" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>
+                                            <input
+                                                id="user-full-name"
                                             type="text"
                                             name="fullName"
                                             value={formData.fullName}
@@ -329,8 +329,9 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Email Address</label>
+                                        <label htmlFor="user-email-address" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Email Address</label>
                                         <input
+                                            id="user-email-address"
                                             type="email"
                                             name="email"
                                             value={formData.email}
@@ -340,12 +341,13 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Phone Number</label>
-                                        <div className="relative">
-                                            <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input
-                                                type="tel"
-                                                name="phone"
+                                            <label htmlFor="user-phone-number" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Phone Number</label>
+                                            <div className="relative">
+                                                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                                <input
+                                                    id="user-phone-number"
+                                                    type="tel"
+                                                    name="phone"
                                                 value={formData.phone}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
@@ -355,12 +357,13 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Postcode</label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input
-                                                type="text"
-                                                name="postcode"
+                                            <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Postcode</label>
+                                            <div className="relative">
+                                                <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                                <input
+                                                    id="user-postcode"
+                                                    type="text"
+                                                    name="postcode"
                                                 value={formData.postcode}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white uppercase"
@@ -370,11 +373,12 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="md:col-span-2 space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Residential Address</label>
-                                        <div className="relative">
-                                            <Building className="absolute left-5 top-5 text-gray-400" size={18} />
-                                            <input
-                                                name="address"
+                                            <label htmlFor="user-residential-address" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Residential Address</label>
+                                            <div className="relative">
+                                                <Building className="absolute left-5 top-5 text-gray-400" size={18} />
+                                                <input
+                                                    id="user-residential-address"
+                                                    name="address"
                                                 value={formData.address}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white min-h-[56px]"

@@ -1,6 +1,7 @@
 import type { BrokerRequestRecord } from '@/services/leadsService';
 
 const normalizeValue = (value?: string | null) => String(value || '').trim().toLowerCase();
+const CLOSED_AUTO_RESUME_STATUSES = new Set(['cancelled', 'closed', 'resolved', 'archived', 'completed']);
 
 const getRequestTimestamp = (request: BrokerRequestRecord) => {
     const candidate = request.created_at || request.dispatch_started_at || request.matched_at || request.updated_at;
@@ -17,7 +18,7 @@ const getRequestPriority = (request: BrokerRequestRecord) => {
     const dispatchStatus = normalizeValue(request.dispatch_status);
     const handoffStatus = normalizeValue(request.handoff_status);
 
-    if (status === 'cancelled' || handoffStatus === 'archived') {
+    if (CLOSED_AUTO_RESUME_STATUSES.has(status) || CLOSED_AUTO_RESUME_STATUSES.has(handoffStatus)) {
         return 0;
     }
 
@@ -51,9 +52,9 @@ export const shouldAutoResumeBrokerRequest = (
     const handoffStatus = normalizeValue(request.handoff_status);
 
     if (
-        status === 'cancelled'
-        || handoffStatus === 'cancelled'
-        || handoffStatus === 'archived'
+        CLOSED_AUTO_RESUME_STATUSES.has(status)
+        || CLOSED_AUTO_RESUME_STATUSES.has(handoffStatus)
+        || CLOSED_AUTO_RESUME_STATUSES.has(dispatchStatus)
     ) {
         return false;
     }

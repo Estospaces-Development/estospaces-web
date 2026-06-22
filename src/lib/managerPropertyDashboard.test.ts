@@ -4,6 +4,7 @@ import {
     MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
     buildManagerActiveListingsPath,
+    buildManagerLivePresetFilters,
     buildManagerPropertySearchParams,
     formatManagerAnalyticsPercentage,
     normalizeManagerAnalyticsPercentage,
@@ -57,6 +58,30 @@ test('buildManagerPropertySearchParams replaces status filters and clears view p
     assert.equal(next.get('view'), null);
     assert.equal(next.get('status'), 'published,online');
     assert.equal(next.get('search'), 'office');
+});
+
+test('buildManagerLivePresetFilters preserves search while clearing incompatible advanced filters', () => {
+    assert.deepEqual(
+        buildManagerLivePresetFilters(
+            {
+                search: 'office',
+                priceMin: 100000,
+                priceMax: 200000,
+                bedroomsMin: 2,
+                propertyType: ['house'],
+                status: ['draft'],
+            },
+            ['available', 'published'],
+        ),
+        {
+            search: 'office',
+            priceMin: undefined,
+            priceMax: undefined,
+            bedroomsMin: undefined,
+            propertyType: undefined,
+            status: ['available', 'published'],
+        },
+    );
 });
 
 test('managerPropertyStatusFiltersEqual compares normalized status filters', () => {

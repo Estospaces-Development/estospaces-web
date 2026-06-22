@@ -263,6 +263,7 @@ export const resolveFocusedContract = (
         if (directMatch) {
             return directMatch;
         }
+        return null;
     }
 
     if (normalizeId(options.applicationId)) {

@@ -5,6 +5,7 @@ import {
     buildHostedWorkspaceUrl,
     isSameHostedWorkspaceUrl,
     resolveHostedWorkspaceRedirect,
+    shouldBypassHostedWorkspaceRedirect,
     useHost,
 } from '@/lib/utils/hostUtils';
 
@@ -19,11 +20,15 @@ interface SubdomainRouterProps {
  * estospaces.com -> / (Landing)
  */
 const SubdomainRouter: React.FC<SubdomainRouterProps> = ({ children }) => {
-    const { currentApp, isLocalhost } = useHost();
+    const { currentApp, hostname, isLocalhost } = useHost();
     const { pathname, search, hash } = useLocation();
 
     // Skip redirection on localhost to allow easy development of all sections
     if (isLocalhost) {
+        return <>{children}</>;
+    }
+
+    if (shouldBypassHostedWorkspaceRedirect(hostname, pathname)) {
         return <>{children}</>;
     }
 

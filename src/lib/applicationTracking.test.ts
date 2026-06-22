@@ -23,6 +23,24 @@ test('live broker requests stay visible until they expire', () => {
     );
 });
 
+test('closed broker requests are not shown as live dashboard requests', () => {
+    assert.equal(
+        isLiveBrokerRequest({
+            status: 'closed',
+            dispatch_status: 'broker_matched',
+        }),
+        false,
+    );
+
+    assert.equal(
+        isLiveBrokerRequest({
+            status: 'matched',
+            dispatch_status: 'closed',
+        }),
+        false,
+    );
+});
+
 test('broker request tracking summary reflects matching progress', () => {
     assert.deepEqual(
         getBrokerRequestTrackingSummary({

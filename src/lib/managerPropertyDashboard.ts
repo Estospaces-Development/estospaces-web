@@ -96,6 +96,27 @@ export const buildManagerPropertySearchParams = (
     return next;
 };
 
+type ManagerLivePresetFilters = {
+    search?: string;
+    priceMin?: number;
+    priceMax?: number;
+    bedroomsMin?: number;
+    propertyType?: readonly string[];
+    status?: readonly (string | null | undefined)[];
+};
+
+export const buildManagerLivePresetFilters = <T extends ManagerLivePresetFilters>(
+    filters: T,
+    statuses?: readonly (string | null | undefined)[],
+) => ({
+    ...filters,
+    priceMin: undefined,
+    priceMax: undefined,
+    bedroomsMin: undefined,
+    propertyType: undefined,
+    status: normalizeManagerPropertyStatusFilters(statuses),
+});
+
 export const buildManagerActiveListingsPath = () => {
     const params = new URLSearchParams();
     params.set('view', MANAGER_LIVE_LISTINGS_VIEW);

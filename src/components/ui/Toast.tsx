@@ -22,26 +22,26 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
 
     const styles = {
         success: {
-            bg: 'bg-green-500',
-            border: 'border-green-600',
+            bg: 'bg-green-700',
+            border: 'border-green-800',
             icon: CheckCircle,
             iconColor: 'text-white',
         },
         error: {
-            bg: 'bg-red-500',
-            border: 'border-red-600',
+            bg: 'bg-red-700',
+            border: 'border-red-800',
             icon: XCircle,
             iconColor: 'text-white',
         },
         warning: {
-            bg: 'bg-yellow-500',
-            border: 'border-yellow-600',
+            bg: 'bg-amber-700',
+            border: 'border-amber-800',
             icon: AlertTriangle,
             iconColor: 'text-white',
         },
         info: {
-            bg: 'bg-blue-500',
-            border: 'border-blue-600',
+            bg: 'bg-blue-700',
+            border: 'border-blue-800',
             icon: Info,
             iconColor: 'text-white',
         },
@@ -81,7 +81,7 @@ const Toast = ({ id, message, title, type = 'success', isVisible = true, onClose
                         {title && (
                             <h4 className="font-semibold text-sm mb-1 text-white">{title}</h4>
                         )}
-                        <p className="text-sm font-medium leading-relaxed text-white/90">{message}</p>
+                        <p className="text-sm font-medium leading-relaxed text-white">{message}</p>
                     </div>
                     <button
                         onClick={onClose}

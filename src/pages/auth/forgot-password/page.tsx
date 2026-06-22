@@ -45,9 +45,9 @@ export default function ForgotPasswordPage() {
         <div className="flex flex-col items-center w-full max-w-md mx-auto">
             <AuthBrand />
 
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
+            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
                 Reset your password
-            </h2>
+            </h1>
 
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 text-center px-4">
                 Enter the email address associated with your account and we'll send you a link to reset your password.
@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
                             <CheckCircle className="text-green-500 h-8 w-8" />
                         </div>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Check your email</h3>
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Check your email</h2>
                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
                         We have sent a password reset link to <strong>{email}</strong>.
                     </p>
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
             ) : (
                 <form onSubmit={handleSubmit} className="w-full px-4 sm:px-0">
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                        <label htmlFor="forgot-password-email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                             Email Address
                         </label>
                         <div className="relative">
@@ -82,6 +82,8 @@ export default function ForgotPasswordPage() {
                                 <Mail className="h-5 w-5 text-gray-400" />
                             </div>
                             <input
+                                id="forgot-password-email"
+                                name="email"
                                 type="email"
                                 autoComplete="email"
                                 maxLength={254}

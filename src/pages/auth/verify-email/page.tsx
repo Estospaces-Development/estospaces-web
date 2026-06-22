@@ -96,9 +96,9 @@ export default function VerifyEmailPage() {
                     <div className="h-16 w-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-6">
                         <Loader className="text-blue-500 h-8 w-8 animate-spin" />
                     </div>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                    <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                         Verifying your email...
-                    </h2>
+                    </h1>
                     <p className="text-gray-500 dark:text-gray-400 text-sm">Please wait a moment.</p>
                 </>
             )}
@@ -108,9 +108,9 @@ export default function VerifyEmailPage() {
                     <div className="h-16 w-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
                         <CheckCircle className="text-green-500 h-8 w-8" />
                     </div>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                    <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                         Email Verified!
-                    </h2>
+                    </h1>
                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">{message}</p>
                     <Link
                         to="/login"
@@ -126,14 +126,19 @@ export default function VerifyEmailPage() {
                     <div className="h-16 w-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-6">
                         <XCircle className="text-red-500 h-8 w-8" />
                     </div>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                    <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                         Verification Failed
-                    </h2>
+                    </h1>
                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">{message}</p>
 
                     {/* Resend verification section */}
                     <div className="w-full mb-6">
+                        <label htmlFor="verify-email-resend" className="sr-only">
+                            Email address for verification resend
+                        </label>
                         <input
+                            id="verify-email-resend"
+                            name="email"
                             type="email"
                             placeholder="Enter your email address"
                             value={resendEmail}
@@ -144,6 +149,7 @@ export default function VerifyEmailPage() {
                             <p className="text-green-600 dark:text-green-400 text-xs mb-3">{resendMessage}</p>
                         )}
                         <button
+                            type="button"
                             onClick={handleResend}
                             disabled={resending || resendCooldown > 0 || !resendEmail}
                             className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"

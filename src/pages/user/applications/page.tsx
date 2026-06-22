@@ -663,7 +663,6 @@ export default function ApplicationsPage() {
                 applicant_name: normalizeNewApplicationText(newApplicationForm.applicant_name),
                 applicant_email: normalizeNewApplicationText(newApplicationForm.applicant_email),
                 applicant_phone: normalizeNewApplicationText(newApplicationForm.applicant_phone),
-                listing_type: 'rent',
                 message: normalizeNewApplicationText(newApplicationForm.message),
             });
 
@@ -783,7 +782,7 @@ export default function ApplicationsPage() {
             <Modal
                 isOpen={newApplicationModalOpen}
                 onClose={closeNewApplicationModal}
-                title="Submit Rental Application"
+                title="Submit Application"
                 size="md"
                 closeOnBackdrop={!isSubmittingApplication}
                 footer={(
@@ -938,12 +937,18 @@ export default function ApplicationsPage() {
                     <div className="flex items-center gap-3">
                         <div className="flex items-center p-1 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl shadow-sm">
                             <button
+                                type="button"
+                                aria-label="Switch to grid view"
+                                aria-pressed={viewMode === 'grid'}
                                 onClick={() => setViewMode('grid')}
                                 className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                             >
                                 <LayoutGrid size={18} />
                             </button>
                             <button
+                                type="button"
+                                aria-label="Switch to list view"
+                                aria-pressed={viewMode === 'list'}
                                 onClick={() => setViewMode('list')}
                                 className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                             >

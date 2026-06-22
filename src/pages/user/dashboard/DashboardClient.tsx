@@ -943,6 +943,7 @@ const DashboardClient = () => {
                   key={property.id}
                   property={property}
                   onViewDetails={openPropertyFromDashboard}
+                  onStartFastTrack={openFastTrackFromDashboard}
                 />
               ))}
             </div>

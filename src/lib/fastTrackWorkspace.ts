@@ -21,6 +21,25 @@ export const isFastTrackCaseComplete = (fastTrackCase: FastTrackCase | null | un
     )
 );
 
+export const canUserConfirmFastTrackHandover = (fastTrackCase: FastTrackCase | null | undefined) => {
+    const handoverStatus = String(fastTrackCase?.handover.status || '').trim().toLowerCase();
+    return Boolean(
+        fastTrackCase
+        && !fastTrackCase?.handover.confirmedByUser
+        && (handoverStatus === 'ready' || handoverStatus === 'completed'),
+    );
+};
+
+export const isFastTrackCaseCompleteForRole = (
+    fastTrackCase: FastTrackCase | null | undefined,
+    role: FastTrackWorkspaceRole,
+) => {
+    if (role === 'user' && canUserConfirmFastTrackHandover(fastTrackCase)) {
+        return false;
+    }
+    return isFastTrackCaseComplete(fastTrackCase);
+};
+
 export const resolveFastTrackSelectionCaseId = (
     cases: FastTrackCase[],
     params: URLSearchParams,
@@ -182,6 +201,13 @@ export const getFastTrackDecisionGuard = (
     return null;
 };
 
+export const getFastTrackFinalDecisionGuard = (
+    fastTrackCase: FastTrackCase,
+    outcome: 'approved' | 'rejected',
+    amount: string | number | null | undefined,
+    role: FastTrackWorkspaceRole,
+) => getFastTrackDecisionGuard(fastTrackCase, outcome, amount, role);
+
 export const fastTrackCaseMatchesQuery = (
     fastTrackCase: FastTrackCase,
     query: string,
@@ -262,7 +288,7 @@ export const describeFastTrackWorkspaceFocus = (
     fastTrackCase: FastTrackCase,
     role: FastTrackWorkspaceRole,
 ) => {
-    if (isFastTrackCaseComplete(fastTrackCase)) {
+    if (isFastTrackCaseCompleteForRole(fastTrackCase, role)) {
         return role === 'user' ? 'Your journey is complete' : 'Case finished';
     }
     if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
@@ -316,7 +342,7 @@ export const describeFastTrackWorkspaceStatus = (
     fastTrackCase: FastTrackCase,
     role: FastTrackWorkspaceRole,
 ) => {
-    if (isFastTrackCaseComplete(fastTrackCase)) {
+    if (isFastTrackCaseCompleteForRole(fastTrackCase, role)) {
         return role === 'user'
             ? 'Every step is complete. You can keep this page for records and updates.'
             : 'Every core step was completed inside this workspace.';

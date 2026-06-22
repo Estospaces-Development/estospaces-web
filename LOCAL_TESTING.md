@@ -66,7 +66,7 @@ npm run test:e2e:dev
 npm run test:e2e:local
 ```
 
-`test:e2e:dev` defaults to `http://localhost:4173`.
+`test:e2e:dev` defaults to `http://localhost:3000`.
 `test:e2e:local` defaults to `http://localhost:3000`.
 
 Optional overrides:

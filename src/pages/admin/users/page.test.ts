@@ -6,6 +6,11 @@ import {
   ADMIN_USER_SEARCH_MAX_LENGTH,
   buildAdminLeadOptionLabel,
   buildAdminLeadReassignLabel,
+  buildAdminUsersCsv,
+  formatAdminLeadReassignmentLoadError,
+  getAdminUsersPageSubtitle,
+  getAdminUsersPageTitle,
+  getAdminAddUserPath,
   buildAdminUserActionLabel,
   getAdminUserEmptyStateBody,
   getAdminUserEmptyStateTitle,
@@ -98,8 +103,33 @@ test('admin users sort visible result rows predictably', () => {
   ]);
 });
 
+test('admin users CSV export keeps visible rows safe', () => {
+  const csv = buildAdminUsersCsv([
+    buildUser({
+      email: '@danger.example',
+      first_name: '=Command',
+      last_name: 'Tester, "Quoted"',
+      role: 'manager',
+      is_active: false,
+    }),
+  ]);
+
+  assert.match(csv, /^"Name","Email","Role","Status","Joined"\n/);
+  assert.match(csv, /"'=Command Tester, ""Quoted""","'@danger.example","manager","Deactivated"/);
+  assert.doesNotMatch(csv, /=Command Tester, "Quoted",@danger\.example/);
+});
+
 test('admin users expose visible sort control copy', () => {
   assert.equal(getAdminUserSortControlLabel(), 'Sort users');
+});
+
+test('admin users page title matches the admin navigation label', () => {
+  assert.equal(getAdminUsersPageTitle(), 'User Management');
+  assert.equal(getAdminUsersPageSubtitle(), 'Global Registry');
+});
+
+test('admin add user path opens the registration form while signed in', () => {
+  assert.equal(getAdminAddUserPath(), '/register?switch=true');
 });
 
 test('admin lead reassignment helpers expose safe labels and closed-state guards', () => {
@@ -134,4 +164,12 @@ test('admin lead reassignment helpers expose safe labels and closed-state guards
   assert.equal(validateAdminLeadReassignSelection(openLead, 'broker-current'), 'This lead is already assigned to that broker.');
   assert.equal(validateAdminLeadReassignSelection(closedLead, 'broker-new'), 'Closed leads cannot be reassigned.');
   assert.equal(validateAdminLeadReassignSelection(openLead, 'broker-new'), null);
+});
+
+test('admin lead reassignment load errors stay scoped to the reassignment queue', () => {
+  const message = formatAdminLeadReassignmentLoadError('Internal server error');
+
+  assert.match(message, /Lead reassignment data could not refresh for the current filters\./);
+  assert.match(message, /Existing rows may be stale/);
+  assert.doesNotMatch(message, /^Internal server error$/);
 });

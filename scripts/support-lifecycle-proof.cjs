@@ -2,8 +2,10 @@ const fs = require('node:fs');
 const { chromium } = require('playwright');
 const {
   buildArtifactPath,
+  createAuthedContext,
   ensureReachable,
   getRoleBaseUrl,
+  loginViaApi,
   resolveTarget,
 } = require('./platform-proof-shared.cjs');
 
@@ -19,18 +21,6 @@ const credentials = {
   user: { email: requireEnv('E2E_USER_EMAIL'), password: requireEnv('E2E_USER_PASSWORD'), dashboard: '/user/dashboard' },
   admin: { email: requireEnv('E2E_ADMIN_EMAIL'), password: requireEnv('E2E_ADMIN_PASSWORD'), dashboard: '/admin/dashboard' },
 };
-
-async function login(page, baseUrl, role) {
-  const { email, password, dashboard } = credentials[role];
-  await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[name="email"], input[type="email"]').first().fill(email);
-  await page.locator('input[name="password"], input[type="password"]').first().fill(password);
-  await Promise.all([
-    page.waitForURL((url) => url.pathname.startsWith(dashboard), { timeout: 30000 }),
-    page.getByRole('button', { name: /^Sign In$/i }).click(),
-  ]);
-  await page.waitForTimeout(1200);
-}
 
 async function waitForTicketVisible(page, ticketId) {
   await page.waitForFunction((expectedId) => new URL(window.location.href).searchParams.get('ticket') === expectedId, ticketId, { timeout: 30000 });
@@ -61,12 +51,12 @@ async function createTicketViaUi(page, subject, content) {
   await page.locator('input[placeholder="What\'s it about?"], input[placeholder="Short subject"]').first().fill(subject);
   await page.locator('textarea[placeholder="Give us more details..."], textarea').first().fill(content);
   await page.getByRole('button', { name: /send message|create ticket/i }).click();
-  const successToast = page.getByText(/Message Sent!/i);
-  const ticketSurface = page.locator('body').filter({ hasText: subject }).first();
-  await Promise.race([
-    successToast.waitFor({ timeout: 8000 }).catch(() => null),
-    ticketSurface.waitFor({ timeout: 30000 }),
-  ]);
+  await page.waitForFunction(
+    () => Boolean(new URL(window.location.href).searchParams.get('ticket')),
+    undefined,
+    { timeout: 60000 },
+  );
+  await page.locator('body').filter({ hasText: subject }).first().waitFor({ timeout: 30000 });
   return {
     createResponse: {
       status: 200,
@@ -133,13 +123,16 @@ async function main() {
   };
 
   const browser = await chromium.launch({ headless: true });
-  const userContext = await browser.newContext({ ignoreHTTPSErrors: true });
-  const adminContext = await browser.newContext({ ignoreHTTPSErrors: true });
+  const userSession = await loginViaApi(target, 'user');
+  const adminSession = await loginViaApi(target, 'admin');
+  const userContext = await createAuthedContext(browser, userSession);
+  const adminContext = await createAuthedContext(browser, adminSession);
   const userPage = await userContext.newPage();
   const adminPage = await adminContext.newPage();
 
   try {
-    await login(userPage, getRoleBaseUrl(target, 'user'), 'user');
+    await userPage.goto(`${getRoleBaseUrl(target, 'user')}/user/dashboard`, { waitUntil: 'domcontentloaded' });
+    await userPage.waitForURL((url) => url.pathname.startsWith(credentials.user.dashboard), { timeout: 30000 });
     result.steps.push({ name: 'user login', status: 'passed', url: userPage.url() });
 
     const { createResponse } = await createTicketViaUi(userPage, subject, userReply);
@@ -155,7 +148,8 @@ async function main() {
     result.ticket = { id: ticket.id, conversationId: ticket.conversation_id };
     result.steps.push({ name: 'user created ticket', status: 'passed', ticketId: ticket.id, conversationId: ticket.conversation_id });
 
-    await login(adminPage, getRoleBaseUrl(target, 'admin'), 'admin');
+    await adminPage.goto(`${getRoleBaseUrl(target, 'admin')}/admin/dashboard`, { waitUntil: 'domcontentloaded' });
+    await adminPage.waitForURL((url) => url.pathname.startsWith(credentials.admin.dashboard), { timeout: 30000 });
     result.steps.push({ name: 'admin login', status: 'passed', url: adminPage.url() });
 
     await adminPage.goto(`${getRoleBaseUrl(target, 'admin')}/admin/help?ticket=${ticket.id}`, { waitUntil: 'domcontentloaded' });

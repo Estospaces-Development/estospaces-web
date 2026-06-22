@@ -24,6 +24,18 @@ export interface FastTrackWorkspacePreferences {
   defaultActiveModule: FastTrackWorkspaceModule;
 }
 
+export interface FastTrackCaseRailLayoutOptions {
+  compactViewport: boolean;
+  desktopRailCollapsed: boolean;
+  compactDrawerOpen: boolean;
+}
+
+export interface FastTrackCaseRailLayout {
+  headerRailCollapsed: boolean;
+  renderCompactDrawerRail: boolean;
+  renderDesktopRail: boolean;
+}
+
 export const FAST_TRACK_WORKSPACE_MODULES: FastTrackWorkspaceModule[] = [
   'core_files',
   'case_chat',
@@ -174,6 +186,16 @@ export const normalizeFastTrackWorkspacePreferences = (
     defaultActiveModule,
   };
 };
+
+export const resolveFastTrackCaseRailLayout = ({
+  compactViewport,
+  desktopRailCollapsed,
+  compactDrawerOpen,
+}: FastTrackCaseRailLayoutOptions): FastTrackCaseRailLayout => ({
+  headerRailCollapsed: compactViewport ? !compactDrawerOpen : desktopRailCollapsed,
+  renderCompactDrawerRail: compactViewport && compactDrawerOpen,
+  renderDesktopRail: !compactViewport && !desktopRailCollapsed,
+});
 
 export const orderVisibleFastTrackWorkspaceModules = (
   preferences: FastTrackWorkspacePreferences,

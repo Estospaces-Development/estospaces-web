@@ -19,6 +19,7 @@ import ApplicationCard from '@/components/manager/applications/ApplicationCard';
 import ApplicationDetail from '@/components/manager/applications/ApplicationDetail';
 import ApplicationFilters from '@/components/manager/applications/ApplicationFilters';
 import { attachLinkedFastTrackCase } from '@/lib/fastTrackCompanion';
+import { buildCsvContent } from '@/lib/csvExport';
 import { resolveFocusedApplication } from '@/lib/workspaceLinks';
 import { resolveWorkspaceSection } from '@/lib/liveCaseWorkspace';
 import {
@@ -29,14 +30,6 @@ import {
 
 interface ApplicationsContentProps {
     initialView?: 'list' | 'detail';
-}
-
-function csvSafeCell(value: unknown) {
-    let text = String(value ?? '');
-    if (/^[=+\-@]/.test(text)) {
-        text = `'${text}`;
-    }
-    return `"${text.replace(/"/g, '""')}"`;
 }
 
 function formatApplicationStatus(status?: string) {
@@ -73,9 +66,7 @@ function buildManagerApplicationsCsv(applications: Application[]) {
         application.fastTrackCaseId || application.fastTrackCase?.caseId || '',
     ]);
 
-    return [header, ...rows]
-        .map((row) => row.map(csvSafeCell).join(','))
-        .join('\n');
+    return buildCsvContent([header, ...rows]);
 }
 
 function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps) {
@@ -314,7 +305,7 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
                         onClick={() => navigate('/manager/leads')}
                         className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm flex items-center gap-2 transition-all shadow-md active:scale-95"
                     >
-                        <Plus size={18} /> New Application
+                            <Plus size={18} /> Open Lead Intake
                     </button>
                 </div>
             </div>

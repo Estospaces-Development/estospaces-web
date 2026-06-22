@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import PaginationBar from '@/components/ui/PaginationBar';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import type {
   FastTrackWorkspaceModule,
   FastTrackWorkspacePreferences,
@@ -177,6 +178,7 @@ interface FastTrackCaseRailProps {
   pageSize: number;
   paginatedCount: number;
   items: FastTrackCaseRailItem[];
+  isLoading?: boolean;
   onQueryChange: (value: string) => void;
   onFilterChange: (value: FilterMode) => void;
   onSelectCase: (caseId: string) => void;
@@ -195,6 +197,7 @@ export function FastTrackCaseRail({
   pageSize,
   paginatedCount,
   items,
+  isLoading = false,
   onQueryChange,
   onFilterChange,
   onSelectCase,
@@ -202,6 +205,18 @@ export function FastTrackCaseRail({
   className,
 }: FastTrackCaseRailProps) {
   const copy = getJourneyChromeCopy(role);
+  const railItemKeyFor = createDuplicateSafeKeyResolver('fast-track-rail-case');
+  const railSummary = isLoading
+    ? role === 'user'
+      ? 'Loading your journeys'
+      : 'Loading fast-track cases'
+    : `${totalItems} matching ${totalItems === 1 ? copy.caseSingular : copy.casePlural}`;
+  const railPaginationLabel = isLoading ? 'Loading' : `${currentPage}/${totalPages}`;
+  const emptyRailCopy = isLoading
+    ? role === 'user'
+      ? 'Loading your journeys...'
+      : 'Loading fast-track cases...'
+    : copy.emptyCaseList;
 
   return (
     <aside
@@ -219,11 +234,11 @@ export function FastTrackCaseRail({
               {copy.caseRailTitle}
             </p>
             <p className="mt-1 text-xs font-semibold text-gray-900 dark:text-white">
-              {totalItems} matching {totalItems === 1 ? copy.caseSingular : copy.casePlural}
+              {railSummary}
             </p>
           </div>
           <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-            {currentPage}/{totalPages}
+            {railPaginationLabel}
           </span>
         </div>
 
@@ -265,13 +280,17 @@ export function FastTrackCaseRail({
 
       <div className="space-y-2">
         {items.length === 0 ? (
-          <div className="rounded-[28px] border border-dashed border-gray-300 bg-gray-50 px-5 py-12 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
-            {copy.emptyCaseList}
+          <div
+            role={isLoading ? 'status' : undefined}
+            aria-live={isLoading ? 'polite' : undefined}
+            className="rounded-[28px] border border-dashed border-gray-300 bg-gray-50 px-5 py-12 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400"
+          >
+            {emptyRailCopy}
           </div>
         ) : (
-          items.map((item) => (
+          items.map((item, itemIndex) => (
             <button
-              key={item.caseId}
+              key={railItemKeyFor(item.caseId, itemIndex)}
               type="button"
               data-fast-track-case-card={item.caseId}
               onClick={() => onSelectCase(item.caseId)}

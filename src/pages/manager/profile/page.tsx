@@ -7,6 +7,12 @@ import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
+import {
+    formatLaunchPinCode,
+    formatLaunchPropertyLocation,
+    formatLaunchPropertyText,
+    normalizeLaunchPinCode,
+} from '@/lib/launchLocale';
 
 const MANAGER_LICENSE_MAX_LENGTH = 64;
 const MANAGER_BIO_MAX_LENGTH = 1000;
@@ -15,6 +21,11 @@ const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
 const MANAGER_PHONE_PATTERN = '\\+?[0-9 ()-]{7,20}';
 
 type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber', string>>;
+
+const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
+    const raw = String(value || '').trim();
+    return raw ? formatLaunchPropertyLocation(raw) : '';
+};
 
 export default function ManagerProfilePage() {
     const { user, refreshUser, mergeCurrentUserProfile } = useAuth();
@@ -71,16 +82,16 @@ export default function ManagerProfilePage() {
             lastName,
             email: user?.email || '',
             phone: user?.phone || prev.phone || '',
-            address: user?.address || prev.address || '',
-            postcode: user?.postcode || prev.postcode || '',
+            address: formatOptionalLaunchPropertyLocation(user?.address || prev.address || ''),
+            postcode: formatLaunchPinCode(user?.postcode || prev.postcode || ''),
             bio: managerProfile?.company_description || user?.user_metadata?.bio || prev.bio || '',
             website: user?.user_metadata?.website || prev.website || '',
             // Broker / manager fields
             companyName: managerProfile?.company_name || prev.companyName || '',
-            branchName: managerProfile?.branch_name || prev.branchName || '',
+            branchName: formatLaunchPropertyText(managerProfile?.branch_name || prev.branchName || '', ''),
             businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
-            companyAddress: managerProfile?.company_address || prev.companyAddress || '',
-            registeredOfficeAddress: managerProfile?.registered_office_address || prev.registeredOfficeAddress || '',
+            companyAddress: formatOptionalLaunchPropertyLocation(managerProfile?.company_address || prev.companyAddress || ''),
+            registeredOfficeAddress: formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address || prev.registeredOfficeAddress || ''),
             complaintsContact: managerProfile?.complaints_contact || prev.complaintsContact || '',
             redressSchemeName: managerProfile?.redress_scheme_name || prev.redressSchemeName || '',
             redressMembershipNumber: managerProfile?.redress_membership_number || prev.redressMembershipNumber || '',
@@ -96,9 +107,25 @@ export default function ManagerProfilePage() {
     }, [user, managerProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const nextValue = (() => {
+            if (e.target.name === 'postcode') {
+                return normalizeLaunchPinCode(e.target.value);
+            }
+
+            if (e.target.name === 'address' || e.target.name === 'companyAddress' || e.target.name === 'registeredOfficeAddress') {
+                return formatOptionalLaunchPropertyLocation(e.target.value);
+            }
+
+            if (e.target.name === 'branchName') {
+                return formatLaunchPropertyText(e.target.value, '');
+            }
+
+            return e.target.value;
+        })();
+
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [e.target.name]: nextValue
         }));
         setIsSaved(false);
         setSaveError('');
@@ -344,7 +371,10 @@ export default function ManagerProfilePage() {
                         <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">{formData.companyName || 'No company set'}</p>
                         {formData.address && (
                             <p className="text-gray-400 dark:text-gray-500 text-xs flex items-center gap-1 justify-center">
-                                <MapPin size={12} /> {formData.address}{formData.postcode ? `, ${formData.postcode}` : ''}
+                                <MapPin size={12} /> {formatLaunchPropertyLocation([
+                                    formData.address,
+                                    formData.postcode || undefined,
+                                ])}
                             </p>
                         )}
 
@@ -442,7 +472,7 @@ export default function ManagerProfilePage() {
                                         <input id="manager-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange}
                                             maxLength={MANAGER_PHONE_MAX_LENGTH}
                                             pattern={MANAGER_PHONE_PATTERN}
-                                            placeholder="+44 7700 000000"
+                                            placeholder="+91 98765 43210"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
@@ -451,16 +481,19 @@ export default function ManagerProfilePage() {
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="manager-address" type="text" name="address" value={formData.address} onChange={handleChange}
-                                            placeholder="123 Example Street, London"
+                                            placeholder="123 Example Street, Chennai"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postcode</label>
+                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code</label>
                                     <div className="relative">
                                         <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="manager-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange}
-                                            placeholder="SW1A 1AA"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            maxLength={6}
+                                            placeholder="600001"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
@@ -493,14 +526,14 @@ export default function ManagerProfilePage() {
                                             <input id="manager-business-phone" type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange}
                                                 maxLength={MANAGER_PHONE_MAX_LENGTH}
                                                 pattern={MANAGER_PHONE_PATTERN}
-                                                placeholder="+44 20 0000 0000"
+                                                placeholder="+91 44 0000 0000"
                                                 className={iconInputClass} />
                                         </div>
                                     </div>
                                     <div>
                                         <label htmlFor="manager-branch-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Branch Name</label>
                                         <input id="manager-branch-name" type="text" name="branchName" value={formData.branchName} onChange={handleChange}
-                                            placeholder="Westminster Branch"
+                                            placeholder="Chennai Branch"
                                             className={inputClass} />
                                     </div>
                                     <div>
@@ -522,7 +555,7 @@ export default function ManagerProfilePage() {
                                     <div>
                                         <label htmlFor="manager-tax-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Tax ID</label>
                                         <input id="manager-tax-id" type="text" name="taxId" value={formData.taxId} onChange={handleChange}
-                                            placeholder="GB123456789"
+                                            placeholder="GSTIN or local tax ID"
                                             className={inputClass} />
                                     </div>
                                 </div>
@@ -532,7 +565,7 @@ export default function ManagerProfilePage() {
                                     <div className="relative">
                                         <Globe size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="manager-website" type="url" name="website" value={formData.website} onChange={handleChange}
-                                            placeholder="https://yourcompany.co.uk"
+                                            placeholder="https://yourcompany.in"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
@@ -542,7 +575,7 @@ export default function ManagerProfilePage() {
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
                                         <textarea id="manager-company-address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
-                                            placeholder="1 Office Road, London, EC1A 1AA"
+                                            placeholder="1 Office Road, Chennai, 600001"
                                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     </div>
                                 </div>
@@ -563,8 +596,8 @@ export default function ManagerProfilePage() {
                                         <div className="relative">
                                             <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                             <input id="manager-complaints-contact" type="text" name="complaintsContact" value={formData.complaintsContact} onChange={handleChange}
-                                                placeholder="complaints@agency.co.uk"
-                                                className={iconInputClass} />
+                                            placeholder="complaints@agency.in"
+                                            className={iconInputClass} />
                                         </div>
                                     </div>
                                     <div>

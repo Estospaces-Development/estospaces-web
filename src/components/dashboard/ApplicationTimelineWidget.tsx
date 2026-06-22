@@ -781,7 +781,7 @@ const ApplicationTimelineWidget = () => {
                         <div>
                             <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                                 Your journey progress
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-sm font-semibold rounded-full">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-sm font-semibold rounded-full">
                                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                                     Live
                                 </span>
@@ -884,7 +884,7 @@ const ApplicationTimelineWidget = () => {
                                                     <FileText size={24} />
                                                 </div>
                                             )}
-                                            <span className={`absolute -bottom-1 -left-1 px-2 py-0.5 text-[10px] font-bold rounded-md uppercase shadow-sm ${item.type === 'buy' ? 'bg-blue-500' : item.type === 'rent' ? 'bg-purple-500' : 'bg-green-500'} text-white`}>
+                                            <span className={`absolute -bottom-1 -left-1 px-2 py-0.5 text-[10px] font-bold rounded-md uppercase shadow-sm ${item.type === 'buy' ? 'bg-blue-700' : item.type === 'rent' ? 'bg-purple-700' : 'bg-green-700'} text-white`}>
                                                 {item.type}
                                             </span>
                                         </div>

@@ -26,6 +26,12 @@ import {
     isPropertyWorkflowNotification,
     type Notification,
 } from '@/services/notificationsService';
+import {
+    getNotificationIconColorClass,
+    getNotificationSurfaceClass,
+} from '@/lib/notificationVisuals';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
+import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 
 export type AdminNotificationFilterType = 'all' | 'unread' | 'read';
 
@@ -47,16 +53,19 @@ export const filterAdminNotifications = (
 
         if (!query) return true;
 
+        const displayCopy = getLaunchSafeNotificationCopy(notification);
         return (
-            notification.title.toLowerCase().includes(query)
-            || notification.message.toLowerCase().includes(query)
+            displayCopy.title.toLowerCase().includes(query)
+            || displayCopy.message.toLowerCase().includes(query)
         );
     });
 };
 
 const getNotificationIcon = (notification: Notification) => {
+    const iconClass = getNotificationIconColorClass(notification);
+
     if (isPropertyWorkflowNotification(notification)) {
-        return <Home size={20} className="text-blue-500" />;
+        return <Home size={20} className={iconClass} />;
     }
 
     const { type } = notification;
@@ -65,51 +74,51 @@ const getNotificationIcon = (notification: Notification) => {
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
         case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return <Shield size={20} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            return <Shield size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.APPLICATION_UPDATE:
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+        case NOTIFICATION_TYPES.APPLICATION_REJECTED:
         case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
-            return <FileText size={20} className="text-purple-500" />;
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+            return <FileText size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
         case NOTIFICATION_TYPES.TICKET_RESPONSE:
-            return <MessageSquare size={20} className="text-green-500" />;
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_CREATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_STATUS_UPDATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_ASSIGNED:
+            return <MessageSquare size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
         case NOTIFICATION_TYPES.VIEWING_BOOKED:
+        case NOTIFICATION_TYPES.VIEWING_COMPLETED:
+        case NOTIFICATION_TYPES.VIEWING_CANCELLED:
+        case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
         case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-            return <Calendar size={20} className="text-blue-500" />;
+            return <Calendar size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
         case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-            return <CreditCard size={20} className="text-emerald-500" />;
+        case NOTIFICATION_TYPES.PAYMENT_FAILED:
+            return PAYMENTS_ENABLED
+                ? <CreditCard size={20} className={iconClass} />
+                : <FileText size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.PROPERTY_SAVED:
         case NOTIFICATION_TYPES.PRICE_DROP:
         case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
-            return <Home size={20} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.PROPERTY_AVAILABLE:
+        case NOTIFICATION_TYPES.PROPERTY_UNAVAILABLE:
+            return <Home size={20} className={iconClass} />;
         default:
-            return <Info size={20} className="text-gray-500" />;
+            return <Info size={20} className={iconClass} />;
     }
 };
 
 const getNotificationColor = (notification: Notification) => {
-    if (isPropertyWorkflowNotification(notification)) {
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/40';
-    }
-
-    const { type } = notification;
-    switch (type) {
-        case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
-        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
-            return 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-900/40';
-        case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
-        case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-900/40';
-        case NOTIFICATION_TYPES.APPLICATION_UPDATE:
-        case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
-        case NOTIFICATION_TYPES.APPLICATION_APPROVED:
-            return 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-900/40';
-        default:
-            return 'bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700';
-    }
+    return getNotificationSurfaceClass(notification, true);
 };
 
 const formatTime = (dateString: string) => {
@@ -270,7 +279,7 @@ export default function AdminNotificationsPage() {
                             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleTotalCount}</p>
                         </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl">
-                            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Read</span>
+                            <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Read</span>
                             <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleReadCount}</p>
                         </div>
                     </div>
@@ -371,10 +380,11 @@ export default function AdminNotificationsPage() {
 
                             return (
                                 <div key={group} className="space-y-3">
-                                    <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-2">{group}</h3>
+                                    <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-2">{group}</h2>
                                     <div className="space-y-3">
                                         {items.map((notification) => {
                                             const targetPath = getNotificationNavigationPath(notification, 'admin') || '/admin/notifications';
+                                            const displayCopy = getLaunchSafeNotificationCopy(notification);
                                             return (
                                                 <div
                                                     key={notification.id}
@@ -386,7 +396,7 @@ export default function AdminNotificationsPage() {
                                                 >
                                                     <input
                                                         type="checkbox"
-                                                        aria-label={`Select notification: ${notification.title}`}
+                                                        aria-label={`Select notification: ${displayCopy.title}`}
                                                         checked={selectedNotifications.includes(notification.id)}
                                                         onChange={() => handleSelectNotification(notification.id)}
                                                         className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 outline-none"
@@ -394,7 +404,7 @@ export default function AdminNotificationsPage() {
 
                                                     <button
                                                         type="button"
-                                                        aria-label={`Open notification: ${notification.title}`}
+                                                        aria-label={`Open notification: ${displayCopy.title}`}
                                                         className="flex-shrink-0 rounded-xl p-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-900/60"
                                                         onClick={() => handleNotificationClick(notification)}
                                                     >
@@ -403,17 +413,17 @@ export default function AdminNotificationsPage() {
 
                                                     <button
                                                         type="button"
-                                                        aria-label={`Open notification: ${notification.title}`}
+                                                        aria-label={`Open notification: ${displayCopy.title}`}
                                                         className="flex-1 min-w-0 text-left"
                                                         onClick={() => handleNotificationClick(notification)}
                                                     >
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <h4 className={`font-bold truncate ${notification.is_read ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900 dark:text-white'}`}>
-                                                                {notification.title}
-                                                            </h4>
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <h3 className={`min-w-0 break-words font-bold [overflow-wrap:anywhere] ${notification.is_read ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900 dark:text-white'}`}>
+                                                                {displayCopy.title}
+                                                            </h3>
                                                             <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
                                                         </div>
-                                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notification.message}</p>
+                                                        <p className="mt-0.5 line-clamp-2 break-words text-sm text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">{displayCopy.message}</p>
                                                         <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
                                                             <Clock size={14} />
                                                             <span>{formatTime(notification.created_at)}</span>
@@ -427,7 +437,7 @@ export default function AdminNotificationsPage() {
 
                                                     <button
                                                         type="button"
-                                                        aria-label={`Delete notification: ${notification.title}`}
+                                                        aria-label={`Delete notification: ${displayCopy.title}`}
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             deleteNotification(notification.id);
@@ -435,7 +445,7 @@ export default function AdminNotificationsPage() {
                                                         className="inline-flex items-center gap-1 rounded-lg p-2 text-xs font-semibold text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
                                                     >
                                                         <Trash2 size={18} />
-                                                        Delete
+                                                        <span className="hidden sm:inline">Delete</span>
                                                     </button>
                                                 </div>
                                             );

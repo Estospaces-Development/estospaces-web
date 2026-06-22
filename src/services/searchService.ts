@@ -1,6 +1,7 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '../lib/apiUtils';
 import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
+import { LAUNCH_COUNTRY_CODE } from '@/lib/launchLocale';
 
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
@@ -243,7 +244,7 @@ const coreSearchFallback = async (
     const params = mapSearchFiltersToCoreQuery(query, filters);
     const response = await apiFetchEnvelope<CorePropertyListPayload>(
         `${CORE_API_URL}/api/v1/properties?${params.toString()}`,
-        { suppressErrorToast: true },
+        { suppressErrorToast: true, auth: false },
     );
     const payload = response.data || {};
     let mapped = (payload.data || []).map(mapCorePropertyToSearchResult);
@@ -621,7 +622,7 @@ export const searchService = {
 
             const response = await apiFetchEnvelope<SearchResult[]>(
                 `${API_URL}/api/v1/search?${params.toString()}`,
-                { suppressErrorToast: true },
+                { suppressErrorToast: true, auth: false },
             );
 
             if (looksLikePlaceholderSearchResults(response.data || [])) {
@@ -655,7 +656,7 @@ export const searchService = {
         }
     },
 
-    getPropertySections: async (country = 'UK'): Promise<PropertySectionsResponse> => {
+    getPropertySections: async (country = LAUNCH_COUNTRY_CODE): Promise<PropertySectionsResponse> => {
         try {
             const params = new URLSearchParams();
             if (country.trim()) {
@@ -664,7 +665,7 @@ export const searchService = {
 
             const response = await apiFetchEnvelope<CorePropertySectionsPayload>(
                 `${CORE_API_URL}/api/v1/properties/sections?${params.toString()}`,
-                { suppressErrorToast: true },
+                { suppressErrorToast: true, auth: false },
             );
 
             return {
@@ -698,7 +699,7 @@ export const searchService = {
         try {
             const data = await apiFetch<{ suggestions: AutocompleteSuggestion[] }>(
                 `${API_URL}/api/v1/search/autocomplete?q=${encodeURIComponent(normalizedQuery)}`,
-                { suppressErrorToast: true },
+                { suppressErrorToast: true, auth: false },
             );
             const suggestions = data?.suggestions || [];
             if (looksLikePlaceholderSuggestions(suggestions)) {
@@ -728,7 +729,7 @@ export const searchService = {
         try {
             const data = await apiFetch<PopularSearch[]>(
                 `${API_URL}/api/v1/search/popular?limit=${limit}`,
-                { suppressErrorToast: true },
+                { suppressErrorToast: true, auth: false },
             );
             return data || [];
         } catch {
@@ -751,7 +752,7 @@ export const searchService = {
         try {
             const data = await apiFetch<FilterOptions>(
                 `${API_URL}/api/v1/search/filters`,
-                { suppressErrorToast: true },
+                { suppressErrorToast: true, auth: false },
             );
             if (looksLikePlaceholderFilters(data || null)) {
                 throw new Error('placeholder search filters');

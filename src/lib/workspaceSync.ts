@@ -1,4 +1,5 @@
 import { getNotificationNavigationPath, isPropertyWorkflowNotification, NOTIFICATION_TYPES, type Notification } from '@/services/notificationsService';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 export const WORKSPACE_SYNC_TAGS = {
     PROPERTIES: 'properties',
@@ -73,6 +74,10 @@ export interface WorkspaceRefreshControllerOptions {
 export const WORKSPACE_SYNC_DEDUPE_TTL_MS = 4000;
 
 type WorkspaceSyncListener = (event: WorkspaceSyncEvent) => void;
+
+const INACTIVE_LAUNCH_TAGS = new Set<string>([
+    ...(!PAYMENTS_ENABLED ? [WORKSPACE_SYNC_TAGS.PAYMENTS, WORKSPACE_SYNC_TAGS.BILLING] : []),
+]);
 
 const PATH_TAGS: Array<{ needle: string; tags: string[] }> = [
     {
@@ -348,7 +353,13 @@ const MESSAGE_NOTIFICATION_TYPES = new Set([
 
 const trimString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
-const compactTags = (tags: Array<string | undefined | null>) => Array.from(new Set(tags.filter((tag): tag is string => Boolean(tag))));
+const isActiveWorkspaceSyncTag = (tag: string | undefined | null): tag is string => (
+    typeof tag === 'string' && tag.length > 0 && !INACTIVE_LAUNCH_TAGS.has(tag)
+);
+
+const compactTags = (tags: Array<string | undefined | null>) => Array.from(
+    new Set(tags.filter(isActiveWorkspaceSyncTag)),
+);
 
 const pickIDs = (data: Record<string, any> | null | undefined) => {
     if (!data) {

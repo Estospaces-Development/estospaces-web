@@ -17,4 +17,5 @@ test("public about route explains the Estospaces platform", () => {
   assert.match(markup, /fast-track/);
   assert.match(markup, /property managers/);
   assert.match(markup, /Contact us/);
+  assert.doesNotMatch(markup, /payments/i);
 });

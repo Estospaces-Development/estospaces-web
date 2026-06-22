@@ -11,6 +11,7 @@ import {
     type State,
     type City,
 } from '../../services/addressService';
+import { normalizeLaunchPinCode } from '@/lib/launchLocale';
 
 export interface AddressFormData {
     countryId: string;
@@ -420,12 +421,9 @@ const AddressSection = ({
         });
     }, [value, onChange]);
 
-    // Handler for postal code - allows alphanumeric (UK postcodes have letters)
+    // Handler for launch PIN code.
     const handlePostalCodeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputValue = e.target.value.toUpperCase();
-        // Allow letters, digits, and spaces for UK postcodes like SW1A 1AA
-        const cleanedValue = inputValue.replace(/[^A-Z0-9 ]/g, '');
-        handleTextChange('postalCode', cleanedValue);
+        handleTextChange('postalCode', normalizeLaunchPinCode(e.target.value));
     }, [handleTextChange]);
 
     // Retry handlers
@@ -708,19 +706,20 @@ const AddressSection = ({
                         htmlFor={getFieldId('postalCode')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
-                        Postcode {required && <span className="text-red-500">*</span>}
+                        PIN code {required && <span className="text-red-500">*</span>}
                     </label>
                     <input
                         id={getFieldId('postalCode')}
                         type="text"
-                        inputMode="text"
-                        pattern="[A-Za-z0-9 ]*"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
                         value={value.postalCode}
                         onChange={handlePostalCodeChange}
                         disabled={disabled}
                         aria-invalid={Boolean(errors.postalCode)}
                         aria-describedby={errors.postalCode ? getFieldErrorId('postalCode') : undefined}
-                        placeholder="e.g. SW1A 1AA"
+                        placeholder="e.g. 600001"
                         className={`
               w-full px-3 py-2.5
               border rounded-lg

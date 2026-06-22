@@ -3,6 +3,8 @@ const { chromium, firefox } = require('playwright');
 const {
   buildArtifactPath,
   ensureReachable,
+  isIgnorableConsoleError,
+  parseOption,
   resolveTarget,
 } = require('./platform-proof-shared.cjs');
 
@@ -17,6 +19,36 @@ const scenarios = [
   { id: 'PUB-008', route: '/terms', expected: /Terms/i },
 ];
 
+async function gotoWithRetry(page, url) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      return;
+    } catch (error) {
+      const message = String(error?.message || error);
+      if (!message.includes('NS_BINDING_ABORTED') || attempt === 1) {
+        throw error;
+      }
+    }
+  }
+}
+
+async function readScenarioText(page, expected) {
+  const source = expected.source;
+  const flags = expected.flags;
+
+  await page.waitForFunction(
+    ({ pattern, patternFlags }) => {
+      const text = document.body?.innerText || '';
+      return new RegExp(pattern, patternFlags).test(text);
+    },
+    { pattern: source, patternFlags: flags },
+    { timeout: 10000 },
+  ).catch(() => {});
+
+  return page.locator('body').innerText();
+}
+
 async function runViewportPass(browserType, target, viewport, label) {
   const browser = await browserType.launch({ headless: true });
   const context = await browser.newContext({ viewport, ignoreHTTPSErrors: true });
@@ -27,7 +59,10 @@ async function runViewportPass(browserType, target, viewport, label) {
   page.on('pageerror', (error) => pageErrors.push(String(error)));
   page.on('console', (msg) => {
     if (msg.type() === 'error') {
-      consoleErrors.push(msg.text());
+      const text = msg.text();
+      if (!isIgnorableConsoleError(text)) {
+        consoleErrors.push(text);
+      }
     }
   });
   page.on('response', (response) => {
@@ -39,9 +74,9 @@ async function runViewportPass(browserType, target, viewport, label) {
   const results = [];
   try {
     for (const scenario of scenarios) {
-      await page.goto(`${target.baseUrl}${scenario.route}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+      await gotoWithRetry(page, `${target.baseUrl}${scenario.route}`);
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
-      const text = await page.locator('body').innerText();
+      const text = await readScenarioText(page, scenario.expected);
       results.push({
         id: `${scenario.id}-${label}`,
         route: scenario.route,
@@ -59,7 +94,12 @@ async function runViewportPass(browserType, target, viewport, label) {
 }
 
 async function main() {
-  const target = resolveTarget(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const resolvedTarget = resolveTarget(argv);
+  const target = {
+    ...resolvedTarget,
+    baseUrl: parseOption(argv, '--base-url') || resolvedTarget.baseUrl,
+  };
   await ensureReachable(target.baseUrl);
   const artifactPath = buildArtifactPath(`public-${target.name}-proof.json`);
 

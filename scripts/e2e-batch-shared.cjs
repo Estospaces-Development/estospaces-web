@@ -11,12 +11,44 @@ function requireEnv(name) {
   return value;
 }
 
+function readFrontendUrlFromEnvFile(filename) {
+  const filePath = path.join(process.cwd(), filename);
+  if (!fs.existsSync(filePath)) {
+    return '';
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+    const [key, ...valueParts] = line.split('=');
+    if (key === 'FRONTEND_URL') {
+      return valueParts.join('=').trim();
+    }
+  }
+
+  return '';
+}
+
+function resolveDevBaseUrl() {
+  return (
+    process.env.E2E_DEV_BASE_URL
+    || readFrontendUrlFromEnvFile('.env.development')
+    || readFrontendUrlFromEnvFile('.env.gcp-dev')
+    || 'http://localhost:3000'
+  );
+}
+
+const devBaseUrl = resolveDevBaseUrl();
+
 const envTargets = {
   dev: {
     name: 'dev',
-    baseUrl: process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
-    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
-    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
+    baseUrl: devBaseUrl,
+    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || devBaseUrl,
+    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || devBaseUrl,
     coreServiceUrl: process.env.E2E_DEV_CORE_URL || 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app',
     caseId: process.env.E2E_DEV_FAST_TRACK_CASE_ID || '',
   },
@@ -27,6 +59,14 @@ const envTargets = {
     adminBaseUrl: process.env.E2E_LOCAL_ADMIN_BASE_URL || process.env.E2E_LOCAL_BASE_URL || 'http://localhost:3000',
     coreServiceUrl: process.env.E2E_LOCAL_CORE_URL || 'http://localhost:8080',
     caseId: process.env.E2E_LOCAL_FAST_TRACK_CASE_ID || '',
+  },
+  staging: {
+    name: 'staging',
+    baseUrl: process.env.E2E_STAGING_BASE_URL || 'https://estospaces-web-staging-zaryfkxmeq-nw.a.run.app',
+    appBaseUrl: process.env.E2E_STAGING_APP_BASE_URL || process.env.E2E_STAGING_BASE_URL || 'https://estospaces-web-staging-zaryfkxmeq-nw.a.run.app',
+    adminBaseUrl: process.env.E2E_STAGING_ADMIN_BASE_URL || process.env.E2E_STAGING_BASE_URL || 'https://estospaces-web-staging-zaryfkxmeq-nw.a.run.app',
+    coreServiceUrl: process.env.E2E_STAGING_CORE_URL || 'https://estospaces-core-service-staging-zaryfkxmeq-nw.a.run.app',
+    caseId: process.env.E2E_STAGING_FAST_TRACK_CASE_ID || '',
   },
   prod: {
     name: 'prod',

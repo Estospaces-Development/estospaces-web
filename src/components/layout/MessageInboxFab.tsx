@@ -4,14 +4,19 @@ import { MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
 
+export function shouldHideMessageInboxFab(pathname: string) {
+    return pathname.startsWith('/user/dashboard/messages')
+        || pathname.startsWith('/user/dashboard/fast-track')
+        || pathname.startsWith('/user/dashboard/help')
+        || pathname === '/user/applications'
+        || pathname.startsWith('/user/properties/');
+}
+
 export default function MessageInboxFab() {
     const navigate = useNavigate();
     const location = useLocation();
     const { totalUnreadCount } = useMessages();
-    const hideOnContextualWorkspace = location.pathname.startsWith('/user/dashboard/messages')
-        || location.pathname.startsWith('/user/dashboard/fast-track')
-        || location.pathname === '/user/applications'
-        || location.pathname.startsWith('/user/properties/');
+    const hideOnContextualWorkspace = shouldHideMessageInboxFab(location.pathname);
 
     if (hideOnContextualWorkspace) {
         return null;

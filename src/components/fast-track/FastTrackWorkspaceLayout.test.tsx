@@ -87,6 +87,32 @@ test('fast-track journey rail exposes visible focus and pagination controls', ()
   assert.match(markup, /Last page/);
 });
 
+test('fast-track journey rail hides final empty copy while cases are loading', () => {
+  const markup = renderToStaticMarkup(
+    <FastTrackCaseRail
+      role="user"
+      query=""
+      filter="all"
+      filters={[{ value: 'all', label: 'All' }]}
+      currentPage={1}
+      totalPages={1}
+      totalItems={0}
+      pageSize={12}
+      paginatedCount={0}
+      items={[]}
+      isLoading
+      onQueryChange={() => {}}
+      onFilterChange={() => {}}
+      onSelectCase={() => {}}
+      onPageChange={() => {}}
+    />,
+  );
+
+  assert.match(markup, /Loading your journeys/);
+  assert.doesNotMatch(markup, /0 matching journeys/);
+  assert.doesNotMatch(markup, /No journeys match this filter/);
+});
+
 test('fast-track stage controls expose visible focus for keyboard users', () => {
   const markup = renderToStaticMarkup(
     <FastTrackStageStepper

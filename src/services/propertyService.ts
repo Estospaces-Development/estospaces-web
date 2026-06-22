@@ -10,6 +10,7 @@ import {
   getErrorMessage,
   getServiceUrl,
 } from "@/lib/apiUtils";
+import { LAUNCH_COUNTRY_CODE } from "@/lib/launchLocale";
 import { normalizeSavedPropertyId } from "@/lib/savedPropertyState";
 import type {
   JourneyAction,
@@ -488,7 +489,7 @@ export const getSavedProperties = async (): Promise<{
  * GET /api/v1/properties/sections (core-service)
  */
 export const getPropertySections = async (
-  country: string = "UK",
+  country: string = LAUNCH_COUNTRY_CODE,
 ): Promise<{ data: any; error: string | null }> => {
   try {
     const data = await apiFetch<any>(

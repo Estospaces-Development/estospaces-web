@@ -150,6 +150,89 @@ export const isPlaceholderManagerCompanyName = (value?: string): boolean => {
     return PLACEHOLDER_MANAGER_COMPANY_NAMES.has(String(value || '').trim().toLowerCase());
 };
 
+const hasText = (value?: string | null): boolean => String(value || '').trim().length > 0;
+
+const getLatestManagerDocumentsByType = (documents: ManagerDocument[]): Map<ManagerDocumentType, ManagerDocument> => {
+    const latestDocuments = [...documents].sort((left, right) => (
+        new Date(right.submitted_at || right.updated_at).getTime() - new Date(left.submitted_at || left.updated_at).getTime()
+    ));
+
+    return latestDocuments.reduce((latestByType, document) => {
+        if (!latestByType.has(document.document_type)) {
+            latestByType.set(document.document_type, document);
+        }
+
+        return latestByType;
+    }, new Map<ManagerDocumentType, ManagerDocument>());
+};
+
+export const getManagerApprovalBlocker = (
+    profile: ManagerProfile | null,
+    documents: ManagerDocument[],
+): string | null => {
+    if (!profile) {
+        return 'Load the manager profile before approving this manager.';
+    }
+
+    const missingFields: string[] = [];
+    if (!hasText(profile.company_name) || isPlaceholderManagerCompanyName(profile.company_name)) {
+        missingFields.push('company name');
+    }
+    if (!hasText(profile.business_phone)) {
+        missingFields.push('business phone');
+    }
+    if (!hasText(profile.company_address)) {
+        missingFields.push('company address');
+    }
+
+    const registrationNumber = profile.company_registration_number || profile.license_number;
+    if (!hasText(registrationNumber)) {
+        missingFields.push(profile.profile_type === 'company' ? 'company registration number' : 'broker license number');
+    }
+    if (!hasText(profile.branch_name)) {
+        missingFields.push('branch name');
+    }
+    if (!hasText(profile.registered_office_address)) {
+        missingFields.push('registered office address');
+    }
+    if (!hasText(profile.complaints_contact)) {
+        missingFields.push('complaints contact');
+    }
+    if (!hasText(profile.redress_scheme_name)) {
+        missingFields.push('redress scheme name');
+    }
+    if (!hasText(profile.redress_membership_number)) {
+        missingFields.push('redress membership number');
+    }
+    if (profile.has_client_money && !hasText(profile.cmp_provider)) {
+        missingFields.push('client money protection provider');
+    }
+    if (profile.has_client_money && !hasText(profile.cmp_certificate_url)) {
+        missingFields.push('client money protection certificate');
+    }
+
+    if (missingFields.length > 0) {
+        return `Complete ${missingFields.join(', ')} before approving this manager.`;
+    }
+
+    const latestDocumentsByType = getLatestManagerDocumentsByType(documents);
+    const requiredDocuments = getRequiredDocuments(profile.profile_type);
+    const missingDocuments = requiredDocuments.filter((documentType) => !latestDocumentsByType.has(documentType));
+    if (missingDocuments.length > 0) {
+        return `Upload required verification documents before approving this manager: ${missingDocuments.map(getManagerDocumentTypeName).join(', ')}.`;
+    }
+
+    const blockedDocuments = requiredDocuments.filter((documentType) => {
+        const document = latestDocumentsByType.get(documentType);
+        return document?.verification_status === 'rejected' || document?.verification_status === 'reupload_required';
+    });
+    if (blockedDocuments.length > 0) {
+        return `Replace rejected verification documents before approving this manager: ${blockedDocuments.map(getManagerDocumentTypeName).join(', ')}.`;
+    }
+
+    return null;
+};
+
 export const getManagerDisplayName = (
     profile: Pick<ManagerProfile, 'company_name' | 'authorized_representative_name'>,
 ): string => {

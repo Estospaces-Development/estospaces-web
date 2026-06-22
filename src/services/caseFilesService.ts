@@ -71,6 +71,24 @@ export interface CaseFileActivityEvent {
     data?: Record<string, any>;
 }
 
+export interface VirtualStorageCategory {
+    id: string;
+    user_id?: string;
+    name: string;
+    slug: string;
+    source: string;
+    created_by?: string;
+    created_by_role?: string;
+    fast_track_case_id?: string | null;
+    lead_id?: string | null;
+    application_id?: string | null;
+    contract_id?: string | null;
+    property_id?: string | null;
+    request_id?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+}
+
 export interface CaseFileArtifact {
     id: string;
     artifact_type: string;
@@ -102,6 +120,9 @@ export interface CaseFile {
     contract?: Contract | null;
     sale_progression?: SaleProgression | null;
     property_compliance_readiness?: PropertyComplianceReadiness | null;
+    document_limit?: number;
+    document_count?: number;
+    manager_suggested_categories?: VirtualStorageCategory[];
     documents: CaseFileDocument[];
     requests: CaseFileRequest[];
     available_reusable_documents: UserDocument[];

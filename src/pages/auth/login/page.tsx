@@ -95,7 +95,7 @@ export default function LoginPage() {
   const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
 
   return (
-    <main className="flex flex-col items-center" aria-labelledby="login-heading">
+    <section className="flex flex-col items-center" aria-labelledby="login-heading">
       <AuthBrand />
 
       {isAuthenticated && !isSwitching ? (
@@ -141,7 +141,8 @@ export default function LoginPage() {
                 <input
                     id="email"
                     name="email"
-                    type="email"
+                    type="text"
+                    inputMode="email"
                     autoComplete="email"
                     maxLength={254}
                     placeholder="Enter your email"
@@ -226,7 +227,7 @@ export default function LoginPage() {
         {' \u00B7 '}
         <Link to="/privacy" className={`text-primary hover:underline ${authFocusClass}`}>privacy policy</Link>
       </p>
-    </main>
+    </section>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Calendar, FileText, Heart, Home } from "lucide-react";
+import { Calendar, FileText, FolderLock, Heart, Home } from "lucide-react";
 
 const activityItems = [
   {
@@ -16,6 +16,13 @@ const activityItems = [
     label: "Applications",
     description: "Requests you sent",
     path: "/user/applications",
+  },
+  {
+    icon: FolderLock,
+    label: "Virtual Storage",
+    description: "Document vault",
+    path: "/user/virtual-storage",
+    activePaths: ["/user/virtual-storage", "/user/docs"],
   },
   {
     icon: Calendar,
@@ -52,10 +59,12 @@ const UserActivitySubnav = () => {
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {activityItems.map((item) => {
           const Icon = item.icon;
-          const active = pathname.startsWith(item.path);
+          const active = item.activePaths
+            ? item.activePaths.some((candidate) => pathname.startsWith(candidate))
+            : pathname.startsWith(item.path);
 
           return (
             <Link
@@ -84,7 +93,7 @@ const UserActivitySubnav = () => {
                 <span
                   className={`mt-0.5 block truncate text-xs ${
                     active
-                      ? "text-orange-700/80 dark:text-orange-100/80"
+                      ? "text-orange-800 dark:text-orange-100"
                       : "text-gray-500 dark:text-gray-500"
                   }`}
                 >

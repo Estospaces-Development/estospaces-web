@@ -42,7 +42,7 @@ const PromiseBanner = () => {
                     <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1.5 list-disc list-inside">
                         <li>Complete application submitted with all required documents</li>
                         <li>Credit check and background verification completed</li>
-                        <li>Initial payment and deposit cleared</li>
+                        <li>Agreement documents completed</li>
                         <li>Property inspection completed (if required)</li>
                         <li>Available only for select properties</li>
                         <li>Subject to property availability and approval</li>

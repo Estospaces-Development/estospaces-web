@@ -1,10 +1,9 @@
-import { deleteMediaFile, uploadMediaFile, reassignMediaEntity } from '@/services/mediaService';
+import { deleteMediaFile, reassignMediaEntity, uploadMediaFile } from '@/services/mediaService';
 import { messagesService, type CreateTicketParams, type GetTicketsParams, type MessageAttachment, type SupportTicketDetail, type SupportTicketSummary, type UpdateTicketParams } from '@/services/messagesService';
 import { userService } from '@/services/userService';
 import type { User } from '@/types';
 
 const SUPPORT_DRAFT_ENTITY = 'support_ticket_draft';
-const SUPPORT_TICKET_ENTITY = 'support_ticket';
 const SUPPORT_TRANSCRIPT_PAGE_SIZE = 50;
 const SUPPORT_AGENT_PAGE_SIZE = 100;
 const SUPPORT_TICKET_PAGE_SIZE = 100;
@@ -53,7 +52,19 @@ export const supportService = {
     },
 
     async updateTicket(ticketId: string, params: UpdateTicketParams) {
-        return messagesService.updateTicket(ticketId, params);
+        const { status, ...patch } = params;
+        const hasPatch = Object.values(patch).some((value) => value !== undefined);
+        let updated: SupportTicketDetail | null = null;
+
+        if (hasPatch) {
+            updated = await messagesService.updateTicket(ticketId, patch);
+        }
+
+        if (status) {
+            updated = await messagesService.updateTicketStatus(ticketId, status);
+        }
+
+        return updated || messagesService.getTicket(ticketId);
     },
 
     async getTranscript(conversationId: string) {
@@ -85,6 +96,7 @@ export const supportService = {
             const uploaded = await uploadMediaFile(file, SUPPORT_DRAFT_ENTITY, draftId, '', false);
             return {
                 local_id: uploaded.id,
+                media_id: uploaded.id,
                 file_url: uploaded.file_url,
                 file_name: uploaded.original_name || uploaded.file_name,
                 mime_type: uploaded.mime_type,
@@ -97,11 +109,7 @@ export const supportService = {
     },
 
     async finalizeDraftAttachments(draftId: string, ticketId: string) {
-        if (!draftId || !ticketId) {
-            return;
-        }
-
-        await reassignMediaEntity(SUPPORT_DRAFT_ENTITY, draftId, SUPPORT_TICKET_ENTITY, ticketId);
+        await reassignMediaEntity(SUPPORT_DRAFT_ENTITY, draftId, 'support_ticket', ticketId);
     },
 
     async removeDraftAttachment(attachmentId: string) {

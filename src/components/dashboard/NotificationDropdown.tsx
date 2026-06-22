@@ -13,6 +13,9 @@ import {
     type Notification,
 } from '@/services/notificationsService';
 import { buildHostedWorkspaceUrl } from '@/lib/utils/hostUtils';
+import { getNotificationIconColorClass } from '@/lib/notificationVisuals';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
+import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 
 const NotificationDropdown = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -82,8 +85,10 @@ const NotificationDropdown = () => {
     };
 
     const getIcon = (notification: Notification) => {
+        const iconClass = getNotificationIconColorClass(notification);
+
         if (isPropertyWorkflowNotification(notification)) {
-            return <Home size={18} className="text-orange-500" />;
+            return <Home size={18} className={iconClass} />;
         }
 
         const { type } = notification;
@@ -94,40 +99,51 @@ const NotificationDropdown = () => {
             case NOTIFICATION_TYPES.VIEWING_CANCELLED:
             case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
             case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-                return <Calendar size={18} className="text-blue-500" />;
+                return <Calendar size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.APPLICATION_UPDATE:
             case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
             case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+            case NOTIFICATION_TYPES.APPLICATION_REJECTED:
             case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
             case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
             case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
             case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
-                return <FileText size={18} className="text-purple-500" />;
+                return <FileText size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
-                return <Shield size={18} className="text-red-500" />;
+                return <Shield size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
             case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
             case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
-                return <Zap size={18} className="text-orange-500" />;
+            case NOTIFICATION_TYPES.SALE_JOURNEY_UPDATED:
+            case NOTIFICATION_TYPES.SALE_JOURNEY_COMPLETED:
+                return <Zap size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
             case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
             case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
             case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
             case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
             case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-                return <Shield size={18} className="text-orange-500" />;
+                return <Shield size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
-                return <MessageSquare size={18} className="text-green-500" />;
+            case NOTIFICATION_TYPES.TICKET_RESPONSE:
+            case NOTIFICATION_TYPES.SUPPORT_TICKET_CREATED:
+            case NOTIFICATION_TYPES.SUPPORT_TICKET_STATUS_UPDATED:
+            case NOTIFICATION_TYPES.SUPPORT_TICKET_ASSIGNED:
+                return <MessageSquare size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.PROPERTY_SAVED:
             case NOTIFICATION_TYPES.PRICE_DROP:
             case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
             case NOTIFICATION_TYPES.PROPERTY_AVAILABLE:
-                return <Home size={18} className="text-orange-500" />;
+            case NOTIFICATION_TYPES.PROPERTY_UNAVAILABLE:
+                return <Home size={18} className={iconClass} />;
             case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
             case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-                return <CreditCard size={18} className="text-emerald-500" />;
+            case NOTIFICATION_TYPES.PAYMENT_FAILED:
+                return PAYMENTS_ENABLED
+                    ? <CreditCard size={18} className={iconClass} />
+                    : <FileText size={18} className={iconClass} />;
             default:
-                return <Info size={18} className="text-gray-500" />;
+                return <Info size={18} className={iconClass} />;
         }
     };
 
@@ -205,12 +221,15 @@ const NotificationDropdown = () => {
                             </div>
                         ) : safeNotifications.length > 0 ? (
                             <div className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                                {safeNotifications.map((notification) => (
-                                    <div
-                                        key={notification.id}
-                                        onClick={() => void handleNotificationClick(notification)}
-                                        className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative group ${!notification.is_read ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
-                                    >
+                                {safeNotifications.map((notification) => {
+                                    const displayCopy = getLaunchSafeNotificationCopy(notification);
+
+                                    return (
+                                        <div
+                                            key={notification.id}
+                                            onClick={() => void handleNotificationClick(notification)}
+                                            className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer relative group ${!notification.is_read ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
+                                        >
                                         <div className="flex gap-3">
                                             <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${!notification.is_read ? 'bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-700' : 'bg-gray-100 dark:bg-gray-700'}`}>
                                                 {getIcon(notification)}
@@ -218,14 +237,14 @@ const NotificationDropdown = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-start mb-0.5">
                                                     <p className={`text-sm font-medium truncate pr-6 ${!notification.is_read ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>
-                                                        {notification.title}
+                                                        {displayCopy.title}
                                                     </p>
                                                     <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">
                                                         {formatTime(notification.created_at)}
                                                     </span>
                                                 </div>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                                                    {notification.message}
+                                                    {displayCopy.message}
                                                 </p>
                                             </div>
                                         </div>
@@ -256,8 +275,9 @@ const NotificationDropdown = () => {
                                                 <X size={14} />
                                             </button>
                                         </div>
-                                    </div>
-                                ))}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="p-8 text-center">

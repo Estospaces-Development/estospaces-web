@@ -18,7 +18,13 @@ import {
   type FastTrackCompanionContext,
   type FastTrackCompanionRole,
 } from "@/lib/fastTrackCompanion";
-import { getFastTrackDecisionGuard, isFastTrackCaseComplete, resolveFastTrackThreadRecipientId } from "@/lib/fastTrackWorkspace";
+import {
+  canUserConfirmFastTrackHandover,
+  getFastTrackDecisionGuard,
+  getFastTrackFinalDecisionGuard,
+  isFastTrackCaseCompleteForRole,
+  resolveFastTrackThreadRecipientId,
+} from "@/lib/fastTrackWorkspace";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { upsertDirectConversation } from "@/services/messagesService";
@@ -141,7 +147,7 @@ export default function FastTrackCompanionPanel({
   const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
   const hasValidAgreementAmount =
     Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
-  const caseComplete = isFastTrackCaseComplete(fastTrackCase);
+  const caseComplete = isFastTrackCaseCompleteForRole(fastTrackCase, role);
 
   const runAction = useCallback(
     async (action: string, payload: Record<string, unknown>, successMessage: string) => {
@@ -361,13 +367,11 @@ export default function FastTrackCompanionPanel({
     const isSaleDecision = fastTrackCase.journeyMode === "sale";
     const offerReviewStarted = decisionStatus === "under_review";
     const offerDecisionFinal = decisionStatus === "approved" || decisionStatus === "rejected";
-    const approveDecisionGuard = getFastTrackDecisionGuard(fastTrackCase, "approved", decisionAmount, role);
     const rejectDecisionGuard = getFastTrackDecisionGuard(fastTrackCase, "rejected", decisionAmount, role);
+    const approveFinalDecisionGuard = getFastTrackFinalDecisionGuard(fastTrackCase, "approved", decisionAmount, role);
+    const rejectFinalDecisionGuard = getFastTrackFinalDecisionGuard(fastTrackCase, "rejected", decisionAmount, role);
     const startOfferReviewGuard = isSaleDecision ? rejectDecisionGuard : null;
-    const finalOfferDecisionGuard = isSaleDecision && !offerReviewStarted && !offerDecisionFinal
-      ? "Start offer review before recording the final offer decision."
-      : null;
-    const decisionGuardMessage = finalOfferDecisionGuard || approveDecisionGuard || rejectDecisionGuard;
+    const decisionGuardMessage = approveFinalDecisionGuard || rejectFinalDecisionGuard;
 
     if (role === "user") {
       return (
@@ -458,8 +462,8 @@ export default function FastTrackCompanionPanel({
                 `${describeFastTrackStageLabel(fastTrackCase)} approved.`,
               )
             }
-            disabled={activeAction === "record_decision" || Boolean(finalOfferDecisionGuard || approveDecisionGuard)}
-            title={finalOfferDecisionGuard || approveDecisionGuard || undefined}
+            disabled={activeAction === "record_decision" || Boolean(approveFinalDecisionGuard)}
+            title={approveFinalDecisionGuard || undefined}
             className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "record_decision" ? (
@@ -478,8 +482,8 @@ export default function FastTrackCompanionPanel({
                 `${describeFastTrackStageLabel(fastTrackCase)} rejected.`,
               )
             }
-            disabled={activeAction === "record_decision" || Boolean(finalOfferDecisionGuard || rejectDecisionGuard)}
-            title={finalOfferDecisionGuard || rejectDecisionGuard || undefined}
+            disabled={activeAction === "record_decision" || Boolean(rejectFinalDecisionGuard)}
+            title={rejectFinalDecisionGuard || undefined}
             className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
           >
             Reject
@@ -664,9 +668,9 @@ export default function FastTrackCompanionPanel({
             disabled={
               activeAction === "confirm_handover" ||
               fastTrackCase.handover.confirmedByUser ||
-              !handoverReady
+              !canUserConfirmFastTrackHandover(fastTrackCase)
             }
-            title={!handoverReady ? "The manager must mark handover ready first." : undefined}
+            title={!canUserConfirmFastTrackHandover(fastTrackCase) ? "The manager must mark handover ready first." : undefined}
             className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {activeAction === "confirm_handover" ? (

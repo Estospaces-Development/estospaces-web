@@ -29,6 +29,27 @@ test("sale property page exposes a submit-offer entry card", () => {
   assert.match(markup, /Offer amount/);
   assert.match(markup, /Notes for the offer/);
   assert.match(markup, /GBP 425,000/);
+  assert.match(markup, /bg-emerald-700/);
+  assert.doesNotMatch(markup, /bg-emerald-600/);
+});
+
+test("sale offer amount input accepts ordinary round-pound offers", () => {
+  const markup = renderToStaticMarkup(
+    <SaleOfferEntryCard
+      priceLabel="GBP 425,000"
+      offerAmount="11000"
+      offerNotes=""
+      isSubmitting={false}
+      onAmountChange={() => {}}
+      onNotesChange={() => {}}
+      onSubmit={() => {}}
+    />,
+  );
+
+  assert.match(markup, /type="number"/);
+  assert.match(markup, /min="1"/);
+  assert.match(markup, /step="1"/);
+  assert.doesNotMatch(markup, /step="1000"/);
 });
 
 test("public property detail skips authenticated viewing availability before sign-in", () => {
@@ -51,12 +72,13 @@ test("public property detail does not use browser history for signed-out Back", 
   assert.equal(shouldUseBrowserHistoryForPropertyDetailBack({ id: "user-1" }), true);
 });
 
-test("immersive gallery exposes a stable dialog label", () => {
+test("full-screen gallery exposes a stable dialog label without virtual-tour-like copy", () => {
   assert.equal(
     getImmersiveGalleryDialogLabel("Canary Wharf loft"),
-    "Immersive gallery for Canary Wharf loft",
+    "Full-screen gallery for Canary Wharf loft",
   );
-  assert.equal(getImmersiveGalleryDialogLabel("   "), "Immersive property gallery");
+  assert.equal(getImmersiveGalleryDialogLabel("   "), "Full-screen property gallery");
+  assert.doesNotMatch(getImmersiveGalleryDialogLabel("Canary Wharf loft"), /immersive|virtual tour|3d/i);
 });
 
 test("viewing request validation keeps date and time explicitly required", () => {
@@ -114,4 +136,25 @@ test("viewing time slots expose named button state", () => {
   assert.match(markup, /aria-label="Select 18:00 viewing time"/);
   assert.match(markup, /aria-pressed="true"/);
   assert.match(markup, /focus-visible/);
+});
+
+test("viewing calendar out-of-month days keep contrast-safe text", () => {
+  const getViewingCalendarDayTone = (propertyPage as any).getViewingCalendarDayTone;
+
+  assert.equal(typeof getViewingCalendarDayTone, "function");
+  const tone = getViewingCalendarDayTone(
+    {
+      value: "2026-05-10",
+      dayNumber: 10,
+      isCurrentMonth: false,
+      isToday: false,
+      isDisabled: false,
+    },
+    false,
+  );
+
+  assert.match(tone, /text-gray-600/);
+  assert.doesNotMatch(tone, /text-gray-300/);
+  assert.doesNotMatch(tone, /bg-transparent/);
+  assert.doesNotMatch(tone, /border-transparent/);
 });

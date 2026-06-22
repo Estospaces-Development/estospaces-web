@@ -82,6 +82,7 @@ const FAQPage = lazyPage(() => import('./pages/public/faq/page'));
 const PrivacyPage = lazyPage(() => import('./pages/public/privacy/page'));
 const PublicSearchPage = lazyPage(() => import('./pages/user/search/page'));
 const TermsPage = lazyPage(() => import('./pages/public/terms/page'));
+const PublicVirtualTourPage = lazyPage(() => import('./pages/public/virtual-tours/[id]/page'));
 
 // Lazy loaded pages - Auth
 const LoginPage = lazyPage(() => import('./pages/auth/login/page'));
@@ -99,6 +100,7 @@ const AdminFastTrack = lazyPage(() => import('./pages/admin/fast-track/page'));
 const AdminNotifications = lazyPage(() => import('./pages/admin/notifications/page'));
 const AdminProperties = lazyPage(() => import('./pages/admin/properties/page'));
 const AdminPropertyDetail = lazyPage(() => import('./pages/admin/properties/[id]/page'));
+const AdminResearch = lazyPage(() => import('./pages/admin/research/page'));
 const AdminSettings = lazyPage(() => import('./pages/admin/settings/page'));
 const AdminUsers = lazyPage(() => import('./pages/admin/users/page'));
 const AdminVerifications = lazyPage(() => import('./pages/admin/verifications/page'));
@@ -138,6 +140,7 @@ const UserDocs = lazyPage(() => import('./pages/user/docs/page'));
 const UserFavorites = lazyPage(() => import('./pages/user/favorites/page'));
 const UserProfile = lazyPage(() => import('./pages/user/dashboard/profile/page'));
 const UserSaved = lazyPage(() => import('./pages/user/saved/page'));
+const UserVirtualStorage = lazyPage(() => import('./pages/user/virtual-storage/page'));
 const UserSearch = lazyPage(() => import('./pages/user/search/page'));
 const UserPropertyDetail = lazyPage(() => import('./pages/user/properties/[id]/page'));
 const UserSettings = lazyPage(() => import('./pages/user/settings/page'));
@@ -161,6 +164,8 @@ const UserViewings = lazyPage(() => import('./pages/user/dashboard/viewings/page
 import SubdomainRouter from './components/routing/SubdomainRouter';
 import RouteAccessBoundary from './components/routing/RouteAccessBoundary';
 import StartupRedirect from './components/routing/StartupRedirect';
+import { useAuth } from './contexts/AuthContext';
+import { VIRTUAL_TOUR_ENABLED } from './lib/launchFlags';
 
 function RouteScrollReset() {
   const location = useLocation();
@@ -174,6 +179,16 @@ function RouteScrollReset() {
   }, [location.pathname, location.search, location.hash]);
 
   return null;
+}
+
+function PublicRootEntry() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <Loading />;
+  }
+
+  return isAuthenticated ? <StartupRedirect /> : <HomePage />;
 }
 
 const App: React.FC = () => {
@@ -190,9 +205,12 @@ const App: React.FC = () => {
         <PageErrorBoundary>
           <RouteAccessBoundary>
             <Routes>
+          <Route path="/virtual-tours/:id" element={VIRTUAL_TOUR_ENABLED ? <PublicVirtualTourPage /> : <Navigate to="/search" replace />} />
+
           {/* Public Routes */}
           <Route path="/" element={<PublicLayout />}>
-            <Route index element={<HomePage />} />
+            <Route index element={<PublicRootEntry />} />
+            <Route path="home" element={<HomePage />} />
             <Route path="about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/cookies" element={<CookiesPage />} />
@@ -218,11 +236,13 @@ const App: React.FC = () => {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="chat" element={<AdminChat />} />
             <Route path="community" element={<ManagerCommunity />} />
+            <Route path="docs" element={<Navigate to="/admin/help" replace />} />
             <Route path="help" element={<AdminHelp />} />
             <Route path="fast-track" element={<AdminFastTrack />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="properties" element={<AdminProperties />} />
             <Route path="properties/:id" element={<AdminPropertyDetail />} />
+            <Route path="research" element={<AdminResearch />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="user-management" element={<AdminUsers />} />
@@ -282,6 +302,7 @@ const App: React.FC = () => {
             <Route path="favorites" element={<UserFavorites />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="saved" element={<UserSaved />} />
+            <Route path="virtual-storage" element={<UserVirtualStorage />} />
             <Route path="search" element={<UserSearch />} />
             <Route path="dashboard/property/:id" element={<UserPropertyDetail />} />
             <Route path="dashboard/properties/:id" element={<UserPropertyDetail />} />

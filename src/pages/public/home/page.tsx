@@ -12,14 +12,14 @@ const stats = [
 export default function HomePage() {
   return (
     <div className="bg-white text-gray-950">
-      <section className="relative min-h-[calc(100vh-72px)] overflow-hidden">
+      <section className="relative min-h-[calc(100vh-4rem)] overflow-hidden sm:min-h-[calc(100vh-5rem)]">
         <img
           src="/modern-apartment.png"
           alt="Modern apartment interior"
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-black/58" />
-        <div className="page-shell relative flex min-h-[calc(100vh-72px)] flex-col justify-center pb-24 pt-16 text-white">
+        <div className="page-shell relative flex min-h-[calc(100vh-4rem)] flex-col justify-center py-16 text-white sm:min-h-[calc(100vh-5rem)] sm:py-20">
           <div className="max-w-3xl">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur">
               <BadgeCheck className="h-4 w-4 text-orange-200" />
@@ -48,12 +48,15 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <div className="absolute bottom-0 left-0 right-0 border-t border-white/15 bg-black/25 backdrop-blur">
-            <div className="page-shell grid gap-0 divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div
+            data-testid="home-hero-stats"
+            className="mt-10 w-full border-t border-white/15 bg-black/25 backdrop-blur sm:mt-12"
+          >
+            <div className="grid gap-0 divide-y divide-white/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               {stats.map((item) => (
                 <div key={item.label} className="py-5">
                   <p className="text-2xl font-bold">{item.value}</p>
-                  <p className="mt-1 text-sm text-white/68">{item.label}</p>
+                  <p className="mt-1 text-sm text-white/80">{item.label}</p>
                 </div>
               ))}
             </div>

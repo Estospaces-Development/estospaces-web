@@ -111,6 +111,10 @@ function loadJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function aggregateSmoke(targetName, smokePayload) {
   return smokePayload.results.map((item, index) => toScenario(
     'smoke-functional',
@@ -197,18 +201,81 @@ function aggregateSupport(targetName, artifactPath, payload) {
 }
 
 function aggregateFastTrack(targetName, artifactPath, payload) {
-  return payload.steps.map((step) => toScenario(
+  const diagnostics = [
+    ...(payload.pageErrors || []),
+    ...(payload.consoleErrors || []),
+    ...(payload.networkErrors || []),
+    ...(payload.error ? [payload.error] : []),
+  ];
+  const checks = [
+    {
+      role: 'user',
+      surface: 'user desktop workspace',
+      ok: payload.userDesktop?.contentExpandedOnCollapse === true
+        && payload.userDesktop?.metricsInitiallyVisible === true
+        && payload.userDesktop?.metricsAfterReload === false
+        && payload.userDesktop?.stepperPosition === 'sticky'
+        && payload.userDesktop?.defaultPanelAfterReload === 'case_chat'
+        && payload.userDesktop?.connectedRecordsHiddenAfterReload === true,
+      actual: payload.userDesktop,
+      fixRef: 'FAST-TRACK-USER-DESKTOP',
+    },
+    {
+      role: 'manager',
+      surface: 'manager desktop workspace',
+      ok: payload.managerDesktop?.contentExpandedOnCollapse === true
+        && payload.managerDesktop?.metricsVisible === true
+        && payload.managerDesktop?.preferences?.show_metrics_strip === true,
+      actual: payload.managerDesktop,
+      fixRef: 'FAST-TRACK-MANAGER-DESKTOP',
+    },
+    {
+      role: 'admin',
+      surface: 'admin desktop workspace',
+      ok: payload.adminDesktop?.loaded === true,
+      actual: payload.adminDesktop,
+      fixRef: 'FAST-TRACK-ADMIN-DESKTOP',
+    },
+    {
+      role: 'user',
+      surface: 'user tablet workspace',
+      ok: payload.userTablet?.railDrawerOpened === true
+        && payload.userTablet?.mastheadVisible === true
+        && payload.userTablet?.utilityDockVisible === true,
+      actual: payload.userTablet,
+      fixRef: 'FAST-TRACK-USER-TABLET',
+    },
+    {
+      role: 'user',
+      surface: 'dashboard celebration',
+      ok: payload.dashboardCelebration?.celebrateRouteOverlayVisible === true
+        && payload.dashboardCelebration?.celebrateQueryCleared === true
+        && payload.dashboardCelebration?.plainDashboardCelebrationVisible === false,
+      actual: payload.dashboardCelebration,
+      fixRef: 'FAST-TRACK-CELEBRATION',
+    },
+    {
+      role: 'system',
+      surface: 'fast-track browser diagnostics',
+      ok: diagnostics.length === 0 && payload.overallOk === true,
+      actual: { overallOk: payload.overallOk },
+      errors: diagnostics,
+      fixRef: 'FAST-TRACK-DIAGNOSTICS',
+    },
+  ];
+
+  return checks.map((check) => toScenario(
     'fast-track-e2e',
     targetName,
-    step.role,
-    `${step.id} ${step.stage}`,
-    step.ok ? 'passed' : 'failed',
-    'Fast-track single-workspace matrix stays green',
-    JSON.stringify({ name: step.name, actual_url: step.actual_url }),
-    [artifactPath],
-    [...(step.page_errors || []), ...(step.console_errors || []), ...(step.network_failures || [])],
-    step.suspected_subsystem || '',
-    step.id,
+    check.role,
+    check.surface,
+    check.ok ? 'passed' : 'failed',
+    'Fast-track workspace matrix stays green across role, desktop, tablet, preferences, and celebration flows',
+    JSON.stringify(check.actual || {}),
+    [artifactPath, check.actual?.screenshot].filter(Boolean),
+    check.errors || [],
+    '',
+    check.fixRef,
   ));
 }
 
@@ -231,6 +298,18 @@ async function main() {
   const smokePayload = JSON.parse(smokeStdout);
   scenarios.push(...aggregateSmoke(target.name, smokePayload));
 
+  const fastTrackCooldownMs = Number(process.env.E2E_FAST_TRACK_PROOF_COOLDOWN_MS || '0');
+  if (fastTrackCooldownMs > 0) {
+    await sleep(fastTrackCooldownMs);
+  }
+  runNode([path.join('scripts', 'fast-track-redesign-proof.cjs')], webDir, {
+    BASE_URL: target.baseUrl,
+    CORE_URL: target.services.core,
+    BOOKING_URL: target.services.booking,
+    OUTPUT_PATH: fastTrackArtifactPath,
+  });
+  scenarios.push(...aggregateFastTrack(target.name, fastTrackArtifactPath, loadJson(fastTrackArtifactPath)));
+
   runNode(['scripts/public-proof.cjs', `--target=${target.name}`], webDir);
   scenarios.push(...aggregatePublic(target.name, publicArtifactPath, loadJson(publicArtifactPath)));
 
@@ -242,14 +321,6 @@ async function main() {
 
   runNode(['scripts/support-lifecycle-proof.cjs', `--target=${target.name}`], webDir);
   scenarios.push(...aggregateSupport(target.name, supportArtifactPath, loadJson(supportArtifactPath)));
-
-  runNode([path.join('output', 'playwright', 'fast-track-workspace-full-proof.cjs')], webDir, {
-    BASE_URL: target.baseUrl,
-    CORE_URL: target.services.core,
-    BOOKING_URL: target.services.booking,
-    OUTPUT_PATH: fastTrackArtifactPath,
-  });
-  scenarios.push(...aggregateFastTrack(target.name, fastTrackArtifactPath, loadJson(fastTrackArtifactPath)));
 
   const summary = {
     target: target.name,

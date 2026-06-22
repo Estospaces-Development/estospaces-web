@@ -110,6 +110,7 @@ export default function SavedPage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Back Button */}
                 <button
+                    type="button"
                     onClick={() => navigate('/user/dashboard')}
                     className="mb-6 flex w-fit items-center gap-2 rounded-lg text-gray-500 transition-colors hover:text-orange-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:text-gray-400 dark:focus-visible:ring-offset-gray-900 group"
                 >
@@ -130,6 +131,8 @@ export default function SavedPage() {
 
                     <div className="flex bg-white dark:bg-zinc-800 p-1 rounded-xl border border-gray-100 dark:border-zinc-700 shadow-sm">
                         <button
+                            type="button"
+                            aria-pressed={activeTab === 'properties'}
                             onClick={() => selectTab('properties')}
                             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800 ${
                                 activeTab === 'properties'
@@ -141,6 +144,8 @@ export default function SavedPage() {
                             Properties
                         </button>
                         <button
+                            type="button"
+                            aria-pressed={activeTab === 'searches'}
                             onClick={() => selectTab('searches')}
                             className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-zinc-800 ${
                                 activeTab === 'searches'
@@ -239,9 +244,10 @@ function PropertiesTab({
                     <div className="inline-flex items-center justify-center p-3 bg-red-100 dark:bg-red-900/30 rounded-full mb-4">
                         <AlertCircle className="text-red-500" size={24} />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Error loading saved properties</h3>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Error loading saved properties</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">{error}</p>
                     <button
+                        type="button"
                         onClick={onRefresh}
                         className="mt-6 px-6 py-2 bg-gray-900 dark:bg-white dark:text-gray-900 text-white rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800"
                     >
@@ -253,8 +259,9 @@ function PropertiesTab({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in duration-500">
                         {visibleProperties.map((property: any) => (
                             <div key={property.id} className="relative group">
-                                <PropertyCard property={property} />
+                                <PropertyCard property={property} showSaveAction={false} />
                                 <button
+                                    type="button"
                                     onClick={(e) => onRemove(e, property.id)}
                                     aria-label={`Remove ${property.title || 'property'} from saved properties`}
                                     className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/90 hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 rounded-full shadow-md backdrop-blur-sm transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900 z-10"
@@ -267,7 +274,7 @@ function PropertiesTab({
                     </div>
                 ) : (
                     <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No saved properties match</h3>
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">No saved properties match</h2>
                         <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
                             Adjust the filter to show more saved properties.
                         </p>
@@ -278,7 +285,7 @@ function PropertiesTab({
                     <div className="inline-flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
                         <Heart className="text-gray-400" size={32} />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No saved properties yet</h3>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">No saved properties yet</h2>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
                         You haven't saved any properties yet. Browse through our listings and click the heart icon to save them here.
                     </p>
@@ -384,9 +391,9 @@ function SavedSearchesTab() {
         return (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700">
                 <AlertCircle className="text-red-500 mx-auto mb-4" size={32} />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Error</h3>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Error</h2>
                 <p className="text-gray-500 mt-2">{error}</p>
-                <button onClick={fetchSearches} className="mt-6 px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg">Try Again</button>
+                <button type="button" onClick={fetchSearches} className="mt-6 px-6 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg">Try Again</button>
             </div>
         );
     }
@@ -397,7 +404,7 @@ function SavedSearchesTab() {
                 <div className="inline-flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-700 rounded-full mb-4">
                     <Bookmark className="text-gray-400" size={32} />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No saved searches</h3>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">No saved searches</h2>
                 <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-sm mx-auto">
                     Save your search criteria to quickly re-run them later and get notified of new matching listings.
                 </p>
@@ -418,7 +425,7 @@ function SavedSearchesTab() {
                 <div key={search.id} data-active-alert={activeAlertId === search.id ? 'true' : undefined} className={`min-w-0 bg-white dark:bg-zinc-900 rounded-2xl border p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow ${activeAlertId === search.id ? 'border-indigo-300 ring-2 ring-indigo-200 dark:border-indigo-600 dark:ring-indigo-900/50' : 'border-gray-100 dark:border-zinc-800'}`}>
                     <div className="min-w-0 flex-1">
                         <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
-                            <h3 className="mobile-safe-text min-w-0 break-words text-lg font-bold text-gray-900 dark:text-white">{search.name}</h3>
+                            <h2 className="mobile-safe-text min-w-0 break-words text-lg font-bold text-gray-900 dark:text-white">{search.name}</h2>
                             <span className="shrink-0 text-[10px] uppercase font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded">
                                 {search.listing_type === 'rent' ? 'For Rent' : search.listing_type === 'sale' ? 'For Sale' : 'Any'}
                             </span>

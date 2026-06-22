@@ -215,6 +215,25 @@ test('selectAutoResumeBrokerRequest returns null when only archived or handed-of
     assert.equal(selected, null);
 });
 
+test('selectAutoResumeBrokerRequest skips closed broker requests', () => {
+    const selected = selectAutoResumeBrokerRequest([
+        makeRequest({
+            id: 'closed-request',
+            status: 'closed',
+            dispatch_status: 'broker_matched',
+            updated_at: '2026-03-25T09:30:00.000Z',
+        }),
+        makeRequest({
+            id: 'dispatch-closed-request',
+            status: 'matched',
+            dispatch_status: 'closed',
+            updated_at: '2026-03-25T09:20:00.000Z',
+        }),
+    ]);
+
+    assert.equal(selected, null);
+});
+
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
     const sorted = sortBrokerRequestsByPriority([
         makeRequest({

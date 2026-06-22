@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, MessageSquare } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 interface Message {
     id: string;
@@ -26,6 +27,7 @@ interface MessageWindowProps {
 const MessageWindow = ({ broker, messages, onSendMessage }: MessageWindowProps) => {
     const [messageText, setMessageText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messageKeyFor = createDuplicateSafeKeyResolver('message-window-message');
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -105,7 +107,7 @@ const MessageWindow = ({ broker, messages, onSendMessage }: MessageWindowProps) 
                         new Date(message.timestamp).getTime() - new Date(messages[index - 1].timestamp).getTime() > 300000; // 5 minutes
 
                     return (
-                        <div key={message.id}>
+                        <div key={messageKeyFor(message.id, index)}>
                             {showTimestamp && (
                                 <div className="text-center mb-4">
                                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">

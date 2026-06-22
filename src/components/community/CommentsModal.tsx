@@ -19,6 +19,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
     const { user } = useAuth();
 
     if (!isOpen || !post) return null;
+    const comments = post.comments || [];
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,23 +31,28 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
 
     const getRoleBadgeColors = (role: AuthorRole) => {
         return role === 'manager'
-            ? 'bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800'
-            : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800';
+            ? 'bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-800'
+            : 'bg-orange-100 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200 border border-orange-200 dark:border-orange-800';
     };
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="community-comments-title"
+                className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col border border-gray-100 dark:border-zinc-800 animate-in zoom-in-95 duration-200"
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-zinc-800">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Comments</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                            {post.commentsCount} {post.commentsCount === 1 ? 'comment' : 'comments'}
+                        <h2 id="community-comments-title" className="text-2xl font-bold text-gray-900 dark:text-white">Comments</h2>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-300 mt-1">
+                            {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
                         </p>
                     </div>
                     <button onClick={onClose} aria-label="Close comments" className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                        <X className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        <X className="w-5 h-5 text-gray-800 dark:text-gray-300" />
                     </button>
                 </div>
 
@@ -64,23 +70,23 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                                 <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${getRoleBadgeColors(post.authorRole)}`}>
                                     {post.authorRole.charAt(0).toUpperCase() + post.authorRole.slice(1)}
                                 </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                <span className="text-xs font-medium text-gray-800 dark:text-gray-300">
                                     {formatDistanceToNow(post.createdAt, { addSuffix: true })}
                                 </span>
                             </div>
-                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{post.content}</p>
+                            <p className="text-gray-900 dark:text-gray-200 leading-relaxed">{post.content}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Comments List */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {post.comments.length === 0 ? (
+                    {comments.length === 0 ? (
                         <div className="text-center py-12">
-                            <p className="text-gray-500 dark:text-gray-400">No comments yet. Be the first to comment!</p>
+                            <p className="text-gray-800 dark:text-gray-300">No comments yet. Be the first to comment!</p>
                         </div>
                     ) : (
-                        post.comments.map((comment: PostComment) => (
+                        comments.map((comment: PostComment) => (
                             <div key={comment.commentId} className="flex gap-3">
                                 <Avatar
                                     userId={comment.authorId}
@@ -93,11 +99,11 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                                         <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${getRoleBadgeColors(comment.authorRole)}`}>
                                             {comment.authorRole.charAt(0).toUpperCase() + comment.authorRole.slice(1)}
                                         </span>
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        <span className="text-xs font-medium text-gray-800 dark:text-gray-300">
                                             {formatDistanceToNow(comment.createdAt, { addSuffix: true })}
                                         </span>
                                     </div>
-                                    <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">{comment.content}</p>
+                                    <p className="text-gray-900 dark:text-gray-200 text-sm leading-relaxed">{comment.content}</p>
                                 </div>
                             </div>
                         ))
@@ -127,7 +133,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ isOpen, post, onClose, on
                                 type="submit"
                                 disabled={!newComment.trim()}
                                 aria-label="Send comment"
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="px-4 py-2 bg-indigo-800 hover:bg-indigo-900 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
                                 <Send className="w-4 h-4" />
                                 <span className="hidden sm:inline">Send</span>

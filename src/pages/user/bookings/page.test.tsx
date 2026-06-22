@@ -10,6 +10,7 @@ import {
   normalizeBookingCancelReason,
   normalizeBookingSpecialRequests,
   validateBookingCancelReason,
+  buildBookingDetailRows,
   validateBookingReservationForm,
 } from "./page";
 
@@ -112,4 +113,33 @@ test("booking status grouping returns stable visible groups", () => {
     ["completed-1"],
     ["cancelled-1"],
   ]);
+});
+
+test("booking detail rows expose the selected booking record", () => {
+  const rows = buildBookingDetailRows({
+    id: "booking-123456",
+    property_id: "property-123456",
+    user_id: "user-1",
+    manager_id: "manager-123456",
+    check_in_date: "2026-05-24",
+    check_out_date: "2026-05-26",
+    guest_count: 2,
+    total_amount: 1260,
+    currency: "GBP",
+    status: "pending",
+    created_at: "2026-05-18T10:00:00Z",
+  });
+
+  assert.deepEqual(rows.map((row) => row.label), [
+    "Booking ID",
+    "Status",
+    "Property ID",
+    "Manager ID",
+    "Check-in",
+    "Check-out",
+    "Guests",
+    "Total",
+  ]);
+  assert.equal(rows.find((row) => row.label === "Booking ID")?.value, "booking-123456");
+  assert.equal(rows.find((row) => row.label === "Total")?.value, "GBP1,260");
 });

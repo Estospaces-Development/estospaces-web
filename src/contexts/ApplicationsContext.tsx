@@ -13,8 +13,9 @@ import {
 } from '@/services/applicationsService';
 import { getViewings, type Viewing } from '@/services/bookingsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import { getPropertyById } from '@/services/propertyService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
-import { findRelatedViewing } from '@/lib/applicationWorkflow';
+import { buildApplicationPropertySnapshot, findRelatedViewing } from '@/lib/applicationWorkflow';
 import {
     attachLinkedFastTrackCase,
     applicationStatusToFastTrackDecisionOutcome,
@@ -23,11 +24,24 @@ import {
     syncFastTrackCompanionAction,
 } from '@/lib/fastTrackCompanion';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { getSaleJourneyStageLabel, getSaleJourneySummary, resolveSaleJourneyDisplayStage, saleProgressionStageForStatus, shouldUseSaleProgressionStatusUpdate, isSaleProgressionRecord } from '@/lib/saleJourney';
 import { findLinkedSaleProgression } from '@/lib/workspaceLinks';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+
+type PropertyContext = {
+    title?: string;
+    address?: string;
+    image?: string;
+    price?: number;
+    propertyType?: string;
+    agentName?: string;
+    agentAgency?: string;
+    agentEmail?: string;
+    agentPhone?: string;
+};
 
 export const APPLICATION_STATUS = {
     DRAFT: 'draft',
@@ -205,6 +219,60 @@ const buildJourneyKey = (payload: {
     return `property:${payload.propertyId || 'unknown'}:user:${payload.userId || 'unknown'}`;
 };
 
+const getPropertyAddress = (property: Awaited<ReturnType<typeof getPropertyById>>['data']) => {
+    if (!property) {
+        return undefined;
+    }
+
+    return [
+        property.address_line_1,
+        property.address_line_2,
+        property.city,
+        property.postcode,
+        property.country,
+    ].filter(Boolean).join(', ');
+};
+
+export const buildPropertyContextFromProperty = (
+    property: Awaited<ReturnType<typeof getPropertyById>>['data'],
+): PropertyContext | undefined => {
+    if (!property) {
+        return undefined;
+    }
+
+    return {
+        title: property.title,
+        address: getPropertyAddress(property),
+        image: getPrimaryPropertyImage(property) || undefined,
+        price: property.price,
+        propertyType: property.property_type,
+        agentName: property.agent_name,
+        agentAgency: property.agent_company,
+        agentEmail: property.agent_email,
+        agentPhone: property.agent_phone,
+    };
+};
+
+export const hydrateMissingSaleProgressionPropertyContexts = async (
+    saleProgressions: SaleProgression[],
+    propertyContextById: Map<string, PropertyContext>,
+    fetchPropertyById = getPropertyById,
+) => {
+    const missingPropertyIds = Array.from(new Set(
+        saleProgressions
+            .map((progression) => progression.property_id)
+            .filter((propertyId) => propertyId && !propertyContextById.has(propertyId)),
+    ));
+
+    await Promise.all(missingPropertyIds.map(async (propertyId) => {
+        const { data: property } = await fetchPropertyById(propertyId);
+        const propertyContext = buildPropertyContextFromProperty(property);
+        if (propertyContext) {
+            propertyContextById.set(propertyId, propertyContext);
+        }
+    }));
+};
+
 const findRelatedSaleViewing = (
     progression: SaleProgression,
     viewings: Viewing[],
@@ -374,17 +442,7 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
 
 const mapSaleProgression = (
     progression: SaleProgression,
-    propertyContext: {
-        title?: string;
-        address?: string;
-        image?: string;
-        price?: number;
-        propertyType?: string;
-        agentName?: string;
-        agentAgency?: string;
-        agentEmail?: string;
-        agentPhone?: string;
-    } | undefined,
+    propertyContext: PropertyContext | undefined,
     relatedViewing?: Viewing,
 ): Application => {
     const status = mapSaleProgressionStatus(progression);
@@ -490,17 +548,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         }
 
         const relatedViewings = Array.isArray(viewingsResult) ? viewingsResult : [];
-        const propertyContextById = new Map<string, {
-            title?: string;
-            address?: string;
-            image?: string;
-            price?: number;
-            propertyType?: string;
-            agentName?: string;
-            agentAgency?: string;
-            agentEmail?: string;
-            agentPhone?: string;
-        }>();
+        const propertyContextById = new Map<string, PropertyContext>();
 
         (applicationsResult.data || []).forEach((application) => {
             if (!application.property_id) {
@@ -539,6 +587,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         });
 
         const saleProgressions = saleProgressionsResult.data || [];
+        await hydrateMissingSaleProgressionPropertyContexts(saleProgressions, propertyContextById);
+
         const saleProgressionKeys = new Set(
             saleProgressions.map((progression) =>
                 buildJourneyKey({
@@ -626,6 +676,25 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return { success: false, error: 'Move-in date is required' };
         }
 
+        const missingPropertySnapshot = [
+            'property_title',
+            'property_address',
+            'property_image',
+            'property_type',
+            'listing_type',
+            'property_price',
+            'agent_name',
+            'agent_email',
+            'agent_phone',
+            'agent_agency',
+        ].some((key) => data[key] === undefined || data[key] === null || data[key] === '');
+        let propertySnapshot: Record<string, any> = {};
+
+        if (missingPropertySnapshot) {
+            const { data: property } = await getPropertyById(propertyId);
+            propertySnapshot = buildApplicationPropertySnapshot(property);
+        }
+
         const { data: application, error: createError } = await createBackendApplication({
             property_id: propertyId,
             manager_id: managerId,
@@ -634,16 +703,16 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             applicant_name: data.applicant_name || data.personal_info?.full_name || data.fullName,
             applicant_email: data.applicant_email || data.personal_info?.email || data.email,
             applicant_phone: data.applicant_phone || data.personal_info?.phone || data.phone,
-            property_title: data.property_title,
-            property_address: data.property_address,
-            property_image: data.property_image,
-            property_type: data.property_type,
-            listing_type: data.listing_type,
-            property_price: data.property_price,
-            agent_name: data.agent_name,
-            agent_email: data.agent_email,
-            agent_phone: data.agent_phone,
-            agent_agency: data.agent_agency,
+            property_title: data.property_title || propertySnapshot.property_title,
+            property_address: data.property_address || propertySnapshot.property_address,
+            property_image: data.property_image || propertySnapshot.property_image,
+            property_type: data.property_type || propertySnapshot.property_type,
+            listing_type: data.listing_type || propertySnapshot.listing_type,
+            property_price: data.property_price ?? propertySnapshot.property_price,
+            agent_name: data.agent_name || propertySnapshot.agent_name,
+            agent_email: data.agent_email || propertySnapshot.agent_email,
+            agent_phone: data.agent_phone || propertySnapshot.agent_phone,
+            agent_agency: data.agent_agency || propertySnapshot.agent_agency,
             conversation_id: data.conversation_id,
             move_in_date: moveInDate,
             lease_duration_months: data.lease_duration_months,

@@ -6,6 +6,7 @@ import {
   moveFastTrackWorkspaceModule,
   normalizeFastTrackWorkspacePreferences,
   orderVisibleFastTrackWorkspaceModules,
+  resolveFastTrackCaseRailLayout,
 } from './fastTrackWorkspacePreferences';
 
 test('normalizeFastTrackWorkspacePreferences falls back to defaults', () => {
@@ -82,5 +83,46 @@ test('moveFastTrackWorkspaceModule reorders module positions safely', () => {
   assert.deepEqual(
     moveFastTrackWorkspaceModule(defaults.moduleOrder, 'core_files', 'up'),
     defaults.moduleOrder,
+  );
+});
+
+test('resolveFastTrackCaseRailLayout uses drawer state on compact screens', () => {
+  assert.deepEqual(
+    resolveFastTrackCaseRailLayout({
+      compactViewport: true,
+      desktopRailCollapsed: false,
+      compactDrawerOpen: false,
+    }),
+    {
+      headerRailCollapsed: true,
+      renderCompactDrawerRail: false,
+      renderDesktopRail: false,
+    },
+  );
+
+  assert.deepEqual(
+    resolveFastTrackCaseRailLayout({
+      compactViewport: true,
+      desktopRailCollapsed: false,
+      compactDrawerOpen: true,
+    }),
+    {
+      headerRailCollapsed: false,
+      renderCompactDrawerRail: true,
+      renderDesktopRail: false,
+    },
+  );
+
+  assert.deepEqual(
+    resolveFastTrackCaseRailLayout({
+      compactViewport: false,
+      desktopRailCollapsed: false,
+      compactDrawerOpen: false,
+    }),
+    {
+      headerRailCollapsed: false,
+      renderCompactDrawerRail: false,
+      renderDesktopRail: true,
+    },
   );
 });

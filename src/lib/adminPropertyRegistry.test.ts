@@ -114,6 +114,17 @@ test('admin property registry combines type status and search filters', () => {
     );
 });
 
+test('admin property registry search can recover a notification-linked property by id', () => {
+    assert.deepEqual(
+        filterAdminPropertyRegistry(properties, {
+            typeFilter: 'all',
+            statusFilter: 'all',
+            searchQuery: 'available-sale',
+        }).map((property) => property.id),
+        ['available-sale'],
+    );
+});
+
 test('admin property registry sorts filtered rows for release QA combinations', () => {
     const filtered = filterAdminPropertyRegistry(properties, {
         typeFilter: 'sale',
@@ -139,4 +150,5 @@ test('admin properties page exposes visible sort and first-last pagination contr
     );
     assert.match(adminPropertiesPageSource, /PaginationBar/);
     assert.match(adminPropertiesPageSource, /getAdminPropertySortControlLabel/);
+    assert.match(adminPropertiesPageSource, /useSearchParams/);
 });

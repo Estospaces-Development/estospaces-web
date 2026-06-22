@@ -113,6 +113,15 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
             setError('You must be logged in to approve');
             return;
         }
+        const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(
+            details?.profile || null,
+            details?.documents || [],
+        );
+        if (approvalBlocker) {
+            setError(approvalBlocker);
+            setShowApproveConfirm(false);
+            return;
+        }
 
         setActionLoading('approve');
         setError(null);
@@ -267,7 +276,12 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
 
     const { profile, documents, auditLog, userInfo } = details;
     const isBroker = profile.profile_type === 'broker';
-    const statusConfig = getStatusConfig(profile.verification_status);
+    const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, documents);
+    const isApproved = profile.verification_status === 'approved' && approvalBlocker === null;
+    const effectiveStatus = profile.verification_status === 'approved' && approvalBlocker !== null
+        ? 'verification_required'
+        : profile.verification_status;
+    const statusConfig = getStatusConfig(effectiveStatus);
 
     return (
         <ModalWrapper onClose={onClose}>
@@ -478,7 +492,16 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
 
             {/* Actions Footer */}
             <div className="p-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white flex-shrink-0">
-                {profile.verification_status === 'approved' ? (
+                {approvalBlocker && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-amber-900">Approval blocked</p>
+                            <p className="text-sm text-amber-800 break-words">{approvalBlocker}</p>
+                        </div>
+                    </div>
+                )}
+                {isApproved ? (
                     showRevokeConfirm ? (
                         <div className="space-y-4">
                             <div>
@@ -596,7 +619,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         <div className="flex gap-3">
                             <button
                                 onClick={handleApprove}
-                                disabled={actionLoading === 'approve'}
+                                disabled={approvalBlocker !== null || actionLoading === 'approve'}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
                             >
                                 {actionLoading === 'approve' && <Loader2 className="animate-spin" size={16} />}
@@ -615,7 +638,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     <div className="flex gap-3">
                         <button
                             onClick={() => setShowApproveConfirm(true)}
-                            disabled={documents.length === 0}
+                            disabled={approvalBlocker !== null}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
                         >
                             <CheckCircle size={18} />

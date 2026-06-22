@@ -118,7 +118,7 @@ export default function ReviewsPage() {
     const renderStars = (rating: number, interactive = false, onChange?: (r: number) => void) => (
         <div
             className="flex gap-1"
-            role={interactive ? 'radiogroup' : undefined}
+            role={interactive ? 'radiogroup' : 'img'}
             aria-label={interactive ? 'Review rating' : `${rating} out of 5 stars`}
             aria-required={interactive ? 'true' : undefined}
         >
@@ -304,8 +304,8 @@ export default function ReviewsPage() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                            review.status === 'approved' ? 'bg-green-50 text-green-600' :
-                                            review.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-red-50 text-red-600'
+                                            review.status === 'approved' ? 'bg-green-50 text-green-700' :
+                                            review.status === 'pending' ? 'bg-yellow-50 text-yellow-800' : 'bg-red-50 text-red-700'
                                         }`}>
                                             {review.status}
                                         </div>

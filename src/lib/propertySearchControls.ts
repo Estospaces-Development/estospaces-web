@@ -1,3 +1,5 @@
+import { LAUNCH_COUNTRY_CODE, LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
+
 export type PropertySearchSortValue = 'relevance' | 'newest' | 'price_asc' | 'price_desc';
 
 export interface PropertySearchSortOption {
@@ -210,11 +212,11 @@ export function getCountryAwarePropertyGroups(
 
   const groups = new Map<string, CountryAwarePropertyGroup>();
   for (const property of properties) {
-    const key = (property.country_code || '').trim().toUpperCase() || 'GB';
+    const key = (property.country_code || '').trim().toUpperCase() || LAUNCH_COUNTRY_CODE;
     const country = (property.country || '').trim();
-    const label = country && country.toLowerCase() !== 'gb'
+    const label = country && country.toLowerCase() !== LAUNCH_COUNTRY_CODE.toLowerCase()
       ? `${country} properties`
-      : 'United Kingdom properties';
+      : `${LAUNCH_COUNTRY_NAME} properties`;
     const current = groups.get(key);
 
     if (current) {

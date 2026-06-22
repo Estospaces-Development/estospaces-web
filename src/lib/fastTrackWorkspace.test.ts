@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import type { FastTrackCase } from '@/services/fastTrackService';
 
@@ -9,16 +11,23 @@ import {
     buildFastTrackDocumentSearchParams,
     buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
+    canUserConfirmFastTrackHandover,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
     getFastTrackDecisionGuard,
+    getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from './fastTrackWorkspace';
+
+const fastTrackWorkspaceComponent = readFileSync(
+    resolve(process.cwd(), 'src/components/fast-track/FastTrackWorkspace.tsx'),
+    'utf8',
+);
 
 const buildCase = (overrides: Partial<FastTrackCase> = {}): FastTrackCase => ({
     id: 'case-record-1',
@@ -186,6 +195,24 @@ test('decision guard blocks manager offer actions until prerequisites are satisf
     assert.equal(getFastTrackDecisionGuard(readySaleCase, 'rejected', '', 'manager'), null);
 });
 
+test('final decision guard lets managers approve ready sale offers with amount', () => {
+    const readySaleCase = buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        stage: 'decision',
+        viewing: { status: 'completed' },
+        decision: {
+            mode: 'sale',
+            status: 'pending',
+            amount: undefined,
+            currency: 'GBP',
+        },
+    });
+
+    assert.equal(getFastTrackFinalDecisionGuard(readySaleCase, 'approved', '325000', 'manager'), null);
+    assert.equal(getFastTrackFinalDecisionGuard(readySaleCase, 'rejected', '', 'manager'), null);
+});
+
 test('case search matches application and workflow identifiers', () => {
     const fastTrackCase = buildCase({
         caseId: 'case-live-1',
@@ -230,4 +257,28 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     });
     assert.equal(describeFastTrackWorkspaceFocus(completedHandoverCase, 'user'), 'Your journey is complete');
     assert.equal(describeFastTrackWorkspaceStatus(completedHandoverCase, 'user'), 'Every step is complete. You can keep this page for records and updates.');
+});
+
+test('user handover stays actionable after manager completion until receipt is confirmed', () => {
+    const managerCompletedCase = buildCase({
+        stage: 'handover',
+        workspaceFinalStatus: 'completed',
+        finalStatus: 'completed',
+        handover: {
+            status: 'completed',
+            completedAt: '2026-05-05T12:00:00Z',
+            completedBy: 'manager-1',
+            confirmedByUser: false,
+        },
+    });
+
+    assert.equal(canUserConfirmFastTrackHandover(managerCompletedCase), true);
+    assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'user'), 'Confirm key handover');
+    assert.match(describeFastTrackWorkspaceStatus(managerCompletedCase, 'user'), /Confirm the final handover/i);
+    assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'manager'), 'Case finished');
+});
+
+test('fast-track cancel case uses an in-app confirmation dialog', () => {
+    assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.confirm/);
+    assert.match(fastTrackWorkspaceComponent, /aria-label="Cancel fast-track case confirmation"/);
 });

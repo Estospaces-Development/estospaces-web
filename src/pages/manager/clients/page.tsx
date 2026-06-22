@@ -74,7 +74,7 @@ const ClientsPage = () => {
                     onClick={() => navigate('/manager/leads')}
                     className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-lg transition-colors shadow-md"
                 >
-                    <Plus className="w-4 h-4" /> Add Client
+                    <Plus className="w-4 h-4" /> Add Lead
                 </button>
             </div>
 
@@ -99,6 +99,7 @@ const ClientsPage = () => {
                     value={statusFilter}
                     onChange={setStatusFilter}
                     placeholder="All Statuses"
+                    ariaLabel="Filter clients by status"
                     className="w-full sm:w-44"
                 />
             </div>

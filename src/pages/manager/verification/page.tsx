@@ -1,11 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap } from 'lucide-react';
+import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
 import { getDocumentAccessUrl, openDocumentAccessUrl } from '@/services/documentAccessService';
+import {
+    getMissingVerificationBundleFileKeys,
+    shouldRequireFirstTimeVerificationBundle,
+} from '@/lib/verificationUploadGate';
 
 const isPreviewableImageDocument = (mimeType?: string, documentUrl?: string) => {
     return Boolean(
@@ -38,6 +42,8 @@ export default function VerificationPage() {
     const [selectedRoleForProfile, setSelectedRoleForProfile] = useState<ManagerProfileType>('broker');
     const [actionError, setActionError] = useState<string | null>(null);
     const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+    const [showFirstTimeUploadModal, setShowFirstTimeUploadModal] = useState(false);
+    const [firstTimeUploadFiles, setFirstTimeUploadFiles] = useState<Partial<Record<ManagerDocumentType, File | null>>>({});
 
     // Restore missing functions
     const handleInitialRegistration = async () => {
@@ -119,6 +125,12 @@ export default function VerificationPage() {
     const canRequestReview = effectiveVerificationStatus === 'incomplete'
         || effectiveVerificationStatus === 'rejected'
         || effectiveVerificationStatus === 'verification_required';
+    const needsFirstTimeDocumentBundle = useMemo(() => (
+        !needsReverification && shouldRequireFirstTimeVerificationBundle(documents, requiredDocuments)
+    ), [documents, needsReverification, requiredDocuments]);
+    const missingFirstTimeFiles = useMemo(() => (
+        getMissingVerificationBundleFileKeys(firstTimeUploadFiles, requiredDocuments)
+    ), [firstTimeUploadFiles, requiredDocuments]);
 
     const canUploadDocument = (status: string) => {
         if (isSubmitting) {
@@ -137,7 +149,7 @@ export default function VerificationPage() {
         switch (status) {
             case 'approved': return 'bg-green-500';
             case 'rejected': return 'bg-red-500';
-            case 'verification_required': return 'bg-amber-500';
+            case 'verification_required': return 'bg-amber-700';
             case 'submitted':
             case 'under_review': return 'bg-orange-500';
             default: return 'bg-gray-400';
@@ -168,6 +180,36 @@ export default function VerificationPage() {
                 // Refresh to show the new document
                 await refetch();
             }
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleFirstTimeDocumentBundleUpload = async () => {
+        if (missingFirstTimeFiles.length > 0) {
+            setActionError(`Upload ${missingFirstTimeFiles.map(getManagerDocumentTypeName).join(', ')} before first-time verification.`);
+            return;
+        }
+
+        setIsSubmitting(true);
+        setActionError(null);
+        try {
+            for (const documentType of requiredDocuments) {
+                const file = firstTimeUploadFiles[documentType];
+                if (!file) {
+                    continue;
+                }
+
+                const result = await uploadDocument(file, documentType);
+                if (result && result.error) {
+                    setActionError(result.error);
+                    return;
+                }
+            }
+
+            setFirstTimeUploadFiles({});
+            setShowFirstTimeUploadModal(false);
+            await refetch();
         } finally {
             setIsSubmitting(false);
         }
@@ -283,7 +325,7 @@ export default function VerificationPage() {
                         }`}>
                             <User className="w-7 h-7" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Individual Broker</h3>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Individual Broker</h2>
                         <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
                             For independent real estate agents operating under their own name.
                         </p>
@@ -307,7 +349,7 @@ export default function VerificationPage() {
                         }`}>
                             <Building2 className="w-7 h-7" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Real Estate Company</h3>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Real Estate Company</h2>
                         <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
                             For agencies and companies with multiple brokers or managers.
                         </p>
@@ -334,7 +376,7 @@ export default function VerificationPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Manager Verification</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                    <p className="text-gray-700 dark:text-gray-300 mt-1 font-medium">
                         Verify your {managerProfile.profile_type} profile to unlock premium properties and features.
                     </p>
                 </div>
@@ -360,7 +402,7 @@ export default function VerificationPage() {
                             <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2">Verification Rejected</h3>
+                            <h2 className="text-lg font-black text-gray-900 dark:text-white mb-2">Verification Rejected</h2>
                             <p className="text-gray-600 dark:text-gray-400 leading-relaxed font-medium">
                                 Your application was not approved for the following reason:
                             </p>
@@ -400,6 +442,7 @@ export default function VerificationPage() {
                         const isImage = isPreviewableImageDocument(doc?.mime_type, doc?.document_url);
                         const previewUrl = doc ? previewUrls[doc.id] : undefined;
                         const uploadInputId = `manager-verification-upload-${step.id}`;
+                        const useFirstTimeBundle = isUploadEnabled && needsFirstTimeDocumentBundle;
 
                         return (
                         <div
@@ -456,7 +499,7 @@ export default function VerificationPage() {
                                 )}
                             </div>
 
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{step.title}</h3>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{step.title}</h2>
                             <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium mb-2">{step.description}</p>
                             
                             {hasDocument && (
@@ -478,27 +521,35 @@ export default function VerificationPage() {
                             <div className="mt-6 flex flex-wrap gap-2">
                                 {isUploadEnabled && (
                                     <>
-                                        <input
-                                            id={uploadInputId}
-                                            name={uploadInputId}
-                                            type="file"
-                                            accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
-                                            className="sr-only"
-                                            aria-label={`Upload ${step.title}`}
-                                            disabled={isSubmitting}
-                                            onChange={(event) => {
-                                                const file = event.currentTarget.files?.[0];
-                                                event.currentTarget.value = '';
-                                                if (file) {
-                                                    void handleDocumentUpload(step.id, file);
-                                                }
-                                            }}
-                                        />
+                                        {!useFirstTimeBundle && (
+                                            <input
+                                                id={uploadInputId}
+                                                name={uploadInputId}
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
+                                                className="sr-only"
+                                                aria-label={`Upload ${step.title}`}
+                                                disabled={isSubmitting}
+                                                onChange={(event) => {
+                                                    const file = event.currentTarget.files?.[0];
+                                                    event.currentTarget.value = '';
+                                                    if (file) {
+                                                        void handleDocumentUpload(step.id, file);
+                                                    }
+                                                }}
+                                            />
+                                        )}
                                         <button
                                             type="button"
                                             disabled={isSubmitting}
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                if (useFirstTimeBundle) {
+                                                    setActionError(null);
+                                                    setShowFirstTimeUploadModal(true);
+                                                    return;
+                                                }
+
                                                 document.getElementById(uploadInputId)?.click();
                                             }}
                                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
@@ -508,7 +559,7 @@ export default function VerificationPage() {
                                             }`}
                                         >
                                             <Upload className="w-3.5 h-3.5" />
-                                            {hasDocument ? 'Replace File' : 'Upload File'}
+                                            {useFirstTimeBundle ? 'Upload All' : hasDocument ? 'Replace File' : 'Upload File'}
                                         </button>
                                     </>
                                 )}
@@ -542,6 +593,12 @@ export default function VerificationPage() {
                         </div>
                     )}
                 </div>
+
+                {needsFirstTimeDocumentBundle && (
+                    <div className="relative z-10 mt-8 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm font-semibold text-orange-800 dark:border-orange-900/40 dark:bg-orange-900/20 dark:text-orange-200">
+                        First verification needs all required documents uploaded together. Re-verification allows one document replacement at a time.
+                    </div>
+                )}
 
                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 pt-10 border-t border-gray-100 dark:border-gray-800">
                     <div className="flex items-center gap-3 text-sm text-gray-400 dark:text-gray-500 font-medium">
@@ -590,13 +647,87 @@ export default function VerificationPage() {
                 </div>
             </div>
 
+            {showFirstTimeUploadModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900 animate-in zoom-in-95 duration-300">
+                        <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-6 dark:border-gray-800">
+                            <div>
+                                <h2 className="text-xl font-black text-gray-900 dark:text-white">First-time manager verification</h2>
+                                <p className="mt-1 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                    Add each required document before sending this profile to admin review.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowFirstTimeUploadModal(false)}
+                                disabled={isSubmitting}
+                                aria-label="Close first-time manager verification upload"
+                                className="rounded-xl p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-white"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[70vh] overflow-y-auto p-6">
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                {requiredDocuments.map((documentType) => (
+                                    <label
+                                        key={documentType}
+                                        className="rounded-2xl border border-gray-100 bg-gray-50 p-4 transition-colors hover:border-orange-300 dark:border-gray-800 dark:bg-gray-950/50"
+                                    >
+                                        <span className="block text-sm font-black text-gray-900 dark:text-white">
+                                            {getManagerDocumentTypeName(documentType)}
+                                        </span>
+                                        <span className="mt-1 block min-h-5 truncate text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                            {firstTimeUploadFiles[documentType]?.name || 'PDF, PNG, JPG or WEBP'}
+                                        </span>
+                                        <input
+                                            type="file"
+                                            name={`first-time-manager-${documentType}`}
+                                            aria-label={`Upload ${getManagerDocumentTypeName(documentType)}`}
+                                            accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
+                                            disabled={isSubmitting}
+                                            className="mt-3 block w-full text-sm text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-50 file:px-4 file:py-2 file:text-sm file:font-bold file:text-orange-700 hover:file:bg-orange-100 dark:text-gray-300 dark:file:bg-orange-900/30 dark:file:text-orange-300"
+                                            onChange={(event) => {
+                                                const file = event.currentTarget.files?.[0] || null;
+                                                setFirstTimeUploadFiles((prev) => ({ ...prev, [documentType]: file }));
+                                            }}
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+
+                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFirstTimeUploadModal(false)}
+                                    disabled={isSubmitting}
+                                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleFirstTimeDocumentBundleUpload()}
+                                    disabled={isSubmitting || missingFirstTimeFiles.length > 0}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-orange-500 dark:hover:bg-orange-600"
+                                >
+                                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                    Upload all documents
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Why Verify Section - Premium Redesign */}
             <div className="grid md:grid-cols-3 gap-6">
                 <div className="group bg-white dark:bg-gray-900/40 p-10 rounded-[2rem] border border-gray-100 dark:border-gray-800 transition-all hover:shadow-xl hover:-translate-y-1">
                     <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
                         <TrendingUp className="w-6 h-6" />
                     </div>
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white mb-3">Maximize Visibility</h3>
+                    <h2 className="text-lg font-black text-gray-900 dark:text-white mb-3">Maximize Visibility</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">Verified managers receive priority placement and 3x more premium inquiries.</p>
                 </div>
                 
@@ -604,7 +735,7 @@ export default function VerificationPage() {
                     <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-6 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
                         <Shield className="w-6 h-6" />
                     </div>
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white mb-3">Verified Badge</h3>
+                    <h2 className="text-lg font-black text-gray-900 dark:text-white mb-3">Verified Badge</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">Display a gold trust badge on all your listings to build instant client confidence.</p>
                 </div>
 
@@ -612,7 +743,7 @@ export default function VerificationPage() {
                     <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center mb-6 text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform">
                         <Zap className="w-6 h-6" />
                     </div>
-                    <h3 className="text-lg font-black text-gray-900 dark:text-white mb-3">Fast Track Review</h3>
+                    <h2 className="text-lg font-black text-gray-900 dark:text-white mb-3">Fast Track Review</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-medium">Enjoy 24h express approval for all your property submissions and updates.</p>
                 </div>
             </div>

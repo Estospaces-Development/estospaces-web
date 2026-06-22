@@ -36,7 +36,7 @@ export default function AboutPage() {
         <div>
           <h2 className="text-2xl font-bold text-gray-950">What we are solving</h2>
           <p className="mt-4 text-sm leading-6 text-gray-600">
-            Property decisions usually span search, documents, appointments, applications, sale offers, contracts, and payments. Estospaces gives users and property managers one place to keep that work visible and moving.
+            Property decisions usually span search, documents, appointments, applications, sale offers, contracts, and handover steps. Estospaces gives users and property managers one place to keep that work visible and moving.
           </p>
           <div className="mt-6 space-y-3">
             {pillars.map((pillar) => (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Loader2, AlertCircle, Filter, Map, Square } from 'lucide-react';
 import PaginationBar from '@/components/ui/PaginationBar';
+import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -251,6 +252,7 @@ const UserPropertiesList = () => {
                                                     <Map size={14} />
                                                     Street View
                                                 </button>
+                                                {VIRTUAL_TOUR_ENABLED && (
                                                 <button
                                                     onClick={() => setViewTourFor(property)}
                                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
@@ -258,6 +260,7 @@ const UserPropertiesList = () => {
                                                     <Square size={14} />
                                                     360° Tour
                                                 </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -293,7 +296,7 @@ const UserPropertiesList = () => {
                     />
                 )}
 
-                {viewTourFor && (
+                {VIRTUAL_TOUR_ENABLED && viewTourFor && (
                     <Tour360Modal
                         onClose={() => setViewTourFor(null)}
                     />

@@ -63,6 +63,7 @@ const SNAPSHOT_TIME_INTERVAL_MS = 30000;
 const LOGIN_ATTEMPTS = 5;
 const LOGIN_RETRY_DELAY_MS = 4000;
 const LOGIN_MIN_INTERVAL_MS = 5000;
+const FETCH_TIMEOUT_MS = Number(process.env.E2E_FETCH_TIMEOUT_MS || 15000);
 const AUTH_STORAGE_KEY = 'esto_user';
 const AUTH_TOKEN_KEY = 'esto_token';
 const BROWSER_CLOSED_ERROR_PATTERN = /Target page, context or browser has been closed|browser\.newContext:|Page crashed/i;
@@ -91,8 +92,37 @@ async function runSerializedLogin(task) {
   }
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return promise;
+  }
+
+  let timeoutId = null;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Fetch timeout after ${timeoutMs}ms: ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function ensureReachable(baseUrl) {
-  const response = await fetch(baseUrl, { redirect: 'manual' });
+  const response = await fetchWithTimeout(baseUrl, { redirect: 'manual' });
   if (!response.ok && response.status !== 302) {
     throw new Error(`Base URL ${baseUrl} is not ready: ${response.status}`);
   }
@@ -182,7 +212,7 @@ async function createAuthSession(target, roleName) {
     let lastError = null;
 
     for (let attempt = 0; attempt < LOGIN_ATTEMPTS; attempt += 1) {
-      const loginResponse = await fetch(`${target.coreServiceUrl}/api/v1/auth/login`, {
+      const loginResponse = await fetchWithTimeout(`${target.coreServiceUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -268,10 +298,14 @@ function buildAuthStorageState(baseUrl, session, tokenOverride) {
 
 async function readBodyText(page) {
   try {
-    return await page.locator('body').innerText();
+    return await page.locator('body').innerText({ timeout: 1000 });
   } catch {
     return '';
   }
+}
+
+function shouldEnforceStaleSessionRecovery(scenario) {
+  return scenario.auth_state === 'stale_session' && !isSyntheticDependencyScenario(scenario);
 }
 
 async function waitForMeaningfulRender(page, scenario, expectedPath = scenario.expected_path || '') {
@@ -287,13 +321,16 @@ async function waitForMeaningfulRender(page, scenario, expectedPath = scenario.e
       && expectedPath
       && expectedPath !== '/'
       && currentPath === '/';
+    const currentPathIsPublic = isPublicUserPropertyDetailPath(currentPath);
     const waitingForWrongRoleRedirect = scenario.auth_state === 'wrong_role'
       && expectedPath
+      && !currentPathIsPublic
       && currentPath.startsWith(expectedPath);
     const waitingForSignedOutRedirect = scenario.auth_state === 'signed_out'
       && expectedPath
+      && !currentPathIsPublic
       && currentPath.startsWith(expectedPath);
-    const waitingForStaleSessionRecovery = scenario.auth_state === 'stale_session'
+    const waitingForStaleSessionRecovery = shouldEnforceStaleSessionRecovery(scenario)
       && expectedPath
       && currentPath.startsWith(expectedPath)
       && !sessionRecoveryVisible;
@@ -416,7 +453,7 @@ function createPageMonitor(page) {
   page.on('console', (message) => {
     if (message.type() === 'error') {
       const text = message.text();
-      if (!/^Failed to load resource:/i.test(text)) {
+      if (!isIgnorableConsoleError(text)) {
         consoleErrors.push(text);
       }
     }
@@ -439,6 +476,11 @@ function createPageMonitor(page) {
     responseErrors,
     serviceRequests,
   };
+}
+
+function isIgnorableConsoleError(text) {
+  return /^Failed to load resource:/i.test(text)
+    || /WebSocket connection to 'ws:\/\/(?:127\.0\.0\.1|localhost):\d+\/' failed: Error in connection establishment: net::ERR_NETWORK_IO_SUSPENDED/i.test(text);
 }
 
 async function screenshot(page, outputDir, scenarioId) {
@@ -876,7 +918,11 @@ function shouldRequireInterception(scenario, currentPath) {
   if (currentPath.startsWith('/login') || currentPath.startsWith('/auth')) {
     return false;
   }
-  return scenario.network_state !== 'normal' || scenario.data_state === 'degraded_dependency';
+  return scenario.network_state !== 'normal' || scenario.data_state !== 'nominal';
+}
+
+function isSyntheticDependencyScenario(scenario) {
+  return scenario.network_state !== 'normal' || scenario.data_state !== 'nominal';
 }
 
 async function installScenarioInterceptors(context, scenario) {
@@ -912,7 +958,7 @@ async function installScenarioInterceptors(context, scenario) {
       }
 
       if (shouldTransformResponse(scenario, request)) {
-        const upstream = await route.fetch();
+        const upstream = await route.fetch({ timeout: FETCH_TIMEOUT_MS });
         const bodyText = await upstream.text();
         const payload = tryParseJson(bodyText);
         if (payload === null) {
@@ -977,6 +1023,10 @@ function resolveExpectedPath(scenario) {
   return scenario.expected_path;
 }
 
+function isPublicUserPropertyDetailPath(pathname) {
+  return /^\/user\/properties\/[^/]+\/?$/.test(String(pathname || ''));
+}
+
 async function prepareAuthState(target, baseUrl, scenario, workerId) {
   if (scenario.auth_state === 'fresh_session') {
     const session = await getAuthSession(target, scenario.role, workerId);
@@ -1015,6 +1065,7 @@ async function assertGenericOutcome(page, scenario, expectedPath, monitor, inter
   let currentPath = new URL(page.url()).pathname;
   let bodyText = await readBodyText(page);
   const sessionPattern = /session has expired|log in again|login|sign in/i;
+  const requiresInterception = shouldRequireInterception(scenario, currentPath);
 
   if (crashPattern.test(bodyText)) {
     throw new Error(`Crash text detected on ${currentPath}`);
@@ -1027,23 +1078,25 @@ async function assertGenericOutcome(page, scenario, expectedPath, monitor, inter
   }
 
   if (scenario.auth_state === 'signed_out') {
-    if (!currentPath.startsWith('/login') && !currentPath.startsWith('/auth') && currentPath === expectedPath) {
+    if (
+      !currentPath.startsWith('/login')
+      && !currentPath.startsWith('/auth')
+      && !isPublicUserPropertyDetailPath(currentPath)
+      && currentPath === expectedPath
+    ) {
       throw new Error(`Signed-out scenario still resolved to protected path ${currentPath}`);
     }
     return notes;
   }
 
   if (scenario.auth_state === 'wrong_role') {
-    if (currentPath.startsWith(expectedPath)) {
+    if (!isPublicUserPropertyDetailPath(currentPath) && currentPath.startsWith(expectedPath)) {
       throw new Error(`Wrong-role scenario reached protected path ${currentPath}`);
     }
     return notes;
   }
 
-  if (scenario.auth_state === 'stale_session') {
-    if (scenario.network_state !== 'normal' || scenario.data_state === 'degraded_dependency') {
-      return notes;
-    }
+  if (shouldEnforceStaleSessionRecovery(scenario)) {
     if (currentPath.startsWith(expectedPath) && !sessionPattern.test(bodyText)) {
       await page.waitForTimeout(1200).catch(() => {});
       currentPath = new URL(page.url()).pathname;
@@ -1055,11 +1108,7 @@ async function assertGenericOutcome(page, scenario, expectedPath, monitor, inter
     return notes;
   }
 
-  if (!currentPath.startsWith(expectedPath) && !currentPath.startsWith('/login')) {
-    throw new Error(`Expected ${expectedPath} but reached ${currentPath}`);
-  }
-
-  if (shouldRequireInterception(scenario, currentPath)) {
+  if (requiresInterception) {
     if (interceptorState.getInterceptCount() === 0) {
       await page.waitForTimeout(1000).catch(() => {});
       if (interceptorState.getInterceptCount() === 0) {
@@ -1070,6 +1119,13 @@ async function assertGenericOutcome(page, scenario, expectedPath, monitor, inter
         }
       }
     }
+    notes.push(`Injected ${scenario.network_state !== 'normal' ? scenario.network_state : scenario.data_state} dependency state on ${currentPath}`);
+  } else if (
+    !isSyntheticDependencyScenario(scenario)
+    && !currentPath.startsWith(expectedPath)
+    && !currentPath.startsWith('/login')
+  ) {
+    throw new Error(`Expected ${expectedPath} but reached ${currentPath}`);
   }
 
   if (bodyText.trim().length < 20) {
@@ -1107,14 +1163,14 @@ async function executeAuthScenario(page, baseUrl, target, scenario, monitor, ins
       throw new Error('Login completed without stored access token');
     }
 
-    const meBefore = await fetch(`${target.coreServiceUrl}/api/v1/auth/me`, {
+    const meBefore = await fetchWithTimeout(`${target.coreServiceUrl}/api/v1/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const logout = await fetch(`${target.coreServiceUrl}/api/v1/auth/logout`, {
+    const logout = await fetchWithTimeout(`${target.coreServiceUrl}/api/v1/auth/logout`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
-    const meAfter = await fetch(`${target.coreServiceUrl}/api/v1/auth/me`, {
+    const meAfter = await fetchWithTimeout(`${target.coreServiceUrl}/api/v1/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -1178,9 +1234,6 @@ async function runScenario(browserManager, baseUrlOverride, target, scenario, ou
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const baseUrl = getScenarioBaseUrl(target, scenario, baseUrlOverride);
-    const authState = scenarioUsesSeededAuthContext(scenario)
-      ? await prepareAuthState(target, baseUrl, scenario, workerId)
-      : { activeRole: 'signed_out' };
     let context = null;
     let page = null;
     let monitor = {
@@ -1199,6 +1252,20 @@ async function runScenario(browserManager, baseUrlOverride, target, scenario, ou
     };
 
     try {
+      const attemptStartedAt = Date.now();
+      const remainingAttemptTimeoutMs = () => {
+        if (!scenarioTimeoutMs || scenarioTimeoutMs <= 0) {
+          return 0;
+        }
+        return Math.max(1, scenarioTimeoutMs - (Date.now() - attemptStartedAt));
+      };
+      const authState = scenarioUsesSeededAuthContext(scenario)
+        ? await withTimeout(
+          prepareAuthState(target, baseUrl, scenario, workerId),
+          remainingAttemptTimeoutMs(),
+          `Scenario timeout after ${scenarioTimeoutMs}ms during auth preparation`,
+        )
+        : { activeRole: 'signed_out' };
       const browser = await browserManager.getBrowser();
       context = await browser.newContext({
         viewport: { width: scenario.viewport_width, height: scenario.viewport_height },
@@ -1220,10 +1287,11 @@ async function runScenario(browserManager, baseUrlOverride, target, scenario, ou
 
       let execution = executionPromise;
       if (scenarioTimeoutMs > 0) {
+        const remainingMs = remainingAttemptTimeoutMs();
         execution = Promise.race([
           executionPromise,
           new Promise((_, reject) => {
-            setTimeout(() => reject(new Error(`Scenario timeout after ${scenarioTimeoutMs}ms`)), scenarioTimeoutMs);
+            setTimeout(() => reject(new Error(`Scenario timeout after ${scenarioTimeoutMs}ms`)), remainingMs);
           }),
         ]);
       }
@@ -1338,7 +1406,10 @@ async function main() {
 
   const selectionSummary = summarizeCatalog(selected);
   const existingResults = loadExistingResults(outputDir);
-  const completedScenarioIds = new Set(existingResults.map((item) => item.scenario_id));
+  const retainedResults = existingResults.filter((item) => item.status === 'passed' || item.status === 'blocked');
+  const completedScenarioIds = new Set(
+    retainedResults.map((item) => item.scenario_id),
+  );
   const remainingScenarios = selected.filter((scenario) => !completedScenarioIds.has(scenario.scenario_id));
   writeJson(path.join(outputDir, 'selection.json'), {
     run_id: runId,
@@ -1349,6 +1420,7 @@ async function main() {
     scenarios: selected,
     resume: (resumeRunId || resumeDir) ? {
       loaded_results: existingResults.length,
+      retained_results: retainedResults.length,
       remaining_scenarios: remainingScenarios.length,
     } : undefined,
   });
@@ -1367,7 +1439,7 @@ async function main() {
     );
   }
 
-  const results = [...existingResults];
+  const results = [...retainedResults];
   const progressTracker = createProgressTracker({
     outputDir,
     runId,

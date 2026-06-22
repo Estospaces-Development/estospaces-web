@@ -21,7 +21,7 @@ const SECURITY_HEADERS = {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
     "connect-src 'self' http: https: ws: wss:",
-    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com",
+    "frame-src 'self' blob: https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com https://cdn.pannellum.org",
     "form-action 'self'",
   ].join('; '),
 };
@@ -127,12 +127,29 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      sourcemap: mode !== 'production' && mode !== 'staging',
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) {
               return;
+            }
+
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/scheduler/') ||
+              id.includes('/react-router/')
+            ) {
+              return 'react-core';
+            }
+
+            if (
+              id.includes('/react-hook-form/') ||
+              id.includes('/@hookform/resolvers/') ||
+              id.includes('/zod/')
+            ) {
+              return 'forms';
             }
 
             if (id.includes('leaflet') || id.includes('react-leaflet')) {
@@ -143,12 +160,24 @@ export default defineConfig(({ mode }) => {
               return 'motion';
             }
 
+            if (id.includes('/three/')) {
+              return 'three';
+            }
+
+            if (id.includes('/react-markdown/') || id.includes('/remark-gfm/')) {
+              return 'markdown';
+            }
+
             if (id.includes('pdf-lib') || id.includes('exceljs')) {
               return 'documents';
             }
 
             if (id.includes('@tanstack/react-query')) {
               return 'query';
+            }
+
+            if (id.includes('/lucide-react/')) {
+              return 'icons';
             }
           },
         },

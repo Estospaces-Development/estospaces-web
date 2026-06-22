@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import {
   resolvePropertyFastTrackPanelLabels,
@@ -79,4 +81,11 @@ test("property fast-track workspace keeps a valid case deep link selected", () =
 
   assert.equal(selection.fastTrackCase?.caseId, "FT-DOCS");
   assert.equal(selection.lead?.id, "lead-docs");
+});
+
+test("property detail keeps the newly created fast-track case available before refresh catches up", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
+
+  assert.match(source, /setActiveFastTrackCase\(fastTrackResult\.data\)/);
+  assert.match(source, /setLiveWorkspaceLoaded\(Boolean\(refreshedWorkspace\.lead \|\| refreshedWorkspace\.fastTrackCase \|\| fastTrackResult\.data\)\)/);
 });

@@ -32,4 +32,6 @@ test("toast announcements expose accessible live regions", () => {
 
   assert.match(successMarkup, /role="status"/);
   assert.match(successMarkup, /aria-live="polite"/);
+  assert.match(successMarkup, /bg-green-700/);
+  assert.doesNotMatch(successMarkup, /text-white\/90/);
 });

@@ -15,7 +15,7 @@ import {
 } from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
-import { DollarSign, Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2, Loader2 } from 'lucide-react';
+import { Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
 // Components
@@ -31,6 +31,7 @@ import ManagerPropertyCard from '@/components/dashboard/ManagerPropertyCard';
 import ManualFastTrackModal from '@/components/manager/FastTrack/ManualFastTrackModal';
 import RoleDocsPreviewCard from '@/components/docs/RoleDocsPreviewCard';
 import { managerDocs } from '@/lib/roleDocsContent';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 const MANAGER_PROPERTIES_PAGE_SIZE = 6;
 
@@ -242,8 +243,8 @@ function DashboardContent() {
   ), 0);
 
   const stats = {
-    monthlyRevenue: analytics?.total_revenue?.toLocaleString() || '0.00',
-    monthlyRevenueChange: analytics?.revenue_growth || '0%',
+    openActions: String(activeFastTrackCount + reservationSummary.pending),
+    openActionsChange: `${closingSoonFastTrackCount} urgent`,
     activeProperties: (
       analytics
         ? livePropertyCountFromAnalytics
@@ -320,6 +321,9 @@ function DashboardContent() {
   const hasPropertyFilters = propertySearchQuery.trim() || propertyTypeFilter !== 'all' || propertyStatusFilter !== 'all';
   const propertyPageStart = propertyTotal === 0 ? 0 : ((propertyPage - 1) * MANAGER_PROPERTIES_PAGE_SIZE) + 1;
   const propertyPageEnd = Math.min(propertyPage * MANAGER_PROPERTIES_PAGE_SIZE, propertyTotal);
+  const reservationKeyFor = createDuplicateSafeKeyResolver('manager-reservation');
+  const fastTrackQueueKeyFor = createDuplicateSafeKeyResolver('manager-fast-track-queue');
+  const propertyCardKeyFor = createDuplicateSafeKeyResolver('manager-dashboard-property');
 
   return (
     <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
@@ -328,12 +332,12 @@ function DashboardContent() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Monthly Revenue"
-          value={`$${stats.monthlyRevenue}`}
-          change={stats.monthlyRevenueChange}
-          icon={DollarSign}
-          iconColor="bg-green-500"
-          trendColor="text-green-600"
+          title="Open Actions"
+          value={stats.openActions}
+          change={stats.openActionsChange}
+          icon={CalendarCheck}
+          iconColor="bg-emerald-500"
+          trendColor="text-emerald-700"
         />
         <StatCard
           title="Active Listings"
@@ -414,9 +418,9 @@ function DashboardContent() {
             ) : null}
 
             <div className="mt-6 space-y-3">
-              {pendingReservations.length > 0 ? pendingReservations.map((booking) => (
+              {pendingReservations.length > 0 ? pendingReservations.map((booking, bookingIndex) => (
                 <div
-                  key={booking.id}
+                  key={reservationKeyFor(booking.id, bookingIndex)}
                   className="flex flex-col gap-4 rounded-2xl border border-gray-100 px-5 py-4 dark:border-gray-800 lg:flex-row lg:items-center lg:justify-between"
                 >
                   <div>
@@ -507,9 +511,9 @@ function DashboardContent() {
                   </button>
                 </div>
               ) : null}
-              {fastTrackQueueItems.length > 0 ? fastTrackQueueItems.map((item) => (
+              {fastTrackQueueItems.length > 0 ? fastTrackQueueItems.map((item, itemIndex) => (
                 <button
-                  key={item.caseId}
+                  key={fastTrackQueueKeyFor(item.caseId, itemIndex)}
                   onClick={() => navigate(`/manager/fast-track?case=${item.caseId}`)}
                   className="w-full rounded-2xl border border-gray-100 dark:border-gray-800 px-5 py-4 text-left hover:border-orange-200 hover:bg-orange-50/60 dark:hover:bg-gray-900/60 transition-all"
                 >
@@ -684,9 +688,9 @@ function DashboardContent() {
                     {propertyError}
                   </div>
                 ) : properties.length > 0 ? (
-                  properties.map(prop => (
+                  properties.map((prop, propIndex) => (
                     <ManagerPropertyCard
-                      key={prop.id}
+                      key={propertyCardKeyFor(prop.id, propIndex)}
                       property={prop}
                       onEdit={handleEditProperty}
                       onView={handleViewProperty}

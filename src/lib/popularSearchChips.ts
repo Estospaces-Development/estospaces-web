@@ -1,5 +1,8 @@
 import type { PopularSearch } from '@/services/searchService';
 
+const LEGACY_UK_LOCATION_TERM =
+    /\b(london|edinburgh|preston|manchester|birmingham|leeds|liverpool|oxford|cambridge|bristol|belfast|glasgow|cardiff)\b/i;
+
 export const buildPopularSearchTerms = (searches: PopularSearch[], limit = 8): string[] => {
     const terms: string[] = [];
     const seen = new Set<string>();
@@ -7,7 +10,7 @@ export const buildPopularSearchTerms = (searches: PopularSearch[], limit = 8): s
     for (const search of searches) {
         const term = search.term.trim().replace(/\s+/g, ' ');
         const key = term.toLowerCase();
-        if (!term || seen.has(key)) {
+        if (!term || seen.has(key) || LEGACY_UK_LOCATION_TERM.test(term)) {
             continue;
         }
 

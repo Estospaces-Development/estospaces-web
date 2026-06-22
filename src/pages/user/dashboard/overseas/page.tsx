@@ -102,6 +102,7 @@ export default function OverseasPage() {
                             <div className="relative min-w-[180px]">
                                 <Globe className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <select
+                                    aria-label="Select destination country"
                                     className="w-full h-full bg-white dark:bg-white border-none rounded-[2rem] pl-16 pr-10 py-5 outline-none font-bold text-gray-900 dark:text-gray-900 appearance-none shadow-sm cursor-pointer"
                                     value={selectedCountry}
                                     onChange={(e) => setSelectedCountry(e.target.value)}

@@ -9,6 +9,7 @@ export interface BrokerRequestTrackingSummary {
 }
 
 const normalizeStatus = (value?: string | null) => String(value || '').trim().toLowerCase();
+const CLOSED_REQUEST_STATUSES = new Set(['expired', 'cancelled', 'closed', 'resolved', 'archived', 'completed']);
 
 export const isLiveBrokerRequest = (
     request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,
@@ -16,7 +17,7 @@ export const isLiveBrokerRequest = (
     const status = normalizeStatus(request?.status);
     const dispatchStatus = normalizeStatus(request?.dispatch_status);
 
-    return status !== 'expired' && status !== 'cancelled' && dispatchStatus !== 'expired';
+    return !CLOSED_REQUEST_STATUSES.has(status) && !CLOSED_REQUEST_STATUSES.has(dispatchStatus);
 };
 
 export const getBrokerRequestTrackingSummary = (

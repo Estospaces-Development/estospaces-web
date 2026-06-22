@@ -83,13 +83,15 @@ function AnalyticsContent() {
         fetchAnalytics(true);
     };
 
+    const analyticsTableOptions = {
+        status: exportStatusFilter,
+        sortBy: exportSortBy,
+        direction: exportDirection,
+    };
+    const analyticsRows = buildAdminAnalyticsExportRows(data, analyticsTableOptions);
+
     const handleExportReport = useCallback(() => {
-        const exportOptions = {
-            status: exportStatusFilter,
-            sortBy: exportSortBy,
-            direction: exportDirection,
-        };
-        const rows = buildAdminAnalyticsExportRows(data, exportOptions);
+        const rows = analyticsRows;
         if (rows.length === 0) {
             setExportStatus('No analytics rows match the current export filters.');
             return;
@@ -100,7 +102,7 @@ function AnalyticsContent() {
         }
         exportDeduperRef.current.markStarted();
 
-        const csv = buildAdminAnalyticsCsvSnapshot(data, exportOptions);
+        const csv = buildAdminAnalyticsCsvSnapshot(data, analyticsTableOptions);
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const downloadUrl = window.URL.createObjectURL(blob);
@@ -110,7 +112,7 @@ function AnalyticsContent() {
         link.click();
         window.URL.revokeObjectURL(downloadUrl);
         setExportStatus(`Exported ${rows.length} analytics row${rows.length === 1 ? '' : 's'} to CSV.`);
-    }, [data, exportDirection, exportSortBy, exportStatusFilter]);
+    }, [analyticsRows, analyticsTableOptions, data]);
 
     const stats = buildAdminAnalyticsMetricCards(data);
 
@@ -142,6 +144,8 @@ function AnalyticsContent() {
                 </div>
                 <div className="flex items-center gap-4">
                     <button
+                        type="button"
+                        aria-label="Refresh analytics"
                         onClick={handleRefresh}
                         disabled={isRefreshing}
                         className="p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-105 transition-all disabled:opacity-50"
@@ -228,7 +232,7 @@ function AnalyticsContent() {
                         <button
                             type="button"
                             onClick={handleExportReport}
-                            disabled={!data?.propertyPerformance?.length}
+                            disabled={!analyticsRows.length}
                             className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white transition-colors hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-indigo-300 dark:focus-visible:ring-offset-gray-800"
                         >
                             Export Report
@@ -240,7 +244,7 @@ function AnalyticsContent() {
                         {exportStatus}
                     </div>
                 ) : null}
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto" tabIndex={0} aria-label="Scrollable top performing paths table">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-gray-100 dark:border-gray-700">
@@ -251,14 +255,20 @@ function AnalyticsContent() {
                             </tr>
                         </thead>
                         <tbody className="divide-y border-gray-100 dark:divide-gray-700">
-                            {(data?.propertyPerformance || []).map((page, i) => (
+                            {analyticsRows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-10 py-10 text-center text-sm font-semibold text-gray-500 dark:text-gray-300">
+                                        No analytics rows match the current filters.
+                                    </td>
+                                </tr>
+                            ) : analyticsRows.map((page, i) => (
                                 <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
                                     <td className="px-10 py-6 font-black text-gray-900 dark:text-white text-sm">{page.property}</td>
                                     <td className="px-10 py-6 text-sm text-gray-500 font-bold">{page.views.toLocaleString()}</td>
                                     <td className="px-10 py-6 text-sm text-gray-500 font-bold">{page.applications.toLocaleString()}</td>
                                     <td className="px-10 py-6">
                                         <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
-                                            page.conversionRate > 2 ? 'text-green-500 bg-green-50 dark:bg-green-900/10' : 'text-orange-500 bg-orange-50 dark:bg-orange-900/10'
+                                            page.conversionRate > 2 ? 'text-green-700 bg-green-100 dark:bg-green-950/30 dark:text-green-300' : 'text-orange-700 bg-orange-100 dark:bg-orange-950/30 dark:text-orange-300'
                                         }`}>
                                             {page.conversionRate}%
                                         </span>

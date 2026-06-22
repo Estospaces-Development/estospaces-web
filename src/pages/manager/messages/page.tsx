@@ -189,9 +189,9 @@ function MessagesContent() {
                             <div className="absolute top-2 -right-8 w-16 h-16 bg-orange-50 dark:bg-orange-900/20 rounded-lg -rotate-12 z-0"></div>
                             <div className="absolute -bottom-2 -left-8 w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded-full z-0 opacity-50"></div>
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                             You haven't selected an enquiry
-                        </h3>
+                        </h2>
                         <p className="text-gray-500 dark:text-gray-400 max-w-sm">
                             Select a conversation from the list to view your chat history with clients.
                         </p>

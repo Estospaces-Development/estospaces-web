@@ -76,7 +76,7 @@ const components: Components = {
     pre: ({ children }) => <pre className="mb-5 overflow-x-auto">{children}</pre>,
     table: ({ children }) => (
         <div className="mb-8 overflow-hidden rounded-[1.7rem] border border-orange-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0} aria-label="Scrollable documentation table">
                 <table className="min-w-full divide-y divide-orange-100 text-left dark:divide-gray-800">
                     {children}
                 </table>

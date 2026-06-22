@@ -13,10 +13,11 @@ test('nearby broker rows contain long names and service areas without overflow-p
         id: 'broker-long-copy',
         name: 'VeryLongBrokerNameWithoutNaturalBreaksVeryLongBrokerNameWithoutNaturalBreaks',
         company_name: 'ExtremelyLongIndependentAgencyTradingNameWithoutSpacesOrBreakpoints',
-        postcode: 'SW1A 1AA',
-        service_areas: ['SW1A', 'WestminsterAndVictoriaLongServiceAreaWithoutSpaces'],
+        postcode: '600001',
+        service_areas: ['600001', 'ChennaiAndAdyarLongServiceAreaWithoutSpaces'],
         rating: 4.9,
         review_count: 12,
+        distance_miles: 1,
         fast_track_eligible: true,
       }}
       index={0}
@@ -24,8 +25,10 @@ test('nearby broker rows contain long names and service areas without overflow-p
   );
 
   assert.match(markup, /break-words/);
+  assert.match(markup, /1\.6 km away/);
   assert.doesNotMatch(markup, /<h4[^>]*\btruncate\b/);
   assert.doesNotMatch(markup, /<span[^>]*\btruncate\b/);
+  assert.doesNotMatch(markup, /SW1A|Westminster|mi away/);
 });
 
 test('nearby agent search controls expose visible keyboard focus states', () => {

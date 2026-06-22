@@ -63,6 +63,7 @@ function filterExpectedStaleAuthNetworkErrors(errors) {
       || entry.includes('/api/v1/leads/broker-request/mine')
       || entry.includes('/api/v1/properties/mine')
       || entry.includes('/api/v1/applications')
+      || entry.includes('/api/v1/contracts/mine')
       || entry.includes('/api/v1/sale-progressions')
       || entry.includes('/api/v1/viewings')
       || entry.includes('/api/v1/fast-track')

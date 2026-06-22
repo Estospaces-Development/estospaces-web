@@ -3,6 +3,7 @@
 import React from 'react';
 import { MessageSquare } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 interface Broker {
     id: string;
@@ -21,6 +22,8 @@ interface ChatListProps {
 }
 
 const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) => {
+    const brokerKeyFor = createDuplicateSafeKeyResolver('chat-broker');
+
     return (
         <div className="w-full md:w-80 border-r border-gray-100 bg-white flex flex-col h-full">
             {/* Header */}
@@ -37,9 +40,9 @@ const ChatList = ({ brokers, selectedBroker, onSelectBroker }: ChatListProps) =>
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-100">
-                        {brokers.map((broker) => (
+                        {brokers.map((broker, brokerIndex) => (
                             <button
-                                key={broker.id}
+                                key={brokerKeyFor(broker.id, brokerIndex)}
                                 onClick={() => onSelectBroker(broker)}
                                 className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${selectedBroker?.id === broker.id ? 'bg-orange-50 border-l-4 border-orange-500' : ''
                                     }`}

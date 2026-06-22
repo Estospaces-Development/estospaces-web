@@ -1,5 +1,6 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
+import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import type {
   JourneyAction,
   JourneyBlocker,
@@ -396,10 +397,18 @@ const normalizeDocumentStatus = (
 ): FastTrackDocumentStatus => {
   switch (String(value || "").trim().toLowerCase()) {
     case "uploaded":
+    case "under_review":
+    case "pending_review":
+    case "submitted":
       return "uploaded";
     case "approved":
+    case "verified":
       return "approved";
     case "reupload_needed":
+    case "reupload_required":
+    case "reupload_requested":
+    case "replacement_required":
+    case "rejected":
       return "reupload_needed";
     default:
       return "pending";
@@ -510,9 +519,9 @@ const deriveStatusReason = (
         ? "The offer decision is managed inline in this workspace."
         : "The application decision is managed inline in this workspace.";
     case "agreement":
-      return journeyMode === "sale"
+      return PAYMENTS_ENABLED
         ? "Agreement and payment steps stay inside this workspace."
-        : "Agreement and payment steps stay inside this workspace.";
+        : "Agreement steps stay inside this workspace.";
     case "handover":
       return "Completion is confirmed directly in this workspace.";
     default:

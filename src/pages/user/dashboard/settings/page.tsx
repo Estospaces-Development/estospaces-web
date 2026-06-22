@@ -187,8 +187,10 @@ export default function SettingsPage() {
                     <div className="flex gap-2 mt-10 overflow-x-auto pb-4 scrollbar-hide">
                         {tabs.map((tab) => (
                             <button
+                                type="button"
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
+                                aria-pressed={activeTab === tab.id}
                                 className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-bold text-sm whitespace-nowrap transition-all ${
                                     activeTab === tab.id
                                         ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl'
@@ -227,6 +229,7 @@ export default function SettingsPage() {
                                         <Toggle
                                             checked={preferences.notifications_enabled}
                                             onChange={() => handleToggle('notifications_enabled')}
+                                            ariaLabel="Toggle in-app notifications"
                                         />
                                     </div>
 
@@ -238,6 +241,7 @@ export default function SettingsPage() {
                                         <Toggle
                                             checked={preferences.email_alerts}
                                             onChange={() => handleToggle('email_alerts')}
+                                            ariaLabel="Toggle email alerts"
                                         />
                                     </div>
                                 </div>
@@ -430,6 +434,7 @@ export default function SettingsPage() {
                                     <Toggle
                                         checked={preferences.onboarding_done}
                                         onChange={() => handleToggle('onboarding_done')}
+                                        ariaLabel="Toggle onboarding complete"
                                     />
                                 </div>
                             </div>
@@ -440,7 +445,7 @@ export default function SettingsPage() {
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
                                         'Data export request',
-                                        'Please prepare a pilot export of my account data, including verification documents, messages, invoices, and audit-linked records.',
+                                        'Please prepare a pilot export of my account data, including verification documents, messages, case records, and audit-linked records.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >
@@ -464,7 +469,7 @@ export default function SettingsPage() {
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
                                         'Pilot support request',
-                                        'I need help with a live pilot workflow, billing state, compliance review, or account operation.',
+                                        'I need help with a live pilot workflow, case status, compliance review, or account operation.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >

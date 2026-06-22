@@ -17,6 +17,7 @@ import { User } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { buildCsvContent } from '@/lib/csvExport';
 import PaginationBar from '@/components/ui/PaginationBar';
 import Avatar from '@/components/ui/Avatar';
 
@@ -55,6 +56,18 @@ export function getAdminUserSortControlLabel(): string {
     return 'Sort users';
 }
 
+export function getAdminUsersPageTitle(): string {
+    return 'User Management';
+}
+
+export function getAdminUsersPageSubtitle(): string {
+    return 'Global Registry';
+}
+
+export function getAdminAddUserPath(): string {
+    return '/register?switch=true';
+}
+
 export function normalizeAdminUserSearch(value: string): string {
     return value.trim().toLowerCase();
 }
@@ -76,6 +89,19 @@ export function getAdminUserDisplayName(user: User): string {
     const lastName = String(user.last_name || '').trim();
     const name = [firstName, lastName].filter(Boolean).join(' ').trim();
     return name || String(user.full_name || '').trim() || user.email;
+}
+
+export function buildAdminUsersCsv(users: User[]) {
+    const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
+    const rows = users.map((user) => [
+        getAdminUserDisplayName(user),
+        user.email,
+        user.role,
+        user.is_active ? 'Active' : 'Deactivated',
+        new Date(user.created_at).toLocaleDateString(),
+    ]);
+
+    return buildCsvContent([headers, ...rows]);
 }
 
 export function buildAdminUserActionLabel(user: User, busy: boolean): string {
@@ -140,6 +166,14 @@ export function validateAdminLeadReassignSelection(lead: Lead, brokerId: string)
 export function buildAdminLeadReassignLabel(lead: Lead, brokerName: string, busy: boolean): string {
     const action = busy ? 'Reassigning' : 'Reassign';
     return `${action} ${getAdminLeadDisplayNumber(lead)} to ${brokerName}`;
+}
+
+export function formatAdminLeadReassignmentLoadError(error?: string | null): string {
+    const detail = String(error || '').trim();
+    if (!detail || detail.toLowerCase() === 'internal server error') {
+        return 'Lead reassignment data could not refresh for the current filters. Existing rows may be stale; try Refresh or adjust the lead search/filter.';
+    }
+    return `Lead reassignment data could not refresh for the current filters. Existing rows may be stale; service message: ${detail}`;
 }
 
 export function sortAdminUsers(users: User[], sortBy: AdminUsersSortOption): User[] {
@@ -251,7 +285,7 @@ function UserManagementContent() {
             setAdminBrokers(brokerResponse.data || []);
             setAdminLeadError(null);
         } catch (error: any) {
-            setAdminLeadError(error.message || 'Lead reassignment data is not available right now.');
+            setAdminLeadError(formatAdminLeadReassignmentLoadError(error.message));
         } finally {
             setAdminLeadLoading(false);
         }
@@ -410,18 +444,7 @@ function UserManagementContent() {
             showToastError('No users to export.');
             return;
         }
-        const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
-        const rows = filteredUsers.map(u => {
-            const name = u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.full_name || 'No Name';
-            return [
-                name.replace(/,/g, ' '),
-                u.email,
-                u.role,
-                u.is_active ? 'Active' : 'Deactivated',
-                new Date(u.created_at).toLocaleDateString(),
-            ].join(',');
-        });
-        const csv = [headers.join(','), ...rows].join('\n');
+        const csv = buildAdminUsersCsv(filteredUsers);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -463,11 +486,11 @@ function UserManagementContent() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <span className="px-3 py-1 bg-emerald-500 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">Relationship Hub</span>
-                        <span className="text-gray-400 text-xs font-bold">Client & Lead Management</span>
+                        <span className="px-3 py-1 bg-emerald-700 text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-700/20">Relationship Hub</span>
+                        <span className="text-gray-400 text-xs font-bold">{getAdminUsersPageSubtitle()}</span>
                     </div>
                     <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none">
-                        Global Registry
+                        {getAdminUsersPageTitle()}
                     </h1>
                 </div>
                 <div className="flex items-center gap-4">
@@ -484,7 +507,7 @@ function UserManagementContent() {
                         />
                     </div>
                     <button
-                        onClick={() => navigate('/register')}
+                        onClick={() => navigate(getAdminAddUserPath())}
                         className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
                     >
                         <UserPlus size={18} /> Add User
@@ -501,7 +524,7 @@ function UserManagementContent() {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-gray-400 border-b border-gray-100 dark:border-gray-700 pb-1 mb-2 uppercase tracking-widest leading-none">{stat.label}</p>
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-none">{stat.value}</h3>
+                            <p className="text-2xl font-black text-gray-900 dark:text-white leading-none">{stat.value}</p>
                         </div>
                     </div>
                 ))}
@@ -610,7 +633,7 @@ function UserManagementContent() {
                             ) : visibleReassignableLeads.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-8 py-10 text-center">
-                                        <h3 className="text-base font-black text-gray-900 dark:text-white">No open leads ready for reassignment</h3>
+                                        <p className="text-base font-black text-gray-900 dark:text-white">No open leads ready for reassignment</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -809,7 +832,7 @@ function UserManagementContent() {
                                                 <span
                                                     id={statusId}
                                                     aria-label={`${displayName} is ${user.is_active ? 'active' : 'deactivated'}`}
-                                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.is_active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500' : 'bg-red-50 dark:bg-red-900/20 text-red-500'}`}
+                                                    className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.is_active ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'}`}
                                                 >
                                                     {user.is_active ? 'Active' : 'Deactivated'}
                                                 </span>
@@ -839,8 +862,8 @@ function UserManagementContent() {
                                                         disabled={actionBusy}
                                                         className={`px-4 py-2 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest ${
                                                             user.is_active
-                                                                ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                                                                : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                                                         } disabled:opacity-60`}
                                                     >
                                                         {actionBusy ? <Loader2 size={16} className="animate-spin" /> : <Power size={16} />}

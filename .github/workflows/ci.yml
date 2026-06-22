@@ -16,12 +16,15 @@ env:
   VITE_MEDIA_SERVICE_URL: https://media.estospaces.invalid
   VITE_MESSAGING_SERVICE_URL: https://messaging.estospaces.invalid
 
+permissions:
+  contents: read
+
 jobs:
   build-test-and-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20'
           cache: 'npm'
@@ -36,3 +39,14 @@ jobs:
           fi
       - run: npm run lint -- .
       - run: npm run build
+      - name: Build hardened Docker image
+        run: |
+          docker build \
+            --build-arg VITE_CORE_SERVICE_URL="${VITE_CORE_SERVICE_URL}" \
+            --build-arg VITE_BOOKING_SERVICE_URL="${VITE_BOOKING_SERVICE_URL}" \
+            --build-arg VITE_PAYMENT_SERVICE_URL="${VITE_PAYMENT_SERVICE_URL}" \
+            --build-arg VITE_NOTIFICATION_SERVICE_URL="${VITE_NOTIFICATION_SERVICE_URL}" \
+            --build-arg VITE_SEARCH_SERVICE_URL="${VITE_SEARCH_SERVICE_URL}" \
+            --build-arg VITE_MEDIA_SERVICE_URL="${VITE_MEDIA_SERVICE_URL}" \
+            --build-arg VITE_MESSAGING_SERVICE_URL="${VITE_MESSAGING_SERVICE_URL}" \
+            -t test-estospaces-web:${{ github.sha }} .

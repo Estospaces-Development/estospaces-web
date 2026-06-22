@@ -94,13 +94,13 @@ test('search URL validation reports explicit blank query', () => {
   );
 });
 
-test('country-aware groups provide a stable fallback group for UK discover results', () => {
+test('country-aware groups provide a stable fallback group for India launch discover results', () => {
   assert.deepEqual(
     getCountryAwarePropertyGroups([
-      { id: 'p1', city: 'London', location: 'London', title: 'One' },
-      { id: 'p2', city: 'Manchester', location: 'Manchester', title: 'Two' },
+      { id: 'p1', city: 'Chennai', location: 'Chennai', title: 'One' },
+      { id: 'p2', city: 'Bengaluru', location: 'Bengaluru', title: 'Two' },
     ]),
-    [{ key: 'GB', label: 'United Kingdom properties', count: 2 }],
+    [{ key: 'IN', label: 'India properties', count: 2 }],
   );
   assert.deepEqual(getCountryAwarePropertyGroups([]), []);
 });

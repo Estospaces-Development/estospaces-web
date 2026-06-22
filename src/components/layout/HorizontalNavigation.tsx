@@ -62,6 +62,8 @@ const HorizontalNavigation = ({
       activePaths: [
         "/user/saved",
         "/user/applications",
+        "/user/virtual-storage",
+        "/user/docs",
         "/user/dashboard/viewings",
         "/user/dashboard/contracts",
       ],

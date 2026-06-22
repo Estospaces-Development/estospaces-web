@@ -75,7 +75,7 @@ const workspaceSummary = (fastTrackCase: FastTrackCase | null) => {
                 ? 'Record or review the offer outcome inside the case.'
                 : 'Record or review the application outcome inside the case.';
         case 'agreement':
-            return 'Agreement and payment confirmation stay inside the case.';
+            return 'Agreement confirmation stays inside the case.';
         case 'handover':
             return 'Finish handover and close the case from the same page.';
         default:
@@ -161,7 +161,7 @@ const PropertyFastTrackModal = ({
                             Keep the whole journey in one clean workspace.
                         </h2>
                         <p className="mt-4 max-w-3xl text-base leading-7 text-gray-600 dark:text-gray-300">
-                            Open the live case to handle files, viewing, decision, agreement, payment, and handover on one page.
+                            Open the live case to handle files, viewing, decision, agreement, and handover on one page.
                             No extra workflow screens. No message detours. No compliance-heavy checklist language.
                         </p>
 

@@ -221,7 +221,7 @@ export const getCaseFileSupportCopy = (role: UserJourneyRole) => {
     return {
       primaryLabel: 'Continue in fast-track',
       primaryDescription:
-        'Use the live workspace for viewing, decision, agreement, payment, and handover.',
+        'Use the live workspace for viewing, decision, agreement, and handover.',
       secondaryLabel: 'Open document lane',
       secondaryDescription: 'Jump straight to the shared document lane inside fast-track.',
       supportTitle: 'Case file is support-only. Continue the journey in fast-track.',

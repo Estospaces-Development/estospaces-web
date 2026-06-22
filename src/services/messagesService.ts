@@ -4,6 +4,7 @@ const MESSAGING_URL = () => getServiceUrl('messaging');
 
 export interface MessageAttachment {
     id?: string;
+    media_id?: string;
     file_url: string;
     file_name: string;
     mime_type?: string;

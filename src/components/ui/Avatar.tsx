@@ -56,6 +56,23 @@ const getInitials = (name: string): string => {
     return initials || '?';
 };
 
+export const isRenderableAvatarSrc = (src?: string | null): boolean => {
+    const value = String(src || '').trim();
+    if (!value) {
+        return false;
+    }
+
+    try {
+        const url = new URL(value);
+        const isGoogleStorageHost = url.hostname === 'storage.googleapis.com' || url.hostname === 'storage.cloud.google.com';
+        const pointsToPrivateMediaBucket = /^\/estospaces-media-[^/]+\//.test(url.pathname);
+        return !(isGoogleStorageHost && pointsToPrivateMediaBucket);
+    } catch {
+        return !value.includes('storage.googleapis.com/estospaces-media-')
+            && !value.includes('storage.cloud.google.com/estospaces-media-');
+    }
+};
+
 const Avatar: React.FC<AvatarProps> = ({
     userId,
     src,
@@ -74,16 +91,17 @@ const Avatar: React.FC<AvatarProps> = ({
         [alt, name, summary?.display_name],
     );
     const resolvedSrc = src || summary?.avatar || '';
+    const renderableSrc = isRenderableAvatarSrc(resolvedSrc) ? resolvedSrc : '';
 
     useEffect(() => {
         setImageFailed(false);
-    }, [resolvedSrc]);
+    }, [renderableSrc]);
 
     return (
         <div className={`relative inline-flex flex-shrink-0 ${className}`}>
-            {resolvedSrc && !imageFailed ? (
+            {renderableSrc && !imageFailed ? (
                 <img
-                    src={resolvedSrc}
+                    src={renderableSrc}
                     alt={alt || resolvedName}
                     onError={() => setImageFailed(true)}
                     className={`${sizeClasses[size]} ${shapeClasses[shape]} object-cover border-2 border-white dark:border-zinc-900 shadow-sm`}

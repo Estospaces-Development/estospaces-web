@@ -31,7 +31,7 @@ test('viewing completed fast-track guidance keeps completed buy journeys inside 
     });
 });
 
-test('ready for contract rent guidance moves payment blockers into billing', () => {
+test('ready for contract rent guidance ignores inactive payment workspace blockers', () => {
     const guidance = resolveFastTrackStageGuidance({
         currentStep: 'ready_for_contract',
         journeyType: 'rent',
@@ -52,6 +52,8 @@ test('ready for contract rent guidance moves payment blockers into billing', () 
 
     assert.equal(guidance?.target, 'fast_track');
     assert.equal(guidance?.actionLabel, 'Continue in fast-track workspace');
+    assert.doesNotMatch(guidance?.title || '', /deposit|first-rent|payment|invoice|billing/i);
+    assert.doesNotMatch(guidance?.description || '', /deposit|first-rent|payment|invoice|billing/i);
 });
 
 test('purchase workspace label now points to the linked purchase details surface', () => {

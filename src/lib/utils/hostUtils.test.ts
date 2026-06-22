@@ -8,6 +8,7 @@ import {
     isSingleOriginHostedHost,
     resolveCurrentAppFromHostname,
     resolveHostedWorkspaceRedirect,
+    shouldBypassHostedWorkspaceRedirect,
 } from '@/lib/utils/hostUtils';
 
 test('landing host redirects protected app routes to the app domain', () => {
@@ -34,6 +35,9 @@ test('app host still blocks admin routes locally', () => {
 
 test('cloud run dev hosts stay on the same origin for admin links', () => {
     assert.equal(isSingleOriginHostedHost('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), true);
+    assert.equal(resolveCurrentAppFromHostname('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), 'app');
+    assert.equal(resolveCurrentAppFromHostname('estospaces-web-prod-zaryfkxmeq-nw.a.run.app'), 'app');
+    assert.equal(resolveCurrentAppFromHostname('estospaces-landing-prod-zaryfkxmeq-nw.a.run.app'), 'landing');
 
     const originalWindow = globalThis.window;
     Object.defineProperty(globalThis, 'window', {
@@ -62,6 +66,16 @@ test('cloud run dev hosts stay on the same origin for admin links', () => {
             });
         }
     }
+});
+
+test('single-origin hosted dev routes allow admin manager and user workspaces', () => {
+    const hostname = 'estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
+
+    assert.equal(shouldBypassHostedWorkspaceRedirect(hostname, '/admin/dashboard'), true);
+    assert.equal(shouldBypassHostedWorkspaceRedirect(hostname, '/manager/dashboard'), true);
+    assert.equal(shouldBypassHostedWorkspaceRedirect(hostname, '/user/dashboard'), true);
+    assert.equal(shouldBypassHostedWorkspaceRedirect(hostname, '/'), false);
+    assert.equal(shouldBypassHostedWorkspaceRedirect('app.estospaces.com', '/admin/dashboard'), false);
 });
 
 test('same-origin hosted admin redirect does not navigate to the current URL again', () => {

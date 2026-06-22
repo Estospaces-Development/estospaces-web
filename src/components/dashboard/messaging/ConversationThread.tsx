@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, BellOff } from 'lucide-react';
 import { useMessages } from '@/contexts/MessagesContext';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import MessageBubble from './MessageBubble';
 
 interface ConversationThreadProps {
@@ -16,6 +17,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
     const scrollRef = useRef<HTMLDivElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
     const [isSavingPreference, setIsSavingPreference] = useState(false);
+    const messageKeyFor = createDuplicateSafeKeyResolver('conversation-message');
 
     useEffect(() => {
         const lastMessageId = messages[messages.length - 1]?.id || null;
@@ -96,7 +98,7 @@ export default function ConversationThread({ conversationId }: ConversationThrea
 
                         return (
                             <MessageBubble
-                                key={message.id}
+                                key={messageKeyFor(message.id, index)}
                                 message={message}
                                 isUser={isUser}
                                 isSupportConversation={conversation?.isSupportConversation}

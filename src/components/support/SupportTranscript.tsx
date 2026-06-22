@@ -1,6 +1,7 @@
 import React from 'react';
 import { LifeBuoy, MessageSquareDashed } from 'lucide-react';
 import type { Message } from '@/services/messagesService';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 interface SupportTranscriptProps {
     messages: Message[];
@@ -22,12 +23,16 @@ export function SupportTranscript({ messages, currentUserId, otherLabel = 'Estos
         );
     }
 
+    const messageKeyFor = createDuplicateSafeKeyResolver('support-message');
+
     return (
         <div className="space-y-4">
-            {messages.map((message) => {
+            {messages.map((message, messageIndex) => {
                 const isMine = message.sender_id === currentUserId;
+                const messageKey = messageKeyFor(message.id, messageIndex);
+                const attachmentKeyFor = createDuplicateSafeKeyResolver(`support-attachment-${messageKey}`);
                 return (
-                    <div key={message.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                    <div key={messageKey} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[78%] rounded-[1.75rem] px-4 py-3 shadow-sm ${
                             isMine
                                 ? 'bg-orange-700 text-white'
@@ -42,9 +47,9 @@ export function SupportTranscript({ messages, currentUserId, otherLabel = 'Estos
                             <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
                             {message.attachments && message.attachments.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                    {message.attachments.map((attachment) => (
+                                    {message.attachments.map((attachment, attachmentIndex) => (
                                         <button
-                                            key={attachment.id || attachment.file_url}
+                                            key={attachmentKeyFor(attachment.id || attachment.file_url || attachment.file_name, attachmentIndex)}
                                             type="button"
                                             onClick={() => attachment.id && onOpenAttachment?.(attachment.id)}
                                             disabled={!attachment.id || !onOpenAttachment}

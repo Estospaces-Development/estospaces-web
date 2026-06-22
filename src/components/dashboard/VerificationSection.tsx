@@ -17,6 +17,11 @@ import {
     ArrowRight,
     Trash2,
 } from 'lucide-react';
+import {
+    getMissingVerificationBundleFileKeys,
+    shouldRequireFirstTimeVerificationBundle,
+    USER_FIRST_TIME_VERIFICATION_REQUIREMENTS,
+} from '@/lib/verificationUploadGate';
 import { leadsService, type UserDocument } from '@/services/leadsService';
 
 interface VerificationSectionProps {
@@ -26,6 +31,7 @@ interface VerificationSectionProps {
 
 type StepKey = 'email' | 'phone' | 'identity' | 'address';
 type StepStatus = 'pending' | 'submitted' | 'verified' | 'reupload_required';
+type UserVerificationDocumentStep = (typeof USER_FIRST_TIME_VERIFICATION_REQUIREMENTS)[number];
 
 type StepState = {
     status: StepStatus;
@@ -36,6 +42,10 @@ const documentTypeByStep: Partial<Record<StepKey, string>> = {
     address: 'address',
 };
 const VERIFICATION_DOCUMENT_ACCEPT = 'application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg';
+const firstTimeDocumentLabels: Record<UserVerificationDocumentStep, string> = {
+    identity: 'Identity document',
+    address: 'Proof of address',
+};
 
 const mapDocumentStatus = (status?: string): StepStatus => {
     switch (status) {
@@ -57,6 +67,8 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [showUploadModal, setShowUploadModal] = useState<StepKey | null>(null);
+    const [showFirstTimeUploadModal, setShowFirstTimeUploadModal] = useState(false);
+    const [firstTimeUploadFiles, setFirstTimeUploadFiles] = useState<Partial<Record<UserVerificationDocumentStep, File | null>>>({});
     const [uploadingFile, setUploadingFile] = useState(false);
     const [documents, setDocuments] = useState<UserDocument[]>([]);
     const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
@@ -113,6 +125,23 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     ).length;
     const totalSteps = Object.keys(verificationSteps).length;
     const completionPercentage = Math.round((completedSteps / totalSteps) * 100);
+    const needsFirstTimeDocumentBundle = useMemo(() => (
+        shouldRequireFirstTimeVerificationBundle(documents, USER_FIRST_TIME_VERIFICATION_REQUIREMENTS)
+    ), [documents]);
+
+    const missingFirstTimeFiles = useMemo(() => (
+        getMissingVerificationBundleFileKeys(firstTimeUploadFiles, USER_FIRST_TIME_VERIFICATION_REQUIREMENTS)
+    ), [firstTimeUploadFiles]);
+
+    const openDocumentUpload = (step: UserVerificationDocumentStep) => {
+        setError(null);
+        if (needsFirstTimeDocumentBundle) {
+            setShowFirstTimeUploadModal(true);
+            return;
+        }
+
+        setShowUploadModal(step);
+    };
 
     const handleDocumentUpload = async (step: StepKey, file: File) => {
         if (!file || !userId) return;
@@ -139,6 +168,48 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
             requestAnimationFrame(() => documentVaultRef.current?.focus());
         } catch (err: any) {
             setError(err.message || 'Failed to upload document. Please try again.');
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+
+    const handleFirstTimeDocumentBundleUpload = async () => {
+        if (!userId) return;
+
+        if (missingFirstTimeFiles.length > 0) {
+            setError(`Add ${missingFirstTimeFiles.map((key) => firstTimeDocumentLabels[key]).join(' and ')} before submitting first-time verification.`);
+            return;
+        }
+
+        setUploadingFile(true);
+        setError(null);
+
+        try {
+            for (const step of USER_FIRST_TIME_VERIFICATION_REQUIREMENTS) {
+                const uploadType = documentTypeByStep[step];
+                const file = firstTimeUploadFiles[step];
+                if (!uploadType || !file) {
+                    continue;
+                }
+
+                const { success: uploaded, error: uploadError } = await leadsService.uploadDocument(uploadType, file);
+                if (!uploaded) {
+                    throw new Error(uploadError || `Failed to submit ${firstTimeDocumentLabels[step].toLowerCase()} for review`);
+                }
+            }
+
+            setVerificationSteps((prev) => ({
+                ...prev,
+                identity: { status: 'submitted' },
+                address: { status: 'submitted' },
+            }));
+            setSuccess('Your identity document and proof of address have been submitted for admin review.');
+            setFirstTimeUploadFiles({});
+            setShowFirstTimeUploadModal(false);
+            await syncDocuments();
+            requestAnimationFrame(() => documentVaultRef.current?.focus());
+        } catch (err: any) {
+            setError(err.message || 'Failed to upload documents. Please try again.');
         } finally {
             setUploadingFile(false);
         }
@@ -231,7 +302,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     : 'text-gray-900 dark:text-white';
 
         const subtitleClass = isVerified
-            ? 'text-green-600 dark:text-green-400'
+            ? 'text-green-700 dark:text-green-300'
             : isSubmitted
                 ? 'text-blue-600 dark:text-blue-400'
                 : needsReupload
@@ -255,7 +326,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h4 className={`font-bold text-sm ${titleClass}`}>{title}</h4>
+                            <h3 className={`font-bold text-sm ${titleClass}`}>{title}</h3>
                             <p className={`text-xs mt-0.5 ${subtitleClass}`}>{subtitle}</p>
                         </div>
 
@@ -365,7 +436,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     description="Government issued passport or photo ID"
                     icon={CreditCard}
                     actionLabel="Upload"
-                    onAction={() => setShowUploadModal('identity')}
+                    onAction={() => openDocumentUpload('identity')}
                 />
                 <VerificationStep
                     step="address"
@@ -373,7 +444,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     description="Bank statement or utility bill"
                     icon={MapPin}
                     actionLabel="Upload"
-                    onAction={() => setShowUploadModal('address')}
+                    onAction={() => openDocumentUpload('address')}
                 />
             </div>
 
@@ -480,6 +551,68 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                     <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300">What happens next?</h4>
                                     <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Your upload is submitted into the verification queue. Admin approval is still required before the step becomes verified.</p>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showFirstTimeUploadModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">First-time verification</h3>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload identity and address proof together for admin review.</p>
+                            </div>
+                            <button onClick={() => setShowFirstTimeUploadModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl" aria-label="Close first-time verification upload">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {USER_FIRST_TIME_VERIFICATION_REQUIREMENTS.map((step) => (
+                                <label
+                                    key={step}
+                                    className="block rounded-2xl border border-gray-100 bg-gray-50 p-4 transition-colors hover:border-orange-300 dark:border-gray-700 dark:bg-gray-900/40"
+                                >
+                                    <span className="block text-sm font-bold text-gray-900 dark:text-white">{firstTimeDocumentLabels[step]}</span>
+                                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                                        {firstTimeUploadFiles[step]?.name || 'PDF, PNG or JPG'}
+                                    </span>
+                                    <input
+                                        type="file"
+                                        name={`first-time-${step}-verification-document`}
+                                        aria-label={`Upload ${firstTimeDocumentLabels[step].toLowerCase()}`}
+                                        className="mt-3 block w-full text-sm text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-50 file:px-4 file:py-2 file:text-sm file:font-bold file:text-orange-700 hover:file:bg-orange-100 dark:text-gray-300 dark:file:bg-orange-900/30 dark:file:text-orange-300"
+                                        accept={VERIFICATION_DOCUMENT_ACCEPT}
+                                        disabled={uploadingFile}
+                                        onChange={(event) => {
+                                            const file = event.currentTarget.files?.[0] || null;
+                                            setFirstTimeUploadFiles((prev) => ({ ...prev, [step]: file }));
+                                        }}
+                                    />
+                                </label>
+                            ))}
+
+                            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFirstTimeUploadModal(false)}
+                                    disabled={uploadingFile}
+                                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleFirstTimeDocumentBundleUpload()}
+                                    disabled={uploadingFile || missingFirstTimeFiles.length > 0}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                    Submit both documents
+                                </button>
                             </div>
                         </div>
                     </div>

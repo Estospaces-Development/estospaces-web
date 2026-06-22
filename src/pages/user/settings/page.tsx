@@ -176,6 +176,10 @@ export default function UserSettingsPage() {
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Enable dashboard notifications.</p>
                             </div>
                             <button
+                                type="button"
+                                role="switch"
+                                aria-label="Toggle in-app notifications"
+                                aria-checked={settings.notifications_enabled}
                                 onClick={() => handleToggle('notifications_enabled')}
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${settings.notifications_enabled ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                             >
@@ -189,6 +193,10 @@ export default function UserSettingsPage() {
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Receive email updates for saved search activity.</p>
                             </div>
                             <button
+                                type="button"
+                                role="switch"
+                                aria-label="Toggle email alerts"
+                                aria-checked={settings.email_alerts}
                                 onClick={() => handleToggle('email_alerts')}
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${settings.email_alerts ? 'bg-orange-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                             >
@@ -366,6 +374,10 @@ export default function UserSettingsPage() {
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Stored as part of the current preferences record.</p>
                             </div>
                             <button
+                                type="button"
+                                role="switch"
+                                aria-label="Toggle onboarding complete"
+                                aria-checked={settings.onboarding_done}
                                 onClick={() => handleToggle('onboarding_done')}
                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${settings.onboarding_done ? 'bg-green-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                             >

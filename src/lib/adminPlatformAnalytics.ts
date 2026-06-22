@@ -1,5 +1,6 @@
 import type { AnalyticsData } from '@/services/analyticsService';
 import type { PropertyPerformance } from '@/services/analyticsService';
+import { buildCsvContent } from '@/lib/csvExport';
 
 export type AdminAnalyticsIconKey =
     | 'activity'
@@ -162,20 +163,12 @@ export const buildAdminAnalyticsExportRows = (
     });
 };
 
-const csvSafeValue = (value: string | number) => {
-    let text = String(value);
-    if (/^[=+\-@]/.test(text)) {
-        text = `'${text}`;
-    }
-    return `"${text.replace(/"/g, '""')}"`;
-};
-
 export const buildAdminAnalyticsCsvSnapshot = (
     data?: AnalyticsData | null,
     options: AdminAnalyticsExportOptions = {},
 ) => {
     const rows = buildAdminAnalyticsExportRows(data, options);
-    return [
+    return buildCsvContent([
         ['Property', 'Views', 'Applications', 'Conversion Rate'],
         ...rows.map((row) => [
             row.property,
@@ -183,9 +176,7 @@ export const buildAdminAnalyticsCsvSnapshot = (
             String(row.applications),
             String(row.conversionRate),
         ]),
-    ]
-        .map((row) => row.map(csvSafeValue).join(','))
-        .join('\n');
+    ]);
 };
 
 export const createAdminAnalyticsExportDeduper = (windowMs = 1000) => {

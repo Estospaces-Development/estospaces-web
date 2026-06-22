@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Clock3, Download, History, Loader2, MessageSquare, Plus, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import BackButton from '@/components/ui/BackButton';
 import Modal from '@/components/ui/Modal';
 import Avatar from '@/components/ui/Avatar';
@@ -24,6 +24,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { canRequestLeadDocuments, formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { paginateManagerLeads, sortManagerLeads, type ManagerLeadSortMode } from '@/lib/managerLeadList';
+import { buildCsvContent } from '@/lib/csvExport';
 
 const STATUS_FILTERS = [
     { value: 'all', label: 'All Leads' },
@@ -142,14 +143,6 @@ function formatCountdown(totalSeconds: number) {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-function csvSafeCell(value: unknown) {
-    let text = String(value ?? '');
-    if (/^[=+\-@]/.test(text)) {
-        text = `'${text}`;
-    }
-    return `"${text.replace(/"/g, '""')}"`;
-}
-
 function buildLeadCsv(leads: Lead[]) {
     const header = ['Lead Number', 'Client', 'Contact', 'Property', 'Address', 'Status', 'Stage', 'SLA', 'Budget'];
     const rows = leads.map((lead) => [
@@ -164,9 +157,7 @@ function buildLeadCsv(leads: Lead[]) {
         lead.budget || '',
     ]);
 
-    return [header, ...rows]
-        .map((row) => row.map(csvSafeCell).join(','))
-        .join('\n');
+    return buildCsvContent([header, ...rows]);
 }
 
 function parseAuditDetails(details: LeadAuditEntry['details']): Record<string, unknown> {
@@ -237,6 +228,8 @@ function getSlaBadge(status: string, remainingSeconds: number) {
 
 export default function ManagerLeadsPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const searchParamQuery = searchParams.get('search') || '';
     const toast = useToast();
     const { user } = useAuth();
     const publishWorkspaceSync = usePublishWorkspaceSync();
@@ -244,7 +237,7 @@ export default function ManagerLeadsPage() {
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(searchParamQuery);
     const [statusFilter, setStatusFilter] = useState('all');
     const [sortMode, setSortMode] = useState<ManagerLeadSortMode>('newest');
     const [currentPage, setCurrentPage] = useState(1);
@@ -356,6 +349,10 @@ export default function ManagerLeadsPage() {
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery, sortMode, statusFilter]);
+
+    useEffect(() => {
+        setSearchQuery(searchParamQuery);
+    }, [searchParamQuery]);
 
     useEffect(() => {
         if (currentPage !== paginatedLeads.currentPage) {

@@ -6,6 +6,12 @@ import type { ListingType, PriceInfo } from '@/contexts/PropertyContext';
 import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import {
+    formatLaunchCurrency,
+    formatLaunchPropertyLocation,
+    formatLaunchPropertyText,
+    normalizeLaunchCurrencyText,
+} from '@/lib/launchLocale';
 
 interface ManagerPropertyCardProps {
     property: {
@@ -42,13 +48,15 @@ interface ManagerPropertyCardProps {
 }
 
 const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onEdit, onView }) => {
-    const title = property.title || property.name || 'Untitled Property';
+    const title = formatLaunchPropertyText(property.title || property.name, 'Untitled Property');
     const address =
-        property.address ||
-        (typeof property.location === 'string'
-            ? property.location
-            : property.location?.addressLine1) ||
-        'No Address';
+        formatLaunchPropertyLocation(
+            property.address ||
+            (typeof property.location === 'string'
+                ? property.location
+                : property.location?.addressLine1) ||
+            '',
+        ) || 'No Address';
     const beds = property.bedrooms || 0;
     const baths = property.bathrooms || 0;
     const size = property.area || property.sqft || 0;
@@ -59,29 +67,22 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
             property.type?.toLowerCase() === 'rent';
 
         if (property.priceString) {
-            return isRentalListing ? `${property.priceString}/month` : property.priceString;
+            const normalized = normalizeLaunchCurrencyText(property.priceString);
+            return isRentalListing ? `${normalized}/month` : normalized;
         }
 
         if (typeof price === 'object' && price !== null && 'amount' in price) {
-            const formatted = new Intl.NumberFormat('en-GB', {
-                style: 'currency',
-                currency: price.currency || 'GBP',
-                maximumFractionDigits: 0,
-            }).format(price.amount);
+            const formatted = formatLaunchCurrency(price.amount);
             return isRentalListing ? `${formatted}/month` : formatted;
         }
 
         if (typeof price === 'number') {
-            const formatted = new Intl.NumberFormat('en-GB', {
-                style: 'currency',
-                currency: 'GBP',
-                maximumFractionDigits: 0,
-            }).format(price);
+            const formatted = formatLaunchCurrency(price);
             return isRentalListing ? `${formatted}/month` : formatted;
         }
 
         if (typeof price === 'string' && price.trim()) {
-            return price;
+            return normalizeLaunchCurrencyText(price);
         }
 
         return null;
@@ -127,7 +128,7 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
 
             <div className="p-4">
                 <div className="flex justify-between items-start mb-2 gap-2">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate flex-1">{title}</h3>
+                    <h2 className="min-w-0 flex-1 break-words text-lg font-bold leading-tight text-gray-900 dark:text-white">{title}</h2>
                     {formattedPrice && (
                         <p className="font-display font-bold text-lg text-orange-600 dark:text-orange-500 whitespace-nowrap">
                             {formattedPrice}
@@ -135,9 +136,9 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
                     )}
                 </div>
 
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-1.5 truncate">
-                    <MapPin size={14} className="flex-shrink-0 text-gray-400" />
-                    {address}
+                <p className="mb-4 flex items-start gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+                    <MapPin size={14} className="mt-0.5 flex-shrink-0 text-gray-400" />
+                    <span className="min-w-0 flex-1 break-words">{address}</span>
                 </p>
 
                 {inventoryCaption && (

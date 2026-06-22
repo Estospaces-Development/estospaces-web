@@ -2,6 +2,8 @@ import React from 'react';
 import { Inbox, MessageSquareText } from 'lucide-react';
 import { type SupportTicketSummary } from '@/services/messagesService';
 import { SupportPriorityBadge, SupportStatusBadge } from '@/components/support/SupportBadges';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import { getLaunchSafeSupportCategoryLabel } from '@/lib/supportCenter';
 
 interface SupportTicketListProps {
     tickets: SupportTicketSummary[];
@@ -43,13 +45,15 @@ export function SupportTicketList({
         );
     }
 
+    const ticketKeyFor = createDuplicateSafeKeyResolver('support-ticket');
+
     return (
         <div className="space-y-3">
-            {tickets.map((ticket) => {
+            {tickets.map((ticket, ticketIndex) => {
                 const active = ticket.id === selectedTicketId;
                 return (
                     <button
-                        key={ticket.id}
+                        key={ticketKeyFor(ticket.id, ticketIndex)}
                         onClick={() => onSelect(ticket.id)}
                         className={`w-full rounded-[1.75rem] border p-4 text-left transition-all ${
                             active
@@ -65,14 +69,14 @@ export function SupportTicketList({
                                     </span>
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">
-                                            {ticket.category || 'Support'}
+                                            {getLaunchSafeSupportCategoryLabel(ticket.category)}
                                         </p>
                                         <p className="truncate text-base font-bold text-gray-950 dark:text-white">{ticket.subject}</p>
                                     </div>
                                 </div>
                                 <p className="truncate text-sm text-gray-600 dark:text-gray-300">
                                     {ticket.requester_context?.name || ticket.requester_context?.email || 'Estospaces customer'}
-                                    {ticket.requester_context?.module ? ` · ${ticket.requester_context.module}` : ''}
+                                    {ticket.requester_context?.module ? ` - ${getLaunchSafeSupportCategoryLabel(ticket.requester_context.module)}` : ''}
                                 </p>
                                 {ticket.last_message?.content && (
                                     <p className="mt-3 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">

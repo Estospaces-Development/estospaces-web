@@ -14,3 +14,9 @@ test('manager review modal names the close control and restores focus', () => {
     assert.match(source, /aria-label=\{MANAGER_REVIEW_CLOSE_LABEL\}/);
     assert.match(source, /previousFocusRef\.current\?\.focus\(\)/);
 });
+
+test('manager review modal blocks approval when manager evidence is incomplete', () => {
+    assert.match(source, /getManagerApprovalBlocker/);
+    assert.match(source, /Approval blocked/);
+    assert.match(source, /disabled=\{approvalBlocker !== null\}/);
+});

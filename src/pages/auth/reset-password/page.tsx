@@ -87,15 +87,16 @@ export default function ResetPasswordPage() {
                     <CheckCircle className="text-green-500 h-8 w-8" />
                 </div>
 
-                <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
                     Password Reset Successfully!
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
                     Your password has been updated. You can now sign in with your new password.
                 </p>
 
                 <button
+                    type="button"
                     onClick={() => navigate('/login')}
                     className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all"
                 >
@@ -115,9 +116,9 @@ export default function ResetPasswordPage() {
                     <AlertCircle className="text-red-500 h-8 w-8" />
                 </div>
 
-                <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
                     Invalid Reset Link
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
                     This reset link is invalid or missing a reset token. Please request a new password reset link.
@@ -143,9 +144,9 @@ export default function ResetPasswordPage() {
                 <KeyRound className="text-primary h-7 w-7" />
             </div>
 
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
+            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
                 Create New Password
-            </h2>
+            </h1>
 
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-8 text-center px-4">
                 Your new password must be at least 8 characters and meet the requirements below.
@@ -153,7 +154,7 @@ export default function ResetPasswordPage() {
 
             {/* Error banner */}
             {error && (
-                <div className="w-full mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-start gap-2">
+                <div role="alert" className="w-full mb-6 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-start gap-2">
                     <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" size={18} />
                     <div className="flex-1">
                         <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
@@ -172,11 +173,13 @@ export default function ResetPasswordPage() {
             <form onSubmit={handleSubmit} className="w-full">
                 {/* New Password */}
                 <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    <label htmlFor="reset-password-new" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                         New Password
                     </label>
                     <div className="relative">
                         <input
+                            id="reset-password-new"
+                            name="new-password"
                             type={showPassword ? 'text' : 'password'}
                             autoComplete="new-password"
                             placeholder="Enter your new password"
@@ -190,6 +193,7 @@ export default function ResetPasswordPage() {
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? 'Hide new password' : 'Show new password'}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
                             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -214,11 +218,13 @@ export default function ResetPasswordPage() {
 
                 {/* Confirm Password */}
                 <div className="mb-8">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    <label htmlFor="reset-password-confirm" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
                         Confirm New Password
                     </label>
                     <div className="relative">
                         <input
+                            id="reset-password-confirm"
+                            name="confirm-password"
                             type={showConfirmPassword ? 'text' : 'password'}
                             autoComplete="new-password"
                             placeholder="Re-enter your new password"
@@ -235,6 +241,7 @@ export default function ResetPasswordPage() {
                         <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            aria-label={showConfirmPassword ? 'Hide confirmation password' : 'Show confirmation password'}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                         >
                             {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}

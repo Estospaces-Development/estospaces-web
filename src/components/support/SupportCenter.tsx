@@ -14,11 +14,13 @@ import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
     getAutoSelectedSupportTicketId,
+    getLaunchSafeSupportCategoryLabel,
     hasActiveSupportFilters,
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
     shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { supportService, type SupportAttachmentDraft } from '@/services/supportService';
 import type { Message, SupportTicketDetail, SupportTicketSummary } from '@/services/messagesService';
 import type { User } from '@/types';
@@ -30,13 +32,13 @@ const ROLE_COPY: Record<Role, { title: string; subtitle: string; docsPath: strin
         title: 'User Help & Support',
         subtitle: 'Open a support ticket, keep talking in the same thread, and track each update from the Estospaces Team without losing context.',
         docsPath: '/user/dashboard/docs',
-        categories: ['General Inquiry', 'Buying Help', 'Renting Help', 'Fast Track', 'Contracts', 'Payments', 'Technical Issue'],
+        categories: ['General Inquiry', 'Buying Help', 'Renting Help', 'Fast Track', 'Contracts', 'Technical Issue'],
     },
     manager: {
         title: 'Manager Help & Support',
-        subtitle: 'Raise issues about listings, verification, leads, billing, or fast-track and keep the full transcript attached to one operational support ticket.',
+        subtitle: 'Raise issues about listings, verification, leads, applications, contracts, or fast-track and keep the full transcript attached to one operational support ticket.',
         docsPath: '/manager/docs',
-        categories: ['Listings', 'Verification', 'Leads', 'Applications', 'Contracts', 'Billing', 'Fast Track', 'Technical Issue'],
+        categories: ['Listings', 'Verification', 'Leads', 'Applications', 'Contracts', 'Fast Track', 'Technical Issue'],
     },
     admin: {
         title: 'Admin Help & Support',
@@ -45,24 +47,6 @@ const ROLE_COPY: Record<Role, { title: string; subtitle: string; docsPath: strin
         categories: ['Support'],
     },
 };
-
-const ADMIN_OPERATION_GUIDANCE = [
-    {
-        id: 'release-operations',
-        title: 'Release operations',
-        description: 'Use the queue to track release blockers, failed smoke checks, rollback requests, and post-deploy verification work.',
-    },
-    {
-        id: 'platform-operations',
-        title: 'Platform operations',
-        description: 'Triage Cloud Run, service health, auth, notification, search, payment, and booking issues with requester context attached.',
-    },
-    {
-        id: 'recovery-guidance',
-        title: 'Recovery guidance',
-        description: 'Move incidents through owner assignment, priority changes, transcript updates, resolution notes, and closure without losing audit history.',
-    },
-];
 
 const ADMIN_QUEUE_TABS = [
     { label: 'All tickets', status: '', assignee: '' },
@@ -74,13 +58,13 @@ const ADMIN_QUEUE_TABS = [
 
 const supportSearchText = (ticket: SupportTicketSummary) => [
     ticket.subject,
-    ticket.category,
+    getLaunchSafeSupportCategoryLabel(ticket.category),
     ticket.status,
     ticket.priority,
     ticket.requester_role,
     ticket.requester_context?.name,
     ticket.requester_context?.email,
-    ticket.requester_context?.module,
+    getLaunchSafeSupportCategoryLabel(ticket.requester_context?.module, ''),
     ticket.last_message?.content,
 ].filter(Boolean).join(' ').toLowerCase();
 
@@ -201,6 +185,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 tickets: visibleTickets,
                 isAdmin,
                 hasPrefilledComposerContext,
+                hasLocationHash: typeof window !== 'undefined' && Boolean(window.location.hash),
             });
             if (targetTicketId && visibleTickets.some((ticket) => ticket.id === targetTicketId)) {
                 setSearchParams((current) => {
@@ -461,6 +446,8 @@ export function SupportCenter({ role }: SupportCenterProps) {
             toast.error(error.message || 'Failed to update ticket');
         }
     };
+    const adminFilterUserKeyFor = createDuplicateSafeKeyResolver('support-filter-admin-user');
+    const adminAssigneeUserKeyFor = createDuplicateSafeKeyResolver('support-assignee-admin-user');
 
     return (
         <div className="space-y-6">
@@ -475,31 +462,11 @@ export function SupportCenter({ role }: SupportCenterProps) {
                         {!isAdmin && resumableTicket && (
                             <button onClick={() => setSearchParams(new URLSearchParams({ ticket: resumableTicket.id }), { replace: true })} className="rounded-full bg-orange-700 px-5 py-3 text-sm font-bold text-white">Resume live support</button>
                         )}
-                        <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200"><BookOpen className="h-4 w-4" /> Docs</Link>
+                        {!isAdmin && <Link to={ROLE_COPY[role].docsPath} className="inline-flex items-center gap-2 rounded-full border border-orange-200 px-5 py-3 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200"><BookOpen className="h-4 w-4" /> Docs</Link>}
                         {!isAdmin && <Link to={`${ROLE_COPY[role].docsPath}#faq`} className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-5 py-3 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200"><CircleHelp className="h-4 w-4" /> FAQ</Link>}
                     </div>
                 </div>
             </section>
-
-            {isAdmin && (
-                <section
-                    aria-labelledby="admin-operations-guidance-heading"
-                    className="rounded-[2rem] border border-orange-100 bg-white/90 p-5 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/80"
-                >
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Platform guidance</p>
-                    <h2 id="admin-operations-guidance-heading" className="mt-2 text-xl font-black text-gray-950 dark:text-white">
-                        Release and operations support
-                    </h2>
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        {ADMIN_OPERATION_GUIDANCE.map((item) => (
-                            <article key={item.id} id={item.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950/60">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white">{item.title}</h3>
-                                <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{item.description}</p>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-            )}
 
             <SupportFilters filters={filters} onChange={setFilters} mode={isAdmin ? 'admin' : 'requester'} />
 
@@ -524,7 +491,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                 <span>{tab.label}</span>
                                 <span className={`rounded-full px-2 py-0.5 text-xs ${
                                     active
-                                        ? 'bg-white/20 text-white'
+                                        ? 'bg-white text-orange-900'
                                         : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'
                                 }`}>{tab.count}</span>
                             </button>
@@ -544,7 +511,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                         <option value="">All assignees</option>
                         <option value="unassigned">Unassigned</option>
                         <option value="me">Assigned to me</option>
-                        {adminUsers.map((adminUser) => <option key={adminUser.id} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}
+                        {adminUsers.map((adminUser, adminUserIndex) => <option key={adminFilterUserKeyFor(adminUser.id || adminUser.email, adminUserIndex)} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}
                     </select>
                 </div>
             )}
@@ -589,16 +556,16 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                                 <div className="flex flex-wrap items-start justify-between gap-4">
                                     <div>
-                                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{selectedTicket.category}</p>
+                                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">{getLaunchSafeSupportCategoryLabel(selectedTicket.category)}</p>
                                         <h2 className="mt-2 text-2xl font-black text-gray-950 dark:text-white">{selectedTicket.subject}</h2>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Support request'}
-                                            {selectedTicket.requester_context?.module ? ` - ${selectedTicket.requester_context.module}` : ''}
+                                            {selectedTicket.requester_context?.module ? ` - ${getLaunchSafeSupportCategoryLabel(selectedTicket.requester_context.module)}` : ''}
                                         </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2"><SupportStatusBadge status={selectedTicket.status} /><SupportPriorityBadge priority={selectedTicket.priority} /></div>
                                 </div>
-                                {isAdmin && <div className="mt-5 grid gap-4 md:grid-cols-3"><select value={selectedTicket.status} onChange={(event) => void patchTicket({ status: event.target.value as SupportTicketSummary['status'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket status"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select><select value={selectedTicket.priority} onChange={(event) => void patchTicket({ priority: event.target.value as SupportTicketSummary['priority'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select><select value={selectedTicket.assignee_id || ''} onChange={(event) => void patchTicket({ assignee_id: event.target.value })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket assignee"><option value="">Unassigned</option>{adminUsers.map((adminUser) => <option key={adminUser.id} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}</select></div>}
+                                {isAdmin && <div className="mt-5 grid gap-4 md:grid-cols-3"><select value={selectedTicket.status} onChange={(event) => void patchTicket({ status: event.target.value as SupportTicketSummary['status'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket status"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select><select value={selectedTicket.priority} onChange={(event) => void patchTicket({ priority: event.target.value as SupportTicketSummary['priority'] })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket priority"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select><select value={selectedTicket.assignee_id || ''} onChange={(event) => void patchTicket({ assignee_id: event.target.value })} className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold dark:bg-gray-800 dark:text-white" aria-label="Selected ticket assignee"><option value="">Unassigned</option>{adminUsers.map((adminUser, adminUserIndex) => <option key={adminAssigneeUserKeyFor(adminUser.id || adminUser.email, adminUserIndex)} value={adminUser.id}>{adminUser.full_name || adminUser.email}</option>)}</select></div>}
                                 {!isAdmin && <div className="mt-5 flex flex-wrap gap-3">{selectedTicket.status === 'resolved' && <button onClick={() => void patchTicket({ status: 'open' })} className="rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 dark:border-orange-500/20 dark:text-orange-200">Reopen</button>}{selectedTicket.status !== 'closed' && <button onClick={() => void patchTicket({ status: 'closed' })} className="rounded-full border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 dark:border-gray-700 dark:text-gray-200">Close ticket</button>}</div>}
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">

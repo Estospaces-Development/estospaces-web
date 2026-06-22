@@ -36,6 +36,8 @@ RUN npm run build
 # Production stage — serve static files with Nginx
 FROM nginx:alpine
 
+RUN mkdir -p /etc/nginx/snippets /var/cache/nginx /var/run /var/log/nginx
+
 ARG NGINX_CONF=nginx.conf
 
 # Copy built assets
@@ -44,6 +46,10 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # SPA fallback — serve index.html for all routes
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
+
+RUN chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html /etc/nginx/conf.d /etc/nginx/snippets
+
+USER nginx
 
 EXPOSE 3000
 

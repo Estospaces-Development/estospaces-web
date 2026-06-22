@@ -144,7 +144,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.OFFER_ACCEPTED:
                 return {
                     label: 'Offer Accepted',
-                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
                     dotColor: 'bg-emerald-500',
                     icon: CheckCircle,
                 };
@@ -179,7 +179,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.APPROVED:
                 return {
                     label: 'Approved',
-                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
                     dotColor: 'bg-emerald-500',
                     icon: CheckCircle,
                 };

@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import type { AnalyticsData } from '@/services/analyticsService';
 import {
@@ -65,6 +67,17 @@ test('admin analytics export filters and sorts rows before snapshotting', () => 
     );
 
     assert.deepEqual(rows.map((row) => row.property), ['Published faster', 'Published slower']);
+});
+
+test('admin analytics visible table uses the same filtered sorted rows as export', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/pages/admin/analytics/page.tsx'), 'utf8');
+
+    assert.match(source, /const analyticsTableOptions = \{[\s\S]*status: exportStatusFilter[\s\S]*sortBy: exportSortBy[\s\S]*direction: exportDirection[\s\S]*\};/);
+    assert.match(source, /const analyticsRows = buildAdminAnalyticsExportRows\(data, analyticsTableOptions\);/);
+    assert.match(source, /\) : analyticsRows\.map\(\(page, i\) =>/);
+    assert.match(source, /analyticsRows\.length === 0/);
+    assert.match(source, /No analytics rows match the current filters\./);
+    assert.doesNotMatch(source, /\(data\?\.propertyPerformance \|\| \[\]\)\.map/);
 });
 
 test('admin analytics export deduper blocks duplicate clicks during an export window', () => {

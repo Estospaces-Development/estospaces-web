@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Shield, Bell, Globe, Database, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { adminService, type SystemSettings, type PlatformStats } from '../../../services/adminService';
 import { useToast } from '../../../contexts/ToastContext';
+import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 export default function AdminSettingsPage() {
     const toast = useToast();
@@ -21,8 +22,9 @@ export default function AdminSettingsPage() {
                     adminService.getSettings(),
                     adminService.getPlatformStats(),
                 ]);
-                setSettings(settingsData);
-                setSavedSettings(settingsData);
+                const launchSettings = { ...settingsData, defaultCurrency: LAUNCH_CURRENCY_CODE };
+                setSettings(launchSettings);
+                setSavedSettings(launchSettings);
                 setStats(statsData);
             } catch (error: any) {
                 toast.error('Failed to load system settings');
@@ -156,9 +158,7 @@ export default function AdminSettingsPage() {
                                 onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
                                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
                             >
-                                <option>GBP</option>
-                                <option>EUR</option>
-                                <option>USD</option>
+                                <option>{LAUNCH_CURRENCY_CODE}</option>
                             </select>
                         </div>
                     </div>
