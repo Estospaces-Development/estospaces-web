@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getServiceUrl } from '@/lib/apiUtils';
-import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
@@ -277,6 +277,7 @@ export default function RegisterPage() {
         : '';
 
     const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
+    const loginPath = getLoginPath();
 
     const continueWithRole = async (nextRole?: string) => {
         if (requiresHostedLoginRedirect(nextRole)) {
@@ -523,7 +524,7 @@ export default function RegisterPage() {
                 </button>
 
                 <Link
-                    to="/login"
+                    to={loginPath}
                     className="w-full inline-block py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-center"
                 >
                     Back to Sign In
@@ -726,7 +727,7 @@ export default function RegisterPage() {
 
                 <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
                     Already have an account?{' '}
-                    <Link to="/login" className={`text-primary font-medium hover:underline ${authFocusClass}`}>
+                    <Link to={loginPath} className={`text-primary font-medium hover:underline ${authFocusClass}`}>
                         Sign in
                     </Link>
                 </div>

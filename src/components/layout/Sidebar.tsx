@@ -30,6 +30,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useManagerVerification } from "../../contexts/ManagerVerificationContext";
 import Avatar from "../ui/Avatar";
+import { getLoginPath } from "@/lib/authUtils";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate("/login");
+      navigate(getLoginPath());
     } catch (error) {}
   };
 

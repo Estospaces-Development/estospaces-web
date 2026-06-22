@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
@@ -74,7 +74,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Successfully logged in â€” redirect using role from response
+      // Successfully logged in - redirect using role from response
       const role = result.role || getRole();
       await continueWithRole(role);
     } catch (err: any) {
@@ -93,6 +93,7 @@ export default function LoginPage() {
   }
 
   const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
+  const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.run.app');
 
   return (
     <section className="flex flex-col items-center" aria-labelledby="login-heading">
@@ -116,7 +117,7 @@ export default function LoginPage() {
                 <button 
                     onClick={async () => {
                         await signOut();
-                        navigate('/login?switch=true');
+                        navigate(`${getLoginPath()}?switch=true`);
                     }}
                     className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
@@ -133,6 +134,12 @@ export default function LoginPage() {
             <p className="text-gray-500 dark:text-gray-300 text-sm mb-8 text-center">
                 Enter your email and password to continue
             </p>
+
+            {isCloudRunHost && (
+                <div className="mb-6 w-full rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-950 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-100">
+                    Estospaces development sign-in for authorized QA users only. Use test accounts here; public users should use the official Estospaces domain.
+                </div>
+            )}
 
             <form onSubmit={handleLogin} className="w-full">
                 {/* Email Input */}

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getLoginPath } from '@/lib/authUtils';
 
 interface AdminSidebarProps {
     isOpen?: boolean;
@@ -34,7 +35,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     const handleSignOut = async () => {
         await signOut();
-        navigate('/login', { replace: true });
+        navigate(getLoginPath(), { replace: true });
     };
 
     const getLinkPath = (path: string) => path;

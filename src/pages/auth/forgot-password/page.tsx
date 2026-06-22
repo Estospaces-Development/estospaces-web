@@ -5,6 +5,7 @@ import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
 import { normalizeRecoveryEmail, validateRecoveryEmail } from '@/lib/authRecovery';
 import AuthBrand from '@/components/auth/AuthBrand';
+import { getLoginPath } from '@/lib/authUtils';
 
 const API_URL = getServiceUrl('core');
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -15,6 +16,7 @@ export default function ForgotPasswordPage() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const submitDisabled = loading || Boolean(validateRecoveryEmail(email));
+    const loginPath = getLoginPath();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -65,7 +67,7 @@ export default function ForgotPasswordPage() {
                         We have sent a password reset link to <strong>{email}</strong>.
                     </p>
                     <Link
-                        to="/login"
+                        to={loginPath}
                         className="w-full inline-block py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all text-center"
                     >
                         Return to Sign In
@@ -114,7 +116,7 @@ export default function ForgotPasswordPage() {
                     </button>
 
                     <div className="mt-6 text-center">
-                        <Link to="/login" className={`text-primary text-sm font-medium hover:underline ${authFocusClass}`}>
+                        <Link to={loginPath} className={`text-primary text-sm font-medium hover:underline ${authFocusClass}`}>
                             Back to Sign In
                         </Link>
                     </div>

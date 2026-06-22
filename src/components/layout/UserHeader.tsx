@@ -8,6 +8,7 @@ import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
+import { getLoginPath } from '@/lib/authUtils';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -34,7 +35,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
 
         try {
             await signOut();
-            navigate('/login');
+            navigate(getLoginPath());
         } catch (error) {
             setIsSigningOut(false);
         }

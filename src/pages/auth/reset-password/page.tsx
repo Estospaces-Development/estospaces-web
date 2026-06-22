@@ -4,6 +4,7 @@ import { Eye, EyeOff, AlertCircle, CheckCircle, KeyRound } from 'lucide-react';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
+import { getLoginPath } from '@/lib/authUtils';
 
 const API_URL = getServiceUrl('core');
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -24,6 +25,7 @@ export default function ResetPasswordPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const token = searchParams.get('token');
+    const loginPath = getLoginPath();
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -97,7 +99,7 @@ export default function ResetPasswordPage() {
 
                 <button
                     type="button"
-                    onClick={() => navigate('/login')}
+                    onClick={() => navigate(loginPath)}
                     className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all"
                 >
                     Continue to Sign In
@@ -273,7 +275,7 @@ export default function ResetPasswordPage() {
 
             <p className="mt-6 text-sm text-gray-500 dark:text-gray-400 text-center">
                 Remember your password?{' '}
-                <Link to="/login" className="text-primary font-medium hover:underline">
+                <Link to={loginPath} className="text-primary font-medium hover:underline">
                     Back to Sign In
                 </Link>
             </p>

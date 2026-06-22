@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogIn, Menu, UserPlus, X } from 'lucide-react';
+import { getLoginPath } from '@/lib/authUtils';
 
 type NavLink = {
     href: string;
@@ -15,6 +16,7 @@ const logoIcon = '/logo-icon.png';
 const PublicHeader = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const pathname = useLocation().pathname;
+    const loginPath = getLoginPath();
 
     const navLinks: NavLink[] = [
         { href: '/search', label: 'Search' },
@@ -64,7 +66,7 @@ const PublicHeader = () => {
                         ),
                     )}
                     <Link
-                        to="/login"
+                        to={loginPath}
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800"
                     >
                         <LogIn size={18} />
@@ -122,7 +124,7 @@ const PublicHeader = () => {
                         )}
                         <div className="space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">
                             <Link
-                                to="/login"
+                                to={loginPath}
                                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
                                 onClick={closeMenu}
                             >

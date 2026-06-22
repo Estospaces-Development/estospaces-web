@@ -23,6 +23,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
 import { validateFullName } from '@/lib/profileValidation';
+import { getLoginPath } from '@/lib/authUtils';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function ProfilePage() {
         }
 
         if (!isAuthenticated || !currentUser) {
-            navigate('/login', { replace: true });
+            navigate(getLoginPath(), { replace: true });
             return;
         }
 

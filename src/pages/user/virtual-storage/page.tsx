@@ -15,7 +15,7 @@ import {
 
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import { useAuth, type User } from "@/contexts/AuthContext";
-import { getRedirectPath } from "@/lib/authUtils";
+import { getLoginPath, getRedirectPath } from "@/lib/authUtils";
 import { uploadDocument, type UserDocument } from "@/services/leadsService";
 import {
   createVirtualStorageCategory,
@@ -486,7 +486,7 @@ export default function UserVirtualStoragePage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      navigate("/login", { replace: true });
+      navigate(getLoginPath(), { replace: true });
     }
   }, [authLoading, isAuthenticated, navigate]);
 

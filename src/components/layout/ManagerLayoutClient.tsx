@@ -11,7 +11,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
-import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -61,7 +61,7 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={getLoginPath()} replace />;
     }
 
     if (!hasManagerAccess) {

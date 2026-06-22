@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth, type User } from '@/contexts/AuthContext';
-import { getRedirectPath } from '@/lib/authUtils';
+import { getLoginPath, getRedirectPath } from '@/lib/authUtils';
 import { UserVirtualStoragePageContent } from '@/pages/user/virtual-storage/page';
 
 interface UserDocumentsPageContentProps {
@@ -41,7 +41,7 @@ export default function UserDocsPage() {
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
-            navigate('/login', { replace: true });
+            navigate(getLoginPath(), { replace: true });
         }
     }, [authLoading, isAuthenticated, navigate]);
 

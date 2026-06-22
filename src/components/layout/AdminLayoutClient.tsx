@@ -7,7 +7,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
-import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface AdminLayoutClientProps {
     children: React.ReactNode;
@@ -56,7 +56,7 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={getLoginPath()} replace />;
     }
 
     if (user?.role !== 'admin') {

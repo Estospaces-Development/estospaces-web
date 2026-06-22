@@ -10,6 +10,7 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
 import Avatar from '../ui/Avatar';
 import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
+import { getLoginPath } from '@/lib/authUtils';
 
 interface HeaderProps {
     onMenuToggle?: () => void;
@@ -61,7 +62,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     const handleSignOut = async () => {
         try {
             await signOut();
-            navigate('/login');
+            navigate(getLoginPath());
         } catch (error) {
         }
     };

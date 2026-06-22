@@ -64,6 +64,7 @@ import {
 } from '@/lib/saleOfferEntry';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
+import { getLoginPath } from '@/lib/authUtils';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -1463,7 +1464,7 @@ const UserPropertyDetail = () => {
         }
 
         toast.error('Please sign in to continue.');
-        navigate('/login');
+        navigate(getLoginPath());
         return false;
     };
 

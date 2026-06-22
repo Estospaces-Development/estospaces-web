@@ -15,7 +15,7 @@ import { NotificationsProvider } from '../../contexts/NotificationsContext';
 import MessageInboxFab from '../../components/layout/MessageInboxFab';
 
 import { ThemeProvider } from '../../contexts/ThemeContext';
-import { getRedirectPath, isPublicUserPropertyDetailPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, getRedirectPath, isPublicUserPropertyDetailPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface UserLayoutClientProps {
     children: React.ReactNode;
@@ -47,7 +47,7 @@ export default function UserLayoutClient({ children, isSubdomain = false }: User
             return publicPropertyDetailShell;
         }
 
-        return <Navigate to="/login" replace />;
+        return <Navigate to={getLoginPath()} replace />;
     }
 
     if (user?.role !== 'user') {

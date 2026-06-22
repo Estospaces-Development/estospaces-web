@@ -24,6 +24,7 @@ import {
 } from '@/lib/propertySearchControls';
 import { buildPopularSearchTerms } from '@/lib/popularSearchChips';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import { getLoginPath } from '@/lib/authUtils';
 import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSearchValidation';
 import { buildSearchHistoryLabel, buildSearchHistoryMeta, buildSearchHistoryUrlParams } from '@/lib/searchHistory';
 import {
@@ -37,6 +38,7 @@ const PropertySearch = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { isAuthenticated } = useAuth();
+    const loginPath = getLoginPath();
     const { error: showToastError } = useToast();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
 
@@ -245,7 +247,7 @@ const PropertySearch = () => {
 
     const openSaveSearchModal = () => {
         if (!isAuthenticated) {
-            navigate(`/login?redirect=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`);
+            navigate(`${loginPath}?redirect=${encodeURIComponent(`${window.location.pathname}${window.location.search}`)}`);
             return;
         }
 
