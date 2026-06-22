@@ -37,6 +37,8 @@ RUN npm run build
 FROM nginx:alpine
 
 RUN mkdir -p /etc/nginx/snippets /var/cache/nginx /var/run /var/log/nginx
+RUN sed -i 's#pid /run/nginx.pid;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf \
+  && sed -i 's#pid /var/run/nginx.pid;#pid /tmp/nginx.pid;#' /etc/nginx/nginx.conf
 
 ARG NGINX_CONF=nginx.conf
 
