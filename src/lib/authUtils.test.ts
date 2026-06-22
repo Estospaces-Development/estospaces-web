@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
     getHostedLoginRedirectUrl,
+    getLoginPath,
     getRedirectPath,
     isPublicUserPropertyDetailPath,
     isProtectedRoutePath,
@@ -98,6 +99,12 @@ test('getHostedLoginRedirectUrl targets the correct hosted login domain', () => 
             });
         }
     }
+});
+
+test('login path avoids the Cloud Run reserved exact login route', () => {
+    assert.equal(getLoginPath('localhost'), '/login');
+    assert.equal(getLoginPath('127.0.0.1'), '/login');
+    assert.equal(getLoginPath('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/login/');
 });
 
 test('shouldAwaitSessionResolution allows cached authenticated workspaces during refresh', () => {

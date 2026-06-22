@@ -224,6 +224,11 @@ function parseOption(argv, name) {
   return "";
 }
 
+function resolveLoginPath(baseUrl) {
+  const hostname = new URL(baseUrl).hostname;
+  return hostname.endsWith(".run.app") ? "/login/" : "/login";
+}
+
 async function ensureReachable(baseUrl) {
   const response = await fetch(baseUrl, { redirect: "manual" });
   if (!response.ok && response.status !== 302) {
@@ -247,7 +252,7 @@ async function login(page, baseUrl, role) {
 
   const email = requireEnv(role.emailEnv);
   const password = requireEnv(role.passwordEnv);
-  await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}${resolveLoginPath(baseUrl)}`, { waitUntil: "domcontentloaded" });
   const emailField = page
     .locator('input[name="email"], input[type="email"], input[placeholder*="email" i]')
     .first();

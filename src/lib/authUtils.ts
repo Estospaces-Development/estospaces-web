@@ -86,6 +86,11 @@ export function getRedirectPath(role?: string): string {
     }
 }
 
+export function getLoginPath(hostname?: string): string {
+    const resolvedHostname = hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
+    return isSingleOriginHostedHost(resolvedHostname) ? '/login/' : '/login';
+}
+
 export function requiresHostedLoginRedirect(role?: string, hostname?: string): boolean {
     const resolvedRole = normalizeRole(role);
 
@@ -107,7 +112,7 @@ export function requiresHostedLoginRedirect(role?: string, hostname?: string): b
 }
 
 export function getHostedLoginRedirectUrl(role?: string): string {
-    return buildHostedWorkspaceUrl('/login', normalizeRole(role));
+    return buildHostedWorkspaceUrl(getLoginPath(), normalizeRole(role));
 }
 
 export function isPublicUserPropertyDetailPath(pathname: string): boolean {
@@ -152,7 +157,7 @@ export function resolveProtectedRedirect(
     }
 
     if (!isAuthenticated) {
-        return '/login';
+        return getLoginPath();
     }
 
     const normalizedRole = normalizeRole(role);
