@@ -25,6 +25,7 @@ const conversationList = readFileSync(resolve(root, 'src/components/dashboard/me
 const userPropertyDetailPage = readFileSync(resolve(root, 'src/pages/user/properties/[id]/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
+const globalsCss = readFileSync(resolve(root, 'src/globals.css'), 'utf8');
 
 const hasMojibake = (text: string) => {
     for (let index = 0; index < text.length; index += 1) {
@@ -188,6 +189,16 @@ test('manager add-property navigation scrolls to top and focuses first validatio
     assert.match(managerAddPropertyPage, /focusFirstErrorField/);
     assert.match(managerAddPropertyPage, /field\.focus\(\{ preventScroll: true \}\)/);
     assert.match(managerAddPropertyPage, /field\.scrollIntoView\(\{ behavior: "smooth", block: "center" \}\)/);
+});
+
+test('manager add-property area fields do not auto-fill browser minimum values', () => {
+    assert.match(managerAddPropertyPage, /fieldState\("totalArea"\)[\s\S]{0,80}type="text"[\s\S]{0,80}inputMode="decimal"/);
+    assert.match(managerAddPropertyPage, /handleNumericChange\("totalArea", e\.target\.value, 0\)/);
+    assert.match(managerAddPropertyPage, /fieldState\("carpetArea"\)[\s\S]{0,80}type="text"[\s\S]{0,80}inputMode="decimal"/);
+    assert.match(managerAddPropertyPage, /handleNumericChange\("carpetArea", e\.target\.value, 0\)/);
+    assert.doesNotMatch(managerAddPropertyPage, /fieldState\("totalArea"\)[\s\S]{0,220}min="0\.01"/);
+    assert.match(globalsCss, /input\[type="number"\]:not\(\.themed-number-input\)::\-webkit-inner-spin-button/);
+    assert.doesNotMatch(globalsCss, /\ninput\[type="number"\]::\-webkit-inner-spin-button/);
 });
 
 test('register page validates identity fields and persists safe draft data', async () => {

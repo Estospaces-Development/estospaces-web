@@ -2651,17 +2651,13 @@ export default function AddPropertyPage() {
                   </label>
                   <input
                     {...fieldState("totalArea")}
-                    type="number"
-                    value={formData.totalArea || ""}
+                    type="text"
+                    inputMode="decimal"
+                    value={getNumericDisplayValue(formData.totalArea)}
                     onChange={(e) =>
-                      handleInputChange(
-                        "totalArea",
-                        parseFloat(e.target.value) || 0,
-                      )
+                      handleNumericChange("totalArea", e.target.value, 0)
                     }
-                    min="0.01"
-                    max={PROPERTY_NUMERIC_LIMITS.areaMax}
-                    step="0.01"
+                    pattern="[0-9]*[.]?[0-9]*"
                     className={getNumberFieldClassName("totalArea", "pr-10")}
                     placeholder="0"
                   />
@@ -2677,17 +2673,13 @@ export default function AddPropertyPage() {
                   </label>
                   <input
                     {...fieldState("carpetArea")}
-                    type="number"
-                    value={formData.carpetArea || ""}
+                    type="text"
+                    inputMode="decimal"
+                    value={getNumericDisplayValue(formData.carpetArea)}
                     onChange={(e) =>
-                      handleInputChange(
-                        "carpetArea",
-                        parseFloat(e.target.value) || 0,
-                      )
+                      handleNumericChange("carpetArea", e.target.value, 0)
                     }
-                    min="0"
-                    max={PROPERTY_NUMERIC_LIMITS.areaMax}
-                    step="0.01"
+                    pattern="[0-9]*[.]?[0-9]*"
                     className={getNumberFieldClassName("carpetArea", "pr-10")}
                     placeholder="0"
                   />
