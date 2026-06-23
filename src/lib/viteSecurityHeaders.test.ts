@@ -10,6 +10,7 @@ const nginxSecurityHeadersSource = readFileSync(
   path.resolve(testDir, '../../nginx-security-headers.conf'),
   'utf8',
 );
+const gcpDevNginxSource = readFileSync(path.resolve(testDir, '../../nginx.gcp-dev.conf'), 'utf8');
 
 test('dev server sends the same release-blocking security headers as production', () => {
   assert.match(viteConfigSource, /'X-Frame-Options': 'DENY'/);
@@ -19,6 +20,7 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /geolocation=\(\)/);
   assert.match(viteConfigSource, /microphone=\(\)/);
   assert.match(viteConfigSource, /frame-ancestors 'none'/);
+  assert.doesNotMatch(viteConfigSource, /unsafe-eval/);
   assert.match(viteConfigSource, /img-src 'self' data: blob: https: http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/);
   assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/js\.stripe\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
@@ -31,4 +33,11 @@ test('production security headers allow blob backed document previews', () => {
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);
+});
+
+test('gcp dev exact login route redirects away from the suspended Cloud Run auth URL', () => {
+  assert.match(gcpDevNginxSource, /location = \/login \{/);
+  assert.match(gcpDevNginxSource, /return 308 \/login\//);
+  assert.match(gcpDevNginxSource, /add_header X-Robots-Tag "noindex, nofollow, noarchive" always;/);
+  assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
 });
