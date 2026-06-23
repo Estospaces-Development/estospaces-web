@@ -17,6 +17,7 @@ import {
     ShieldCheck,
     Star,
     Upload,
+    X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -385,6 +386,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
+    const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
     const [threadMessages, setThreadMessages] = useState<Message[]>([]);
     const [threadDraft, setThreadDraft] = useState('');
@@ -1323,10 +1325,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         options?: {
             openInNewTab?: boolean;
             revealInViewport?: boolean;
+            openInModal?: boolean;
         },
     ) => {
         const openInNewTab = options?.openInNewTab === true;
         const revealInViewport = options?.revealInViewport === true;
+        const openInModal = options?.openInModal === true;
+        if (openInModal) {
+            setPreviewModalOpen(true);
+        }
         if (!item.documentRecordId && !item.fileUrl) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
@@ -1417,7 +1424,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [handleDocumentFocus, releasePreviewObjectUrl, revealPreviewSection, role]);
 
     const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { revealInViewport: true });
+        await ensureDocumentPreview(item, { openInModal: true });
     }, [ensureDocumentPreview]);
 
     const handleRailDownload = useCallback(async (item: FastTrackDocumentItem) => {
@@ -2113,7 +2120,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     <div className="flex flex-wrap gap-2">
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { revealInViewport: true })}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true })}
                                             busy={previewBusyItemId === item.id}
                                             disabled={!canPreview}
                                             ariaLabel={`Preview ${item.label}`}
@@ -3266,6 +3273,37 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     )}
                 </div>
             </div>
+
+            {previewModalOpen ? (
+                <div
+                    className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={previewItem ? `Preview ${previewItem.label}` : 'Document preview'}
+                >
+                    <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:text-orange-300">Document preview</p>
+                                <h2 className="mt-1 truncate text-lg font-semibold text-gray-900 dark:text-white">
+                                    {previewItem?.label || 'Preview'}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPreviewModalOpen(false)}
+                                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition hover:border-orange-300 hover:text-orange-700 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Close document preview"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="max-h-[calc(100vh-11rem)] overflow-y-auto px-5 py-5">
+                            {renderDocumentPreview()}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <FastTrackWorkspaceCustomizationDrawer
                 role={role}

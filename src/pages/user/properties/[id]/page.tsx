@@ -1861,6 +1861,21 @@ const UserPropertyDetail = () => {
                 throw new Error(result.error || 'Unable to submit the rental application.');
             }
 
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                ],
+                reason: 'User submitted rental application from property detail',
+                ids: {
+                    applicationId: result.data.id,
+                    propertyId: property.id,
+                    leadId: activeLead?.id || activeFastTrackCase?.leadId,
+                    caseId: activeFastTrackCase?.id,
+                },
+            });
             toast.success('Rental application submitted.');
             navigate('/user/dashboard/applications');
         } catch (actionError: any) {
@@ -1893,7 +1908,7 @@ const UserPropertyDetail = () => {
 
         setIsSchedulingViewing(true);
         try {
-            await bookingsService.createViewing({
+            const viewing = await bookingsService.createViewing({
                 property_id: property.id,
                 manager_id: managerId,
                 lead_id: activeLead?.id || activeFastTrackCase?.leadId,
@@ -1915,6 +1930,23 @@ const UserPropertyDetail = () => {
                 user_notes: viewingForm.user_notes,
             });
 
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [
+                    WORKSPACE_SYNC_TAGS.VIEWINGS,
+                    WORKSPACE_SYNC_TAGS.APPLICATIONS,
+                    WORKSPACE_SYNC_TAGS.FAST_TRACK,
+                    WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+                ],
+                reason: 'User requested viewing from property detail',
+                ids: {
+                    viewingId: viewing.id,
+                    applicationId: viewing.application_id,
+                    propertyId: property.id,
+                    leadId: activeLead?.id || activeFastTrackCase?.leadId,
+                    caseId: activeFastTrackCase?.id,
+                },
+            });
             toast.success('Viewing request sent successfully.');
             navigate('/user/dashboard/viewings');
         } catch (actionError: any) {

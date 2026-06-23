@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as messagesService from '@/services/messagesService';
 import { useAuth } from './AuthContext';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
@@ -200,6 +200,36 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const [isLoading, setIsLoading] = useState(false);
     const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
     const [conversationThreadIssue, setConversationThreadIssue] = useState<ConversationThreadIssue | null>(null);
+    const locallyReadConversationMarkersRef = useRef<Record<string, string>>({});
+
+    const getConversationReadMarker = useCallback((conversation: {
+        id?: string;
+        updated_at?: string;
+        last_message?: messagesService.Message | null;
+    }) => (
+        conversation.updated_at ||
+        conversation.last_message?.created_at ||
+        conversation.last_message?.id ||
+        ''
+    ), []);
+
+    const markConversationReadLocally = useCallback((conversationId: string) => {
+        setConversations((previous) =>
+            previous.map((conversation) => {
+                if (conversation.id !== conversationId) {
+                    return conversation;
+                }
+
+                const lastMessage = conversation.messages[conversation.messages.length - 1];
+                locallyReadConversationMarkersRef.current[conversationId] = lastMessage?.id || conversation.lastActivity || '';
+                return {
+                    ...conversation,
+                    unreadCount: 0,
+                    messages: conversation.messages.map((message) => ({ ...message, read: true })),
+                };
+            }),
+        );
+    }, []);
 
     const mapBackendMessage = useCallback((message: messagesService.Message): Message => {
         const isMine = message.sender_id === user?.id;
@@ -261,13 +291,25 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             lastActivity: backendConversation.updated_at,
             lastMessage: lastMessage?.text || '',
             lastMessageTime: formatMessageTime(lastMessage?.timestamp || backendConversation.updated_at),
-            unreadCount: Number(backendConversation.unread_count ?? existingConversation?.unreadCount ?? 0),
+            unreadCount: (() => {
+                const backendUnreadCount = Number(backendConversation.unread_count ?? existingConversation?.unreadCount ?? 0);
+                const readMarker = getConversationReadMarker(backendConversation);
+                const locallyReadMarker = locallyReadConversationMarkersRef.current[backendConversation.id];
+                const selectedInThisClient = backendConversation.id === selectedConversationIdState;
+                if (selectedInThisClient && readMarker) {
+                    locallyReadConversationMarkersRef.current[backendConversation.id] = readMarker;
+                }
+                if (selectedInThisClient || (locallyReadMarker && locallyReadMarker === readMarker)) {
+                    return 0;
+                }
+                return Number.isFinite(backendUnreadCount) ? backendUnreadCount : 0;
+            })(),
             messages: existingConversation?.messages || [],
             messagesPage: existingConversation?.messagesPage || 0,
             hasOlderMessages: existingConversation?.hasOlderMessages || false,
             isLoadingOlderMessages: existingConversation?.isLoadingOlderMessages || false,
         };
-    }, [mapBackendMessage]);
+    }, [getConversationReadMarker, mapBackendMessage, selectedConversationIdState]);
 
     const ensureConversationShell = useCallback((conversationId: string) => {
         setConversations((previous) => {
@@ -526,22 +568,12 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
             }
         })();
 
-        setConversations((previous) =>
-            previous.map((conversation) =>
-                conversation.id === selectedConversationIdState
-                    ? {
-                        ...conversation,
-                        unreadCount: 0,
-                        messages: conversation.messages.map((message) => ({ ...message, read: true })),
-                    }
-                    : conversation,
-            ),
-        );
+        markConversationReadLocally(selectedConversationIdState);
 
         return () => {
             isActive = false;
         };
-    }, [handleUnavailableConversationThread, loadConversationMessages, selectedConversationIdState]);
+    }, [handleUnavailableConversationThread, loadConversationMessages, markConversationReadLocally, selectedConversationIdState]);
 
     useEffect(() => {
         if (!selectedConversationIdState) {
@@ -702,21 +734,11 @@ export const MessagesProvider = ({ children }: { children: React.ReactNode }) =>
     const markAsRead = useCallback(async (conversationId: string) => {
         try {
             await messagesService.markAsRead(conversationId);
-            setConversations((previous) =>
-                previous.map((conversation) =>
-                    conversation.id === conversationId
-                        ? {
-                            ...conversation,
-                            unreadCount: 0,
-                            messages: conversation.messages.map((message) => ({ ...message, read: true })),
-                        }
-                        : conversation,
-                ),
-            );
+            markConversationReadLocally(conversationId);
         } catch {
             // Leave the current state unchanged if the API call fails.
         }
-    }, []);
+    }, [markConversationReadLocally]);
 
     const archiveConversation = useCallback(async (conversationId: string) => {
         try {

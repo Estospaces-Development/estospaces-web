@@ -327,6 +327,8 @@ export default function ManagerLeadsPage() {
                 getLeadAddress(lead),
                 getLeadClientName(lead),
                 getLeadClientContact(lead),
+                lead.user_id,
+                lead.broker_request_id,
                 lead.status,
                 resolveLeadStage(lead),
             ]
@@ -801,7 +803,7 @@ export default function ManagerLeadsPage() {
                     <input
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder="Search by lead number, client, property, or email"
+                        placeholder="Search by user name, lead number, property, or email"
                         className={`w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none transition-colors focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white lg:max-w-md ${managerLeadFocusClass}`}
                     />
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
