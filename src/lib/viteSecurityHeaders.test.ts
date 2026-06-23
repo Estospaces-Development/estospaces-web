@@ -40,4 +40,5 @@ test('gcp dev exact login route redirects away from the suspended Cloud Run auth
   assert.match(gcpDevNginxSource, /return 308 \/login\//);
   assert.match(gcpDevNginxSource, /add_header X-Robots-Tag "noindex, nofollow, noarchive" always;/);
   assert.match(gcpDevNginxSource, /add_header Cache-Control "no-store, no-cache, must-revalidate" always;/);
+  assert.match(gcpDevNginxSource, /try_files \/index\.html =404;/);
 });
