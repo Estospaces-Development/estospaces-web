@@ -12,6 +12,20 @@ const FALLBACK_LOAD_ERROR = "Unable to load fast-track cases.";
 const asList = <T>(value: T[] | null | undefined): T[] =>
   Array.isArray(value) ? value : [];
 
+const normalizeIdentityValue = (value: string | number | null | undefined) =>
+  String(value || "").trim().toLowerCase();
+
+const buildCompoundIdentity = (
+  prefix: string,
+  values: Array<string | number | null | undefined>,
+) => {
+  const normalizedValues = values.map(normalizeIdentityValue);
+  if (normalizedValues.some((value) => !value)) {
+    return "";
+  }
+  return `${prefix}:${normalizedValues.join("|")}`;
+};
+
 const getLoadErrorMessage = (error: unknown) => (
   error instanceof Error && error.message
     ? `${FALLBACK_LOAD_ERROR} ${error.message}`
@@ -32,6 +46,56 @@ export const sortFastTrackWorkspaceCases = (cases: FastTrackCase[]) => [...cases
   }
   return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
 });
+
+const getFastTrackCaseIdentityKeys = (fastTrackCase: FastTrackCase) => {
+  const status = normalizeIdentityValue(fastTrackCase.workspaceFinalStatus);
+  const strongKeys = [
+    ["case", fastTrackCase.caseId],
+    ["application", fastTrackCase.applicationId],
+    ["viewing", fastTrackCase.viewingId],
+    ["contract", fastTrackCase.contractId],
+    ["payment", fastTrackCase.paymentId],
+    ["lead", fastTrackCase.leadId],
+  ].map(([prefix, value]) => (
+    value ? `${prefix}:${normalizeIdentityValue(value)}` : ""
+  ));
+
+  return [
+    ...strongKeys,
+    buildCompoundIdentity("broker-property-client-status", [
+      fastTrackCase.brokerRequestId,
+      fastTrackCase.propertyId,
+      fastTrackCase.clientId,
+      fastTrackCase.journeyMode,
+      status,
+    ]),
+    buildCompoundIdentity("direct-property-client-status", [
+      fastTrackCase.startedFrom,
+      fastTrackCase.propertyId,
+      fastTrackCase.clientId,
+      fastTrackCase.journeyMode,
+      status,
+    ]),
+  ].filter(Boolean);
+};
+
+export const dedupeFastTrackWorkspaceCases = (cases: FastTrackCase[]) => {
+  const seenCaseByIdentity = new Map<string, FastTrackCase>();
+  const dedupedCases: FastTrackCase[] = [];
+
+  for (const fastTrackCase of sortFastTrackWorkspaceCases(cases)) {
+    const identityKeys = getFastTrackCaseIdentityKeys(fastTrackCase);
+    const duplicate = identityKeys.some((key) => seenCaseByIdentity.has(key));
+    if (duplicate) {
+      continue;
+    }
+
+    dedupedCases.push(fastTrackCase);
+    identityKeys.forEach((key) => seenCaseByIdentity.set(key, fastTrackCase));
+  }
+
+  return dedupedCases;
+};
 
 export const buildFastTrackCasesSignature = (cases: FastTrackCase[]) => JSON.stringify(
   cases.map((item) => ({
@@ -97,7 +161,7 @@ export const loadFastTrackWorkspaceCases = async (
       };
     }
 
-    const nextCases = sortFastTrackWorkspaceCases(asList(result.data));
+    const nextCases = dedupeFastTrackWorkspaceCases(asList(result.data));
     const nextSignature = buildFastTrackCasesSignature(nextCases);
     return {
       cases: nextCases,

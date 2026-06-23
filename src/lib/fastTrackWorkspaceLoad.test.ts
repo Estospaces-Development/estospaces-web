@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildFastTrackCasesSignature,
+  dedupeFastTrackWorkspaceCases,
   loadFastTrackWorkspaceCases,
   sortFastTrackWorkspaceCases,
 } from "./fastTrackWorkspaceLoad";
@@ -103,4 +104,66 @@ test("loadFastTrackWorkspaceCases preserves service errors", async () => {
   assert.equal(result.cases, null);
   assert.equal(result.signature, "previous");
   assert.equal(result.error, "booking unavailable");
+});
+
+test("dedupeFastTrackWorkspaceCases collapses repeated 24-hour journey records", () => {
+  const deduped = dedupeFastTrackWorkspaceCases([
+    fastTrackCase({
+      caseId: "case-older",
+      applicationId: "application-1",
+      hoursRemaining: 18,
+      submittedAt: "2026-05-05T20:01:00Z",
+    }),
+    fastTrackCase({
+      caseId: "case-newer",
+      applicationId: "application-1",
+      hoursRemaining: 6,
+      submittedAt: "2026-05-05T20:03:00Z",
+    }),
+    fastTrackCase({
+      caseId: "case-broker-duplicate-a",
+      applicationId: undefined,
+      brokerRequestId: "broker-request-1",
+      propertyId: "property-1",
+      clientId: "client-1",
+      journeyMode: "rent",
+    }),
+    fastTrackCase({
+      caseId: "case-broker-duplicate-b",
+      applicationId: undefined,
+      brokerRequestId: "broker-request-1",
+      propertyId: "property-1",
+      clientId: "client-1",
+      journeyMode: "rent",
+    }),
+    fastTrackCase({
+      caseId: "case-distinct",
+      applicationId: undefined,
+      brokerRequestId: "broker-request-2",
+      propertyId: "property-2",
+      clientId: "client-1",
+      journeyMode: "rent",
+    }),
+  ]);
+
+  assert.deepEqual(
+    deduped.map((item) => item.caseId),
+    ["case-newer", "case-broker-duplicate-a", "case-distinct"],
+  );
+});
+
+test("loadFastTrackWorkspaceCases does not surface repeated journey cards", async () => {
+  const result = await loadFastTrackWorkspaceCases(
+    async () => ({
+      data: [
+        fastTrackCase({ caseId: "case-1", applicationId: "application-1" }),
+        fastTrackCase({ caseId: "case-1", applicationId: "application-1" }),
+      ],
+      error: null,
+    }),
+    "",
+  );
+
+  assert.equal(result.error, null);
+  assert.deepEqual(result.cases?.map((item) => item.caseId), ["case-1"]);
 });
