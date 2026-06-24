@@ -278,6 +278,25 @@ test('user handover stays actionable after manager completion until receipt is c
     assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'manager'), 'Case finished');
 });
 
+test('fast-track document preview opens a modal for selected and uploaded files', () => {
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const canPreview = Boolean\(selectedFile \|\| item\.documentRecordId \|\| item\.fileUrl\)/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /if \(selectedFile\) \{/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /setPreviewItemId\(uploadedItem\.id\);\s*setPreviewModalOpen\(true\);/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /window\.requestAnimationFrame\(\(\) => revealPreviewSection\(\)\)/,
+    );
+});
+
 test('fast-track cancel case uses an in-app confirmation dialog', () => {
     assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.confirm/);
     assert.match(fastTrackWorkspaceComponent, /aria-label="Cancel fast-track case confirmation"/);

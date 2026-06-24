@@ -1067,11 +1067,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (uploadedItem) {
             handleDocumentFocus(uploadedItem.id);
             setPreviewItemId(uploadedItem.id);
-            setActiveUtilityModule('preview');
-            if (role === 'user') {
-                setUserDetailsOpen(true);
-            }
-            window.requestAnimationFrame(() => revealPreviewSection());
+            setPreviewModalOpen(true);
         }
         publishWorkspaceSync({
             source: 'mutation',
@@ -1332,12 +1328,34 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const openInNewTab = options?.openInNewTab === true;
         const revealInViewport = options?.revealInViewport === true;
         const openInModal = options?.openInModal === true;
+        const selectedFile = selectedFiles[item.id] || null;
         if (openInModal) {
             setPreviewModalOpen(true);
         }
+        setPreviewItemId(item.id);
+        if (selectedFile) {
+            releasePreviewObjectUrl();
+            const nextUrl = URL.createObjectURL(selectedFile);
+            previewObjectUrlRef.current = nextUrl;
+            setPreviewBusyItemId(null);
+            setPreviewError(null);
+            setPreviewUrl(nextUrl);
+            if (openInNewTab) {
+                window.open(nextUrl, '_blank', 'noopener,noreferrer');
+            }
+            if (revealInViewport) {
+                if (role === 'user') {
+                    setUserDetailsOpen(true);
+                }
+                revealPreviewSection();
+            }
+            return nextUrl;
+        }
+
         if (!item.documentRecordId && !item.fileUrl) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
+            setPreviewBusyItemId(null);
             if (revealInViewport) {
                 if (role === 'user') {
                     setUserDetailsOpen(true);
@@ -1349,80 +1367,83 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         setPreviewBusyItemId(item.id);
         handleDocumentFocus(item.id);
-        setPreviewItemId(item.id);
         setPreviewError(null);
 
         const previewKind = detectDocumentPreviewKind(item);
         let nextUrl = item.fileUrl || null;
         let nextAccessUrl = item.fileUrl || null;
-        if (item.documentRecordId) {
-            if (!openInNewTab && (previewKind === 'image' || previewKind === 'pdf')) {
-                const access = await getDocumentAccessBlob(item.documentRecordId);
-                if (access.error || !access.url || !access.blob) {
-                    setPreviewBusyItemId(null);
-                    setPreviewUrl(null);
-                    setPreviewError(access.error || 'Preview is unavailable for this document.');
-                    if (revealInViewport) {
-                        if (role === 'user') {
-                            setUserDetailsOpen(true);
+        try {
+            if (item.documentRecordId) {
+                if (!openInNewTab && (previewKind === 'image' || previewKind === 'pdf')) {
+                    const access = await getDocumentAccessBlob(item.documentRecordId);
+                    if (access.error || !access.url || !access.blob) {
+                        setPreviewUrl(null);
+                        setPreviewError(access.error || 'Preview is unavailable for this document.');
+                        if (revealInViewport) {
+                            if (role === 'user') {
+                                setUserDetailsOpen(true);
+                            }
+                            revealPreviewSection();
                         }
-                        revealPreviewSection();
+                        return null;
                     }
-                    return null;
+                    releasePreviewObjectUrl();
+                    nextUrl = URL.createObjectURL(access.blob);
+                    previewObjectUrlRef.current = nextUrl;
+                } else {
+                    const access = await getDocumentAccessUrl(item.documentRecordId);
+                    if (access.error || !access.url) {
+                        setPreviewUrl(null);
+                        setPreviewError(access.error || 'Preview is unavailable for this document.');
+                        if (revealInViewport) {
+                            if (role === 'user') {
+                                setUserDetailsOpen(true);
+                            }
+                            revealPreviewSection();
+                        }
+                        return null;
+                    }
+                    releasePreviewObjectUrl();
+                    nextUrl = access.url;
+                    nextAccessUrl = access.url;
                 }
-                releasePreviewObjectUrl();
-                nextUrl = URL.createObjectURL(access.blob);
-                previewObjectUrlRef.current = nextUrl;
             } else {
-                const access = await getDocumentAccessUrl(item.documentRecordId);
-                if (access.error || !access.url) {
-                    setPreviewBusyItemId(null);
-                    setPreviewUrl(null);
-                    setPreviewError(access.error || 'Preview is unavailable for this document.');
-                    if (revealInViewport) {
-                        if (role === 'user') {
-                            setUserDetailsOpen(true);
-                        }
-                        revealPreviewSection();
-                    }
-                    return null;
-                }
                 releasePreviewObjectUrl();
-                nextUrl = access.url;
-                nextAccessUrl = access.url;
             }
-        } else {
-            releasePreviewObjectUrl();
-        }
 
-        if (!nextUrl) {
-            setPreviewBusyItemId(null);
-            setPreviewUrl(null);
-            setPreviewError('Preview is unavailable for this document.');
+            if (!nextUrl) {
+                setPreviewUrl(null);
+                setPreviewError('Preview is unavailable for this document.');
+                if (revealInViewport) {
+                    if (role === 'user') {
+                        setUserDetailsOpen(true);
+                    }
+                    revealPreviewSection();
+                }
+                return null;
+            }
+
+            setPreviewUrl(nextUrl);
+            setPreviewError(null);
             if (revealInViewport) {
                 if (role === 'user') {
                     setUserDetailsOpen(true);
                 }
                 revealPreviewSection();
             }
-            return null;
-        }
 
-        setPreviewBusyItemId(null);
-        setPreviewUrl(nextUrl);
-        setPreviewError(null);
-        if (revealInViewport) {
-            if (role === 'user') {
-                setUserDetailsOpen(true);
+            if (openInNewTab && nextAccessUrl) {
+                window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
             }
-            revealPreviewSection();
+            return nextUrl;
+        } catch (error: any) {
+            setPreviewUrl(null);
+            setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            return null;
+        } finally {
+            setPreviewBusyItemId(null);
         }
-
-        if (openInNewTab && nextAccessUrl) {
-            window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
-        }
-        return nextUrl;
-    }, [handleDocumentFocus, releasePreviewObjectUrl, revealPreviewSection, role]);
+    }, [handleDocumentFocus, releasePreviewObjectUrl, revealPreviewSection, role, selectedFiles]);
 
     const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
         await ensureDocumentPreview(item, { openInModal: true });
@@ -1445,14 +1466,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewError(null);
             return;
         }
-        if (!previewItem.documentRecordId && !previewItem.fileUrl) {
+        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
+        if (!selectedPreviewFile && !previewItem.documentRecordId && !previewItem.fileUrl) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError('Choose a document to preview once a file has been attached.');
             return;
         }
         void ensureDocumentPreview(previewItem);
-    }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl]);
+    }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl, selectedFiles]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1567,7 +1589,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             );
         }
 
-        const previewKind = detectDocumentPreviewKind(previewItem);
+        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
+        const previewDisplayItem: FastTrackDocumentItem = selectedPreviewFile
+            ? {
+                ...previewItem,
+                fileName: selectedPreviewFile.name,
+                mimeType: selectedPreviewFile.type || previewItem.mimeType,
+            }
+            : previewItem;
+        const previewKind = detectDocumentPreviewKind(previewDisplayItem);
+        const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
 
         return (
             <div className="space-y-4">
@@ -1576,11 +1607,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <div>
                             <p className="text-base font-semibold text-gray-900 dark:text-white">{previewItem.label}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                {previewItem.fileName || 'No file attached yet'}
+                                {previewDisplayItem.fileName || 'No file attached yet'}
                             </p>
                         </div>
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(previewItem.status)}`}>
-                            {formatDocumentStatus(previewItem.status)}
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(previewDisplayItem.status)}`}>
+                            {formatDocumentStatus(previewDisplayItem.status)}
                         </span>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -1588,7 +1619,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             tone="secondary"
                             onClick={() => void ensureDocumentPreview(previewItem, { revealInViewport: true })}
                             busy={previewBusyItemId === previewItem.id}
-                            disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
+                            disabled={!previewAvailable}
                         >
                             <Eye size={16} />
                             Preview
@@ -1597,7 +1628,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             tone="secondary"
                             onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
                             busy={previewBusyItemId === previewItem.id}
-                            disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
+                            disabled={!previewAvailable}
                         >
                             <Download size={16} />
                             Download
@@ -1613,20 +1644,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 {!previewUrl ? (
                     <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-                        Upload a file to preview it here.
+                        Choose or upload a file to preview it here.
                     </div>
                 ) : previewKind === 'image' ? (
                     <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
                         <img
                             src={previewUrl}
-                            alt={previewItem.fileName || previewItem.label}
+                            alt={previewDisplayItem.fileName || previewDisplayItem.label}
                             className="max-h-[420px] w-full object-contain"
                         />
                     </div>
                 ) : previewKind === 'pdf' ? (
                     <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
                         <iframe
-                            title={previewItem.fileName || previewItem.label}
+                            title={previewDisplayItem.fileName || previewDisplayItem.label}
                             src={previewUrl}
                             className="h-[420px] w-full"
                         />
@@ -1644,10 +1675,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                                Type: {previewItem.mimeType || 'Unknown'}
+                                Type: {previewDisplayItem.mimeType || 'Unknown'}
                             </div>
                             <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                                Uploaded: {formatDateTime(previewItem.uploadedAt)}
+                                {selectedPreviewFile ? 'Ready to upload' : `Uploaded: ${formatDateTime(previewDisplayItem.uploadedAt)}`}
                             </div>
                         </div>
                     </div>
@@ -2030,12 +2061,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     {selectedCase.documents.items.map((item, itemIndex) => {
                         const canUpload = role === 'user';
                         const busyKey = `upload-${item.id}`;
-                        const canPreview = Boolean(item.documentRecordId || item.fileUrl);
+                        const selectedFile = selectedFiles[item.id] || null;
+                        const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
                         const uploadCopy = getFastTrackDocumentUploadCopy({
                             status: item.status,
-                            hasAttachedFile: canPreview,
+                            hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
                         });
-                        const selectedFile = selectedFiles[item.id] || null;
                         const focused = focusedDocumentItem?.id === item.id;
                         const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
                         return (
