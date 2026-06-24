@@ -291,6 +291,18 @@ test('fast-track document preview opens a modal for selected and uploaded files'
         fastTrackWorkspaceComponent,
         /setPreviewItemId\(uploadedItem\.id\);\s*setPreviewModalOpen\(true\);/,
     );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /onClick=\{\(\) => void ensureDocumentPreview\(previewItem, \{ openInModal: true \}\)\}/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /aria-label="Zoom out document preview"/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /aria-label="Zoom in document preview"/,
+    );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
         /window\.requestAnimationFrame\(\(\) => revealPreviewSection\(\)\)/,

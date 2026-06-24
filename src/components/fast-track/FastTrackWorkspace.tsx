@@ -18,6 +18,8 @@ import {
     Star,
     Upload,
     X,
+    ZoomIn,
+    ZoomOut,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -388,6 +390,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [previewZoom, setPreviewZoom] = useState(1);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
     const [threadMessages, setThreadMessages] = useState<Message[]>([]);
     const [threadDraft, setThreadDraft] = useState('');
@@ -1453,6 +1456,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         await ensureDocumentPreview(item, { openInNewTab: true });
     }, [ensureDocumentPreview]);
 
+    const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
+        setPreviewZoom((previous) => {
+            if (direction === 'reset') {
+                return 1;
+            }
+
+            const nextZoom = direction === 'in'
+                ? previous + 0.25
+                : previous - 0.25;
+            return Math.min(2.5, Math.max(0.5, Number(nextZoom.toFixed(2))));
+        });
+    }, []);
+
     useEffect(() => {
         return () => {
             releasePreviewObjectUrl();
@@ -1464,6 +1480,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError(null);
+            setPreviewZoom(1);
             return;
         }
         const selectedPreviewFile = selectedFiles[previewItem.id] || null;
@@ -1475,6 +1492,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
         void ensureDocumentPreview(previewItem);
     }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl, selectedFiles]);
+
+    useEffect(() => {
+        if (previewModalOpen) {
+            setPreviewZoom(1);
+        }
+    }, [previewItemId, previewModalOpen]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1617,7 +1640,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div className="mt-4 flex flex-wrap gap-3">
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, { revealInViewport: true })}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInModal: true })}
                             busy={previewBusyItemId === previewItem.id}
                             disabled={!previewAvailable}
                         >
@@ -1647,19 +1670,21 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         Choose or upload a file to preview it here.
                     </div>
                 ) : previewKind === 'image' ? (
-                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
+                    <div className="max-h-[520px] overflow-auto rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
                         <img
                             src={previewUrl}
                             alt={previewDisplayItem.fileName || previewDisplayItem.label}
-                            className="max-h-[420px] w-full object-contain"
+                            className="mx-auto max-w-none object-contain transition-[width] duration-150"
+                            style={{ width: `${previewZoom * 100}%` }}
                         />
                     </div>
                 ) : previewKind === 'pdf' ? (
-                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
+                    <div className="max-h-[520px] overflow-auto rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
                         <iframe
                             title={previewDisplayItem.fileName || previewDisplayItem.label}
                             src={previewUrl}
-                            className="h-[420px] w-full"
+                            className="h-[520px] min-w-full transition-[width] duration-150"
+                            style={{ width: `${previewZoom * 100}%` }}
                         />
                     </div>
                 ) : (
@@ -1780,7 +1805,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             );
         }
 
-        const canPreview = Boolean(activeDocument.documentRecordId || activeDocument.fileUrl);
+        const activeSelectedFile = selectedFiles[activeDocument.id] || null;
+        const canPreview = Boolean(activeSelectedFile || activeDocument.documentRecordId || activeDocument.fileUrl);
         const helperNote = activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '';
         const coreFileKeyFor = createDuplicateSafeKeyResolver('fast-track-core-file');
 
@@ -3330,7 +3356,38 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <X size={18} />
                             </button>
                         </div>
-                        <div className="max-h-[calc(100vh-11rem)] overflow-y-auto px-5 py-5">
+                        <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                Zoom
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => updatePreviewZoom('out')}
+                                disabled={previewZoom <= 0.5}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:border-orange-300 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Zoom out document preview"
+                            >
+                                <ZoomOut size={16} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => updatePreviewZoom('reset')}
+                                className="min-w-[4rem] rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-700 dark:border-gray-800 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Reset document preview zoom"
+                            >
+                                {Math.round(previewZoom * 100)}%
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => updatePreviewZoom('in')}
+                                disabled={previewZoom >= 2.5}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:border-orange-300 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Zoom in document preview"
+                            >
+                                <ZoomIn size={16} />
+                            </button>
+                        </div>
+                        <div className="max-h-[calc(100vh-14.5rem)] overflow-y-auto px-5 py-5">
                             {renderDocumentPreview()}
                         </div>
                     </div>
