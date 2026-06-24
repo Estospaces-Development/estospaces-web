@@ -87,8 +87,18 @@ export function getRedirectPath(role?: string): string {
 }
 
 export function getLoginPath(hostname?: string): string {
+    return getAuthPath('/login', hostname);
+}
+
+export function getAuthPath(pathname: string, hostname?: string): string {
+    const normalizedPath = normalizePathname(pathname);
     const resolvedHostname = hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
-    return isSingleOriginHostedHost(resolvedHostname) ? '/login/' : '/login';
+
+    if (AUTH_ROUTE_PATHS.has(normalizedPath) && isSingleOriginHostedHost(resolvedHostname)) {
+        return `${normalizedPath}/`;
+    }
+
+    return normalizedPath;
 }
 
 export function requiresHostedLoginRedirect(role?: string, hostname?: string): boolean {

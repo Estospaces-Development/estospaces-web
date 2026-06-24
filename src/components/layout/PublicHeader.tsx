@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogIn, Menu, UserPlus, X } from 'lucide-react';
-import { getLoginPath } from '@/lib/authUtils';
+import { getAuthPath, getLoginPath } from '@/lib/authUtils';
 
 type NavLink = {
     href: string;
@@ -17,6 +17,7 @@ const PublicHeader = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const pathname = useLocation().pathname;
     const loginPath = getLoginPath();
+    const registerPath = getAuthPath('/register');
 
     const navLinks: NavLink[] = [
         { href: '/search', label: 'Search' },
@@ -73,7 +74,7 @@ const PublicHeader = () => {
                         Sign In
                     </Link>
                     <Link
-                        to="/register"
+                        to={registerPath}
                         className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-950/10 transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
                         <UserPlus size={18} />
@@ -132,7 +133,7 @@ const PublicHeader = () => {
                                 Sign In
                             </Link>
                             <Link
-                                to="/register"
+                                to={registerPath}
                                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-orange-950/10 transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                                 onClick={closeMenu}
                             >

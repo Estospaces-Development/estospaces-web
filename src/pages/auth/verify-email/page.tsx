@@ -4,7 +4,7 @@ import { CheckCircle, XCircle, Loader, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
-import { getLoginPath } from '@/lib/authUtils';
+import { getAuthPath, getLoginPath } from '@/lib/authUtils';
 
 const API_URL = getServiceUrl('core');
 
@@ -13,6 +13,7 @@ export default function VerifyEmailPage() {
     const token = searchParams.get('token');
     const resendCooldownTimerRef = useRef<number | null>(null);
     const loginPath = getLoginPath();
+    const registerPath = getAuthPath('/register');
 
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('');
@@ -163,7 +164,7 @@ export default function VerifyEmailPage() {
 
                     <div className="flex flex-col gap-3 w-full">
                         <Link
-                            to="/register"
+                            to={registerPath}
                             className="w-full inline-block py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-center"
                         >
                             Register Again

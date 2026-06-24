@@ -4,7 +4,7 @@ import { Eye, EyeOff, AlertCircle, CheckCircle, KeyRound } from 'lucide-react';
 import axios from 'axios';
 import { getServiceUrl } from '@/lib/apiUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
-import { getLoginPath } from '@/lib/authUtils';
+import { getAuthPath, getLoginPath } from '@/lib/authUtils';
 
 const API_URL = getServiceUrl('core');
 const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
@@ -26,6 +26,7 @@ export default function ResetPasswordPage() {
     const navigate = useNavigate();
     const token = searchParams.get('token');
     const loginPath = getLoginPath();
+    const forgotPasswordPath = getAuthPath('/forgot-password');
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -127,7 +128,7 @@ export default function ResetPasswordPage() {
                 </p>
 
                 <Link
-                    to="/forgot-password"
+                    to={forgotPasswordPath}
                     className={`w-full inline-block py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all text-center ${authFocusClass}`}
                 >
                     Request New Reset Link
@@ -162,7 +163,7 @@ export default function ResetPasswordPage() {
                         <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
                         {(error.includes('expired') || error.includes('used')) && (
                             <Link
-                                to="/forgot-password"
+                                to={forgotPasswordPath}
                                 className="text-red-700 dark:text-red-300 text-sm font-medium hover:underline mt-2 inline-block"
                             >
                                 Request a new link →

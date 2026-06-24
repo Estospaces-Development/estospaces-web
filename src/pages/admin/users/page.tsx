@@ -20,6 +20,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { buildCsvContent } from '@/lib/csvExport';
 import PaginationBar from '@/components/ui/PaginationBar';
 import Avatar from '@/components/ui/Avatar';
+import { getAuthPath } from '@/lib/authUtils';
 
 export type AdminUsersSortOption = 'newest' | 'oldest' | 'name_asc' | 'email_asc' | 'status';
 export type AdminLeadSortOption = 'newest' | 'oldest' | 'lead_number' | 'status';
@@ -65,7 +66,7 @@ export function getAdminUsersPageSubtitle(): string {
 }
 
 export function getAdminAddUserPath(): string {
-    return '/register?switch=true';
+    return `${getAuthPath('/register')}?switch=true`;
 }
 
 export function normalizeAdminUserSearch(value: string): string {

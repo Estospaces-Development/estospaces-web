@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getServiceUrl } from '@/lib/apiUtils';
-import { getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
@@ -278,6 +278,7 @@ export default function RegisterPage() {
 
     const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
     const loginPath = getLoginPath();
+    const registerPath = getAuthPath('/register');
 
     const continueWithRole = async (nextRole?: string) => {
         if (requiresHostedLoginRedirect(nextRole)) {
@@ -447,7 +448,7 @@ export default function RegisterPage() {
                         type="button"
                         onClick={async () => {
                             await signOut();
-                            navigate('/register?switch=true');
+                            navigate(`${registerPath}?switch=true`);
                         }}
                         className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                     >

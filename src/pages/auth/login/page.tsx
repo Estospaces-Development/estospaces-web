@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
@@ -94,6 +94,8 @@ export default function LoginPage() {
 
   const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
   const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.run.app');
+  const forgotPasswordPath = getAuthPath('/forgot-password');
+  const registerPath = getAuthPath('/register');
 
   return (
     <section className="flex flex-col items-center" aria-labelledby="login-heading">
@@ -197,7 +199,7 @@ export default function LoginPage() {
 
                 {/* Forgot Password Link */}
                 <div className="text-right mb-6">
-                <Link to="/forgot-password" className={`text-primary text-sm font-semibold hover:underline ${authFocusClass}`}>
+                <Link to={forgotPasswordPath} className={`text-primary text-sm font-semibold hover:underline ${authFocusClass}`}>
                     Forgot Password?
                 </Link>
                 </div>
@@ -223,7 +225,7 @@ export default function LoginPage() {
 
       <p className="text-sm text-gray-700 dark:text-gray-300 mt-6">
         Don&apos;t have an account?{' '}
-        <Link to="/register" className={`text-primary font-semibold hover:underline ${authFocusClass}`}>
+        <Link to={registerPath} className={`text-primary font-semibold hover:underline ${authFocusClass}`}>
           Sign Up
         </Link>
       </p>
