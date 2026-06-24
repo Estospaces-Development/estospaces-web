@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowUpRight,
   CheckCircle2,
+  Clock3,
   FileCheck2,
   FolderLock,
+  ListChecks,
   Loader2,
   Plus,
   Save,
@@ -16,6 +19,13 @@ import {
 import UserActivitySubnav from "@/components/layout/UserActivitySubnav";
 import { useAuth, type User } from "@/contexts/AuthContext";
 import { getLoginPath, getRedirectPath } from "@/lib/authUtils";
+import {
+  describeFastTrackWorkspaceFocus,
+  describeFastTrackWorkspaceStatus,
+} from "@/lib/fastTrackWorkspace";
+import { sortFastTrackWorkspaceCases } from "@/lib/fastTrackWorkspaceLoad";
+import { buildWorkspacePath } from "@/lib/workspaceLinks";
+import { getFastTrackCases, type FastTrackCase } from "@/services/fastTrackService";
 import { uploadDocument, type UserDocument } from "@/services/leadsService";
 import {
   createVirtualStorageCategory,
@@ -29,6 +39,7 @@ import {
 interface UserVirtualStoragePageContentProps {
   currentUser: User | null;
   onBack?: () => void;
+  initialFastTrackCases?: FastTrackCase[];
 }
 
 const DEFAULT_CATEGORIES: VirtualStorageCategory[] = [
@@ -69,12 +80,51 @@ const categoryDocumentCategory = (category: VirtualStorageCategory | undefined) 
   return "supporting";
 };
 
+const formatActivityDate = (value?: string) => {
+  if (!value) {
+    return "Recently started";
+  }
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const formatFastTrackDeadline = (caseItem: FastTrackCase) => {
+  if (caseItem.workspaceFinalStatus === "completed") {
+    return "Completed";
+  }
+  if (caseItem.workspaceFinalStatus === "cancelled") {
+    return "Closed";
+  }
+  if (caseItem.hoursRemaining <= 0) {
+    return "Needs attention";
+  }
+  return caseItem.hoursRemaining === 1 ? "1h left" : `${caseItem.hoursRemaining}h left`;
+};
+
+const fastTrackStatusClasses = (status: FastTrackCase["workspaceFinalStatus"]) => {
+  switch (status) {
+    case "completed":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-200";
+    case "cancelled":
+      return "border-gray-200 bg-gray-50 text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-300";
+    default:
+      return "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200";
+  }
+};
+
 export function UserVirtualStoragePageContent({
   currentUser,
   onBack,
+  initialFastTrackCases = [],
 }: UserVirtualStoragePageContentProps) {
   const [categories, setCategories] = useState<VirtualStorageCategory[]>(DEFAULT_CATEGORIES);
   const [documents, setDocuments] = useState<UserDocument[]>([]);
+  const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>(initialFastTrackCases);
+  const [fastTrackLoading, setFastTrackLoading] = useState(false);
+  const [fastTrackError, setFastTrackError] = useState("");
   const [customUnlocked, setCustomUnlocked] = useState(false);
   const [requiredSubmitted, setRequiredSubmitted] = useState<Record<string, boolean>>({
     identity: false,
@@ -97,6 +147,13 @@ export function UserVirtualStoragePageContent({
   );
   const linkedDocuments = documents.filter((document) => (document.linked_entities || []).length > 0);
   const activeDocumentCount = documents.length;
+  const visibleFastTrackCases = useMemo(
+    () => sortFastTrackWorkspaceCases(fastTrackCases).slice(0, 5),
+    [fastTrackCases],
+  );
+  const activeFastTrackCount = fastTrackCases.filter(
+    (caseItem) => caseItem.workspaceFinalStatus === "active",
+  ).length;
 
   const loadVault = async () => {
     setLoading(true);
@@ -120,8 +177,22 @@ export function UserVirtualStoragePageContent({
     setLoading(false);
   };
 
+  const loadFastTrackActivity = async () => {
+    setFastTrackLoading(true);
+    setFastTrackError("");
+    const result = await getFastTrackCases({ suppressErrorToast: true });
+    if (result.data) {
+      setFastTrackCases(result.data);
+    }
+    if (result.error) {
+      setFastTrackError(result.error);
+    }
+    setFastTrackLoading(false);
+  };
+
   useEffect(() => {
     void loadVault();
+    void loadFastTrackActivity();
   }, []);
 
   const handleCreateCategory = async () => {
@@ -244,8 +315,8 @@ export function UserVirtualStoragePageContent({
             <p className="mt-3 text-3xl font-black text-gray-900 dark:text-white">{pendingSaveDocuments.length}</p>
           </div>
           <div className="rounded-2xl border border-orange-100 bg-orange-50 p-5 shadow-sm dark:border-orange-900/30 dark:bg-orange-950/20">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Fast-track limit</p>
-            <p className="mt-3 text-3xl font-black text-orange-700 dark:text-orange-200">30</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Fast-track</p>
+            <p className="mt-3 text-3xl font-black text-orange-700 dark:text-orange-200">{activeFastTrackCount}</p>
           </div>
         </div>
 
@@ -259,6 +330,82 @@ export function UserVirtualStoragePageContent({
             {statusMessage}
           </div>
         ) : null}
+
+        <section className="mt-8 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+              <ListChecks className="h-5 w-5 text-orange-500" />
+              <h2 className="text-lg font-semibold">Fast-track activity</h2>
+            </div>
+            <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+              {fastTrackCases.length} total
+            </span>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {fastTrackLoading ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm font-semibold text-gray-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-gray-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading fast-track activity
+              </div>
+            ) : fastTrackError ? (
+              <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-200">
+                {fastTrackError}
+              </div>
+            ) : visibleFastTrackCases.length > 0 ? (
+              visibleFastTrackCases.map((caseItem) => {
+                const workspacePath = buildWorkspacePath("/user/dashboard/fast-track", {
+                  caseId: caseItem.caseId,
+                  section: caseItem.stage,
+                });
+
+                return (
+                  <div key={caseItem.caseId} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-gray-900 dark:text-white">{caseItem.propertyTitle || "Fast-track case"}</p>
+                          <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${fastTrackStatusClasses(caseItem.workspaceFinalStatus)}`}>
+                            {formatLabel(caseItem.workspaceFinalStatus)}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {describeFastTrackWorkspaceFocus(caseItem, "user")}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
+                          {caseItem.nextAction || caseItem.statusReason || describeFastTrackWorkspaceStatus(caseItem, "user")}
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
+                            {formatLabel(caseItem.stage)}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
+                            <Clock3 className="h-3.5 w-3.5" />
+                            {formatFastTrackDeadline(caseItem)}
+                          </span>
+                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
+                            Started {formatActivityDate(caseItem.submittedAt)}
+                          </span>
+                        </div>
+                      </div>
+                      <a
+                        href={workspacePath}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+                      >
+                        Open workspace
+                        <ArrowUpRight className="h-4 w-4" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-gray-400">
+                No fast-track activity yet.
+              </p>
+            )}
+          </div>
+        </section>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-black">
