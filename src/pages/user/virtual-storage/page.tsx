@@ -147,13 +147,17 @@ export function UserVirtualStoragePageContent({
   );
   const linkedDocuments = documents.filter((document) => (document.linked_entities || []).length > 0);
   const activeDocumentCount = documents.length;
-  const visibleFastTrackCases = useMemo(
-    () => sortFastTrackWorkspaceCases(fastTrackCases).slice(0, 5),
+  const sortedFastTrackCases = useMemo(
+    () => sortFastTrackWorkspaceCases(fastTrackCases),
     [fastTrackCases],
   );
-  const activeFastTrackCount = fastTrackCases.filter(
+  const activeFastTrackCases = sortedFastTrackCases.filter(
     (caseItem) => caseItem.workspaceFinalStatus === "active",
-  ).length;
+  );
+  const inactiveFastTrackCases = sortedFastTrackCases.filter(
+    (caseItem) => caseItem.workspaceFinalStatus !== "active",
+  );
+  const activeFastTrackCount = activeFastTrackCases.length;
 
   const loadVault = async () => {
     setLoading(true);
@@ -267,6 +271,80 @@ export function UserVirtualStoragePageContent({
     setStatusMessage("Document kept case-only.");
   };
 
+  const renderFastTrackCaseCard = (caseItem: FastTrackCase) => {
+    const workspacePath = buildWorkspacePath("/user/dashboard/fast-track", {
+      caseId: caseItem.caseId,
+      section: caseItem.stage,
+    });
+
+    return (
+      <div key={caseItem.caseId} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-semibold text-gray-900 dark:text-white">{caseItem.propertyTitle || "Fast-track case"}</p>
+              <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${fastTrackStatusClasses(caseItem.workspaceFinalStatus)}`}>
+                {formatLabel(caseItem.workspaceFinalStatus)}
+              </span>
+            </div>
+            <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              {describeFastTrackWorkspaceFocus(caseItem, "user")}
+            </p>
+            <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
+              {caseItem.nextAction || caseItem.statusReason || describeFastTrackWorkspaceStatus(caseItem, "user")}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <span className="rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
+                {formatLabel(caseItem.stage)}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
+                <Clock3 className="h-3.5 w-3.5" />
+                {formatFastTrackDeadline(caseItem)}
+              </span>
+              <span className="rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
+                Started {formatActivityDate(caseItem.submittedAt)}
+              </span>
+            </div>
+          </div>
+          <a
+            href={workspacePath}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
+          >
+            Open workspace
+            <ArrowUpRight className="h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFastTrackCaseList = (
+    title: string,
+    count: number,
+    cases: FastTrackCase[],
+    emptyMessage: string,
+  ) => (
+    <div className="min-w-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+          {title}
+        </h3>
+        <span className="rounded-full border border-gray-200 px-3 py-1 text-xs font-bold text-gray-600 dark:border-zinc-700 dark:text-gray-300">
+          {count}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {cases.length > 0 ? (
+          cases.map((caseItem) => renderFastTrackCaseCard(caseItem))
+        ) : (
+          <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-gray-400">
+            {emptyMessage}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 dark:bg-gray-900">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -337,9 +415,14 @@ export function UserVirtualStoragePageContent({
               <ListChecks className="h-5 w-5 text-orange-500" />
               <h2 className="text-lg font-semibold">Fast-track activity</h2>
             </div>
-            <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
-              {fastTrackCases.length} total
-            </span>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
+                {activeFastTrackCases.length} active
+              </span>
+              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-300">
+                {inactiveFastTrackCases.length} inactive
+              </span>
+            </div>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -352,53 +435,21 @@ export function UserVirtualStoragePageContent({
               <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-200">
                 {fastTrackError}
               </div>
-            ) : visibleFastTrackCases.length > 0 ? (
-              visibleFastTrackCases.map((caseItem) => {
-                const workspacePath = buildWorkspacePath("/user/dashboard/fast-track", {
-                  caseId: caseItem.caseId,
-                  section: caseItem.stage,
-                });
-
-                return (
-                  <div key={caseItem.caseId} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-semibold text-gray-900 dark:text-white">{caseItem.propertyTitle || "Fast-track case"}</p>
-                          <span className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${fastTrackStatusClasses(caseItem.workspaceFinalStatus)}`}>
-                            {formatLabel(caseItem.workspaceFinalStatus)}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {describeFastTrackWorkspaceFocus(caseItem, "user")}
-                        </p>
-                        <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-gray-400">
-                          {caseItem.nextAction || caseItem.statusReason || describeFastTrackWorkspaceStatus(caseItem, "user")}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
-                            {formatLabel(caseItem.stage)}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
-                            <Clock3 className="h-3.5 w-3.5" />
-                            {formatFastTrackDeadline(caseItem)}
-                          </span>
-                          <span className="rounded-full border border-gray-200 bg-white px-3 py-1 dark:border-zinc-700 dark:bg-black">
-                            Started {formatActivityDate(caseItem.submittedAt)}
-                          </span>
-                        </div>
-                      </div>
-                      <a
-                        href={workspacePath}
-                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
-                      >
-                        Open workspace
-                        <ArrowUpRight className="h-4 w-4" />
-                      </a>
-                    </div>
-                  </div>
-                );
-              })
+            ) : sortedFastTrackCases.length > 0 ? (
+              <div className="grid gap-6 xl:grid-cols-2">
+                {renderFastTrackCaseList(
+                  "Active fast-track",
+                  activeFastTrackCases.length,
+                  activeFastTrackCases,
+                  "No active fast-track cases right now.",
+                )}
+                {renderFastTrackCaseList(
+                  "Inactive fast-track",
+                  inactiveFastTrackCases.length,
+                  inactiveFastTrackCases,
+                  "No inactive fast-track cases yet.",
+                )}
+              </div>
             ) : (
               <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-zinc-700 dark:bg-zinc-900/40 dark:text-gray-400">
                 No fast-track activity yet.
