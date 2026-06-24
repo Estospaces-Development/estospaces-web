@@ -30,6 +30,7 @@ import {
     getAdminPropertySortControlLabel,
     sortAdminPropertyRegistry,
 } from '@/lib/adminPropertyRegistry';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 function PropertyManagementContent() {
     const navigate = useNavigate();
@@ -545,7 +546,7 @@ function PropertyManagementContent() {
                                         </div>
                                         <span className="text-xl font-black text-blue-500">
                                             {typeof property.price?.amount === 'number'
-                                                ? `£${property.price.amount.toLocaleString()}`
+                                                ? formatLaunchCurrency(property.price.amount)
                                                 : property.priceString || 'POA'}
                                         </span>
                                     </div>

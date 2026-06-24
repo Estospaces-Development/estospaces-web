@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    X, Loader2, Home, User, Briefcase, DollarSign,
+    X, Loader2, Home, User, Briefcase, IndianRupee,
     Phone, Mail, Building2, FileText, CheckCircle, Search,
     ArrowRight, ArrowLeft, Sparkles, MapPin, Bed, Bath, Edit2,
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as propertyService from '@/services/propertyService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { formatLaunchCurrency, LAUNCH_CURRENCY_SYMBOL } from '@/lib/launchLocale';
 import DateField from '@/components/ui/DateField';
 
 interface Property {
@@ -487,7 +488,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     </div>
                                                     <div className="text-right">
                                                         <p className="text-lg font-bold text-orange-600">
-                                                            £{property.price?.toLocaleString() || '0'}
+                                                            {formatLaunchCurrency(property.price || 0)}
                                                         </p>
                                                         <p className="text-xs text-gray-500">
                                                             {property.listing_type === 'rent' ? '/month' : ''}
@@ -556,7 +557,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         )}
                                                     </div>
                                                     <p className="text-xl font-bold text-orange-600 dark:text-orange-400 mt-2">
-                                                        £{selectedProperty.price?.toLocaleString()}
+                                                        {formatLaunchCurrency(selectedProperty.price || 0)}
                                                         {selectedProperty.listing_type === 'rent' && <span className="text-sm font-normal">/month</span>}
                                                     </p>
                                                 </div>
@@ -600,7 +601,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                             </p>
                                                             <p className="text-xs text-gray-500 truncate">{property.city || property.postcode || 'Unknown location'}</p>
                                                             <p className="text-sm font-bold text-orange-600 mt-1">
-                                                                £{property.price?.toLocaleString() || '0'}
+                                                                    {formatLaunchCurrency(property.price || 0)}
                                                             </p>
                                                         </button>
                                                     ))}
@@ -724,10 +725,10 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                    Annual Income (£)
+                                                    Annual Income ({LAUNCH_CURRENCY_SYMBOL})
                                                 </label>
                                                 <div className="relative">
-                                                    <DollarSign size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <IndianRupee size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                     <input
                                                         type="number"
                                                         name="annualIncome"
@@ -826,7 +827,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     {selectedProperty?.address_line_1 || selectedProperty?.city || 'Unknown location'}
                                                 </p>
                                                 <p className="text-lg font-bold text-orange-600 mt-1">
-                                                    £{selectedProperty?.price?.toLocaleString() || '0'}
+                                                    {formatLaunchCurrency(selectedProperty?.price || 0)}
                                                     {selectedProperty?.listing_type === 'rent' && '/month'}
                                                 </p>
                                             </div>
@@ -878,7 +879,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500">Income:</span>
                                                 <span className="text-gray-900 dark:text-white">
-                                                    {formData.annualIncome ? `£${parseInt(formData.annualIncome).toLocaleString()}` : '—'}
+                                                    {formData.annualIncome ? formatLaunchCurrency(parseInt(formData.annualIncome)) : '—'}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">

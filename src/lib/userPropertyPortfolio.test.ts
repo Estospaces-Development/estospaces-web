@@ -87,7 +87,7 @@ test("buildUserPropertyPortfolio returns rented and bought homes with deep links
 
   assert.equal(portfolio[1].ownershipLabel, "Rented");
   assert.equal(portfolio[1].statusLabel, "Rented");
-  assert.equal(portfolio[1].priceLabel, "GBP 2,400/mo");
+  assert.equal(portfolio[1].priceLabel, "\u20b92,400/mo");
   assert.equal(
     portfolio[1].targetPath,
     "/user/dashboard/contracts?application=rent-app-1&contract=contract-1&property=property-rent-1",

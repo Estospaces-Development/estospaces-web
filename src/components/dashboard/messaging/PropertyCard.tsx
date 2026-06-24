@@ -3,6 +3,7 @@ import { MapPin, ExternalLink, Map, Square } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -34,7 +35,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
     const formatPrice = (price?: number) => {
         if (!price) return 'Price on request';
-        return `£${price.toLocaleString()}`;
+        return formatLaunchCurrency(price);
     };
 
     const handleViewDetails = () => {

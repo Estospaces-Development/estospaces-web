@@ -50,6 +50,7 @@ import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
 } from "@/contexts/WorkspaceSyncContext";
+import { formatLaunchCurrency } from "@/lib/launchLocale";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
 import {
   DELETED_FAST_TRACK_CASE_MESSAGE,
@@ -809,7 +810,7 @@ export default function ContractsPage() {
                           </span>
                           {contract.monthly_rent && (
                             <span className="text-gray-500 ml-auto font-semibold">
-                              £{contract.monthly_rent.toLocaleString()}/mo
+                              {formatLaunchCurrency(contract.monthly_rent)}/mo
                             </span>
                           )}
                         </div>
@@ -944,7 +945,7 @@ export default function ContractsPage() {
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                   {viewContract.monthly_rent
-                    ? `£${viewContract.monthly_rent.toLocaleString()}/mo`
+                    ? `${formatLaunchCurrency(viewContract.monthly_rent)}/mo`
                     : "TBC"}
                 </p>
               </div>
@@ -966,7 +967,7 @@ export default function ContractsPage() {
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                   {viewContract.deposit_amount
-                    ? `£${viewContract.deposit_amount.toLocaleString()}`
+                    ? formatLaunchCurrency(viewContract.deposit_amount)
                     : "TBC"}
                 </p>
               </div>

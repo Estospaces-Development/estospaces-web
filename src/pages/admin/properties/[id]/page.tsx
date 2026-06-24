@@ -32,6 +32,7 @@ import {
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -65,12 +66,7 @@ const formatPrice = (property: Property) => {
         return 'Price on request';
     }
 
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: property.currency || 'GBP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(property.price);
+    return formatLaunchCurrency(property.price);
 };
 
 const formatDate = (value?: string) => {

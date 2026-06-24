@@ -30,6 +30,7 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
 import { getCreateContractEntryState } from '@/lib/contractsWorkspaceLoad';
 
@@ -402,7 +403,7 @@ export default function ManagerContractsPage() {
     ];
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-    const formatCurrency = (v?: number) => v != null ? `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '—';
+    const formatCurrency = (v?: number) => v != null ? formatLaunchCurrency(v) : '—';
     const formatWorkflowStatus = (value?: string) => (value || 'pending').replace(/_/g, ' ');
     const tenancyPackComplete = ['served', 'completed'].includes(String(tenancyPack?.status || '').trim());
     const depositProtectionComplete = String(depositProtection?.status || '').trim() === 'completed';

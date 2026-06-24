@@ -30,6 +30,7 @@ import { findLinkedSaleProgression } from '@/lib/workspaceLinks';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement } from '@/types/journey';
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from './WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 type PropertyContext = {
     title?: string;
@@ -799,7 +800,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                         payload: {
                             outcome: fastTrackDecisionOutcome,
                             amount: application.fastTrackCase.decision.amount,
-                            currency: 'GBP',
+                            currency: LAUNCH_CURRENCY_CODE,
                         },
                     },
                     publishWorkspaceSync,

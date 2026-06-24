@@ -46,6 +46,7 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
@@ -317,7 +318,7 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                             </p>
                             {application.propertyPrice && (
                                 <p className="mt-2 text-xl font-black text-gray-900 dark:text-white">
-                                    £{application.propertyPrice.toLocaleString()}
+                                    {formatLaunchCurrency(application.propertyPrice)}
                                     <span className="text-sm font-normal text-gray-500">{application.listingType === 'rent' ? '/mo' : ''}</span>
                                 </p>
                             )}

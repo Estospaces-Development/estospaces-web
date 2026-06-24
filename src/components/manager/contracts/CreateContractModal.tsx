@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FileText, DollarSign, AlertCircle } from 'lucide-react';
+import { X, FileText, IndianRupee, AlertCircle } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { createContract, CreateContractRequest } from '@/services/contractsService';
 import type { Contract } from '@/types/booking';
 import DateField from '@/components/ui/DateField';
+import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 interface CreateContractModalProps {
     applicationId: string;
@@ -100,9 +101,9 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Rent & Deposit */}
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent (GBP)</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent ({LAUNCH_CURRENCY_CODE})</label>
                                 <div className="relative">
-                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input
                                         type="number"
                                         required
@@ -118,9 +119,9 @@ export default function CreateContractModal({ applicationId, propertyPrice, onCl
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit (GBP)</label>
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit ({LAUNCH_CURRENCY_CODE})</label>
                                 <div className="relative">
-                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input
                                         type="number"
                                         required

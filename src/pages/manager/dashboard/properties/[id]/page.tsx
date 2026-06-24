@@ -17,19 +17,13 @@ import PropertyCompliancePanel from '@/components/dashboard/PropertyCompliancePa
 import { getPropertyMapState } from '@/lib/propertyMaps';
 import { getPropertyCompliancePublishBlockerMessage } from '@/lib/propertyCompliance';
 import type { PropertyComplianceReadiness } from '@/services/propertyService';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // Helper for currency formatting
 const formatPrice = (price: any) => {
     if (!price) return 'Price on Request';
     const amount = typeof price === 'number' ? price : price?.amount || 0;
-    const currency = typeof price === 'object' ? price?.currency || 'GBP' : 'GBP';
-
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
+    return formatLaunchCurrency(amount);
 };
 
 const formatArea = (area: number, unit: string = 'sqft') => {

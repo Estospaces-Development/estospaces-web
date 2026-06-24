@@ -8,7 +8,7 @@ export const LAUNCH_DEFAULT_CITY = "Chennai";
 const LEGACY_UK_POSTCODE_PATTERN = /\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b/gi;
 const LEGACY_UK_LOCATION_PATTERN =
   /\b(London|Westminster|Edinburgh|Preston|Manchester|Birmingham|Leeds|Liverpool|Oxford|Cambridge|Bristol|Belfast|Glasgow|Cardiff|England|Scotland|Wales|Northern Ireland|United Kingdom|UK)\b/gi;
-const LEGACY_POUND_PATTERN = /Â£|£/g;
+const LEGACY_POUND_PATTERN = /\u00c2\u00a3|\u00a3/g;
 
 export function formatLaunchCurrency(
   amount: number | null | undefined,

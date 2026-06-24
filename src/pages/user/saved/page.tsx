@@ -25,6 +25,7 @@ import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import { searchService, SavedSearch } from '@/services/searchService';
 import { useToast } from '@/contexts/ToastContext';
 import { filterAndSortSavedProperties, type SavedPropertySortOption } from '@/lib/savedPropertyState';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 const SAVED_PROPERTY_SORT_OPTIONS: Array<{ value: SavedPropertySortOption; label: string }> = [
     { value: 'newest', label: 'Newest saved' },
@@ -445,7 +446,7 @@ function SavedSearchesTab() {
                             )}
                             {(search.min_price || search.max_price) && (
                                 <div className="flex items-center gap-1.5">
-                                    <span>£{search.min_price?.toLocaleString() || '0'} - £{search.max_price?.toLocaleString() || 'Any'}</span>
+                                    <span>{formatLaunchCurrency(search.min_price || 0)} - {search.max_price ? formatLaunchCurrency(search.max_price) : 'Any'}</span>
                                 </div>
                             )}
                             {search.bedrooms && (

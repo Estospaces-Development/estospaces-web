@@ -1,3 +1,5 @@
+import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
+
 export interface SaleOfferPropertyInput {
   id?: string;
   listing_type?: string;
@@ -112,7 +114,7 @@ export const buildSaleOfferPayload = ({
     return { payload: null, error: "Offer notes must be 1000 characters or fewer." };
   }
 
-  const currency = cleanId(property?.currency) || "GBP";
+  const currency = cleanId(property?.currency) || LAUNCH_CURRENCY_CODE;
   const propertyCountry = cleanId(property?.country);
 
   return {

@@ -49,6 +49,7 @@ import {
   getFastTrackCases,
   type FastTrackCase,
 } from "@/services/fastTrackService";
+import { formatLaunchCurrency } from "@/lib/launchLocale";
 import {
   getAMLReview,
   getBuyerQualification,
@@ -678,7 +679,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const formatPrice = (price?: number) => {
     if (price === undefined) return "Price on request";
-    return `£${price.toLocaleString("en-GB")}`;
+    return formatLaunchCurrency(price);
   };
 
   const handleManagerDecision = async (

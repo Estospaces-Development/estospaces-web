@@ -32,6 +32,7 @@ import {
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // Services
 import { bookingsService } from '@/services/bookingsService';
@@ -513,7 +514,7 @@ export default function ViewingsPage() {
                                                 </h3>
                                                 {viewing.propertyPrice && (
                                                     <span className="text-lg font-bold text-gray-900 dark:text-white">
-                                                        £{viewing.propertyPrice.toLocaleString()}
+                                                        {formatLaunchCurrency(viewing.propertyPrice)}
                                                         <span className="text-sm text-gray-500 font-normal">{viewing.listingType === 'rent' ? '/mo' : ''}</span>
                                                     </span>
                                                 )}

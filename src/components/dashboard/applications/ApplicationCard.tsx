@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { canWithdrawApplicationRecord } from '@/lib/saleJourney';
 import { messagesService } from '@/services/messagesService';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 
 
@@ -434,7 +435,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         {/* Price */}
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
-                                £{application.propertyPrice?.toLocaleString() || '0'}
+                                {formatLaunchCurrency(application.propertyPrice || 0)}
                             </span>
                             <span className="text-sm text-gray-500 dark:text-gray-400">
                                 {application.propertyType === 'rent' ? '/month' : ''}

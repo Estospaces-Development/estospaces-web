@@ -4,6 +4,7 @@ import { X, FileText, CheckCircle, PenTool, Download } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { signContract } from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 interface UserContractModalProps {
     contract: Contract;
@@ -94,11 +95,11 @@ export default function UserContractModal({ contract: initialContract, onClose, 
                         <div className="grid grid-cols-2 gap-6 mb-8">
                             <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Monthly Rent</p>
-                                <p className="text-lg font-bold text-gray-900 dark:text-white">£{contract.monthly_rent?.toLocaleString()}</p>
+                                <p className="text-lg font-bold text-gray-900 dark:text-white">{formatLaunchCurrency(contract.monthly_rent || 0)}</p>
                             </div>
                             <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Security Deposit</p>
-                                <p className="text-lg font-bold text-gray-900 dark:text-white">£{contract.deposit_amount?.toLocaleString()}</p>
+                                <p className="text-lg font-bold text-gray-900 dark:text-white">{formatLaunchCurrency(contract.deposit_amount || 0)}</p>
                             </div>
                             <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
                                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Start Date</p>
@@ -118,7 +119,7 @@ export default function UserContractModal({ contract: initialContract, onClose, 
                             </div>
                             <div>
                                 <h3 className="font-bold text-gray-900 dark:text-white mb-2">2. Rent</h3>
-                                <p>The tenant agrees to pay a rent of £{contract.monthly_rent?.toLocaleString()} per month, payable in advance.</p>
+                                <p>The tenant agrees to pay a rent of {formatLaunchCurrency(contract.monthly_rent || 0)} per month, payable in advance.</p>
                             </div>
                             {contract.terms_and_conditions && (
                                 <div>

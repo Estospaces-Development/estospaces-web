@@ -12,6 +12,7 @@ import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/appl
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // --- Types & Interfaces ---
 
@@ -162,11 +163,7 @@ const formatPropertyPrice = (price: number | null | undefined) => {
         return 'Price unavailable';
     }
 
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0,
-    }).format(price);
+    return formatLaunchCurrency(price);
 };
 
 const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {

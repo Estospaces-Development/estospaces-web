@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Home, DollarSign, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Home, IndianRupee, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { searchService, FilterOptions, AutocompleteSuggestion } from '../../services/searchService';
+import { formatLaunchCurrency, LAUNCH_CURRENCY_SYMBOL } from '@/lib/launchLocale';
 
 export interface SearchFilters {
     keyword: string;
@@ -56,20 +57,20 @@ const propertyTypes = [
 
 const priceRanges = {
     rent: [
-        { min: null, max: 500, label: 'Under £500' },
-        { min: 500, max: 1000, label: '£500 - £1,000' },
-        { min: 1000, max: 1500, label: '£1,000 - £1,500' },
-        { min: 1500, max: 2000, label: '£1,500 - £2,000' },
-        { min: 2000, max: 3000, label: '£2,000 - £3,000' },
-        { min: 3000, max: null, label: '£3,000+' },
+        { min: null, max: 500, label: `Under ${formatLaunchCurrency(500)}` },
+        { min: 500, max: 1000, label: `${formatLaunchCurrency(500)} - ${formatLaunchCurrency(1000)}` },
+        { min: 1000, max: 1500, label: `${formatLaunchCurrency(1000)} - ${formatLaunchCurrency(1500)}` },
+        { min: 1500, max: 2000, label: `${formatLaunchCurrency(1500)} - ${formatLaunchCurrency(2000)}` },
+        { min: 2000, max: 3000, label: `${formatLaunchCurrency(2000)} - ${formatLaunchCurrency(3000)}` },
+        { min: 3000, max: null, label: `${formatLaunchCurrency(3000)}+` },
     ],
     sale: [
-        { min: null, max: 100000, label: 'Under £100k' },
-        { min: 100000, max: 250000, label: '£100k - £250k' },
-        { min: 250000, max: 500000, label: '£250k - £500k' },
-        { min: 500000, max: 750000, label: '£500k - £750k' },
-        { min: 750000, max: 1000000, label: '£750k - £1M' },
-        { min: 1000000, max: null, label: '£1M+' },
+        { min: null, max: 100000, label: `Under ${formatLaunchCurrency(100000)}` },
+        { min: 100000, max: 250000, label: `${formatLaunchCurrency(100000)} - ${formatLaunchCurrency(250000)}` },
+        { min: 250000, max: 500000, label: `${formatLaunchCurrency(250000)} - ${formatLaunchCurrency(500000)}` },
+        { min: 500000, max: 750000, label: `${formatLaunchCurrency(500000)} - ${formatLaunchCurrency(750000)}` },
+        { min: 750000, max: 1000000, label: `${formatLaunchCurrency(750000)} - ${formatLaunchCurrency(1000000)}` },
+        { min: 1000000, max: null, label: `${formatLaunchCurrency(1000000)}+` },
     ],
 };
 
@@ -309,15 +310,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Min Price</label>
                             <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
-                                <DollarSign size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <IndianRupee size={16} className="text-gray-400 mr-2" />
+                                <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : `Min ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Max Price</label>
                             <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
-                                <DollarSign size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <IndianRupee size={16} className="text-gray-400 mr-2" />
+                                <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : `Max ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
@@ -449,11 +450,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price Range</label>
                     <div className="flex items-center gap-2">
                         <div className="relative flex-1">
-                            <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Min £" className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                            <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={`Min ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         </div>
                         <span className="text-gray-400">-</span>
                         <div className="relative flex-1">
-                            <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Max £" className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                            <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={`Max ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         </div>
                     </div>
                 </div>

@@ -37,7 +37,7 @@ const analytics = {
 test('admin analytics metric cards expose revenue and growth data', () => {
     const cards = buildAdminAnalyticsMetricCards(analytics);
 
-    assert.equal(cards.find((card) => card.label === 'Total Revenue')?.value, '£125,000');
+    assert.equal(cards.find((card) => card.label === 'Total Revenue')?.value, '\u20b91,25,000');
     assert.equal(cards.find((card) => card.label === 'Revenue Growth')?.value, '+12.5%');
     assert.equal(cards.find((card) => card.label === 'Property Growth')?.value, '+4.1%');
 });
@@ -93,10 +93,10 @@ test('admin dashboard snapshot includes booking revenue and active listing count
     const snapshot = buildAdminDashboardSnapshot(analytics);
 
     assert.equal(snapshot.find((item) => item.label === 'Total Bookings')?.value, '6');
-    assert.equal(snapshot.find((item) => item.label === 'Revenue')?.value, '£125,000');
+    assert.equal(snapshot.find((item) => item.label === 'Revenue')?.value, '\u20b91,25,000');
     assert.equal(snapshot.find((item) => item.label === 'Active Listings')?.value, '8');
 });
 
 test('admin currency formatting remains readable for missing revenue', () => {
-    assert.equal(formatAdminCurrency(undefined), '£0');
+    assert.equal(formatAdminCurrency(undefined), '\u20b90');
 });

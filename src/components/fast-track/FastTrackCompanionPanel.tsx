@@ -26,6 +26,7 @@ import {
   resolveFastTrackThreadRecipientId,
 } from "@/lib/fastTrackWorkspace";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
+import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { upsertDirectConversation } from "@/services/messagesService";
 
@@ -457,7 +458,7 @@ export default function FastTrackCompanionPanel({
                     fastTrackCase.journeyMode === "sale" && parsedDecisionAmount > 0
                       ? parsedDecisionAmount
                       : undefined,
-                  currency: "GBP",
+                  currency: LAUNCH_CURRENCY_CODE,
                 },
                 `${describeFastTrackStageLabel(fastTrackCase)} approved.`,
               )

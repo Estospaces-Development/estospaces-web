@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Loader2, AlertCircle, Filter, Map, Square } from 'lucide-react';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -237,7 +238,7 @@ const UserPropertiesList = () => {
                                                 {property.description || 'No description'}
                                             </p>
                                             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                                <span>£{property.price?.toLocaleString()}</span>
+                                                <span>{formatLaunchCurrency(property.price || 0)}</span>
                                                 <span>{property.bedrooms} beds</span>
                                                 <span>{property.bathrooms} baths</span>
                                                 <span>{property.city}, {property.postcode}</span>

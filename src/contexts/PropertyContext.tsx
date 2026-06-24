@@ -17,6 +17,7 @@ import { getErrorMessage } from "@/lib/apiUtils";
 import { isAuthRoutePath } from "@/lib/authUtils";
 import { usePublishWorkspaceSync, useWorkspaceRefresh } from "@/contexts/WorkspaceSyncContext";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
+import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 
 // Type definitions
 export type CurrencyCode =
@@ -532,16 +533,11 @@ export const PropertyProvider = ({
       price: p.price
         ? {
             amount: p.price,
-            currency: (p.currency as CurrencyCode) || "GBP",
+            currency: (p.currency as CurrencyCode) || (LAUNCH_CURRENCY_CODE as CurrencyCode),
             negotiable: false,
           }
         : undefined,
-      priceString: p.price
-        ? new Intl.NumberFormat("en-GB", {
-            style: "currency",
-            currency: p.currency || "GBP",
-          }).format(p.price)
-        : "POA",
+      priceString: p.price ? formatLaunchCurrency(p.price) : "POA",
       propertyType: p.property_type as PropertyType,
       listingType: p.listing_type as ListingType,
       status: p.status as PropertyStatus,
@@ -1171,12 +1167,7 @@ export const PropertyProvider = ({
         },
         exportProperties: () => {},
         formatPrice: (price) =>
-          price
-            ? new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: price.currency,
-              }).format(price.amount)
-            : "",
+          price ? formatLaunchCurrency(price.amount) : "",
         formatArea: (area, unit) => `${area} ${unit}`,
         getPropertyStats: () => ({
           total: properties.length,

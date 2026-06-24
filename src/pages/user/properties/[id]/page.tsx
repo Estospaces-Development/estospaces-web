@@ -65,6 +65,7 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -940,7 +941,7 @@ const UserPropertyDetail = () => {
         [bookedViewingSlotsByDate, viewingForm.requested_date],
     );
     const priceLabel = typeof property?.price === 'number'
-        ? `${property.currency || 'GBP'} ${property.price.toLocaleString()}`
+        ? formatLaunchCurrency(property.price)
         : 'Price on request';
     const propertyTypeLabel = property?.property_type ? formatDetailLabel(property.property_type) : 'Property';
     const listingLabel = property?.listing_type ? formatDetailLabel(property.listing_type) : 'Listing';
@@ -997,8 +998,8 @@ const UserPropertyDetail = () => {
         { label: 'Market', value: listingLabel },
         { label: 'Condition', value: conditionLabel },
         { label: 'Availability', value: availableFromLabel },
-        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? `${property.currency || 'GBP'} ${property.deposit_amount.toLocaleString()}` : 'On request' },
-    ], [availableFromLabel, conditionLabel, listingLabel, property?.currency, property?.deposit_amount]);
+        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatLaunchCurrency(property.deposit_amount) : 'On request' },
+    ], [availableFromLabel, conditionLabel, listingLabel, property?.deposit_amount]);
     const heroMetaItems = [
         { label: 'Condition', value: conditionLabel, icon: Sparkles },
         { label: 'Availability', value: availableFromLabel, icon: Clock },
@@ -1027,13 +1028,12 @@ const UserPropertyDetail = () => {
         {
             label: 'Maintenance',
             value: typeof property?.maintenance_charges === 'number' && property.maintenance_charges > 0
-                ? `${property.currency || 'GBP'} ${property.maintenance_charges.toLocaleString()}`
+                ? formatLaunchCurrency(property.maintenance_charges)
                 : 'On request',
         },
         { label: 'Address', value: propertyAddress || locationLabel },
     ], [
         locationLabel,
-        property?.currency,
         property?.furnished,
         property?.maintenance_charges,
         property?.parking_spaces,

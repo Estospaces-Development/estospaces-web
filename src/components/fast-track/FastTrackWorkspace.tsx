@@ -109,6 +109,7 @@ import {
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -2525,7 +2526,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 outcome: 'approved',
                                 note: decisionNote,
                                 amount: decisionAmount ? Number(decisionAmount) : undefined,
-                                currency: 'GBP',
+                                currency: LAUNCH_CURRENCY_CODE,
                             },
                             `${decisionLabel} approved.`,
                         )}
@@ -2579,7 +2580,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         {PAYMENTS_ENABLED && (selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid') ? (
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Payment: {selectedCase.agreement.paymentStatus.replace(/_/g, ' ')}
-                                {selectedCase.agreement.amountDue ? ` / GBP ${selectedCase.agreement.amountDue}` : ''}
+                                {selectedCase.agreement.amountDue ? ` / ${formatLaunchCurrency(selectedCase.agreement.amountDue, { showCode: true })}` : ''}
                             </p>
                         ) : null}
                     </div>

@@ -1,6 +1,7 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
+import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import type {
   JourneyAction,
   JourneyBlocker,
@@ -603,7 +604,7 @@ const mapBackendToFrontend = (
       mode: normalizeJourneyMode(raw.decision?.mode),
       status: raw.decision?.status || "pending",
       amount: raw.decision?.amount,
-      currency: raw.decision?.currency || "GBP",
+      currency: raw.decision?.currency || LAUNCH_CURRENCY_CODE,
       note: raw.decision?.note,
       decidedAt: raw.decision?.decided_at,
       decidedBy: raw.decision?.decided_by,

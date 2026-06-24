@@ -1,6 +1,7 @@
 import type { AnalyticsData } from '@/services/analyticsService';
 import type { PropertyPerformance } from '@/services/analyticsService';
 import { buildCsvContent } from '@/lib/csvExport';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 export type AdminAnalyticsIconKey =
     | 'activity'
@@ -29,11 +30,7 @@ export const formatAdminNumber = (value?: number | null) => (
 );
 
 export const formatAdminCurrency = (value?: number | null) => (
-    new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0,
-    }).format(numericValue(value))
+    formatLaunchCurrency(numericValue(value))
 );
 
 const formatAdminPercentage = (value?: number | null) => `${numericValue(value)}%`;
