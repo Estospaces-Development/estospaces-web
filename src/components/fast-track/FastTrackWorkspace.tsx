@@ -61,6 +61,7 @@ import {
     FastTrackCase,
     FastTrackDocumentItem,
     FastTrackStage,
+    getFastTrackCaseById,
     getFastTrackCases,
     performFastTrackAction,
 } from '@/services/fastTrackService';
@@ -977,18 +978,30 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        updateLocalCase(data);
+        const shouldRefreshMutatedCase = [
+            'publish_agreement',
+            'confirm_agreement',
+            'mark_handover_ready',
+            'confirm_handover',
+            'complete_handover',
+        ].includes(action) || data.workspaceFinalStatus === 'completed';
+        const refreshedCase = shouldRefreshMutatedCase
+            ? await getFastTrackCaseById(data.caseId, { suppressErrorToast: true })
+            : { data: null };
+        const nextCase = refreshedCase.data || data;
+
+        updateLocalCase(nextCase);
         publishWorkspaceSync({
             source: 'mutation',
             tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
             reason: `Fast-track action: ${action}`,
             ids: {
-                caseId: data.caseId,
-                leadId: data.leadId,
-                propertyId: data.propertyId,
+                caseId: nextCase.caseId,
+                leadId: nextCase.leadId,
+                propertyId: nextCase.propertyId,
             },
         });
-        if (data.workspaceFinalStatus !== 'completed') {
+        if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
     }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase]);
