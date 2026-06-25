@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -305,13 +305,13 @@ export function UserVirtualStoragePageContent({
               </span>
             </div>
           </div>
-          <a
-            href={workspacePath}
+          <Link
+            to={workspacePath}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600"
           >
             Open workspace
             <ArrowUpRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
       </div>
     );
