@@ -390,7 +390,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
-    const [previewZoom, setPreviewZoom] = useState(1);
+    const [previewZoom, setPreviewZoom] = useState(0);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
     const [threadMessages, setThreadMessages] = useState<Message[]>([]);
     const [threadDraft, setThreadDraft] = useState('');
@@ -1440,7 +1440,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
         setPreviewZoom((previous) => {
             if (direction === 'reset') {
-                return 1;
+                return 0;
+            }
+
+            if (direction === 'in' && previous === 0) {
+                return 1.25;
+            }
+
+            if (direction === 'out' && previous <= 1) {
+                return 0;
             }
 
             const nextZoom = direction === 'in'
@@ -1461,7 +1469,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError(null);
-            setPreviewZoom(1);
+            setPreviewZoom(0);
             return;
         }
         const selectedPreviewFile = selectedFiles[previewItem.id] || null;
@@ -1476,7 +1484,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     useEffect(() => {
         if (previewModalOpen) {
-            setPreviewZoom(1);
+            setPreviewZoom(0);
         }
     }, [previewItemId, previewModalOpen]);
 
@@ -1651,12 +1659,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         Choose or upload a file to preview it here.
                     </div>
                 ) : previewKind === 'image' ? (
-                    <div className="max-h-[520px] overflow-auto rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
+                    <div
+                        className={cn(
+                            'rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
+                            previewZoom === 0
+                                ? 'flex h-[min(520px,calc(100vh-20rem))] min-h-[260px] items-center justify-center overflow-hidden p-3'
+                                : 'max-h-[520px] overflow-auto',
+                        )}
+                    >
                         <img
                             src={previewUrl}
                             alt={previewDisplayItem.fileName || previewDisplayItem.label}
-                            className="mx-auto max-w-none object-contain transition-[width] duration-150"
-                            style={{ width: `${previewZoom * 100}%` }}
+                            className={cn(
+                                'mx-auto object-contain transition-[width] duration-150',
+                                previewZoom === 0 ? 'max-h-full max-w-full' : 'max-w-none',
+                            )}
+                            style={{ width: previewZoom === 0 ? 'auto' : `${previewZoom * 100}%` }}
                         />
                     </div>
                 ) : previewKind === 'pdf' ? (
@@ -1665,7 +1683,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             title={previewDisplayItem.fileName || previewDisplayItem.label}
                             src={previewUrl}
                             className="h-[520px] min-w-full transition-[width] duration-150"
-                            style={{ width: `${previewZoom * 100}%` }}
+                            style={{ width: previewZoom === 0 ? "100%" : `${previewZoom * 100}%` }}
                         />
                     </div>
                 ) : (
@@ -3344,7 +3362,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <button
                                 type="button"
                                 onClick={() => updatePreviewZoom('out')}
-                                disabled={previewZoom <= 0.5}
+                                disabled={previewZoom === 0}
                                 className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:border-orange-300 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
                                 aria-label="Zoom out document preview"
                             >
@@ -3356,7 +3374,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 className="min-w-[4rem] rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-700 dark:border-gray-800 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:text-orange-300"
                                 aria-label="Reset document preview zoom"
                             >
-                                {Math.round(previewZoom * 100)}%
+                                {previewZoom === 0 ? 'Fit' : `${Math.round(previewZoom * 100)}%`}
                             </button>
                             <button
                                 type="button"
