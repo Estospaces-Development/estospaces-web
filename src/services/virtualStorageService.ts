@@ -55,6 +55,7 @@ export const getVirtualStorageCategories = async (): Promise<{
   try {
     const data = await apiFetch<VirtualStorageCategoriesResponse>(
       `${CORE_URL()}/api/v1/virtual-storage/categories`,
+      { suppressErrorToast: true },
     );
     return { data, error: null };
   } catch (error: any) {
