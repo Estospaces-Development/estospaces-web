@@ -455,6 +455,36 @@ const AddressSection = ({
         handleTextChange('postalCode', postalCode);
     }, [countries, handleTextChange, onChange, value]);
 
+    useEffect(() => {
+        if (!countries.length || !value.postalCode) {
+            return;
+        }
+
+        const detectedCountryCode = getLaunchCountryFromLocationCode(value.postalCode);
+        const detectedCountry = detectedCountryCode
+            ? countries.find((country) => country.code.toUpperCase() === detectedCountryCode)
+            : undefined;
+
+        if (!detectedCountry || detectedCountry.id === value.countryId) {
+            return;
+        }
+
+        setStates([]);
+        setCities([]);
+        onChange({
+            ...value,
+            countryId: detectedCountry.id,
+            countryName: detectedCountry.name,
+            countryCode: detectedCountry.code,
+            stateId: '',
+            stateName: '',
+            stateCode: '',
+            cityId: '',
+            cityName: '',
+            postalCode: normalizeLaunchLocationCode(value.postalCode),
+        });
+    }, [countries, onChange, value]);
+
     // Retry handlers
     const retryCountries = useCallback(async () => {
         setLoadingCountries(true);
