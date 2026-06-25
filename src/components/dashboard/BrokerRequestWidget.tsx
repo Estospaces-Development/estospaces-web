@@ -58,6 +58,7 @@ import {
     isValidLaunchLocationCode,
     LAUNCH_CURRENCY_CODE,
     normalizeLaunchLocationCode,
+    normalizeLaunchLocationCodeErrorMessage,
 } from '@/lib/launchLocale';
 
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
@@ -615,7 +616,12 @@ const BrokerRequestWidget = () => {
         e.preventDefault();
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (trimmedPostcode && !isValidLaunchLocationCode(trimmedPostcode)) {
+        if (!trimmedPostcode || !isValidLaunchLocationCode(trimmedPostcode)) {
+            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
+            return;
+        }
+        const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
+        if (!formattedPostcode) {
             setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
@@ -628,14 +634,14 @@ const BrokerRequestWidget = () => {
             const { success, data, error: requestError } = await createBrokerRequest({
                 requestType,
                 location,
-                locationPostcode: formatLaunchBrokerLocationCode(locationPostcode),
+                locationPostcode: formattedPostcode,
                 budget,
                 details,
                 fastTrackEnabled,
             });
 
             if (!success) {
-                throw new Error(requestError || 'Failed to submit request');
+                throw new Error(normalizeLaunchLocationCodeErrorMessage(requestError || 'Failed to submit request', formattedPostcode));
             }
 
             if (data) {

@@ -11,6 +11,7 @@ import {
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
   isValidLaunchLocationCodeForCountry,
+  normalizeLaunchLocationCodeErrorMessage,
   normalizeLaunchCurrencyText,
 } from '@/lib/launchLocale';
 
@@ -40,4 +41,14 @@ test('launch locale selects India or UK from location code and country', () => {
   assert.equal(isValidLaunchLocationCodeForCountry('600001', 'GB', 'United Kingdom'), false);
   assert.equal(getLaunchLocationCodeErrorMessage('IN', 'India'), 'Please enter a valid 6-digit Indian PIN code');
   assert.equal(getLaunchLocationCodeErrorMessage('GB', 'United Kingdom'), 'Please enter a valid UK postcode');
+  assert.equal(getLaunchLocationCodeErrorMessage(undefined, undefined, '600001'), 'Please enter a valid 6-digit Indian PIN code');
+  assert.equal(getLaunchLocationCodeErrorMessage(undefined, undefined, 'SW1A 1AA'), 'Please enter a valid UK postcode');
+  assert.equal(
+    normalizeLaunchLocationCodeErrorMessage('location_postcode is required and must be a valid UK postcode', '600001'),
+    'Please enter a valid 6-digit Indian PIN code',
+  );
+  assert.equal(
+    normalizeLaunchLocationCodeErrorMessage('location_postcode is required and must be a valid UK postcode', 'SW1A 1AA'),
+    'Please enter a valid UK postcode',
+  );
 });

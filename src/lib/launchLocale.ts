@@ -212,8 +212,9 @@ export function isValidLaunchLocationCodeForCountry(
 export function getLaunchLocationCodeErrorMessage(
   countryCode?: string | null,
   countryName?: string | null,
+  locationCode?: string | null,
 ): string {
-  const country = getSupportedLaunchCountry(countryCode, countryName);
+  const country = getSupportedLaunchCountry(countryCode, countryName, locationCode);
   if (country === UK_COUNTRY_CODE) {
     return "Please enter a valid UK postcode";
   }
@@ -221,6 +222,30 @@ export function getLaunchLocationCodeErrorMessage(
     return "Please enter a valid 6-digit Indian PIN code";
   }
   return "Please enter a valid Indian PIN code or UK postcode";
+}
+
+export function normalizeLaunchLocationCodeErrorMessage(
+  message?: string | null,
+  locationCode?: string | null,
+): string {
+  const fallback = "Please enter a valid Indian PIN code or UK postcode";
+  const rawMessage = String(message || "").trim();
+  if (!rawMessage) {
+    return fallback;
+  }
+
+  if (!/(location_postcode|postcode|pin code)/i.test(rawMessage)) {
+    return rawMessage;
+  }
+
+  const country = getLaunchCountryFromLocationCode(locationCode);
+  if (country === LAUNCH_COUNTRY_CODE) {
+    return "Please enter a valid 6-digit Indian PIN code";
+  }
+  if (country === UK_COUNTRY_CODE) {
+    return "Please enter a valid UK postcode";
+  }
+  return fallback;
 }
 
 export function formatLaunchLocationCode(value?: string | null): string {
