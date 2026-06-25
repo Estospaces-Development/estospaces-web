@@ -34,12 +34,19 @@ export interface AddressData {
     postalCode: string;
 }
 
-// Launch static data. India-only for this phase so create flows default to rupees.
+// Launch static data. India remains first so create flows keep the India default, while UK is selectable when the location is UK-based.
 const COUNTRIES: Country[] = [
     { id: '2', name: 'India', code: 'IN', phone_code: '+91', currency_code: 'INR' },
+    { id: '1', name: 'United Kingdom', code: 'GB', phone_code: '+44', currency_code: 'GBP' },
 ];
 
 const STATES: Record<string, State[]> = {
+    '1': [
+        { id: '101', name: 'England', code: 'ENG', country_id: '1' },
+        { id: '102', name: 'Scotland', code: 'SCT', country_id: '1' },
+        { id: '103', name: 'Wales', code: 'WLS', country_id: '1' },
+        { id: '104', name: 'Northern Ireland', code: 'NIR', country_id: '1' },
+    ],
     '2': [
         { id: '201', name: 'Tamil Nadu', code: 'TN', country_id: '2' },
         { id: '202', name: 'Karnataka', code: 'KA', country_id: '2' },
@@ -51,6 +58,21 @@ const STATES: Record<string, State[]> = {
 };
 
 const CITIES: Record<string, City[]> = {
+    '101': [
+        { id: '1001', name: 'London', state_id: '101', postal_code: 'SW1A 1AA' },
+        { id: '1002', name: 'Manchester', state_id: '101', postal_code: 'M1 1AE' },
+        { id: '1003', name: 'Birmingham', state_id: '101', postal_code: 'B1 1AA' },
+    ],
+    '102': [
+        { id: '1010', name: 'Edinburgh', state_id: '102', postal_code: 'EH1 1AA' },
+        { id: '1011', name: 'Glasgow', state_id: '102', postal_code: 'G1 1AA' },
+    ],
+    '103': [
+        { id: '1020', name: 'Cardiff', state_id: '103', postal_code: 'CF10 1EP' },
+    ],
+    '104': [
+        { id: '1030', name: 'Belfast', state_id: '104', postal_code: 'BT1 5GS' },
+    ],
     '201': [
         { id: '2001', name: 'Chennai', state_id: '201', postal_code: '600001' },
         { id: '2002', name: 'Coimbatore', state_id: '201', postal_code: '641001' },

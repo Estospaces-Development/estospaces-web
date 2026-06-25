@@ -9,17 +9,17 @@ import {
     readBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
-import { formatLaunchPinCode, formatLaunchPropertyLocation, isValidLaunchPinCode, normalizeLaunchPinCode } from '@/lib/launchLocale';
+import { formatLaunchLocationCode, formatLaunchPropertyLocation, isValidLaunchLocationCode, normalizeLaunchLocationCode } from '@/lib/launchLocale';
 
-const normalizePinCode = (value?: string | null) => normalizeLaunchPinCode(value);
+const normalizeLocationCode = (value?: string | null) => normalizeLaunchLocationCode(value);
 const nearbyAgentFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
 const NEARBY_AGENT_PAGE_SIZE = 5;
 type NearbyAgentSort = 'rank' | 'distance' | 'rating';
 type NearbyAgentFilter = 'all' | 'fast_track';
-const formatLaunchRequestPinCode = (value?: string | null) => formatLaunchPinCode(value);
+const formatLaunchRequestLocationCode = (value?: string | null) => formatLaunchLocationCode(value);
 const formatBrokerArea = (value?: string | null) => {
-    const pinCode = formatLaunchRequestPinCode(value);
-    return pinCode || formatLaunchPropertyLocation(value);
+    const locationCode = formatLaunchRequestLocationCode(value);
+    return locationCode || formatLaunchPropertyLocation(value);
 };
 const formatBrokerDistance = (distanceMiles?: number) => {
     if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) {
@@ -90,7 +90,7 @@ const NearbyAgenciesList = () => {
         ? searchParams.get('request')?.trim() || null
         : null;
 
-    const liveRequestPostcode = formatLaunchRequestPinCode(activeRequest?.location_postcode);
+    const liveRequestPostcode = formatLaunchRequestLocationCode(activeRequest?.location_postcode);
     const effectivePostcode = manualPostcode || liveRequestPostcode;
     const isManualSearchActive = Boolean(manualPostcode);
     const showSearchForm = isSearchOpen || isManualSearchActive || !liveRequestPostcode;
@@ -144,7 +144,7 @@ const NearbyAgenciesList = () => {
             return;
         }
 
-        if (!postcodeInput.trim() || normalizePinCode(postcodeInput) === normalizePinCode(liveRequestPostcode)) {
+        if (!postcodeInput.trim() || normalizeLocationCode(postcodeInput) === normalizeLocationCode(liveRequestPostcode)) {
             setPostcodeInput(liveRequestPostcode);
         }
     }, [liveRequestPostcode, manualPostcode, postcodeInput]);
@@ -197,18 +197,18 @@ const NearbyAgenciesList = () => {
     const handlePostcodeSearch = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        const trimmedPostcode = normalizePinCode(postcodeInput);
+        const trimmedPostcode = normalizeLocationCode(postcodeInput);
         if (!trimmedPostcode) {
-            setSearchError('Enter a 6-digit Indian PIN code like 600001.');
+            setSearchError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
 
-        if (!isValidLaunchPinCode(trimmedPostcode)) {
-            setSearchError('Enter a valid 6-digit Indian PIN code like 600001.');
+        if (!isValidLaunchLocationCode(trimmedPostcode)) {
+            setSearchError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
 
-        const formattedPostcode = formatLaunchRequestPinCode(trimmedPostcode);
+        const formattedPostcode = formatLaunchRequestLocationCode(trimmedPostcode);
         setManualPostcode(formattedPostcode);
         setPostcodeInput(formattedPostcode);
         setSearchError(null);
@@ -391,9 +391,9 @@ const NearbyAgenciesList = () => {
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by PIN code</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by PIN code / postcode</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Enter a 6-digit Indian PIN code to rank the nearest available property agents in that area.
+                                Enter a 6-digit Indian PIN code or UK postcode to rank the nearest available property agents in that area.
                             </p>
                         </div>
                         {liveRequestPostcode && (
@@ -420,14 +420,14 @@ const NearbyAgenciesList = () => {
                                 type="text"
                                 value={postcodeInput}
                                 onChange={(event) => {
-                                    setPostcodeInput(normalizeLaunchPinCode(event.target.value));
+                                    setPostcodeInput(normalizeLaunchLocationCode(event.target.value));
                                     if (searchError) {
                                         setSearchError(null);
                                     }
                                 }}
-                                placeholder="e.g. 600001"
-                                inputMode="numeric"
-                                maxLength={6}
+                                placeholder="e.g. 600001 or SW1A 1AA"
+                                inputMode="text"
+                                maxLength={8}
                                 className={`w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white ${nearbyAgentFocusClass}`}
                             />
                         </div>
@@ -456,7 +456,7 @@ const NearbyAgenciesList = () => {
                     }}
                     className={`mt-6 w-full rounded-lg bg-gray-50 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
                 >
-                    Find nearest agent by PIN code
+                    Find nearest agent by PIN code / postcode
                 </button>
             )}
         </div>

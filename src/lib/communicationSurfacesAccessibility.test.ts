@@ -75,7 +75,7 @@ test('launch search and broker surfaces use India and rupee defaults', () => {
     readSource('src/components/layout/Footer.tsx'),
   ].join('\n');
 
-  assert.doesNotMatch(sources, /£|GBP|United Kingdom properties|getPropertySections\(['"]UK['"]\)|full UK postcode|SW1A 1AA|2 Bed Flats in London|Stockmans Way|Belfast|Postcode search|Find nearest agent by postcode|Add a postcode|profile postcode|mi away|miles away|54\.5, -3/);
+  assert.doesNotMatch(sources, /£|GBP|United Kingdom properties|getPropertySections\(['"]UK['"]\)|2 Bed Flats in London|Stockmans Way|Belfast|Postcode search|Find nearest agent by postcode|Add a postcode|profile postcode|mi away|miles away|54\.5, -3/);
   assert.match(sources, /formatLaunchCurrency/);
   assert.match(sources, /formatLaunchPropertyText/);
   assert.match(sources, /LAUNCH_COUNTRY_CODE/);
@@ -88,7 +88,7 @@ test('manager launch workspaces do not expose UK profile or live-response copy',
     readSource('src/components/dashboard/BrokerResponseWidget.tsx'),
   ].join('\n');
 
-  assert.doesNotMatch(sources, />Postcode<|SW1A 1AA|BT9 7GG|Belfast|Preston|Westminster|London|\\+44|GBP|Â£|£|co\\.uk|full UK postcode/);
+  assert.doesNotMatch(sources, />Postcode<|BT9 7GG|Belfast|Preston|Westminster|London|\\+44|GBP|Â£|£|co\\.uk/);
   assert.match(sources, /PIN code/);
   assert.match(sources, /formatLaunchPropertyLocation/);
   assert.match(sources, /companyAddress: formatOptionalLaunchPropertyLocation/);

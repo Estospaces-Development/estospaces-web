@@ -35,7 +35,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
     formatLaunchCurrency,
-    formatLaunchPinCode,
+    formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     LAUNCH_COUNTRY_NAME,
@@ -83,7 +83,7 @@ const formatPropertyPrice = (price?: number) => {
 const formatRequestArea = (location?: string | null, postcode?: string | null) => (
     formatLaunchPropertyLocation([
         location,
-        formatLaunchPinCode(postcode) || undefined,
+        formatLaunchLocationCode(postcode) || undefined,
     ])
 );
 
@@ -94,7 +94,7 @@ const formatPortfolioPropertyLocation = (property: {
 }) => formatLaunchPropertyLocation([
     property.address_line_1,
     property.city,
-    formatLaunchPinCode(property.postcode) || undefined,
+    formatLaunchLocationCode(property.postcode) || undefined,
 ]);
 
 const formatWorkspaceStartedAt = (value?: string) => {
@@ -197,7 +197,7 @@ const BrokerResponseWidget: React.FC = () => {
                     interestedIn: propertyTitle || 'Property enquiry',
                     distance: formatLaunchPropertyLocation([
                         lead.property?.city,
-                        formatLaunchPinCode(lead.property?.postcode) || undefined,
+                        formatLaunchLocationCode(lead.property?.postcode) || undefined,
                     ]),
                     timestamp: new Date(lead.created_at),
                     status: resolveLeadStage(lead) === 'matching'
@@ -239,7 +239,7 @@ const BrokerResponseWidget: React.FC = () => {
                 phone: offer.requester_phone,
                 location: offerArea || 'Location not available',
                 interestedIn: formatOfferSummary(offer.dispatch_status, offer.matched_broker?.name || null),
-                distance: formatLaunchPinCode(offer.location_postcode) || offerArea || LAUNCH_COUNTRY_NAME,
+                distance: formatLaunchLocationCode(offer.location_postcode) || offerArea || LAUNCH_COUNTRY_NAME,
                 timestamp: new Date(offer.created_at || offer.dispatch_started_at || new Date().toISOString()),
                 status: offer.dispatch_status === 'broker_matched'
                     ? 'responded' as const
@@ -279,7 +279,7 @@ const BrokerResponseWidget: React.FC = () => {
                 id: property.id,
                 title: formatLaunchPropertyText(property.title, 'Property'),
                 city: formatLaunchPropertyLocation(property.city),
-                postcode: formatLaunchPinCode(property.postcode),
+                postcode: formatLaunchLocationCode(property.postcode),
                 price: property.price,
                 listing_type: property.listing_type,
                 image_urls: Array.isArray(property.images) && typeof property.images[0] === 'string'

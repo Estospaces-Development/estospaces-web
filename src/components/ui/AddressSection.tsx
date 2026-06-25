@@ -11,7 +11,12 @@ import {
     type State,
     type City,
 } from '../../services/addressService';
-import { normalizeLaunchPinCode } from '@/lib/launchLocale';
+import {
+    getLaunchCountryFromLocationCode,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
+    normalizeLaunchLocationCode,
+} from '@/lib/launchLocale';
 
 export interface AddressFormData {
     countryId: string;
@@ -421,10 +426,34 @@ const AddressSection = ({
         });
     }, [value, onChange]);
 
-    // Handler for launch PIN code.
+    // Handler for launch location code.
     const handlePostalCodeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        handleTextChange('postalCode', normalizeLaunchPinCode(e.target.value));
-    }, [handleTextChange]);
+        const postalCode = normalizeLaunchLocationCode(e.target.value);
+        const detectedCountryCode = getLaunchCountryFromLocationCode(postalCode);
+        const detectedCountry = detectedCountryCode
+            ? countries.find((country) => country.code.toUpperCase() === detectedCountryCode)
+            : undefined;
+
+        if (detectedCountry && detectedCountry.id !== value.countryId) {
+            setStates([]);
+            setCities([]);
+            onChange({
+                ...value,
+                countryId: detectedCountry.id,
+                countryName: detectedCountry.name,
+                countryCode: detectedCountry.code,
+                stateId: '',
+                stateName: '',
+                stateCode: '',
+                cityId: '',
+                cityName: '',
+                postalCode,
+            });
+            return;
+        }
+
+        handleTextChange('postalCode', postalCode);
+    }, [countries, handleTextChange, onChange, value]);
 
     // Retry handlers
     const retryCountries = useCallback(async () => {
@@ -479,6 +508,18 @@ const AddressSection = ({
     ), [fieldIdPrefix]);
 
     const getFieldErrorId = useCallback((field: string) => `${getFieldId(field)}-error`, [getFieldId]);
+    const postalCodeLabel = useMemo(() => getLaunchLocationCodeLabel(
+        value.countryCode,
+        value.countryName,
+        value.postalCode,
+    ), [value.countryCode, value.countryName, value.postalCode]);
+
+    const postalCodePlaceholder = useMemo(() => getLaunchLocationCodePlaceholder(
+        value.countryCode,
+        value.countryName,
+        value.postalCode,
+    ), [value.countryCode, value.countryName, value.postalCode]);
+
 
     // Render dropdown with loading and error states
     const renderSelect = (
@@ -706,20 +747,20 @@ const AddressSection = ({
                         htmlFor={getFieldId('postalCode')}
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
-                        PIN code {required && <span className="text-red-500">*</span>}
+                        {postalCodeLabel} {required && <span className="text-red-500">*</span>}
                     </label>
                     <input
                         id={getFieldId('postalCode')}
                         type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={6}
+                        inputMode="text"
+                        pattern="[A-Za-z0-9 ]*"
+                        maxLength={8}
                         value={value.postalCode}
                         onChange={handlePostalCodeChange}
                         disabled={disabled}
                         aria-invalid={Boolean(errors.postalCode)}
                         aria-describedby={errors.postalCode ? getFieldErrorId('postalCode') : undefined}
-                        placeholder="e.g. 600001"
+                        placeholder={postalCodePlaceholder}
                         className={`
               w-full px-3 py-2.5
               border rounded-lg

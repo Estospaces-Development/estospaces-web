@@ -3,9 +3,14 @@ import assert from 'node:assert/strict';
 
 import {
   formatLaunchCurrency,
+  formatLaunchLocationCode,
   formatLaunchPinCode,
   formatLaunchPropertyLocation,
   formatLaunchPropertyText,
+  getLaunchCountryFromLocationCode,
+  getLaunchLocationCodeErrorMessage,
+  getLaunchLocationCodeLabel,
+  isValidLaunchLocationCodeForCountry,
   normalizeLaunchCurrencyText,
 } from '@/lib/launchLocale';
 
@@ -21,4 +26,18 @@ test('launch locale formats India currency and rewrites legacy UK display data',
   assert.equal(formatLaunchPropertyText('Luxurious 3BHK in Preston - JEEVI Groups'), 'Luxurious 3BHK in Chennai - JEEVI Groups');
   assert.equal(formatLaunchPinCode('600001'), '600001');
   assert.equal(formatLaunchPinCode('SW1A 1AA'), '');
+});
+
+test('launch locale selects India or UK from location code and country', () => {
+  assert.equal(getLaunchCountryFromLocationCode('600001'), 'IN');
+  assert.equal(getLaunchCountryFromLocationCode('SW1A 1AA'), 'GB');
+  assert.equal(formatLaunchLocationCode('sw1a1aa'), 'SW1A 1AA');
+  assert.equal(getLaunchLocationCodeLabel('IN', 'India'), 'PIN code');
+  assert.equal(getLaunchLocationCodeLabel('GB', 'United Kingdom'), 'Postcode');
+  assert.equal(isValidLaunchLocationCodeForCountry('600001', 'IN', 'India'), true);
+  assert.equal(isValidLaunchLocationCodeForCountry('SW1A 1AA', 'IN', 'India'), false);
+  assert.equal(isValidLaunchLocationCodeForCountry('SW1A 1AA', 'GB', 'United Kingdom'), true);
+  assert.equal(isValidLaunchLocationCodeForCountry('600001', 'GB', 'United Kingdom'), false);
+  assert.equal(getLaunchLocationCodeErrorMessage('IN', 'India'), 'Please enter a valid 6-digit Indian PIN code');
+  assert.equal(getLaunchLocationCodeErrorMessage('GB', 'United Kingdom'), 'Please enter a valid UK postcode');
 });

@@ -201,7 +201,7 @@ export const getBrokerRequestCopy = (requestType?: string) => ({
   nearbyBrokersTitle: 'Nearest property agents',
   nearbyBrokersSubtitle: 'These are the nearest available property agents for your area.',
   nearbyBrokersLoading: 'Looking for nearby property agents...',
-  nearbyBrokersEmpty: 'Add a postcode to see nearby property agents.',
+  nearbyBrokersEmpty: 'Add a PIN code or postcode to see nearby property agents.',
   nearbyBrokerAvailableLabel: 'Available',
   nearbyBrokerQueuedLabel: 'Waiting',
   liveCountdownLabel: 'Response time',

@@ -1,7 +1,9 @@
 import type { ListingType } from "@/contexts/PropertyContext";
 import {
-  isValidLaunchPinCode,
-  LAUNCH_COUNTRY_CODE,
+  getLaunchLocationCodeErrorMessage,
+  isLaunchIndiaCountry,
+  isLaunchUKCountry,
+  isValidLaunchLocationCodeForCountry,
   LAUNCH_COUNTRY_NAME,
 } from "@/lib/launchLocale";
 
@@ -137,9 +139,9 @@ export function validateManagerPropertyField(
       if (!values.countryId && !values.country.trim() && !values.countryCode.trim()) {
         return "Country is required";
       }
-      return isLaunchCountry(values.countryCode, values.country)
+      return isSupportedPropertyCountry(values.countryCode, values.country)
         ? null
-        : `Only ${LAUNCH_COUNTRY_NAME} listings are supported for this launch`;
+        : `${LAUNCH_COUNTRY_NAME} and UK listings are supported for this launch`;
     case "state":
       return values.stateId || values.state.trim()
         ? null
@@ -148,10 +150,10 @@ export function validateManagerPropertyField(
       return values.cityId || values.city.trim() ? null : "City is required";
     case "postalCode":
       if (!values.postalCode.trim()) {
-        return "PIN code is required";
+        return "PIN code or postcode is required";
       }
-      if (!isValidLaunchPinCode(values.postalCode)) {
-        return "Please enter a valid 6-digit Indian PIN code";
+      if (!isValidPostalCodeForCountry(values.postalCode, values.countryCode, values.country)) {
+        return postalCodeMessageForCountry(values.countryCode, values.country);
       }
       return null;
     case "latitude":
@@ -392,14 +394,17 @@ function validateAvailableFrom(value: string): string | null {
     : null;
 }
 
-function isLaunchCountry(countryCode: string, countryName: string): boolean {
-  const normalizedCode = countryCode.trim().toUpperCase();
-  if (normalizedCode) {
-    return normalizedCode === LAUNCH_COUNTRY_CODE;
-  }
+function isSupportedPropertyCountry(countryCode: string, countryName: string): boolean {
+  const hasCountry = countryCode.trim() || countryName.trim();
+  return !hasCountry || isLaunchIndiaCountry(countryCode, countryName) || isLaunchUKCountry(countryCode, countryName);
+}
 
-  const normalizedName = countryName.trim().toLowerCase();
-  return !normalizedName || normalizedName === LAUNCH_COUNTRY_NAME.toLowerCase();
+function isValidPostalCodeForCountry(value: string, countryCode: string, countryName: string): boolean {
+  return isValidLaunchLocationCodeForCountry(value, countryCode, countryName);
+}
+
+function postalCodeMessageForCountry(countryCode: string, countryName: string): string {
+  return getLaunchLocationCodeErrorMessage(countryCode, countryName);
 }
 
 function requiresMinimumLease(listingType: ListingType): boolean {

@@ -83,15 +83,27 @@ test("validateManagerPropertyForm returns the first invalid step correctly", () 
   assert.equal(getManagerPropertyFirstErrorStep(fieldErrors), 2);
 });
 
-test("validateManagerPropertyForm blocks non-India launch countries", () => {
-  const fieldErrors = validateManagerPropertyForm({
+test("validateManagerPropertyForm selects postcode rules from India or UK country", () => {
+  const ukErrors = validateManagerPropertyForm({
     ...baseValues,
     country: "United Kingdom",
-    countryId: "GB",
+    countryId: "1",
     countryCode: "GB",
+    postalCode: "SW1A 1AA",
   });
 
-  assert.equal(fieldErrors.country, "Only India listings are supported for this launch");
+  assert.equal(ukErrors.country, undefined);
+  assert.equal(ukErrors.postalCode, undefined);
+
+  const wrongUkCodeErrors = validateManagerPropertyForm({
+    ...baseValues,
+    country: "United Kingdom",
+    countryId: "1",
+    countryCode: "GB",
+    postalCode: "600001",
+  });
+
+  assert.equal(wrongUkCodeErrors.postalCode, "Please enter a valid UK postcode");
 });
 
 test("validateManagerPropertyForm enforces floor relationships and optional money rules", () => {

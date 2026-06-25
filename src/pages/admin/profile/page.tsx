@@ -208,7 +208,7 @@ export default function AdminProfilePage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="admin-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postcode</label>
+                                    <label htmlFor="admin-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code / postcode</label>
                                     <div className="relative">
                                         <Hash size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="admin-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange} className={iconInputClass} />

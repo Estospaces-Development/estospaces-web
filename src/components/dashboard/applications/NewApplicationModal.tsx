@@ -441,7 +441,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 onKeyDown={handleKeyDown}
-                                                placeholder="Search by name, city, or postcode..."
+                                                placeholder="Search by name, city, PIN code, or postcode..."
                                                 className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                                             />
                                             {loadingProperties && (

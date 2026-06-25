@@ -2,18 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  isValidUkPostcode,
+  isValidLocationCode,
   mapPropertyMutationFieldErrors,
 } from "@/lib/propertyValidationErrors";
 
-test("isValidUkPostcode accepts valid UK postcodes", () => {
-  assert.equal(isValidUkPostcode("BT9 7GG"), true);
-  assert.equal(isValidUkPostcode("SW1A 1AA"), true);
+test("isValidLocationCode accepts Indian PIN codes and UK postcodes", () => {
+  assert.equal(isValidLocationCode("600001"), true);
+  assert.equal(isValidLocationCode("SW1A 1AA"), true);
 });
 
-test("isValidUkPostcode rejects invalid UK postcodes", () => {
-  assert.equal(isValidUkPostcode("INVALID"), false);
-  assert.equal(isValidUkPostcode("12345"), false);
+test("isValidLocationCode rejects invalid location codes", () => {
+  assert.equal(isValidLocationCode("INVALID"), false);
+  assert.equal(isValidLocationCode("12345"), false);
 });
 
 test("mapPropertyMutationFieldErrors translates api fields to form fields", () => {
@@ -41,7 +41,7 @@ test("mapPropertyMutationFieldErrors translates api fields to form fields", () =
       longitude: "Longitude must be between -180 and 180",
       inclusions: "Inclusions are invalid",
       exclusions: "Exclusions are invalid",
-      postcode: "Please enter a valid UK postcode",
+      postcode: "Please enter a valid Indian PIN code or UK postcode",
     }),
     {
       priceAmount: "Price must be greater than 0",
@@ -65,7 +65,7 @@ test("mapPropertyMutationFieldErrors translates api fields to form fields", () =
       longitude: "Longitude must be between -180 and 180",
       inclusions: "Inclusions are invalid",
       exclusions: "Exclusions are invalid",
-      postalCode: "Please enter a valid UK postcode",
+      postalCode: "Please enter a valid Indian PIN code or UK postcode",
     },
   );
 });

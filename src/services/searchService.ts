@@ -173,11 +173,11 @@ export const mapCorePropertySectionToSearchSection = (section: CorePropertySecti
     properties: (section.properties || []).map(mapCorePropertyToSearchResult),
 });
 
-const normalizePostcodeSearchToken = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+const normalizeLocationCodeSearchToken = (value: string) => value.replace(/\s+/g, '').toUpperCase();
 
-const isFullUkPostcodeSearch = (value: string) => {
-    const token = normalizePostcodeSearchToken(value.trim());
-    return /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(token);
+const isFullLocationCodeSearch = (value: string) => {
+    const token = normalizeLocationCodeSearchToken(value.trim());
+    return /^[1-9]\d{5}$/.test(token) || /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(token);
 };
 
 export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>) => {
@@ -186,7 +186,7 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     const normalizedQuery = normalizeSearchQueryInput(query);
     const normalizedLocation = (filters.location || '').toString().trim();
     const normalizedPostcode = (filters.postcode || '').toString().trim();
-    const locationIsPostcode = isFullUkPostcodeSearch(normalizedLocation);
+    const locationIsPostcode = isFullLocationCodeSearch(normalizedLocation);
     const searchParts = [normalizedQuery];
     if (normalizedPostcode) {
         searchParts.push(normalizedPostcode);

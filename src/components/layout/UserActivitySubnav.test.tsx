@@ -17,3 +17,15 @@ test("user activity subnav includes virtual storage", () => {
   assert.match(markup, /Document vault/);
   assert.match(markup, /aria-current="page"/);
 });
+
+test("user activity subnav includes fast track", () => {
+  const markup = renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/user/dashboard/fast-track"]}>
+      <UserActivitySubnav />
+    </MemoryRouter>,
+  );
+
+  assert.match(markup, /Fast Track/);
+  assert.match(markup, /Active cases/);
+  assert.match(markup, /aria-current="page"/);
+});

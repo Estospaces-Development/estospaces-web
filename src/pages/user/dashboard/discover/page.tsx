@@ -34,9 +34,9 @@ import {
     formatLaunchCurrency,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
-    isValidLaunchPinCode,
+    isValidLaunchLocationCode,
     LAUNCH_COUNTRY_CODE,
-    normalizeLaunchPinCode,
+    formatLaunchLocationCode,
 } from '@/lib/launchLocale';
 
 const ITEMS_PER_PAGE = 12;
@@ -221,13 +221,13 @@ const buildSectionSuggestions = (properties: SearchResult[], query: string): Aut
     for (const property of properties) {
         const displayTitle = formatLaunchPropertyText(property.title);
         const displayCity = formatLaunchPropertyLocation(property.city);
-        const displayPinCode = isValidLaunchPinCode(property.postcode)
-            ? normalizeLaunchPinCode(property.postcode)
+        const displayLocationCode = isValidLaunchLocationCode(property.postcode)
+            ? formatLaunchLocationCode(property.postcode)
             : '';
         const candidates = ([
             { id: property.id, text: displayTitle, title: displayTitle, city: displayCity, type: 'property' },
             { text: displayCity, city: displayCity, type: 'city' },
-            { text: displayPinCode, city: displayCity, type: 'postcode' },
+            { text: displayLocationCode, city: displayCity, type: 'postcode' },
         ] as AutocompleteSuggestion[]).filter((suggestion) => (
             suggestion.text && suggestion.text.toLowerCase().includes(normalizedQuery)
         ));
@@ -475,7 +475,7 @@ function DiscoverContent() {
                                 <input
                                     aria-label="Search properties"
                                     type="text"
-                                    placeholder="Postcode, street, or property name..."
+                                    placeholder="PIN code, postcode, street, or property name..."
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(normalizeSearchQueryInput(e.target.value));

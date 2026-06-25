@@ -80,19 +80,36 @@ export const getUserGeolocation = (): Promise<GeolocationCoordinates> => {
     });
 };
 
+const INDIA_PIN_CODE_PATTERN = /^[1-9]\d{5}$/;
+const UK_POSTCODE_PATTERN = /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/;
+
+const normalizeLocationCode = (value: string) => value.replace(/\s+/g, '').toUpperCase();
+
+export const validateLocationCode = (postcode: string): string | null => {
+    if (!postcode) return null;
+
+    const normalized = normalizeLocationCode(postcode);
+    if (INDIA_PIN_CODE_PATTERN.test(normalized)) {
+        return normalized;
+    }
+    if (UK_POSTCODE_PATTERN.test(normalized)) {
+        return normalized.slice(0, -3) + ' ' + normalized.slice(-3);
+    }
+
+    return null;
+};
+
 /**
- * Get postcode from coordinates (reverse geocoding)
- * Uses a free UK postcode API
+ * Get location code from coordinates when a supported reverse geocoder is available.
  */
 export const getPostcodeFromCoordinates = async (latitude: number, longitude: number): Promise<string | null> => {
     try {
-        // Using postcodes.io - free UK postcode API
         const response = await fetch(
             `https://api.postcodes.io/postcodes?lon=${longitude}&lat=${latitude}`
         );
 
         if (!response.ok) {
-            throw new Error('Failed to get postcode from coordinates');
+            throw new Error('Failed to get location code from coordinates');
         }
 
         const data = await response.json();
@@ -101,48 +118,31 @@ export const getPostcodeFromCoordinates = async (latitude: number, longitude: nu
         }
         return null;
     } catch (error) {
-        console.error('Error getting postcode from coordinates:', error);
+        console.error('Error getting location code from coordinates:', error);
         return null;
     }
 };
 
 /**
- * Validate and normalize UK postcode
- */
-export const validateUKPostcode = (postcode: string): string | null => {
-    if (!postcode) return null;
-
-    // Remove spaces and convert to uppercase
-    const normalized = postcode.replace(/\s+/g, '').toUpperCase();
-
-    // UK postcode regex pattern
-    const postcodePattern = /^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$/;
-
-    if (postcodePattern.test(normalized)) {
-        // Format with space: AB1 2CD
-        return normalized.slice(0, -3) + ' ' + normalized.slice(-3);
-    }
-
-    return null;
-};
-
-/**
- * Get coordinates from postcode (geocoding)
+ * Get coordinates from a supported location code.
  */
 export const getCoordinatesFromPostcode = async (postcode: string): Promise<any | null> => {
     try {
-        const validatedPostcode = validateUKPostcode(postcode);
+        const validatedPostcode = validateLocationCode(postcode);
         if (!validatedPostcode) {
-            throw new Error('Invalid UK postcode format');
+            throw new Error('Invalid location code format');
         }
 
-        // Using postcodes.io
+        if (INDIA_PIN_CODE_PATTERN.test(validatedPostcode)) {
+            return null;
+        }
+
         const response = await fetch(
             `https://api.postcodes.io/postcodes/${encodeURIComponent(validatedPostcode)}`
         );
 
         if (!response.ok) {
-            throw new Error('Failed to get coordinates from postcode');
+            throw new Error('Failed to get coordinates from location code');
         }
 
         const data = await response.json();
@@ -156,28 +156,24 @@ export const getCoordinatesFromPostcode = async (postcode: string): Promise<any 
         }
         return null;
     } catch (error) {
-        console.error('Error getting coordinates from postcode:', error);
+        console.error('Error getting coordinates from location code:', error);
         return null;
     }
 };
 
 /**
- * Parse address string to extract postcode
+ * Parse address string to extract a PIN code or postcode.
  */
 export const extractPostcodeFromAddress = (address: string): string | null => {
     if (!address) return null;
 
-    // UK postcode pattern
-    const postcodePattern = /\b([A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2})\b/i;
-    const match = address.match(postcodePattern);
-
+    const match = address.match(/\b([1-9]\d{5}|[A-Z]{1,2}[0-9][A-Z0-9]?\s?[0-9][A-Z]{2})\b/i);
     if (match) {
-        return validateUKPostcode(match[1]);
+        return validateLocationCode(match[1]);
     }
 
     return null;
 };
-
 /**
  * Get user location from multiple sources
  * Priority: 1. Search input, 2. Profile location, 3. Browser geolocation
@@ -189,7 +185,7 @@ export const getUserLocation = async ({
 }: GetUserLocationParams): Promise<LocationData | null> => {
     let location: LocationData | null = null;
 
-    // Priority 1: Search input (postcode or address)
+    // Priority 1: Search input (PIN code, postcode, or address)
     if (searchInput) {
         const postcode = extractPostcodeFromAddress(searchInput) || searchInput;
         const coords = await getCoordinatesFromPostcode(postcode);

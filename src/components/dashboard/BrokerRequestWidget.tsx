@@ -53,10 +53,11 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
     formatLaunchCurrency,
+    formatLaunchLocationCode,
     formatLaunchPropertyLocation,
-    isValidLaunchPinCode,
+    isValidLaunchLocationCode,
     LAUNCH_CURRENCY_CODE,
-    normalizeLaunchPinCode,
+    normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
 
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
@@ -180,15 +181,15 @@ const mapListingTypeToFastTrackPropertyType = (listingType?: string) => {
     return 'rent' as const;
 };
 
-const normalizePostcode = (value?: string | null) => normalizeLaunchPinCode(value);
+const normalizePostcode = (value?: string | null) => normalizeLaunchLocationCode(value);
 
-const formatLaunchBrokerPinCode = (value?: string | null) => {
+const formatLaunchBrokerLocationCode = (value?: string | null) => {
     const normalized = normalizePostcode(value);
-    if (!normalized || !isValidLaunchPinCode(normalized)) {
+    if (!normalized || !isValidLaunchLocationCode(normalized)) {
         return '';
     }
 
-    return normalized;
+    return formatLaunchLocationCode(normalized);
 };
 
 const formatBrokerDistance = (distanceMiles?: number) => {
@@ -204,12 +205,12 @@ const formatRequestArea = (
     locationPostcode?: string | null,
     fallback = '',
 ) => {
-    const pinCode = formatLaunchBrokerPinCode(locationPostcode);
-    if (!location && !pinCode) {
+    const locationCode = formatLaunchBrokerLocationCode(locationPostcode);
+    if (!location && !locationCode) {
         return fallback;
     }
 
-    return formatLaunchPropertyLocation([location, pinCode]);
+    return [location, locationCode].filter(Boolean).join(", ") || fallback;
 };
 
 const hasBrokerRequestDraft = ({
@@ -377,13 +378,13 @@ const BrokerRequestWidget = () => {
             return;
         }
 
-        if (!isValidLaunchPinCode(trimmedPostcode)) {
+        if (!isValidLaunchLocationCode(trimmedPostcode)) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
             return;
         }
 
-        const formattedPostcode = formatLaunchBrokerPinCode(trimmedPostcode);
+        const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
         if (!formattedPostcode) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
@@ -614,8 +615,8 @@ const BrokerRequestWidget = () => {
         e.preventDefault();
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (trimmedPostcode && !isValidLaunchPinCode(trimmedPostcode)) {
-            setPostcodeError('Enter a 6-digit Indian PIN code like 600001.');
+        if (trimmedPostcode && !isValidLaunchLocationCode(trimmedPostcode)) {
+            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
 
@@ -627,7 +628,7 @@ const BrokerRequestWidget = () => {
             const { success, data, error: requestError } = await createBrokerRequest({
                 requestType,
                 location,
-                locationPostcode: formatLaunchBrokerPinCode(locationPostcode),
+                locationPostcode: formatLaunchBrokerLocationCode(locationPostcode),
                 budget,
                 details,
                 fastTrackEnabled,
@@ -1344,23 +1345,23 @@ const BrokerRequestWidget = () => {
 
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                            PIN code
+                            PIN code / postcode
                         </label>
                         <input
                             type="text"
                             value={locationPostcode}
                             onChange={(e) => {
-                                const nextValue = normalizeLaunchPinCode(e.target.value);
+                                const nextValue = normalizeLaunchLocationCode(e.target.value);
                                 setLocationPostcode(nextValue);
                                 if (postcodeError) {
                                     const trimmedNextValue = normalizePostcode(nextValue);
-                                    if (!trimmedNextValue || isValidLaunchPinCode(trimmedNextValue)) {
+                                    if (!trimmedNextValue || isValidLaunchLocationCode(trimmedNextValue)) {
                                         setPostcodeError(null);
                                     }
                                 }
                             }}
-                            placeholder="e.g. 600001"
-                            maxLength={6}
+                            placeholder="e.g. 600001 or SW1A 1AA"
+                            maxLength={8}
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
                         />

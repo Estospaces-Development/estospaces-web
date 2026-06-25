@@ -358,7 +358,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                            <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Postcode</label>
+                                            <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">PIN code / postcode</label>
                                             <div className="relative">
                                                 <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                                 <input
@@ -368,7 +368,7 @@ export default function ProfilePage() {
                                                 value={formData.postcode}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white uppercase"
-                                                placeholder="e.g. SW1A 1AA"
+                                                placeholder="e.g. 600001 or SW1A 1AA"
                                             />
                                         </div>
                                     </div>

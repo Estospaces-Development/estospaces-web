@@ -8,10 +8,10 @@ import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 import {
-    formatLaunchPinCode,
+    formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
-    normalizeLaunchPinCode,
+    normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
 
 const MANAGER_LICENSE_MAX_LENGTH = 64;
@@ -83,7 +83,7 @@ export default function ManagerProfilePage() {
             email: user?.email || '',
             phone: user?.phone || prev.phone || '',
             address: formatOptionalLaunchPropertyLocation(user?.address || prev.address || ''),
-            postcode: formatLaunchPinCode(user?.postcode || prev.postcode || ''),
+            postcode: formatLaunchLocationCode(user?.postcode || prev.postcode || ''),
             bio: managerProfile?.company_description || user?.user_metadata?.bio || prev.bio || '',
             website: user?.user_metadata?.website || prev.website || '',
             // Broker / manager fields
@@ -109,7 +109,7 @@ export default function ManagerProfilePage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const nextValue = (() => {
             if (e.target.name === 'postcode') {
-                return normalizeLaunchPinCode(e.target.value);
+                return normalizeLaunchLocationCode(e.target.value);
             }
 
             if (e.target.name === 'address' || e.target.name === 'companyAddress' || e.target.name === 'registeredOfficeAddress') {
@@ -486,14 +486,14 @@ export default function ManagerProfilePage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code</label>
+                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code / postcode</label>
                                     <div className="relative">
                                         <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="manager-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange}
-                                            inputMode="numeric"
-                                            pattern="[0-9]*"
-                                            maxLength={6}
-                                            placeholder="600001"
+                                            inputMode="text"
+                                            pattern="[A-Za-z0-9 ]*"
+                                            maxLength={8}
+                                            placeholder="600001 or SW1A 1AA"
                                             className={iconInputClass} />
                                     </div>
                                 </div>

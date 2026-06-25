@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 import {
   FastTrackDocumentFileChooser,
@@ -50,4 +53,28 @@ test("fast-track user document upload copy makes uploaded and reupload states vi
       statusMessage: "Reupload requested. Choose a replacement file and submit it here.",
     },
   );
+});
+
+const workspaceSource = () => readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "FastTrackWorkspace.tsx"),
+  "utf8",
+);
+
+test("fast-track preview buttons open a modal with zoom controls", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true \}\)/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /aria-label="Zoom out document preview"/);
+  assert.match(source, /aria-label="Reset document preview zoom"/);
+  assert.match(source, /aria-label="Zoom in document preview"/);
+});
+
+test("fast-track uploaded document preview uses signed access URL without blob fetching", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const access = await getDocumentAccessUrl\(item\.documentRecordId\)/);
+  assert.doesNotMatch(source, /getDocumentAccessBlob/);
+  assert.match(source, /nextUrl = access\.url/);
 });

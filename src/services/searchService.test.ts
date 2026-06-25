@@ -27,6 +27,16 @@ test('core property search maps compact postcode location to search', () => {
     assert.equal(params.get('city'), null);
 });
 
+test('core property search maps Indian PIN location to search', () => {
+    const params = mapSearchFiltersToCoreQuery('', {
+        location: '600001',
+        listingType: 'sale',
+    });
+
+    assert.equal(params.get('search'), '600001');
+    assert.equal(params.get('city'), null);
+    assert.equal(params.get('listing_type'), 'sale');
+});
 test('core property search keeps city location as city filter', () => {
     const params = mapSearchFiltersToCoreQuery('', {
         location: 'Preston',

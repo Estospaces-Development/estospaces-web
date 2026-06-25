@@ -56,7 +56,7 @@ import {
     sortFastTrackWorkspaceCases,
 } from '@/lib/fastTrackWorkspaceLoad';
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
-import { getDocumentAccessBlob, getDocumentAccessUrl } from '@/services/documentAccessService';
+import { getDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     FastTrackCase,
     FastTrackDocumentItem,
@@ -1372,44 +1372,25 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         handleDocumentFocus(item.id);
         setPreviewError(null);
 
-        const previewKind = detectDocumentPreviewKind(item);
         let nextUrl = item.fileUrl || null;
         let nextAccessUrl = item.fileUrl || null;
         try {
             if (item.documentRecordId) {
-                if (!openInNewTab && (previewKind === 'image' || previewKind === 'pdf')) {
-                    const access = await getDocumentAccessBlob(item.documentRecordId);
-                    if (access.error || !access.url || !access.blob) {
-                        setPreviewUrl(null);
-                        setPreviewError(access.error || 'Preview is unavailable for this document.');
-                        if (revealInViewport) {
-                            if (role === 'user') {
-                                setUserDetailsOpen(true);
-                            }
-                            revealPreviewSection();
+                const access = await getDocumentAccessUrl(item.documentRecordId);
+                if (access.error || !access.url) {
+                    setPreviewUrl(null);
+                    setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    if (revealInViewport) {
+                        if (role === 'user') {
+                            setUserDetailsOpen(true);
                         }
-                        return null;
+                        revealPreviewSection();
                     }
-                    releasePreviewObjectUrl();
-                    nextUrl = URL.createObjectURL(access.blob);
-                    previewObjectUrlRef.current = nextUrl;
-                } else {
-                    const access = await getDocumentAccessUrl(item.documentRecordId);
-                    if (access.error || !access.url) {
-                        setPreviewUrl(null);
-                        setPreviewError(access.error || 'Preview is unavailable for this document.');
-                        if (revealInViewport) {
-                            if (role === 'user') {
-                                setUserDetailsOpen(true);
-                            }
-                            revealPreviewSection();
-                        }
-                        return null;
-                    }
-                    releasePreviewObjectUrl();
-                    nextUrl = access.url;
-                    nextAccessUrl = access.url;
+                    return null;
                 }
+                releasePreviewObjectUrl();
+                nextUrl = access.url;
+                nextAccessUrl = access.url;
             } else {
                 releasePreviewObjectUrl();
             }
