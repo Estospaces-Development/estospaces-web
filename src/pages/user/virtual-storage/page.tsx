@@ -174,9 +174,6 @@ export function UserVirtualStoragePageContent({
     if (documentResult.data) {
       setDocuments(documentResult.data.documents || []);
     }
-    if (documentResult.error) {
-      setErrorMessage(documentResult.error);
-    }
     setLoading(false);
   };
 

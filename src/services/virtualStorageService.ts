@@ -87,6 +87,7 @@ export const getVirtualStorageDocuments = async (): Promise<{
   try {
     const data = await apiFetch<VirtualStorageDocumentsResponse>(
       `${CORE_URL()}/api/v1/virtual-storage/documents`,
+      { suppressErrorToast: true },
     );
     return { data, error: null };
   } catch (error: any) {
