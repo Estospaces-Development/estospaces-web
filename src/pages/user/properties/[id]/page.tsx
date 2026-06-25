@@ -46,6 +46,7 @@ import {
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
 import {
+    resolvePropertyFastTrackSummaryDocuments,
     resolvePropertyFastTrackPanelLabels,
     resolvePropertyFastTrackWorkspaceSelection,
 } from '@/lib/propertyFastTrackWorkspace';
@@ -1535,15 +1536,20 @@ const UserPropertyDetail = () => {
         [activeFastTrackCase?.leadId, activeLead?.id, userDocuments],
     );
 
+    const fastTrackSummaryDocuments = useMemo(
+        () => resolvePropertyFastTrackSummaryDocuments(leadScopedDocuments, activeFastTrackCase),
+        [activeFastTrackCase, leadScopedDocuments],
+    );
+
     const liveDocumentItems = useMemo(
         () => buildFastTrackDocumentItems(
-            leadScopedDocuments,
+            fastTrackSummaryDocuments,
             activeFastTrackCase?.documents || {
                 identityProof: 'pending',
                 addressProof: 'pending',
             },
         ),
-        [activeFastTrackCase?.documents, leadScopedDocuments],
+        [activeFastTrackCase?.documents, fastTrackSummaryDocuments],
     );
     const liveVerificationContent = useMemo(
         () => buildFastTrackVerificationContent(liveDocumentItems),

@@ -44,13 +44,56 @@ const formatCaseHoursRemaining = (hoursRemaining?: number) => {
   return `${hoursRemaining}h left`;
 };
 
-const isLiveFastTrackCase = (fastTrackCase: FastTrackCase | null | undefined) => (
+export const isLiveFastTrackCase = (fastTrackCase: FastTrackCase | null | undefined) => (
   Boolean(fastTrackCase)
   && (
     fastTrackCase?.workspaceFinalStatus === "active"
     || fastTrackCase?.finalStatus === "in_progress"
   )
 );
+
+const normalizeId = (value?: string | null) => String(value || "").trim();
+
+type CaseLinkedDocument = UserDocument & {
+  fast_track_case_id?: string | null;
+  fastTrackCaseId?: string | null;
+};
+
+const documentBelongsToFastTrackCase = (
+  document: UserDocument,
+  fastTrackCase: FastTrackCase | null | undefined,
+) => {
+  const caseLinkedDocument = document as CaseLinkedDocument;
+  const directDocumentCaseId = normalizeId(
+    caseLinkedDocument.fast_track_case_id || caseLinkedDocument.fastTrackCaseId,
+  );
+  const caseIds = [
+    normalizeId(fastTrackCase?.id),
+    normalizeId(fastTrackCase?.caseId),
+  ].filter(Boolean);
+
+  if (directDocumentCaseId && caseIds.includes(directDocumentCaseId)) {
+    return true;
+  }
+
+  return document.linked_entities?.some((entity) => (
+    caseIds.includes(normalizeId(entity.fast_track_case_id))
+    || (entity.type === "fast_track_case" && caseIds.includes(normalizeId(entity.id)))
+  )) || false;
+};
+
+export const resolvePropertyFastTrackSummaryDocuments = (
+  leadScopedDocuments: UserDocument[],
+  activeFastTrackCase: FastTrackCase | null,
+) => {
+  if (!isLiveFastTrackCase(activeFastTrackCase)) {
+    return leadScopedDocuments;
+  }
+
+  return leadScopedDocuments.filter((document) => (
+    documentBelongsToFastTrackCase(document, activeFastTrackCase)
+  ));
+};
 
 const isOpenLead = (lead: Lead | null | undefined) => (
   isLeadActive(lead)

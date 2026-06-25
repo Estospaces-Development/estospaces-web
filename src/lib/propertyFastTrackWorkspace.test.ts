@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
+  resolvePropertyFastTrackSummaryDocuments,
   resolvePropertyFastTrackPanelLabels,
   resolvePropertyFastTrackWorkspaceSelection,
 } from "./propertyFastTrackWorkspace";
@@ -81,6 +82,63 @@ test("property fast-track workspace keeps a valid case deep link selected", () =
 
   assert.equal(selection.fastTrackCase?.caseId, "FT-DOCS");
   assert.equal(selection.lead?.id, "lead-docs");
+});
+
+test("property summary ignores older lead documents when a fresh active case is selected", () => {
+  const activeCase = {
+    id: "case-new",
+    caseId: "FT-NEW",
+    leadId: "lead-reused",
+    finalStatus: "in_progress",
+    workspaceFinalStatus: "active",
+  };
+  const staleDocument = {
+    id: "doc-old",
+    lead_id: "lead-reused",
+    document_category: "identity",
+    status: "uploaded",
+    linked_entities: [{
+      type: "fast_track_case",
+      id: "case-old",
+      fast_track_case_id: "case-old",
+    }],
+  };
+
+  const documents = resolvePropertyFastTrackSummaryDocuments(
+    [staleDocument as any],
+    activeCase as any,
+  );
+
+  assert.deepEqual(documents, []);
+});
+
+test("property summary keeps documents linked to the selected active case", () => {
+  const activeCase = {
+    id: "case-new",
+    caseId: "FT-NEW",
+    leadId: "lead-reused",
+    finalStatus: "in_progress",
+    workspaceFinalStatus: "active",
+  };
+  const activeDocument = {
+    id: "doc-current",
+    lead_id: "lead-reused",
+    document_category: "identity",
+    status: "uploaded",
+    linked_entities: [{
+      type: "fast_track_case",
+      id: "case-new",
+      fast_track_case_id: "case-new",
+    }],
+  };
+
+  const documents = resolvePropertyFastTrackSummaryDocuments(
+    [activeDocument as any],
+    activeCase as any,
+  );
+
+  assert.equal(documents.length, 1);
+  assert.equal(documents[0].id, "doc-current");
 });
 
 test("property detail keeps the newly created fast-track case available before refresh catches up", () => {
