@@ -122,6 +122,11 @@ const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     manager: '/manager/dashboard',
     admin: '/admin/dashboard',
 };
+const FAST_TRACK_DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
+const FAST_TRACK_DOCUMENT_GUIDANCE: Record<FastTrackDocumentItem['id'], string> = {
+    identity: 'Upload Aadhaar, PAN, passport, voter ID, or driving licence as a clear PDF, JPG, PNG, or WebP. Mask Aadhaar where full-number verification is not needed.',
+    address: 'Upload a recent utility bill, bank statement, rent agreement, property tax receipt, or government address document as a clear PDF, JPG, PNG, or WebP.',
+};
 
 const STAGES: FastTrackStage[] = [
     'selected',
@@ -344,6 +349,7 @@ export const FastTrackDocumentFileChooser = ({
             type="file"
             name={`fast-track-document-${documentId}`}
             aria-label={`Choose file for ${label}`}
+            accept={FAST_TRACK_DOCUMENT_ACCEPT}
             className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
             onChange={(event) => onFileSelected(event.target.files?.[0] || null)}
         />
@@ -1624,6 +1630,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : previewItem;
         const previewKind = detectDocumentPreviewKind(previewDisplayItem);
         const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
+        const uploadedSecurePdf = previewKind === 'pdf' && !selectedPreviewFile;
 
         return (
             <div className="space-y-4">
@@ -1690,7 +1697,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             style={{ width: previewZoom === 0 ? 'auto' : `${previewZoom * 100}%` }}
                         />
                     </div>
-                ) : previewKind === 'pdf' ? (
+                ) : previewKind === 'pdf' && !uploadedSecurePdf ? (
                     <div className="max-h-[520px] overflow-auto rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
                         <iframe
                             title={previewDisplayItem.fileName || previewDisplayItem.label}
@@ -1698,6 +1705,36 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             className="h-[520px] min-w-full transition-[width] duration-150"
                             style={{ width: previewZoom === 0 ? "100%" : `${previewZoom * 100}%` }}
                         />
+                    </div>
+                ) : previewKind === 'pdf' ? (
+                    <div className="rounded-3xl border border-gray-100 bg-white p-5 text-sm dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                    <FileText size={18} />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="font-semibold text-gray-900 dark:text-white">PDF is ready</p>
+                                    <p className="mt-1 text-gray-500 dark:text-gray-400">
+                                        Secure uploaded PDFs open in the browser viewer to avoid the broken embedded preview.
+                                    </p>
+                                    <p className="mt-2 truncate text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {previewDisplayItem.fileName || previewDisplayItem.label}
+                                    </p>
+                                </div>
+                            </div>
+                            <ActionButton
+                                tone="secondary"
+                                onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
+                                busy={previewBusyItemId === previewItem.id}
+                                disabled={!previewAvailable}
+                                ariaLabel={`Open ${previewItem.label} PDF`}
+                                className="px-3 py-2 text-xs"
+                            >
+                                <ArrowUpRight size={14} />
+                                Open PDF
+                            </ActionButton>
+                        </div>
                     </div>
                 ) : (
                     <div className="rounded-3xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
@@ -2168,6 +2205,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             : 'Review the file, leave one short note, and move on.')}
                                     </div>
                                     {canUpload ? (
+                                        <>
+                                            <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+                                                {FAST_TRACK_DOCUMENT_GUIDANCE[item.id]}
+                                            </p>
                                         <div
                                             data-fast-track-document-upload-state={item.id}
                                             className={cn(
@@ -2183,6 +2224,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 ? `Ready to ${uploadCopy.actionLabel.toLowerCase()}: ${selectedFile.name}`
                                                 : uploadCopy.statusMessage}
                                         </div>
+                                        </>
                                     ) : null}
                                 </div>
 

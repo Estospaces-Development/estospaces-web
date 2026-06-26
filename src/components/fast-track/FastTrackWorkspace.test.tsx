@@ -21,6 +21,7 @@ test("fast-track document file chooser exposes a named file input with visible f
   );
 
   assert.match(markup, /type="file"/);
+  assert.match(markup, /accept="application\/pdf,image\/jpeg,image\/png,image\/webp"/);
   assert.match(markup, /data-fast-track-document-file-input="address-proof"/);
   assert.match(markup, /aria-label="Choose file for Address"/);
   assert.match(markup, /peer-focus-visible:ring-2/);
@@ -77,4 +78,19 @@ test("fast-track uploaded document preview uses signed access URL without blob f
   assert.match(source, /const access = await getDocumentAccessUrl\(item\.documentRecordId\)/);
   assert.doesNotMatch(source, /getDocumentAccessBlob/);
   assert.match(source, /nextUrl = access\.url/);
+});
+
+test("fast-track uploaded PDFs avoid broken inline iframe previews", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const uploadedSecurePdf = previewKind === 'pdf' && !selectedPreviewFile/);
+  assert.match(source, /Secure uploaded PDFs open in the browser viewer/);
+  assert.match(source, /Open PDF/);
+});
+
+test("fast-track identity upload copy names Indian identity documents", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /Aadhaar, PAN, passport, voter ID, or driving licence/);
+  assert.match(source, /clear PDF, JPG, PNG, or WebP/);
 });

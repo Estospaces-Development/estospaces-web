@@ -73,7 +73,7 @@ export const buildUserFastTrackDocumentItems = (
     return items.map((item) => ({
         ...item,
         hint: item.id === 'identity'
-            ? 'Passport, driver licence, or national ID'
+            ? 'Aadhaar, PAN, passport, voter ID, or driving licence'
             : 'Bank statement, utility bill, or tenancy proof',
         uploadType: item.id,
         actionLabel: item.status === 'reupload_required'
