@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import { normalizeManagerServiceAreas } from '@/services/managerVerificationService';
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
@@ -56,6 +57,7 @@ export default function ManagerProfilePage() {
         postcode: '',
         companyName: '',
         branchName: '',
+        serviceAreas: '',
         businessPhone: '',
         companyAddress: '',
         registeredOfficeAddress: '',
@@ -89,6 +91,7 @@ export default function ManagerProfilePage() {
             // Broker / manager fields
             companyName: managerProfile?.company_name || prev.companyName || '',
             branchName: formatLaunchPropertyText(managerProfile?.branch_name || prev.branchName || '', ''),
+            serviceAreas: normalizeManagerServiceAreas(managerProfile?.service_areas).join(', ') || prev.serviceAreas || '',
             businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
             companyAddress: formatOptionalLaunchPropertyLocation(managerProfile?.company_address || prev.companyAddress || ''),
             registeredOfficeAddress: formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address || prev.registeredOfficeAddress || ''),
@@ -118,6 +121,10 @@ export default function ManagerProfilePage() {
 
             if (e.target.name === 'branchName') {
                 return formatLaunchPropertyText(e.target.value, '');
+            }
+
+            if (e.target.name === 'serviceAreas') {
+                return e.target.value.toUpperCase();
             }
 
             return e.target.value;
@@ -202,6 +209,7 @@ export default function ManagerProfilePage() {
             const businessPhone = formData.businessPhone.trim();
             const companyAddress = formData.companyAddress.trim();
             const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
+            const serviceAreas = normalizeManagerServiceAreas(formData.serviceAreas);
             const isBrokerProfile = managerProfile?.profile_type !== 'company';
             let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
 
@@ -239,6 +247,7 @@ export default function ManagerProfilePage() {
                     business_phone: businessPhone || formData.phone.trim(),
                     company_address: companyAddress || formData.address.trim(),
                     registered_office_address: registeredOfficeAddress || companyAddress || formData.address.trim(),
+                    service_areas: JSON.stringify(serviceAreas),
                     complaints_contact: formData.complaintsContact,
                     redress_scheme_name: formData.redressSchemeName,
                     redress_membership_number: formData.redressMembershipNumber,
@@ -558,6 +567,16 @@ export default function ManagerProfilePage() {
                                             placeholder="GSTIN or local tax ID"
                                             className={inputClass} />
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="manager-service-areas" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dispatch service areas</label>
+                                    <textarea id="manager-service-areas" name="serviceAreas" value={formData.serviceAreas} onChange={handleChange} rows={2}
+                                        placeholder="600001, 600, SW1A"
+                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Add exact PIN codes/postcodes or area prefixes for live requests.
+                                    </p>
                                 </div>
 
                                 <div>

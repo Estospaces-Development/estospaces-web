@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   getManagerApprovalBlocker,
+  normalizeManagerServiceAreas,
   type ManagerDocument,
   type ManagerProfile,
 } from './managerVerificationService';
@@ -80,4 +81,16 @@ test('manager approval blocker allows a complete broker profile with required do
   );
 
   assert.equal(blocker, null);
+});
+
+test('manager service areas normalize json, csv, and duplicate entries', () => {
+  assert.deepEqual(
+    normalizeManagerServiceAreas('["600001", "600", "600001", " sw1a 1aa "]'),
+    ['600001', '600', 'SW1A 1AA'],
+  );
+
+  assert.deepEqual(
+    normalizeManagerServiceAreas('600001, 600\nbt9 7gg'),
+    ['600001', '600', 'BT9 7GG'],
+  );
 });

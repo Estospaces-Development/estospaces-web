@@ -55,6 +55,7 @@ export interface ManagerProfile {
     cmp_certificate_url?: string;
     authorized_representative_name?: string;
     authorized_representative_email?: string;
+    service_areas?: string[];
     has_ombudsman: boolean;
     has_insurance: boolean;
     has_client_money: boolean;
@@ -253,6 +254,39 @@ const normalizeProfileType = (value?: string): ManagerProfileType => {
     return value === 'company' ? 'company' : 'broker';
 };
 
+export const normalizeManagerServiceAreas = (value?: string[] | string | null): string[] => {
+    const rawValues = Array.isArray(value)
+        ? value
+        : (() => {
+            const raw = String(value || '').trim();
+            if (!raw || raw === '[]') return [];
+
+            if (raw.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    return raw.replace(/^\[/, '').replace(/\]$/, '').split(',');
+                }
+            }
+
+            return raw.split(/[\n,]+/);
+        })();
+
+    const seen = new Set<string>();
+    return rawValues.reduce<string[]>((areas, area) => {
+        const normalized = String(area || '')
+            .trim()
+            .replace(/^["']|["']$/g, '')
+            .replace(/\s+/g, ' ')
+            .toUpperCase();
+        if (!normalized || seen.has(normalized)) return areas;
+        seen.add(normalized);
+        areas.push(normalized);
+        return areas;
+    }, []);
+};
+
 const isProfileNotFoundError = (error: string | null | undefined): boolean => {
     const normalized = String(error || '').toLowerCase();
     return normalized.includes('broker profile not found');
@@ -346,6 +380,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         tax_id: data.tax_id || undefined,
         company_address: data.company_address || undefined,
         registered_office_address: data.registered_office_address || undefined,
+        service_areas: normalizeManagerServiceAreas(data.service_areas),
         complaints_contact: data.complaints_contact || undefined,
         redress_scheme_name: data.redress_scheme_name || undefined,
         redress_membership_number: data.redress_membership_number || undefined,
@@ -524,7 +559,7 @@ const buildCreateManagerProfilePayload = (data: Partial<ManagerProfile>) => ({
     tax_id: data.tax_id || '',
     authorized_representative_name: data.authorized_representative_name || '',
     authorized_representative_email: data.authorized_representative_email || '',
-    service_areas: '[]',
+    service_areas: JSON.stringify(normalizeManagerServiceAreas(data.service_areas)),
     profile_type: data.profile_type || 'broker',
     has_ombudsman: data.has_ombudsman || false,
     has_insurance: data.has_insurance || false,
@@ -557,6 +592,7 @@ const buildUpdateManagerProfilePayload = (data: Partial<ManagerProfile>) => {
     if (data.tax_id !== undefined) payload.tax_id = data.tax_id;
     if (data.authorized_representative_name !== undefined) payload.authorized_representative_name = data.authorized_representative_name;
     if (data.authorized_representative_email !== undefined) payload.authorized_representative_email = data.authorized_representative_email;
+    if (data.service_areas !== undefined) payload.service_areas = JSON.stringify(normalizeManagerServiceAreas(data.service_areas));
     if (data.has_ombudsman !== undefined) payload.has_ombudsman = data.has_ombudsman;
     if (data.has_insurance !== undefined) payload.has_insurance = data.has_insurance;
     if (data.has_client_money !== undefined) payload.has_client_money = data.has_client_money;
