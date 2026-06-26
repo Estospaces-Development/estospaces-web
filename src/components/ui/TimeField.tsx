@@ -48,6 +48,10 @@ export default function TimeField({
         input?.showPicker?.();
     }, [disabled]);
 
+    const commitTimeValue = useCallback((event: React.FormEvent<HTMLInputElement>) => {
+        onChange(event.currentTarget.value);
+    }, [onChange]);
+
     const sizeClass = size === 'sm'
         ? 'min-h-[44px] rounded-xl px-3 py-2 text-sm'
         : 'min-h-[52px] rounded-2xl px-4 py-3 text-sm';
@@ -92,7 +96,8 @@ export default function TimeField({
                 aria-label={ariaLabel}
                 aria-describedby={ariaDescribedBy}
                 onClick={openPicker}
-                onChange={(event) => onChange(event.target.value)}
+                onInput={commitTimeValue}
+                onChange={commitTimeValue}
                 data-time-field-input="true"
                 className="modern-time-input absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
             />
