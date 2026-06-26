@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary, NearbyBrokerPagination } from '@/services/leadsService';
+import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import {
     BROKER_REQUEST_WORKSPACE_EVENT,
     readBrokerRequestWorkspaceSelection,
@@ -13,7 +13,7 @@ import { formatLaunchLocationCode, formatLaunchPropertyLocation, isValidLaunchLo
 
 const normalizeLocationCode = (value?: string | null) => normalizeLaunchLocationCode(value);
 const nearbyAgentFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
-const NEARBY_AGENT_PAGE_SIZE = 5;
+export const NEARBY_AGENT_DISPLAY_LIMIT = 5;
 type NearbyAgentSort = 'rank' | 'distance' | 'rating';
 type NearbyAgentFilter = 'all' | 'fast_track';
 const formatLaunchRequestLocationCode = (value?: string | null) => formatLaunchLocationCode(value);
@@ -82,8 +82,6 @@ const NearbyAgenciesList = () => {
     const [postcodeInput, setPostcodeInput] = useState('');
     const [manualPostcode, setManualPostcode] = useState<string | null>(null);
     const [searchError, setSearchError] = useState<string | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pagination, setPagination] = useState<NearbyBrokerPagination | null>(null);
     const [sortMode, setSortMode] = useState<NearbyAgentSort>('rank');
     const [filterMode, setFilterMode] = useState<NearbyAgentFilter>('all');
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
@@ -150,19 +148,9 @@ const NearbyAgenciesList = () => {
     }, [liveRequestPostcode, manualPostcode, postcodeInput]);
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [effectivePostcode, filterMode]);
-
-    useEffect(() => {
-        const nextTotalPages = Math.max(1, pagination?.total_pages || 1);
-        setCurrentPage((page) => Math.min(page, nextTotalPages));
-    }, [pagination?.total_pages]);
-
-    useEffect(() => {
         const fetchBrokers = async () => {
             if (!effectivePostcode) {
                 setBrokers([]);
-                setPagination(null);
                 setLoadError(null);
                 setLoading(false);
                 return;
@@ -170,19 +158,18 @@ const NearbyAgenciesList = () => {
 
             setLoading(true);
             try {
-                const { data, pagination: nextPagination, error } = await getNearbyAvailableBrokers({
+                const { data, error } = await getNearbyAvailableBrokers({
                     postcode: effectivePostcode,
                     fastTrack: filterMode === 'fast_track',
-                    page: currentPage,
-                    limit: NEARBY_AGENT_PAGE_SIZE,
+                    page: 1,
+                    limit: NEARBY_AGENT_DISPLAY_LIMIT,
                 }, { suppressErrorToast: true });
 
                 if (error) {
                     throw new Error(error);
                 }
 
-                setBrokers(data || []);
-                setPagination(nextPagination || null);
+                setBrokers((data || []).slice(0, NEARBY_AGENT_DISPLAY_LIMIT));
                 setLoadError(null);
             } catch (err: any) {
                 setLoadError(err.message || 'Nearby property agents are not available right now.');
@@ -192,7 +179,7 @@ const NearbyAgenciesList = () => {
         };
 
         void fetchBrokers();
-    }, [effectivePostcode, currentPage, filterMode]);
+    }, [effectivePostcode, filterMode]);
 
     const handlePostcodeSearch = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -212,7 +199,6 @@ const NearbyAgenciesList = () => {
         setManualPostcode(formattedPostcode);
         setPostcodeInput(formattedPostcode);
         setSearchError(null);
-        setCurrentPage(1);
         setIsSearchOpen(true);
     };
 
@@ -220,7 +206,6 @@ const NearbyAgenciesList = () => {
         setManualPostcode(null);
         setSearchError(null);
         setPostcodeInput(liveRequestPostcode);
-        setCurrentPage(1);
         setIsSearchOpen(false);
     };
 
@@ -230,22 +215,22 @@ const NearbyAgenciesList = () => {
             : brokers;
 
         if (sortMode === 'distance') {
-            return [...filtered].sort((left, right) => {
+            const sorted = [...filtered].sort((left, right) => {
                 const leftDistance = typeof left.distance_miles === 'number' ? left.distance_miles : Number.MAX_SAFE_INTEGER;
                 const rightDistance = typeof right.distance_miles === 'number' ? right.distance_miles : Number.MAX_SAFE_INTEGER;
                 return leftDistance - rightDistance;
             });
+            return sorted.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
         }
 
         if (sortMode === 'rating') {
-            return [...filtered].sort((left, right) => (right.rating || 0) - (left.rating || 0));
+            return [...filtered]
+                .sort((left, right) => (right.rating || 0) - (left.rating || 0))
+                .slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
         }
 
-        return filtered;
+        return filtered.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
     }, [brokers, filterMode, sortMode]);
-
-    const totalPages = Math.max(1, pagination?.total_pages || 1);
-    const totalBrokers = pagination?.total ?? brokers.length;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
@@ -352,35 +337,9 @@ const NearbyAgenciesList = () => {
                         <NearbyBrokerCard
                             key={broker.id}
                             broker={broker}
-                            index={((currentPage - 1) * NEARBY_AGENT_PAGE_SIZE) + index}
+                            index={index}
                         />
                     ))}
-                </div>
-            )}
-
-            {effectivePostcode && !loading && totalPages > 1 && (
-                <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-                    <span>
-                        Page {currentPage} of {totalPages} ({totalBrokers} agents)
-                    </span>
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                            disabled={currentPage <= 1}
-                            className={`rounded-lg border border-gray-200 bg-white px-3 py-1.5 font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 ${nearbyAgentFocusClass}`}
-                        >
-                            Previous
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                            disabled={currentPage >= totalPages}
-                            className={`rounded-lg border border-gray-200 bg-white px-3 py-1.5 font-semibold text-gray-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 ${nearbyAgentFocusClass}`}
-                        >
-                            Next
-                        </button>
-                    </div>
                 </div>
             )}
 
@@ -403,7 +362,6 @@ const NearbyAgenciesList = () => {
                                     setPostcodeInput(liveRequestPostcode);
                                     setSearchError(null);
                                     setManualPostcode(null);
-                                    setCurrentPage(1);
                                     setIsSearchOpen(false);
                                 }}
                                 className={`text-[11px] font-semibold text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 ${nearbyAgentFocusClass}`}

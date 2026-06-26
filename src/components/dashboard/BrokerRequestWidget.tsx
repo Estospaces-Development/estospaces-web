@@ -61,6 +61,12 @@ import {
     normalizeLaunchLocationCodeErrorMessage,
 } from '@/lib/launchLocale';
 
+export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
+
+export const limitNearestAgenciesForDashboard = (brokers: LeadBrokerSummary[]) => (
+    brokers.slice(0, USER_DASHBOARD_NEAREST_AGENCY_LIMIT)
+);
+
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
     if (!deadline) {
         return 0;
@@ -270,6 +276,7 @@ const BrokerRequestWidget = () => {
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
     const brokerCopy = getBrokerRequestCopy(requestType);
+    const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
 
     useEffect(() => {
         draftStateRef.current = hasBrokerRequestDraft({
@@ -399,11 +406,11 @@ const BrokerRequestWidget = () => {
                 const { data } = await getNearbyAvailableBrokers({
                     postcode: formattedPostcode,
                     fastTrack: fastTrackEnabled,
-                    limit: 5,
+                    limit: USER_DASHBOARD_NEAREST_AGENCY_LIMIT,
                 }, { suppressErrorToast: true });
 
                 if (!cancelled) {
-                    setNearbyBrokers(data || []);
+                    setNearbyBrokers(limitNearestAgenciesForDashboard(data || []));
                 }
             } catch {
                 if (!cancelled) {
@@ -1423,9 +1430,9 @@ const BrokerRequestWidget = () => {
                     </div>
                     {isRankingLoading ? (
                         <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">{brokerCopy.nearbyBrokersLoading}</div>
-                    ) : nearbyBrokers.length > 0 ? (
+                    ) : visibleNearbyBrokers.length > 0 ? (
                         <div className="mt-4 space-y-2">
-                            {nearbyBrokers.map((broker, index) => (
+                            {visibleNearbyBrokers.map((broker, index) => (
                                 <div key={nearbyBrokerKeyFor(broker.id, index)} className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                     <div className="min-w-0 flex-1">
                                         <p className="break-words text-sm font-semibold text-gray-900 dark:text-white">
