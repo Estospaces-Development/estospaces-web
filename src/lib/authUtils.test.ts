@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     getHostedLoginRedirectUrl,
     getLoginPath,
+    getPostLoginRedirectPath,
     getRedirectPath,
     isPublicUserPropertyDetailPath,
     isProtectedRoutePath,
@@ -64,6 +65,41 @@ test('getRedirectPath stays aligned with normalized roles', () => {
     assert.equal(getRedirectPath('broker'), '/manager/dashboard');
     assert.equal(getRedirectPath('admin'), '/admin/dashboard');
     assert.equal(getRedirectPath('user'), '/user/dashboard');
+});
+
+test('getPostLoginRedirectPath returns matching-role protected deep links', () => {
+    assert.equal(
+        getPostLoginRedirectPath('manager', {
+            pathname: '/manager/fast-track',
+            search: '?case=case-123&section=documents',
+        }),
+        '/manager/fast-track?case=case-123&section=documents',
+    );
+    assert.equal(
+        getPostLoginRedirectPath('user', {
+            pathname: '/user/dashboard/fast-track',
+            search: '?case=case-123',
+            hash: '#documents',
+        }),
+        '/user/dashboard/fast-track?case=case-123#documents',
+    );
+});
+
+test('getPostLoginRedirectPath rejects wrong-role and public return targets', () => {
+    assert.equal(
+        getPostLoginRedirectPath('user', {
+            pathname: '/manager/fast-track',
+            search: '?case=case-123',
+        }),
+        '/user/dashboard',
+    );
+    assert.equal(
+        getPostLoginRedirectPath('manager', {
+            pathname: '/contact',
+            search: '?case=case-123',
+        }),
+        '/manager/dashboard',
+    );
 });
 
 test('requiresHostedLoginRedirect enforces admin login on the admin host only', () => {

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
@@ -11,6 +11,7 @@ const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-vi
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, loading: authLoading, getRole, login, signOut, user: authUser } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -40,7 +41,7 @@ export default function LoginPage() {
       return;
     }
 
-    navigate(getRedirectPath(role));
+    navigate(getPostLoginRedirectPath(role, location.state?.from));
   };
 
   const handleLogin = async (e: React.FormEvent) => {

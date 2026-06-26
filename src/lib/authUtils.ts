@@ -148,6 +148,29 @@ export function shouldAwaitSessionResolution(loading: boolean, isAuthenticated: 
     return loading && !isAuthenticated;
 }
 
+export interface AuthRedirectLocationLike {
+    pathname?: string | null;
+    search?: string | null;
+    hash?: string | null;
+}
+
+export function getPostLoginRedirectPath(
+    role?: string,
+    requestedLocation?: AuthRedirectLocationLike | null,
+): string {
+    const requestedPathname = normalizePathname(requestedLocation?.pathname || '');
+
+    if (
+        requestedLocation
+        && isProtectedRoutePath(requestedPathname)
+        && resolveProtectedRedirect(requestedPathname, true, role) === null
+    ) {
+        return `${requestedPathname}${requestedLocation.search || ''}${requestedLocation.hash || ''}`;
+    }
+
+    return getRedirectPath(role);
+}
+
 export function resolveProtectedRedirect(
     pathname: string,
     isAuthenticated: boolean,

@@ -25,7 +25,8 @@ export default function RouteAccessBoundary({ children }: { children: ReactNode 
 
     const redirectPath = resolveProtectedRedirect(location.pathname, isAuthenticated, user?.role);
     if (redirectPath && redirectPath !== location.pathname) {
-        return <Navigate to={redirectPath} replace />;
+        const redirectState = !isAuthenticated ? { from: location } : undefined;
+        return <Navigate to={redirectPath} replace state={redirectState} />;
     }
 
     return <>{children}</>;
