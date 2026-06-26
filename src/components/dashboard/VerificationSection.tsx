@@ -46,6 +46,10 @@ const firstTimeDocumentLabels: Record<UserVerificationDocumentStep, string> = {
     identity: 'Identity document',
     address: 'Proof of address',
 };
+const verificationDocumentGuidance: Record<UserVerificationDocumentStep, string> = {
+    identity: 'Aadhaar, PAN, passport, voter ID, or driving licence',
+    address: 'Recent utility bill, bank statement, rent agreement, property tax receipt, or government address document',
+};
 
 const mapDocumentStatus = (status?: string): StepStatus => {
     switch (status) {
@@ -433,7 +437,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <VerificationStep
                     step="identity"
                     title="Identity Document"
-                    description="Government issued passport or photo ID"
+                    description={verificationDocumentGuidance.identity}
                     icon={CreditCard}
                     actionLabel="Upload"
                     onAction={() => openDocumentUpload('identity')}
@@ -542,6 +546,11 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                 </div>
                                 <p className="font-bold text-gray-900 dark:text-white">Choose a file</p>
                                 <p className="text-sm text-gray-500 mt-1">or drag and drop it here</p>
+                                <p className="mx-auto mt-3 max-w-[26rem] text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                    {showUploadModal === 'identity'
+                                        ? `${verificationDocumentGuidance.identity}.`
+                                        : `${verificationDocumentGuidance.address}.`}
+                                </p>
                                 <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-4">PDF, PNG, JPG (Max 10MB)</p>
                             </label>
 
@@ -579,6 +588,9 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                     <span className="block text-sm font-bold text-gray-900 dark:text-white">{firstTimeDocumentLabels[step]}</span>
                                     <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                                         {firstTimeUploadFiles[step]?.name || 'PDF, PNG or JPG'}
+                                    </span>
+                                    <span className="mt-2 block text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                        {verificationDocumentGuidance[step]}.
                                     </span>
                                     <input
                                         type="file"
