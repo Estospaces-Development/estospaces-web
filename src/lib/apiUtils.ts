@@ -198,9 +198,15 @@ export class ApiRequestError extends Error {
 const USER_ERROR_MESSAGE = 'Invalid data provided. Please check your inputs.';
 const SYSTEM_ERROR_MESSAGE = 'The service is temporarily unreachable. We are working on a fix.';
 const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
+const READ_NETWORK_RETRY_ATTEMPTS = 2;
+const READ_NETWORK_RETRY_DELAY_MS = 300;
 
 function isReadMethod(method: string) {
     return method.toUpperCase() === 'GET';
+}
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function shouldEmitApiFailureToast(status: number | undefined, method: string) {
@@ -449,33 +455,51 @@ export async function apiFetchEnvelope<T>(
     const authHeader = headers.get('Authorization');
     const requestToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() || null : null;
 
-    const timeoutController = new AbortController();
-    const timeoutId = timeoutMs > 0
-        ? globalThis.setTimeout(() => timeoutController.abort(), timeoutMs)
-        : null;
     const callerSignal = requestOptions.signal;
-    const handleCallerAbort = () => timeoutController.abort();
-    if (callerSignal) {
-        if (callerSignal.aborted) {
-            timeoutController.abort();
-        }
-        callerSignal.addEventListener('abort', handleCallerAbort, { once: true });
-    }
-
-    let response: Response;
+    let response: Response | null = null;
     try {
-        const fetchOptions: RequestInit = {
-            ...requestOptions,
-            headers,
-            signal: timeoutController.signal,
-        };
-        if (fetchOptions.credentials === undefined) {
-            fetchOptions.credentials = 'omit';
-        }
+        const maxAttempts = isReadMethod(method) ? READ_NETWORK_RETRY_ATTEMPTS + 1 : 1;
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            const timeoutController = new AbortController();
+            const timeoutId = timeoutMs > 0
+                ? globalThis.setTimeout(() => timeoutController.abort(), timeoutMs)
+                : null;
+            const handleCallerAbort = () => timeoutController.abort();
+            if (callerSignal) {
+                if (callerSignal.aborted) {
+                    timeoutController.abort();
+                }
+                callerSignal.addEventListener('abort', handleCallerAbort, { once: true });
+            }
 
-        response = await fetch(url, {
-            ...fetchOptions,
-        });
+            try {
+                const fetchOptions: RequestInit = {
+                    ...requestOptions,
+                    headers,
+                    signal: timeoutController.signal,
+                };
+                if (fetchOptions.credentials === undefined) {
+                    fetchOptions.credentials = 'omit';
+                }
+
+                response = await fetch(url, {
+                    ...fetchOptions,
+                });
+                break;
+            } catch (error: any) {
+                if (error?.name === 'AbortError' || attempt >= maxAttempts - 1) {
+                    throw error;
+                }
+                await sleep(READ_NETWORK_RETRY_DELAY_MS * (attempt + 1));
+            } finally {
+                if (timeoutId !== null) {
+                    globalThis.clearTimeout(timeoutId);
+                }
+                if (callerSignal) {
+                    callerSignal.removeEventListener('abort', handleCallerAbort);
+                }
+            }
+        }
     } catch (error: any) {
         if (!suppressErrorToast && shouldEmitApiFailureToast(undefined, method)) {
             notifyApiFailure();
@@ -486,13 +510,15 @@ export async function apiFetchEnvelope<T>(
             undefined,
             undefined,
         );
-    } finally {
-        if (timeoutId !== null) {
-            globalThis.clearTimeout(timeoutId);
-        }
-        if (callerSignal) {
-            callerSignal.removeEventListener('abort', handleCallerAbort);
-        }
+    }
+
+    if (!response) {
+        throw new ApiRequestError(
+            'Network request failed',
+            SYSTEM_ERROR_MESSAGE,
+            undefined,
+            undefined,
+        );
     }
 
     if (!response.ok) {

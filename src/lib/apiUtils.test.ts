@@ -129,6 +129,63 @@ test('read request outages reject without emitting the global service toast', as
     }
 });
 
+test('read request network failures retry before succeeding', async () => {
+    const originalFetch = globalThis.fetch;
+    let attempts = 0;
+
+    Object.defineProperty(globalThis, 'fetch', {
+        value: async () => {
+            attempts += 1;
+            if (attempts < 3) {
+                throw new TypeError('Failed to fetch');
+            }
+            return new Response(JSON.stringify({
+                success: true,
+                data: { ok: true },
+            }), { status: 200 });
+        },
+        configurable: true,
+    });
+
+    try {
+        const result = await apiFetch<{ ok: boolean }>('https://example.test/api/v1/background-read');
+
+        assert.deepEqual(result, { ok: true });
+        assert.equal(attempts, 3);
+    } finally {
+        Object.defineProperty(globalThis, 'fetch', {
+            value: originalFetch,
+            configurable: true,
+        });
+    }
+});
+
+test('write request network failures do not retry', async () => {
+    const originalFetch = globalThis.fetch;
+    let attempts = 0;
+
+    Object.defineProperty(globalThis, 'fetch', {
+        value: async () => {
+            attempts += 1;
+            throw new TypeError('Failed to fetch');
+        },
+        configurable: true,
+    });
+
+    try {
+        await assert.rejects(() => apiFetch('https://example.test/api/v1/create', {
+            method: 'POST',
+            body: JSON.stringify({ name: 'QA write' }),
+        }));
+        assert.equal(attempts, 1);
+    } finally {
+        Object.defineProperty(globalThis, 'fetch', {
+            value: originalFetch,
+            configurable: true,
+        });
+    }
+});
+
 test('read request success false envelopes reject without emitting the global service toast', async () => {
     const originalFetch = globalThis.fetch;
     const emittedToasts: Array<{ message: string; title?: string }> = [];
