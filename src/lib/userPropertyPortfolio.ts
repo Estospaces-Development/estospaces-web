@@ -190,6 +190,7 @@ export const buildUserPropertyPortfolio = ({
       ),
       targetPath: buildWorkspacePath("/user/applications", {
         applicationId: application?.id,
+        progressionId: progression.id,
         caseId:
           progression.fast_track_case_id || application?.fast_track_case_id,
         leadId: progression.lead_id || application?.lead_id,

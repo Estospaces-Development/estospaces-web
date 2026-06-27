@@ -82,7 +82,7 @@ test("buildUserPropertyPortfolio returns rented and bought homes with deep links
   assert.equal(portfolio[0].statusLabel, "Purchase completed");
   assert.equal(
     portfolio[0].targetPath,
-    "/user/applications?application=sale-app-1&case=case-sale-1&lead=lead-sale-1&property=property-sale-1",
+    "/user/applications?application=sale-app-1&progression=sale-progression-1&case=case-sale-1&lead=lead-sale-1&property=property-sale-1",
   );
 
   assert.equal(portfolio[1].ownershipLabel, "Rented");

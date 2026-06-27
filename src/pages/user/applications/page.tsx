@@ -596,18 +596,21 @@ export default function ApplicationsPage() {
     const removedCaseNoticeRef = useRef<string | null>(null);
     const newApplicationInFlightRef = useRef(false);
     const rawCaseId = searchParams.get('case');
+    const progressionId = searchParams.get('progression');
     const { caseId: sanitizedCaseId, removedCaseId } = useMemo(
         () => sanitizeWorkspaceCaseId(rawCaseId, fastTrackCases.map((caseItem) => caseItem.caseId)),
         [fastTrackCases, rawCaseId],
     );
     const hasWorkspaceFocusRequest = Boolean(
         searchParams.get('application')
+        || progressionId
         || sanitizedCaseId
         || searchParams.get('lead')
         || searchParams.get('property'),
     );
     const focusedApplicationFromRoute = resolveFocusedApplication(applications, {
         applicationId: searchParams.get('application'),
+        progressionId,
         caseId: sanitizedCaseId,
         leadId: searchParams.get('lead'),
         propertyId: searchParams.get('property'),
