@@ -33,6 +33,14 @@ test('launch UI does not advertise inactive payments or invoice workspaces', () 
   assert.doesNotMatch(adminDashboard, /search, payment, and booking/i);
 });
 
+test('public contact route is ready without a lazy route chunk', () => {
+  const app = readSource('src/App.tsx');
+
+  assert.match(app, /import ContactPage from '\.\/pages\/public\/contact\/page';/);
+  assert.doesNotMatch(app, /const ContactPage = lazyPage\(\(\) => import\('\.\/pages\/public\/contact\/page'\)\);/);
+  assert.match(app, /<Route path="\/contact" element=\{<ContactPage \/>\} \/>/);
+});
+
 test('launch UI does not advertise inactive virtual tour workflows', () => {
   const propertyCard = readSource('src/components/dashboard/PropertyCard.tsx');
   const userSearch = readSource('src/pages/user/search/page.tsx');

@@ -69,6 +69,7 @@ import AuthLayout from './layouts/AuthLayout'; // Need to create/check this
 import AdminLayout from './layouts/AdminLayout';
 import ManagerLayout from './layouts/ManagerLayout';
 import UserLayout from './layouts/UserLayout';
+import ContactPage from './pages/public/contact/page';
 
 // Loading component
 const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -76,7 +77,6 @@ const Loading = () => <div className="flex items-center justify-center h-screen"
 // Lazy loaded pages - Public
 const HomePage = lazyPage(() => import('./pages/public/home/page'));
 const AboutPage = lazyPage(() => import('./pages/public/about/page'));
-const ContactPage = lazyPage(() => import('./pages/public/contact/page'));
 const CookiesPage = lazyPage(() => import('./pages/public/cookies/page'));
 const FAQPage = lazyPage(() => import('./pages/public/faq/page'));
 const PrivacyPage = lazyPage(() => import('./pages/public/privacy/page'));
