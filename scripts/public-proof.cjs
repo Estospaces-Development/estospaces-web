@@ -10,7 +10,7 @@ const {
 
 const scenarios = [
   { id: 'PUB-001', route: '/', expected: /Search|Search properties|Dashboard|Estospaces/i },
-  { id: 'PUB-002', route: '/login', expected: /Sign In|Login/i },
+  { id: 'PUB-002', route: '/login/', expected: /Sign In|Login/i },
   { id: 'PUB-003', route: '/register', expected: /Register|Create account|Sign Up/i },
   { id: 'PUB-004', route: '/forgot-password', expected: /Forgot password|Reset/i },
   { id: 'PUB-005', route: '/contact', expected: /Contact|Get in touch/i },

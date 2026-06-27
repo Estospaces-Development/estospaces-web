@@ -5,6 +5,7 @@ const { chromium } = require("playwright");
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
 const routeSettleMs = Number(process.env.E2E_ROUTE_SETTLE_MS || "1500");
+const DEV_WEB_BASE_URL = "https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app";
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -40,7 +41,7 @@ function resolveDevBaseUrl() {
     process.env.E2E_DEV_BASE_URL
     || readFrontendUrlFromEnvFile(".env.development")
     || readFrontendUrlFromEnvFile(".env.gcp-dev")
-    || "http://localhost:3000"
+    || DEV_WEB_BASE_URL
   );
 }
 

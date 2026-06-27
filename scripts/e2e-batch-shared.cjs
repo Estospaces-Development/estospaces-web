@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
+const DEV_WEB_BASE_URL = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -37,7 +38,7 @@ function resolveDevBaseUrl() {
     process.env.E2E_DEV_BASE_URL
     || readFrontendUrlFromEnvFile('.env.development')
     || readFrontendUrlFromEnvFile('.env.gcp-dev')
-    || 'http://localhost:3000'
+    || DEV_WEB_BASE_URL
   );
 }
 

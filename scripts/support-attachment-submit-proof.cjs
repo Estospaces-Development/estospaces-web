@@ -5,6 +5,7 @@ const { chromium } = require('playwright');
 const fallbackCredentialSource = path.join(__dirname, 'live-1000-catalog-proof.cjs');
 const runId = new Date().toISOString().replace(/[:.]/g, '-');
 const outputDir = path.join(process.cwd(), 'output', 'playwright', 'support-attachment-submit-proof', runId);
+const DEV_WEB_BASE_URL = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
 
 function readEnvValueFromFile(filename, envKey) {
   const filePath = path.join(process.cwd(), filename);
@@ -24,7 +25,7 @@ function resolveDevBaseUrl() {
     process.env.E2E_DEV_BASE_URL ||
     readEnvValueFromFile('.env.development', 'FRONTEND_URL') ||
     readEnvValueFromFile('.env.gcp-dev', 'FRONTEND_URL') ||
-    'http://localhost:3000'
+    DEV_WEB_BASE_URL
   ).replace(/\/$/, '');
 }
 

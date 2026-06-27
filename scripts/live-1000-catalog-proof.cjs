@@ -9,6 +9,7 @@ const {
 } = require('./live-1000-route-resolver.cjs');
 
 const crashPattern = /page failed to load|unexpected application error|something went wrong|application error|referenceerror|typeerror:|toast is not defined|cannot access .* before initialization/i;
+const DEV_WEB_BASE_URL = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
 
 function readFrontendUrlFromEnvFile(filename) {
   const filePath = path.join(process.cwd(), filename);
@@ -34,7 +35,7 @@ function readFrontendUrlFromEnvFile(filename) {
 const baseUrl = process.env.E2E_DEV_BASE_URL
   || readFrontendUrlFromEnvFile('.env.development')
   || readFrontendUrlFromEnvFile('.env.gcp-dev')
-  || 'http://localhost:3000';
+  || DEV_WEB_BASE_URL;
 const coreUrl = process.env.E2E_DEV_CORE_URL || 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app';
 const docPath = path.resolve(__dirname, '..', '..', 'docs', 'test-plans', '11-05-2026_test.md');
 const outputRoot = path.resolve(__dirname, '..', 'output', 'playwright', 'live-1000');
