@@ -82,20 +82,38 @@ const envTargets = {
 const roleDefinitions = {
   user: {
     name: 'user',
-    email: requireEnv('E2E_USER_EMAIL'),
-    password: requireEnv('E2E_USER_PASSWORD'),
+    emailEnv: 'E2E_USER_EMAIL',
+    passwordEnv: 'E2E_USER_PASSWORD',
+    get email() {
+      return requireEnv(this.emailEnv);
+    },
+    get password() {
+      return requireEnv(this.passwordEnv);
+    },
     dashboard: '/user/dashboard',
   },
   manager: {
     name: 'manager',
-    email: requireEnv('E2E_MANAGER_EMAIL'),
-    password: requireEnv('E2E_MANAGER_PASSWORD'),
+    emailEnv: 'E2E_MANAGER_EMAIL',
+    passwordEnv: 'E2E_MANAGER_PASSWORD',
+    get email() {
+      return requireEnv(this.emailEnv);
+    },
+    get password() {
+      return requireEnv(this.passwordEnv);
+    },
     dashboard: '/manager/dashboard',
   },
   admin: {
     name: 'admin',
-    email: requireEnv('E2E_ADMIN_EMAIL'),
-    password: requireEnv('E2E_ADMIN_PASSWORD'),
+    emailEnv: 'E2E_ADMIN_EMAIL',
+    passwordEnv: 'E2E_ADMIN_PASSWORD',
+    get email() {
+      return requireEnv(this.emailEnv);
+    },
+    get password() {
+      return requireEnv(this.passwordEnv);
+    },
     dashboard: '/admin/dashboard',
   },
 };
