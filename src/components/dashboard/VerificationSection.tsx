@@ -47,7 +47,7 @@ const firstTimeDocumentLabels: Record<UserVerificationDocumentStep, string> = {
     address: 'Proof of address',
 };
 const verificationDocumentGuidance: Record<UserVerificationDocumentStep, string> = {
-    identity: 'Aadhaar, PAN, passport, voter ID, or driving licence',
+    identity: 'Aadhaar, PAN, passport, voter ID, driving licence, NREGA job card, or NPR letter',
     address: 'Recent utility bill, bank statement, rent agreement, property tax receipt, or government address document',
 };
 

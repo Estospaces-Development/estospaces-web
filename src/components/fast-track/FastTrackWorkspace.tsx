@@ -124,7 +124,7 @@ const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
 };
 const FAST_TRACK_DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 const FAST_TRACK_DOCUMENT_GUIDANCE: Record<FastTrackDocumentItem['id'], string> = {
-    identity: 'Upload Aadhaar, PAN, passport, voter ID, or driving licence as a clear PDF, JPG, PNG, or WebP. Mask Aadhaar where full-number verification is not needed.',
+    identity: 'Upload Aadhaar, PAN, passport, voter ID, driving licence, NREGA job card, or NPR letter as a clear PDF, JPG, PNG, or WebP. Mask Aadhaar where full-number verification is not needed.',
     address: 'Upload a recent utility bill, bank statement, rent agreement, property tax receipt, or government address document as a clear PDF, JPG, PNG, or WebP.',
 };
 

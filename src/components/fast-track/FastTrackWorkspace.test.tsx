@@ -91,6 +91,6 @@ test("fast-track PDFs avoid broken inline iframe previews", () => {
 test("fast-track identity upload copy names Indian identity documents", () => {
   const source = workspaceSource();
 
-  assert.match(source, /Aadhaar, PAN, passport, voter ID, or driving licence/);
+  assert.match(source, /Aadhaar, PAN, passport, voter ID, driving licence, NREGA job card, or NPR letter/);
   assert.match(source, /clear PDF, JPG, PNG, or WebP/);
 });
