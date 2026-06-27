@@ -123,6 +123,15 @@ function resolveBaseUrl(target, base) {
   return base === 'admin' ? target.adminBaseUrl : target.appBaseUrl;
 }
 
+function resolveRouteForBaseUrl(baseUrl, route) {
+  if (route !== '/login') {
+    return route;
+  }
+
+  const hostname = new URL(baseUrl).hostname;
+  return hostname.endsWith('.run.app') ? '/login/' : '/login';
+}
+
 async function readBody(page) {
   return page.locator('body').innerText({ timeout: 3000 }).catch(() => '');
 }
@@ -183,11 +192,14 @@ async function runPublicOrGuardCheck(browser, target, check, outputDir, mode) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, ignoreHTTPSErrors: true });
   const page = await context.newPage();
   attachDiagnostics(page, diagnostics);
-  const url = `${resolveBaseUrl(target, check.base)}${check.route}`;
+  const baseUrl = resolveBaseUrl(target, check.base);
+  const route = resolveRouteForBaseUrl(baseUrl, check.route);
+  const url = `${baseUrl}${route}`;
   const result = {
     mode,
     label: check.label,
-    route: check.route,
+    route,
+    requestedRoute: check.route,
     url,
     status: 'running',
     finalUrl: '',
