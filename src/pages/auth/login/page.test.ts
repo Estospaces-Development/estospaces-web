@@ -21,3 +21,8 @@ test('password fields suppress native browser reveal controls', () => {
   assert.match(globalStyles, /input\[type="password"\]::-ms-clear/);
   assert.match(globalStyles, /display:\s*none/);
 });
+
+test('login legal copy avoids mojibake separators', () => {
+  assert.match(loginPage, /terms &amp; conditions<\/Link>\s*\{\s*' \| '\s*\}/);
+  assert.doesNotMatch(loginPage, /Â|â|�|\\u00B7|·/);
+});
