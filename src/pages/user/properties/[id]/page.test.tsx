@@ -4,6 +4,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import {
+  buildPropertyFastTrackStartRequest,
+  getPropertyBrokerRequestQuery,
   getImmersiveGalleryDialogLabel,
   getPropertyDetailFallbackBackTarget,
   SaleOfferEntryCard,
@@ -31,6 +33,85 @@ test("sale property page exposes a submit-offer entry card", () => {
   assert.match(markup, /GBP 425,000/);
   assert.match(markup, /bg-emerald-700/);
   assert.doesNotMatch(markup, /bg-emerald-600/);
+});
+
+test("property detail accepts broker request ids from dashboard and property links", () => {
+  assert.equal(
+    getPropertyBrokerRequestQuery(new URLSearchParams("broker-request=request-123")),
+    "request-123",
+  );
+  assert.equal(
+    getPropertyBrokerRequestQuery(new URLSearchParams("brokerRequest=request-camel")),
+    "request-camel",
+  );
+  assert.equal(
+    getPropertyBrokerRequestQuery(new URLSearchParams("workspace=broker-request&request=request-workspace")),
+    "request-workspace",
+  );
+  assert.equal(
+    getPropertyBrokerRequestQuery(new URLSearchParams("fast-track=1&request=request-fast-track")),
+    "request-fast-track",
+  );
+  assert.equal(getPropertyBrokerRequestQuery(new URLSearchParams("request=unrelated")), "");
+});
+
+test("direct rental property fast-track start keeps lead and manager context", () => {
+  const request = buildPropertyFastTrackStartRequest({
+    property: {
+      id: "property-rent-1",
+      title: "Rental home",
+      listing_type: "rent",
+      manager_id: "manager-direct",
+      country: "GB",
+    } as any,
+    lead: {
+      id: "lead-direct",
+      broker_id: "manager-lead",
+    } as any,
+    brokerRequestQuery: "",
+    clientId: "user-1",
+    clientName: "Test User",
+  });
+
+  assert.deepEqual(request, {
+    property_id: "property-rent-1",
+    broker_request_id: undefined,
+    lead_id: "lead-direct",
+    manager_id: "manager-lead",
+    client_id: "user-1",
+    client_name: "Test User",
+    property_title: "Rental home",
+    property_type: "rent",
+    property_country: "GB",
+    listing_type: "rent",
+    started_from: "direct_property",
+  });
+});
+
+test("broker-selected rental fast-track start lets backend resolve selected lead and manager", () => {
+  const request = buildPropertyFastTrackStartRequest({
+    property: {
+      id: "property-rent-2",
+      title: "Broker selected rental",
+      listing_type: "rent",
+      manager_id: "manager-stale-property",
+      country: "GB",
+    } as any,
+    lead: {
+      id: "lead-stale-direct",
+      broker_id: "manager-stale-lead",
+    } as any,
+    brokerRequestQuery: "request-selected",
+    clientId: "user-1",
+    clientName: "Test User",
+  });
+
+  assert.equal(request?.broker_request_id, "request-selected");
+  assert.equal(request?.started_from, "broker_request_selection");
+  assert.equal(request?.property_type, "rent");
+  assert.equal(request?.listing_type, "rent");
+  assert.equal(request?.lead_id, undefined);
+  assert.equal(request?.manager_id, undefined);
 });
 
 test("sale offer amount input accepts ordinary round-pound offers", () => {

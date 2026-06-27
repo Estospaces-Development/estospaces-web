@@ -29,7 +29,7 @@ import { getPropertyById, Property } from '../../../../services/propertyService'
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { createLead, getUserDocuments, getUserLeads, Lead, uploadDocument, UserDocument } from '@/services/leadsService';
-import { createFastTrackCase, FastTrackCase, getFastTrackCases, updateFastTrackCase } from '@/services/fastTrackService';
+import { createFastTrackCase, FastTrackCase, getFastTrackCases, updateFastTrackCase, type CreateFastTrackRequest } from '@/services/fastTrackService';
 import { bookingsService, type ViewingAvailability } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { createApplication as submitRentalApplication } from '@/services/applicationsService';
@@ -109,6 +109,73 @@ type RentalApplicationForm = {
 };
 
 type RentalApplicationValidationErrors = Partial<Record<keyof RentalApplicationForm, string>>;
+
+export const getPropertyBrokerRequestQuery = (params: URLSearchParams) => {
+    const directRequestId = params.get('broker-request')?.trim() || params.get('brokerRequest')?.trim();
+    if (directRequestId) {
+        return directRequestId;
+    }
+
+    const workspaceRequestId = params.get('request')?.trim();
+    if (workspaceRequestId && (params.get('workspace') === 'broker-request' || params.get('fast-track') === '1')) {
+        return workspaceRequestId;
+    }
+
+    return '';
+};
+
+export const mapFastTrackPropertyType = (listingType?: string) => {
+    if (listingType === 'sale') {
+        return 'buy';
+    }
+    if (listingType === 'lease') {
+        return 'lease';
+    }
+    if (listingType === 'rent') {
+        return 'rent';
+    }
+    return null;
+};
+
+export const buildPropertyFastTrackStartRequest = ({
+    property,
+    lead,
+    brokerRequestQuery,
+    clientId,
+    clientName,
+}: {
+    property: Property;
+    lead: Lead | null;
+    brokerRequestQuery: string;
+    clientId: string;
+    clientName: string;
+}): CreateFastTrackRequest | null => {
+    const fastTrackPropertyType = mapFastTrackPropertyType(property.listing_type);
+    if (!fastTrackPropertyType) {
+        return null;
+    }
+
+    const brokerRequestId = brokerRequestQuery || lead?.broker_request_id || undefined;
+    const startsFromBrokerRequest = Boolean(brokerRequestId);
+
+    return {
+        property_id: property.id,
+        broker_request_id: brokerRequestId,
+        lead_id: startsFromBrokerRequest ? undefined : lead?.id,
+        manager_id: startsFromBrokerRequest
+            ? undefined
+            : lead?.matched_broker_id || lead?.broker_id || property.manager_id,
+        client_id: clientId,
+        client_name: clientName,
+        property_title: property.title,
+        property_type: fastTrackPropertyType,
+        property_country: property.country || undefined,
+        listing_type: ['rent', 'sale', 'lease'].includes(property.listing_type || '')
+            ? property.listing_type as 'rent' | 'sale' | 'lease'
+            : undefined,
+        started_from: startsFromBrokerRequest ? 'broker_request_selection' : 'direct_property',
+    };
+};
 
 const toDateValue = (date: Date) => {
     const year = date.getFullYear();
@@ -742,7 +809,7 @@ const UserPropertyDetail = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const fastTrackQuery = searchParams.get('fast-track');
-    const brokerRequestQuery = searchParams.get('broker-request')?.trim() || '';
+    const brokerRequestQuery = getPropertyBrokerRequestQuery(searchParams);
     const requestedCaseId = searchParams.get('case')?.trim() || '';
     const toast = useToast();
     const { user } = useAuth();
@@ -1418,19 +1485,6 @@ const UserPropertyDetail = () => {
         };
     }, [isFastTrackModalOpen, property, user]);
 
-    const mapFastTrackPropertyType = (listingType?: string) => {
-        if (listingType === 'sale') {
-            return 'buy';
-        }
-        if (listingType === 'lease') {
-            return 'lease';
-        }
-        if (listingType === 'rent') {
-            return 'rent';
-        }
-        return null;
-    };
-
     const resolveWorkflowManagerId = (
         lead: Lead | null = activeLead,
         fastTrackCase: FastTrackCase | null = activeFastTrackCase,
@@ -1620,34 +1674,30 @@ const UserPropertyDetail = () => {
                 return;
             }
             let leadToUse = currentWorkspace.lead;
-            if (startAction === 'create_lead_and_case') {
+            if (!brokerRequestQuery && startAction === 'create_lead_and_case') {
                 const leadResult = await createLead(property.id);
                 if (leadResult.error || !leadResult.data) {
                     throw new Error(leadResult.error || 'Unable to create the fast-track lead.');
                 }
                 leadToUse = leadResult.data;
             }
-            if (!leadToUse) {
+            if (!brokerRequestQuery && !leadToUse) {
                 throw new Error('Unable to prepare the fast-track lead.');
             }
 
-            const brokerRequestId = leadToUse.broker_request_id || brokerRequestQuery || undefined;
-
-            const fastTrackResult = await createFastTrackCase({
-                property_id: property.id,
-                broker_request_id: brokerRequestId,
-                lead_id: leadToUse.id,
-                manager_id: leadToUse.matched_broker_id || leadToUse.broker_id || property.manager_id,
-                client_id: user!.id,
-                client_name: displayName,
-                property_title: property.title,
-                property_type: fastTrackPropertyType,
-                property_country: property.country || undefined,
-                listing_type: ['rent', 'sale', 'lease'].includes(property.listing_type || '')
-                    ? property.listing_type as 'rent' | 'sale' | 'lease'
-                    : undefined,
-                started_from: brokerRequestId ? 'broker_request_selection' : 'direct_property',
+            const fastTrackRequest = buildPropertyFastTrackStartRequest({
+                property,
+                lead: leadToUse,
+                brokerRequestQuery,
+                clientId: user!.id,
+                clientName: displayName,
             });
+            if (!fastTrackRequest) {
+                toast.error('Fast-track is not available for short-term listings yet.');
+                return;
+            }
+
+            const fastTrackResult = await createFastTrackCase(fastTrackRequest);
             if (fastTrackResult.error || !fastTrackResult.data) {
                 throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
             }
@@ -1674,7 +1724,7 @@ const UserPropertyDetail = () => {
                 reason: 'User started fast-track from property detail',
                 ids: {
                     caseId: fastTrackResult.data.caseId,
-                    leadId: leadToUse.id,
+                    leadId: fastTrackResult.data.leadId || leadToUse?.id,
                     propertyId: property.id,
                 },
             });
