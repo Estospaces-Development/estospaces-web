@@ -1630,7 +1630,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : previewItem;
         const previewKind = detectDocumentPreviewKind(previewDisplayItem);
         const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
-        const uploadedSecurePdf = previewKind === 'pdf' && !selectedPreviewFile;
 
         return (
             <div className="space-y-4">
@@ -1697,15 +1696,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             style={{ width: previewZoom === 0 ? 'auto' : `${previewZoom * 100}%` }}
                         />
                     </div>
-                ) : previewKind === 'pdf' && !uploadedSecurePdf ? (
-                    <div className="max-h-[520px] overflow-auto rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
-                        <iframe
-                            title={previewDisplayItem.fileName || previewDisplayItem.label}
-                            src={previewUrl}
-                            className="h-[520px] min-w-full transition-[width] duration-150"
-                            style={{ width: previewZoom === 0 ? "100%" : `${previewZoom * 100}%` }}
-                        />
-                    </div>
                 ) : previewKind === 'pdf' ? (
                     <div className="rounded-3xl border border-gray-100 bg-white p-5 text-sm dark:border-gray-800 dark:bg-gray-950">
                         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1716,7 +1706,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <div className="min-w-0">
                                     <p className="font-semibold text-gray-900 dark:text-white">PDF is ready</p>
                                     <p className="mt-1 text-gray-500 dark:text-gray-400">
-                                        Secure uploaded PDFs open in the browser viewer to avoid the broken embedded preview.
+                                        PDFs open in the browser viewer to avoid the broken embedded preview.
                                     </p>
                                     <p className="mt-2 truncate text-xs font-medium text-gray-500 dark:text-gray-400">
                                         {previewDisplayItem.fileName || previewDisplayItem.label}

@@ -305,6 +305,10 @@ test('fast-track document preview opens a modal for selected and uploaded files'
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
+        /<iframe/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
         /window\.requestAnimationFrame\(\(\) => revealPreviewSection\(\)\)/,
     );
 });

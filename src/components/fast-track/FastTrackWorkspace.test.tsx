@@ -80,11 +80,11 @@ test("fast-track uploaded document preview uses signed access URL without blob f
   assert.match(source, /nextUrl = access\.url/);
 });
 
-test("fast-track uploaded PDFs avoid broken inline iframe previews", () => {
+test("fast-track PDFs avoid broken inline iframe previews", () => {
   const source = workspaceSource();
 
-  assert.match(source, /const uploadedSecurePdf = previewKind === 'pdf' && !selectedPreviewFile/);
-  assert.match(source, /Secure uploaded PDFs open in the browser viewer/);
+  assert.doesNotMatch(source, /<iframe/);
+  assert.match(source, /PDFs open in the browser viewer/);
   assert.match(source, /Open PDF/);
 });
 
