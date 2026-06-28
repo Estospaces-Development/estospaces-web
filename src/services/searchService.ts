@@ -6,6 +6,7 @@ import { LAUNCH_COUNTRY_CODE } from '@/lib/launchLocale';
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
 const SEARCH_SERVICE_COOLDOWN_MS = 2 * 60 * 1000;
+export const PRIMARY_SEARCH_SERVICE_TIMEOUT_MS = 3500;
 
 let primarySearchFallbackUntil = 0;
 
@@ -622,7 +623,11 @@ export const searchService = {
 
             const response = await apiFetchEnvelope<SearchResult[]>(
                 `${API_URL}/api/v1/search?${params.toString()}`,
-                { suppressErrorToast: true, auth: false },
+                {
+                    suppressErrorToast: true,
+                    auth: false,
+                    timeoutMs: PRIMARY_SEARCH_SERVICE_TIMEOUT_MS,
+                },
             );
 
             if (looksLikePlaceholderSearchResults(response.data || [])) {

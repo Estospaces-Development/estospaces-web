@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
     mapCorePropertySectionToSearchSection,
     mapSearchFiltersToCoreQuery,
+    PRIMARY_SEARCH_SERVICE_TIMEOUT_MS,
 } from '@/services/searchService';
 
 test('core property search maps spaced postcode location to search', () => {
@@ -99,4 +100,8 @@ test('core property sections map to discovery search results', () => {
     assert.equal(section.properties[0].location, 'Attur, SW1A 1AA');
     assert.equal(section.properties[0].status, 'published');
     assert.deepEqual(section.properties[0].images, ['https://example.com/house.jpg']);
+});
+
+test('primary public search uses a short fallback timeout for launch readiness', () => {
+    assert.equal(PRIMARY_SEARCH_SERVICE_TIMEOUT_MS <= 5000, true);
 });
