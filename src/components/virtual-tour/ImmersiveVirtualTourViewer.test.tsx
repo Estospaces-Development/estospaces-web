@@ -57,7 +57,7 @@ test("immersive virtual tour viewer renders branded explore and floor plan contr
   assert.match(markup, /Explore/);
   assert.match(markup, /Top view/);
   assert.match(markup, /title="Living Room true 360 viewer"/);
-  assert.match(markup, /cdn\.pannellum\.org/);
+  assert.ok(markup.includes("cdn.pannellum.org"));
   assert.match(markup, /living-stitched\.jpg/);
   assert.match(markup, /Mini map/);
   assert.match(markup, /Living Room/);

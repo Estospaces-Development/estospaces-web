@@ -258,9 +258,9 @@ function buildArtifactPath(filename) {
 }
 
 function isIgnorableConsoleError(message) {
-  const text = String(message || '');
-  return /downloadable font: download failed/i.test(text)
-    && /fonts\.gstatic\.com/i.test(text);
+  const text = String(message || '').toLowerCase();
+  return text.includes('downloadable font: download failed')
+    && text.includes('fonts.gstatic.com');
 }
 
 function normalizeRole(roleName) {

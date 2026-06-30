@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { chromium } = require('playwright');
 
 const baseUrl = process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
@@ -17,7 +18,7 @@ function requireEnv(name) {
 }
 
 function uniqueTestPassword(label = 'Project5') {
-  return `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}Aa!9`;
+  return `${label}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}Aa!9`;
 }
 
 const credentials = {

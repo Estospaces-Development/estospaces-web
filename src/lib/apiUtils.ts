@@ -536,7 +536,7 @@ export async function apiFetchEnvelope<T>(
         const unauthorizedState = response.status === 401
             ? await handleUnauthorizedResponse(url, requestToken)
             : 'unhandled';
-        if (isDebug) console.error(`[API Response Error] ${method} ${url}:`, errorMsg);
+        if (isDebug) console.error('[API Response Error] %s %s: %s', method, url, errorMsg);
         if (!suppressErrorToast && unauthorizedState === 'unhandled' && shouldEmitApiFailureToast(response.status, method)) {
             notifyApiFailure(response.status);
         }

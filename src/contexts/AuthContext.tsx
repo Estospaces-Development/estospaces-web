@@ -162,7 +162,19 @@ const persistUser = (nextUser: User | null) => {
         return;
     }
 
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
+    const storedUser: User = {
+        id: nextUser.id,
+        email: nextUser.email,
+        name: nextUser.name,
+        role: nextUser.role,
+        isAuthenticated: nextUser.isAuthenticated,
+        first_name: nextUser.first_name,
+        last_name: nextUser.last_name,
+        avatar_url: nextUser.avatar_url,
+        avatar: nextUser.avatar,
+    };
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedUser));
 };
 
 const clearStoredAuth = () => {
