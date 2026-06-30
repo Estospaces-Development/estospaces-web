@@ -70,6 +70,11 @@ import AdminLayout from './layouts/AdminLayout';
 import ManagerLayout from './layouts/ManagerLayout';
 import UserLayout from './layouts/UserLayout';
 import ContactPage from './pages/public/contact/page';
+import LoginPage from './pages/auth/login/page';
+import RegisterPage from './pages/auth/register/page';
+import ForgotPasswordPage from './pages/auth/forgot-password/page';
+import ResetPasswordPage from './pages/auth/reset-password/page';
+import VerifyEmailPage from './pages/auth/verify-email/page';
 
 // Loading component
 const Loading = () => <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -83,13 +88,6 @@ const PrivacyPage = lazyPage(() => import('./pages/public/privacy/page'));
 const PublicSearchPage = lazyPage(() => import('./pages/user/search/page'));
 const TermsPage = lazyPage(() => import('./pages/public/terms/page'));
 const PublicVirtualTourPage = lazyPage(() => import('./pages/public/virtual-tours/[id]/page'));
-
-// Lazy loaded pages - Auth
-const LoginPage = lazyPage(() => import('./pages/auth/login/page'));
-const RegisterPage = lazyPage(() => import('./pages/auth/register/page'));
-const ForgotPasswordPage = lazyPage(() => import('./pages/auth/forgot-password/page'));
-const ResetPasswordPage = lazyPage(() => import('./pages/auth/reset-password/page'));
-const VerifyEmailPage = lazyPage(() => import('./pages/auth/verify-email/page'));
 
 // Lazy loaded pages - Admin
 const AdminDashboard = lazyPage(() => import('./pages/admin/dashboard/page'));
