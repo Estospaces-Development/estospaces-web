@@ -71,9 +71,9 @@
     "eslint": "^9",
     "playwright": "^1.56.1",
     "tailwindcss": "^4",
-    "tsx": "^4.20.6",
+    "tsx": "^4.22.4",
     "typescript": "^5",
-    "vite": "^6.1.1"
+    "vite": "^8.1.1"
   },
   "overrides": {
     "brace-expansion": "^1.1.13",
