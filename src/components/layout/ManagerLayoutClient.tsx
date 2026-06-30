@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
@@ -11,7 +11,7 @@ import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
 import { PropertyProvider } from '../../contexts/PropertyContext';
 import { LeadProvider } from '../../contexts/LeadContext';
-import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
@@ -19,6 +19,7 @@ interface ManagerLayoutClientProps {
 }
 
 export default function ManagerLayoutClient({ children, isSubdomain = false }: ManagerLayoutClientProps) {
+    const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         if (typeof window === 'undefined') {
             return true;
@@ -29,12 +30,38 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
     const hasManagerAccess = user?.role === 'manager' || user?.role === 'broker';
     const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
 
+    useEffect(() => {
+        if (typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches) {
+            return;
+        }
+
+        setSidebarOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!sidebarOpen) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            event.preventDefault();
+            setSidebarOpen(false);
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [sidebarOpen]);
+
     if (shouldWaitForSession) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={getLoginPath()} replace />;
     }
 
     if (!hasManagerAccess) {

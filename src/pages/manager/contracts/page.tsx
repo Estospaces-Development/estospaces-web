@@ -1,7 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw } from 'lucide-react';
+import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck } from 'lucide-react';
 import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contractStatus';
-import { getUserContracts, signContract } from '@/services/contractsService';
+import {
+    getDepositProtectionRecord,
+    getContract,
+    getTenancyPackService,
+    getUserContracts,
+    signContract,
+    updateDepositProtectionRecord,
+    updateTenancyPackService,
+    type DepositProtectionRecord,
+    type TenancyPackServiceRecord,
+} from '@/services/contractsService';
 import { type Contract } from '@/types/booking';
 import { useToast } from '@/contexts/ToastContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -20,7 +30,9 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
+import { getCreateContractEntryState } from '@/lib/contractsWorkspaceLoad';
 
 type Tab = 'all' | 'draft' | 'pending' | 'active' | 'terminated';
 
@@ -41,6 +53,15 @@ export default function ManagerContractsPage() {
     const [loading, setLoading] = useState(true);
     const [signingId, setSigningId] = useState<string | null>(null);
     const [viewContract, setViewContract] = useState<Contract | null>(null);
+    const [viewContractLoading, setViewContractLoading] = useState(false);
+    const [viewContractError, setViewContractError] = useState<string | null>(null);
+    const [tenancyPack, setTenancyPack] = useState<TenancyPackServiceRecord | null>(null);
+    const [depositProtection, setDepositProtection] = useState<DepositProtectionRecord | null>(null);
+    const [workflowLoading, setWorkflowLoading] = useState(false);
+    const [workflowSaving, setWorkflowSaving] = useState<'tenancy' | 'deposit' | null>(null);
+    const [tenancyPackNotes, setTenancyPackNotes] = useState('');
+    const [depositScheme, setDepositScheme] = useState('DPS');
+    const [depositReference, setDepositReference] = useState('');
     const [createContractTarget, setCreateContractTarget] = useState<Application | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -48,8 +69,9 @@ export default function ManagerContractsPage() {
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const [hasAppliedRouteFocus, setHasAppliedRouteFocus] = useState(false);
     const removedCaseNoticeRef = React.useRef<string | null>(null);
+    const requestedContractId = String(searchParams.get('contract') || '').trim();
     const hasWorkspaceFocusRequest = Boolean(
-        searchParams.get('contract')
+        requestedContractId
         || searchParams.get('application')
         || searchParams.get('case')
         || searchParams.get('lead')
@@ -113,13 +135,13 @@ export default function ManagerContractsPage() {
     const handleCountersign = async (id: string) => {
         setSigningId(id);
         const { data, error } = await signContract(id, 'manager');
-        if (error) {
-            toastError(error);
-        } else if (data) {
-            success('Contract countersigned successfully!');
+        const latestContractResult = await getContract(id, { suppressErrorToast: true });
+        const signedContract = latestContractResult.data || data;
+        if (signedContract?.manager_signed_at) {
+            success('Contract confirmed successfully!');
             // Update in list
-            setContracts(prev => prev.map(c => c.id === id ? data : c));
-            if (viewContract?.id === id) setViewContract(data);
+            setContracts(prev => prev.map(c => c.id === id ? signedContract : c));
+            setViewContract(current => current?.id === id ? signedContract : current);
             publishWorkspaceSync({
                 source: 'mutation',
                 tags: [
@@ -128,17 +150,145 @@ export default function ManagerContractsPage() {
                     WORKSPACE_SYNC_TAGS.FAST_TRACK,
                     WORKSPACE_SYNC_TAGS.PAYMENTS,
                 ],
-                reason: 'Manager countersigned contract',
+                reason: 'Manager confirmed contract',
                 ids: {
-                    contractId: data.id,
-                    applicationId: data.application_id,
-                    caseId: data.fast_track_case_id,
-                    leadId: data.lead_id,
-                    propertyId: data.property_id,
+                    contractId: signedContract.id,
+                    applicationId: signedContract.application_id,
+                    caseId: signedContract.fast_track_case_id,
+                    leadId: signedContract.lead_id,
+                    propertyId: signedContract.property_id,
                 },
             });
+        } else if (error) {
+            toastError(error);
         }
         setSigningId(null);
+    };
+
+    const openContractDetail = async (contract: Contract) => {
+        setViewContract(contract);
+        setViewContractError(null);
+        setViewContractLoading(true);
+
+        const { data, error } = await getContract(contract.id, { suppressErrorToast: true });
+        if (data) {
+            setViewContract(data);
+            setContracts((previous) => previous.map((item) => item.id === data.id ? data : item));
+        } else if (error) {
+            setViewContractError(error);
+        }
+
+        setViewContractLoading(false);
+    };
+
+    const closeContractDetail = () => {
+        setViewContract(null);
+        setViewContractError(null);
+        setViewContractLoading(false);
+    };
+
+    useEffect(() => {
+        const contractId = viewContract?.id;
+        if (!contractId) {
+            setTenancyPack(null);
+            setDepositProtection(null);
+            setTenancyPackNotes('');
+            setDepositScheme('DPS');
+            setDepositReference('');
+            setWorkflowLoading(false);
+            return;
+        }
+
+        let isCurrent = true;
+        setWorkflowLoading(true);
+        void Promise.all([
+            getTenancyPackService(contractId),
+            getDepositProtectionRecord(contractId),
+        ]).then(([packResult, depositResult]) => {
+            if (!isCurrent) {
+                return;
+            }
+            setTenancyPack(packResult.data);
+            setDepositProtection(depositResult.data);
+            setTenancyPackNotes(packResult.data?.review_notes || '');
+            setDepositScheme(depositResult.data?.scheme_name || 'DPS');
+            setDepositReference(depositResult.data?.review_notes || '');
+        }).finally(() => {
+            if (isCurrent) {
+                setWorkflowLoading(false);
+            }
+        });
+
+        return () => {
+            isCurrent = false;
+        };
+    }, [viewContract?.id]);
+
+    const handleUpdateTenancyPack = async () => {
+        if (!viewContract) {
+            return;
+        }
+        const now = new Date().toISOString();
+        setWorkflowSaving('tenancy');
+        const { data, error } = await updateTenancyPackService(viewContract.id, {
+            status: 'served',
+            pack_type: tenancyPack?.pack_type || 'How to Rent pack',
+            issued_at: tenancyPack?.issued_at || now,
+            served_at: now,
+            review_notes: tenancyPackNotes.trim() || 'Tenancy pack issued and served from manager contracts.',
+        });
+        if (error) {
+            toastError(error);
+        } else if (data) {
+            setTenancyPack(data);
+            setTenancyPackNotes(data.review_notes || '');
+            success('Tenancy pack updated');
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [WORKSPACE_SYNC_TAGS.CONTRACTS, WORKSPACE_SYNC_TAGS.PAYMENTS],
+                reason: 'Manager updated tenancy pack',
+                ids: { contractId: viewContract.id, propertyId: viewContract.property_id },
+            });
+        }
+        setWorkflowSaving(null);
+    };
+
+    const handleUpdateDepositProtection = async () => {
+        if (!viewContract) {
+            return;
+        }
+        const now = new Date().toISOString();
+        const payload: Parameters<typeof updateDepositProtectionRecord>[1] = {
+            status: 'completed',
+            scheme_name: depositScheme.trim() || 'DPS',
+            protected_at: depositProtection?.protected_at || now,
+            information_served_at: now,
+            deposit_received: true,
+            first_rent_received: true,
+            review_notes: depositReference.trim() || 'Deposit protection recorded from manager contracts.',
+        };
+        if (typeof viewContract.deposit_amount === 'number') {
+            payload.deposit_amount = viewContract.deposit_amount;
+        }
+
+        setWorkflowSaving('deposit');
+        const { data, error } = await updateDepositProtectionRecord(viewContract.id, payload);
+        if (error) {
+            toastError(error);
+        } else if (data) {
+            setDepositProtection(data);
+            setDepositScheme(data.scheme_name || 'DPS');
+            setDepositReference(data.review_notes || '');
+            success('Deposit protection updated');
+            publishWorkspaceSync({
+                source: 'mutation',
+                tags: [WORKSPACE_SYNC_TAGS.CONTRACTS, WORKSPACE_SYNC_TAGS.PAYMENTS],
+                reason: 'Manager updated deposit protection',
+                ids: { contractId: viewContract.id, propertyId: viewContract.property_id },
+            });
+            void fetchContracts();
+        }
+        setWorkflowSaving(null);
     };
 
     const { application: focusedApplication, contract: focusedContract } = resolveContractWorkspaceContext(
@@ -152,6 +302,7 @@ export default function ManagerContractsPage() {
             propertyId: searchParams.get('property'),
         },
     );
+    const hasInvalidRequestedContract = !loading && requestedContractId !== '' && !focusedContract;
     const focusedFastTrackCase = resolveExactFastTrackCase(
         fastTrackCases,
         sanitizedCaseId,
@@ -173,6 +324,25 @@ export default function ManagerContractsPage() {
         && !focusedContract
         && ['approved', 'ready_for_contract'].includes(String(focusedApplication.status || '').trim()),
     );
+    const createContractEntryState = getCreateContractEntryState({
+        loading,
+        applications,
+        contracts,
+    });
+    const handleCreateContractEntry = () => {
+        if (createContractEntryState.status === 'loading') {
+            info('Loading approved applications before drafting a contract.');
+            return;
+        }
+
+        if (createContractEntryState.status === 'ready') {
+            setCreateContractTarget(createContractEntryState.draftableApplication);
+            return;
+        }
+
+        info('Approve a rental application before drafting its tenancy contract.');
+        navigate('/manager/applications');
+    };
     const handleFastTrackCaseUpdated = useCallback((nextCase: FastTrackCase) => {
         setFastTrackCases((previous) => previous.map((caseItem) => (
             caseItem.caseId === nextCase.caseId ? nextCase : caseItem
@@ -187,7 +357,7 @@ export default function ManagerContractsPage() {
         setHasAppliedRouteFocus(true);
     }, [focusedContract, hasAppliedRouteFocus]);
 
-    const filteredContracts = contracts.filter(c => {
+    const filteredContracts = (hasInvalidRequestedContract ? [] : contracts.filter(c => {
         const normalizedStatus = normalizeContractStatus(c.status);
         // Tab filter
         const matchesTab = activeTab === 'all' 
@@ -212,7 +382,7 @@ export default function ManagerContractsPage() {
         }
 
         return true;
-    }).sort((left, right) => {
+    })).sort((left, right) => {
         if (!focusedContract) {
             return 0;
         }
@@ -233,11 +403,23 @@ export default function ManagerContractsPage() {
     ];
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-    const formatCurrency = (v?: number) => v != null ? `£${v.toLocaleString('en-GB', { minimumFractionDigits: 2 })}` : '—';
+    const formatCurrency = (v?: number) => v != null ? formatLaunchCurrency(v) : '—';
+    const formatWorkflowStatus = (value?: string) => (value || 'pending').replace(/_/g, ' ');
+    const tenancyPackComplete = ['served', 'completed'].includes(String(tenancyPack?.status || '').trim());
+    const depositProtectionComplete = String(depositProtection?.status || '').trim() === 'completed';
 
     return (
         <div className="p-6 md:p-8 font-outfit">
             {/* Header */}
+            <div className="mb-6">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    Contracts
+                </h1>
+                <p className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    Manage tenancy agreements, signatures, and handover readiness.
+                </p>
+            </div>
+
             {/* Search and Actions */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                 <div className="relative flex-1 max-w-md">
@@ -246,18 +428,30 @@ export default function ManagerContractsPage() {
                     </div>
                     <input
                         type="text"
+                        aria-label="Search contracts"
                         placeholder="Search contracts by tenant or property..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all"
                     />
                 </div>
-                <button
-                    onClick={fetchContracts}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors self-end md:self-auto"
-                >
-                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
-                </button>
+                <div className="flex flex-wrap items-center gap-3 self-end md:self-auto">
+                    <button
+                        type="button"
+                        aria-label="Create contract from approved application"
+                        onClick={handleCreateContractEntry}
+                        disabled={createContractEntryState.status === 'loading'}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <PenTool size={16} /> {createContractEntryState.status === 'loading' ? 'Loading...' : 'Create contract'}
+                    </button>
+                    <button
+                        onClick={fetchContracts}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors"
+                    >
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+                    </button>
+                </div>
             </div>
 
             {/* Tabs */}
@@ -271,7 +465,12 @@ export default function ManagerContractsPage() {
                                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                             }`}
                     >
-                        {tab.label} <span className="ml-1 opacity-70">({tab.count})</span>
+                        {tab.label}{' '}
+                        {activeTab === tab.key ? (
+                            <span className="ml-1 text-white">({tab.count})</span>
+                        ) : (
+                            <span className="ml-1 text-gray-700 dark:text-gray-200">({tab.count})</span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -287,22 +486,58 @@ export default function ManagerContractsPage() {
             {!loading && filteredContracts.length === 0 && (
                 <div className="text-center py-20">
                     <FileText className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
-                    {hasWorkspaceFocusRequest && !focusedContract && (
+                    {hasInvalidRequestedContract ? (
+                        <p role="alert" className="mx-auto mb-4 max-w-xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
+                            The requested contract was not found.
+                        </p>
+                    ) : hasWorkspaceFocusRequest && !focusedContract && (
                         <p className="mx-auto mb-4 max-w-xl rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                             You are in the correct contracts workspace for this fast-track case, but no live tenancy contract has been created yet.
                         </p>
                     )}
-                    <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">No contracts found</h3>
+                    <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400">
+                        {hasInvalidRequestedContract ? 'Contract not found' : 'No contracts found'}
+                    </h3>
                     <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                        Tenancy contracts are created from approved rental applications. Purchase journeys continue in the sale progression workspace.
+                        {hasInvalidRequestedContract
+                            ? 'Clear the invalid contract link to return to the full contracts list.'
+                            : 'Tenancy contracts are created from approved rental applications. Purchase journeys continue in the sale progression workspace.'}
                     </p>
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                        {hasInvalidRequestedContract ? (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/manager/contracts')}
+                                className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                            >
+                                Show all contracts
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                aria-label="Create contract from approved application"
+                                onClick={handleCreateContractEntry}
+                                disabled={createContractEntryState.status === 'loading'}
+                                className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Create contract
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => navigate('/manager/applications')}
+                            className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                        >
+                            Open applications
+                        </button>
+                    </div>
                 </div>
             )}
 
             {/* Contract Cards */}
             {!loading && filteredContracts.length > 0 && (
                 <div className="grid gap-4">
-                    {hasWorkspaceFocusRequest && !focusedContract && (
+                    {hasWorkspaceFocusRequest && !focusedContract && !hasInvalidRequestedContract && (
                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
                             <p className="font-semibold">
                                 {focusedJourneyType === 'buy'
@@ -351,7 +586,7 @@ export default function ManagerContractsPage() {
                     )}
                     {focusedContract && (
                         <div className="rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4 text-sm text-orange-700 shadow-sm dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300">
-                            The contract linked to your fast-track case is pinned first so you can countersign without searching manually.
+                            The contract linked to your fast-track case is pinned first so you can confirm it without searching manually.
                         </div>
                     )}
                     {focusedFastTrackCase && (
@@ -421,11 +656,11 @@ export default function ManagerContractsPage() {
 
                                         {/* Signature Status */}
                                         <div className="flex items-center gap-4 mt-3 text-xs">
-                                            <span className={`flex items-center gap-1 ${contract.user_signed_at ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                            <span className={`flex items-center gap-1 ${contract.user_signed_at ? 'text-green-700 dark:text-green-300' : 'text-gray-400 dark:text-gray-500'}`}>
                                                 {contract.user_signed_at ? <CheckCircle size={12} /> : <Clock size={12} />}
                                                 Tenant {contract.user_signed_at ? `signed ${formatDate(contract.user_signed_at)}` : 'not signed'}
                                             </span>
-                                            <span className={`flex items-center gap-1 ${contract.manager_signed_at ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                            <span className={`flex items-center gap-1 ${contract.manager_signed_at ? 'text-green-700 dark:text-green-300' : 'text-gray-400 dark:text-gray-500'}`}>
                                                 {contract.manager_signed_at ? <CheckCircle size={12} /> : <Clock size={12} />}
                                                 You {contract.manager_signed_at ? `signed ${formatDate(contract.manager_signed_at)}` : 'not signed'}
                                             </span>
@@ -435,7 +670,8 @@ export default function ManagerContractsPage() {
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                         <button
-                                            onClick={() => setViewContract(contract)}
+                                            onClick={() => openContractDetail(contract)}
+                                            aria-label={`Open contract ${contract.id}`}
                                             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                                         >
                                             <Eye size={16} /> View
@@ -447,9 +683,9 @@ export default function ManagerContractsPage() {
                                                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white shadow-sm transition-colors disabled:opacity-70"
                                             >
                                                 {signingId === contract.id ? (
-                                                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Signing...</>
+                                                    <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming...</>
                                                 ) : (
-                                                    <><PenTool size={16} /> Countersign</>
+                                                    <><PenTool size={16} /> Confirm Contract</>
                                                 )}
                                             </button>
                                         )}
@@ -463,15 +699,36 @@ export default function ManagerContractsPage() {
 
             {/* View Contract Modal */}
             {viewContract && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => setViewContract(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={closeContractDetail}>
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="manager-contract-detail-title"
+                        className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col"
+                        onClick={e => e.stopPropagation()}
+                    >
                         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <h2 id="manager-contract-detail-title" className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <FileText className="text-orange-500" /> Contract Details
                             </h2>
-                            <button onClick={() => setViewContract(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500">✕</button>
+                            <button
+                                type="button"
+                                onClick={closeContractDetail}
+                                aria-label="Close contract detail"
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-500"
+                            >
+                                Close
+                            </button>
                         </div>
                         <div className="p-6 overflow-y-auto custom-scrollbar space-y-4">
+                            <p role="status" aria-live="polite" className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                                {viewContractLoading ? 'Loading latest contract details...' : 'Contract detail loaded.'}
+                            </p>
+                            {viewContractError && (
+                                <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                                    Could not refresh the latest contract record. Showing the saved contract from your list.
+                                </div>
+                            )}
                             {(() => {
                                 const s = STATUS_MAP[normalizeContractStatus(viewContract.status)] || STATUS_MAP.draft;
                                 return (
@@ -524,12 +781,94 @@ export default function ManagerContractsPage() {
                                     </p>
                                 </div>
                             </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                <PackageCheck size={16} className="text-orange-500" /> Tenancy Pack
+                                            </p>
+                                            <p className="mt-1 text-xs capitalize text-gray-500 dark:text-gray-400">
+                                                {workflowLoading ? 'Loading...' : formatWorkflowStatus(tenancyPack?.status)}
+                                            </p>
+                                        </div>
+                                        {tenancyPackComplete && <CheckCircle size={18} className="text-green-500" />}
+                                    </div>
+                                    <div className="mt-4 grid gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <span>Issued {formatDate(tenancyPack?.issued_at || undefined)}</span>
+                                            <span>Served {formatDate(tenancyPack?.served_at || undefined)}</span>
+                                        </div>
+                                        <input
+                                            value={tenancyPackNotes}
+                                            onChange={(event) => setTenancyPackNotes(event.target.value)}
+                                            placeholder="Pack note"
+                                            aria-label="Tenancy pack service note"
+                                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleUpdateTenancyPack}
+                                            disabled={workflowLoading || workflowSaving === 'tenancy'}
+                                            className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {workflowSaving === 'tenancy' ? 'Updating...' : tenancyPackComplete ? 'Update tenancy pack' : 'Mark tenancy pack served'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                                <ShieldCheck size={16} className="text-orange-500" /> Deposit Protection
+                                            </p>
+                                            <p className="mt-1 text-xs capitalize text-gray-500 dark:text-gray-400">
+                                                {workflowLoading ? 'Loading...' : formatWorkflowStatus(depositProtection?.status)}
+                                            </p>
+                                        </div>
+                                        {depositProtectionComplete && <CheckCircle size={18} className="text-green-500" />}
+                                    </div>
+                                    <div className="mt-4 grid gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                        <select
+                                            value={depositScheme}
+                                            onChange={(event) => setDepositScheme(event.target.value)}
+                                            aria-label="Deposit protection scheme"
+                                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                        >
+                                            <option value="DPS">DPS</option>
+                                            <option value="TDS">TDS</option>
+                                            <option value="MyDeposits">MyDeposits</option>
+                                        </select>
+                                        <input
+                                            value={depositReference}
+                                            onChange={(event) => setDepositReference(event.target.value)}
+                                            placeholder="Certificate or reference"
+                                            aria-label="Deposit protection certificate or reference"
+                                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                                        />
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <span>Protected {formatDate(depositProtection?.protected_at || undefined)}</span>
+                                            <span>Info served {formatDate(depositProtection?.information_served_at || undefined)}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleUpdateDepositProtection}
+                                            disabled={workflowLoading || workflowSaving === 'deposit'}
+                                            className="rounded-lg bg-orange-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {workflowSaving === 'deposit' ? 'Updating...' : depositProtectionComplete ? 'Update deposit protection' : 'Mark deposit protected'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Footer with Countersign button if needed */}
+                        {/* Footer with manager confirmation button if needed */}
                         <div className="p-6 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800/50 rounded-b-2xl">
                             <button
-                                onClick={() => setViewContract(null)}
+                                onClick={closeContractDetail}
                                 className="px-5 py-2.5 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             >
                                 Close
@@ -541,9 +880,9 @@ export default function ManagerContractsPage() {
                                     className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium shadow-sm transition-colors disabled:opacity-70 flex items-center gap-2"
                                 >
                                     {signingId === viewContract.id ? (
-                                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Signing...</>
+                                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming...</>
                                     ) : (
-                                        <><PenTool size={16} /> Countersign</>
+                                        <><PenTool size={16} /> Confirm Contract</>
                                     )}
                                 </button>
                             )}

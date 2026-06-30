@@ -5,6 +5,7 @@ const { chromium } = require("playwright");
 const crashPattern = /toast is not defined|unexpected application error|something went wrong|application error|referenceerror|cannot access .* before initialization/i;
 const screenshotRoot = path.join(process.cwd(), "output", "playwright", "e2e-smoke");
 const routeSettleMs = Number(process.env.E2E_ROUTE_SETTLE_MS || "1500");
+const DEV_WEB_BASE_URL = "https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app";
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -40,7 +41,7 @@ function resolveDevBaseUrl() {
     process.env.E2E_DEV_BASE_URL
     || readFrontendUrlFromEnvFile(".env.development")
     || readFrontendUrlFromEnvFile(".env.gcp-dev")
-    || "http://localhost:4173"
+    || DEV_WEB_BASE_URL
   );
 }
 
@@ -224,6 +225,11 @@ function parseOption(argv, name) {
   return "";
 }
 
+function resolveLoginPath(baseUrl) {
+  const hostname = new URL(baseUrl).hostname;
+  return hostname.endsWith(".run.app") ? "/login/" : "/login";
+}
+
 async function ensureReachable(baseUrl) {
   const response = await fetch(baseUrl, { redirect: "manual" });
   if (!response.ok && response.status !== 302) {
@@ -247,7 +253,7 @@ async function login(page, baseUrl, role) {
 
   const email = requireEnv(role.emailEnv);
   const password = requireEnv(role.passwordEnv);
-  await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${baseUrl}${resolveLoginPath(baseUrl)}`, { waitUntil: "domcontentloaded" });
   const emailField = page
     .locator('input[name="email"], input[type="email"], input[placeholder*="email" i]')
     .first();
@@ -391,13 +397,15 @@ async function main() {
     }
 
     const defaultBaseUrl = overrideBaseUrl || target.baseUrl;
+    const targetAppBaseUrl = overrideBaseUrl || target.appBaseUrl || defaultBaseUrl;
+    const targetAdminBaseUrl = overrideBaseUrl || target.adminBaseUrl || defaultBaseUrl;
     const caseId = overrideCaseId || target.caseId;
 
     if (selectedRoles.some((role) => role.name !== "admin")) {
-      await ensureReachable(target.appBaseUrl || defaultBaseUrl);
+      await ensureReachable(targetAppBaseUrl);
     }
     if (selectedRoles.some((role) => role.name === "admin")) {
-      await ensureReachable(target.adminBaseUrl || defaultBaseUrl);
+      await ensureReachable(targetAdminBaseUrl);
     }
 
     for (const role of selectedRoles) {
@@ -425,8 +433,8 @@ async function main() {
 
       try {
         const roleBaseUrl = role.name === "admin"
-          ? (target.adminBaseUrl || defaultBaseUrl)
-          : (target.appBaseUrl || defaultBaseUrl);
+          ? targetAdminBaseUrl
+          : targetAppBaseUrl;
 
         console.error(`[${targetName}/${role.name}] login -> ${roleBaseUrl}`);
         await login(page, roleBaseUrl, role);

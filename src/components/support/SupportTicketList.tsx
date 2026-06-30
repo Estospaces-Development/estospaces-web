@@ -2,12 +2,17 @@ import React from 'react';
 import { Inbox, MessageSquareText } from 'lucide-react';
 import { type SupportTicketSummary } from '@/services/messagesService';
 import { SupportPriorityBadge, SupportStatusBadge } from '@/components/support/SupportBadges';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import { getLaunchSafeSupportCategoryLabel } from '@/lib/supportCenter';
 
 interface SupportTicketListProps {
     tickets: SupportTicketSummary[];
     selectedTicketId: string | null;
     onSelect: (ticketId: string) => void;
     emptyLabel: string;
+    emptyDescription?: string;
+    emptyActionLabel?: string;
+    onEmptyAction?: () => void;
 }
 
 export function SupportTicketList({
@@ -15,6 +20,9 @@ export function SupportTicketList({
     selectedTicketId,
     onSelect,
     emptyLabel,
+    emptyDescription,
+    emptyActionLabel,
+    onEmptyAction,
 }: SupportTicketListProps) {
     if (tickets.length === 0) {
         return (
@@ -22,19 +30,30 @@ export function SupportTicketList({
                 <Inbox className="mb-4 h-10 w-10 text-orange-400" />
                 <p className="text-base font-semibold text-gray-900 dark:text-white">{emptyLabel}</p>
                 <p className="mt-2 max-w-sm text-sm text-gray-500 dark:text-gray-400">
-                    New ticket activity will appear here as soon as a support request is created.
+                    {emptyDescription || 'New ticket activity will appear here as soon as a support request is created.'}
                 </p>
+                {onEmptyAction && (
+                    <button
+                        type="button"
+                        onClick={onEmptyAction}
+                        className="mt-4 rounded-full border border-orange-200 px-4 py-2 text-sm font-bold text-orange-700 transition hover:border-orange-300 hover:bg-orange-50 dark:border-orange-500/20 dark:text-orange-200 dark:hover:bg-orange-500/10"
+                    >
+                        {emptyActionLabel || 'Clear filters'}
+                    </button>
+                )}
             </div>
         );
     }
 
+    const ticketKeyFor = createDuplicateSafeKeyResolver('support-ticket');
+
     return (
         <div className="space-y-3">
-            {tickets.map((ticket) => {
+            {tickets.map((ticket, ticketIndex) => {
                 const active = ticket.id === selectedTicketId;
                 return (
                     <button
-                        key={ticket.id}
+                        key={ticketKeyFor(ticket.id, ticketIndex)}
                         onClick={() => onSelect(ticket.id)}
                         className={`w-full rounded-[1.75rem] border p-4 text-left transition-all ${
                             active
@@ -50,14 +69,14 @@ export function SupportTicketList({
                                     </span>
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">
-                                            {ticket.category || 'Support'}
+                                            {getLaunchSafeSupportCategoryLabel(ticket.category)}
                                         </p>
                                         <p className="truncate text-base font-bold text-gray-950 dark:text-white">{ticket.subject}</p>
                                     </div>
                                 </div>
                                 <p className="truncate text-sm text-gray-600 dark:text-gray-300">
                                     {ticket.requester_context?.name || ticket.requester_context?.email || 'Estospaces customer'}
-                                    {ticket.requester_context?.module ? ` · ${ticket.requester_context.module}` : ''}
+                                    {ticket.requester_context?.module ? ` - ${getLaunchSafeSupportCategoryLabel(ticket.requester_context.module)}` : ''}
                                 </p>
                                 {ticket.last_message?.content && (
                                     <p className="mt-3 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">

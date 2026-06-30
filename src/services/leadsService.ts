@@ -15,6 +15,13 @@ import { uploadMediaFile } from "@/services/mediaService";
 
 const CORE_URL = () => getServiceUrl("core");
 type ServiceRequestOptions = Pick<ApiFetchOptions, "suppressErrorToast">;
+type BrokerRequestListClientOptions = ServiceRequestOptions & {
+  status?: string;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+  offerStatus?: string;
+};
 
 export interface LeadBrokerSummary {
   id: string;
@@ -29,6 +36,13 @@ export interface LeadBrokerSummary {
   fast_track_eligible?: boolean;
   availability_expires_at?: string;
   distance_miles?: number;
+}
+
+export interface NearbyBrokerPagination {
+  total?: number;
+  page?: number;
+  limit?: number;
+  total_pages?: number;
 }
 
 export interface BrokerAvailabilityState {
@@ -58,6 +72,9 @@ export interface Lead {
     | "docs_uploaded"
     | "under_review"
     | "approved"
+    | "viewing_scheduled"
+    | "rejected"
+    | "withdrawn"
     | "completed"
     | "expired";
   dispatch_status?: string;
@@ -131,6 +148,25 @@ export interface Lead {
   updated_at: string;
 }
 
+export interface LeadAuditEntry {
+  id: string;
+  lead_id: string;
+  action: string;
+  actor: string;
+  actor_id?: string | null;
+  details?: string | Record<string, unknown> | null;
+  timestamp: string;
+}
+
+export interface AdminBrokerOption {
+  user_id: string;
+  company_name?: string;
+  branch_name?: string;
+  business_phone?: string;
+  verification_status?: string;
+  fast_track_eligible?: boolean;
+}
+
 export interface CreateManualLeadRequest {
   name: string;
   email: string;
@@ -153,11 +189,25 @@ export interface UpdateLeadRequest {
   last_contact?: string;
 }
 
+export interface SyncLeadLifecycleRequest {
+  status?: string;
+  stage?: string;
+  viewing_scheduled?: boolean;
+  viewing_scheduled_at?: string;
+  viewing_completed_at?: string;
+  application_submitted_at?: string;
+  outcome?: string;
+  closed_at?: string;
+}
+
 export interface UserDocument {
   id: string;
   user_id: string;
   document_type: string;
   document_category: string;
+  category_id?: string | null;
+  virtual_storage_state?: "saved" | "case_only" | "pending_user_save" | "declined" | string;
+  document_source?: "user_upload" | "manager_upload" | "system" | string;
   file_name: string;
   file_url: string;
   file_size: number;
@@ -167,6 +217,20 @@ export interface UserDocument {
   reviewed_by?: string;
   reviewed_at?: string;
   lead_id?: string | null;
+  saved_to_virtual_storage_at?: string | null;
+  declined_virtual_storage_at?: string | null;
+  linked_entities?: Array<{
+    type: string;
+    id: string;
+    fast_track_case_id?: string;
+    lead_id?: string | null;
+    application_id?: string | null;
+    contract_id?: string | null;
+    property_id?: string | null;
+    request_id?: string | null;
+    visibility?: string;
+    status?: string;
+  }>;
   created_at: string;
   updated_at: string;
 }
@@ -308,6 +372,8 @@ export interface DocumentUploadOptions {
   reusable?: boolean;
   documentType?: string;
   documentCategory?: string;
+  categoryId?: string;
+  virtualStorageState?: "saved" | "case_only" | "pending_user_save" | "declined" | string;
 }
 
 /**
@@ -369,13 +435,39 @@ export const getLeadById = async (
 export const updateLeadStatus = async (
   leadId: string,
   status: string,
+  reason: string = "",
 ): Promise<{ data: any; error: string | null }> => {
   try {
+    const auditReason = reason.trim() || `Manager changed lead status to ${status}`;
     const data = await apiFetch<any>(
       `${CORE_URL()}/api/v1/leads/${leadId}/status`,
       {
         method: "PUT",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, reason: auditReason }),
+      },
+    );
+    return { data, error: null };
+  } catch (error: any) {
+    return { data: null, error: getErrorMessage(error) };
+  }
+};
+
+/**
+ * Sync lead lifecycle state
+ * PUT /api/v1/leads/:id/lifecycle (core-service)
+ */
+export const syncLeadLifecycle = async (
+  leadId: string,
+  lifecycle: SyncLeadLifecycleRequest,
+  options: ServiceRequestOptions = {},
+): Promise<{ data: Lead | null; error: string | null }> => {
+  try {
+    const data = await apiFetch<Lead>(
+      `${CORE_URL()}/api/v1/leads/${leadId}/lifecycle`,
+      {
+        method: "PUT",
+        body: JSON.stringify(lifecycle),
+        suppressErrorToast: options.suppressErrorToast,
       },
     );
     return { data, error: null };
@@ -444,12 +536,28 @@ export const createBrokerRequest = async (requestData: {
 };
 
 export const getUserBrokerRequests = async (
-  options: ServiceRequestOptions = {},
+  options: BrokerRequestListClientOptions = {},
 ): Promise<{ data: BrokerRequestRecord[] | null; error: string | null }> => {
   try {
+    const query = new URLSearchParams();
+    if (options.status?.trim()) {
+      query.set("status", options.status.trim());
+    }
+    if (options.sort?.trim()) {
+      query.set("sort", options.sort.trim());
+    }
+    if (typeof options.limit === "number") {
+      query.set("limit", String(options.limit));
+    }
+    if (typeof options.offset === "number") {
+      query.set("offset", String(options.offset));
+    }
+    const path = query.toString()
+      ? `/api/v1/leads/broker-request/mine?${query.toString()}`
+      : "/api/v1/leads/broker-request/mine";
     const data = await apiFetch<BrokerRequestRecord[]>(
-      `${CORE_URL()}/api/v1/leads/broker-request/mine`,
-      options,
+      `${CORE_URL()}${path}`,
+      { suppressErrorToast: options.suppressErrorToast },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -472,13 +580,35 @@ export const getBrokerRequestById = async (
   }
 };
 
-export const getBrokerRequestOffers = async (): Promise<{
+export const getBrokerRequestOffers = async (
+  options: BrokerRequestListClientOptions = {},
+): Promise<{
   data: BrokerRequestRecord[] | null;
   error: string | null;
 }> => {
   try {
+    const query = new URLSearchParams();
+    if (options.status?.trim()) {
+      query.set("status", options.status.trim());
+    }
+    if (options.offerStatus?.trim()) {
+      query.set("offer_status", options.offerStatus.trim());
+    }
+    if (options.sort?.trim()) {
+      query.set("sort", options.sort.trim());
+    }
+    if (typeof options.limit === "number") {
+      query.set("limit", String(options.limit));
+    }
+    if (typeof options.offset === "number") {
+      query.set("offset", String(options.offset));
+    }
+    const path = query.toString()
+      ? `/api/v1/leads/broker-request/broker?${query.toString()}`
+      : "/api/v1/leads/broker-request/broker";
     const data = await apiFetch<BrokerRequestRecord[]>(
-      `${CORE_URL()}/api/v1/leads/broker-request/broker`,
+      `${CORE_URL()}${path}`,
+      { suppressErrorToast: options.suppressErrorToast },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -617,10 +747,17 @@ export const getNearbyAvailableBrokers = async (
     latitude?: number | null;
     longitude?: number | null;
     fastTrack?: boolean;
+    page?: number;
     limit?: number;
   },
   options: ServiceRequestOptions = {},
-): Promise<{ data: LeadBrokerSummary[] | null; error: string | null }> => {
+): Promise<{
+  data: LeadBrokerSummary[] | null;
+  pagination: NearbyBrokerPagination | null;
+  sort?: string;
+  filter?: string;
+  error: string | null;
+}> => {
   try {
     const url = buildApiUrl(CORE_URL(), "/api/v1/leads/nearby-brokers");
     if (params.postcode) url.searchParams.set("postcode", params.postcode);
@@ -630,13 +767,22 @@ export const getNearbyAvailableBrokers = async (
       url.searchParams.set("longitude", String(params.longitude));
     if (typeof params.fastTrack === "boolean")
       url.searchParams.set("fast_track", String(params.fastTrack));
+    if (typeof params.page === "number")
+      url.searchParams.set("page", String(params.page));
     if (typeof params.limit === "number")
       url.searchParams.set("limit", String(params.limit));
 
-    const data = await apiFetch<LeadBrokerSummary[]>(url.toString(), options);
-    return { data, error: null };
+    const response = await apiFetchEnvelope<LeadBrokerSummary[]>(url.toString(), options);
+    const metadata = response as typeof response & { sort?: unknown; filter?: unknown };
+    return {
+      data: response.data || [],
+      pagination: response.pagination || null,
+      sort: typeof metadata.sort === "string" ? metadata.sort : undefined,
+      filter: typeof metadata.filter === "string" ? metadata.filter : undefined,
+      error: null,
+    };
   } catch (error: any) {
-    return { data: null, error: getErrorMessage(error) };
+    return { data: null, pagination: null, error: getErrorMessage(error) };
   }
 };
 
@@ -650,6 +796,7 @@ export const createManualLead = async (
   try {
     const data = await apiFetch<Lead>(`${CORE_URL()}/api/v1/leads/manual`, {
       method: "POST",
+      suppressErrorToast: true,
       body: JSON.stringify(leadData),
     });
     return { data, error: null };
@@ -669,6 +816,7 @@ export const updateLead = async (
   try {
     const data = await apiFetch<Lead>(`${CORE_URL()}/api/v1/leads/${leadId}`, {
       method: "PUT",
+      suppressErrorToast: true,
       body: JSON.stringify(leadData),
     });
     return { data, error: null };
@@ -730,9 +878,9 @@ export const respondToLead = async (
  */
 export const getLeadAudit = async (
   leadId: string,
-): Promise<{ data: any[] | null; error: string | null }> => {
+): Promise<{ data: LeadAuditEntry[] | null; error: string | null }> => {
   try {
-    const data = await apiFetch<any[]>(
+    const data = await apiFetch<LeadAuditEntry[]>(
       `${CORE_URL()}/api/v1/leads/${leadId}/audit`,
     );
     return { data, error: null };
@@ -743,19 +891,57 @@ export const getLeadAudit = async (
 
 /**
  * Get all leads (admin)
- * GET /api/v1/leads (core-service, admin)
+ * GET /api/v1/admin/leads (core-service, admin)
  */
 export const getAllLeads = async (
   page: number = 1,
   limit: number = 20,
+  options: { search?: string; status?: string; sort?: string } = {},
 ): Promise<{
   data: Lead[] | null;
   pagination?: { total?: number; page?: number; limit?: number } | null;
   error: string | null;
 }> => {
   try {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (options.search?.trim()) {
+      query.set("search", options.search.trim());
+    }
+    if (options.status?.trim()) {
+      query.set("status", options.status.trim());
+    }
+    if (options.sort?.trim()) {
+      query.set("sort", options.sort.trim());
+    }
     const response = await apiFetchEnvelope<Lead[]>(
-      `${CORE_URL()}/api/v1/leads?page=${page}&limit=${limit}`,
+      `${CORE_URL()}/api/v1/admin/leads?${query.toString()}`,
+    );
+    return {
+      data: response.data || [],
+      pagination: response.pagination || null,
+      error: null,
+    };
+  } catch (error: any) {
+    return { data: null, pagination: null, error: getErrorMessage(error) };
+  }
+};
+
+export const getAdminBrokers = async (
+  page: number = 1,
+  limit: number = 50,
+  status: string = "approved",
+): Promise<{
+  data: AdminBrokerOption[] | null;
+  pagination?: { total?: number; page?: number; limit?: number } | null;
+  error: string | null;
+}> => {
+  try {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) {
+      query.set("status", status);
+    }
+    const response = await apiFetchEnvelope<AdminBrokerOption[]>(
+      `${CORE_URL()}/api/v1/brokers?${query.toString()}`,
     );
     return {
       data: response.data || [],
@@ -769,18 +955,25 @@ export const getAllLeads = async (
 
 /**
  * Reassign a lead to another broker (admin)
- * PUT /api/v1/leads/:id/reassign (core-service, admin)
+ * PUT /api/v1/admin/leads/:id/reassign (core-service, admin)
  */
 export const reassignLead = async (
   leadId: string,
   newBrokerId: string,
+  reason: string = "",
 ): Promise<{ data: any; error: string | null }> => {
   try {
+    const payload: { broker_id: string; reason?: string } = { broker_id: newBrokerId };
+    const trimmedReason = reason.trim();
+    if (trimmedReason) {
+      payload.reason = trimmedReason;
+    }
+
     const data = await apiFetch<any>(
-      `${CORE_URL()}/api/v1/leads/${leadId}/reassign`,
+      `${CORE_URL()}/api/v1/admin/leads/${leadId}/reassign`,
       {
         method: "PUT",
-        body: JSON.stringify({ broker_id: newBrokerId }),
+        body: JSON.stringify(payload),
       },
     );
     return { data, error: null };
@@ -845,6 +1038,8 @@ export const uploadDocument = async (
           visibility: options.visibility || "",
           requirement_codes: options.requirementCodes || [],
           reusable: options.reusable ?? false,
+          category_id: options.categoryId || "",
+          virtual_storage_state: options.virtualStorageState || "",
         }),
       },
     );
@@ -878,6 +1073,19 @@ export const getUserDocuments = async (
       verificationLevel: null,
       error: getErrorMessage(error),
     };
+  }
+};
+
+export const deleteDocument = async (
+  documentId: string,
+): Promise<{ success: boolean; error: string | null }> => {
+  try {
+    await apiFetch(`${CORE_URL()}/api/v1/documents/${encodeURIComponent(documentId)}`, {
+      method: "DELETE",
+    });
+    return { success: true, error: null };
+  } catch (error: any) {
+    return { success: false, error: getErrorMessage(error) };
   }
 };
 
@@ -919,12 +1127,15 @@ export const leadsService = {
   getNearbyAvailableBrokers,
   createManualLead,
   updateLead,
+  syncLeadLifecycle,
   deleteLead,
   respondToLead,
   getLeadAudit,
   getAllLeads,
+  getAdminBrokers,
   reassignLead,
   uploadDocument,
   getUserDocuments,
+  deleteDocument,
   resendVerification,
 };

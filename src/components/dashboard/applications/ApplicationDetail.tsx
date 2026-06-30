@@ -33,6 +33,7 @@ import { getUserContracts } from '@/services/contractsService';
 import { messagesService } from '@/services/messagesService';
 import { type Contract } from '@/types/booking';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 import Avatar from '@/components/ui/Avatar';
 import {
     canWithdrawApplicationRecord,
@@ -136,7 +137,7 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
 
     const formatPrice = (price?: number) => {
         if (!price) return 'Price on request';
-        return `£${price.toLocaleString('en-GB')}`;
+        return formatLaunchCurrency(price);
     };
 
     const handleWithdraw = async () => {

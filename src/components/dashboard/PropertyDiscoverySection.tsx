@@ -66,7 +66,7 @@ const PropertyDiscoverySection: React.FC<PropertyDiscoverySectionProps> = ({
             property.city,
             property.postcode,
         ].filter(Boolean);
-        const location = locationParts.length > 0 ? locationParts.join(', ') : 'UK';
+        const location = locationParts.length > 0 ? locationParts.join(', ') : 'Location on request';
 
         return {
             id: property.id,

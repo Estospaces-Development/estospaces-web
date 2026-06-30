@@ -5,6 +5,7 @@ import { User, Mail, Phone, MapPin, Camera, Save, Loader2, CheckCircle, Hash, Sh
 import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
+import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
 
 export default function AdminProfilePage() {
     const { user, refreshUser } = useAuth();
@@ -12,6 +13,7 @@ export default function AdminProfilePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [isSaved, setIsSaved] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState<ProfileNameErrors>({});
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -44,11 +46,24 @@ export default function AdminProfilePage() {
             ...prev,
             [e.target.name]: e.target.value
         }));
+        if (e.target.name === 'firstName' || e.target.name === 'lastName') {
+            setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));
+        }
         setIsSaved(false);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const nameErrors = validateProfileNameFields({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+        });
+        if (Object.keys(nameErrors).length > 0) {
+            setFieldErrors(nameErrors);
+            showToastError('Please correct the highlighted admin profile fields.');
+            return;
+        }
+
         setIsLoading(true);
         
         const payload = {
@@ -130,52 +145,80 @@ export default function AdminProfilePage() {
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
-                                    <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} className={inputClass} />
+                                    <label htmlFor="admin-first-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
+                                    <input
+                                        id="admin-first-name"
+                                        type="text"
+                                        name="firstName"
+                                        value={formData.firstName}
+                                        onChange={handleChange}
+                                        aria-invalid={fieldErrors.firstName ? 'true' : 'false'}
+                                        aria-describedby={fieldErrors.firstName ? 'admin-first-name-error' : undefined}
+                                        className={inputClass}
+                                    />
+                                    {fieldErrors.firstName && (
+                                        <p id="admin-first-name-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                            {fieldErrors.firstName}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
-                                    <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} className={inputClass} />
+                                    <label htmlFor="admin-last-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
+                                    <input
+                                        id="admin-last-name"
+                                        type="text"
+                                        name="lastName"
+                                        value={formData.lastName}
+                                        onChange={handleChange}
+                                        aria-invalid={fieldErrors.lastName ? 'true' : 'false'}
+                                        aria-describedby={fieldErrors.lastName ? 'admin-last-name-error' : undefined}
+                                        className={inputClass}
+                                    />
+                                    {fieldErrors.lastName && (
+                                        <p id="admin-last-name-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                            {fieldErrors.lastName}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Primary Email</label>
+                                    <label htmlFor="admin-primary-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Primary Email</label>
                                     <div className="relative">
                                         <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="email" value={formData.email} disabled className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
+                                        <input id="admin-primary-email" type="email" value={formData.email} disabled className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Work Phone</label>
+                                    <label htmlFor="admin-work-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Work Phone</label>
                                     <div className="relative">
                                         <Phone size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className={iconInputClass} />
+                                        <input id="admin-work-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange} className={iconInputClass} />
                                     </div>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Work Address</label>
+                                    <label htmlFor="admin-work-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Work Address</label>
                                     <div className="relative">
                                         <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="text" name="address" value={formData.address} onChange={handleChange} className={iconInputClass} />
+                                        <input id="admin-work-address" type="text" name="address" value={formData.address} onChange={handleChange} className={iconInputClass} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postcode</label>
+                                    <label htmlFor="admin-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code / postcode</label>
                                     <div className="relative">
                                         <Hash size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="text" name="postcode" value={formData.postcode} onChange={handleChange} className={iconInputClass} />
+                                        <input id="admin-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange} className={iconInputClass} />
                                     </div>
                                 </div>
                             </div>
 
                             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 {isSaved && (
-                                    <span className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
+                                    <span role="status" aria-live="polite" className="flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400 animate-in fade-in">
                                         <CheckCircle size={16} />
                                         Saved Successfully
                                     </span>

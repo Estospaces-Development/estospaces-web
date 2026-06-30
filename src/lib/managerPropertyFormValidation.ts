@@ -1,5 +1,11 @@
 import type { ListingType } from "@/contexts/PropertyContext";
-import { isValidUkPostcode } from "@/lib/propertyValidationErrors";
+import {
+  getLaunchLocationCodeErrorMessage,
+  isLaunchIndiaCountry,
+  isLaunchUKCountry,
+  isValidLaunchLocationCodeForCountry,
+  LAUNCH_COUNTRY_NAME,
+} from "@/lib/launchLocale";
 
 export const PROPERTY_NUMERIC_LIMITS = {
   moneyMax: 9999999999.99,
@@ -9,6 +15,7 @@ export const PROPERTY_NUMERIC_LIMITS = {
   coordinateScale: 8,
   yearBuiltMin: 1800,
 } as const;
+export const PROPERTY_DESCRIPTION_MAX_LENGTH = 1000;
 
 const STEP_FIELDS: Record<number, string[]> = {
   1: ["title", "priceAmount"],
@@ -32,6 +39,7 @@ const STEP_FIELDS: Record<number, string[]> = {
     "totalFloors",
     "yearBuilt",
     "facing",
+    "description",
   ],
   4: ["images"],
   5: [
@@ -87,6 +95,7 @@ export interface ManagerPropertyValidationValues {
   totalFloors: number;
   yearBuilt: number;
   facing?: string;
+  description: string;
   hasImages: boolean;
   contactName: string;
   contactEmail: string;
@@ -127,9 +136,12 @@ export function validateManagerPropertyField(
     case "addressLine1":
       return values.addressLine1.trim() ? null : "Street address is required";
     case "country":
-      return values.countryId || values.country.trim()
+      if (!values.countryId && !values.country.trim() && !values.countryCode.trim()) {
+        return "Country is required";
+      }
+      return isSupportedPropertyCountry(values.countryCode, values.country)
         ? null
-        : "Country is required";
+        : `${LAUNCH_COUNTRY_NAME} and UK listings are supported for this launch`;
     case "state":
       return values.stateId || values.state.trim()
         ? null
@@ -138,13 +150,10 @@ export function validateManagerPropertyField(
       return values.cityId || values.city.trim() ? null : "City is required";
     case "postalCode":
       if (!values.postalCode.trim()) {
-        return "Postal code is required";
+        return "PIN code or postcode is required";
       }
-      if (
-        shouldValidateUkPostcode(values.countryCode) &&
-        !isValidUkPostcode(values.postalCode)
-      ) {
-        return "Please enter a valid UK postcode";
+      if (!isValidPostalCodeForCountry(values.postalCode, values.countryCode, values.country)) {
+        return postalCodeMessageForCountry(values.countryCode, values.country);
       }
       return null;
     case "latitude":
@@ -214,6 +223,10 @@ export function validateManagerPropertyField(
         return `Year built must be between ${PROPERTY_NUMERIC_LIMITS.yearBuiltMin} and the current year`;
       }
       return null;
+    case "description":
+      return values.description.length <= PROPERTY_DESCRIPTION_MAX_LENGTH
+        ? null
+        : `Full description must be ${PROPERTY_DESCRIPTION_MAX_LENGTH} characters or fewer`;
     case "images":
       return values.hasImages ? null : "At least one image is required";
     case "contactName":
@@ -381,8 +394,17 @@ function validateAvailableFrom(value: string): string | null {
     : null;
 }
 
-function shouldValidateUkPostcode(countryCode: string): boolean {
-  return countryCode === "GB" || !countryCode;
+function isSupportedPropertyCountry(countryCode: string, countryName: string): boolean {
+  const hasCountry = countryCode.trim() || countryName.trim();
+  return !hasCountry || isLaunchIndiaCountry(countryCode, countryName) || isLaunchUKCountry(countryCode, countryName);
+}
+
+function isValidPostalCodeForCountry(value: string, countryCode: string, countryName: string): boolean {
+  return isValidLaunchLocationCodeForCountry(value, countryCode, countryName);
+}
+
+function postalCodeMessageForCountry(countryCode: string, countryName: string): string {
+  return getLaunchLocationCodeErrorMessage(countryCode, countryName);
 }
 
 function requiresMinimumLease(listingType: ListingType): boolean {

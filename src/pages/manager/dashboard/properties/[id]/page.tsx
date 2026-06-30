@@ -13,21 +13,17 @@ import { useProperties } from '@/contexts/PropertyContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import ShareModal from '@/components/dashboard/ShareModal';
-import VirtualTourRequestPanel from '@/components/virtual-tour/VirtualTourRequestPanel';
+import PropertyCompliancePanel from '@/components/dashboard/PropertyCompliancePanel';
 import { getPropertyMapState } from '@/lib/propertyMaps';
+import { getPropertyCompliancePublishBlockerMessage } from '@/lib/propertyCompliance';
+import type { PropertyComplianceReadiness } from '@/services/propertyService';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // Helper for currency formatting
 const formatPrice = (price: any) => {
     if (!price) return 'Price on Request';
     const amount = typeof price === 'number' ? price : price?.amount || 0;
-    const currency = typeof price === 'object' ? price?.currency || 'GBP' : 'GBP';
-
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount);
+    return formatLaunchCurrency(amount);
 };
 
 const formatArea = (area: number, unit: string = 'sqft') => {
@@ -38,7 +34,7 @@ export default function PropertyDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { getProperty, deleteProperty, updateProperty, duplicateProperty } = useProperties();
+    const { getProperty, deleteProperty, updateProperty, duplicateProperty, incrementViews } = useProperties();
     const { toggleProperty, isPropertySaved } = useSavedProperties();
     const { user } = useAuth();
 
@@ -47,7 +43,8 @@ export default function PropertyDetailPage() {
     const [showImageModal, setShowImageModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [publishing, setPublishing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'details' | 'virtual-tour' | 'location'>('details');
+    const [complianceReadiness, setComplianceReadiness] = useState<PropertyComplianceReadiness | null>(null);
+    const [activeTab, setActiveTab] = useState<'details' | 'location'>('details');
 
     // Toast state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
@@ -61,6 +58,8 @@ export default function PropertyDetailPage() {
 
     const property = id ? getProperty(id) : undefined;
     const isFavorited = id ? isPropertySaved(id) : false;
+    const compliancePublishBlocker = getPropertyCompliancePublishBlockerMessage(complianceReadiness);
+    const compliancePublishBlockerId = compliancePublishBlocker ? 'manager-property-publish-compliance-blocker' : undefined;
 
     // Increment views on mount - only once per session per property
     useEffect(() => {
@@ -69,19 +68,12 @@ export default function PropertyDetailPage() {
             const alreadyViewed = sessionStorage.getItem(viewedKey);
 
             if (!alreadyViewed) {
-                // Increment view count
-                updateProperty(id, {
-                    ...property,
-                    analytics: {
-                        ...property.analytics,
-                        views: (property.analytics?.views || 0) + 1
-                    }
-                });
+                incrementViews(id);
                 sessionStorage.setItem(viewedKey, 'true');
             }
             viewCountedRef.current = true;
         }
-    }, [id, property]);
+    }, [id, property, incrementViews]);
 
     useEffect(() => {
         if (toast.visible) {
@@ -129,6 +121,14 @@ export default function PropertyDetailPage() {
 
     const handlePublish = async () => {
         if (!id || !property) return;
+        if (compliancePublishBlocker) {
+            setToast({
+                message: compliancePublishBlocker,
+                type: 'error',
+                visible: true,
+            });
+            return;
+        }
 
         setPublishing(true);
         try {
@@ -137,6 +137,9 @@ export default function PropertyDetailPage() {
                 status: 'published',
                 published: true,
                 draft: false,
+            }, {
+                suppressErrorToast: true,
+                throwOnError: true,
             });
 
             if (updatedProperty) {
@@ -253,6 +256,8 @@ export default function PropertyDetailPage() {
                 <div className="flex flex-wrap gap-2">
                     {/* Favorite */}
                     <button
+                        type="button"
+                        aria-label={isFavorited ? 'Remove property from saved' : 'Save property'}
                         onClick={handleFavoriteToggle}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${isFavorited
                             ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-600'
@@ -265,6 +270,8 @@ export default function PropertyDetailPage() {
 
                     {/* Share */}
                     <button
+                        type="button"
+                        aria-label="Share property"
                         onClick={() => setShowShareModal(true)}
                         className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
@@ -274,6 +281,8 @@ export default function PropertyDetailPage() {
 
                     {/* Duplicate */}
                     <button
+                        type="button"
+                        aria-label="Duplicate property"
                         onClick={handleDuplicate}
                         className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
@@ -283,6 +292,8 @@ export default function PropertyDetailPage() {
 
                     {/* Edit */}
                     <button
+                        type="button"
+                        aria-label="Edit property"
                         onClick={() => navigate(`/manager/dashboard/properties/edit/${id}`)}
                         className="flex items-center gap-2 px-4 py-2 border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
                     >
@@ -292,6 +303,8 @@ export default function PropertyDetailPage() {
 
                     {/* Delete */}
                     <button
+                        type="button"
+                        aria-label="Delete property"
                         onClick={() => setShowDeleteConfirm(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                     >
@@ -312,19 +325,6 @@ export default function PropertyDetailPage() {
                 >
                     Property Details
                     {activeTab === 'details' && (
-                        <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 dark:bg-orange-400"></div>
-                    )}
-                </button>
-                <button
-                    onClick={() => setActiveTab('virtual-tour')}
-                    className={`px-6 py-3 font-medium text-sm transition-colors relative flex items-center gap-2 ${activeTab === 'virtual-tour'
-                        ? 'text-orange-600 dark:text-orange-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                        }`}
-                >
-                    Virtual Tour
-                    {property.virtualTourUrl && <span className="w-2 h-2 rounded-full bg-green-500"></span>}
-                    {activeTab === 'virtual-tour' && (
                         <div className="absolute bottom-0 left-0 w-full h-0.5 bg-orange-600 dark:bg-orange-400"></div>
                     )}
                 </button>
@@ -552,6 +552,11 @@ export default function PropertyDetailPage() {
 
                     {/* Right Column - Sidebar */}
                     <div className="lg:col-span-1 space-y-6">
+                        <PropertyCompliancePanel
+                            propertyId={property.id}
+                            onReadinessChange={setComplianceReadiness}
+                        />
+
                         {/* Quick Actions */}
                         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
                             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
@@ -564,12 +569,21 @@ export default function PropertyDetailPage() {
                                 {(property.status === 'draft' || property.draft === true) && (
                                     <button
                                         onClick={handlePublish}
-                                        disabled={publishing}
+                                        disabled={publishing || !!compliancePublishBlocker}
+                                        aria-describedby={compliancePublishBlockerId}
                                         className="w-full py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                                     >
                                         <Send className="w-5 h-5" />
                                         {publishing ? 'Publishing...' : 'Publish Property'}
                                     </button>
+                                )}
+                                {compliancePublishBlocker && (
+                                    <p
+                                        id={compliancePublishBlockerId}
+                                        className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                                    >
+                                        {compliancePublishBlocker}
+                                    </p>
                                 )}
 
                                 <button
@@ -682,11 +696,6 @@ export default function PropertyDetailPage() {
                         )}
                     </div>
                 </div>
-            )}
-
-            {/* Virtual Tour Tab */}
-            {activeTab === 'virtual-tour' && (
-                <VirtualTourRequestPanel propertyId={property.id} propertyTitle={property.title} />
             )}
 
             {/* Location Tab */}

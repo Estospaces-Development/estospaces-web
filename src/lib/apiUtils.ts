@@ -11,6 +11,7 @@ import {
     resetAuthExpiryState,
     syncAuthExpiryState,
 } from '@/lib/authExpiry';
+import { clearAuthToken, getAuthToken } from '@/lib/authToken';
 
 const VITE_ENV = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env ?? {};
 
@@ -120,9 +121,9 @@ export function buildApiUrl(baseUrl: string, path: string) {
 
 // ── Auth Header Helper ──────────────────────────────────────────────────────
 
-/** Returns standard auth headers with Bearer token from localStorage. */
+/** Returns standard auth headers with the active in-memory bearer token. */
 export function getAuthHeaders(body?: any, tokenOverride?: string | null): Record<string, string> {
-    const token = tokenOverride ?? (typeof window !== 'undefined' ? localStorage.getItem('esto_token') : null);
+    const token = tokenOverride ?? getAuthToken();
     const headers: Record<string, string> = {};
 
     if (token) {
@@ -146,6 +147,8 @@ export interface ApiResponse<T> {
 
 export interface ApiFetchOptions extends RequestInit {
     suppressErrorToast?: boolean;
+    timeoutMs?: number;
+    auth?: boolean;
 }
 
 export interface ApiEnvelope<T> {
@@ -194,6 +197,28 @@ export class ApiRequestError extends Error {
 
 const USER_ERROR_MESSAGE = 'Invalid data provided. Please check your inputs.';
 const SYSTEM_ERROR_MESSAGE = 'The service is temporarily unreachable. We are working on a fix.';
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
+const READ_NETWORK_RETRY_ATTEMPTS = 2;
+const READ_NETWORK_RETRY_DELAY_MS = 300;
+
+function isReadMethod(method: string) {
+    return method.toUpperCase() === 'GET';
+}
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shouldEmitApiFailureToast(status: number | undefined, method: string) {
+    if (isReadMethod(method)) {
+        return false;
+    }
+    if (!status) {
+        return true;
+    }
+    return true;
+}
+
 function getToastPayload(status?: number) {
     if (status && status >= 400 && status < 500) {
         return {
@@ -231,7 +256,11 @@ let sessionValidationPromise: Promise<boolean> | null = null;
 let sessionValidationToken: string | null = null;
 
 function getStoredAuthToken() {
-    return typeof window !== 'undefined' ? localStorage.getItem('esto_token') : null;
+    return getAuthToken();
+}
+
+function isSessionValidationEndpoint(url: string) {
+    return url.includes(AUTH_ME_PATH);
 }
 
 async function validateCurrentSession(token: string) {
@@ -243,6 +272,7 @@ async function validateCurrentSession(token: string) {
     sessionValidationPromise = (async () => {
         for (let attempt = 0; attempt < SESSION_VALIDATION_ATTEMPTS; attempt += 1) {
             const response = await fetch(`${getServiceUrl('core')}${AUTH_ME_PATH}`, {
+                credentials: 'omit',
                 headers: getAuthHeaders(undefined, token),
             });
 
@@ -281,13 +311,15 @@ export async function handleUnauthorizedResponse(
         return 'ignored';
     }
 
-    const sessionStillValid = await validateCurrentSession(activeToken);
+    const sessionStillValid = isSessionValidationEndpoint(url)
+        ? false
+        : await validateCurrentSession(activeToken);
     if (sessionStillValid) {
         return 'ignored';
     }
 
     if (isCurrentAuthRoute()) {
-        localStorage.removeItem('esto_token');
+        clearAuthToken();
         localStorage.removeItem('esto_user');
         resetAuthExpiryState();
         return 'cleared-on-auth-page';
@@ -298,7 +330,7 @@ export async function handleUnauthorizedResponse(
         isAuthEndpoint: false,
         token: requestToken,
         onExpire: () => {
-            localStorage.removeItem('esto_token');
+            clearAuthToken();
             localStorage.removeItem('esto_user');
             emitErrorToast(AUTH_EXPIRED_MESSAGE, {
                 title: 'Session expired',
@@ -414,8 +446,8 @@ export async function apiFetchEnvelope<T>(
 ): Promise<ApiEnvelope<T>> {
     const isDebug = VITE_ENV.DEV === true && VITE_ENV.VITE_DEBUG_API === 'true';
     const method = options.method || 'GET';
-    const { suppressErrorToast = false, ...requestOptions } = options;
-    const storedToken = getStoredAuthToken();
+    const { suppressErrorToast = false, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS, auth = true, ...requestOptions } = options;
+    const storedToken = auth ? getStoredAuthToken() : null;
     const headers = new Headers({
         ...getAuthHeaders(requestOptions.body, storedToken),
         ...requestOptions.headers,
@@ -423,18 +455,66 @@ export async function apiFetchEnvelope<T>(
     const authHeader = headers.get('Authorization');
     const requestToken = authHeader?.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() || null : null;
 
-    let response: Response;
+    const callerSignal = requestOptions.signal;
+    let response: Response | null = null;
     try {
-        response = await fetch(url, {
-            ...requestOptions,
-            headers,
-        });
+        const maxAttempts = isReadMethod(method) ? READ_NETWORK_RETRY_ATTEMPTS + 1 : 1;
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            const timeoutController = new AbortController();
+            const timeoutId = timeoutMs > 0
+                ? globalThis.setTimeout(() => timeoutController.abort(), timeoutMs)
+                : null;
+            const handleCallerAbort = () => timeoutController.abort();
+            if (callerSignal) {
+                if (callerSignal.aborted) {
+                    timeoutController.abort();
+                }
+                callerSignal.addEventListener('abort', handleCallerAbort, { once: true });
+            }
+
+            try {
+                const fetchOptions: RequestInit = {
+                    ...requestOptions,
+                    headers,
+                    signal: timeoutController.signal,
+                };
+                if (fetchOptions.credentials === undefined) {
+                    fetchOptions.credentials = 'omit';
+                }
+
+                response = await fetch(url, {
+                    ...fetchOptions,
+                });
+                break;
+            } catch (error: any) {
+                if (error?.name === 'AbortError' || attempt >= maxAttempts - 1) {
+                    throw error;
+                }
+                await sleep(READ_NETWORK_RETRY_DELAY_MS * (attempt + 1));
+            } finally {
+                if (timeoutId !== null) {
+                    globalThis.clearTimeout(timeoutId);
+                }
+                if (callerSignal) {
+                    callerSignal.removeEventListener('abort', handleCallerAbort);
+                }
+            }
+        }
     } catch (error: any) {
-        if (!suppressErrorToast) {
+        if (!suppressErrorToast && shouldEmitApiFailureToast(undefined, method)) {
             notifyApiFailure();
         }
         throw new ApiRequestError(
-            error?.message || 'Network request failed',
+            error?.name === 'AbortError' ? 'Request timed out' : error?.message || 'Network request failed',
+            SYSTEM_ERROR_MESSAGE,
+            undefined,
+            undefined,
+        );
+    }
+
+    if (!response) {
+        throw new ApiRequestError(
+            'Network request failed',
             SYSTEM_ERROR_MESSAGE,
             undefined,
             undefined,
@@ -456,8 +536,8 @@ export async function apiFetchEnvelope<T>(
         const unauthorizedState = response.status === 401
             ? await handleUnauthorizedResponse(url, requestToken)
             : 'unhandled';
-        if (isDebug) console.error(`[API Response Error] ${method} ${url}:`, errorMsg);
-        if (!suppressErrorToast && unauthorizedState === 'unhandled') {
+        if (isDebug) console.error('[API Response Error] %s %s: %s', method, url, errorMsg);
+        if (!suppressErrorToast && unauthorizedState === 'unhandled' && shouldEmitApiFailureToast(response.status, method)) {
             notifyApiFailure(response.status);
         }
         throw new ApiRequestError(
@@ -477,7 +557,7 @@ export async function apiFetchEnvelope<T>(
     }
 
     if (json.success === false) {
-        if (!suppressErrorToast) {
+        if (!suppressErrorToast && shouldEmitApiFailureToast(undefined, method)) {
             notifyApiFailure();
         }
         throw new ApiRequestError(

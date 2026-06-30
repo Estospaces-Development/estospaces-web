@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getSaleJourneyProgress, getSaleJourneyStageLabel, resolveSaleJourneyDisplayStage } from '@/lib/saleJourney';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 interface ApplicationCardProps {
     application: Application;
@@ -35,11 +36,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     const { user } = useAuth();
     const toast = useToast();
     const [openingConversation, setOpeningConversation] = useState(false);
-    const formattedPropertyPrice = new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0,
-    }).format(application.propertyPrice || 0);
+    const formattedPropertyPrice = formatLaunchCurrency(application.propertyPrice || 0);
     const saleDisplayStage = application.listingType !== 'rent'
         ? resolveSaleJourneyDisplayStage(application)
         : null;
@@ -144,7 +141,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.OFFER_ACCEPTED:
                 return {
                     label: 'Offer Accepted',
-                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
                     dotColor: 'bg-emerald-500',
                     icon: CheckCircle,
                 };
@@ -179,7 +176,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
             case APPLICATION_STATUS.APPROVED:
                 return {
                     label: 'Approved',
-                    color: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
                     dotColor: 'bg-emerald-500',
                     icon: CheckCircle,
                 };

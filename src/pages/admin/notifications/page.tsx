@@ -26,14 +26,46 @@ import {
     isPropertyWorkflowNotification,
     type Notification,
 } from '@/services/notificationsService';
+import {
+    getNotificationIconColorClass,
+    getNotificationSurfaceClass,
+} from '@/lib/notificationVisuals';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
+import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
 
-type FilterType = 'all' | 'unread' | 'read';
+export type AdminNotificationFilterType = 'all' | 'unread' | 'read';
 
 const groupOrder = ['Today', 'Yesterday', 'This Week', 'This Month', 'Older'];
+const NOTIFICATION_PAGE_SIZE = 25;
+
+export const normalizeAdminNotificationSearch = (value: string): string => value.trim().toLowerCase();
+
+export const filterAdminNotifications = (
+    notifications: Notification[],
+    filter: AdminNotificationFilterType,
+    searchQuery: string,
+): Notification[] => {
+    const query = normalizeAdminNotificationSearch(searchQuery);
+
+    return notifications.filter((notification) => {
+        if (filter === 'unread' && notification.is_read) return false;
+        if (filter === 'read' && !notification.is_read) return false;
+
+        if (!query) return true;
+
+        const displayCopy = getLaunchSafeNotificationCopy(notification);
+        return (
+            displayCopy.title.toLowerCase().includes(query)
+            || displayCopy.message.toLowerCase().includes(query)
+        );
+    });
+};
 
 const getNotificationIcon = (notification: Notification) => {
+    const iconClass = getNotificationIconColorClass(notification);
+
     if (isPropertyWorkflowNotification(notification)) {
-        return <Home size={20} className="text-blue-500" />;
+        return <Home size={20} className={iconClass} />;
     }
 
     const { type } = notification;
@@ -42,51 +74,51 @@ const getNotificationIcon = (notification: Notification) => {
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
         case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return <Shield size={20} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            return <Shield size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.APPLICATION_UPDATE:
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+        case NOTIFICATION_TYPES.APPLICATION_REJECTED:
         case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
-            return <FileText size={20} className="text-purple-500" />;
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+            return <FileText size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
         case NOTIFICATION_TYPES.TICKET_RESPONSE:
-            return <MessageSquare size={20} className="text-green-500" />;
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_CREATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_STATUS_UPDATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_ASSIGNED:
+            return <MessageSquare size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
         case NOTIFICATION_TYPES.VIEWING_BOOKED:
+        case NOTIFICATION_TYPES.VIEWING_COMPLETED:
+        case NOTIFICATION_TYPES.VIEWING_CANCELLED:
+        case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
         case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
-            return <Calendar size={20} className="text-blue-500" />;
+            return <Calendar size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
         case NOTIFICATION_TYPES.PAYMENT_REMINDER:
-            return <CreditCard size={20} className="text-emerald-500" />;
+        case NOTIFICATION_TYPES.PAYMENT_FAILED:
+            return PAYMENTS_ENABLED
+                ? <CreditCard size={20} className={iconClass} />
+                : <FileText size={20} className={iconClass} />;
         case NOTIFICATION_TYPES.PROPERTY_SAVED:
         case NOTIFICATION_TYPES.PRICE_DROP:
         case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
-            return <Home size={20} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.PROPERTY_AVAILABLE:
+        case NOTIFICATION_TYPES.PROPERTY_UNAVAILABLE:
+            return <Home size={20} className={iconClass} />;
         default:
-            return <Info size={20} className="text-gray-500" />;
+            return <Info size={20} className={iconClass} />;
     }
 };
 
 const getNotificationColor = (notification: Notification) => {
-    if (isPropertyWorkflowNotification(notification)) {
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/40';
-    }
-
-    const { type } = notification;
-    switch (type) {
-        case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
-        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
-            return 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-900/40';
-        case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
-        case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-900/40';
-        case NOTIFICATION_TYPES.APPLICATION_UPDATE:
-        case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
-        case NOTIFICATION_TYPES.APPLICATION_APPROVED:
-            return 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-900/40';
-        default:
-            return 'bg-gray-50 dark:bg-gray-800/60 border-gray-200 dark:border-gray-700';
-    }
+    return getNotificationSurfaceClass(notification, true);
 };
 
 const formatTime = (dateString: string) => {
@@ -110,36 +142,36 @@ export default function AdminNotificationsPage() {
     const navigate = useNavigate();
     const {
         notifications,
-        unreadCount,
         loading,
         markAsRead,
         markAllAsRead,
         deleteNotification,
     } = useNotifications();
 
-    const [filter, setFilter] = useState<FilterType>('all');
+    const [filter, setFilter] = useState<AdminNotificationFilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
+    const [visibleLimit, setVisibleLimit] = useState(NOTIFICATION_PAGE_SIZE);
 
-    const filteredNotifications = useMemo(() => (
-        notifications.filter((notification) => {
-            if (filter === 'unread' && notification.is_read) return false;
-            if (filter === 'read' && !notification.is_read) return false;
-
-            if (!searchQuery) return true;
-
-            const query = searchQuery.toLowerCase();
-            return (
-                notification.title.toLowerCase().includes(query)
-                || notification.message.toLowerCase().includes(query)
-            );
-        })
-    ), [filter, notifications, searchQuery]);
+    const filteredNotifications = useMemo(
+        () => filterAdminNotifications(notifications, filter, searchQuery),
+        [filter, notifications, searchQuery],
+    );
+    const visibleNotifications = useMemo(
+        () => filteredNotifications.slice(0, visibleLimit),
+        [filteredNotifications, visibleLimit],
+    );
+    const visibleUnreadCount = useMemo(
+        () => notifications.filter((notification) => !notification.is_read).length,
+        [notifications],
+    );
+    const visibleTotalCount = notifications.length;
+    const visibleReadCount = Math.max(0, visibleTotalCount - visibleUnreadCount);
 
     const groupedNotifications = useMemo(() => {
         const groups: Record<string, Notification[]> = {};
 
-        filteredNotifications.forEach((notification) => {
+        visibleNotifications.forEach((notification) => {
             const date = new Date(notification.created_at);
             const today = new Date();
             const yesterday = new Date(today);
@@ -163,7 +195,7 @@ export default function AdminNotificationsPage() {
         });
 
         return groups;
-    }, [filteredNotifications]);
+    }, [visibleNotifications]);
 
     const handleNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
@@ -226,7 +258,7 @@ export default function AdminNotificationsPage() {
                             </p>
                         </div>
 
-                        {unreadCount > 0 && (
+                        {visibleUnreadCount > 0 && (
                             <button
                                 onClick={markAllAsRead}
                                 className="flex items-center gap-2 px-4 py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-200 dark:hover:bg-orange-900/40 transition-colors"
@@ -240,15 +272,15 @@ export default function AdminNotificationsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
                         <div className="bg-orange-50 dark:bg-orange-900/10 p-4 rounded-xl">
                             <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">Unread</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{unreadCount}</p>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleUnreadCount}</p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl">
                             <span className="text-sm text-blue-600 dark:text-blue-400 font-medium">Total</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{notifications.length}</p>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleTotalCount}</p>
                         </div>
                         <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl">
-                            <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Read</span>
-                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{notifications.length - unreadCount}</p>
+                            <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">Read</span>
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{visibleReadCount}</p>
                         </div>
                     </div>
                 </div>
@@ -260,14 +292,23 @@ export default function AdminNotificationsPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input
                             type="text"
+                            aria-label="Search admin notifications"
                             placeholder="Search notifications..."
                             className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-all text-gray-900 dark:text-white"
                             value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
+                            onChange={(event) => {
+                                setSearchQuery(event.target.value);
+                                setVisibleLimit(NOTIFICATION_PAGE_SIZE);
+                            }}
                         />
                         {searchQuery && (
                             <button
-                                onClick={() => setSearchQuery('')}
+                                type="button"
+                                aria-label="Clear notification search"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setVisibleLimit(NOTIFICATION_PAGE_SIZE);
+                                }}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 <X size={16} />
@@ -276,10 +317,13 @@ export default function AdminNotificationsPage() {
                     </div>
 
                     <div className="flex gap-2">
-                        {(['all', 'unread', 'read'] as FilterType[]).map((value) => (
+                        {(['all', 'unread', 'read'] as AdminNotificationFilterType[]).map((value) => (
                             <button
                                 key={value}
-                                onClick={() => setFilter(value)}
+                                onClick={() => {
+                                    setFilter(value);
+                                    setVisibleLimit(NOTIFICATION_PAGE_SIZE);
+                                }}
                                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-colors capitalize ${
                                     filter === value
                                         ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
@@ -297,6 +341,7 @@ export default function AdminNotificationsPage() {
                         <div className="flex items-center gap-3">
                             <input
                                 type="checkbox"
+                                aria-label="Select all filtered admin notifications"
                                 checked={selectedNotifications.length === filteredNotifications.length}
                                 onChange={handleSelectAll}
                                 className="w-4 h-4 rounded border-white/30 text-orange-600 outline-none"
@@ -335,69 +380,91 @@ export default function AdminNotificationsPage() {
 
                             return (
                                 <div key={group} className="space-y-3">
-                                    <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-2">{group}</h3>
+                                    <h2 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-2">{group}</h2>
                                     <div className="space-y-3">
-                                        {items.map((notification) => (
-                                            <div
-                                                key={notification.id}
-                                                className={`group relative flex items-center gap-4 p-4 border rounded-2xl transition-all hover:shadow-xl hover:-translate-y-0.5 ${
-                                                    notification.is_read
-                                                        ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                                                        : getNotificationColor(notification)
-                                                }`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedNotifications.includes(notification.id)}
-                                                    onChange={() => handleSelectNotification(notification.id)}
-                                                    className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 outline-none"
-                                                />
-
-                                                <button
-                                                    type="button"
-                                                    className="flex-shrink-0 rounded-xl p-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-900/60"
-                                                    onClick={() => handleNotificationClick(notification)}
+                                        {items.map((notification) => {
+                                            const targetPath = getNotificationNavigationPath(notification, 'admin') || '/admin/notifications';
+                                            const displayCopy = getLaunchSafeNotificationCopy(notification);
+                                            return (
+                                                <div
+                                                    key={notification.id}
+                                                    className={`group relative flex items-center gap-4 p-4 border rounded-2xl transition-all hover:shadow-xl hover:-translate-y-0.5 ${
+                                                        notification.is_read
+                                                            ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                                            : getNotificationColor(notification)
+                                                    }`}
                                                 >
-                                                    {getNotificationIcon(notification)}
-                                                </button>
+                                                    <input
+                                                        type="checkbox"
+                                                        aria-label={`Select notification: ${displayCopy.title}`}
+                                                        checked={selectedNotifications.includes(notification.id)}
+                                                        onChange={() => handleSelectNotification(notification.id)}
+                                                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-orange-500 outline-none"
+                                                    />
 
-                                                <button
-                                                    type="button"
-                                                    className="flex-1 min-w-0 text-left"
-                                                    onClick={() => handleNotificationClick(notification)}
-                                                >
-                                                    <div className="flex items-center justify-between gap-4">
-                                                        <h4 className={`font-bold truncate ${notification.is_read ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900 dark:text-white'}`}>
-                                                            {notification.title}
-                                                        </h4>
-                                                        <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
-                                                    </div>
-                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notification.message}</p>
-                                                    <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                                                        <Clock size={14} />
-                                                        <span>{formatTime(notification.created_at)}</span>
-                                                    </div>
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Open notification: ${displayCopy.title}`}
+                                                        className="flex-shrink-0 rounded-xl p-3 transition-colors hover:bg-white/70 dark:hover:bg-gray-900/60"
+                                                        onClick={() => handleNotificationClick(notification)}
+                                                    >
+                                                        {getNotificationIcon(notification)}
+                                                    </button>
 
-                                                {!notification.is_read && (
-                                                    <div className="absolute top-4 right-4 w-2 h-2 bg-orange-500 rounded-full shadow-sm shadow-orange-500/50" />
-                                                )}
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Open notification: ${displayCopy.title}`}
+                                                        className="flex-1 min-w-0 text-left"
+                                                        onClick={() => handleNotificationClick(notification)}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <h3 className={`min-w-0 break-words font-bold [overflow-wrap:anywhere] ${notification.is_read ? 'text-gray-700 dark:text-gray-200' : 'text-gray-900 dark:text-white'}`}>
+                                                                {displayCopy.title}
+                                                            </h3>
+                                                            <span className="text-xs text-gray-400 whitespace-nowrap">{formatTime(notification.created_at)}</span>
+                                                        </div>
+                                                        <p className="mt-0.5 line-clamp-2 break-words text-sm text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">{displayCopy.message}</p>
+                                                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                                                            <Clock size={14} />
+                                                            <span>{formatTime(notification.created_at)}</span>
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-gray-400">Opens {targetPath}</p>
+                                                    </button>
 
-                                                <button
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        deleteNotification(notification.id);
-                                                    }}
-                                                    className="p-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </div>
-                                        ))}
+                                                    {!notification.is_read && (
+                                                        <div aria-hidden="true" className="absolute top-4 right-4 w-2 h-2 bg-orange-500 rounded-full shadow-sm shadow-orange-500/50" />
+                                                    )}
+
+                                                    <button
+                                                        type="button"
+                                                        aria-label={`Delete notification: ${displayCopy.title}`}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            deleteNotification(notification.id);
+                                                        }}
+                                                        className="inline-flex items-center gap-1 rounded-lg p-2 text-xs font-semibold text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                        <span className="hidden sm:inline">Delete</span>
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             );
                         })}
+                        {visibleNotifications.length < filteredNotifications.length && (
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setVisibleLimit((current) => current + NOTIFICATION_PAGE_SIZE)}
+                                    className="px-5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                                >
+                                    Load more notifications ({visibleNotifications.length} of {filteredNotifications.length})
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : notifications.length === 0 ? (
                     <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
@@ -416,6 +483,7 @@ export default function AdminNotificationsPage() {
                             onClick={() => {
                                 setFilter('all');
                                 setSearchQuery('');
+                                setVisibleLimit(NOTIFICATION_PAGE_SIZE);
                             }}
                             className="mt-8 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-xl active:scale-95 transition-transform"
                         >

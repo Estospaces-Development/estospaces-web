@@ -6,6 +6,7 @@ import {
     type VirtualTourRequest,
     type VirtualTourStatus,
 } from '@/services/propertyService';
+import type { PublicVirtualTour } from '@/components/virtual-tour/ImmersiveVirtualTourViewer';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -89,6 +90,7 @@ export const requestVirtualTour = async (
             `${CORE_URL()}/api/v1/properties/${propertyId}/virtual-tour-requests`,
             {
                 method: 'POST',
+                suppressErrorToast: true,
                 body: JSON.stringify(input),
             },
         );
@@ -105,6 +107,9 @@ export const getManagerVirtualTourRequests = async (): Promise<{
     try {
         const response = await apiFetchEnvelope<VirtualTourRequest[]>(
             `${CORE_URL()}/api/v1/manager/virtual-tour-requests`,
+            {
+                suppressErrorToast: true,
+            },
         );
         return { data: response.data || [], error: null };
     } catch (error: any) {
@@ -121,11 +126,29 @@ export const fulfillVirtualTourRequest = async (
             `${CORE_URL()}/api/v1/manager/virtual-tour-requests/${requestId}/fulfill`,
             {
                 method: 'POST',
+                suppressErrorToast: true,
                 body: JSON.stringify(input),
             },
         );
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
+    }
+};
+
+export const getPublicVirtualTour = async (
+    tourId: string,
+): Promise<{ data: PublicVirtualTour | null; error: string | null }> => {
+    try {
+        const data = await apiFetch<PublicVirtualTour>(
+            `${CORE_URL()}/api/v1/virtual-tours/${tourId}`,
+            {
+                auth: false,
+                suppressErrorToast: true,
+            },
+        );
+        return { data, error: null };
+    } catch (error: any) {
+        return { data: null, error: getErrorMessage(error, 'Unable to load this virtual tour.') };
     }
 };

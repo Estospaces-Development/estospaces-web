@@ -55,7 +55,9 @@ export const getSaleProgressions = async (
     options: ServiceRequestOptions = {},
 ): Promise<{ data: SaleProgression[] | null; error: string | null }> => {
     try {
-        const data = await apiFetch<SaleProgression[]>(`${BOOKING_URL()}/api/v1/sale-progressions`, options);
+        const data = await apiFetch<SaleProgression[]>(`${BOOKING_URL()}/api/v1/sale-progressions`, {
+            suppressErrorToast: options.suppressErrorToast ?? true,
+        });
         return { data: data?.map(normalizeSaleProgression) || [], error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
@@ -75,7 +77,7 @@ export const updateSaleProgression = async (
                 current_stage: currentStage,
                 notes,
             }),
-            suppressErrorToast: options.suppressErrorToast,
+            suppressErrorToast: options.suppressErrorToast ?? true,
         });
         return { data: data ? normalizeSaleProgression(data) : null, error: null };
     } catch (error: any) {
@@ -91,13 +93,14 @@ export const createOffer = async (payload: {
     fast_track_case_id?: string;
     amount: number;
     currency?: string;
+    property_country?: string;
     notes?: string;
 }, options: ServiceRequestOptions = {}): Promise<{ data: Offer | null; error: string | null }> => {
     try {
         const data = await apiFetch<Offer>(`${BOOKING_URL()}/api/v1/offers`, {
             method: 'POST',
             body: JSON.stringify(payload),
-            suppressErrorToast: options.suppressErrorToast,
+            suppressErrorToast: options.suppressErrorToast ?? true,
         });
         return { data, error: null };
     } catch (error: any) {

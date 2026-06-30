@@ -1,4 +1,5 @@
-const UK_POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i;
+const INDIA_PIN_CODE_REGEX = /^[1-9]\d{5}$/;
+const UK_POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/i;
 
 const PROPERTY_FIELD_ERROR_MAP: Record<string, string> = {
   price: "priceAmount",
@@ -24,8 +25,9 @@ const PROPERTY_FIELD_ERROR_MAP: Record<string, string> = {
   exclusions: "exclusions",
 };
 
-export function isValidUkPostcode(value: string): boolean {
-  return UK_POSTCODE_REGEX.test(value.trim());
+export function isValidLocationCode(value: string): boolean {
+  const compact = value.trim().replace(/\s+/g, "").toUpperCase();
+  return INDIA_PIN_CODE_REGEX.test(compact) || UK_POSTCODE_REGEX.test(compact);
 }
 
 export function mapPropertyMutationFieldErrors(

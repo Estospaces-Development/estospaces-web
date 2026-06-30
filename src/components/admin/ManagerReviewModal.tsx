@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
     X,
@@ -52,6 +52,10 @@ interface ReviewDetails {
     auditLog: AuditLogEntry[];
     userInfo: { email?: string; full_name?: string } | null;
 }
+
+export const MANAGER_REVIEW_CLOSE_LABEL = 'Close manager verification review panel';
+const MANAGER_REVIEW_NOTES_MAX_LENGTH = 1000;
+const MANAGER_REVIEW_REASON_MAX_LENGTH = 500;
 
 // ============================================================================
 // Main Component
@@ -107,6 +111,15 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     const handleApprove = async () => {
         if (!user?.id) {
             setError('You must be logged in to approve');
+            return;
+        }
+        const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(
+            details?.profile || null,
+            details?.documents || [],
+        );
+        if (approvalBlocker) {
+            setError(approvalBlocker);
+            setShowApproveConfirm(false);
             return;
         }
 
@@ -263,7 +276,12 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
 
     const { profile, documents, auditLog, userInfo } = details;
     const isBroker = profile.profile_type === 'broker';
-    const statusConfig = getStatusConfig(profile.verification_status);
+    const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, documents);
+    const isApproved = profile.verification_status === 'approved' && approvalBlocker === null;
+    const effectiveStatus = profile.verification_status === 'approved' && approvalBlocker !== null
+        ? 'verification_required'
+        : profile.verification_status;
+    const statusConfig = getStatusConfig(effectiveStatus);
 
     return (
         <ModalWrapper onClose={onClose}>
@@ -327,6 +345,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                             </span>
                             <button
                                 onClick={onClose}
+                                aria-label={MANAGER_REVIEW_CLOSE_LABEL}
                                 className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
                             >
                                 <X size={20} className="text-gray-400" />
@@ -473,7 +492,16 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
 
             {/* Actions Footer */}
             <div className="p-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white flex-shrink-0">
-                {profile.verification_status === 'approved' ? (
+                {approvalBlocker && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                        <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-amber-900">Approval blocked</p>
+                            <p className="text-sm text-amber-800 break-words">{approvalBlocker}</p>
+                        </div>
+                    </div>
+                )}
+                {isApproved ? (
                     showRevokeConfirm ? (
                         <div className="space-y-4">
                             <div>
@@ -487,6 +515,8 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                         setError(null); // Clear error when user types
                                     }}
                                     placeholder="Explain why this approval is being revoked..."
+                                    required
+                                    maxLength={MANAGER_REVIEW_REASON_MAX_LENGTH}
                                     className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
                                     rows={3}
                                     autoFocus
@@ -548,6 +578,8 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                                 placeholder="Explain why this verification is being rejected..."
+                                required
+                                maxLength={MANAGER_REVIEW_REASON_MAX_LENGTH}
                                 className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
                                 rows={3}
                             />
@@ -579,6 +611,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 value={approveNotes}
                                 onChange={(e) => setApproveNotes(e.target.value)}
                                 placeholder="Add any notes for this approval..."
+                                maxLength={MANAGER_REVIEW_NOTES_MAX_LENGTH}
                                 className="w-full px-4 py-3 bg-white border border-gray-100 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                                 rows={2}
                             />
@@ -586,7 +619,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         <div className="flex gap-3">
                             <button
                                 onClick={handleApprove}
-                                disabled={actionLoading === 'approve'}
+                                disabled={approvalBlocker !== null || actionLoading === 'approve'}
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
                             >
                                 {actionLoading === 'approve' && <Loader2 className="animate-spin" size={16} />}
@@ -605,7 +638,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                     <div className="flex gap-3">
                         <button
                             onClick={() => setShowApproveConfirm(true)}
-                            disabled={documents.length === 0}
+                            disabled={approvalBlocker !== null}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
                         >
                             <CheckCircle size={18} />
@@ -633,7 +666,11 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
     children,
     onClose
 }) => {
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+
     useEffect(() => {
+        previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
         };
@@ -642,6 +679,7 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
         return () => {
             window.removeEventListener('keydown', handleEscape);
             document.body.style.overflow = '';
+            previousFocusRef.current?.focus();
         };
     }, [onClose]);
 
@@ -658,7 +696,12 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
             />
 
             {/* Modal with slide-up animation */}
-            <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Manager verification review"
+                className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300"
+            >
                 {children}
             </div>
         </div>,
@@ -681,7 +724,7 @@ const InfoItem: React.FC<{
         </div>
         <div className="min-w-0 flex-1">
             <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-gray-900 break-words [overflow-wrap:anywhere]">
                 {value || <span className="text-gray-400 italic font-normal">Not provided</span>}
             </p>
         </div>
@@ -766,6 +809,9 @@ const DocumentCard: React.FC<{
                             value={reuploadReason}
                             onChange={(e) => setReuploadReason(e.target.value)}
                             placeholder="Explain what's wrong with this document..."
+                            required
+                            maxLength={MANAGER_REVIEW_REASON_MAX_LENGTH}
+                            aria-label={`Re-upload reason for ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                             className="w-full px-3 py-2 text-sm border border-gray-100 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none resize-none transition-all"
                             rows={2}
                         />
@@ -773,6 +819,7 @@ const DocumentCard: React.FC<{
                             <button
                                 onClick={onSubmitReupload}
                                 disabled={!reuploadReason.trim() || actionLoading}
+                                aria-label={`Request re-upload for ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                                 className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-medium hover:bg-orange-700 disabled:opacity-50 transition-colors"
                             >
                                 {actionLoading && <Loader2 className="animate-spin" size={12} />}
@@ -780,6 +827,7 @@ const DocumentCard: React.FC<{
                             </button>
                             <button
                                 onClick={onCancelReupload}
+                                aria-label={`Cancel re-upload request for ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                                 className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                             >
                                 Cancel
@@ -791,6 +839,7 @@ const DocumentCard: React.FC<{
                         <button
                             onClick={handleOpenDocument}
                             disabled={viewLoading}
+                            aria-label={`View ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
                             {viewLoading ? <Loader2 className="animate-spin" size={12} /> : <Eye size={12} />}
@@ -799,6 +848,7 @@ const DocumentCard: React.FC<{
                         <button
                             onClick={handleOpenDocument}
                             disabled={viewLoading}
+                            aria-label={`Download ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
                         >
                             <Download size={12} />
@@ -807,6 +857,7 @@ const DocumentCard: React.FC<{
                         {!disabled && document.verification_status !== 'rejected' && document.verification_status !== 'reupload_required' && (
                             <button
                                 onClick={onRequestReupload}
+                                aria-label={`Request re-upload for ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
                                 className="flex items-center gap-1.5 px-3 py-1.5 border border-orange-200 bg-orange-50 text-orange-600 rounded-lg text-xs font-medium hover:bg-orange-100 transition-colors"
                             >
                                 <RefreshCw size={12} />

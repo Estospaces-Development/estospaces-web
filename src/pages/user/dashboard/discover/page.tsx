@@ -15,9 +15,29 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
-import MapView from '@/components/dashboard/MapView';
+import NearbyPropertiesMap from '@/components/dashboard/NearbyPropertiesMap';
 import PaginationBar from '@/components/ui/PaginationBar';
 import { searchService, FilterOptions, SearchResult, AutocompleteSuggestion } from '@/services/searchService';
+import { toDiscoverNearbyMapProperties } from '@/lib/discoverMap';
+import {
+    getCountryAwarePropertyGroups,
+    getPriceBoundAdjustmentMessage,
+    getSearchFilterValidationMessage,
+    getPropertySearchSortOptions,
+    normalizePriceBoundInput,
+    normalizePropertySearchSort,
+    normalizeRoomBoundInput,
+    normalizeSearchQueryInput,
+    readSearchUrlFilters,
+} from '@/lib/propertySearchControls';
+import {
+    formatLaunchCurrency,
+    formatLaunchPropertyLocation,
+    formatLaunchPropertyText,
+    isValidLaunchLocationCode,
+    LAUNCH_COUNTRY_CODE,
+    formatLaunchLocationCode,
+} from '@/lib/launchLocale';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -66,6 +86,166 @@ const applyDashboardFilterOrdering = (results: SearchResult[], filterParam: stri
     return ordered;
 };
 
+const includesNormalizedText = (value: string | undefined, query: string) => (
+    (value || '').toLowerCase().includes(query)
+);
+
+const dedupeSectionProperties = (properties: SearchResult[]) => {
+    const seen = new Set<string>();
+    const unique: SearchResult[] = [];
+
+    for (const property of properties) {
+        if (!property.id || seen.has(property.id)) {
+            continue;
+        }
+        seen.add(property.id);
+        unique.push(property);
+    }
+
+    return unique;
+};
+
+const buildFilterOptionsFromProperties = (properties: SearchResult[]): FilterOptions => {
+    const propertyTypes = new Set<string>();
+    const listingTypes = new Set<string>();
+    const locations = new Set<string>();
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+
+    for (const property of properties) {
+        if (property.property_type) propertyTypes.add(property.property_type);
+        if (property.listing_type) listingTypes.add(property.listing_type);
+        if (property.city) locations.add(formatLaunchPropertyLocation(property.city));
+
+        const price = Number(property.price || 0);
+        if (Number.isFinite(price) && price > 0) {
+            min = Math.min(min, price);
+            max = Math.max(max, price);
+        }
+    }
+
+    return {
+        property_types: Array.from(propertyTypes).sort(),
+        listing_types: Array.from(listingTypes).sort(),
+        locations: Array.from(locations).sort(),
+        price_range: {
+            min: Number.isFinite(min) ? min : 0,
+            max: Number.isFinite(max) ? max : 0,
+        },
+    };
+};
+
+const filterSectionProperties = (
+    properties: SearchResult[],
+    filters: {
+        activeTab: 'all' | 'buy' | 'rent';
+        searchQuery: string;
+        locationQuery: string;
+        statusFilter: string;
+        propertyType: string;
+        minPrice: string;
+        maxPrice: string;
+        beds: string;
+        baths: string;
+    },
+) => {
+    const normalizedSearch = filters.searchQuery.trim().toLowerCase();
+    const normalizedLocation = filters.locationQuery.trim().toLowerCase();
+    const parsedMinPrice = filters.minPrice !== '' ? Number(filters.minPrice) : null;
+    const parsedMaxPrice = filters.maxPrice !== '' ? Number(filters.maxPrice) : null;
+    const parsedMinBeds = filters.beds !== '' ? Number(filters.beds) : null;
+    const parsedMinBaths = filters.baths !== '' ? Number(filters.baths) : null;
+    const minPrice = parsedMinPrice !== null && Number.isFinite(parsedMinPrice) ? parsedMinPrice : null;
+    const maxPrice = parsedMaxPrice !== null && Number.isFinite(parsedMaxPrice) ? parsedMaxPrice : null;
+    const minBeds = parsedMinBeds !== null && Number.isFinite(parsedMinBeds) ? parsedMinBeds : null;
+    const minBaths = parsedMinBaths !== null && Number.isFinite(parsedMinBaths) ? parsedMinBaths : null;
+    const listingType = filters.activeTab === 'buy' ? 'sale' : filters.activeTab === 'rent' ? 'rent' : '';
+    const status = filters.statusFilter.trim().toLowerCase();
+    const type = filters.propertyType !== 'all' ? filters.propertyType.trim().toLowerCase() : '';
+
+    return properties.filter((property) => {
+        if (listingType && property.listing_type !== listingType) return false;
+        if (status && (property.status || '').toLowerCase() !== status) return false;
+        if (type && (property.property_type || '').toLowerCase() !== type) return false;
+        if (minPrice !== null && Number(property.price || 0) < minPrice) return false;
+        if (maxPrice !== null && Number(property.price || 0) > maxPrice) return false;
+        if (minBeds !== null && Number(property.bedrooms || 0) < minBeds) return false;
+        if (minBaths !== null && Number(property.bathrooms || 0) < minBaths) return false;
+        if (normalizedLocation && ![
+            property.location,
+            property.city,
+            property.postcode,
+        ].some((value) => includesNormalizedText(value, normalizedLocation))) {
+            return false;
+        }
+        if (normalizedSearch && ![
+            property.title,
+            property.description,
+            property.location,
+            property.city,
+            property.postcode,
+            property.property_type,
+        ].some((value) => includesNormalizedText(value, normalizedSearch))) {
+            return false;
+        }
+
+        return true;
+    });
+};
+
+const sortSectionProperties = (properties: SearchResult[], sortBy: string, dashboardFilter: string) => {
+    const ordered = applyDashboardFilterOrdering(properties, dashboardFilter);
+
+    if (sortBy === 'price_asc') {
+        ordered.sort((left, right) => Number(left.price || 0) - Number(right.price || 0));
+    } else if (sortBy === 'price_desc') {
+        ordered.sort((left, right) => Number(right.price || 0) - Number(left.price || 0));
+    } else if (sortBy === 'newest') {
+        ordered.sort((left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime());
+    } else if (sortBy === 'views_desc') {
+        ordered.sort((left, right) => Number(right.view_count || 0) - Number(left.view_count || 0));
+    }
+
+    return ordered;
+};
+
+const buildSectionSuggestions = (properties: SearchResult[], query: string): AutocompleteSuggestion[] => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.length < 2) {
+        return [];
+    }
+
+    const suggestions: AutocompleteSuggestion[] = [];
+    const seen = new Set<string>();
+
+    for (const property of properties) {
+        const displayTitle = formatLaunchPropertyText(property.title);
+        const displayCity = formatLaunchPropertyLocation(property.city);
+        const displayLocationCode = isValidLaunchLocationCode(property.postcode)
+            ? formatLaunchLocationCode(property.postcode)
+            : '';
+        const candidates = ([
+            { id: property.id, text: displayTitle, title: displayTitle, city: displayCity, type: 'property' },
+            { text: displayCity, city: displayCity, type: 'city' },
+            { text: displayLocationCode, city: displayCity, type: 'postcode' },
+        ] as AutocompleteSuggestion[]).filter((suggestion) => (
+            suggestion.text && suggestion.text.toLowerCase().includes(normalizedQuery)
+        ));
+
+        for (const suggestion of candidates) {
+            const key = `${suggestion.type}:${suggestion.text.toLowerCase()}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            suggestions.push(suggestion);
+            if (suggestions.length >= 10) {
+                return suggestions;
+            }
+        }
+    }
+
+    return suggestions;
+};
+
 function DiscoverContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -75,24 +255,30 @@ function DiscoverContent() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [properties, setProperties] = useState<SearchResult[]>([]);
+    const [allSectionProperties, setAllSectionProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
-    const [searchQuery, setSearchQuery] = useState(() => searchParams.get('q') || searchParams.get('keyword') || '');
-    const [locationQuery, setLocationQuery] = useState(() => searchParams.get('location') || '');
+    const [searchQuery, setSearchQuery] = useState(() => readSearchUrlFilters(searchParams).query);
+    const [locationQuery, setLocationQuery] = useState(() => readSearchUrlFilters(searchParams).location);
     const [statusFilter, setStatusFilter] = useState(() => searchParams.get('status') || '');
-    const [propertyType, setPropertyType] = useState(() => searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
+    const [propertyType, setPropertyType] = useState(() => readSearchUrlFilters(searchParams).propertyType || 'all');
     const [priceRange, setPriceRange] = useState(() => ({
-        min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
-        max: searchParams.get('maxPrice') || searchParams.get('max_price') || '',
+        min: readSearchUrlFilters(searchParams).minPrice,
+        max: readSearchUrlFilters(searchParams).maxPrice,
     }));
-    const [beds, setBeds] = useState(() => searchParams.get('beds') || searchParams.get('minBedrooms') || '');
-    const [baths, setBaths] = useState(() => searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+    const [beds, setBeds] = useState(() => readSearchUrlFilters(searchParams).bedrooms);
+    const [baths, setBaths] = useState(() => readSearchUrlFilters(searchParams).baths);
     const [dashboardFilter, setDashboardFilter] = useState(() => searchParams.get('filter') || '');
+    const [sortBy, setSortBy] = useState(() =>
+        normalizePropertySearchSort(searchParams.get('sort') || searchParams.get('sortBy') || mapDashboardFilterToSearchSort(searchParams.get('filter') || '')),
+    );
+    const [filterInputMessage, setFilterInputMessage] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(searchParams.get('page')));
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
 
     // Initialize filters from URL/Context
     useEffect(() => {
@@ -105,62 +291,68 @@ function DiscoverContent() {
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
-        setSearchQuery(searchParams.get('q') || searchParams.get('keyword') || '');
-        setLocationQuery(searchParams.get('location') || '');
+        const urlFilters = readSearchUrlFilters(searchParams);
+        setSearchQuery(urlFilters.query);
+        setLocationQuery(urlFilters.location);
         setStatusFilter(searchParams.get('status') || '');
-        setPropertyType(searchParams.get('propertyType') || searchParams.get('property_type') || 'all');
+        setPropertyType(urlFilters.propertyType || 'all');
         setPriceRange({
-            min: searchParams.get('minPrice') || searchParams.get('min_price') || '',
-            max: searchParams.get('maxPrice') || searchParams.get('max_price') || '',
+            min: urlFilters.minPrice,
+            max: urlFilters.maxPrice,
         });
-        setBeds(searchParams.get('beds') || searchParams.get('minBedrooms') || '');
-        setBaths(searchParams.get('baths') || searchParams.get('minBathrooms') || '');
+        setBeds(urlFilters.bedrooms);
+        setBaths(urlFilters.baths);
         setDashboardFilter(searchParams.get('filter') || '');
+        setSortBy(normalizePropertySearchSort(searchParams.get('sort') || searchParams.get('sortBy') || mapDashboardFilterToSearchSort(searchParams.get('filter') || '')));
         setCurrentPage(parsePositivePage(searchParams.get('page')));
     }, [searchParams]);
-
-    // Initial load for filters
-    useEffect(() => {
-        const loadFilters = async () => {
-            const opts = await searchService.getFilters();
-            if (opts) setFilterOptions(opts);
-        };
-        loadFilters();
-    }, []);
 
     const fetchData = async () => {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.search(
-                searchQuery,
-                {
-                    propertyType: propertyType !== 'all' ? propertyType : undefined,
-                    minPrice: priceRange.min ? parseInt(priceRange.min) : undefined,
-                    maxPrice: priceRange.max ? parseInt(priceRange.max) : undefined,
-                    minBedrooms: beds ? parseInt(beds) : undefined,
-                    minBathrooms: baths ? parseInt(baths) : undefined,
-                    listingType: activeTab === 'buy' ? 'sale' : activeTab === 'rent' ? 'rent' : 'all',
-                    status: statusFilter || undefined,
-                    location: locationQuery.trim() ? locationQuery.trim() : undefined,
-                    sortBy: mapDashboardFilterToSearchSort(dashboardFilter),
-                    page: currentPage,
-                    limit: ITEMS_PER_PAGE
-                }
-            );
+            const result = await searchService.getPropertySections(LAUNCH_COUNTRY_CODE);
 
-            if (result.success) {
-                setProperties(applyDashboardFilterOrdering(result.data || [], dashboardFilter));
-                setTotal(result.pagination?.total || 0);
-            } else {
+            if (!result.success) {
                 setProperties([]);
+                setAllSectionProperties([]);
                 setTotal(0);
-                setError('Failed to fetch properties from server.');
+                setFilterOptions(null);
+                setError(result.error || 'Failed to fetch property sections from server.');
+                return;
             }
+
+            const sectionProperties = dedupeSectionProperties(
+                result.data.flatMap((section) => section.properties),
+            );
+            const filtered = filterSectionProperties(sectionProperties, {
+                activeTab: activeTab === 'buy' || activeTab === 'rent' ? activeTab : 'all',
+                searchQuery,
+                locationQuery,
+                statusFilter,
+                propertyType,
+                minPrice: priceRange.min,
+                maxPrice: priceRange.max,
+                beds,
+                baths,
+            });
+            const sorted = sortSectionProperties(
+                filtered,
+                sortBy !== 'relevance' ? sortBy : mapDashboardFilterToSearchSort(dashboardFilter) || 'relevance',
+                dashboardFilter,
+            );
+            const pageStart = (currentPage - 1) * ITEMS_PER_PAGE;
+
+            setAllSectionProperties(sectionProperties);
+            setFilterOptions(buildFilterOptionsFromProperties(sectionProperties));
+            setProperties(sorted.slice(pageStart, pageStart + ITEMS_PER_PAGE));
+            setTotal(sorted.length);
         } catch {
             setProperties([]);
+            setAllSectionProperties([]);
             setTotal(0);
-            setError('An unexpected error occurred while processing the search.');
+            setFilterOptions(null);
+            setError('An unexpected error occurred while processing property sections.');
         } finally {
             setLoading(false);
         }
@@ -172,18 +364,13 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy]);
 
     // Autocomplete location suggestions
     useEffect(() => {
         const fetchSuggestions = async () => {
             if (searchQuery.length >= 2) {
-                try {
-                    const suggestions = await searchService.autocomplete(searchQuery);
-                    setLocationSuggestions(suggestions.slice(0, 10));
-                } catch {
-                    setLocationSuggestions([]);
-                }
+                setLocationSuggestions(buildSectionSuggestions(allSectionProperties, searchQuery));
             } else {
                 setLocationSuggestions([]);
             }
@@ -193,13 +380,22 @@ function DiscoverContent() {
             fetchSuggestions();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery]);
+    }, [allSectionProperties, searchQuery]);
 
     // The backend now handles all filtering and pagination natively.
     const filteredProperties = properties;
+    const countryGroups = useMemo(
+        () => getCountryAwarePropertyGroups(filteredProperties),
+        [filteredProperties],
+    );
 
     const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
     const paginatedProperties = properties; // Backend paginates for us
+    const resultStatusMessage = loading
+        ? 'Loading discovery properties.'
+        : error
+            ? error
+            : `${paginatedProperties.length} of ${total} discovery properties shown in ${viewMode} view sorted by ${sortBy} from property sections.`;
 
     const handleClearFilters = () => {
         setSearchQuery('');
@@ -210,33 +406,21 @@ function DiscoverContent() {
         setBeds('');
         setBaths('');
         setDashboardFilter('');
+        setSortBy('relevance');
+        setFilterInputMessage('');
         setCurrentPage(1);
-    };
-
-    const transformForMap = (props: SearchResult[]) => {
-        return props
-            .filter(p => p.latitude != null && p.longitude != null)
-            .map(p => ({
-                id: p.id,
-                title: p.title,
-                lat: p.latitude as number,
-                lng: p.longitude as number,
-                price: new Intl.NumberFormat('en-GB', {
-                    style: 'currency',
-                    currency: 'GBP',
-                    maximumFractionDigits: 0,
-                }).format(p.price || 0),
-                address: p.location || p.city || 'Unknown Location'
-            }));
     };
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
+            <p role="status" aria-live="polite" className="sr-only" data-discovery-status>
+                {resultStatusMessage}
+            </p>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* Back Button */}
                 <button
                     onClick={() => navigate('/user/dashboard')}
-                    className="mb-6 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 transition-colors group"
+                    className="mb-6 flex items-center gap-2 text-gray-600 transition-colors hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-orange-400 dark:focus:ring-offset-gray-900 group"
                 >
                     <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
                     <span>Back to Dashboard</span>
@@ -253,14 +437,14 @@ function DiscoverContent() {
                                     ? 'Showing properties for sale'
                                     : activeTab === 'rent'
                                         ? 'Showing properties for rent'
-                                        : 'Find your next home across the UK'}
+                                        : 'Find your next home across India'}
                         </p>
                     </div>
 
                     <div className="flex gap-2 bg-white dark:bg-gray-800 p-1 rounded-xl shadow-sm">
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'grid'
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'grid'
                                 ? 'bg-orange-500 text-white shadow-md'
                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 }`}
@@ -270,7 +454,7 @@ function DiscoverContent() {
                         </button>
                         <button
                             onClick={() => setViewMode('map')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'map'
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${viewMode === 'map'
                                 ? 'bg-orange-500 text-white shadow-md'
                                 : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 }`}
@@ -289,11 +473,12 @@ function DiscoverContent() {
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
+                                    aria-label="Search properties"
                                     type="text"
-                                    placeholder="Postcode, street, or property name..."
+                                    placeholder="PIN code, postcode, street, or property name..."
                                     value={searchQuery}
                                     onChange={(e) => {
-                                        setSearchQuery(e.target.value);
+                                        setSearchQuery(normalizeSearchQueryInput(e.target.value));
                                         setCurrentPage(1);
                                         setShowSuggestions(true);
                                     }}
@@ -339,10 +524,11 @@ function DiscoverContent() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                            <label htmlFor="discover-location" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Location</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                                 <input
+                                    id="discover-location"
                                     type="text"
                                     placeholder="City or Town"
                                     value={locationQuery}
@@ -358,37 +544,50 @@ function DiscoverContent() {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Price Range</label>
                             <div className="flex items-center gap-2">
-                                <input
+                                <div className="min-w-0 flex-1">
+                                    <label htmlFor="discover-min-price" className="sr-only">Min Price</label>
+                                    <input
+                                    id="discover-min-price"
                                     type="number"
-                                    placeholder={filterOptions?.price_range?.min ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min"}
+                                    aria-label="Min Price"
+                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : "Min"}
                                     value={priceRange.min}
-                                    min={filterOptions?.price_range?.min}
+                                    min={0}
                                     max={priceRange.max || filterOptions?.price_range?.max}
                                     onChange={(e) => {
-                                        setPriceRange({ ...priceRange, min: e.target.value });
+                                        setFilterInputMessage(getPriceBoundAdjustmentMessage(e.target.value));
+                                        setPriceRange({ ...priceRange, min: normalizePriceBoundInput(e.target.value) });
                                         setCurrentPage(1);
                                     }}
                                     className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
-                                />
+                                    />
+                                </div>
                                 <span className="text-gray-400">-</span>
-                                <input
+                                <div className="min-w-0 flex-1">
+                                    <label htmlFor="discover-max-price" className="sr-only">Max Price</label>
+                                    <input
+                                    id="discover-max-price"
                                     type="number"
-                                    placeholder={filterOptions?.price_range?.max ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max"}
+                                    aria-label="Max Price"
+                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : "Max"}
                                     value={priceRange.max}
-                                    min={priceRange.min || filterOptions?.price_range?.min}
+                                    min={0}
                                     max={filterOptions?.price_range?.max}
                                     onChange={(e) => {
-                                        setPriceRange({ ...priceRange, max: e.target.value });
+                                        setFilterInputMessage(getPriceBoundAdjustmentMessage(e.target.value));
+                                        setPriceRange({ ...priceRange, max: normalizePriceBoundInput(e.target.value) });
                                         setCurrentPage(1);
                                     }}
                                     className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
-                                />
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Type</label>
+                            <label htmlFor="discover-property-type" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Property Type</label>
                             <select
+                                id="discover-property-type"
                                 value={propertyType}
                                 onChange={(e) => {
                                     setPropertyType(e.target.value);
@@ -404,11 +603,29 @@ function DiscoverContent() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bedrooms</label>
+                            <label htmlFor="discover-sort" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Sort</label>
                             <select
+                                id="discover-sort"
+                                value={sortBy}
+                                onChange={(e) => {
+                                    setSortBy(normalizePropertySearchSort(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
+                            >
+                                {getPropertySearchSortOptions().map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label htmlFor="discover-bedrooms" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bedrooms</label>
+                            <select
+                                id="discover-bedrooms"
                                 value={beds}
                                 onChange={(e) => {
-                                    setBeds(e.target.value);
+                                    setBeds(normalizeRoomBoundInput(e.target.value));
                                     setCurrentPage(1);
                                 }}
                                 className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
@@ -422,11 +639,12 @@ function DiscoverContent() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bathrooms</label>
+                            <label htmlFor="discover-bathrooms" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bathrooms</label>
                             <select
+                                id="discover-bathrooms"
                                 value={baths}
                                 onChange={(e) => {
-                                    setBaths(e.target.value);
+                                    setBaths(normalizeRoomBoundInput(e.target.value));
                                     setCurrentPage(1);
                                 }}
                                 className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
@@ -449,10 +667,42 @@ function DiscoverContent() {
                     </div>
                 </div>
 
+                {filterValidationMessage && (
+                    <div role="alert" className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+                        {filterValidationMessage}
+                    </div>
+                )}
+
+                {countryGroups.length > 0 && (
+                    <section
+                        aria-labelledby="discover-country-groups-heading"
+                        className="mb-8 rounded-2xl border border-orange-100 bg-white p-5 shadow-sm dark:border-orange-900/30 dark:bg-gray-800"
+                    >
+                        <h2 id="discover-country-groups-heading" className="text-sm font-semibold uppercase text-gray-700 dark:text-gray-300">
+                            Country-aware groups
+                        </h2>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {countryGroups.map((group) => (
+                                <span
+                                    key={group.key}
+                                    className="rounded-full bg-orange-50 px-3 py-1.5 text-sm font-medium text-orange-700 dark:bg-orange-900/20 dark:text-orange-200"
+                                >
+                                    {group.label}: {group.count}
+                                </span>
+                            ))}
+                        </div>
+                    </section>
+                )}
+
                 {/* Content */}
                 {viewMode === 'map' ? (
-                    <div className="h-[700px] rounded-2xl overflow-hidden shadow-xl">
-                        <MapView houses={transformForMap(filteredProperties)} />
+                    <div className="h-[min(72vh,720px)] min-h-[520px]">
+                        <NearbyPropertiesMap
+                            properties={toDiscoverNearbyMapProperties(filteredProperties)}
+                            onPropertyClick={(property) => navigate(`/user/properties/${property.id}`)}
+                            onOpenWorkspace={(property) => navigate(`/user/properties/${property.id}`)}
+                            onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                        />
                     </div>
                 ) : (
                     <>
@@ -484,17 +734,21 @@ function DiscoverContent() {
                         ) : paginatedProperties.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {paginatedProperties.map((property) => (
-                                    <PropertyCard key={property.id} property={property} />
+                                    <PropertyCard
+                                        key={property.id}
+                                        property={property}
+                                        onStartFastTrack={(property) => navigate(`/user/properties/${property.id}?fast-track=1`)}
+                                    />
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">
+                            <div role="status" aria-live="polite" className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl shadow-sm">
                                 <div className="inline-flex items-center justify-center p-6 bg-gray-100 dark:bg-gray-700 rounded-full mb-6">
                                     <Search className="text-gray-400" size={48} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">No properties match your search</h3>
                                 <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-md mx-auto">
-                                    Try adjusting your filters or search terms. We're constantly adding new listings across the UK.
+                                    Try adjusting your filters or search terms. We're constantly adding new listings across India.
                                 </p>
                                 <button
                                     onClick={handleClearFilters}

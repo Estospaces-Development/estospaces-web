@@ -3,7 +3,7 @@
 import React, { ReactNode } from 'react';
 import {
     Heart, FileText, MessageSquare, Calendar, Search, Home,
-    CreditCard, Star, Bell, FolderOpen, LucideIcon,
+    Star, Bell, FolderOpen, LucideIcon,
 } from 'lucide-react';
 
 interface VariantConfig {
@@ -21,7 +21,7 @@ const VARIANTS: Record<string, VariantConfig> = {
     'no-viewings': { icon: Calendar, iconColor: 'text-emerald-600 dark:text-emerald-300', iconBg: 'bg-emerald-100 dark:bg-emerald-950/30', title: 'No Scheduled Viewings', description: 'Confirmed property viewings will appear here once they are booked.' },
     'no-results': { icon: Search, iconColor: 'text-gray-500 dark:text-gray-300', iconBg: 'bg-gray-100 dark:bg-gray-800', title: 'No Results Found', description: 'Try adjusting your filters or clear a few constraints to widen the search.' },
     'no-properties': { icon: Home, iconColor: 'text-orange-600 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-950/30', title: 'No Properties Available', description: 'Check back soon for new listings in this area.' },
-    'no-payments': { icon: CreditCard, iconColor: 'text-orange-600 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-950/30', title: 'No Payment History', description: 'Payment milestones and receipts will appear here once billing begins.' },
+    'no-payments': { icon: FileText, iconColor: 'text-orange-600 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-950/30', title: 'No Contract Activity', description: 'Contract milestones will appear here when they become relevant.' },
     'no-reviews': { icon: Star, iconColor: 'text-amber-600 dark:text-amber-300', iconBg: 'bg-amber-100 dark:bg-amber-950/30', title: 'No Reviews Yet', description: 'Your reviews and ratings will appear here.' },
     'no-notifications': { icon: Bell, iconColor: 'text-orange-600 dark:text-orange-300', iconBg: 'bg-orange-100 dark:bg-orange-950/30', title: 'No Notifications', description: "You're all caught up. New activity will appear here as soon as something changes." },
     'empty-folder': { icon: FolderOpen, iconColor: 'text-gray-500 dark:text-gray-300', iconBg: 'bg-gray-100 dark:bg-gray-800', title: 'Nothing Here Yet', description: 'This section is empty for now. Content will appear here when it becomes relevant.' },

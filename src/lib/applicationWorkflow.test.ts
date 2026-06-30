@@ -1,6 +1,50 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { findRelatedViewing } from './applicationWorkflow';
+import { buildApplicationPropertySnapshot, findRelatedViewing } from './applicationWorkflow';
+
+test('buildApplicationPropertySnapshot carries display and agent fields from a property', () => {
+    const snapshot = buildApplicationPropertySnapshot({
+        title: 'Luxurious 3BHK in Preston - JEEVI Groups',
+        address_line_1: '123, Preston',
+        city: 'Preston',
+        postcode: 'SW1A 1AA',
+        image_urls: '["https://example.test/property.jpg"]',
+        property_type: 'house',
+        listing_type: 'sale',
+        price: 10000,
+        agent_name: 'Estospaces Dev',
+        agent_email: 'estospacesdev@gmail.com',
+        agent_phone: '9677697624',
+        agent_company: 'JEEVI Groups',
+    });
+
+    assert.deepEqual(snapshot, {
+        property_title: 'Luxurious 3BHK in Preston - JEEVI Groups',
+        property_address: '123, Preston',
+        property_image: 'https://example.test/property.jpg',
+        property_type: 'house',
+        listing_type: 'sale',
+        property_price: 10000,
+        agent_name: 'Estospaces Dev',
+        agent_email: 'estospacesdev@gmail.com',
+        agent_phone: '9677697624',
+        agent_agency: 'JEEVI Groups',
+    });
+});
+
+test('buildApplicationPropertySnapshot falls back to city and postcode address', () => {
+    const snapshot = buildApplicationPropertySnapshot({
+        title: 'City flat',
+        city: 'Oxford',
+        postcode: 'OX1 1AA',
+        image_urls: ['https://example.test/one.jpg'],
+        listing_type: 'rent',
+    });
+
+    assert.equal(snapshot.property_address, 'Oxford, OX1 1AA');
+    assert.equal(snapshot.property_image, 'https://example.test/one.jpg');
+    assert.equal(snapshot.listing_type, 'rent');
+});
 
 test('findRelatedViewing prefers direct application links over property/user heuristics', () => {
     const relatedViewing = findRelatedViewing(

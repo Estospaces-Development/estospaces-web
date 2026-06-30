@@ -106,3 +106,15 @@ test('sale display helpers treat offer_ready as the offer stage even without liv
     assert.equal(getSaleJourneyStageLabel(offerReadyStatusRecord), 'Offer ready');
     assert.equal(getSaleJourneyProgress(offerReadyStatusRecord), 52);
 });
+
+test('sale display helpers route submitted purchase applications into manager qualification workflow', () => {
+    const submittedPurchaseApplication = {
+        source: 'application',
+        status: 'submitted',
+        listingType: 'sale',
+    };
+
+    assert.equal(resolveSaleJourneyDisplayStage(submittedPurchaseApplication), 'viewing_completed');
+    assert.equal(getSaleJourneyStageLabel(submittedPurchaseApplication), 'Viewing completed');
+    assert.equal(getSaleJourneyProgress(submittedPurchaseApplication), 28);
+});

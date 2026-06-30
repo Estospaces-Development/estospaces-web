@@ -1,0 +1,32 @@
+title = "Estospaces current-source secret scan"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated, dependency, cache, and local-only paths excluded from current-source scanning"
+paths = [
+  '''(^|[\\/])\.git([\\/]|$)''',
+  '''(^|[\\/])\.tmp([\\/]|$)''',
+  '''(^|[\\/])\.agent([\\/]|$)''',
+  '''(^|[\\/])\.worktrees([\\/]|$)''',
+  '''(^|[\\/])\.release-worktrees([\\/]|$)''',
+  '''(^|[\\/])node_modules([\\/]|$)''',
+  '''(^|[\\/])\.npm-vercel-cache([\\/]|$)''',
+  '''(^|[\\/])\.gomodcache[^\\/]*([\\/]|$)''',
+  '''(^|[\\/])\.gocache[^\\/]*([\\/]|$)''',
+  '''(^|[\\/])outputs?([\\/]|$)''',
+  '''(^|[\\/])test-results([\\/]|$)''',
+  '''(^|[\\/])coverage([\\/]|$)''',
+  '''(^|[\\/])dist([\\/]|$)''',
+  '''(^|[\\/])\.next([\\/]|$)''',
+  '''(^|[\\/])build([\\/]|$)''',
+  '''(^|[\\/])android[\\/]key\.properties$'''
+]
+regexes = [
+  '''replace_me''',
+  '''your_[a-z0-9_]+_here''',
+  '''(?i)test[-_ ]?(key|secret|token|password)''',
+  '''(?i)placeholder''',
+  '''000000+'''
+]

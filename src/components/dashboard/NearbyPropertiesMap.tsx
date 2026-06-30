@@ -6,6 +6,7 @@ import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 
 interface UserLocation {
     latitude: number;
@@ -38,14 +39,14 @@ interface NearbyPropertiesMapProps {
 }
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const radiusMiles = 3959;
+    const radiusKm = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
         + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180)
         * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return radiusMiles * c;
+    return radiusKm * c;
 };
 
 const formatCompactPrice = (price?: number) => {
@@ -53,15 +54,7 @@ const formatCompactPrice = (price?: number) => {
         return 'View';
     }
 
-    if (price >= 1_000_000) {
-        return `£${(price / 1_000_000).toFixed(price >= 10_000_000 ? 0 : 1)}m`;
-    }
-
-    if (price >= 1_000) {
-        return `£${Math.round(price / 1_000)}k`;
-    }
-
-    return `£${Math.round(price)}`;
+    return formatLaunchCurrency(price, { showCode: false });
 };
 
 const createPropertyIcon = (label: string, color: string, selected: boolean) => L.divIcon({
@@ -132,7 +125,7 @@ function MapAutoFit({
             });
 
             if (points.length === 0) {
-                map.setView([54.5, -3], 5);
+                map.setView([20.5937, 78.9629], 5);
                 return;
             }
 
@@ -174,11 +167,7 @@ const NearbyPropertiesMap = ({
             return 'Price unavailable';
         }
 
-        return new Intl.NumberFormat('en-GB', {
-            style: 'currency',
-            currency: 'GBP',
-            maximumFractionDigits: 0,
-        }).format(price);
+        return formatLaunchCurrency(price);
     };
 
     const propertiesWithDistance = useMemo(() => {
@@ -317,9 +306,9 @@ const NearbyPropertiesMap = ({
                         <div className={`flex items-center justify-center rounded-full ${compact ? 'mb-4 h-12 w-12 bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300' : 'mx-auto mb-4 h-14 w-14 bg-gray-100 dark:bg-gray-700'}`}>
                             <Navigation size={24} className={compact ? '' : 'text-gray-400 dark:text-gray-500'} />
                         </div>
-                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a postcode to unlock the map</h3>
+                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a PIN code to unlock the map</h3>
                         <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
-                            Use your profile postcode or search a location to see nearby homes without leaving the dashboard.
+                            Use your profile PIN code or search a location to see nearby homes without leaving the dashboard.
                         </p>
                     </div>
                 </div>
@@ -342,7 +331,7 @@ const NearbyPropertiesMap = ({
         >
             <MapContainer
                 key={mapKey}
-                center={[54.5, -3]}
+                center={[20.5937, 78.9629]}
                 zoom={6}
                 style={{ height: '100%', width: '100%' }}
                 scrollWheelZoom={false}
@@ -400,14 +389,14 @@ const NearbyPropertiesMap = ({
                                         {property.title || 'Property'}
                                     </h4>
                                     <p className="mt-1 text-xs text-slate-500">
-                                        {[property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ') || 'UK'}
+                                        {formatLaunchPropertyLocation([property.address_line_1, property.city, property.postcode])}
                                     </p>
                                     <p className="mt-2 text-sm font-bold text-orange-600">
                                         {formatPropertyPrice(property.price)}
                                         {property.property_type === 'rent' ? '/month' : ''}
                                     </p>
                                     {property.distance !== null && property.distance !== undefined ? (
-                                        <p className="mt-1 text-xs text-slate-500">{property.distance} miles away</p>
+                                        <p className="mt-1 text-xs text-slate-500">{property.distance} km away</p>
                                     ) : null}
                                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                                         <button
@@ -501,7 +490,7 @@ const NearbyPropertiesMap = ({
                                 {selectedProperty.title || 'Property'}
                             </h3>
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                {[selectedProperty.address_line_1, selectedProperty.city, selectedProperty.postcode].filter(Boolean).join(', ') || 'UK'}
+                                {formatLaunchPropertyLocation([selectedProperty.address_line_1, selectedProperty.city, selectedProperty.postcode])}
                             </p>
                         </div>
                         <button
@@ -530,7 +519,7 @@ const NearbyPropertiesMap = ({
                             {selectedProperty.bedrooms ? <span>{selectedProperty.bedrooms} bed</span> : null}
                             {selectedProperty.bathrooms ? <span>{selectedProperty.bathrooms} bath</span> : null}
                             {selectedProperty.distance !== null && selectedProperty.distance !== undefined ? (
-                                <span>{selectedProperty.distance} miles away</span>
+                                <span>{selectedProperty.distance} km away</span>
                             ) : null}
                         </div>
                     </div>

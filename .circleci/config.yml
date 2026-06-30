@@ -1,0 +1,51 @@
+version: 2.1
+
+executors:
+  node_executor:
+    docker:
+      - image: cimg/node:22.12
+    working_directory: ~/project
+
+commands:
+  install_node_dependencies:
+    steps:
+      - restore_cache:
+          keys:
+            - npm-v1-{{ arch }}-{{ checksum "package-lock.json" }}
+            - npm-v1-{{ arch }}-
+      - run:
+          name: Install npm dependencies
+          command: npm ci
+      - save_cache:
+          key: npm-v1-{{ arch }}-{{ checksum "package-lock.json" }}
+          paths:
+            - ~/.npm
+
+jobs:
+  web_release_gate:
+    executor: node_executor
+    environment:
+      CI: "true"
+    steps:
+      - checkout
+      - install_node_dependencies
+      - run:
+          name: Audit high severity npm vulnerabilities
+          command: npm audit --audit-level=high
+      - run:
+          name: TypeScript check
+          command: npm run typecheck
+      - run:
+          name: Unit tests
+          command: npm test
+      - run:
+          name: Production build
+          command: npm run build
+      - store_artifacts:
+          path: dist
+          destination: web-dist
+
+workflows:
+  release_readiness:
+    jobs:
+      - web_release_gate

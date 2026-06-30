@@ -5,9 +5,9 @@
    Theme Configuration (Tailwind v4)
    ========================================= */
 @theme {
-  --color-primary: #FF6B35;
+  --color-primary: #C2410C;
   --color-primary-light: #FF8C61;
-  --color-primary-dark: #E55A2B;
+  --color-primary-dark: #9A3412;
 
   --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   --font-manager: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
@@ -83,10 +83,32 @@
     touch-action: manipulation;
   }
 
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [tabindex]:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid #f97316;
+    outline-offset: 3px;
+  }
+
+  .case-file-workspace :where(button, a, input, textarea, select, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid #f97316 !important;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18);
+  }
+
   input,
   textarea,
   select {
     min-width: 0;
+  }
+
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none;
   }
 
   h1 {
@@ -226,6 +248,91 @@
   .themed-number-input::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
+  }
+}
+
+@layer utilities {
+  .bg-primary {
+    background-color: #c2410c;
+  }
+
+  .hover\:bg-primary-dark:hover {
+    background-color: #9a3412;
+  }
+
+  .text-primary,
+  .hover\:text-primary:hover {
+    color: #c2410c;
+  }
+
+  .bg-orange-500 {
+    background-color: #c2410c;
+  }
+
+  .hover\:bg-orange-600:hover {
+    background-color: #9a3412;
+  }
+
+  .bg-orange-600 {
+    background-color: #c2410c;
+  }
+
+  .hover\:bg-orange-700:hover {
+    background-color: #9a3412;
+  }
+
+  .bg-orange-700 {
+    background-color: #c2410c;
+  }
+
+  .hover\:bg-orange-800:hover {
+    background-color: #9a3412;
+  }
+
+  .active\:bg-orange-700:active {
+    background-color: #9a3412;
+  }
+
+  .text-orange-500,
+  .text-orange-600 {
+    color: #c2410c;
+  }
+
+  .text-orange-700,
+  .hover\:text-orange-500:hover,
+  .hover\:text-orange-600:hover,
+  .hover\:text-orange-700:hover {
+    color: #9a3412;
+  }
+
+  :where(.bg-primary, .bg-orange-500, .bg-orange-600, .bg-orange-700) :where(.text-white\/70, .text-white\/80, .text-orange-50, .text-orange-100) {
+    color: #ffffff;
+  }
+
+  .brand-orange-action {
+    background-color: #c2410c;
+    color: #ffffff;
+  }
+
+  .brand-orange-action:hover {
+    background-color: #9a3412;
+  }
+
+  .text-gray-400 {
+    color: #4b5563;
+  }
+
+  .text-gray-500 {
+    color: #374151;
+  }
+
+  .dark .dark\:text-gray-400,
+  .dark .dark\:text-gray-500 {
+    color: #d1d5db;
+  }
+
+  .bg-white\/20 {
+    background-color: rgb(255 255 255 / 0.34);
   }
 }
 
@@ -427,7 +534,7 @@
 }
 
 @utility gradient-primary {
-  background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
+  background: linear-gradient(135deg, #C2410C 0%, #9A3412 100%);
 }
 
 @utility gradient-header {
@@ -547,7 +654,7 @@
   font-weight: 500;
   font-size: 0.875rem;
   color: #fff;
-  background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
+  background: linear-gradient(135deg, #C2410C 0%, #9A3412 100%);
   border-radius: 0.75rem;
   box-shadow: 0 4px 14px -2px rgba(255, 107, 53, 0.25);
   transition: all 0.2s ease-out;
@@ -556,13 +663,13 @@
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #FF8C61 0%, #FF6B35 100%);
+  background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
   box-shadow: 0 6px 20px -2px rgba(255, 107, 53, 0.35);
   transform: translateY(-1px);
 }
 
 .btn-primary:active {
-  background: #E55A2B;
+  background: #9A3412;
   transform: translateY(0);
 }
 
@@ -1114,8 +1221,8 @@ input[type="number"]:focus {
 }
 
 /* Spinner buttons */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
+input[type="number"]:not(.themed-number-input)::-webkit-inner-spin-button,
+input[type="number"]:not(.themed-number-input)::-webkit-outer-spin-button {
   opacity: 1;
   height: 32px;
   width: 28px;
@@ -1124,13 +1231,13 @@ input[type="number"]::-webkit-outer-spin-button {
   transform: scale(1.2);
 }
 
-input[type="number"]:focus::-webkit-inner-spin-button,
-input[type="number"]:focus::-webkit-outer-spin-button {
+input[type="number"]:not(.themed-number-input):focus::-webkit-inner-spin-button,
+input[type="number"]:not(.themed-number-input):focus::-webkit-outer-spin-button {
   transform: scale(1.35);
 }
 
-.dark input[type="number"]::-webkit-inner-spin-button,
-.dark input[type="number"]::-webkit-outer-spin-button {
+.dark input[type="number"]:not(.themed-number-input)::-webkit-inner-spin-button,
+.dark input[type="number"]:not(.themed-number-input)::-webkit-outer-spin-button {
   filter: brightness(1.6) contrast(1.2);
 }
 

@@ -60,7 +60,7 @@ const buyCase: FastTrackCase = {
     journeyStage: 'offer_review',
 };
 
-test('resolveFastTrackLinkedJourney links rent workflow records through fast-track, application, and contract references', () => {
+test('resolveFastTrackLinkedJourney hides inactive payment and invoice workspace records from rent journey copy', () => {
     const linked = resolveFastTrackLinkedJourney(rentCase, {
         applications: [
             {
@@ -138,10 +138,38 @@ test('resolveFastTrackLinkedJourney links rent workflow records through fast-tra
     assert.equal(linked.application?.id, 'app-1');
     assert.equal(linked.viewing?.id, 'viewing-1');
     assert.equal(linked.contract?.id, 'contract-1');
-    assert.equal(linked.payments.length, 1);
-    assert.equal(linked.invoices.length, 1);
-    assert.match(linked.primaryHeadline, /Deposit and first-rent tasks/i);
-    assert.match(linked.nextStep, /billing workspace/i);
+    assert.equal(linked.payments.length, 0);
+    assert.equal(linked.invoices.length, 0);
+    assert.doesNotMatch(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
+    assert.doesNotMatch(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
+    assert.doesNotMatch(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
+});
+
+test('resolveFastTrackLinkedJourney rewrites inactive finance backend stages to launch-safe tenancy copy', () => {
+    const linked = resolveFastTrackLinkedJourney({
+        ...rentCase,
+        liveStage: 'deposit_and_first_rent',
+        currentStep: 'ready_for_contract',
+    } as any, {
+        contracts: [
+            {
+                id: 'contract-stage-1',
+                application_id: 'app-stage-1',
+                fast_track_case_id: 'case-rent-1',
+                property_id: 'property-1',
+                manager_id: 'manager-1',
+                user_id: 'user-1',
+                status: 'active',
+                created_at: '2026-03-25T11:00:00Z',
+                updated_at: '2026-03-25T11:30:00Z',
+            },
+        ],
+    });
+
+    assert.equal(linked.liveStage, 'deposit_and_first_rent');
+    assert.doesNotMatch(linked.primaryHeadline, /deposit|first-rent|payment|invoice|billing/i);
+    assert.doesNotMatch(linked.primarySummary, /deposit|first-rent|payment|invoice|billing/i);
+    assert.doesNotMatch(linked.nextStep, /deposit|first-rent|payment|invoice|billing/i);
 });
 
 test('resolveFastTrackLinkedJourney prefers backend journey-state copy, blockers, and deadlines when available', () => {

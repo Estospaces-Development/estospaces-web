@@ -7,6 +7,8 @@ import NotificationDropdown from '../dashboard/NotificationDropdown';
 import SearchBar from '../ui/SearchBar';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
+import { getLoginPath } from '@/lib/authUtils';
 
 interface UserHeaderProps {
     useSubdomain?: boolean;
@@ -21,6 +23,11 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
     // Get user display name and email
     const displayName = getDisplayName();
     const userEmail = user?.email || '';
+    const profileMenuLabel = getProfileMenuControlLabel({
+        displayName,
+        role: user?.role || 'user',
+        isOpen: userMenuOpen,
+    });
 
     const handleSignOut = async () => {
         setIsSigningOut(true);
@@ -28,7 +35,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
 
         try {
             await signOut();
-            navigate('/login');
+            navigate(getLoginPath());
         } catch (error) {
             setIsSigningOut(false);
         }
@@ -38,14 +45,14 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
 
     return (
         <header className="sticky top-0 z-30 h-16 border-b border-orange-500/10 bg-[linear-gradient(135deg,#FF6B35_0%,#F97316_48%,#EA580C_100%)] text-white shadow-[var(--shadow-brand)]">
-            <div className="h-full px-4 lg:px-6 flex items-center justify-between">
-                <div className="flex items-center gap-6">
+            <div className="flex h-full items-center justify-between gap-2 px-3 sm:px-4 lg:px-6">
+                <div className="flex shrink-0 items-center">
                     <Link
                         to={getLinkPath('/user/dashboard')}
                         className="flex items-center gap-1.5 hover:opacity-80 transition-opacity duration-200 cursor-pointer no-underline"
                         aria-label="Navigate to dashboard"
                     >
-                        <span className="text-xl font-bold text-white transition-colors duration-300 hover:text-white/90" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
+                        <span className="text-lg font-bold text-white transition-colors duration-300 hover:text-white/90 sm:text-xl" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif' }}>
                             Estospaces
                         </span>
                     </Link>
@@ -53,17 +60,20 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                 </div>
 
                 {/* Center - Global Search */}
-                <div className="flex-1 max-w-xl mx-4 md:mx-8">
+                <div className="mx-2 min-w-0 flex-1 sm:mx-4 md:mx-8 md:max-w-xl">
                     <SearchBar variant="compact" searchPath={getLinkPath('/user/search')} />
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
                     <NotificationDropdown />
 
                     <div className="relative">
                         <button
                             onClick={() => setUserMenuOpen(!userMenuOpen)}
-                            className="flex items-center gap-2 rounded-xl p-2 transition-colors hover:bg-white/10"
+                            className="flex items-center gap-2 rounded-xl p-1.5 transition-colors hover:bg-white/10 sm:p-2"
+                            aria-label={profileMenuLabel}
+                            aria-haspopup="menu"
+                            aria-expanded={userMenuOpen}
                         >
                             <Avatar
                                 userId={user?.id}
@@ -74,7 +84,7 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                             />
                             <ChevronDown
                                 size={16}
-                                className={`text-white dark:text-gray-200 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                                className={`hidden text-white transition-transform dark:text-gray-200 sm:block ${userMenuOpen ? 'rotate-180' : ''}`}
                             />
                         </button>
 
@@ -104,12 +114,12 @@ const UserHeader = ({ useSubdomain = false }: UserHeaderProps) => {
                                         <button
                                             onClick={() => {
                                                 setUserMenuOpen(false);
-                                                navigate(getLinkPath('/user/docs'));
+                                                navigate(getLinkPath('/user/virtual-storage'));
                                             }}
                                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                                         >
                                             <BookOpen size={18} className="text-gray-400" />
-                                            Docs
+                                            Virtual Storage
                                         </button>
                                         <button
                                             onClick={() => {

@@ -13,6 +13,24 @@ const readString = (data: NotificationNavigationData, ...keys: string[]) => {
     return '';
 };
 
+const readNestedPathId = (path: string, basePath: string) => {
+    const pathWithoutQuery = path.split(/[?#]/)[0];
+    if (!pathWithoutQuery.startsWith(`${basePath}/`)) {
+        return '';
+    }
+
+    const rawId = pathWithoutQuery.slice(basePath.length + 1).split('/')[0];
+    if (!rawId) {
+        return '';
+    }
+
+    try {
+        return decodeURIComponent(rawId);
+    } catch {
+        return rawId;
+    }
+};
+
 const buildSupportPath = (basePath: string, ticketId: string, conversationId: string) => {
     const params = new URLSearchParams({
         ...(ticketId ? { ticket: ticketId } : {}),
@@ -21,6 +39,29 @@ const buildSupportPath = (basePath: string, ticketId: string, conversationId: st
     const query = params.toString();
     return query ? `${basePath}?${query}` : basePath;
 };
+
+const buildAdminPropertyRegistryNotificationPath = (
+    data: NotificationNavigationData,
+    propertyId: string,
+    targetPath: string,
+) => {
+    const propertyTitle = readString(data, 'property_title', 'propertyTitle');
+    const resolvedPropertyId = propertyId || readNestedPathId(targetPath, '/admin/properties');
+    const search = propertyTitle || resolvedPropertyId;
+
+    if (!search) {
+        return '/admin/properties';
+    }
+
+    return `/admin/properties?${new URLSearchParams({ search }).toString()}`;
+};
+
+const isPathOrNestedPath = (path: string, basePath: string) => (
+    path === basePath
+    || path.startsWith(`${basePath}?`)
+    || path.startsWith(`${basePath}/`)
+    || path.startsWith(`${basePath}#`)
+);
 
 export function getNotificationNavigationPath(
     notification: { type: string; data?: NotificationNavigationData },
@@ -90,13 +131,44 @@ export function getNotificationNavigationPath(
         leadId,
         propertyId,
     });
+    const supportNotificationTypes = new Set([
+        'message_received',
+        'support_ticket_created',
+        'ticket_response',
+        'support_ticket_status_updated',
+        'support_ticket_assigned',
+    ]);
 
     if (targetPath) {
+        const isGenericUserHelpTarget = role === 'user'
+            && isPathOrNestedPath(targetPath, '/user/dashboard/help')
+            && !ticketId
+            && !conversationID
+            && !supportNotificationTypes.has(notification.type);
+
+        if (isGenericUserHelpTarget) {
+            return '/user/dashboard/notifications';
+        }
+
+        if (supportNotificationTypes.has(notification.type) && (ticketId || conversationID)) {
+            if (role === 'manager' && isPathOrNestedPath(targetPath, '/manager/help')) {
+                return buildSupportPath('/manager/help', ticketId, conversationID);
+            }
+            if (role === 'admin' && isPathOrNestedPath(targetPath, '/admin/help')) {
+                return buildSupportPath('/admin/help', ticketId, conversationID);
+            }
+            if (role === 'user' && isPathOrNestedPath(targetPath, '/user/dashboard/help')) {
+                return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
+            }
+        }
+
+        if (role === 'admin' && readNestedPathId(targetPath, '/admin/properties')) {
+            return buildAdminPropertyRegistryNotificationPath(data, propertyId, targetPath);
+        }
+
         if (
-            targetPath === '/user/dashboard/payments'
-            || targetPath.startsWith('/user/dashboard/payments?')
-            || targetPath === '/manager/billing'
-            || targetPath.startsWith('/manager/billing?')
+            isPathOrNestedPath(targetPath, '/user/dashboard/payments')
+            || isPathOrNestedPath(targetPath, '/manager/billing')
         ) {
             return role === 'manager' ? managerContractsPath : userContractsPath;
         }

@@ -16,9 +16,11 @@ import {
     BarChart3,
     Zap,
     User,
+    ClipboardList,
 } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { getLoginPath } from '@/lib/authUtils';
 
 interface AdminSidebarProps {
     isOpen?: boolean;
@@ -33,7 +35,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
 
     const handleSignOut = async () => {
         await signOut();
-        navigate('/login', { replace: true });
+        navigate(getLoginPath(), { replace: true });
     };
 
     const getLinkPath = (path: string) => path;
@@ -52,6 +54,7 @@ const AdminSidebar = ({ isOpen = true, onToggle, useSubdomain = false }: AdminSi
         { icon: Zap, label: 'Fast Track', path: '/admin/fast-track' },
         { icon: MessageSquare, label: 'Help & Support', path: '/admin/help' },
         { icon: Star, label: 'Reviews', path: '/admin/reviews' },
+        { icon: ClipboardList, label: 'Observational Research', path: '/admin/research' },
         { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
         { icon: User, label: 'Profile', path: '/admin/profile' },
         { icon: Settings, label: 'Settings', path: '/admin/settings' },

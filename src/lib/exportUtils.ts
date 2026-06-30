@@ -2,6 +2,8 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
+import { buildCsvContent } from '@/lib/csvExport';
+
 interface ExportData {
     headers: string[];
     rows: (string | number)[][];
@@ -86,10 +88,7 @@ export const exportToExcel = async (data: ExportData, filename: string = 'export
 };
 
 export const exportToCSV = (data: ExportData, filename: string = 'export') => {
-    const csvContent = [
-        data.headers.join(','),
-        ...data.rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    const csvContent = buildCsvContent([data.headers, ...data.rows]);
 
     downloadBlob(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }), `${filename}.csv`);
 };

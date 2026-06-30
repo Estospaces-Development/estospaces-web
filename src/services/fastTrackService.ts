@@ -1,5 +1,7 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
+import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
+import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import type {
   JourneyAction,
   JourneyBlocker,
@@ -368,7 +370,13 @@ const toLegacyFinalStatus = (
 };
 
 const normalizeJourneyMode = (value?: string): "rent" | "sale" => {
-  return String(value || "").trim().toLowerCase() === "sale" ? "sale" : "rent";
+  switch (String(value || "").trim().toLowerCase()) {
+    case "sale":
+    case "buy":
+      return "sale";
+    default:
+      return "rent";
+  }
 };
 
 const normalizeListingType = (
@@ -390,10 +398,18 @@ const normalizeDocumentStatus = (
 ): FastTrackDocumentStatus => {
   switch (String(value || "").trim().toLowerCase()) {
     case "uploaded":
+    case "under_review":
+    case "pending_review":
+    case "submitted":
       return "uploaded";
     case "approved":
+    case "verified":
       return "approved";
     case "reupload_needed":
+    case "reupload_required":
+    case "reupload_requested":
+    case "replacement_required":
+    case "rejected":
       return "reupload_needed";
     default:
       return "pending";
@@ -504,9 +520,9 @@ const deriveStatusReason = (
         ? "The offer decision is managed inline in this workspace."
         : "The application decision is managed inline in this workspace.";
     case "agreement":
-      return journeyMode === "sale"
+      return PAYMENTS_ENABLED
         ? "Agreement and payment steps stay inside this workspace."
-        : "Agreement and payment steps stay inside this workspace.";
+        : "Agreement steps stay inside this workspace.";
     case "handover":
       return "Completion is confirmed directly in this workspace.";
     default:
@@ -536,7 +552,7 @@ const mapBackendToFrontend = (
   }));
   const identityItem = items.find((item) => item.id === "identity");
   const addressItem = items.find((item) => item.id === "address");
-  const journeyMode = normalizeJourneyMode(raw.header?.journey_type);
+  const journeyMode = normalizeJourneyMode(raw.header?.journey_type || raw.header?.listing_type);
   const documentPhase = deriveDocumentPhase(stage, items);
 
   return {
@@ -588,7 +604,7 @@ const mapBackendToFrontend = (
       mode: normalizeJourneyMode(raw.decision?.mode),
       status: raw.decision?.status || "pending",
       amount: raw.decision?.amount,
-      currency: raw.decision?.currency || "GBP",
+      currency: raw.decision?.currency || LAUNCH_CURRENCY_CODE,
       note: raw.decision?.note,
       decidedAt: raw.decision?.decided_at,
       decidedBy: raw.decision?.decided_by,

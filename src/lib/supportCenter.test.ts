@@ -4,9 +4,11 @@ import {
     buildPrefilledSupportComposer,
     finalizeCreatedSupportTicket,
     getAutoSelectedSupportTicketId,
+    getLaunchSafeSupportCategoryLabel,
     hasPrefilledSupportComposerContext,
     normalizeSupportTicketCategory,
     resolveSupportComposerCategory,
+    shouldLoadSupportTicketDetail,
 } from '@/lib/supportCenter';
 import type { SupportTicketSummary } from '@/services/messagesService';
 
@@ -60,6 +62,16 @@ test('admin queue still auto-selects the first visible ticket', () => {
     }), 'ticket-1');
 });
 
+test('admin queue preserves guidance anchors instead of auto-selecting a ticket', () => {
+    assert.equal(getAutoSelectedSupportTicketId({
+        selectedTicketId: '',
+        tickets,
+        isAdmin: true,
+        hasPrefilledComposerContext: false,
+        hasLocationHash: true,
+    }), '');
+});
+
 test('admin queue resolves a selected conversation to its support ticket', () => {
     assert.equal(getAutoSelectedSupportTicketId({
         selectedTicketId: '',
@@ -68,6 +80,67 @@ test('admin queue resolves a selected conversation to its support ticket', () =>
         isAdmin: true,
         hasPrefilledComposerContext: false,
     }), 'ticket-1');
+});
+
+test('admin queue recovers from a stale ticket query when the conversation still matches', () => {
+    assert.equal(getAutoSelectedSupportTicketId({
+        selectedTicketId: 'stale-ticket',
+        selectedConversationId: 'conversation-1',
+        tickets,
+        isAdmin: true,
+        hasPrefilledComposerContext: false,
+    }), 'ticket-1');
+});
+
+test('admin queue waits to load ticket detail until ticket and conversation links are resolved', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'stale-ticket',
+        selectedConversationId: 'conversation-1',
+        isAdmin: true,
+        queueLoading: true,
+        tickets,
+    }), false);
+});
+
+test('admin queue does not load a stale ticket after the queue resolves the conversation to another ticket', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'stale-ticket',
+        selectedConversationId: 'conversation-1',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+    }), false);
+});
+
+test('admin queue still loads an explicit ticket after the queue resolves', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'ticket-1',
+        selectedConversationId: 'conversation-1',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+    }), true);
+});
+
+test('admin queue still loads an explicit ticket when filters hide it from the queue', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'ticket-hidden-by-filter',
+        selectedConversationId: 'conversation-hidden-by-filter',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+    }), true);
+});
+
+test('admin queue stops loading stale ticket detail when active filters remove the selected ticket', () => {
+    assert.equal(shouldLoadSupportTicketDetail({
+        selectedTicketId: 'ticket-hidden-by-filter',
+        selectedConversationId: 'conversation-hidden-by-filter',
+        isAdmin: true,
+        queueLoading: false,
+        tickets,
+        hasActiveFilters: true,
+    }), false);
 });
 
 test('admin queue does not fall back to the first ticket for an unknown selected conversation', () => {
@@ -109,7 +182,8 @@ test('ticket creation returns no warning when there is no draft to finalize', as
 
 test('support category normalization maps UI-only labels to backend-safe values', () => {
     assert.equal(normalizeSupportTicketCategory('Buying Help'), 'general inquiry');
-    assert.equal(normalizeSupportTicketCategory('Billing'), 'payments');
+    assert.equal(normalizeSupportTicketCategory('Billing'), 'contracts');
+    assert.equal(normalizeSupportTicketCategory('Payments'), 'contracts');
     assert.equal(normalizeSupportTicketCategory('Technical Issue'), 'technical issue');
 });
 
@@ -122,6 +196,33 @@ test('support composer resolves backend category values to the nearest visible l
         ),
         'General Inquiry',
     );
+});
+
+test('support composer resolves finance URL aliases to the visible contracts label', () => {
+    assert.equal(
+        resolveSupportComposerCategory(
+            'billing',
+            ['General Inquiry', 'Payments', 'Contracts', 'Technical Issue'],
+            'General Inquiry',
+        ),
+        'Contracts',
+    );
+
+    assert.equal(
+        resolveSupportComposerCategory(
+            'payments',
+            ['General Inquiry', 'Payments', 'Contracts', 'Technical Issue'],
+            'General Inquiry',
+        ),
+        'Contracts',
+    );
+});
+
+test('support category labels hide inactive payment and invoice workspace copy', () => {
+    assert.equal(getLaunchSafeSupportCategoryLabel('Payments'), 'Contracts');
+    assert.equal(getLaunchSafeSupportCategoryLabel('billing'), 'Contracts');
+    assert.equal(getLaunchSafeSupportCategoryLabel('Invoices'), 'Contracts');
+    assert.equal(getLaunchSafeSupportCategoryLabel('Technical Issue'), 'Technical Issue');
 });
 
 test('support composer prefill builds the visible draft from query params', () => {

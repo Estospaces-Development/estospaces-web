@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LAUNCH_CURRENCY_CODE, LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
 
 // ─── Auth Schemas ───────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ export const propertySchema = z.object({
     propertyType: z.enum(['apartment', 'house', 'villa', 'commercial', 'land', 'studio'] as const),
     listingType: z.enum(['sale', 'rent'] as const),
     price: z.number().positive('Price must be greater than 0'),
-    currency: z.string().default('GBP'),
+    currency: z.string().default(LAUNCH_CURRENCY_CODE),
     bedrooms: z.number().int().min(0).max(20),
     bathrooms: z.number().int().min(0).max(20),
     area: z.number().positive('Area must be greater than 0'),
@@ -54,8 +55,8 @@ export const propertySchema = z.object({
         county: z.string().optional(),
         postcode: z
             .string()
-            .regex(/^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/i, 'Please enter a valid UK postcode'),
-        country: z.string().default('United Kingdom'),
+            .regex(/^([1-9]\d{5}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/i, 'Please enter a valid Indian PIN code or UK postcode'),
+        country: z.string().default(LAUNCH_COUNTRY_NAME),
     }),
     latitude: z.number().min(-90).max(90).optional(),
     longitude: z.number().min(-180).max(180).optional(),

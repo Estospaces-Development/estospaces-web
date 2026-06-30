@@ -12,7 +12,26 @@ interface SupportComposerProps {
     disabled?: boolean;
     placeholder?: string;
     submitLabel?: string;
+    canSubmit?: boolean;
 }
+
+const SUPPORT_ATTACHMENT_ACCEPT = [
+    'application/pdf',
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.pdf',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.webp',
+    '.txt',
+    '.doc',
+    '.docx',
+].join(',');
 
 export function SupportComposer({
     value,
@@ -24,6 +43,7 @@ export function SupportComposer({
     disabled = false,
     placeholder = 'Write your message',
     submitLabel = 'Send reply',
+    canSubmit = true,
 }: SupportComposerProps) {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -55,6 +75,9 @@ export function SupportComposer({
                 onChange={(event) => onChange(event.target.value)}
                 rows={4}
                 placeholder={placeholder}
+                aria-label={placeholder}
+                minLength={1}
+                maxLength={4000}
                 className="w-full resize-none rounded-[1.5rem] border border-transparent bg-gray-50 px-4 py-4 text-sm text-gray-900 outline-none transition focus:border-orange-300 focus:bg-white dark:bg-gray-800 dark:text-white dark:focus:border-orange-500/40"
             />
 
@@ -63,7 +86,10 @@ export function SupportComposer({
                     <input
                         ref={fileInputRef}
                         type="file"
+                        name="support-attachments"
+                        aria-label="Attach files to support ticket"
                         multiple
+                        accept={SUPPORT_ATTACHMENT_ACCEPT}
                         className="hidden"
                         onChange={(event) => {
                             onFilesSelected(event.target.files);
@@ -85,7 +111,7 @@ export function SupportComposer({
 
                 <button
                     type="button"
-                    disabled={disabled}
+                    disabled={disabled || !canSubmit}
                     onClick={onSubmit}
                     className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >

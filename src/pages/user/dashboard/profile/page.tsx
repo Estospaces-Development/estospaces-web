@@ -22,6 +22,8 @@ import { bookingsService } from '@/services/bookingsService';
 import { useToast } from '@/contexts/ToastContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
+import { validateFullName } from '@/lib/profileValidation';
+import { getLoginPath } from '@/lib/authUtils';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -48,6 +50,7 @@ export default function ProfilePage() {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [profileValidationError, setProfileValidationError] = useState('');
 
     const fetchStats = useCallback(async () => {
         try {
@@ -71,7 +74,7 @@ export default function ProfilePage() {
         }
 
         if (!isAuthenticated || !currentUser) {
-            navigate('/login', { replace: true });
+            navigate(getLoginPath(), { replace: true });
             return;
         }
 
@@ -93,6 +96,9 @@ export default function ProfilePage() {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
         setSaveSuccess(false);
+        if (name === 'fullName') {
+            setProfileValidationError('');
+        }
     };
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +132,13 @@ export default function ProfilePage() {
     };
 
     const handleSaveProfile = async () => {
+        const fullNameError = validateFullName(formData.fullName);
+        if (fullNameError) {
+            setProfileValidationError(fullNameError);
+            toast.error(fullNameError);
+            return;
+        }
+
         try {
             setSavingProfile(true);
             let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
@@ -245,6 +258,8 @@ export default function ProfilePage() {
                                     <input
                                         type="file"
                                         id="avatar-upload"
+                                        name="profile-avatar"
+                                        aria-label="Upload profile photo"
                                         className="hidden"
                                         accept="image/*"
                                         onChange={handleImageSelect}
@@ -295,20 +310,29 @@ export default function ProfilePage() {
                             <div className="p-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>
-                                        <input
+                                            <label htmlFor="user-full-name" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Name</label>
+                                            <input
+                                                id="user-full-name"
                                             type="text"
                                             name="fullName"
                                             value={formData.fullName}
                                             onChange={handleInputChange}
+                                            aria-invalid={profileValidationError ? 'true' : 'false'}
+                                            aria-describedby={profileValidationError ? 'user-full-name-error' : undefined}
                                             className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                             placeholder="Enter your full name"
                                         />
+                                        {profileValidationError && (
+                                            <p id="user-full-name-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {profileValidationError}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Email Address</label>
+                                        <label htmlFor="user-email-address" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Email Address</label>
                                         <input
+                                            id="user-email-address"
                                             type="email"
                                             name="email"
                                             value={formData.email}
@@ -318,12 +342,13 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Phone Number</label>
-                                        <div className="relative">
-                                            <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input
-                                                type="tel"
-                                                name="phone"
+                                            <label htmlFor="user-phone-number" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Phone Number</label>
+                                            <div className="relative">
+                                                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                                <input
+                                                    id="user-phone-number"
+                                                    type="tel"
+                                                    name="phone"
                                                 value={formData.phone}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
@@ -333,26 +358,28 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Postcode</label>
-                                        <div className="relative">
-                                            <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                            <input
-                                                type="text"
-                                                name="postcode"
+                                            <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">PIN code / postcode</label>
+                                            <div className="relative">
+                                                <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                                <input
+                                                    id="user-postcode"
+                                                    type="text"
+                                                    name="postcode"
                                                 value={formData.postcode}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white uppercase"
-                                                placeholder="e.g. SW1A 1AA"
+                                                placeholder="e.g. 600001 or SW1A 1AA"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="md:col-span-2 space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Residential Address</label>
-                                        <div className="relative">
-                                            <Building className="absolute left-5 top-5 text-gray-400" size={18} />
-                                            <input
-                                                name="address"
+                                            <label htmlFor="user-residential-address" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Full Residential Address</label>
+                                            <div className="relative">
+                                                <Building className="absolute left-5 top-5 text-gray-400" size={18} />
+                                                <input
+                                                    id="user-residential-address"
+                                                    name="address"
                                                 value={formData.address}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white min-h-[56px]"

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
@@ -9,22 +9,68 @@ import {
     readBrokerRequestWorkspaceSelection,
 } from '@/lib/brokerRequestWorkspace';
 import { selectPrimaryBrokerRequest } from '@/lib/brokerRequestSelection';
-import { isValidUkPostcode } from '@/lib/propertyValidationErrors';
+import { formatLaunchLocationCode, formatLaunchPropertyLocation, isValidLaunchLocationCode, normalizeLaunchLocationCode } from '@/lib/launchLocale';
 
-const normalizePostcode = (value?: string | null) => String(value || '').trim().toUpperCase();
-const formatUkPostcode = (value?: string | null) => {
-    const normalized = normalizePostcode(value);
-    if (!normalized) {
-        return '';
-    }
-
-    if (!isValidUkPostcode(normalized)) {
-        return '';
-    }
-
-    const compact = normalized.replace(/\s+/g, '');
-    return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+const normalizeLocationCode = (value?: string | null) => normalizeLaunchLocationCode(value);
+const nearbyAgentFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800';
+export const NEARBY_AGENT_DISPLAY_LIMIT = 5;
+type NearbyAgentSort = 'rank' | 'distance' | 'rating';
+type NearbyAgentFilter = 'all' | 'fast_track';
+const formatLaunchRequestLocationCode = (value?: string | null) => formatLaunchLocationCode(value);
+const formatBrokerArea = (value?: string | null) => {
+    const locationCode = formatLaunchRequestLocationCode(value);
+    return locationCode || formatLaunchPropertyLocation(value);
 };
+const formatBrokerDistance = (distanceMiles?: number) => {
+    if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) {
+        return '10-minute availability';
+    }
+
+    return `${(distanceMiles * 1.609344).toFixed(1)} km away`;
+};
+
+export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary; index: number }) => (
+    <div className="group flex min-w-0 items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
+            <span className="text-sm font-bold">{index + 1}</span>
+        </div>
+        <div className="min-w-0 flex-1 overflow-hidden">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+                <h4 className="min-w-0 max-w-full break-words text-sm font-semibold text-gray-900 transition-colors group-hover:text-orange-600 dark:text-white">
+                    {broker.name}
+                </h4>
+                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                    <BadgeCheck size={11} />
+                    Available
+                </span>
+            </div>
+            <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
+                {broker.company_name || 'Independent agent'}
+                {broker.postcode ? ` - ${formatBrokerArea(broker.postcode)}` : ''}
+            </p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
+                    <Star size={12} className="mr-0.5 fill-yellow-400 text-yellow-400" />
+                    {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
+                    <span className="ml-0.5 font-normal text-gray-400 dark:text-gray-500">
+                        ({broker.review_count || 0})
+                    </span>
+                </div>
+                <span className="text-xs text-gray-300 dark:text-gray-600">-</span>
+                <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                    <Clock size={10} className="mr-0.5" />
+                    {formatBrokerDistance(broker.distance_miles)}
+                </div>
+            </div>
+            <div className="mt-2 flex min-w-0 items-start gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <MapPin size={10} className="mt-0.5 shrink-0" />
+                <span className="min-w-0 break-words">
+                    {broker.service_areas?.length ? broker.service_areas.map(formatBrokerArea).filter(Boolean).join(', ') : 'Service area not listed'}
+                </span>
+            </div>
+        </div>
+    </div>
+);
 
 const NearbyAgenciesList = () => {
     const [searchParams] = useSearchParams();
@@ -36,11 +82,13 @@ const NearbyAgenciesList = () => {
     const [postcodeInput, setPostcodeInput] = useState('');
     const [manualPostcode, setManualPostcode] = useState<string | null>(null);
     const [searchError, setSearchError] = useState<string | null>(null);
+    const [sortMode, setSortMode] = useState<NearbyAgentSort>('rank');
+    const [filterMode, setFilterMode] = useState<NearbyAgentFilter>('all');
     const requestedWorkspaceRequestId = searchParams.get('workspace') === 'broker-request'
         ? searchParams.get('request')?.trim() || null
         : null;
 
-    const liveRequestPostcode = formatUkPostcode(activeRequest?.location_postcode);
+    const liveRequestPostcode = formatLaunchRequestLocationCode(activeRequest?.location_postcode);
     const effectivePostcode = manualPostcode || liveRequestPostcode;
     const isManualSearchActive = Boolean(manualPostcode);
     const showSearchForm = isSearchOpen || isManualSearchActive || !liveRequestPostcode;
@@ -94,7 +142,7 @@ const NearbyAgenciesList = () => {
             return;
         }
 
-        if (!postcodeInput.trim() || normalizePostcode(postcodeInput) === normalizePostcode(liveRequestPostcode)) {
+        if (!postcodeInput.trim() || normalizeLocationCode(postcodeInput) === normalizeLocationCode(liveRequestPostcode)) {
             setPostcodeInput(liveRequestPostcode);
         }
     }, [liveRequestPostcode, manualPostcode, postcodeInput]);
@@ -112,15 +160,16 @@ const NearbyAgenciesList = () => {
             try {
                 const { data, error } = await getNearbyAvailableBrokers({
                     postcode: effectivePostcode,
-                    fastTrack: true,
-                    limit: 5,
+                    fastTrack: filterMode === 'fast_track',
+                    page: 1,
+                    limit: NEARBY_AGENT_DISPLAY_LIMIT,
                 }, { suppressErrorToast: true });
 
                 if (error) {
                     throw new Error(error);
                 }
 
-                setBrokers(data || []);
+                setBrokers((data || []).slice(0, NEARBY_AGENT_DISPLAY_LIMIT));
                 setLoadError(null);
             } catch (err: any) {
                 setLoadError(err.message || 'Nearby property agents are not available right now.');
@@ -130,23 +179,23 @@ const NearbyAgenciesList = () => {
         };
 
         void fetchBrokers();
-    }, [effectivePostcode]);
+    }, [effectivePostcode, filterMode]);
 
     const handlePostcodeSearch = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        const trimmedPostcode = normalizePostcode(postcodeInput);
+        const trimmedPostcode = normalizeLocationCode(postcodeInput);
         if (!trimmedPostcode) {
-            setSearchError('Enter a full UK postcode like SW1A 1AA.');
+            setSearchError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
 
-        if (!isValidUkPostcode(trimmedPostcode)) {
-            setSearchError('Enter a full UK postcode like SW1A 1AA. Area codes such as SD are not enough.');
+        if (!isValidLaunchLocationCode(trimmedPostcode)) {
+            setSearchError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
 
-        const formattedPostcode = formatUkPostcode(trimmedPostcode);
+        const formattedPostcode = formatLaunchRequestLocationCode(trimmedPostcode);
         setManualPostcode(formattedPostcode);
         setPostcodeInput(formattedPostcode);
         setSearchError(null);
@@ -159,6 +208,29 @@ const NearbyAgenciesList = () => {
         setPostcodeInput(liveRequestPostcode);
         setIsSearchOpen(false);
     };
+
+    const visibleBrokers = useMemo(() => {
+        const filtered = filterMode === 'fast_track'
+            ? brokers.filter((broker) => broker.fast_track_eligible)
+            : brokers;
+
+        if (sortMode === 'distance') {
+            const sorted = [...filtered].sort((left, right) => {
+                const leftDistance = typeof left.distance_miles === 'number' ? left.distance_miles : Number.MAX_SAFE_INTEGER;
+                const rightDistance = typeof right.distance_miles === 'number' ? right.distance_miles : Number.MAX_SAFE_INTEGER;
+                return leftDistance - rightDistance;
+            });
+            return sorted.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+        }
+
+        if (sortMode === 'rating') {
+            return [...filtered]
+                .sort((left, right) => (right.rating || 0) - (left.rating || 0))
+                .slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+        }
+
+        return filtered.slice(0, NEARBY_AGENT_DISPLAY_LIMIT);
+    }, [brokers, filterMode, sortMode]);
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
@@ -176,7 +248,7 @@ const NearbyAgenciesList = () => {
 
             {activeRequest && (
                 <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm dark:border-blue-900/30 dark:bg-blue-950/20">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-500 dark:text-blue-300">Agent request</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-200">Agent request</p>
                     <p className="mt-1 font-semibold text-gray-900 dark:text-white">
                         {activeRequest.matched_broker?.name || 'Searching nearby property agents'}
                     </p>
@@ -184,7 +256,7 @@ const NearbyAgenciesList = () => {
                         {activeRequest.dispatch_status
                             ? activeRequest.dispatch_status.replace(/[_-]+/g, ' ')
                             : 'Agent search in progress'}
-                        {activeRequest.location_postcode ? ` - ${activeRequest.location_postcode}` : ''}
+                        {liveRequestPostcode ? ` - ${liveRequestPostcode}` : ''}
                     </p>
                 </div>
             )}
@@ -192,14 +264,14 @@ const NearbyAgenciesList = () => {
             {effectivePostcode && (
                 <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-900/50">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-                        {isManualSearchActive ? 'Postcode search' : 'Request area'}
+                        {isManualSearchActive ? 'PIN code search' : 'Request area'}
                     </p>
                     <div className="mt-2 flex items-center justify-between gap-3">
                         <div>
                             <p className="font-semibold text-gray-900 dark:text-white">{effectivePostcode}</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                 {isManualSearchActive
-                                    ? 'Showing property agents ranked nearest to this full postcode.'
+                                    ? 'Showing property agents ranked nearest to this PIN code.'
                                     : 'Showing property agents ranked for your active request.'}
                             </p>
                         </div>
@@ -207,13 +279,41 @@ const NearbyAgenciesList = () => {
                             <button
                                 type="button"
                                 onClick={handleResetSearch}
-                                className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                                className={`inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
                             >
                                 <X size={12} />
                                 Use active request
                             </button>
                         )}
                     </div>
+                </div>
+            )}
+
+            {effectivePostcode && (
+                <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Filter
+                        <select
+                            value={filterMode}
+                            onChange={(event) => setFilterMode(event.target.value as NearbyAgentFilter)}
+                            className={`mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 ${nearbyAgentFocusClass}`}
+                        >
+                            <option value="all">All available</option>
+                            <option value="fast_track">Fast-track ready</option>
+                        </select>
+                    </label>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        Sort
+                        <select
+                            value={sortMode}
+                            onChange={(event) => setSortMode(event.target.value as NearbyAgentSort)}
+                            className={`mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 ${nearbyAgentFocusClass}`}
+                        >
+                            <option value="rank">Best match</option>
+                            <option value="distance">Nearest first</option>
+                            <option value="rating">Highest rated</option>
+                        </select>
+                    </label>
                 </div>
             )}
 
@@ -225,57 +325,20 @@ const NearbyAgenciesList = () => {
                 <div className="text-center py-8 text-sm text-gray-500">
                     {loadError}
                 </div>
-            ) : brokers.length === 0 ? (
+            ) : visibleBrokers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 text-sm">
                     {effectivePostcode
-                        ? 'No available property agents are ranked for this postcode yet.'
-                        : 'Add a postcode or request a nearby property agent to see ranked agents here.'}
+                        ? 'No available property agents are ranked for this PIN code yet.'
+                        : 'Add a PIN code or request a nearby property agent to see ranked agents here.'}
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {brokers.map((broker, index) => (
-                        <div key={broker.id} className="flex items-start gap-4 group">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-300">
-                                <span className="text-sm font-bold">{index + 1}</span>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-2">
-                                    <h4 className="truncate font-semibold text-sm text-gray-900 dark:text-white group-hover:text-orange-600 transition-colors">
-                                        {broker.name}
-                                    </h4>
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
-                                        <BadgeCheck size={11} />
-                                        Available
-                                    </span>
-                                </div>
-                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            {broker.company_name || 'Independent agent'}
-                                    {broker.postcode ? ` - ${broker.postcode}` : ''}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                    <div className="flex items-center text-xs font-medium text-gray-900 dark:text-white">
-                                        <Star size={12} className="text-yellow-400 fill-yellow-400 mr-0.5" />
-                                        {typeof broker.rating === 'number' ? broker.rating.toFixed(1) : 'N/A'}
-                                        <span className="text-gray-400 dark:text-gray-500 font-normal ml-0.5">
-                                            ({broker.review_count || 0})
-                                        </span>
-                                    </div>
-                                    <span className="text-gray-300 dark:text-gray-600 text-xs">-</span>
-                                    <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                        <Clock size={10} className="mr-0.5" />
-                                        {typeof broker.distance_miles === 'number'
-                                            ? `${broker.distance_miles.toFixed(1)} mi away`
-                                            : '10-minute availability'}
-                                    </div>
-                                </div>
-                                <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <MapPin size={10} className="mr-0.5 shrink-0" />
-                                    <span className="truncate">
-                                        {broker.service_areas?.length ? broker.service_areas.join(', ') : 'Service area not listed'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                    {visibleBrokers.map((broker, index) => (
+                        <NearbyBrokerCard
+                            key={broker.id}
+                            broker={broker}
+                            index={index}
+                        />
                     ))}
                 </div>
             )}
@@ -287,9 +350,9 @@ const NearbyAgenciesList = () => {
                 >
                     <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by postcode</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Find nearest agent by PIN code / postcode</p>
                             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Enter a full UK postcode to rank the nearest available property agents in that area.
+                                Enter a 6-digit Indian PIN code or UK postcode to rank the nearest available property agents in that area.
                             </p>
                         </div>
                         {liveRequestPostcode && (
@@ -301,7 +364,7 @@ const NearbyAgenciesList = () => {
                                     setManualPostcode(null);
                                     setIsSearchOpen(false);
                                 }}
-                                className="text-[11px] font-semibold text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                className={`text-[11px] font-semibold text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 ${nearbyAgentFocusClass}`}
                             >
                                 Cancel
                             </button>
@@ -315,18 +378,20 @@ const NearbyAgenciesList = () => {
                                 type="text"
                                 value={postcodeInput}
                                 onChange={(event) => {
-                                    setPostcodeInput(event.target.value.toUpperCase());
+                                    setPostcodeInput(normalizeLaunchLocationCode(event.target.value));
                                     if (searchError) {
                                         setSearchError(null);
                                     }
                                 }}
-                                placeholder="e.g. SW1A 1AA"
-                                className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                                placeholder="e.g. 600001 or SW1A 1AA"
+                                inputMode="text"
+                                maxLength={8}
+                                className={`w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-white ${nearbyAgentFocusClass}`}
                             />
                         </div>
                         <button
                             type="submit"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700"
+                            className={`inline-flex items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-orange-700 ${nearbyAgentFocusClass}`}
                         >
                             <Search size={15} />
                             Search
@@ -347,9 +412,9 @@ const NearbyAgenciesList = () => {
                         setPostcodeInput(manualPostcode || liveRequestPostcode);
                         setSearchError(null);
                     }}
-                    className="w-full mt-6 py-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors font-medium"
+                    className={`mt-6 w-full rounded-lg bg-gray-50 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:bg-gray-700/50 dark:text-gray-400 dark:hover:bg-gray-700 ${nearbyAgentFocusClass}`}
                 >
-                    Find nearest agent by postcode
+                    Find nearest agent by PIN code / postcode
                 </button>
             )}
         </div>

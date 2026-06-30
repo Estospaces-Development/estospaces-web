@@ -1,18 +1,22 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
 import ConversationList from '@/components/dashboard/messaging/ConversationList';
 import ConversationThread from '@/components/dashboard/messaging/ConversationThread';
 import MessageInput from '@/components/dashboard/messaging/MessageInput';
 import { ArrowLeft } from 'lucide-react';
-import { resolveConversationQuerySelection } from '@/lib/messagesInbox';
+import { buildConversationListUrl, resolveConversationQuerySelection } from '@/lib/messagesInbox';
 
 function MessagesContent() {
+    const location = useLocation();
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
     const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
+    const ignoredConversationRouteRef = useRef<string | null>(null);
+    const headingRef = useRef<HTMLHeadingElement | null>(null);
     const {
         conversations,
         allConversations,
@@ -46,6 +50,7 @@ function MessagesContent() {
         if (!normalizedRequestedConversationId) {
             attemptedConversationRefreshesRef.current.clear();
             conversationRefreshesInFlightRef.current.clear();
+            ignoredConversationRouteRef.current = null;
             return;
         }
 
@@ -58,6 +63,7 @@ function MessagesContent() {
             hasLoadedConversations,
             availableConversationIds: allConversations.map((conversation) => conversation.id),
             hasAttemptedRefresh: attemptedConversationRefreshesRef.current.has(normalizedRequestedConversationId),
+            ignoredConversationId: ignoredConversationRouteRef.current,
         });
 
         if (queryResolution.status === 'wait') {
@@ -103,14 +109,32 @@ function MessagesContent() {
         }
     }, [conversations, hasLoadedConversations, isDesktop, requestedConversationId, selectedConversationId, setSelectedConversationId]);
 
+    useEffect(() => {
+        if (!normalizedRequestedConversationId) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            headingRef.current?.focus();
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [normalizedRequestedConversationId]);
+
     const showConversationList = isDesktop || !selectedConversationId;
     const showThread = isDesktop || Boolean(selectedConversationId);
+
+    const handleBackToConversations = () => {
+        ignoredConversationRouteRef.current = selectedConversationId;
+        setSelectedConversationId(null);
+        navigate(buildConversationListUrl(location.pathname, location.search), { replace: true });
+    };
 
     return (
         <div className="h-[calc(100vh-8rem)] flex bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden animate-in fade-in duration-500">
             <div className={`${showConversationList ? 'flex' : 'hidden'} w-full md:w-96 border-r dark:border-gray-700 flex-col h-full bg-white dark:bg-gray-800`}>
                 <div className="p-4 border-b dark:border-gray-700">
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Messages</h1>
+                    <h1 ref={headingRef} tabIndex={-1} className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">Messages</h1>
                 </div>
                 <div className="flex-1 overflow-y-auto">
                     <ConversationList
@@ -127,7 +151,7 @@ function MessagesContent() {
                             <div className="border-b dark:border-gray-700 p-3">
                                 <button
                                     type="button"
-                                    onClick={() => setSelectedConversationId(null)}
+                                    onClick={handleBackToConversations}
                                     className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 transition-colors hover:text-orange-500 dark:text-gray-300 dark:hover:text-orange-400"
                                 >
                                     <ArrowLeft size={16} />
@@ -165,9 +189,9 @@ function MessagesContent() {
                             <div className="absolute top-2 -right-8 w-16 h-16 bg-orange-50 dark:bg-orange-900/20 rounded-lg -rotate-12 z-0"></div>
                             <div className="absolute -bottom-2 -left-8 w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded-full z-0 opacity-50"></div>
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                             You haven't selected an enquiry
-                        </h3>
+                        </h2>
                         <p className="text-gray-500 dark:text-gray-400 max-w-sm">
                             Select a conversation from the list to view your chat history with clients.
                         </p>

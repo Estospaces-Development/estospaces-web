@@ -29,6 +29,7 @@ import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
 import ProfileCompletionCard from '@/components/dashboard/ProfileCompletionCard';
 import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
 import SearchBar, { SearchFilters as DashboardSearchFilters } from '@/components/ui/SearchBar';
+import RoleDocsPreviewCard from '@/components/docs/RoleDocsPreviewCard';
 
 import { searchService, SearchResult } from '@/services/searchService';
 import { FastTrackCase, getFastTrackCases } from '@/services/fastTrackService';
@@ -37,6 +38,7 @@ import { getUserBrokerRequests, type BrokerRequestRecord } from '@/services/lead
 import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getDashboardSimplificationCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
+import { userDocs } from '@/lib/roleDocsContent';
 
 const FILTERED_RESULTS_PAGE_SIZE = 12;
 const USER_DASHBOARD_RESET_EVENT = 'estospaces:user-dashboard-reset';
@@ -871,6 +873,13 @@ const DashboardClient = () => {
               <ProfileCompletionCard />
             </div>
           </div>
+
+          <RoleDocsPreviewCard
+            title="User dashboard guide"
+            subtitle="Open the exact docs sections for search, broker requests, bookings, viewings, documents, support, and recovery."
+            hrefBase="/user/dashboard/docs"
+            docsDocument={userDocs.document}
+          />
         </>
       )}
 
@@ -934,6 +943,7 @@ const DashboardClient = () => {
                   key={property.id}
                   property={property}
                   onViewDetails={openPropertyFromDashboard}
+                  onStartFastTrack={openFastTrackFromDashboard}
                 />
               ))}
             </div>

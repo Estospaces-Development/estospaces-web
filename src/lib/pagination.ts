@@ -34,3 +34,26 @@ export const getPaginationRange = (
         end,
     };
 };
+
+export const getPaginationNavigationState = (
+    currentPage: number,
+    totalPages: number,
+    disabled = false,
+) => {
+    const lastPage = Math.max(totalPages, 1);
+    const safeCurrentPage = Math.min(Math.max(currentPage, 1), lastPage);
+    const canMoveBackward = !disabled && safeCurrentPage > 1;
+    const canMoveForward = !disabled && safeCurrentPage < lastPage;
+
+    return {
+        safeCurrentPage,
+        firstPage: 1,
+        previousPage: Math.max(safeCurrentPage - 1, 1),
+        nextPage: Math.min(safeCurrentPage + 1, lastPage),
+        lastPage,
+        canGoFirst: canMoveBackward,
+        canGoPrevious: canMoveBackward,
+        canGoNext: canMoveForward,
+        canGoLast: canMoveForward,
+    };
+};

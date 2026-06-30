@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
   buildCaseFileMutationContext,
   buildCaseFileUploadContext,
+  CASE_FILE_INVALID_REFERENCE_MESSAGE,
+  sanitizeCaseFileRouteCaseId,
 } from "./caseFileContext";
 
 test("case-file mutation context keeps snake_case ids for case-file APIs", () => {
@@ -59,4 +61,23 @@ test("case-file upload context maps the same ids into uploadDocument camelCase o
       managerId: "manager-2",
     },
   );
+});
+
+test("case-file route case id validation rejects raw and over-limit input before API calls", () => {
+  assert.deepEqual(
+    sanitizeCaseFileRouteCaseId("dfd601fc-3074-44dc-9de7-9e2b40eb6c2b"),
+    {
+      caseId: "dfd601fc-3074-44dc-9de7-9e2b40eb6c2b",
+      error: null,
+    },
+  );
+
+  assert.deepEqual(sanitizeCaseFileRouteCaseId("bad-case"), {
+    caseId: "",
+    error: CASE_FILE_INVALID_REFERENCE_MESSAGE,
+  });
+  assert.deepEqual(sanitizeCaseFileRouteCaseId("x".repeat(300)), {
+    caseId: "",
+    error: CASE_FILE_INVALID_REFERENCE_MESSAGE,
+  });
 });

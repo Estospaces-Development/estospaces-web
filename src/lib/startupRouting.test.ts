@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveStartupPath } from '@/lib/startupRouting';
 
-test('startup route sends logged-out users to login', () => {
-    assert.equal(resolveStartupPath(false), '/login');
+test('startup route keeps logged-out users on the public homepage', () => {
+    assert.equal(resolveStartupPath(false), '/');
 });
 
 test('startup route sends authenticated users to their role dashboard', () => {

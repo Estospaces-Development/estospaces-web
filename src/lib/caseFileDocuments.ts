@@ -32,14 +32,41 @@ export interface CaseFileSummary {
   totalRequestCount: number;
 }
 
+export interface CaseFileDocumentRequestDraft {
+  title?: string;
+  description?: string;
+  requirement_codes?: string;
+  visibility?: string;
+  link_family?: string;
+  due_at?: string;
+}
+
+export interface CaseFileDocumentRequestValidationErrors {
+  title?: string;
+  requirement_codes?: string;
+  due_at?: string;
+}
+
 export interface CaseFileRequestMatch<TRequest = CaseFileRequestLike> {
   request: TRequest | null;
   ambiguous: boolean;
 }
 
+export const CASE_FILE_REQUIREMENT_CODE_FORMAT =
+  "Add at least one comma-separated lowercase code using letters, numbers, and underscores.";
+export const DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT = {
+  title: "",
+  description: "",
+  requirement_codes: "",
+  visibility: "shared_with_user",
+  link_family: "client_reusable",
+  due_at: "",
+};
+
 const CLIENT_REUSABLE = "client_reusable";
 const CASE_TRANSACTIONAL = "case_transactional";
 const SHARED_WITH_USER = "shared_with_user";
+const REQUIREMENT_CODE_PATTERN = /^[a-z][a-z0-9_]*$/;
 const GENERIC_FILE_TOKENS = new Set([
   "additional",
   "copy",
@@ -63,6 +90,82 @@ const tokenize = (value: string) =>
     .split(" ")
     .map((item) => item.trim())
     .filter((item) => item.length >= 3);
+
+const isValidDateOnly = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+};
+
+export const parseCaseFileRequirementCodes = (value?: string | null) =>
+  String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+export const buildCaseFileDocumentRequestDraftStorageKey = (
+  role: string,
+  caseId?: string | null,
+) => {
+  const normalizedCaseId = String(caseId || "").trim();
+  if (!normalizedCaseId) {
+    return "";
+  }
+
+  return `case-file:document-request-draft:${String(role || "user").trim() || "user"}:${encodeURIComponent(normalizedCaseId)}`;
+};
+
+export const isCaseFileDocumentRequestDraftDirty = (
+  draft: CaseFileDocumentRequestDraft,
+) =>
+  String(draft.title || "").trim() !==
+    DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT.title ||
+  String(draft.description || "").trim() !==
+    DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT.description ||
+  String(draft.requirement_codes || "").trim() !==
+    DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT.requirement_codes ||
+  String(draft.visibility || "").trim() !==
+    DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT.visibility ||
+  String(draft.link_family || "").trim() !==
+    DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT.link_family ||
+  String(draft.due_at || "").trim() !==
+    DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT.due_at;
+
+export const validateCaseFileDocumentRequestDraft = (
+  draft: CaseFileDocumentRequestDraft,
+): CaseFileDocumentRequestValidationErrors => {
+  const errors: CaseFileDocumentRequestValidationErrors = {};
+  const title = String(draft.title || "").trim();
+  const dueAt = String(draft.due_at || "").trim();
+  const codes = parseCaseFileRequirementCodes(draft.requirement_codes);
+
+  if (!title) {
+    errors.title = "Add a short title for the document request.";
+  }
+
+  if (
+    codes.length === 0 ||
+    codes.some((code) => !REQUIREMENT_CODE_PATTERN.test(code))
+  ) {
+    errors.requirement_codes = CASE_FILE_REQUIREMENT_CODE_FORMAT;
+  }
+
+  if (!dueAt) {
+    errors.due_at = "Choose a due date for the document request.";
+  } else if (!isValidDateOnly(dueAt)) {
+    errors.due_at = "Choose a valid due date for the document request.";
+  }
+
+  return errors;
+};
 
 export const inferCaseFileUploadDescriptor = (
   request?: CaseFileRequestLike | null,

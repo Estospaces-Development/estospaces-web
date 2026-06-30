@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
@@ -14,6 +14,7 @@ import {
     MessageSquare,
     Phone,
     Radio,
+    Search,
     Send,
     Timer,
     UserCheck,
@@ -49,7 +50,22 @@ import {
     useWorkflowWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
-import { isValidUkPostcode } from '@/lib/propertyValidationErrors';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import {
+    formatLaunchCurrency,
+    formatLaunchLocationCode,
+    formatLaunchPropertyLocation,
+    isValidLaunchLocationCode,
+    LAUNCH_CURRENCY_CODE,
+    normalizeLaunchLocationCode,
+    normalizeLaunchLocationCodeErrorMessage,
+} from '@/lib/launchLocale';
+
+export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
+
+export const limitNearestAgenciesForDashboard = (brokers: LeadBrokerSummary[]) => (
+    brokers.slice(0, USER_DASHBOARD_NEAREST_AGENCY_LIMIT)
+);
 
 const secondsUntilDeadline = (deadline?: string, now = Date.now()) => {
     if (!deadline) {
@@ -92,6 +108,7 @@ const formatWorkspaceReference = (requestId?: string | null) => {
 };
 
 const TOTAL_DISPATCH_SECONDS = 10 * 60;
+const SHARED_HOME_CHOICE_LIMIT = 12;
 
 const parsePropertyImage = (value?: string) => {
     if (!value) {
@@ -115,18 +132,14 @@ const formatPropertyPrice = (price?: number) => {
         return 'Price on request';
     }
 
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0,
-    }).format(price);
+    return formatLaunchCurrency(price);
 };
 
 const formatPropertyAddress = (property?: {
     address_line_1?: string;
     city?: string;
     postcode?: string;
-}) => [property?.address_line_1, property?.city, property?.postcode].filter(Boolean).join(', ');
+}) => formatLaunchPropertyLocation([property?.address_line_1, property?.city, property?.postcode]);
 
 const formatPropertyBadgeLabel = (value?: string) => {
     if (!value) {
@@ -175,16 +188,36 @@ const mapListingTypeToFastTrackPropertyType = (listingType?: string) => {
     return 'rent' as const;
 };
 
-const normalizePostcode = (value?: string | null) => String(value || '').trim().toUpperCase();
+const normalizePostcode = (value?: string | null) => normalizeLaunchLocationCode(value);
 
-const formatUkPostcode = (value?: string | null) => {
+const formatLaunchBrokerLocationCode = (value?: string | null) => {
     const normalized = normalizePostcode(value);
-    if (!normalized || !isValidUkPostcode(normalized)) {
+    if (!normalized || !isValidLaunchLocationCode(normalized)) {
         return '';
     }
 
-    const compact = normalized.replace(/\s+/g, '');
-    return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+    return formatLaunchLocationCode(normalized);
+};
+
+const formatBrokerDistance = (distanceMiles?: number) => {
+    if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) {
+        return '';
+    }
+
+    return `${(distanceMiles * 1.609344).toFixed(1)} km`;
+};
+
+const formatRequestArea = (
+    location?: string | null,
+    locationPostcode?: string | null,
+    fallback = '',
+) => {
+    const locationCode = formatLaunchBrokerLocationCode(locationPostcode);
+    if (!location && !locationCode) {
+        return fallback;
+    }
+
+    return [location, locationCode].filter(Boolean).join(", ") || fallback;
 };
 
 const hasBrokerRequestDraft = ({
@@ -232,6 +265,9 @@ const BrokerRequestWidget = () => {
     const [selectingPropertyId, setSelectingPropertyId] = useState<string | null>(null);
     const [rematching, setRematching] = useState(false);
     const [openingConversation, setOpeningConversation] = useState(false);
+    const [sharedHomeSearch, setSharedHomeSearch] = useState('');
+    const [sharedHomeSort, setSharedHomeSort] = useState<'rank' | 'price_desc' | 'price_asc' | 'title_asc'>('rank');
+    const [selectionStatusMessage, setSelectionStatusMessage] = useState('');
     const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
     const draftStateRef = useRef(false);
     const publishWorkspaceSync = usePublishWorkspaceSync();
@@ -240,6 +276,7 @@ const BrokerRequestWidget = () => {
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
     const brokerCopy = getBrokerRequestCopy(requestType);
+    const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
 
     useEffect(() => {
         draftStateRef.current = hasBrokerRequestDraft({
@@ -349,13 +386,13 @@ const BrokerRequestWidget = () => {
             return;
         }
 
-        if (!isValidUkPostcode(trimmedPostcode)) {
+        if (!isValidLaunchLocationCode(trimmedPostcode)) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
             return;
         }
 
-        const formattedPostcode = formatUkPostcode(trimmedPostcode);
+        const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
         if (!formattedPostcode) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
@@ -369,11 +406,11 @@ const BrokerRequestWidget = () => {
                 const { data } = await getNearbyAvailableBrokers({
                     postcode: formattedPostcode,
                     fastTrack: fastTrackEnabled,
-                    limit: 5,
+                    limit: USER_DASHBOARD_NEAREST_AGENCY_LIMIT,
                 }, { suppressErrorToast: true });
 
                 if (!cancelled) {
-                    setNearbyBrokers(data || []);
+                    setNearbyBrokers(limitNearestAgenciesForDashboard(data || []));
                 }
             } catch {
                 if (!cancelled) {
@@ -455,6 +492,7 @@ const BrokerRequestWidget = () => {
 
     const handleSelectProperty = async (propertyId: string) => {
         if (!activeRequest?.id || !user?.id) {
+            setSelectionStatusMessage('Please sign in again before selecting a property.');
             toast.error('Please sign in again before selecting a property.');
             return;
         }
@@ -511,6 +549,7 @@ const BrokerRequestWidget = () => {
                 params.set('case', nextFastTrackCaseId);
             }
 
+            setSelectionStatusMessage(brokerCopy.selectionSuccess);
             toast.success(brokerCopy.selectionSuccess);
             publishWorkspaceSync({
                 source: 'mutation',
@@ -531,6 +570,7 @@ const BrokerRequestWidget = () => {
         } catch (actionError: any) {
             const message = actionError?.message || 'Unable to select this property right now.';
             setError(message);
+            setSelectionStatusMessage(message);
             toast.error(message);
         } finally {
             setSelectingPropertyId(null);
@@ -556,7 +596,7 @@ const BrokerRequestWidget = () => {
                 }
                 : {
                     propertyTitle: `${formatRequestTypeLabel(activeRequest.request_type)} request`,
-                    propertyAddress: [activeRequest.location, activeRequest.location_postcode].filter(Boolean).join(' - ') || undefined,
+                    propertyAddress: formatRequestArea(activeRequest.location, activeRequest.location_postcode) || undefined,
                     listingType: activeRequest.request_type === 'buy' ? 'sale' : activeRequest.request_type,
                 };
 
@@ -583,8 +623,13 @@ const BrokerRequestWidget = () => {
         e.preventDefault();
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (trimmedPostcode && !isValidUkPostcode(trimmedPostcode)) {
-            setPostcodeError('Enter a full UK postcode like SW1A 1AA. Area codes such as SD are not enough.');
+        if (!trimmedPostcode || !isValidLaunchLocationCode(trimmedPostcode)) {
+            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
+            return;
+        }
+        const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
+        if (!formattedPostcode) {
+            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
             return;
         }
 
@@ -596,14 +641,14 @@ const BrokerRequestWidget = () => {
             const { success, data, error: requestError } = await createBrokerRequest({
                 requestType,
                 location,
-                locationPostcode: formatUkPostcode(locationPostcode),
+                locationPostcode: formattedPostcode,
                 budget,
                 details,
                 fastTrackEnabled,
             });
 
             if (!success) {
-                throw new Error(requestError || 'Failed to submit request');
+                throw new Error(normalizeLaunchLocationCodeErrorMessage(requestError || 'Failed to submit request', formattedPostcode));
             }
 
             if (data) {
@@ -648,16 +693,52 @@ const BrokerRequestWidget = () => {
     const selectedProperty = activeRequest?.selected_property
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
+    const visibleSharedProperties = useMemo(() => {
+        const search = sharedHomeSearch.trim().toLowerCase();
+        const filtered = sharedProperties.filter((share) => {
+            if (!search) {
+                return true;
+            }
+            const property = share.property;
+            return [
+                property?.title,
+                property?.city,
+                property?.postcode,
+                property?.listing_type,
+                property?.property_type,
+            ].some((value) => String(value || '').toLowerCase().includes(search));
+        });
+
+        filtered.sort((left, right) => {
+            const leftProperty = left.property;
+            const rightProperty = right.property;
+            if (sharedHomeSort === 'price_desc') {
+                return (rightProperty?.price || 0) - (leftProperty?.price || 0);
+            }
+            if (sharedHomeSort === 'price_asc') {
+                return (leftProperty?.price || 0) - (rightProperty?.price || 0);
+            }
+            if (sharedHomeSort === 'title_asc') {
+                return String(leftProperty?.title || '').localeCompare(String(rightProperty?.title || ''), undefined, { sensitivity: 'base' });
+            }
+            return (left.rank || 0) - (right.rank || 0);
+        });
+
+        return filtered.slice(0, SHARED_HOME_CHOICE_LIMIT);
+    }, [sharedHomeSearch, sharedHomeSort, sharedProperties]);
     const handoffMinutesRemaining = formatMinutesUntil(activeRequest?.handoff_due_at, clockNow);
     const workspaceTone = requestIsMatched
         ? 'border-emerald-200 bg-white shadow-sm dark:border-emerald-900/40 dark:bg-gray-900'
         : requestIsExpired
             ? 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40'
             : 'border-orange-100 bg-orange-50/70 dark:border-orange-900/30 dark:bg-orange-950/20';
-    const submittedArea = [
+    const submittedArea = formatRequestArea(
         activeRequest?.location || location,
         activeRequest?.location_postcode || locationPostcode,
-    ].filter(Boolean).join(' - ');
+    );
+    const activeRequestArea = activeRequest
+        ? formatRequestArea(activeRequest.location, activeRequest.location_postcode)
+        : '';
     const submittedBudget = activeRequest?.budget || budget;
     const submittedRequirements = activeRequest?.details || details;
     const dispatchProgressPercent = requestIsMatched
@@ -704,9 +785,14 @@ const BrokerRequestWidget = () => {
                         eyebrow: 'Live now',
                         progress: 'bg-gradient-to-r from-emerald-500 via-orange-500 to-orange-400',
                     };
+    const sharedPropertyKeyFor = createDuplicateSafeKeyResolver('broker-request-shared-property');
+    const nearbyBrokerKeyFor = createDuplicateSafeKeyResolver('broker-request-nearby-broker');
 
     return (
         <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-800">
+            <div role="status" aria-live="polite" className="sr-only">
+                {selectionStatusMessage}
+            </div>
             <div className="mb-6 flex items-center gap-3">
                 <div className="rounded-lg bg-orange-100 p-2 dark:bg-orange-900/30">
                     <Send size={20} className="text-orange-600 dark:text-orange-400" />
@@ -812,7 +898,7 @@ const BrokerRequestWidget = () => {
                                         </p>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {matchedBroker?.company_name || 'Independent agent'} is now handling your {formatRequestTypeLabel(activeRequest.request_type).toLowerCase()} request
-                                            {activeRequest.location ? ` in ${activeRequest.location}` : ''}.
+                                            {activeRequestArea ? ` in ${activeRequestArea}` : ''}.
                                         </p>
                                     </div>
                                     <details className="min-w-[180px] rounded-2xl border border-orange-100 bg-white px-4 py-3 dark:border-orange-900/30 dark:bg-zinc-950">
@@ -839,8 +925,7 @@ const BrokerRequestWidget = () => {
                                             Search area
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                                            {activeRequest.location || 'Location shared in request'}
-                                            {activeRequest.location_postcode ? ` - ${activeRequest.location_postcode}` : ''}
+                                            {activeRequestArea || 'Location shared in request'}
                                         </p>
                                     </div>
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
@@ -850,7 +935,7 @@ const BrokerRequestWidget = () => {
                                         </div>
                                         <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                             {matchedBroker?.company_name || 'Independent agent'}
-                                            {typeof matchedBroker?.distance_miles === 'number' ? ` - ${matchedBroker.distance_miles.toFixed(1)} mi away` : ''}
+                                            {formatBrokerDistance(matchedBroker?.distance_miles) ? ` - ${formatBrokerDistance(matchedBroker?.distance_miles)} away` : ''}
                                         </p>
                                     </div>
                                     <div className="rounded-xl border border-white bg-white p-4 dark:border-gray-800 dark:bg-zinc-950/70">
@@ -1013,9 +1098,39 @@ const BrokerRequestWidget = () => {
                                             </div>
                                         ) : sharedProperties.length > 0 ? (
                                             <div className="mt-4 space-y-3">
-                                                {sharedProperties
-                                                    .sort((left, right) => left.rank - right.rank)
-                                                    .map((share) => {
+                                                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
+                                                    <label className="relative block">
+                                                        <span className="sr-only">Search shared homes</span>
+                                                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                                        <input
+                                                            type="text"
+                                                            aria-label="Search shared homes"
+                                                            value={sharedHomeSearch}
+                                                            onChange={(event) => setSharedHomeSearch(event.target.value)}
+                                                            maxLength={120}
+                                                            placeholder="Search shared homes..."
+                                                            className="w-full rounded-2xl border border-orange-100 bg-white py-3 pl-10 pr-4 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-white"
+                                                        />
+                                                    </label>
+                                                    <label className="block">
+                                                        <span className="sr-only">Sort shared homes</span>
+                                                        <select
+                                                            aria-label="Sort shared homes"
+                                                            value={sharedHomeSort}
+                                                            onChange={(event) => setSharedHomeSort(event.target.value as 'rank' | 'price_desc' | 'price_asc' | 'title_asc')}
+                                                            className="w-full rounded-2xl border border-orange-100 bg-white px-4 py-3 text-sm font-semibold text-gray-700 outline-none transition-all focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 dark:border-orange-900/30 dark:bg-zinc-950 dark:text-white"
+                                                        >
+                                                            <option value="rank">Agent rank</option>
+                                                            <option value="price_desc">Highest price</option>
+                                                            <option value="price_asc">Lowest price</option>
+                                                            <option value="title_asc">Title A-Z</option>
+                                                        </select>
+                                                    </label>
+                                                </div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
+                                                    Showing {visibleSharedProperties.length} of {sharedProperties.length} shared homes
+                                                </p>
+                                                {visibleSharedProperties.map((share, shareIndex) => {
                                                         const property = share.property;
                                                         if (!property) {
                                                             return null;
@@ -1025,7 +1140,7 @@ const BrokerRequestWidget = () => {
 
                                                         return (
                                                             <div
-                                                                key={share.id}
+                                                                key={sharedPropertyKeyFor(share.id || property.id, shareIndex)}
                                                                 className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-sm dark:border-orange-900/30 dark:bg-zinc-950/70"
                                                             >
                                                                 <img
@@ -1207,6 +1322,7 @@ const BrokerRequestWidget = () => {
                         type="checkbox"
                         checked={fastTrackEnabled}
                         onChange={(event) => setFastTrackEnabled(event.target.checked)}
+                        aria-label={brokerCopy.useDispatchTitle}
                         className="mt-1 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
                     <span>
@@ -1232,7 +1348,8 @@ const BrokerRequestWidget = () => {
                                 type="text"
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
-                                placeholder="e.g. Downtown, West End"
+                                placeholder="e.g. Chennai, Adyar"
+                                maxLength={255}
                                 className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-9 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                                 required
                             />
@@ -1241,26 +1358,28 @@ const BrokerRequestWidget = () => {
 
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                            Postcode
+                            PIN code / postcode
                         </label>
                         <input
                             type="text"
                             value={locationPostcode}
                             onChange={(e) => {
-                                const nextValue = e.target.value.toUpperCase();
+                                const nextValue = normalizeLaunchLocationCode(e.target.value);
                                 setLocationPostcode(nextValue);
                                 if (postcodeError) {
                                     const trimmedNextValue = normalizePostcode(nextValue);
-                                    if (!trimmedNextValue || isValidUkPostcode(trimmedNextValue)) {
+                                    if (!trimmedNextValue || isValidLaunchLocationCode(trimmedNextValue)) {
                                         setPostcodeError(null);
                                     }
                                 }
                             }}
-                            placeholder="e.g. SW1A 1AA"
+                            placeholder="e.g. 600001 or SW1A 1AA"
+                            maxLength={8}
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
+                            required
                         />
                         {postcodeError && (
-                            <p className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
+                            <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{postcodeError}</p>
                         )}
                     </div>
 
@@ -1269,12 +1388,13 @@ const BrokerRequestWidget = () => {
                             Budget / Price Range
                         </label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">GBP</span>
+                            <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{LAUNCH_CURRENCY_CODE}</span>
                             <input
                                 type="text"
                                 value={budget}
                                 onChange={(e) => setBudget(e.target.value)}
                                 placeholder="e.g. 500k - 600k"
+                                maxLength={255}
                                 className="w-full rounded-lg border border-gray-100 bg-gray-50 py-2 pl-12 pr-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                                 required
                             />
@@ -1290,6 +1410,7 @@ const BrokerRequestWidget = () => {
                             onChange={(e) => setDetails(e.target.value)}
                             placeholder="e.g. 2 bedrooms, balcony, pet friendly..."
                             rows={3}
+                            maxLength={2000}
                             className="w-full resize-none rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
                         />
@@ -1309,20 +1430,20 @@ const BrokerRequestWidget = () => {
                     </div>
                     {isRankingLoading ? (
                         <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">{brokerCopy.nearbyBrokersLoading}</div>
-                    ) : nearbyBrokers.length > 0 ? (
+                    ) : visibleNearbyBrokers.length > 0 ? (
                         <div className="mt-4 space-y-2">
-                            {nearbyBrokers.map((broker, index) => (
-                                <div key={broker.id} className="flex items-center justify-between gap-3 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
+                            {visibleNearbyBrokers.map((broker, index) => (
+                                <div key={nearbyBrokerKeyFor(broker.id, index)} className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-white bg-white px-3 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="break-words text-sm font-semibold text-gray-900 dark:text-white">
                                             {index + 1}. {broker.name}
                                         </p>
-                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <p className="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
                                             {broker.company_name || 'Independent agent'}
-                                            {typeof broker.distance_miles === 'number' ? ` - ${broker.distance_miles.toFixed(1)} mi` : ''}
+                                            {formatBrokerDistance(broker.distance_miles) ? ` - ${formatBrokerDistance(broker.distance_miles)}` : ''}
                                         </p>
                                     </div>
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-300">
                                         <BadgeCheck size={12} />
                                         {broker.fast_track_eligible ? brokerCopy.nearbyBrokerAvailableLabel : brokerCopy.nearbyBrokerQueuedLabel}
                                     </span>
@@ -1337,7 +1458,7 @@ const BrokerRequestWidget = () => {
                 </div>
 
                 {error && (
-                    <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-xs text-red-600 dark:bg-red-900/10 dark:text-red-400">
+                    <div role="alert" aria-live="assertive" className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-xs text-red-600 dark:bg-red-900/10 dark:text-red-400">
                         <AlertCircle size={14} />
                         {error}
                     </div>

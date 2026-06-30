@@ -5,6 +5,7 @@ import { Check, CheckCheck, FileText, Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import Avatar from '@/components/ui/Avatar';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 interface Attachment {
     id?: string;
@@ -35,6 +36,7 @@ interface MessageBubbleProps {
 const MessageBubble = ({ message, isUser, isSupportConversation = false, showAvatar, agentUserId, agentName = '', agentAvatar }: MessageBubbleProps) => {
     const toast = useToast();
     const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
+    const attachmentKeyFor = createDuplicateSafeKeyResolver('message-attachment');
 
     const formatTime = (timestamp: string) => {
         const date = new Date(timestamp);
@@ -169,8 +171,8 @@ const MessageBubble = ({ message, isUser, isSupportConversation = false, showAva
                 {/* Attachments */}
                 {message.attachments && message.attachments.length > 0 && (
                     <div>
-                        {message.attachments.map((attachment) => (
-                            <div key={attachment.id}>{renderAttachment(attachment)}</div>
+                        {message.attachments.map((attachment, attachmentIndex) => (
+                            <div key={attachmentKeyFor(attachment.id || attachment.file_url || attachment.file_name, attachmentIndex)}>{renderAttachment(attachment)}</div>
                         ))}
                     </div>
                 )}

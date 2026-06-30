@@ -15,11 +15,11 @@ export default function AuthLayout() {
             </div>
 
             {/* Right side - Form */}
-            <div className="flex min-h-screen w-full flex-col items-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 md:w-1/2 md:px-12 md:py-10 lg:px-16">
+            <main className="flex min-h-screen w-full flex-col items-center overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 md:w-1/2 md:px-12 md:py-10 lg:px-16">
                 <div className="w-full max-w-sm">
                     <Outlet />
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

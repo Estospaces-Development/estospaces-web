@@ -1,14 +1,17 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getPostLoginRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthBrand from '@/components/auth/AuthBrand';
 
+const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, loading: authLoading, getRole, login, signOut, user: authUser } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -38,7 +41,7 @@ export default function LoginPage() {
       return;
     }
 
-    navigate(getRedirectPath(role));
+    navigate(getPostLoginRedirectPath(role, location.state?.from));
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -72,7 +75,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Successfully logged in â€” redirect using role from response
+      // Successfully logged in - redirect using role from response
       const role = result.role || getRole();
       await continueWithRole(role);
     } catch (err: any) {
@@ -91,9 +94,12 @@ export default function LoginPage() {
   }
 
   const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
+  const isCloudRunHost = typeof window !== 'undefined' && window.location.hostname.endsWith('.run.app');
+  const forgotPasswordPath = getAuthPath('/forgot-password');
+  const registerPath = getAuthPath('/register');
 
   return (
-    <main className="flex flex-col items-center" aria-labelledby="login-heading">
+    <section className="flex flex-col items-center" aria-labelledby="login-heading">
       <AuthBrand />
 
       {isAuthenticated && !isSwitching ? (
@@ -114,7 +120,7 @@ export default function LoginPage() {
                 <button 
                     onClick={async () => {
                         await signOut();
-                        navigate('/login?switch=true');
+                        navigate(`${getLoginPath()}?switch=true`);
                     }}
                     className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
@@ -132,6 +138,12 @@ export default function LoginPage() {
                 Enter your email and password to continue
             </p>
 
+            {isCloudRunHost && (
+                <div className="mb-6 w-full rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-950 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-100">
+                    Estospaces development sign-in for authorized QA users only. Use test accounts here; public users should use the official Estospaces domain.
+                </div>
+            )}
+
             <form onSubmit={handleLogin} className="w-full">
                 {/* Email Input */}
                 <div className="mb-4">
@@ -139,18 +151,20 @@ export default function LoginPage() {
                 <input
                     id="email"
                     name="email"
-                    type="email"
+                    type="text"
+                    inputMode="email"
                     autoComplete="email"
+                    maxLength={254}
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => {
                     setEmail(e.target.value);
                     setEmailError('');
                     }}
-                    className={`w-full px-4 py-3 border rounded-md outline-none transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${emailError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-primary'
+                    className={`w-full px-4 py-3 border rounded-md outline-none transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass} ${emailError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-primary'
                     }`}
                 />
-                {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
+                {emailError && <p role="alert" className="mt-2 break-words text-xs text-red-500">{emailError}</p>}
                 </div>
 
                 {/* Password Input */}
@@ -162,30 +176,31 @@ export default function LoginPage() {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
+                    maxLength={128}
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => {
                     setPassword(e.target.value);
                     setPasswordError('');
                     }}
-                    className={`w-full px-4 py-3 pr-12 border rounded-md outline-none transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${passwordError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-primary'
+                    className={`w-full px-4 py-3 pr-12 border rounded-md outline-none transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass} ${passwordError ? 'border-red-400 focus:border-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-primary'
                     }`}
                     />
                     <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white"
+                    className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white ${authFocusClass}`}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                 </div>
-                {passwordError && <p className="text-red-500 text-xs mt-1">{passwordError}</p>}
+                {passwordError && <p role="alert" className="mt-2 break-words text-xs text-red-500">{passwordError}</p>}
                 </div>
 
                 {/* Forgot Password Link */}
                 <div className="text-right mb-6">
-                <Link to="/forgot-password" className="text-primary text-sm font-semibold hover:underline">
+                <Link to={forgotPasswordPath} className={`text-primary text-sm font-semibold hover:underline ${authFocusClass}`}>
                     Forgot Password?
                 </Link>
                 </div>
@@ -193,16 +208,16 @@ export default function LoginPage() {
                 <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${authFocusClass}`}
                 >
                 {loading ? 'Signing in...' : 'Sign In'}
                 </button>
 
                 {/* General Error Message */}
                 {generalError && (
-                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-center gap-2">
+                <div role="alert" className="mt-4 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
                     <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} />
-                    <p className="text-red-600 dark:text-red-400 text-sm">{generalError}</p>
+                    <p className="min-w-0 break-words text-sm text-red-600 dark:text-red-400">{generalError}</p>
                 </div>
                 )}
             </form>
@@ -211,18 +226,18 @@ export default function LoginPage() {
 
       <p className="text-sm text-gray-700 dark:text-gray-300 mt-6">
         Don&apos;t have an account?{' '}
-        <Link to="/register" className="text-primary font-semibold hover:underline">
+        <Link to={registerPath} className={`text-primary font-semibold hover:underline ${authFocusClass}`}>
           Sign Up
         </Link>
       </p>
 
       <p className="text-xs text-gray-500 dark:text-gray-300 mt-12 text-center leading-relaxed">
         By continuing you agree to Estospaces<br />
-        <Link to="/terms" className="text-primary hover:underline">terms &amp; conditions</Link>
-        {' \u00B7 '}
-        <Link to="/privacy" className="text-primary hover:underline">privacy policy</Link>
+        <Link to="/terms" className={`text-primary hover:underline ${authFocusClass}`}>terms &amp; conditions</Link>
+        {' | '}
+        <Link to="/privacy" className={`text-primary hover:underline ${authFocusClass}`}>privacy policy</Link>
       </p>
-    </main>
+    </section>
   );
 }
 

@@ -16,6 +16,7 @@ interface SelectProps {
     disabled?: boolean;
     required?: boolean;
     id?: string;
+    ariaLabel?: string;
     className?: string;
 }
 
@@ -29,6 +30,7 @@ const Select: React.FC<SelectProps> = ({
     disabled = false,
     required = false,
     id,
+    ariaLabel,
     className = '',
 }) => {
     return (
@@ -45,6 +47,7 @@ const Select: React.FC<SelectProps> = ({
                 onChange={(e) => onChange(e.target.value)}
                 disabled={disabled}
                 required={required}
+                aria-label={ariaLabel}
                 className={`w-full px-3 py-2.5 rounded-lg border ${error
                         ? 'border-red-500 focus:ring-red-500'
                         : 'border-gray-300 dark:border-zinc-700 focus:ring-indigo-500'

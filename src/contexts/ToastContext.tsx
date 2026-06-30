@@ -6,7 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 import Toast from '@/components/ui/Toast';
 import { registerErrorToastHandler } from '@/lib/apiToastBus';
 import { isAuthRoutePath } from '@/lib/authUtils';
-import { shouldSuppressAuthRouteToast } from '@/lib/authToastRules';
+import {
+    AUTH_ROUTE_GENERIC_ERROR_MESSAGE,
+    AUTH_ROUTE_GENERIC_ERROR_TITLE,
+    shouldSuppressAuthRouteToast,
+} from '@/lib/authToastRules';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'top-center' | 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -123,11 +127,15 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => registerErrorToastHandler(error), [error]);
 
     useEffect(() => {
-        if (!isAuthRoutePath(location.pathname)) {
-            return;
-        }
-
-        setToasts((prev) => prev.filter((toast) => !shouldSuppressAuthRouteToast(toast.title, toast.message)));
+        setToasts((prev) => prev.filter((toast) => {
+            if (toast.title === AUTH_ROUTE_GENERIC_ERROR_TITLE && toast.message === AUTH_ROUTE_GENERIC_ERROR_MESSAGE) {
+                return false;
+            }
+            if (isAuthRoutePath(location.pathname)) {
+                return !shouldSuppressAuthRouteToast(toast.title, toast.message);
+            }
+            return true;
+        }));
     }, [location.pathname]);
 
     return (

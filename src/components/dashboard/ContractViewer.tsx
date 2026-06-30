@@ -79,7 +79,7 @@ const ContractViewer = ({ contract, onClose }: ContractViewerProps) => {
                                 </p>
                                 <h3 className="font-bold text-lg mt-6 mb-2">1. PROPERTY DETAILS</h3>
                                 <p>
-                                    The property subject to this agreement is located at: <strong>{contract.location || '123 Example Street, London, UK'}</strong>.
+                                    The property subject to this agreement is located at: <strong>{contract.location || '123 Example Street, Chennai, India'}</strong>.
                                     The property is being offered for {contract.category === 'sale' ? 'sale' : 'lease'} under the terms specified herein.
                                 </p>
                                 <h3 className="font-bold text-lg mt-6 mb-2">2. TERMS AND CONDITIONS</h3>

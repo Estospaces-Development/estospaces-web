@@ -41,7 +41,6 @@ import {
   TreePine,
   Camera,
   Video,
-  Globe,
   Phone,
   Mail,
   User,
@@ -54,6 +53,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import DateField from "@/components/ui/DateField";
+import PropertyCompliancePanel from "@/components/dashboard/PropertyCompliancePanel";
 import AddressSection, {
   AddressFormData,
 } from "@/components/ui/AddressSection";
@@ -68,26 +68,47 @@ import {
 } from "@/services/propertyService";
 import Toast from "@/components/ui/Toast";
 import { useManagerVerification } from "@/contexts/ManagerVerificationContext";
-import { reassignMediaEntity } from "@/services/mediaService";
+import {
+  deleteMediaFile,
+  getMyMediaFiles,
+  reassignMediaEntity,
+  type MediaFile,
+} from "@/services/mediaService";
 import { ApiRequestError } from "@/lib/apiUtils";
 import { getManagerPropertySubmissionBlocker } from "@/lib/managerPropertySubmission";
 import {
   getManagerPropertyFirstErrorStep,
+  PROPERTY_DESCRIPTION_MAX_LENGTH,
   PROPERTY_NUMERIC_LIMITS,
   validateManagerPropertyField,
   validateManagerPropertyForm,
   validateManagerPropertyStep,
   type ManagerPropertyValidationValues,
 } from "@/lib/managerPropertyFormValidation";
+import {
+  getManagerPropertyAddressRevalidationFields,
+  getManagerPropertyAuditSummary,
+  getManagerPropertyDefaultAuditReason,
+  getManagerPropertyErrorId,
+  getManagerPropertyFieldId,
+  getManagerPropertyFieldState,
+  getManagerPropertyFormStatusMessage,
+  getManagerPropertySubmitIntent,
+  getManagerPropertyUploadControlCopy,
+} from "@/lib/managerPropertyFormAccessibility";
+import { shouldReassignDraftPropertyMedia } from "@/lib/managerPropertyMediaFinalization";
 import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
+import { VIRTUAL_TOUR_ENABLED } from "@/lib/launchFlags";
+import { getCurrencySymbol } from "@/lib/utils/currency";
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
+type PendingNavigationTarget = string | number;
 
-// Countries list — UK only
+// Launch country list. India-only for this phase so new listings use rupees.
 const countries = [
-  { code: "GB", name: "United Kingdom", currency: "GBP" as CurrencyCode },
+  { code: "IN", name: "India", currency: "INR" as CurrencyCode },
 ];
 
 // Property types with icons
@@ -401,7 +422,7 @@ const initialFormData: FormData = {
   status: "draft" as PropertyStatus,
 
   priceAmount: 0,
-  currency: "USD",
+  currency: "INR",
   negotiable: false,
 
   addressLine1: "",
@@ -472,7 +493,7 @@ const initialFormData: FormData = {
 
 const resolveCountryCurrency = (countryCode: string): CurrencyCode => {
   const country = countries.find((entry) => entry.code === countryCode);
-  return country?.currency || "USD";
+  return country?.currency || "INR";
 };
 
 const normalizeDateInputValue = (value?: string): string => {
@@ -513,6 +534,9 @@ export default function AddPropertyPage() {
     error: managerVerificationError,
   } = useManagerVerification();
   const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const formContentRef = useRef<HTMLFormElement | null>(null);
 
   // Determine mode based on presence of ID
   const mode: FormMode = idValue ? "edit" : "create";
@@ -526,13 +550,23 @@ export default function AddPropertyPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [mediaListLoading, setMediaListLoading] = useState(false);
+  const [mediaAttachMessage, setMediaAttachMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingUnsavedNavigation, setPendingUnsavedNavigation] =
+    useState<PendingNavigationTarget | null>(null);
+  const [pendingMediaDelete, setPendingMediaDelete] =
+    useState<MediaFile | null>(null);
   const [loadingProperty, setLoadingProperty] = useState(isEditMode);
   const [propertyNotFound, setPropertyNotFound] = useState(false);
 
   // Track dirty state (has form been modified)
   const [isDirty, setIsDirty] = useState(false);
   const hasInitializedRef = useRef(false);
+  const loadedPropertyIdRef = useRef<string | null>(null);
+  const notFoundToastShownRef = useRef(false);
+  const [changeReason, setChangeReason] = useState("");
 
   // Toast state
   const [toast, setToast] = useState<{
@@ -560,6 +594,43 @@ export default function AddPropertyPage() {
   const hideToast = useCallback(() => {
     setToast((prev) => ({ ...prev, visible: false }));
   }, []);
+
+  const scrollToFormTop = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, []);
+
+  const focusFirstErrorField = useCallback(
+    (fieldErrors: Record<string, string>) => {
+      const [firstErrorField] = Object.keys(fieldErrors);
+      if (!firstErrorField || typeof window === "undefined") {
+        return;
+      }
+
+      window.setTimeout(() => {
+        const field = document.getElementById(
+          getManagerPropertyFieldId(firstErrorField),
+        ) as HTMLElement | null;
+
+        if (!field) {
+          formContentRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+          return;
+        }
+
+        field.focus({ preventScroll: true });
+        field.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 80);
+    },
+    [],
+  );
 
   const parseServiceList = useCallback((value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -636,6 +707,27 @@ export default function AddPropertyPage() {
     setIsDirty(false);
   }, []);
 
+  const refreshMediaFiles = useCallback(async () => {
+    setMediaListLoading(true);
+    try {
+      setMediaFiles(await getMyMediaFiles());
+    } catch {
+      setMediaFiles([]);
+    } finally {
+      setMediaListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentStep === 4) {
+      void refreshMediaFiles();
+    }
+  }, [currentStep, refreshMediaFiles]);
+
+  useEffect(() => {
+    scrollToFormTop();
+  }, [currentStep, scrollToFormTop]);
+
   const hydrateLoadedAddressFields = useCallback(
     async (loadedFormData: FormData): Promise<FormData> => {
       const shouldResolveAddress =
@@ -706,6 +798,7 @@ export default function AddPropertyPage() {
       const currentYear = new Date().getFullYear();
       const resolvedCountryCode =
         (property as any).country_code ||
+        (property.country?.toLowerCase() === "india" ? "IN" : "") ||
         (property.country?.toLowerCase() === "united kingdom" ? "GB" : "");
 
       return {
@@ -715,7 +808,7 @@ export default function AddPropertyPage() {
         status: (property.status || "draft") as PropertyStatus,
 
         priceAmount: property.price || 0,
-        currency: (property.currency as CurrencyCode) || "GBP",
+        currency: (property.currency as CurrencyCode) || "INR",
         negotiable: false,
 
         addressLine1: property.address_line_1 || "",
@@ -817,26 +910,67 @@ export default function AddPropertyPage() {
     };
   }, [isDirty, saving]);
 
+  const navigateToTarget = useCallback(
+    (target: PendingNavigationTarget) => {
+      if (typeof target === "number") {
+        navigate(target);
+        return;
+      }
+      navigate(target);
+    },
+    [navigate],
+  );
+
   // Custom navigation wrapper that warns about unsaved changes
   const safeNavigate = useCallback(
     (path: string) => {
       if (isDirty && !saving) {
-        const confirmLeave = window.confirm(
-          "You have unsaved changes. Are you sure you want to leave? Your changes will be lost.",
-        );
-        if (!confirmLeave) {
-          return;
-        }
+        setPendingUnsavedNavigation(path);
+        return;
       }
-      navigate(path);
+      navigateToTarget(path);
     },
-    [isDirty, saving, navigate],
+    [isDirty, navigateToTarget, saving],
   );
+
+  const requestUnsavedNavigation = useCallback(
+    (target: PendingNavigationTarget) => {
+      if (isDirty && !saving) {
+        setPendingUnsavedNavigation(target);
+        return;
+      }
+      navigateToTarget(target);
+    },
+    [isDirty, navigateToTarget, saving],
+  );
+
+  const closeUnsavedNavigationDialog = () => {
+    if (saving) {
+      return;
+    }
+    setPendingUnsavedNavigation(null);
+  };
+
+  const confirmUnsavedNavigation = () => {
+    const target = pendingUnsavedNavigation;
+    if (target === null) {
+      return;
+    }
+    setPendingUnsavedNavigation(null);
+    navigateToTarget(target);
+  };
 
   // Load existing property for edit mode
   useEffect(() => {
     const loadPropertyForEdit = async () => {
-      if (!isEditMode || !idValue || hasInitializedRef.current) return;
+      if (!isEditMode || !idValue) return;
+      if (hasInitializedRef.current && loadedPropertyIdRef.current === idValue) {
+        return;
+      }
+      if (loadedPropertyIdRef.current === idValue) {
+        return;
+      }
+      loadedPropertyIdRef.current = idValue;
 
       setLoadingProperty(true);
       setPropertyNotFound(false);
@@ -861,9 +995,13 @@ export default function AddPropertyPage() {
       }
 
       if (!property) {
+        hasInitializedRef.current = true;
         setPropertyNotFound(true);
         setLoadingProperty(false);
-        showToast("Property not found. Please go back and try again.", "error");
+        if (!notFoundToastShownRef.current) {
+          notFoundToastShownRef.current = true;
+          showToast("Property not found. Please go back and try again.", "error");
+        }
         return;
       }
 
@@ -1013,6 +1151,7 @@ export default function AddPropertyPage() {
       totalFloors: data.totalFloors,
       yearBuilt: data.yearBuilt,
       facing: data.facing,
+      description: data.description,
       hasImages: data.images.length > 0 || imagePreviews.length > 0,
       contactName: data.contactName,
       contactEmail: data.contactEmail,
@@ -1072,6 +1211,7 @@ export default function AddPropertyPage() {
 
     setErrors(mappedErrors);
     setCurrentStep(getManagerPropertyFirstErrorStep(mappedErrors));
+    focusFirstErrorField(mappedErrors);
     showToast(
       "Please correct the highlighted fields before continuing.",
       "error",
@@ -1085,6 +1225,9 @@ export default function AddPropertyPage() {
       getValidationValues(formData),
     );
     setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      focusFirstErrorField(newErrors);
+    }
     return Object.keys(newErrors).length === 0;
   };
 
@@ -1106,6 +1249,34 @@ export default function AddPropertyPage() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+  };
+
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const submitIntent = getManagerPropertySubmitIntent({
+      mode,
+      currentStep,
+      totalSteps: steps.length,
+    });
+    if (submitIntent === "advance-step") {
+      handleNext();
+      return;
+    }
+    void handleSaveOrPublish();
+  };
+
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (mode !== "edit" || event.key !== "Enter") {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.tagName.toLowerCase() !== "input") {
+      return;
+    }
+
+    event.preventDefault();
+    void handleSaveOrPublish();
   };
 
   const validateAllFields = (): Record<string, string> => {
@@ -1135,9 +1306,14 @@ export default function AddPropertyPage() {
   const getNumberFieldClassName = (field: string, extraClassName: string = "") =>
     getFieldClassName(field, `themed-number-input ${extraClassName}`.trim());
 
+  const fieldState = (field: string) =>
+    getManagerPropertyFieldState(field, errors);
+
   const renderFieldError = (field: string) =>
     errors[field] ? (
-      <p className="mt-1 text-xs text-red-500">{errors[field]}</p>
+      <p id={getManagerPropertyErrorId(field)} role="alert" className="mt-1 text-xs text-red-500">
+        {errors[field]}
+      </p>
     ) : null;
 
   const handleInputChange = <K extends keyof FormData>(
@@ -1401,6 +1577,8 @@ export default function AddPropertyPage() {
       formData.minimumLease > 0
         ? formData.minimumLease
         : undefined;
+    const auditReason =
+      changeReason.trim() || getManagerPropertyDefaultAuditReason(mode);
 
     return {
       title: formData.title,
@@ -1473,7 +1651,7 @@ export default function AddPropertyPage() {
 
       images,
       videos,
-      virtualTourUrl: formData.virtualTourUrl,
+      virtualTourUrl: VIRTUAL_TOUR_ENABLED ? formData.virtualTourUrl : undefined,
       media: {
         images: images.map((url, i) => ({
           id: `img-${i}`,
@@ -1491,7 +1669,9 @@ export default function AddPropertyPage() {
           uploadedAt: new Date().toISOString(),
         })),
         floorPlans: [],
-        virtualTourUrl: formData.virtualTourUrl,
+        ...(VIRTUAL_TOUR_ENABLED
+          ? { virtualTourUrl: formData.virtualTourUrl }
+          : {}),
       },
 
       contact: {
@@ -1519,6 +1699,13 @@ export default function AddPropertyPage() {
       },
 
       featured: formData.featured,
+      auditReason,
+      audit_reason: auditReason,
+      change_reason: auditReason,
+    } as Partial<Property> & {
+      auditReason: string;
+      audit_reason: string;
+      change_reason: string;
     };
   };
 
@@ -1530,6 +1717,19 @@ export default function AddPropertyPage() {
     }
     const draftEntityId = draftMediaEntityIdRef.current;
     if (draftEntityId === propertyId) {
+      return null;
+    }
+    if (
+      !shouldReassignDraftPropertyMedia({
+        existingPropertyId: idValue,
+        draftEntityId,
+        createdPropertyId: propertyId,
+        imageEntries: formData.images,
+        videoEntries: formData.videos,
+        mediaFiles,
+      })
+    ) {
+      draftMediaEntityIdRef.current = propertyId;
       return null;
     }
     try {
@@ -1545,6 +1745,62 @@ export default function AddPropertyPage() {
       return (
         error?.message || "Uploaded media could not be linked to this property."
       );
+    }
+  };
+
+  const handleAttachStagedMedia = async () => {
+    const sourceEntityId = draftMediaEntityIdRef.current;
+    if (!idValue || sourceEntityId === idValue) {
+      setMediaAttachMessage("No staged media is waiting to be attached.");
+      return;
+    }
+
+    setMediaListLoading(true);
+    try {
+      await reassignMediaEntity("property", sourceEntityId, "property", idValue);
+      draftMediaEntityIdRef.current = idValue;
+      setMediaAttachMessage("Staged media attached to this property.");
+      await refreshMediaFiles();
+      showToast("Staged media attached.", "success");
+    } catch (error: any) {
+      setMediaAttachMessage(error?.message || "Unable to attach staged media.");
+      showToast(error?.message || "Unable to attach staged media.", "error");
+    } finally {
+      setMediaListLoading(false);
+    }
+  };
+
+  const handleDeleteMediaFile = (file: MediaFile) => {
+    setPendingMediaDelete(file);
+  };
+
+  const closeMediaDeleteDialog = () => {
+    if (mediaListLoading) {
+      return;
+    }
+    setPendingMediaDelete(null);
+  };
+
+  const confirmDeleteMediaFile = async () => {
+    if (!pendingMediaDelete) {
+      return;
+    }
+
+    const file = pendingMediaDelete;
+    const fileName = file.original_name || file.file_name || file.id;
+
+    setMediaListLoading(true);
+    try {
+      await deleteMediaFile(file.id);
+      setMediaAttachMessage(`Removed ${fileName} from this property media list.`);
+      await refreshMediaFiles();
+      setPendingMediaDelete(null);
+      showToast("Media removed.", "success");
+    } catch (error: any) {
+      setMediaAttachMessage(error?.message || "Unable to remove media.");
+      showToast(error?.message || "Unable to remove media.", "error");
+    } finally {
+      setMediaListLoading(false);
     }
   };
 
@@ -1631,6 +1887,7 @@ export default function AddPropertyPage() {
       setErrors(allErrors);
       const firstErrorStep = getManagerPropertyFirstErrorStep(allErrors);
       setCurrentStep(firstErrorStep);
+      focusFirstErrorField(allErrors);
 
       const errorMessage =
         isEditSubmission || mode === "create"
@@ -1757,6 +2014,11 @@ export default function AddPropertyPage() {
   const submissionBlocker = managerVerificationError
     ? null
     : getManagerPropertySubmissionBlocker(managerProfile);
+  const submissionBlockerId = "manager-property-submission-blocker";
+  const primaryActionDescription =
+    isSubmissionAction && (managerVerificationLoading || submissionBlocker)
+      ? submissionBlockerId
+      : undefined;
   const primaryActionDisabled =
     saving ||
     (isSubmissionAction &&
@@ -1779,6 +2041,51 @@ export default function AddPropertyPage() {
   const primaryButtonIcon =
     mode === "edit" ? <Save className="w-4 h-4" /> : null;
   const reviewStatusBadge = getManagerPropertyStatusBadge(formData.status);
+  const imageUploadCopy = getManagerPropertyUploadControlCopy("images");
+  const videoUploadCopy = getManagerPropertyUploadControlCopy("videos");
+  const imageUploadHelpId = `${getManagerPropertyFieldId("images")}-upload-help`;
+  const videoUploadHelpId = `${getManagerPropertyFieldId("videos")}-upload-help`;
+  const descriptionCharacterCountId = "manager-property-description-character-count";
+  const imageUploadDescription = [
+    imageUploadHelpId,
+    errors.images ? getManagerPropertyErrorId("images") : null,
+  ].filter(Boolean).join(" ");
+  const videoUploadDescription = videoUploadHelpId;
+  const mediaSourceEntityId = draftMediaEntityIdRef.current;
+  const mediaTargetEntityId = idValue || "Created property after save";
+  const displayCurrency = getCurrencySymbol(formData.currency);
+  const canAttachStagedMedia = Boolean(idValue && mediaSourceEntityId !== idValue);
+  const selectedStagedUploadCount = [
+    ...formData.images,
+    ...formData.videos,
+  ].filter((entry) => typeof entry !== "string").length;
+  const visibleMediaFiles = mediaFiles.filter((file) => (
+    file.entity_type === "property" &&
+    (file.entity_id === mediaSourceEntityId || file.entity_id === idValue)
+  ));
+  const currentStepTitle =
+    steps.find((step) => step.number === currentStep)?.title || "Property form";
+  const auditActorName =
+    managerProfile?.company_name ||
+    managerProfile?.authorized_representative_name ||
+    "Current manager";
+  const auditSummary = getManagerPropertyAuditSummary({
+    mode,
+    status: formData.status,
+    currentStepTitle,
+    actorName: auditActorName,
+    reason: changeReason,
+  });
+  const formStatusMessage = getManagerPropertyFormStatusMessage({
+    mode,
+    currentStep,
+    totalSteps: steps.length,
+    currentStepTitle,
+    errorCount: Object.keys(errors).length,
+    saving,
+    submissionBlocker:
+      isSubmissionAction && !managerVerificationLoading ? submissionBlocker : null,
+  });
 
   return (
     <div className="max-w-6xl mx-auto font-sans pb-8">
@@ -1789,15 +2096,7 @@ export default function AddPropertyPage() {
             <div className="mb-4">
               {/* Custom back button that respects unsaved changes */}
               <button
-                onClick={() => {
-                  if (isDirty && !saving) {
-                    const confirmLeave = window.confirm(
-                      "You have unsaved changes. Are you sure you want to leave? Your changes will be lost.",
-                    );
-                    if (!confirmLeave) return;
-                  }
-                  navigate(-1);
-                }}
+                onClick={() => requestUnsavedNavigation(-1)}
                 className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -1820,7 +2119,12 @@ export default function AddPropertyPage() {
             )}
             {isSubmissionAction &&
               (managerVerificationLoading || submissionBlocker) && (
-                <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                <div
+                  id={submissionBlockerId}
+                  role="status"
+                  aria-live="polite"
+                  className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -1845,6 +2149,7 @@ export default function AddPropertyPage() {
           </div>
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={handleSaveDraft}
               disabled={saving}
               className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
@@ -1852,8 +2157,10 @@ export default function AddPropertyPage() {
               {saving ? "Saving..." : "Save Draft"}
             </button>
             <button
+              type="button"
               onClick={handleSaveOrPublish}
               disabled={primaryActionDisabled}
+              aria-describedby={primaryActionDescription}
               className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {formData.featured && <Star className="w-4 h-4" />}
@@ -1938,7 +2245,60 @@ export default function AddPropertyPage() {
       </div>
 
       {/* Form Content */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
+      <form
+        ref={formContentRef}
+        className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-6"
+        onSubmit={handleFormSubmit}
+        onKeyDown={handleFormKeyDown}
+        noValidate
+        aria-describedby="manager-property-form-status"
+      >
+        <p id="manager-property-form-status" role="status" aria-live="polite" className="sr-only">
+          {formStatusMessage}
+        </p>
+        <section
+          aria-labelledby="manager-property-audit-heading"
+          className="mb-6 border-b border-gray-100 pb-6 dark:border-gray-800"
+        >
+          <div className="mb-3 flex flex-col gap-1">
+            <h2
+              id="manager-property-audit-heading"
+              className="text-sm font-semibold uppercase text-gray-700 dark:text-gray-300"
+            >
+              Activity audit
+            </h2>
+            <p
+              id="manager-property-audit-summary"
+              role="status"
+              aria-live="polite"
+              className="text-sm text-gray-600 dark:text-gray-300"
+            >
+              {auditSummary}
+            </p>
+          </div>
+          <label
+            htmlFor={getManagerPropertyFieldId("changeReason")}
+            className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Change reason
+          </label>
+          <textarea
+            id={getManagerPropertyFieldId("changeReason")}
+            value={changeReason}
+            onChange={(event) => {
+              setChangeReason(event.target.value);
+              setIsDirty(true);
+            }}
+            rows={2}
+            aria-describedby="manager-property-audit-summary"
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 transition-all placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            placeholder={
+              mode === "edit"
+                ? "Reason for this property update"
+                : "Reason for creating this property listing"
+            }
+          />
+        </section>
         {/* Step 1: Basic Info */}
         {currentStep === 1 && (
           <div className="space-y-8">
@@ -1950,10 +2310,14 @@ export default function AddPropertyPage() {
 
               {/* Title */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label
+                  htmlFor={getManagerPropertyFieldId("title")}
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >
                   Property Title *
                 </label>
                 <input
+                  {...fieldState("title")}
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange("title", e.target.value)}
@@ -1964,9 +2328,7 @@ export default function AddPropertyPage() {
                   }`}
                   placeholder="e.g., Luxurious 3BR Apartment with Ocean View"
                 />
-                {errors.title && (
-                  <p className="text-red-500 text-xs mt-1">{errors.title}</p>
-                )}
+                {renderFieldError("title")}
               </div>
 
               {/* Property Type */}
@@ -1984,7 +2346,7 @@ export default function AddPropertyPage() {
                       }
                       className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all ${
                         formData.propertyType === type.value
-                          ? "border-primary bg-primary/10 text-primary"
+                          ? "border-primary bg-primary/10 text-orange-800"
                           : "border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-200 hover:border-gray-300 dark:hover:border-gray-500"
                       }`}
                     >
@@ -2057,10 +2419,14 @@ export default function AddPropertyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("countryCode")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Country
                   </label>
                   <select
+                    id={getManagerPropertyFieldId("countryCode")}
                     value={formData.countryCode}
                     onChange={(e) => handleCountryChange(e.target.value)}
                     className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
@@ -2074,14 +2440,18 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("priceAmount")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Price *
                   </label>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
-                      {formData.currency}
+                      {displayCurrency}
                     </span>
                     <input
+                      {...fieldState("priceAmount")}
                       type="number"
                       value={formData.priceAmount || ""}
                       onChange={(e) =>
@@ -2136,7 +2506,7 @@ export default function AddPropertyPage() {
                       <Star className="w-4 h-4" />
                       Mark as Featured Property
                     </span>
-                    <p className="text-xs text-yellow-600 dark:text-yellow-300 mt-1">
+                    <p className="text-xs text-yellow-800 dark:text-yellow-200 mt-1">
                       Featured properties get more visibility and appear at the
                       top of search results
                     </p>
@@ -2151,7 +2521,7 @@ export default function AddPropertyPage() {
         {currentStep === 2 && (
           <div className="space-y-6">
             <AddressSection
-              key={`address-${idValue || "new"}-${formData.countryId || ""}-${formData.stateId || ""}-${formData.cityId || ""}`}
+              key={`address-${idValue || "new"}`}
               value={{
                 countryId: formData.countryId || "",
                 countryName: formData.country || "",
@@ -2171,18 +2541,6 @@ export default function AddPropertyPage() {
                 const currency = addressData.countryCode
                   ? resolveCountryCurrency(addressData.countryCode)
                   : formData.currency;
-
-                const resolvedAddressFields = [
-                  addressData.countryId ? "country" : null,
-                  addressData.stateId || addressData.stateName.trim()
-                    ? "state"
-                    : null,
-                  addressData.cityId || addressData.cityName.trim()
-                    ? "city"
-                    : null,
-                  addressData.addressLine1.trim() ? "addressLine1" : null,
-                  addressData.postalCode.trim() ? "postalCode" : null,
-                ].filter(Boolean) as string[];
 
                 const nextData = {
                   ...formData,
@@ -2206,11 +2564,15 @@ export default function AddPropertyPage() {
                 if (hasInitializedRef.current || mode === "create") {
                   setIsDirty(true);
                 }
-                syncFieldErrors(nextData, resolvedAddressFields);
+                syncFieldErrors(
+                  nextData,
+                  getManagerPropertyAddressRevalidationFields(),
+                );
               }}
               errors={errors}
               disabled={saving}
               required={true}
+              fieldIdPrefix="manager-property"
               initialCountry={formData.country}
               initialCountryCode={formData.countryCode}
               initialState={formData.state}
@@ -2218,10 +2580,14 @@ export default function AddPropertyPage() {
             />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor={getManagerPropertyFieldId("latitude")}
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
                   Latitude
                 </label>
                 <input
+                  {...fieldState("latitude")}
                   type="text"
                   inputMode="decimal"
                   value={formData.latitude}
@@ -2229,7 +2595,7 @@ export default function AddPropertyPage() {
                     handleInputChange("latitude", e.target.value)
                   }
                   className={getFieldClassName("latitude")}
-                  placeholder="e.g. 51.5007"
+                  placeholder="e.g. 13.0827"
                 />
                 {renderFieldError("latitude")}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2238,10 +2604,14 @@ export default function AddPropertyPage() {
                 </p>
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor={getManagerPropertyFieldId("longitude")}
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >
                   Longitude
                 </label>
                 <input
+                  {...fieldState("longitude")}
                   type="text"
                   inputMode="decimal"
                   value={formData.longitude}
@@ -2249,7 +2619,7 @@ export default function AddPropertyPage() {
                     handleInputChange("longitude", e.target.value)
                   }
                   className={getFieldClassName("longitude")}
-                  placeholder="e.g. -0.1246"
+                  placeholder="e.g. 80.2707"
                 />
                 {renderFieldError("longitude")}
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2273,21 +2643,21 @@ export default function AddPropertyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("totalArea")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Total Area *
                   </label>
                   <input
-                    type="number"
-                    value={formData.totalArea || ""}
+                    {...fieldState("totalArea")}
+                    type="text"
+                    inputMode="decimal"
+                    value={getNumericDisplayValue(formData.totalArea)}
                     onChange={(e) =>
-                      handleInputChange(
-                        "totalArea",
-                        parseFloat(e.target.value) || 0,
-                      )
+                      handleNumericChange("totalArea", e.target.value, 0)
                     }
-                    min="0.01"
-                    max={PROPERTY_NUMERIC_LIMITS.areaMax}
-                    step="0.01"
+                    pattern="[0-9]*[.]?[0-9]*"
                     className={getNumberFieldClassName("totalArea", "pr-10")}
                     placeholder="0"
                   />
@@ -2295,21 +2665,21 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("carpetArea")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Carpet Area
                   </label>
                   <input
-                    type="number"
-                    value={formData.carpetArea || ""}
+                    {...fieldState("carpetArea")}
+                    type="text"
+                    inputMode="decimal"
+                    value={getNumericDisplayValue(formData.carpetArea)}
                     onChange={(e) =>
-                      handleInputChange(
-                        "carpetArea",
-                        parseFloat(e.target.value) || 0,
-                      )
+                      handleNumericChange("carpetArea", e.target.value, 0)
                     }
-                    min="0"
-                    max={PROPERTY_NUMERIC_LIMITS.areaMax}
-                    step="0.01"
+                    pattern="[0-9]*[.]?[0-9]*"
                     className={getNumberFieldClassName("carpetArea", "pr-10")}
                     placeholder="0"
                   />
@@ -2317,10 +2687,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("areaUnit")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Area Unit
                   </label>
                   <select
+                    id={getManagerPropertyFieldId("areaUnit")}
                     value={formData.areaUnit}
                     onChange={(e) =>
                       handleInputChange("areaUnit", e.target.value as AreaUnit)
@@ -2336,10 +2710,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("yearBuilt")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Year Built
                   </label>
                   <input
+                    {...fieldState("yearBuilt")}
                     type="number"
                     min="1800"
                     max={new Date().getFullYear()}
@@ -2367,10 +2745,14 @@ export default function AddPropertyPage() {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("bedrooms")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     <Bed className="w-4 h-4 inline mr-1" /> Bedrooms *
                   </label>
                   <input
+                    {...fieldState("bedrooms")}
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.bedrooms)}
@@ -2384,10 +2766,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("bathrooms")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     <Bath className="w-4 h-4 inline mr-1" /> Bathrooms *
                   </label>
                   <input
+                    {...fieldState("bathrooms")}
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.bathrooms)}
@@ -2401,10 +2787,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("balconies")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Balconies
                   </label>
                   <input
+                    {...fieldState("balconies")}
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.balconies)}
@@ -2418,10 +2808,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("parkingSpaces")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     <Car className="w-4 h-4 inline mr-1" /> Parking Spaces
                   </label>
                   <input
+                    {...fieldState("parkingSpaces")}
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.parkingSpaces)}
@@ -2438,10 +2832,14 @@ export default function AddPropertyPage() {
               {/* Floor Info */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("floorNumber")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Floor Number
                   </label>
                   <input
+                    {...fieldState("floorNumber")}
                     type="number"
                     min="0"
                     value={getNumericDisplayValue(formData.floorNumber)}
@@ -2455,10 +2853,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("totalFloors")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Total Floors
                   </label>
                   <input
+                    {...fieldState("totalFloors")}
                     type="number"
                     min="1"
                     value={getNumericDisplayValue(formData.totalFloors)}
@@ -2472,10 +2874,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("facing")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Facing Direction
                   </label>
                   <select
+                    {...fieldState("facing")}
                     value={formData.facing}
                     onChange={(e) =>
                       handleInputChange(
@@ -2561,10 +2967,14 @@ export default function AddPropertyPage() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("shortDescription")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Short Description (for cards)
                   </label>
                   <input
+                    id={getManagerPropertyFieldId("shortDescription")}
                     type="text"
                     value={formData.shortDescription}
                     onChange={(e) =>
@@ -2577,7 +2987,10 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("description")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Full Description
                   </label>
                   <div className="border border-gray-100 dark:border-gray-700 rounded-lg overflow-hidden">
@@ -2614,13 +3027,31 @@ export default function AddPropertyPage() {
                       </button>
                     </div>
                     <textarea
+                      id={getManagerPropertyFieldId("description")}
                       value={formData.description}
                       onChange={(e) =>
                         handleInputChange("description", e.target.value)
                       }
+                      maxLength={PROPERTY_DESCRIPTION_MAX_LENGTH}
+                      aria-invalid={Boolean(errors.description)}
+                      aria-describedby={[
+                        errors.description
+                          ? getManagerPropertyErrorId("description")
+                          : null,
+                        descriptionCharacterCountId,
+                      ].filter(Boolean).join(" ")}
                       className="w-full p-4 min-h-[200px] focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       placeholder="Enter a detailed property description..."
                     />
+                  </div>
+                  <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    {renderFieldError("description")}
+                    <p
+                      id={descriptionCharacterCountId}
+                      className="text-xs font-medium text-gray-500 dark:text-gray-400 sm:ml-auto"
+                    >
+                      {formData.description.length}/{PROPERTY_DESCRIPTION_MAX_LENGTH} characters
+                    </p>
                   </div>
                 </div>
               </div>
@@ -2631,6 +3062,94 @@ export default function AddPropertyPage() {
         {/* Step 4: Media & Features */}
         {currentStep === 4 && (
           <div className="space-y-8">
+            <section className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/60">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                    Media attachment details
+                  </h2>
+                  <dl className="mt-3 grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
+                    <div>
+                      <dt className="font-semibold text-gray-900 dark:text-white">Staged media source</dt>
+                      <dd className="mt-1 break-all font-mono text-xs">{mediaSourceEntityId}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-gray-900 dark:text-white">Reassignment target</dt>
+                      <dd className="mt-1 break-all font-mono text-xs">{mediaTargetEntityId}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-gray-900 dark:text-white">Selected staged uploads</dt>
+                      <dd className="mt-1">{selectedStagedUploadCount}</dd>
+                    </div>
+                  </dl>
+                  {mediaAttachMessage && (
+                    <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-200">
+                      {mediaAttachMessage}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void refreshMediaFiles()}
+                    disabled={mediaListLoading}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-wait disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800"
+                  >
+                    {mediaListLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Refresh media list
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleAttachStagedMedia()}
+                    disabled={!canAttachStagedMedia || mediaListLoading}
+                    className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Attach staged media
+                  </button>
+                </div>
+              </div>
+              <div className="mt-4 overflow-x-auto">
+                {visibleMediaFiles.length > 0 ? (
+                  <table className="w-full min-w-[680px] text-left text-sm">
+                    <thead className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      <tr>
+                        <th className="py-2 pr-4">Media ID</th>
+                        <th className="py-2 pr-4">File</th>
+                        <th className="py-2 pr-4">Type</th>
+                        <th className="py-2 pr-4">Entity ID</th>
+                        <th className="py-2 pr-4">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                      {visibleMediaFiles.map((file) => (
+                        <tr key={file.id}>
+                          <td className="py-2 pr-4 font-mono text-xs text-gray-600 dark:text-gray-300">{file.id}</td>
+                          <td className="py-2 pr-4 text-gray-800 dark:text-gray-100">{file.original_name || file.file_name}</td>
+                          <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">{file.mime_type}</td>
+                          <td className="py-2 pr-4 font-mono text-xs text-gray-600 dark:text-gray-300">{file.entity_id}</td>
+                          <td className="py-2 pr-4">
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteMediaFile(file)}
+                              disabled={mediaListLoading}
+                              aria-label={`Remove media ${file.original_name || file.file_name || file.id}`}
+                              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/50 dark:text-red-300 dark:hover:bg-red-950/20"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    No uploaded media records found for the staged source or reassignment target yet. Remove controls appear here after media is attached.
+                  </p>
+                )}
+              </div>
+            </section>
+
             {/* Images */}
             <div>
               <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
@@ -2638,33 +3157,39 @@ export default function AddPropertyPage() {
                 Property Images
               </h2>
 
-              <label
-                htmlFor="image-upload"
-                className={`w-full cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors flex flex-col items-center ${
+              <div
+                className={`w-full rounded-lg border-2 border-dashed p-8 text-center transition-colors flex flex-col items-center ${
                   errors.images
                     ? "border-red-500 bg-red-50/40 dark:bg-red-950/20"
                     : "border-gray-300 dark:border-gray-700 hover:border-primary"
                 }`}
               >
                 <input
+                  ref={imageInputRef}
                   type="file"
                   id="image-upload"
+                  name="property-images"
                   multiple
-                  accept="image/png,image/jpg,image/jpeg,image/webp"
+                  accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
                   onChange={handleImageUpload}
-                  className="hidden"
+                  className="sr-only"
+                  aria-label={imageUploadCopy.ariaLabel}
+                  aria-describedby={imageUploadDescription}
                 />
-                <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">
-                  Click to upload images
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  PNG, JPG, JPEG, WEBP up to 10MB each
-                </p>
-              </label>
-              {errors.images && (
-                <p className="text-red-500 text-xs mt-1">{errors.images}</p>
-              )}
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  aria-describedby={imageUploadDescription}
+                  className="flex flex-col items-center rounded-lg px-4 py-3 text-gray-700 transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary dark:text-gray-300"
+                >
+                  <Upload className="w-12 h-12 text-gray-400 mb-4" />
+                  <span className="font-medium mb-1">{imageUploadCopy.buttonLabel}</span>
+                  <span id={imageUploadHelpId} className="text-sm text-gray-500 dark:text-gray-400">
+                    {imageUploadCopy.helpText}
+                  </span>
+                </button>
+              </div>
+              {renderFieldError("images")}
 
               {imagePreviews.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
@@ -2683,11 +3208,12 @@ export default function AddPropertyPage() {
                           Primary
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          aria-label={`Remove property image ${index + 1}`}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
@@ -2703,26 +3229,32 @@ export default function AddPropertyPage() {
                 Property Videos
               </h2>
 
-              <label
-                htmlFor="video-upload"
-                className="cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-primary transition-colors flex flex-col items-center w-full"
-              >
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-8 text-center hover:border-primary transition-colors flex flex-col items-center w-full">
                 <input
+                  ref={videoInputRef}
                   type="file"
                   id="video-upload"
+                  name="property-videos"
                   multiple
-                  accept="video/mp4,video/mov,video/avi"
+                  accept="video/mp4,video/quicktime,video/x-msvideo,.mp4,.mov,.avi"
                   onChange={handleVideoUpload}
-                  className="hidden"
+                  className="sr-only"
+                  aria-label={videoUploadCopy.ariaLabel}
+                  aria-describedby={videoUploadDescription}
                 />
-                <Video className="w-12 h-12 text-gray-400 mb-4" />
-                <p className="text-gray-700 dark:text-gray-300 font-medium mb-1">
-                  Click to upload videos
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  MP4, MOV, AVI up to 50MB each
-                </p>
-              </label>
+                <button
+                  type="button"
+                  onClick={() => videoInputRef.current?.click()}
+                  aria-describedby={videoUploadDescription}
+                  className="flex flex-col items-center rounded-lg px-4 py-3 text-gray-700 transition-colors hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary dark:text-gray-300"
+                >
+                  <Video className="w-12 h-12 text-gray-400 mb-4" />
+                  <span className="font-medium mb-1">{videoUploadCopy.buttonLabel}</span>
+                  <span id={videoUploadHelpId} className="text-sm text-gray-500 dark:text-gray-400">
+                    {videoUploadCopy.helpText}
+                  </span>
+                </button>
+              </div>
 
               {videoPreviews.length > 0 && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -2739,6 +3271,7 @@ export default function AddPropertyPage() {
                       <button
                         type="button"
                         onClick={() => removeVideo(index)}
+                        aria-label={`Remove property video ${index + 1}`}
                         className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="w-4 h-4" />
@@ -2747,24 +3280,6 @@ export default function AddPropertyPage() {
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Virtual Tour */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-primary" />
-                Virtual Tour
-              </h2>
-
-              <input
-                type="url"
-                value={formData.virtualTourUrl}
-                onChange={(e) =>
-                  handleInputChange("virtualTourUrl", e.target.value)
-                }
-                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-gray-900 dark:text-white"
-                placeholder="https://your-virtual-tour-url.com"
-              />
             </div>
 
             {/* Amenities */}
@@ -2821,10 +3336,14 @@ export default function AddPropertyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("contactName")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Contact Name *
                   </label>
                   <input
+                    {...fieldState("contactName")}
                     type="text"
                     value={formData.contactName}
                     onChange={(e) =>
@@ -2837,18 +3356,18 @@ export default function AddPropertyPage() {
                     }`}
                     placeholder="Enter contact name"
                   />
-                  {errors.contactName && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.contactName}
-                    </p>
-                  )}
+                  {renderFieldError("contactName")}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("contactEmail")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Email Address *
                   </label>
                   <input
+                    {...fieldState("contactEmail")}
                     type="email"
                     value={formData.contactEmail}
                     onChange={(e) =>
@@ -2861,18 +3380,18 @@ export default function AddPropertyPage() {
                     }`}
                     placeholder="Enter email address"
                   />
-                  {errors.contactEmail && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.contactEmail}
-                    </p>
-                  )}
+                  {renderFieldError("contactEmail")}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("contactPhone")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Phone Number *
                   </label>
                   <input
+                    {...fieldState("contactPhone")}
                     type="tel"
                     value={formData.contactPhone}
                     onChange={(e) =>
@@ -2885,18 +3404,18 @@ export default function AddPropertyPage() {
                     }`}
                     placeholder="+1 (555) 000-0000"
                   />
-                  {errors.contactPhone && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.contactPhone}
-                    </p>
-                  )}
+                  {renderFieldError("contactPhone")}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("alternatePhone")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Alternate Phone
                   </label>
                   <input
+                    {...fieldState("alternatePhone")}
                     type="tel"
                     value={formData.alternatePhone}
                     onChange={(e) =>
@@ -2909,10 +3428,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("company")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Company Name
                   </label>
                   <input
+                    id={getManagerPropertyFieldId("company")}
                     type="text"
                     value={formData.company}
                     onChange={(e) =>
@@ -2924,10 +3447,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("licenseNumber")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     License Number
                   </label>
                   <input
+                    {...fieldState("licenseNumber")}
                     type="text"
                     value={formData.licenseNumber}
                     onChange={(e) =>
@@ -2950,7 +3477,10 @@ export default function AddPropertyPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("availableFrom")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Available From
                   </label>
                   <DateField
@@ -2960,6 +3490,7 @@ export default function AddPropertyPage() {
                     }
                     className="w-full"
                     buttonClassName={getFieldClassName("availableFrom")}
+                    id={getManagerPropertyFieldId("availableFrom")}
                     ariaLabel="Available from date"
                   />
                   {renderFieldError("availableFrom")}
@@ -2968,10 +3499,14 @@ export default function AddPropertyPage() {
                 {(formData.listingType === "rent" ||
                   formData.listingType === "lease") && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label
+                      htmlFor={getManagerPropertyFieldId("minimumLease")}
+                      className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                    >
                       Minimum Lease (months)
                     </label>
                     <input
+                      {...fieldState("minimumLease")}
                       type="number"
                       min="1"
                       value={formData.minimumLease}
@@ -2989,10 +3524,14 @@ export default function AddPropertyPage() {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Security Deposit ({formData.currency})
+                  <label
+                    htmlFor={getManagerPropertyFieldId("deposit")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Security Deposit ({displayCurrency})
                   </label>
                   <input
+                    {...fieldState("deposit")}
                     type="number"
                     min="0"
                     value={formData.deposit || ""}
@@ -3011,10 +3550,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Maintenance Charges ({formData.currency}/month)
+                  <label
+                    htmlFor={getManagerPropertyFieldId("maintenanceCharges")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Maintenance Charges ({displayCurrency}/month)
                   </label>
                   <input
+                    {...fieldState("maintenanceCharges")}
                     type="number"
                     min="0"
                     value={formData.maintenanceCharges || ""}
@@ -3033,10 +3576,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("inclusions")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Inclusions
                   </label>
                   <input
+                    {...fieldState("inclusions")}
                     type="text"
                     value={formData.inclusions}
                     onChange={(e) =>
@@ -3049,10 +3596,14 @@ export default function AddPropertyPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label
+                    htmlFor={getManagerPropertyFieldId("exclusions")}
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
                     Exclusions
                   </label>
                   <input
+                    {...fieldState("exclusions")}
                     type="text"
                     value={formData.exclusions}
                     onChange={(e) =>
@@ -3111,8 +3662,8 @@ export default function AddPropertyPage() {
 
           {currentStep < 5 ? (
             <button
-              type="button"
-              onClick={handleNext}
+              type={mode === "edit" ? "button" : "submit"}
+              onClick={mode === "edit" ? handleNext : undefined}
               className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg"
             >
               Next: {steps[currentStep]?.title}
@@ -3129,9 +3680,9 @@ export default function AddPropertyPage() {
                 Save as Draft
               </button>
               <button
-                type="button"
-                onClick={handleSaveOrPublish}
+                type="submit"
                 disabled={primaryActionDisabled}
+                aria-describedby={primaryActionDescription}
                 className="px-6 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg transition-all shadow-lg disabled:opacity-50 flex items-center gap-2"
               >
                 {formData.featured && <Star className="w-4 h-4" />}
@@ -3141,7 +3692,93 @@ export default function AddPropertyPage() {
             </div>
           )}
         </div>
-      </div>
+      </form>
+
+      {isEditMode && idValue && (
+        <div className="mt-6">
+          <PropertyCompliancePanel propertyId={idValue} />
+        </div>
+      )}
+
+      {pendingUnsavedNavigation !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={closeUnsavedNavigationDialog}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Unsaved property changes confirmation"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Leave with unsaved changes?
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              Your property changes have not been saved. Leaving now will discard the current edits.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeUnsavedNavigationDialog}
+                disabled={saving}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Stay here
+              </button>
+              <button
+                type="button"
+                onClick={confirmUnsavedNavigation}
+                disabled={saving}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Leave page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingMediaDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={closeMediaDeleteDialog}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Remove property media confirmation"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Remove media
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+              Remove {pendingMediaDelete.original_name || pendingMediaDelete.file_name || pendingMediaDelete.id} from this property media list?
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeMediaDeleteDialog}
+                disabled={mediaListLoading}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteMediaFile()}
+                disabled={mediaListLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {mediaListLoading ? "Removing..." : "Remove media"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notification */}
       <Toast

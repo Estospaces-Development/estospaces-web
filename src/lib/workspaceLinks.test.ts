@@ -152,6 +152,16 @@ test('buildWorkspacePath preserves the requested manager application section', (
     assert.equal(path, '/manager/applications?application=application-1&section=activity');
 });
 
+test('buildWorkspacePath includes direct sale progression ids for purchase workspaces', () => {
+    const path = buildWorkspacePath('/user/applications', {
+        applicationId: 'application-1',
+        progressionId: 'sale-progression-1',
+        caseId: 'case-1',
+    });
+
+    assert.equal(path, '/user/applications?application=application-1&progression=sale-progression-1&case=case-1');
+});
+
 test('resolveFocusedApplication keeps a direct application match when no linked sale progression exists', () => {
     const focused = resolveFocusedApplication(applications, {
         applicationId: 'application-2',
@@ -177,6 +187,26 @@ test('resolveFocusedApplication prefers the sale progression when only case cont
     });
 
     assert.equal(focused?.id, 'sale-progression-1');
+});
+
+test('resolveFocusedApplication focuses a sale progression from its direct route id', () => {
+    const focused = resolveFocusedApplication(applications, {
+        applicationId: 'missing-legacy-application',
+        progressionId: 'sale-progression-1',
+        caseId: 'case-1',
+    });
+
+    assert.equal(focused?.id, 'sale-progression-1');
+});
+
+test('resolveFocusedApplication does not fall back when an explicit progression id is invalid', () => {
+    const focused = resolveFocusedApplication(applications, {
+        applicationId: 'application-1',
+        progressionId: 'missing-sale-progression',
+        caseId: 'case-1',
+    });
+
+    assert.equal(focused, null);
 });
 
 test('resolveFocusedViewing can focus a viewing from the linked application id', () => {
@@ -217,6 +247,16 @@ test('resolveFocusedContract falls back to the fast-track case id when the direc
     });
 
     assert.equal(focused?.id, 'contract-1');
+});
+
+test('resolveFocusedContract does not fall back when an explicit contract id is invalid', () => {
+    const focused = resolveFocusedContract(contracts, {
+        contractId: 'missing-contract',
+        applicationId: 'application-1',
+        caseId: 'case-1',
+    });
+
+    assert.equal(focused, null);
 });
 
 test('resolveContractWorkspaceContext can focus a linked contract from a legacy case route', () => {

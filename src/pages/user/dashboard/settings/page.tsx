@@ -18,6 +18,7 @@ import {
 import { getPreferences, updatePreferences, type UserPreferences } from '@/services/authService';
 import { useToast } from '@/contexts/ToastContext';
 import Toggle from '@/components/ui/Toggle';
+import { type PreferencesValidationErrors, validateUserPreferences } from '@/lib/preferencesValidation';
 
 const defaultPreferences: UserPreferences = {
     preferred_city: '',
@@ -43,6 +44,7 @@ export default function SettingsPage() {
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [activeTab, setActiveTab] = useState<TabId>('alerts');
     const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
+    const [preferenceErrors, setPreferenceErrors] = useState<PreferencesValidationErrors>({});
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -73,6 +75,7 @@ export default function SettingsPage() {
 
     const handleTextChange = (key: 'preferred_city' | 'preferred_type', value: string) => {
         setPreferences((prev) => ({ ...prev, [key]: value }));
+        setPreferenceErrors((prev) => ({ ...prev, [key]: undefined }));
         setSaveSuccess(false);
     };
 
@@ -84,10 +87,18 @@ export default function SettingsPage() {
             ...prev,
             [key]: value === '' ? null : Number(value),
         }));
+        setPreferenceErrors((prev) => ({ ...prev, [key]: undefined }));
         setSaveSuccess(false);
     };
 
     const handleSave = async () => {
+        const errors = validateUserPreferences(preferences);
+        if (Object.keys(errors).length > 0) {
+            setPreferenceErrors(errors);
+            toast.error('Please correct the highlighted preference fields.');
+            return;
+        }
+
         try {
             setSaving(true);
             const { error } = await updatePreferences(preferences);
@@ -101,6 +112,12 @@ export default function SettingsPage() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleSaveKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        void handleSave();
     };
 
     const openHelpRequest = (category: string, subject: string, message: string) => {
@@ -149,8 +166,11 @@ export default function SettingsPage() {
                         </div>
 
                         <button
+                            type="button"
                             onClick={handleSave}
+                            onKeyDown={handleSaveKeyDown}
                             disabled={saving}
+                            aria-label="Save user preference changes"
                             className="px-8 py-4 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 text-white rounded-2xl font-black shadow-xl shadow-orange-500/25 active:scale-[0.98] transition-all flex items-center gap-3"
                         >
                             {saving ? (
@@ -167,8 +187,10 @@ export default function SettingsPage() {
                     <div className="flex gap-2 mt-10 overflow-x-auto pb-4 scrollbar-hide">
                         {tabs.map((tab) => (
                             <button
+                                type="button"
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
+                                aria-pressed={activeTab === tab.id}
                                 className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-bold text-sm whitespace-nowrap transition-all ${
                                     activeTab === tab.id
                                         ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-xl'
@@ -207,6 +229,7 @@ export default function SettingsPage() {
                                         <Toggle
                                             checked={preferences.notifications_enabled}
                                             onChange={() => handleToggle('notifications_enabled')}
+                                            ariaLabel="Toggle in-app notifications"
                                         />
                                     </div>
 
@@ -218,6 +241,7 @@ export default function SettingsPage() {
                                         <Toggle
                                             checked={preferences.email_alerts}
                                             onChange={() => handleToggle('email_alerts')}
+                                            ariaLabel="Toggle email alerts"
                                         />
                                     </div>
                                 </div>
@@ -238,10 +262,11 @@ export default function SettingsPage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Preferred City</label>
+                                        <label htmlFor="user-preferred-city" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Preferred City</label>
                                         <div className="relative">
                                             <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
+                                                id="user-preferred-city"
                                                 type="text"
                                                 value={preferences.preferred_city}
                                                 onChange={(e) => handleTextChange('preferred_city', e.target.value)}
@@ -252,88 +277,136 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Preferred Listing Type</label>
+                                        <label htmlFor="user-preferred-type" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Preferred Listing Type</label>
                                         <select
+                                            id="user-preferred-type"
                                             value={preferences.preferred_type}
                                             onChange={(e) => handleTextChange('preferred_type', e.target.value)}
+                                            aria-invalid={preferenceErrors.preferred_type ? 'true' : 'false'}
+                                            aria-describedby={preferenceErrors.preferred_type ? 'user-preferred-type-error' : undefined}
                                             className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                         >
                                             <option value="">No default</option>
                                             <option value="rent">Rent</option>
                                             <option value="sale">Sale</option>
                                         </select>
+                                        {preferenceErrors.preferred_type && (
+                                            <p id="user-preferred-type-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.preferred_type}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Budget</label>
+                                        <label htmlFor="user-min-budget" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Budget</label>
                                         <div className="relative">
                                             <PoundSterling className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
+                                                id="user-min-budget"
                                                 type="number"
                                                 min="0"
                                                 value={preferences.min_budget ?? ''}
                                                 onChange={(e) => handleNumberChange('min_budget', e.target.value)}
+                                                aria-invalid={preferenceErrors.min_budget ? 'true' : 'false'}
+                                                aria-describedby={preferenceErrors.min_budget ? 'user-min-budget-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                                 placeholder="0"
                                             />
                                         </div>
+                                        {preferenceErrors.min_budget && (
+                                            <p id="user-min-budget-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.min_budget}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Budget</label>
+                                        <label htmlFor="user-max-budget" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Budget</label>
                                         <div className="relative">
                                             <PoundSterling className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
+                                                id="user-max-budget"
                                                 type="number"
                                                 min="0"
                                                 value={preferences.max_budget ?? ''}
                                                 onChange={(e) => handleNumberChange('max_budget', e.target.value)}
+                                                aria-invalid={preferenceErrors.max_budget ? 'true' : 'false'}
+                                                aria-describedby={preferenceErrors.max_budget ? 'user-max-budget-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                                 placeholder="0"
                                             />
                                         </div>
+                                        {preferenceErrors.max_budget && (
+                                            <p id="user-max-budget-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.max_budget}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Bedrooms</label>
+                                        <label htmlFor="user-min-bedrooms" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Minimum Bedrooms</label>
                                         <div className="relative">
                                             <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
+                                                id="user-min-bedrooms"
                                                 type="number"
                                                 min="0"
                                                 value={preferences.min_bedrooms ?? ''}
                                                 onChange={(e) => handleNumberChange('min_bedrooms', e.target.value)}
+                                                aria-invalid={preferenceErrors.min_bedrooms ? 'true' : 'false'}
+                                                aria-describedby={preferenceErrors.min_bedrooms ? 'user-min-bedrooms-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                                 placeholder="0"
                                             />
                                         </div>
+                                        {preferenceErrors.min_bedrooms && (
+                                            <p id="user-min-bedrooms-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.min_bedrooms}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Bedrooms</label>
+                                        <label htmlFor="user-max-bedrooms" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Maximum Bedrooms</label>
                                         <div className="relative">
                                             <BedDouble className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                             <input
+                                                id="user-max-bedrooms"
                                                 type="number"
                                                 min="0"
                                                 value={preferences.max_bedrooms ?? ''}
                                                 onChange={(e) => handleNumberChange('max_bedrooms', e.target.value)}
+                                                aria-invalid={preferenceErrors.max_bedrooms ? 'true' : 'false'}
+                                                aria-describedby={preferenceErrors.max_bedrooms ? 'user-max-bedrooms-error' : undefined}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                                 placeholder="0"
                                             />
                                         </div>
+                                        {preferenceErrors.max_bedrooms && (
+                                            <p id="user-max-bedrooms-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.max_bedrooms}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2 md:col-span-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Search Radius (km)</label>
+                                        <label htmlFor="user-search-radius" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Search Radius (km)</label>
                                         <input
+                                            id="user-search-radius"
                                             type="number"
                                             min="0"
                                             value={preferences.search_radius_km ?? ''}
                                             onChange={(e) => handleNumberChange('search_radius_km', e.target.value)}
+                                            aria-invalid={preferenceErrors.search_radius_km ? 'true' : 'false'}
+                                            aria-describedby={preferenceErrors.search_radius_km ? 'user-search-radius-error' : undefined}
                                             className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl px-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white"
                                             placeholder="25"
                                         />
+                                        {preferenceErrors.search_radius_km && (
+                                            <p id="user-search-radius-error" role="alert" className="px-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {preferenceErrors.search_radius_km}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -361,6 +434,7 @@ export default function SettingsPage() {
                                     <Toggle
                                         checked={preferences.onboarding_done}
                                         onChange={() => handleToggle('onboarding_done')}
+                                        ariaLabel="Toggle onboarding complete"
                                     />
                                 </div>
                             </div>
@@ -371,7 +445,7 @@ export default function SettingsPage() {
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
                                         'Data export request',
-                                        'Please prepare a pilot export of my account data, including verification documents, messages, invoices, and audit-linked records.',
+                                        'Please prepare a pilot export of my account data, including verification documents, messages, case records, and audit-linked records.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >
@@ -395,7 +469,7 @@ export default function SettingsPage() {
                                     onClick={() => openHelpRequest(
                                         'General Inquiry',
                                         'Pilot support request',
-                                        'I need help with a live pilot workflow, billing state, compliance review, or account operation.',
+                                        'I need help with a live pilot workflow, case status, compliance review, or account operation.',
                                     )}
                                     className="rounded-3xl border border-gray-200 bg-white p-6 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-orange-800 dark:hover:bg-orange-950/20"
                                 >

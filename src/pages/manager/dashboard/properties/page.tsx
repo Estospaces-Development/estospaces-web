@@ -17,6 +17,7 @@ import PaginationBar from '@/components/ui/PaginationBar';
 import {
     MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
+    buildManagerLivePresetFilters,
     buildManagerPropertySearchParams,
     getManagerPropertyStatusFilters,
     managerPropertyStatusFiltersEqual,
@@ -135,6 +136,7 @@ function PropertiesContent() {
     const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [selectedPropertyForShare, setSelectedPropertyForShare] = useState<Property | null>(null);
+    const [pendingDeleteProperty, setPendingDeleteProperty] = useState<Property | null>(null);
 
     // Stats
     const stats = useMemo(() => getPropertyStats(), [properties, getPropertyStats]);
@@ -157,9 +159,6 @@ function PropertiesContent() {
                 ? searchParamStatuses
                 : [...MANAGER_LIVE_LISTINGS_STATUS_FILTERS];
 
-            if (searchQuery) {
-                setSearchQuery('');
-            }
             if (selectedPriceRange !== 0) {
                 setSelectedPriceRange(0);
             }
@@ -173,23 +172,14 @@ function PropertiesContent() {
                 setSelectedStatuses(presetStatuses);
             }
 
-            const needsPresetSync = filters.search !== undefined
-                || filters.priceMin !== undefined
+            const needsPresetSync = filters.priceMin !== undefined
                 || filters.priceMax !== undefined
                 || filters.bedroomsMin !== undefined
                 || (filters.propertyType?.length ?? 0) > 0
                 || !managerPropertyStatusFiltersEqual(filters.status, presetStatuses);
 
             if (needsPresetSync) {
-                setFilters({
-                    ...filters,
-                    search: undefined,
-                    priceMin: undefined,
-                    priceMax: undefined,
-                    bedroomsMin: undefined,
-                    propertyType: undefined,
-                    status: presetStatuses,
-                });
+                setFilters(buildManagerLivePresetFilters(filters, presetStatuses));
             }
             return;
         }
@@ -293,6 +283,26 @@ function PropertiesContent() {
         setShowBulkActions(false);
     };
 
+    const openDeleteDialog = (property: Property) => {
+        setPendingDeleteProperty(property);
+    };
+
+    const closeDeleteDialog = () => {
+        if (loading) {
+            return;
+        }
+        setPendingDeleteProperty(null);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!pendingDeleteProperty) {
+            return;
+        }
+
+        await deleteProperty(pendingDeleteProperty.id);
+        setPendingDeleteProperty(null);
+    };
+
     const handlePageChange = (nextPage: number) => {
         if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) {
             return;
@@ -355,6 +365,7 @@ function PropertiesContent() {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
                             type="text"
+                            aria-label="Search manager properties"
                             placeholder="Search by title, address, city..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -362,6 +373,8 @@ function PropertiesContent() {
                         />
                         {searchQuery && (
                             <button
+                                type="button"
+                                aria-label="Clear property search"
                                 onClick={() => setSearchQuery('')}
                                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
@@ -374,9 +387,10 @@ function PropertiesContent() {
                     <div className="flex flex-wrap items-center gap-2">
                         {/* Filter Button */}
                         <button
+                            type="button"
                             onClick={() => setShowFilters(!showFilters)}
                             className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg transition-all ${showFilters || activeFiltersCount > 0
-                                ? 'border-primary bg-primary/10 text-primary'
+                                ? 'border-primary bg-primary/10 text-orange-800 dark:text-orange-200'
                                 : 'border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                                 }`}
                         >
@@ -392,6 +406,8 @@ function PropertiesContent() {
                         {/* Sort Dropdown */}
                         <div className="relative">
                             <button
+                                type="button"
+                                aria-label="Sort properties"
                                 onClick={() => setShowSortMenu(!showSortMenu)}
                                 className="flex items-center gap-2 px-4 py-2.5 border border-gray-100 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
                             >
@@ -416,8 +432,8 @@ function PropertiesContent() {
                                                     setShowSortMenu(false);
                                                 }}
                                                 className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors first:rounded-t-lg last:rounded-b-lg ${sort.field === option.field && sort.order === option.order
-                                                    ? 'bg-primary/10 text-primary font-medium'
-                                                    : 'text-gray-700 dark:text-gray-300'
+                                                    ? 'bg-primary/10 text-orange-800 dark:text-orange-100 font-medium'
+                                                    : 'text-gray-900 dark:text-gray-100'
                                                     }`}
                                             >
                                                 {option.label}
@@ -435,7 +451,10 @@ function PropertiesContent() {
                                 { mode: 'list' as ViewMode, icon: <List className="w-4 h-4" /> },
                             ].map(({ mode, icon }) => (
                                 <button
+                                    type="button"
                                     key={mode}
+                                    aria-label={`Switch to ${mode} view`}
+                                    aria-pressed={viewMode === mode}
                                     onClick={() => setViewMode(mode)}
                                     className={`p-2 rounded-md transition-all ${viewMode === mode
                                         ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
@@ -460,7 +479,7 @@ function PropertiesContent() {
                         >
                             <div className="p-6 space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Advanced Filters</h3>
+                                    <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Advanced Filters</h2>
                                     <button
                                         onClick={handleClearFilters}
                                         className="text-sm text-primary hover:underline"
@@ -595,6 +614,7 @@ function PropertiesContent() {
                             {/* Quick Actions Overlay (visible on hover) */}
                             <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
                                 <button
+                                    aria-label={`Share ${property.title}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSelectedPropertyForShare(property);
@@ -606,11 +626,10 @@ function PropertiesContent() {
                                     <Share2 className="w-4 h-4" />
                                 </button>
                                 <button
+                                    aria-label={`Delete ${property.title}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
-                                            deleteProperty(property.id);
-                                        }
+                                        openDeleteDialog(property);
                                     }}
                                     className="p-2 bg-white dark:bg-gray-800 text-red-600 rounded-full shadow-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                     title="Delete"
@@ -648,7 +667,7 @@ function PropertiesContent() {
                                                 <div className="font-medium text-gray-900 dark:text-white">{property.title}</div>
                                                 <div className="text-sm text-gray-500">{property.address || property.location?.city}</div>
                                                 {inventoryCaption && (
-                                                    <div className="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-300">
+                                                    <div className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                                                         {inventoryCaption}
                                                     </div>
                                                 )}
@@ -669,6 +688,7 @@ function PropertiesContent() {
                                         <td className="px-6 py-4 text-sm font-medium">
                                             <div className="flex items-center gap-3">
                                                 <button
+                                                    aria-label={`Edit ${property.title}`}
                                                     onClick={(e) => { e.stopPropagation(); navigate(`/manager/dashboard/properties/edit/${property.id}`); }}
                                                     className="text-primary hover:text-primary-dark transition-colors"
                                                     title="Edit"
@@ -676,6 +696,7 @@ function PropertiesContent() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
+                                                    aria-label={`Share ${property.title}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setSelectedPropertyForShare(property);
@@ -687,11 +708,10 @@ function PropertiesContent() {
                                                     <Share2 className="w-4 h-4" />
                                                 </button>
                                                 <button
+                                                    aria-label={`Delete ${property.title}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        if (typeof window !== 'undefined' && window.confirm('Are you sure you want to delete this property?')) {
-                                                            deleteProperty(property.id);
-                                                        }
+                                                        openDeleteDialog(property);
                                                     }}
                                                     className="text-red-500 hover:text-red-700 transition-colors"
                                                     title="Delete"
@@ -732,6 +752,43 @@ function PropertiesContent() {
                 onClose={() => setShowShareModal(false)}
                 property={selectedPropertyForShare}
             />
+            {pendingDeleteProperty && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    onClick={closeDeleteDialog}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Delete property confirmation"
+                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Delete property</h2>
+                        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                            Delete {pendingDeleteProperty.title}? This action cannot be undone.
+                        </p>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={closeDeleteDialog}
+                                disabled={loading}
+                                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteConfirm}
+                                disabled={loading}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {loading ? 'Deleting...' : 'Delete property'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

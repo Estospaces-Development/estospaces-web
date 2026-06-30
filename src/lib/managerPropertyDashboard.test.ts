@@ -4,7 +4,10 @@ import {
     MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
     MANAGER_LIVE_LISTINGS_VIEW,
     buildManagerActiveListingsPath,
+    buildManagerLivePresetFilters,
     buildManagerPropertySearchParams,
+    formatManagerAnalyticsPercentage,
+    normalizeManagerAnalyticsPercentage,
     filterManagerLivePropertyPerformance,
     getManagerPropertyStatusFilters,
     isManagerLivePropertyStatus,
@@ -19,6 +22,18 @@ test('live listing status detection only includes approved public statuses', () 
     assert.equal(isManagerLivePropertyStatus('active'), true);
     assert.equal(isManagerLivePropertyStatus('pending_approval'), false);
     assert.equal(isManagerLivePropertyStatus('draft'), false);
+});
+
+test('normalizeManagerAnalyticsPercentage clamps impossible conversion values', () => {
+    assert.equal(normalizeManagerAnalyticsPercentage(377.78), 100);
+    assert.equal(normalizeManagerAnalyticsPercentage(-12), 0);
+    assert.equal(normalizeManagerAnalyticsPercentage(null), 0);
+});
+
+test('formatManagerAnalyticsPercentage keeps bounded readable percentages', () => {
+    assert.equal(formatManagerAnalyticsPercentage(377.78), '100%');
+    assert.equal(formatManagerAnalyticsPercentage(12.345), '12.35%');
+    assert.equal(formatManagerAnalyticsPercentage(12.3), '12.3%');
 });
 
 test('normalizeManagerPropertyStatusFilters trims, lowercases, and de-duplicates values', () => {
@@ -43,6 +58,30 @@ test('buildManagerPropertySearchParams replaces status filters and clears view p
     assert.equal(next.get('view'), null);
     assert.equal(next.get('status'), 'published,online');
     assert.equal(next.get('search'), 'office');
+});
+
+test('buildManagerLivePresetFilters preserves search while clearing incompatible advanced filters', () => {
+    assert.deepEqual(
+        buildManagerLivePresetFilters(
+            {
+                search: 'office',
+                priceMin: 100000,
+                priceMax: 200000,
+                bedroomsMin: 2,
+                propertyType: ['house'],
+                status: ['draft'],
+            },
+            ['available', 'published'],
+        ),
+        {
+            search: 'office',
+            priceMin: undefined,
+            priceMax: undefined,
+            bedroomsMin: undefined,
+            propertyType: undefined,
+            status: ['available', 'published'],
+        },
+    );
 });
 
 test('managerPropertyStatusFiltersEqual compares normalized status filters', () => {

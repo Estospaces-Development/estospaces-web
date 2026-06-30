@@ -1,9 +1,19 @@
-import type { ManagerProfile, VerificationStatus } from '@/services/managerVerificationService';
+import {
+    isPlaceholderManagerCompanyName,
+    type ManagerProfile,
+    type VerificationStatus,
+} from '@/services/managerVerificationService';
 
-type ManagerPropertySubmissionProfile = Pick<
+type ManagerPropertySubmissionProfile = Partial<Pick<
     ManagerProfile,
     | 'verification_status'
     | 'agency_verification_status'
+    | 'profile_type'
+    | 'company_name'
+    | 'business_phone'
+    | 'company_address'
+    | 'license_number'
+    | 'company_registration_number'
     | 'branch_name'
     | 'registered_office_address'
     | 'complaints_contact'
@@ -12,7 +22,7 @@ type ManagerPropertySubmissionProfile = Pick<
     | 'cmp_provider'
     | 'cmp_certificate_url'
     | 'has_client_money'
->;
+>>;
 
 function isApprovedVerificationStatus(status?: VerificationStatus) {
     return status === 'approved';
@@ -48,6 +58,26 @@ function getMissingOperationalProfileFields(profile: ManagerPropertySubmissionPr
     return missing;
 }
 
+function getMissingProfessionalProfileFields(profile: ManagerPropertySubmissionProfile) {
+    const missing: string[] = [];
+    const licenseNumber = profile.company_registration_number?.trim() || profile.license_number?.trim() || '';
+
+    if (!profile.company_name?.trim() || isPlaceholderManagerCompanyName(profile.company_name)) {
+        missing.push('company name');
+    }
+    if (!profile.business_phone?.trim()) {
+        missing.push('business phone');
+    }
+    if (!profile.company_address?.trim()) {
+        missing.push('company address');
+    }
+    if (!licenseNumber) {
+        missing.push(profile.profile_type === 'company' ? 'company registration number' : 'broker license number');
+    }
+
+    return missing;
+}
+
 export function getManagerPropertySubmissionBlocker(
     profile: ManagerPropertySubmissionProfile | null | undefined,
 ): string | null {
@@ -61,6 +91,11 @@ export function getManagerPropertySubmissionBlocker(
 
     if (profile.agency_verification_status && !isApprovedVerificationStatus(profile.agency_verification_status)) {
         return 'Your agency or branch verification must be approved before you can submit a property for admin approval.';
+    }
+
+    const missingProfessionalFields = getMissingProfessionalProfileFields(profile);
+    if (missingProfessionalFields.length > 0) {
+        return `Complete your professional profile before you submit a property for admin approval: ${missingProfessionalFields.join(', ')}.`;
     }
 
     const missing = getMissingOperationalProfileFields(profile);

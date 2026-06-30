@@ -4,6 +4,7 @@ import type { Contract } from "@/types/booking";
 import { normalizeContractStatus } from "@/lib/contractStatus";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/placeholders";
+import { formatLaunchCurrency } from "@/lib/launchLocale";
 
 export interface UserPropertyPortfolioItem {
   id: string;
@@ -50,7 +51,7 @@ const formatMoney = (amount?: number | null, suffix: string = "") => {
   if (typeof amount !== "number" || Number.isNaN(amount)) {
     return "Price unavailable";
   }
-  return `GBP ${amount.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}${suffix}`;
+  return `${formatLaunchCurrency(amount)}${suffix}`;
 };
 
 const sortByMostRecent = <
@@ -189,6 +190,7 @@ export const buildUserPropertyPortfolio = ({
       ),
       targetPath: buildWorkspacePath("/user/applications", {
         applicationId: application?.id,
+        progressionId: progression.id,
         caseId:
           progression.fast_track_case_id || application?.fast_track_case_id,
         leadId: progression.lead_id || application?.lead_id,

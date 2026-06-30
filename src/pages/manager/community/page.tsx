@@ -24,6 +24,17 @@ import {
 } from '@/services/communityService';
 import { useToast } from '@/contexts/ToastContext';
 
+const normalizeCommunityPost = (post: CommunityPost): CommunityPost => ({
+    ...post,
+    likesCount: post.likesCount ?? 0,
+    commentsCount: post.commentsCount ?? (post.comments || []).length,
+    comments: post.comments || [],
+    isLiked: post.isLiked ?? false,
+    isPinned: post.isPinned ?? false,
+    visibility: post.visibility || 'all',
+    tag: post.tag || 'info',
+});
+
 const BrokersCommunity = () => {
     const toast = useToast();
     const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -40,7 +51,7 @@ const BrokersCommunity = () => {
             setLoading(true);
             const { data } = await getCommunityPosts();
             if (data && data.length > 0) {
-                setPosts(data);
+                setPosts(data.map(normalizeCommunityPost));
             }
             setLoading(false);
         };
@@ -86,7 +97,7 @@ const BrokersCommunity = () => {
             return;
         }
 
-        setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
+        setPosts((prev) => prev.map((post) => post.postId === postId ? normalizeCommunityPost(data) : post));
     };
 
     const handlePin = async (postId: string) => {
@@ -101,7 +112,7 @@ const BrokersCommunity = () => {
             return;
         }
 
-        setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
+        setPosts((prev) => prev.map((post) => post.postId === postId ? normalizeCommunityPost(data) : post));
     };
 
     const handleHide = async (postId: string) => {
@@ -121,17 +132,17 @@ const BrokersCommunity = () => {
             return;
         }
 
-        setPosts((prev) => prev.map((post) => post.postId === postId ? data : post));
+        setPosts((prev) => prev.map((post) => post.postId === postId ? normalizeCommunityPost(data) : post));
     };
 
-    const handleCreatePost = async (content: string, tag: PostTag, visibility: PostVisibility) => {
-        const { data, error } = await createCommunityPost(content, tag, visibility);
+    const handleCreatePost = async (title: string, content: string, tag: PostTag, visibility: PostVisibility) => {
+        const { data, error } = await createCommunityPost(title, content, tag, visibility);
         if (error || !data) {
             toast.error(error || 'Unable to create a community post right now.');
             return;
         }
 
-        setPosts(prev => [data, ...prev]);
+        setPosts(prev => [normalizeCommunityPost(data), ...prev]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         toast.success('Community post published.');
     };
@@ -152,18 +163,20 @@ const BrokersCommunity = () => {
             if (post.postId !== postId) {
                 return post;
             }
-            return { ...post, comments: [...post.comments, data as PostComment], commentsCount: post.commentsCount + 1 };
+            const comments = post.comments || [];
+            return { ...post, comments: [...comments, data as PostComment], commentsCount: comments.length + 1 };
         }));
         setSelectedPost((prev: CommunityPost | null) => {
             if (!prev || prev.postId !== postId) {
                 return prev;
             }
-            return { ...prev, comments: [...prev.comments, data as PostComment], commentsCount: prev.commentsCount + 1 };
+            const comments = prev.comments || [];
+            return { ...prev, comments: [...comments, data as PostComment], commentsCount: comments.length + 1 };
         });
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+        <div data-testid="community-page" className="space-y-6 animate-in fade-in duration-500 pb-20">
             {/* Header */}
             <div className="flex flex-col gap-2">
                 <BackButton />
@@ -174,12 +187,12 @@ const BrokersCommunity = () => {
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Brokers Community</h1>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Internal space for coordination, updates & deal acceleration</p>
+                            <p className="text-sm text-gray-800 dark:text-gray-300">Internal space for coordination, updates & deal acceleration</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                        className="flex items-center gap-2 bg-indigo-800 hover:bg-indigo-900 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
                     >
                         <Plus className="w-5 h-5" />
                         <span>Create Post</span>
@@ -204,16 +217,16 @@ const BrokersCommunity = () => {
 
                 <div className="space-y-4">
                     {loading ? (
-                        <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-center px-6 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                        <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-center px-6 text-sm font-semibold text-gray-800 dark:text-gray-300">
                             Loading community posts...
                         </div>
                     ) : filteredAndSortedPosts.length === 0 ? (
                         <div className="py-20 bg-white dark:bg-black rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center px-6">
                             <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mb-4">
-                                <Users size={40} className="text-gray-300 dark:text-gray-600" />
+                                <Users size={40} className="text-gray-600 dark:text-gray-300" />
                             </div>
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No posts found</h3>
-                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">
+                            <p className="text-gray-800 dark:text-gray-300 max-w-sm">
                                 {selectedTag !== 'all' || selectedRole !== 'all'
                                     ? "No community posts match your current search or filters. Try adjusting them or clear filters to see more."
                                     : "The community is currently quiet. Be the first to start a conversation by creating a new post!"}
@@ -224,7 +237,7 @@ const BrokersCommunity = () => {
                                         setSelectedTag('all');
                                         setSelectedRole('all');
                                     }}
-                                    className="mt-6 text-primary font-bold hover:underline"
+                                    className="mt-6 text-orange-800 dark:text-orange-200 font-bold hover:underline"
                                 >
                                     Clear all filters
                                 </button>

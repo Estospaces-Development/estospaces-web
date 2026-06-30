@@ -23,29 +23,27 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
     onVisibilityChange,
     onCommentClick,
 }) => {
-    const [isLiked, setIsLiked] = useState(false);
     const [showFullContent, setShowFullContent] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
     const handleLike = () => {
-        setIsLiked(!isLiked);
         onLike(post.postId);
     };
 
     const getTagColors = (tag: CommunityPost['tag']) => {
         switch (tag) {
-            case 'urgent': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-            case 'deal': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-            case 'announcement': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-            case 'info': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
-            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
+            case 'urgent': return 'bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200';
+            case 'deal': return 'bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200';
+            case 'announcement': return 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-200';
+            case 'info': return 'bg-purple-100 text-purple-900 dark:bg-purple-900/30 dark:text-purple-200';
+            default: return 'bg-gray-100 text-gray-900 dark:bg-gray-900/30 dark:text-gray-200';
         }
     };
 
     const getRoleBadgeColors = (role: CommunityPost['authorRole']) => {
         return role === 'manager'
-            ? 'bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-400 dark:border-indigo-800'
-            : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800';
+            ? 'bg-indigo-100 text-indigo-900 border border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-200 dark:border-indigo-800'
+            : 'bg-orange-100 text-orange-900 dark:bg-orange-900/30 dark:text-orange-200 border border-orange-200 dark:border-orange-800';
     };
 
     const contentPreview = post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content;
@@ -68,7 +66,7 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
                                 {post.authorRole.charAt(0).toUpperCase() + post.authorRole.slice(1)}
                             </span>
                         </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs font-medium text-gray-800 dark:text-gray-300">
                             {formatDistanceToNow(post.createdAt, { addSuffix: true })}
                         </p>
                     </div>
@@ -82,21 +80,26 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 
                     {isManager && (
                         <div className="relative">
-                            <button onClick={() => setShowActions(!showActions)} className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
-                                <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                            <button
+                                onClick={() => setShowActions(!showActions)}
+                                aria-label={`Open moderation actions for ${post.title || post.authorName}`}
+                                aria-expanded={showActions}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            >
+                                <MoreVertical className="w-4 h-4 text-gray-800 dark:text-gray-300" />
                             </button>
                             {showActions && (
-                                <div className="absolute right-0 top-8 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-10 w-40">
-                                    <button onClick={() => { onPin(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                <div role="menu" className="absolute right-0 top-8 bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 rounded-lg shadow-lg py-1 z-10 w-40">
+                                    <button role="menuitem" aria-label={post.isPinned ? `Unpin ${post.title || 'post'}` : `Pin ${post.title || 'post'}`} onClick={() => { onPin(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
                                         <Pin className="w-4 h-4" /> {post.isPinned ? 'Unpin' : 'Pin'} Post
                                     </button>
-                                    <button onClick={() => { onHide(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
+                                    <button role="menuitem" aria-label={`Archive ${post.title || 'post'}`} onClick={() => { onHide(post.postId); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 flex items-center gap-2">
                                         <EyeOff className="w-4 h-4" /> Hide Post
                                     </button>
                                     <div className="border-t border-gray-100 dark:border-zinc-800 my-1" />
-                                    <button onClick={() => { onVisibilityChange(post.postId, 'all'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">Visible to All</button>
-                                    <button onClick={() => { onVisibilityChange(post.postId, 'managers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">Managers Only</button>
-                                    <button onClick={() => { onVisibilityChange(post.postId, 'brokers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800">Brokers Only</button>
+                                    <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to all`} onClick={() => { onVisibilityChange(post.postId, 'all'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Visible to All</button>
+                                    <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to managers only`} onClick={() => { onVisibilityChange(post.postId, 'managers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Managers Only</button>
+                                    <button role="menuitem" aria-label={`Make ${post.title || 'post'} visible to brokers only`} onClick={() => { onVisibilityChange(post.postId, 'brokers'); setShowActions(false); }} className="w-full px-4 py-2 text-left text-sm font-medium text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800">Brokers Only</button>
                                 </div>
                             )}
                         </div>
@@ -106,11 +109,16 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
 
             {/* Content */}
             <div className="mb-4">
-                <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                {post.title && (
+                    <h3 className="mb-2 text-lg font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
+                        {post.title}
+                    </h3>
+                )}
+                <p className="text-gray-900 dark:text-gray-200 leading-relaxed">
                     {showFullContent ? post.content : contentPreview}
                 </p>
                 {needsReadMore && (
-                    <button onClick={() => setShowFullContent(!showFullContent)} className="text-indigo-600 hover:underline text-sm font-medium mt-2">
+                    <button onClick={() => setShowFullContent(!showFullContent)} aria-expanded={showFullContent} className="text-indigo-600 hover:underline text-sm font-medium mt-2">
                         {showFullContent ? 'Show less' : 'Read more'}
                     </button>
                 )}
@@ -120,25 +128,28 @@ const CommunityPostCard: React.FC<CommunityPostCardProps> = ({
             <div className="flex items-center gap-4 pt-3 border-t border-gray-100 dark:border-zinc-800">
                 <button
                     onClick={handleLike}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${isLiked
+                    aria-label={post.isLiked ? `Unlike ${post.title || 'community post'}` : `Like ${post.title || 'community post'}`}
+                    aria-pressed={post.isLiked}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${post.isLiked
                         ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700'
                         }`}
                 >
-                    <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                    <span className="text-sm font-medium">{post.likesCount + (isLiked ? 1 : 0)}</span>
+                    <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
+                    <span className="text-sm font-medium">{post.likesCount}</span>
                 </button>
 
                 <button
                     onClick={() => onCommentClick(post)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                    aria-label={`Open comments for ${post.title || 'community post'}`}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-zinc-800 rounded-lg text-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                 >
                     <MessageCircle className="w-4 h-4" />
                     <span className="text-sm font-medium">{post.commentsCount}</span>
                 </button>
 
                 {post.visibility !== 'all' && (
-                    <div className="ml-auto flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                    <div className="ml-auto flex items-center gap-1 text-xs font-medium text-gray-800 dark:text-gray-300">
                         <Eye className="w-3 h-3" />
                         <span className="capitalize">{post.visibility} only</span>
                     </div>

@@ -1,23 +1,75 @@
 "use client";
 
-import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowLeft, MessageSquare, PlusCircle, RefreshCw } from 'lucide-react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, ArrowLeft, Loader2, MessageSquare, PlusCircle, RefreshCw, UserRound } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMessages } from '@/contexts/MessagesContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import ConversationList from '@/components/dashboard/messaging/ConversationList';
 import ConversationThread from '@/components/dashboard/messaging/ConversationThread';
 import MessageInput from '@/components/dashboard/messaging/MessageInput';
 import ConversationListSkeleton from '@/components/dashboard/messaging/ConversationListSkeleton';
 import ConversationThreadSkeleton from '@/components/dashboard/messaging/ConversationThreadSkeleton';
+import { getApplications } from '@/services/applicationsService';
+import { getUserLeads } from '@/services/leadsService';
+import { messagesService } from '@/services/messagesService';
 import {
     createUnavailableConversationThreadIssue,
     resolveConversationQuerySelection,
     type ConversationThreadIssue,
 } from '@/lib/messagesInbox';
 
+type ManagerRecommendation = {
+    managerId: string;
+    managerName: string;
+    managerEmail?: string;
+    managerPhone?: string;
+    managerAgency?: string;
+    propertyId?: string;
+    propertyTitle?: string;
+    propertyAddress?: string;
+    propertyImage?: string;
+    propertyPrice?: number;
+    listingType?: string;
+    fastTrackCaseId?: string;
+};
+
+const terminalApplicationStatuses = new Set(['rejected', 'withdrawn', 'completed']);
+
+function latestTimestamp(value?: string) {
+    const parsed = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function buildApplicationRecommendation(applications: Awaited<ReturnType<typeof getApplications>>['data']) {
+    return [...(applications || [])]
+        .filter((application) => application.manager_id)
+        .sort((left, right) => {
+            const leftActive = terminalApplicationStatuses.has(String(left.status || '').toLowerCase()) ? 0 : 1;
+            const rightActive = terminalApplicationStatuses.has(String(right.status || '').toLowerCase()) ? 0 : 1;
+            if (leftActive !== rightActive) {
+                return rightActive - leftActive;
+            }
+            return latestTimestamp(right.updated_at || right.created_at) - latestTimestamp(left.updated_at || left.created_at);
+        })[0];
+}
+
+function buildLeadRecommendation(leads: Awaited<ReturnType<typeof getUserLeads>>['data']) {
+    return [...(leads || [])]
+        .filter((lead) => lead.matched_broker_id || lead.broker_id)
+        .sort((left, right) => latestTimestamp(right.updated_at || right.created_at) - latestTimestamp(left.updated_at || left.created_at))[0];
+}
+
+function formatLeadAddress(lead: NonNullable<Awaited<ReturnType<typeof getUserLeads>>['data']>[number]) {
+    return [lead.property?.address_line_1, lead.property?.city].filter(Boolean).join(', ');
+}
+
 function MessagesContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
+    const toast = useToast();
     const attemptedConversationRefreshesRef = useRef<Set<string>>(new Set());
     const conversationRefreshesInFlightRef = useRef<Set<string>>(new Set());
     const {
@@ -34,6 +86,9 @@ function MessagesContent() {
     } = useMessages();
 
     const [error, setError] = useState<string | null>(null);
+    const [managerRecommendation, setManagerRecommendation] = useState<ManagerRecommendation | null>(null);
+    const [recommendationLoading, setRecommendationLoading] = useState(false);
+    const [openingRecommendedConversation, setOpeningRecommendedConversation] = useState(false);
     const [routeConversationIssue, setRouteConversationIssue] = useState<ConversationThreadIssue | null>(null);
     const requestedConversationId = searchParams.get('conversation');
     const newConversationWith = searchParams.get('newConversationWith');
@@ -46,6 +101,79 @@ function MessagesContent() {
 
         navigate('/user/dashboard/discover', { replace: true });
     }, [navigate, newConversationWith]);
+
+    useEffect(() => {
+        if (!user) {
+            setManagerRecommendation(null);
+            return;
+        }
+
+        let cancelled = false;
+        setRecommendationLoading(true);
+
+        const loadRecommendation = async () => {
+            const [applicationsResult, leadsResult] = await Promise.all([
+                getApplications({ suppressErrorToast: true }),
+                getUserLeads({ suppressErrorToast: true }),
+            ]);
+
+            if (cancelled) {
+                return;
+            }
+
+            const application = buildApplicationRecommendation(applicationsResult.data);
+            if (application?.manager_id) {
+                setManagerRecommendation({
+                    managerId: application.manager_id,
+                    managerName: application.agent_name || application.agent_agency || 'Assigned manager',
+                    managerEmail: application.agent_email || undefined,
+                    managerPhone: application.agent_phone || undefined,
+                    managerAgency: application.agent_agency || undefined,
+                    propertyId: application.property_id,
+                    propertyTitle: application.property_title || undefined,
+                    propertyAddress: application.property_address || undefined,
+                    propertyImage: application.property_image || undefined,
+                    propertyPrice: application.property_price,
+                    listingType: application.listing_type || undefined,
+                    fastTrackCaseId: application.fast_track_case_id || undefined,
+                });
+                setRecommendationLoading(false);
+                return;
+            }
+
+            const lead = buildLeadRecommendation(leadsResult.data);
+            const managerId = lead?.matched_broker_id || lead?.broker_id;
+            if (lead && managerId) {
+                setManagerRecommendation({
+                    managerId,
+                    managerName: lead.matched_broker?.name || lead.property?.agent_name || 'Assigned manager',
+                    managerEmail: lead.matched_broker?.email || lead.property?.agent_email || undefined,
+                    managerPhone: lead.matched_broker?.phone || lead.property?.agent_phone || undefined,
+                    managerAgency: lead.matched_broker?.company_name || lead.property?.agent_company || undefined,
+                    propertyId: lead.property_id,
+                    propertyTitle: lead.property?.title || lead.property_name || lead.propertyInterested,
+                    propertyAddress: formatLeadAddress(lead) || undefined,
+                    propertyImage: undefined,
+                    propertyPrice: lead.property?.price,
+                    listingType: lead.property?.listing_type || lead.journey_type,
+                });
+            } else {
+                setManagerRecommendation(null);
+            }
+            setRecommendationLoading(false);
+        };
+
+        void loadRecommendation().catch(() => {
+            if (!cancelled) {
+                setManagerRecommendation(null);
+                setRecommendationLoading(false);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [user]);
 
     useEffect(() => {
         if (!normalizedRequestedConversationId) {
@@ -132,6 +260,39 @@ function MessagesContent() {
         setRouteConversationIssue(null);
         navigate('/user/dashboard/discover');
     };
+
+    const handleOpenRecommendedManager = useCallback(async () => {
+        if (!managerRecommendation || !user) {
+            return;
+        }
+
+        setOpeningRecommendedConversation(true);
+        try {
+            const conversation = await messagesService.upsertDirectConversation(managerRecommendation.managerId, {
+                propertyId: managerRecommendation.propertyId,
+                propertyTitle: managerRecommendation.propertyTitle,
+                propertyAddress: managerRecommendation.propertyAddress,
+                propertyImage: managerRecommendation.propertyImage,
+                listingType: managerRecommendation.listingType,
+                propertyPrice: managerRecommendation.propertyPrice,
+                fastTrackCaseId: managerRecommendation.fastTrackCaseId,
+                senderName: user.user_metadata?.full_name || user.name || user.email || '',
+                senderEmail: user.email || '',
+                senderPhone: user.phone || user.user_metadata?.phone || '',
+                recipientName: managerRecommendation.managerName,
+                recipientEmail: managerRecommendation.managerEmail || '',
+                recipientPhone: managerRecommendation.managerPhone || '',
+                recipientAgency: managerRecommendation.managerAgency || '',
+            });
+            await refreshConversations();
+            setSelectedConversationId(conversation.id);
+            navigate('/user/dashboard/messages?conversation=' + conversation.id);
+        } catch (conversationError: any) {
+            toast.error(conversationError?.message || 'Unable to open the manager conversation right now.');
+        } finally {
+            setOpeningRecommendedConversation(false);
+        }
+    }, [managerRecommendation, navigate, refreshConversations, setSelectedConversationId, toast, user]);
 
     const handleRetryUnavailableThread = async () => {
         const conversationId = (conversationThreadIssue ?? routeConversationIssue)?.conversationId;
@@ -259,10 +420,43 @@ function MessagesContent() {
                                 <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                                     Pick a chat on the left to read messages, updates, and replies.
                                 </p>
+
+                                {managerRecommendation ? (
+                                    <div className="mt-8 w-full max-w-md rounded-3xl border border-orange-100 bg-white p-4 text-left shadow-xl shadow-orange-100/60 dark:border-orange-500/20 dark:bg-gray-950 dark:shadow-none">
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
+                                                <UserRound size={20} />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                                    Message {managerRecommendation.managerName}
+                                                </p>
+                                                <p className="mt-1 truncate text-sm text-gray-500 dark:text-gray-400">
+                                                    {managerRecommendation.propertyTitle || managerRecommendation.managerAgency || 'Your assigned property manager'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleOpenRecommendedManager()}
+                                            disabled={openingRecommendedConversation}
+                                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-orange-700 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:bg-orange-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {openingRecommendedConversation ? <Loader2 size={17} className="animate-spin" /> : <MessageSquare size={17} />}
+                                            {openingRecommendedConversation ? 'Opening chat' : 'Open manager chat'}
+                                        </button>
+                                    </div>
+                                ) : recommendationLoading ? (
+                                    <div className="mt-8 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-300">
+                                        <Loader2 size={16} className="animate-spin" />
+                                        Checking assigned manager
+                                    </div>
+                                ) : null}
+
                                 <button
                                     type="button"
                                     onClick={handleOpenNewEnquiry}
-                                    className="mt-8 px-8 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all shadow-lg shadow-orange-500/30"
+                                    className="mt-6 px-8 py-3 bg-orange-700 text-white rounded-xl font-bold hover:bg-orange-800 transition-all shadow-lg shadow-orange-500/30"
                                 >
                                     Ask about a home
                                 </button>

@@ -18,6 +18,33 @@ interface CaseFileRequestContextLike {
 }
 
 const normalized = (value?: string | null) => String(value || "").trim();
+const CASE_FILE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export const CASE_FILE_INVALID_REFERENCE_MESSAGE =
+  "Enter a valid case reference to open the shared case file.";
+
+export const sanitizeCaseFileRouteCaseId = (value?: string | null) => {
+  const caseId = normalized(value);
+  if (!caseId) {
+    return {
+      caseId: "",
+      error: "A case reference is required to open the shared case file.",
+    };
+  }
+
+  if (caseId.length > 64 || !CASE_FILE_UUID_PATTERN.test(caseId)) {
+    return {
+      caseId: "",
+      error: CASE_FILE_INVALID_REFERENCE_MESSAGE,
+    };
+  }
+
+  return {
+    caseId,
+    error: null,
+  };
+};
 
 export const buildCaseFileMutationContext = (
   caseFile: CaseFileContextLike,

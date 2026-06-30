@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     AlertCircle,
@@ -34,6 +34,7 @@ import {
     getLatestFastTrackReviewDocuments,
     latestDocumentByCategory,
 } from '@/lib/fastTrackWorkflow';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
 interface UserVerificationReviewModalProps {
     scope: VerificationScope;
@@ -41,7 +42,68 @@ interface UserVerificationReviewModalProps {
     onClose: () => void;
     onUpdated?: () => void | Promise<void>;
     variant?: 'queue' | 'fast_track';
+    missingUserContext?: UserVerificationReviewMissingUserContext;
 }
+
+export const USER_VERIFICATION_REVIEW_CLOSE_LABEL = 'Close verification review panel';
+const VERIFICATION_NOTES_MAX_LENGTH = 1000;
+const VERIFICATION_REASON_MAX_LENGTH = 500;
+type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
+type VerificationSortMode = 'newest' | 'oldest' | 'status';
+
+export interface UserVerificationReviewMissingUserContext {
+    name?: string | null;
+    email?: string | null;
+    source?: 'appointment' | 'verification';
+}
+
+export const getVerificationReviewErrorMessage = (
+    error: string | null,
+    missingUserContext?: UserVerificationReviewMissingUserContext,
+) => {
+    const normalizedError = (error || '').trim().toLowerCase();
+
+    if (missingUserContext && normalizedError.includes('user not found')) {
+        const label = missingUserContext.name || missingUserContext.email || 'this client';
+        const sourceLabel = missingUserContext.source === 'appointment'
+            ? 'This appointment'
+            : 'This review';
+
+        return `Verification record not available for ${label}. ${sourceLabel} is not linked to a core user profile yet, so document review cannot open here. Use the linked case file or messages while the user profile is connected.`;
+    }
+
+    if (
+        missingUserContext?.source === 'appointment'
+        && normalizedError.includes('properties assigned')
+    ) {
+        const label = missingUserContext.name || missingUserContext.email || 'this client';
+        return `Document review is not available for ${label} from this appointment. The core verification service did not expose an assigned property review record for this client, so document review cannot open here yet. Use the linked case file or messages while the assignment is corrected.`;
+    }
+
+    return error || 'Failed to load user details';
+};
+
+const dedupeDocumentsById = (documents: UserDocument[]) => {
+    const seen = new Set<string>();
+    return documents.filter((document) => {
+        if (seen.has(document.id)) {
+            return false;
+        }
+        seen.add(document.id);
+        return true;
+    });
+};
+
+const isVerificationDocumentApproved = (document: UserDocument | undefined) => {
+    const status = String(document?.status || '').trim().toLowerCase();
+    return status === 'approved' || status === 'verified';
+};
+
+export const canCompleteUserVerification = (documents: UserDocument[]) => {
+    const latestDocuments = latestDocumentByCategory(documents);
+    return isVerificationDocumentApproved(latestDocuments.get('identity'))
+        && isVerificationDocumentApproved(latestDocuments.get('address'));
+};
 
 const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = ({
     scope,
@@ -49,6 +111,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     onClose,
     onUpdated,
     variant = 'queue',
+    missingUserContext,
 }) => {
     const isAdmin = scope === 'admin';
     const isFastTrackReview = variant === 'fast_track';
@@ -59,11 +122,21 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const [openingDocumentId, setOpeningDocumentId] = useState<string | null>(null);
     const [verificationActionLoading, setVerificationActionLoading] = useState(false);
     const [notes, setNotes] = useState('');
+    const [documentFilter, setDocumentFilter] = useState<VerificationDocumentFilter>('all');
+    const [documentSortMode, setDocumentSortMode] = useState<VerificationSortMode>('newest');
+    const [leadStatusFilter, setLeadStatusFilter] = useState('all');
+    const [leadSortMode, setLeadSortMode] = useState<VerificationSortMode>('newest');
     const toast = useToast();
 
     const fetchDetails = useCallback(async () => {
         setLoading(true);
         const { data, error: loadError } = await getUserVerificationDetails(scope, userId);
+        if (data?.user.user_id && data.user.user_id !== userId) {
+            setDetails(null);
+            setError('Verification detail did not match the selected user. Refresh the queue and try again.');
+            setLoading(false);
+            return;
+        }
         setDetails(data);
         setError(loadError);
         setLoading(false);
@@ -73,34 +146,51 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         fetchDetails();
     }, [fetchDetails]);
 
-    const latestDocuments = useMemo(
-        () => latestDocumentByCategory(details?.documents || []),
-        [details?.documents],
-    );
     const reviewDocuments = useMemo(
         () => isFastTrackReview
             ? getLatestFastTrackReviewDocuments(details?.documents || [])
-            : details?.documents || [],
+            : dedupeDocumentsById(details?.documents || []),
         [details?.documents, isFastTrackReview],
     );
+    const visibleReviewDocuments = useMemo(() => {
+        const filteredDocuments = reviewDocuments.filter((document) => (
+            documentFilter === 'all' || document.status === documentFilter
+        ));
+
+        return [...filteredDocuments].sort((left, right) => {
+            if (documentSortMode === 'status') {
+                return left.status.localeCompare(right.status)
+                    || new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+            }
+
+            const direction = documentSortMode === 'oldest' ? 1 : -1;
+            return direction * (new Date(left.created_at).getTime() - new Date(right.created_at).getTime());
+        });
+    }, [documentFilter, documentSortMode, reviewDocuments]);
 
     const verificationLevel = details?.user.verification_level || 'basic';
     const isVerificationApproved = verificationLevel === 'verified' || verificationLevel === 'fully_verified';
     const canApprove = !isVerificationApproved && (isFastTrackReview
         ? canCompleteFastTrackVerification(details?.documents || [])
-        : latestDocuments.has('identity') && latestDocuments.has('address'));
+        : canCompleteUserVerification(details?.documents || []));
 
     const getDocumentReviewSuccessMessage = (
-        status: 'approved' | 'reupload_required',
+        status: 'approved' | 'reupload_required' | 'rejected',
     ) => {
         if (isFastTrackReview) {
-            return status === 'approved'
-                ? 'Document approved. Fast-track status has been refreshed.'
+            if (status === 'approved') {
+                return 'Document approved. Fast-track status has been refreshed.';
+            }
+            return status === 'rejected'
+                ? 'Document rejected. The fast-track case now reflects the decision.'
                 : 'Replacement requested. The fast-track case now reflects the requested re-upload.';
         }
 
-        return status === 'approved'
-            ? 'Document approved successfully.'
+        if (status === 'approved') {
+            return 'Document approved successfully.';
+        }
+        return status === 'rejected'
+            ? 'Document rejected successfully.'
             : 'Replacement requested successfully.';
     };
 
@@ -133,7 +223,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
 
     const handleDocumentReview = async (
         documentId: string,
-        status: 'approved' | 'reupload_required',
+        status: 'approved' | 'reupload_required' | 'rejected',
         rejectReason?: string,
     ) => {
         setActiveDocumentId(documentId);
@@ -152,6 +242,10 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const handleVerificationUpdate = async (status: 'verified' | 'rejected') => {
         if (status === 'verified' && isVerificationApproved) {
             setError('This verification is already approved. Revoke it before approving again.');
+            return;
+        }
+        if (status === 'rejected' && !notes.trim()) {
+            setError('Add verification notes before revoking this verification.');
             return;
         }
 
@@ -196,7 +290,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
             <ModalWrapper onClose={onClose}>
                 <div className="text-center py-16">
                     <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
-                    <p className="text-gray-600">{error || 'Failed to load user details'}</p>
+                    <p className="text-gray-600">{getVerificationReviewErrorMessage(error, missingUserContext)}</p>
                     <button onClick={onClose} className="mt-4 px-6 py-2 bg-gray-900 text-white rounded-xl font-medium">
                         Close
                     </button>
@@ -207,6 +301,28 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
 
     const levelConfig = getVerificationLevelColor(details.user.verification_level);
     const levelLabel = getVerificationLevelLabel(details.user.verification_level);
+    const leadStatusOptions = Array.from(new Set((details.recent_leads || [])
+        .map((lead) => String(lead.status || '').trim())
+        .filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right));
+    const recentLeads = (() => {
+        const filteredLeads = (details.recent_leads || []).filter((lead) => (
+            leadStatusFilter === 'all' || lead.status === leadStatusFilter
+        ));
+        const sortedLeads = [...filteredLeads].sort((left, right) => {
+            if (leadSortMode === 'status') {
+                return String(left.status || '').localeCompare(String(right.status || ''))
+                    || new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+            }
+
+            const direction = leadSortMode === 'oldest' ? 1 : -1;
+            return direction * (new Date(left.created_at).getTime() - new Date(right.created_at).getTime());
+        });
+
+        return sortedLeads.slice(0, 5);
+    })();
+    const reviewDocumentKeyFor = createDuplicateSafeKeyResolver('verification-review-document');
+    const recentLeadKeyFor = createDuplicateSafeKeyResolver('verification-recent-lead');
 
     return (
         <ModalWrapper onClose={onClose}>
@@ -220,18 +336,22 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         shape="rounded"
                         fallbackClassName={isAdmin ? 'from-orange-500 to-amber-600' : 'from-blue-500 to-indigo-600'}
                     />
-                    <div className="flex-1">
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
                             {isFastTrackReview ? `Fast-track review for ${details.user.full_name}` : details.user.full_name}
                         </h2>
-                        <div className="flex items-center gap-3 mt-1">
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${levelConfig.bg} ${levelConfig.text}`}>
+                        <div className="flex min-w-0 flex-wrap items-center gap-3 mt-1">
+                            <span className={`shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${levelConfig.bg} ${levelConfig.text}`}>
                                 {levelLabel}
                             </span>
-                            <span className="text-sm text-gray-500">{details.user.email}</span>
+                            <span className="min-w-0 text-sm text-gray-500 break-all">{details.user.email}</span>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors">
+                    <button
+                        onClick={onClose}
+                        aria-label={USER_VERIFICATION_REVIEW_CLOSE_LABEL}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                    >
                         <X size={20} className="text-gray-400" />
                     </button>
                 </div>
@@ -260,22 +380,58 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                 )}
 
                 <div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">
-                        {isFastTrackReview ? 'Fast-track documents' : 'Verification Documents'}
-                    </h3>
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+                            {isFastTrackReview ? 'Fast-track documents' : 'Verification Documents'}
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            <label className="sr-only" htmlFor="verification-document-filter">Filter verification documents</label>
+                            <select
+                                id="verification-document-filter"
+                                aria-label="Filter verification documents"
+                                value={documentFilter}
+                                onChange={(event) => setDocumentFilter(event.target.value as VerificationDocumentFilter)}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            >
+                                <option value="all">All documents</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="reupload_required">Re-upload required</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                            <label className="sr-only" htmlFor="verification-document-sort">Sort verification documents</label>
+                            <select
+                                id="verification-document-sort"
+                                aria-label="Sort verification documents"
+                                value={documentSortMode}
+                                onChange={(event) => setDocumentSortMode(event.target.value as VerificationSortMode)}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            >
+                                <option value="newest">Newest documents</option>
+                                <option value="oldest">Oldest documents</option>
+                                <option value="status">Status</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="space-y-3">
-                        {reviewDocuments.length === 0 ? (
+                        {visibleReviewDocuments.length === 0 ? (
                             <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border-2 border-dashed border-gray-200">
                                 <FileText className="mx-auto text-gray-300 mb-2" size={32} />
-                                <p className="text-sm text-gray-500">No documents uploaded</p>
+                                <p className="text-sm text-gray-500">
+                                    {reviewDocuments.length === 0 ? 'No documents uploaded' : 'No documents match this filter'}
+                                </p>
+                                <p className="mt-2 text-xs text-gray-400">
+                                    Document review and re-upload actions appear here after a user uploads identity or address proof.
+                                </p>
                             </div>
                         ) : (
-                            reviewDocuments.map((document) => (
+                            visibleReviewDocuments.map((document, documentIndex) => (
                                 <DocumentReviewCard
-                                    key={document.id}
+                                    key={reviewDocumentKeyFor(document.id, documentIndex)}
                                 document={document}
                                 onApprove={() => handleDocumentReview(document.id, 'approved')}
                                 onRequestChanges={(reason) => handleDocumentReview(document.id, 'reupload_required', reason)}
+                                onReject={(reason) => handleDocumentReview(document.id, 'rejected', reason)}
                                 loading={activeDocumentId === document.id}
                                 onView={() => handleOpenDocument(document.id)}
                                 viewLoading={openingDocumentId === document.id}
@@ -287,12 +443,76 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Recent Leads</h3>
+                        <div className="flex flex-wrap gap-2">
+                            <label className="sr-only" htmlFor="verification-lead-filter">Filter recent leads</label>
+                            <select
+                                id="verification-lead-filter"
+                                aria-label="Filter recent leads"
+                                value={leadStatusFilter}
+                                onChange={(event) => setLeadStatusFilter(event.target.value)}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            >
+                                <option value="all">All leads</option>
+                                {leadStatusOptions.map((status) => (
+                                    <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                                ))}
+                            </select>
+                            <label className="sr-only" htmlFor="verification-lead-sort">Sort recent leads</label>
+                            <select
+                                id="verification-lead-sort"
+                                aria-label="Sort recent leads"
+                                value={leadSortMode}
+                                onChange={(event) => setLeadSortMode(event.target.value as VerificationSortMode)}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+                            >
+                                <option value="newest">Newest leads</option>
+                                <option value="oldest">Oldest leads</option>
+                                <option value="status">Status</option>
+                            </select>
+                        </div>
+                    </div>
+                    {recentLeads.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400">
+                            No recent leads available for this verification.
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {recentLeads.map((lead, leadIndex) => (
+                                <div
+                                    key={recentLeadKeyFor(lead.id, leadIndex)}
+                                    className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-gray-900 break-all dark:text-white">Lead {lead.id}</p>
+                                        {lead.property_id && (
+                                            <p className="mt-1 text-xs text-gray-500 break-all dark:text-gray-400">Property {lead.property_id}</p>
+                                        )}
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{lead.status}</p>
+                                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <label htmlFor="verification-review-notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Verification Notes
                     </label>
                     <textarea
+                        id="verification-review-notes"
                         value={notes}
-                        onChange={(event) => setNotes(event.target.value)}
+                        onChange={(event) => {
+                            setNotes(event.target.value);
+                            setError(null);
+                        }}
+                        required
+                        maxLength={VERIFICATION_NOTES_MAX_LENGTH}
                         placeholder={isFastTrackReview
                             ? 'Add case notes for the live fast-track review...'
                             : isAdmin
@@ -318,7 +538,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                         </div>
                         <button
                             onClick={() => handleVerificationUpdate('rejected')}
-                            disabled={verificationActionLoading || Boolean(activeDocumentId)}
+                            disabled={verificationActionLoading || Boolean(activeDocumentId) || !notes.trim()}
                             className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-3 font-medium text-white transition-all hover:bg-red-700 disabled:opacity-50"
                         >
                             {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
@@ -329,7 +549,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     <div className="flex gap-3">
                     <button
                         onClick={() => handleVerificationUpdate('rejected')}
-                        disabled={verificationActionLoading || Boolean(activeDocumentId)}
+                        disabled={verificationActionLoading || Boolean(activeDocumentId) || !notes.trim()}
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50 transition-all"
                     >
                         {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
@@ -359,18 +579,19 @@ const DocumentReviewCard: React.FC<{
     document: UserDocument;
     onApprove: () => void;
     onRequestChanges: (reason: string) => void;
+    onReject: (reason: string) => void;
     onView: () => void;
     loading: boolean;
     viewLoading?: boolean;
     disabled?: boolean;
-}> = ({ document, onApprove, onRequestChanges, onView, loading, viewLoading = false, disabled = false }) => {
-    const [showRejectForm, setShowRejectForm] = useState(false);
+}> = ({ document, onApprove, onRequestChanges, onReject, onView, loading, viewLoading = false, disabled = false }) => {
+    const [reviewMode, setReviewMode] = useState<'reupload' | 'reject' | null>(null);
     const [rejectReason, setRejectReason] = useState('');
 
     const config = (() => {
         switch (document.status) {
             case 'approved':
-                return { label: 'Approved', bg: 'bg-emerald-100', text: 'text-emerald-700', icon: CheckCircle };
+                return { label: 'Approved', bg: 'bg-emerald-100', text: 'text-emerald-800', icon: CheckCircle };
             case 'rejected':
                 return { label: 'Rejected', bg: 'bg-red-100', text: 'text-red-700', icon: XCircle };
             case 'reupload_required':
@@ -401,7 +622,7 @@ const DocumentReviewCard: React.FC<{
                     <div>
                         <p className="font-medium text-gray-900 dark:text-white">{document.file_name}</p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                            {document.document_category} • {new Date(document.created_at).toLocaleDateString()}
+                            {document.document_category} - {new Date(document.created_at).toLocaleDateString()}
                         </p>
                         {document.reject_reason && (
                             <p className="text-xs text-red-600 mt-1 bg-red-50 px-2 py-1 rounded">
@@ -416,25 +637,33 @@ const DocumentReviewCard: React.FC<{
             </div>
 
             <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-                {showRejectForm ? (
+                {reviewMode ? (
                     <div className="space-y-2">
                         <textarea
                             value={rejectReason}
                             onChange={(event) => setRejectReason(event.target.value)}
-                            placeholder="Reason for requesting a re-upload..."
+                            placeholder={reviewMode === 'reject' ? 'Reason for rejecting this document...' : 'Reason for requesting a re-upload...'}
+                            aria-label={reviewMode === 'reject' ? `Reject reason for ${document.file_name}` : `Re-upload reason for ${document.file_name}`}
+                            required
+                            maxLength={VERIFICATION_REASON_MAX_LENGTH}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none"
                             rows={2}
                         />
                         <div className="flex gap-2">
                             <button
-                                onClick={() => onRequestChanges(rejectReason)}
+                                onClick={() => reviewMode === 'reject' ? onReject(rejectReason) : onRequestChanges(rejectReason)}
                                 disabled={loading || disabled || !rejectReason.trim()}
+                                aria-label={reviewMode === 'reject' ? `Confirm rejection for ${document.file_name}` : `Request re-upload for ${document.file_name}`}
                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
                             >
-                                Confirm
+                                {reviewMode === 'reject' ? 'Confirm Reject' : 'Request Re-upload'}
                             </button>
                             <button
-                                onClick={() => setShowRejectForm(false)}
+                                onClick={() => {
+                                    setReviewMode(null);
+                                    setRejectReason('');
+                                }}
+                                aria-label={`Cancel document review action for ${document.file_name}`}
                                 className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200"
                             >
                                 Cancel
@@ -448,22 +677,33 @@ const DocumentReviewCard: React.FC<{
                                 <button
                                     onClick={onApprove}
                                     disabled={loading || disabled}
+                                    aria-label={`Approve ${document.file_name}`}
                                     className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1"
                                 >
                                     <Check size={12} /> Approve
                                 </button>
                                 <button
-                                    onClick={() => setShowRejectForm(true)}
+                                    onClick={() => setReviewMode('reupload')}
                                     disabled={disabled}
+                                    aria-label={`Request re-upload for ${document.file_name}`}
                                     className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-xs font-medium hover:bg-red-200 flex items-center gap-1"
                                 >
-                                    <X size={12} /> Request Changes
+                                    <RefreshCw size={12} /> Request Re-upload
+                                </button>
+                                <button
+                                    onClick={() => setReviewMode('reject')}
+                                    disabled={disabled}
+                                    aria-label={`Reject ${document.file_name}`}
+                                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+                                >
+                                    <X size={12} /> Reject
                                 </button>
                             </>
                         )}
                         <button
                             onClick={onView}
                             disabled={viewLoading}
+                            aria-label={`View ${document.file_name}`}
                             className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 ml-auto"
                         >
                             {viewLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
@@ -477,13 +717,13 @@ const DocumentReviewCard: React.FC<{
 };
 
 const InfoItem: React.FC<{ icon: React.ElementType; label: string; value?: string | null }> = ({ icon: Icon, label, value }) => (
-    <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
-        <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+    <div className="flex min-w-0 items-start gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+        <div className="shrink-0 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
             <Icon size={14} className="text-gray-600 dark:text-gray-400" />
         </div>
-        <div>
+        <div className="min-w-0">
             <p className="text-xs text-gray-500">{label}</p>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
+            <p className="text-sm font-medium text-gray-900 dark:text-white break-words [overflow-wrap:anywhere]">
                 {value || <span className="text-gray-400 italic">Not provided</span>}
             </p>
         </div>
@@ -491,7 +731,11 @@ const InfoItem: React.FC<{ icon: React.ElementType; label: string; value?: strin
 );
 
 const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }> = ({ children, onClose }) => {
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+
     useEffect(() => {
+        previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 onClose();
@@ -504,6 +748,7 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
         return () => {
             window.removeEventListener('keydown', handleEscape);
             document.body.style.overflow = '';
+            previousFocusRef.current?.focus();
         };
     }, [onClose]);
 
@@ -514,7 +759,13 @@ const ModalWrapper: React.FC<{ children: React.ReactNode; onClose: () => void }>
     return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div
+                data-testid="user-verification-review-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="User verification review"
+                className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300"
+            >
                 {children}
             </div>
         </div>,

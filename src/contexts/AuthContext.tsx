@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { isCurrentAuthRoute } from '@/lib/authUtils';
 import { AUTH_EXPIRED_EVENT, ApiRequestError, apiFetch, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import { resetAuthExpiryState } from '@/lib/authExpiry';
+import { clearAuthToken, getAuthToken, setAuthToken } from '@/lib/authToken';
 
 export interface User {
     id: string;
@@ -50,7 +51,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const CORE_SERVICE_URL = () => getServiceUrl('core');
 const AUTH_STORAGE_KEY = 'esto_user';
-const AUTH_TOKEN_KEY = 'esto_token';
 
 const parseMetadata = (value: unknown): Record<string, any> => {
     if (!value) {
@@ -162,15 +162,27 @@ const persistUser = (nextUser: User | null) => {
         return;
     }
 
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextUser));
+    const storedUser: User = {
+        id: nextUser.id,
+        email: nextUser.email,
+        name: nextUser.name,
+        role: nextUser.role,
+        isAuthenticated: nextUser.isAuthenticated,
+        first_name: nextUser.first_name,
+        last_name: nextUser.last_name,
+        avatar_url: nextUser.avatar_url,
+        avatar: nextUser.avatar,
+    };
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedUser));
 };
 
 const clearStoredAuth = () => {
+    clearAuthToken();
     if (typeof window === 'undefined') {
         return;
     }
 
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_STORAGE_KEY);
 };
 
@@ -178,16 +190,11 @@ const resolveSignedOutError = () => {
     return isCurrentAuthRoute() ? null : 'Your session has expired. Please log in again.';
 };
 
-const getStoredAuthToken = () => {
-    if (typeof window === 'undefined') {
-        return null;
-    }
-
-    return localStorage.getItem(AUTH_TOKEN_KEY);
-};
-
 const getInitialAuthState = () => {
-    const token = getStoredAuthToken();
+    const token = getAuthToken();
+    if (!token) {
+        clearAuthToken();
+    }
     const cachedUser = token ? getCachedUser() : null;
 
     return {
@@ -212,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const refreshUser = useCallback(async () => {
-        const token = getStoredAuthToken();
+        const token = getAuthToken();
         if (!token) {
             clearStoredAuth();
             resetAuthExpiryState();
@@ -296,19 +303,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            if (event.key !== AUTH_TOKEN_KEY && event.key !== AUTH_STORAGE_KEY) {
+            if (event.key !== AUTH_STORAGE_KEY) {
                 return;
             }
 
-            const nextToken = getStoredAuthToken();
+            const nextToken = getAuthToken();
             if (!nextToken) {
                 applySignedOutState(null);
-                return;
-            }
-
-            if (event.key === AUTH_TOKEN_KEY && event.newValue !== event.oldValue) {
-                setLoading(true);
-                void refreshUser();
                 return;
             }
 
@@ -346,7 +347,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userData = data.user || data.data?.user || { email };
             const userObj = buildStoredUser(userData, email);
 
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
+            if (!token) {
+                const errMsg = 'Login failed. Please try again.';
+                setError(errMsg);
+                return { success: false, error: errMsg };
+            }
+
+            setAuthToken(token);
             persistUser(userObj);
             resetAuthExpiryState();
             setUser(userObj);
@@ -405,7 +412,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userObj = buildStoredUser(userData, email);
 
             if (token) {
-                localStorage.setItem(AUTH_TOKEN_KEY, token);
+                setAuthToken(token);
                 persistUser(userObj);
                 resetAuthExpiryState();
                 setUser(userObj);
@@ -424,7 +431,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [refreshUser]);
 
     const signOut = useCallback(async () => {
-        const token = getStoredAuthToken();
+        const token = getAuthToken();
         if (token) {
             try {
                 await apiFetch(`${CORE_SERVICE_URL()}/api/v1/auth/logout`, {

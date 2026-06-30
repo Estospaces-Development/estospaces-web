@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+const { selectCoreApiToken } = require("./fast-track-token.cjs");
 
 function requireEnv(name) {
   const value = process.env[name];
@@ -70,8 +71,12 @@ async function parseJson(response, label) {
   return payload;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function coreRequest(route, method, token, body, label) {
-  const response = await fetch(`${CORE_URL}${route}`, {
+  const request = () => fetch(`${CORE_URL}${route}`, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -79,6 +84,11 @@ async function coreRequest(route, method, token, body, label) {
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
+  let response = await request();
+  if (response.status === 429 && route === "/api/v1/auth/login") {
+    await sleep(65000);
+    response = await request();
+  }
   return parseJson(response, label);
 }
 
@@ -107,11 +117,7 @@ async function login(email, password) {
     `login ${email}`,
   );
   const rawUser = payload?.data?.user ?? payload?.user;
-  const token =
-    payload?.data?.session?.access_token ??
-    payload?.data?.access_token ??
-    payload?.data?.token ??
-    payload?.token;
+  const token = selectCoreApiToken(payload);
   const fullName =
     [rawUser?.first_name, rawUser?.last_name]
       .filter(Boolean)
@@ -240,11 +246,11 @@ async function newAuthedContext(browser, session, theme, viewport) {
 
 function attachDiagnostics(page, result) {
   page.on("pageerror", (error) => {
-    result.pageErrors.push(String(error));
+    result.pageErrors.push(`${page.url() || "about:blank"}: ${String(error)}`);
   });
   page.on("console", (msg) => {
     if (msg.type() === "error") {
-      result.consoleErrors.push(msg.text());
+      result.consoleErrors.push(`${page.url() || "about:blank"}: ${msg.text()}`);
     }
   });
   page.on("response", (response) => {
@@ -268,6 +274,13 @@ async function gotoFastTrackWorkspace(page, role, caseId, section = "documents")
   await page.locator("[data-fast-track-header]").waitFor({ timeout: 120000 });
   await page.locator("[data-fast-track-masthead]").waitFor({ timeout: 120000 });
   await page.locator("[data-fast-track-stepper]").waitFor({ timeout: 120000 });
+  const utilityDock = page.locator("[data-fast-track-utility-dock]").first();
+  if (!(await utilityDock.isVisible().catch(() => false))) {
+    const disclosure = page.locator("details:has([data-fast-track-utility-dock]) > summary").first();
+    if (await disclosure.isVisible().catch(() => false)) {
+      await disclosure.click({ timeout: 10000 });
+    }
+  }
   await page.locator("[data-fast-track-utility-dock]").waitFor({ timeout: 120000 });
   await page.waitForTimeout(1200);
 }

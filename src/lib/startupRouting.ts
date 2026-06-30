@@ -2,7 +2,7 @@ import { getRedirectPath } from './authUtils';
 
 export const resolveStartupPath = (isAuthenticated: boolean, role?: string) => {
     if (!isAuthenticated) {
-        return '/login';
+        return '/';
     }
 
     return getRedirectPath(role || 'user');

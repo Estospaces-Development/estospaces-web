@@ -8,7 +8,7 @@ const {
 
 const publicRoutes = [
   { route: '/', expected: /Search|Dashboard|Estospaces|Login/i },
-  { route: '/login', expected: /Sign In|Login/i },
+  { route: '/login/', expected: /Sign In|Login/i },
   { route: '/register', expected: /Register|Create account|Sign Up/i },
   { route: '/forgot-password', expected: /Forgot password|Reset/i },
   { route: '/contact', expected: /Contact|Get in touch/i },
@@ -45,7 +45,7 @@ async function fetchText(url, options = {}) {
 async function runHttpChecks(target) {
   const checks = [
     { name: 'app-shell', url: target.baseUrl, ok: (status) => status === 200 || status === 302 },
-    { name: 'admin-login', url: `${target.adminBaseUrl}/login`, ok: (status) => status === 200 || status === 302 },
+    { name: 'admin-login', url: `${target.adminBaseUrl}/login/`, ok: (status) => status === 200 || status === 302 },
     ...Object.entries(target.services).map(([name, url]) => ({
       name: `${name}-health`,
       url: `${url}/health`,
@@ -156,12 +156,12 @@ async function runProtectedRedirectChecks(target) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 }, ignoreHTTPSErrors: true });
   const page = await context.newPage();
   const routes = [
-    { id: 'user-dashboard', baseUrl: target.appBaseUrl, route: '/user/dashboard', expected: /\/login$/ },
-    { id: 'user-bookings', baseUrl: target.appBaseUrl, route: '/user/bookings', expected: /\/login$/ },
-    { id: 'user-payments-phase-two', baseUrl: target.appBaseUrl, route: '/user/dashboard/payments', expected: /\/login$/ },
-    { id: 'manager-dashboard', baseUrl: target.appBaseUrl, route: '/manager/dashboard', expected: /\/login$/ },
-    { id: 'manager-billing-phase-two', baseUrl: target.appBaseUrl, route: '/manager/billing', expected: /\/login$/ },
-    { id: 'admin-dashboard', baseUrl: target.adminBaseUrl, route: '/admin/dashboard', expected: /\/login$/ },
+    { id: 'user-dashboard', baseUrl: target.appBaseUrl, route: '/user/dashboard', expected: /\/login\/?$/ },
+    { id: 'user-bookings', baseUrl: target.appBaseUrl, route: '/user/bookings', expected: /\/login\/?$/ },
+    { id: 'user-payments-phase-two', baseUrl: target.appBaseUrl, route: '/user/dashboard/payments', expected: /\/login\/?$/ },
+    { id: 'manager-dashboard', baseUrl: target.appBaseUrl, route: '/manager/dashboard', expected: /\/login\/?$/ },
+    { id: 'manager-billing-phase-two', baseUrl: target.appBaseUrl, route: '/manager/billing', expected: /\/login\/?$/ },
+    { id: 'admin-dashboard', baseUrl: target.adminBaseUrl, route: '/admin/dashboard', expected: /\/login\/?$/ },
   ];
 
   const results = [];

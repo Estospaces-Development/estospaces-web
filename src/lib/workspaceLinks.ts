@@ -30,6 +30,7 @@ export interface WorkspaceLinkOptions {
     contractId?: MaybeString;
     paymentId?: MaybeString;
     invoiceId?: MaybeString;
+    progressionId?: MaybeString;
     caseId?: MaybeString;
     leadId?: MaybeString;
     propertyId?: MaybeString;
@@ -148,6 +149,9 @@ export const buildWorkspacePath = (basePath: string, options: WorkspaceLinkOptio
     if (normalizeId(options.invoiceId)) {
         searchParams.set('invoice', normalizeId(options.invoiceId));
     }
+    if (normalizeId(options.progressionId)) {
+        searchParams.set('progression', normalizeId(options.progressionId));
+    }
     if (normalizeId(options.caseId)) {
         searchParams.set('case', normalizeId(options.caseId));
     }
@@ -169,6 +173,16 @@ export const resolveFocusedApplication = <T extends WorkspaceApplication>(
     applications: T[],
     options: WorkspaceLinkOptions,
 ) => {
+    if (normalizeId(options.progressionId)) {
+        const directProgressionMatch = applications.find((application) => (
+            isSaleProgressionApplication(application) && sameId(application.id, options.progressionId)
+        ));
+        if (directProgressionMatch) {
+            return directProgressionMatch;
+        }
+        return null;
+    }
+
     if (normalizeId(options.applicationId)) {
         const directMatch = applications.find((application) => sameId(application.id, options.applicationId));
         if (directMatch) {
@@ -263,6 +277,7 @@ export const resolveFocusedContract = (
         if (directMatch) {
             return directMatch;
         }
+        return null;
     }
 
     if (normalizeId(options.applicationId)) {

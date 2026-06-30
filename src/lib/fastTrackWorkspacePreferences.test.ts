@@ -6,6 +6,7 @@ import {
   moveFastTrackWorkspaceModule,
   normalizeFastTrackWorkspacePreferences,
   orderVisibleFastTrackWorkspaceModules,
+  resolveFastTrackCaseRailLayout,
 } from './fastTrackWorkspacePreferences';
 
 test('normalizeFastTrackWorkspacePreferences falls back to defaults', () => {
@@ -53,6 +54,26 @@ test('orderVisibleFastTrackWorkspaceModules follows module order', () => {
   ]);
 });
 
+test('normalizeFastTrackWorkspacePreferences backfills legacy module order', () => {
+  const preferences = normalizeFastTrackWorkspacePreferences(
+    {
+      role: 'manager',
+      visibleModules: ['core_files', 'case_chat'],
+      moduleOrder: ['core_files'],
+      defaultActiveModule: 'core_files',
+    },
+    'manager',
+  );
+
+  assert.deepEqual(preferences.moduleOrder, [
+    'core_files',
+    'case_chat',
+    'activity',
+    'preview',
+    'connected_records',
+  ]);
+});
+
 test('moveFastTrackWorkspaceModule reorders module positions safely', () => {
   const defaults = defaultFastTrackWorkspacePreferences('user');
   assert.deepEqual(
@@ -65,3 +86,43 @@ test('moveFastTrackWorkspaceModule reorders module positions safely', () => {
   );
 });
 
+test('resolveFastTrackCaseRailLayout uses drawer state on compact screens', () => {
+  assert.deepEqual(
+    resolveFastTrackCaseRailLayout({
+      compactViewport: true,
+      desktopRailCollapsed: false,
+      compactDrawerOpen: false,
+    }),
+    {
+      headerRailCollapsed: true,
+      renderCompactDrawerRail: false,
+      renderDesktopRail: false,
+    },
+  );
+
+  assert.deepEqual(
+    resolveFastTrackCaseRailLayout({
+      compactViewport: true,
+      desktopRailCollapsed: false,
+      compactDrawerOpen: true,
+    }),
+    {
+      headerRailCollapsed: false,
+      renderCompactDrawerRail: true,
+      renderDesktopRail: false,
+    },
+  );
+
+  assert.deepEqual(
+    resolveFastTrackCaseRailLayout({
+      compactViewport: false,
+      desktopRailCollapsed: false,
+      compactDrawerOpen: false,
+    }),
+    {
+      headerRailCollapsed: false,
+      renderCompactDrawerRail: false,
+      renderDesktopRail: true,
+    },
+  );
+});

@@ -25,7 +25,7 @@ export interface Metadata {
 
 const SITE_NAME = 'Estospaces';
 const SITE_URL = 'https://estospaces.co.uk';
-const DEFAULT_DESCRIPTION = 'Premium property platform connecting buyers, sellers, and brokers across the UK. Find your dream property with Estospaces.';
+const DEFAULT_DESCRIPTION = 'Premium property platform connecting buyers, sellers, and brokers across supported markets. Find your dream property with Estospaces.';
 
 interface SeoConfig {
     title: string;
@@ -85,7 +85,7 @@ export const pageMetadata = {
     faq: generateMetadata({ title: 'FAQ', path: '/faq', description: 'Frequently asked questions about EstoSpaces.' }),
     privacy: generateMetadata({ title: 'Privacy Policy', path: '/privacy' }),
     userDashboard: generateMetadata({ title: 'Dashboard', path: '/user/dashboard', noIndex: true }),
-    userSearch: generateMetadata({ title: 'Property Search', path: '/user/search', description: 'Search thousands of verified property listings across the UK.' }),
+    userSearch: generateMetadata({ title: 'Property Search', path: '/user/search', description: 'Search verified property listings across supported markets.' }),
     userBookings: generateMetadata({ title: 'My Bookings', path: '/user/bookings', noIndex: true }),
     userFavorites: generateMetadata({ title: 'Saved Properties', path: '/user/favorites', noIndex: true }),
     managerDashboard: generateMetadata({ title: 'Manager Dashboard', path: '/manager/dashboard', noIndex: true }),

@@ -1,0 +1,8 @@
+name: Estospaces web production CodeQL
+
+paths:
+  - src
+
+paths-ignore:
+  - src/**/*.test.ts
+  - src/**/*.test.tsx

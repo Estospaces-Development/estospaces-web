@@ -15,6 +15,25 @@ const LIVE_PROPERTY_STATUSES = new Set<string>([
 
 const normalizeStatusToken = (value?: string | null) => value?.trim().toLowerCase() || '';
 
+export const normalizeManagerAnalyticsPercentage = (value?: number | null) => {
+    const numericValue = Number(value ?? 0);
+
+    if (!Number.isFinite(numericValue)) {
+        return 0;
+    }
+
+    return Math.min(Math.max(numericValue, 0), 100);
+};
+
+export const formatManagerAnalyticsPercentage = (value?: number | null) => {
+    const normalizedValue = normalizeManagerAnalyticsPercentage(value);
+    const formattedValue = Number.isInteger(normalizedValue)
+        ? `${normalizedValue}`
+        : normalizedValue.toFixed(2).replace(/\.?0+$/, '');
+
+    return `${formattedValue}%`;
+};
+
 export const normalizeManagerPropertyStatusFilters = (
     statuses?: readonly (string | null | undefined)[],
 ) => {
@@ -76,6 +95,27 @@ export const buildManagerPropertySearchParams = (
 
     return next;
 };
+
+type ManagerLivePresetFilters = {
+    search?: string;
+    priceMin?: number;
+    priceMax?: number;
+    bedroomsMin?: number;
+    propertyType?: readonly string[];
+    status?: readonly (string | null | undefined)[];
+};
+
+export const buildManagerLivePresetFilters = <T extends ManagerLivePresetFilters>(
+    filters: T,
+    statuses?: readonly (string | null | undefined)[],
+) => ({
+    ...filters,
+    priceMin: undefined,
+    priceMax: undefined,
+    bedroomsMin: undefined,
+    propertyType: undefined,
+    status: normalizeManagerPropertyStatusFilters(statuses),
+});
 
 export const buildManagerActiveListingsPath = () => {
     const params = new URLSearchParams();

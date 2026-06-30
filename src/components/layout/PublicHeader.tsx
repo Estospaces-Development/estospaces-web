@@ -2,101 +2,142 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Menu, X } from 'lucide-react';
+import { LogIn, Menu, UserPlus, X } from 'lucide-react';
+import { getAuthPath, getLoginPath } from '@/lib/authUtils';
+
+type NavLink = {
+    href: string;
+    label: string;
+    external?: boolean;
+};
+
+const logoIcon = '/logo-icon.png';
 
 const PublicHeader = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const pathname = useLocation().pathname;
+    const loginPath = getLoginPath();
+    const registerPath = getAuthPath('/register');
 
-    const navLinks = [
+    const navLinks: NavLink[] = [
         { href: '/search', label: 'Search' },
         { href: '/about', label: 'About' },
+        { href: '/faq', label: 'FAQ' },
+        { href: 'https://estospaces.com/blogs', label: 'Blog', external: true },
         { href: '/contact', label: 'Contact' },
     ];
 
-    const isActive = (path: string) => pathname === path;
+    const isActive = (link: NavLink) => !link.external && pathname === link.href && link.href !== '/';
+
+    const navItemClass = (link: NavLink) =>
+        `text-sm font-medium transition-colors hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+            isActive(link) ? 'text-primary' : 'text-gray-700 dark:text-gray-200'
+        }`;
+
+    const closeMenu = () => setIsMenuOpen(false);
 
     return (
-        <header className="fixed inset-x-0 top-0 z-50 border-b border-[var(--border-soft)] bg-white/82 backdrop-blur-xl dark:bg-black/80">
-            <nav className="page-shell flex h-[72px] items-center justify-between">
-                <Link to="/" className="group flex items-center gap-3">
-                    <div className="rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] p-2.5 shadow-[var(--shadow-brand)] transition-transform duration-200 group-hover:scale-[1.03]">
-                        <Building2 className="h-5 w-5 text-white" />
-                    </div>
-                    <div className="flex flex-col">
-                        <span className="text-base font-semibold tracking-[-0.02em] text-[var(--text-strong)]">Estospaces</span>
-                        <span className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">Property platform</span>
-                    </div>
+        <header className="fixed left-0 right-0 top-0 z-50 bg-white shadow-md dark:bg-gray-900">
+            <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
+                <Link
+                    to="/"
+                    className="flex items-center gap-2 transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label="Estospaces home"
+                    onClick={closeMenu}
+                >
+                    <img
+                        src={logoIcon}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-9 w-9 object-contain sm:h-10 sm:w-10"
+                    />
+                    <span className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">Estospaces</span>
                 </Link>
 
-                <div className="hidden md:flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-raised)] px-2 py-1 shadow-[var(--shadow-card)]">
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.href}
-                            to={link.href}
-                            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${isActive(link.href)
-                                ? 'bg-[var(--accent-soft)] text-[var(--accent-emphasis)]'
-                                : 'text-[var(--text-muted)] hover:text-[var(--text-strong)]'
-                                }`}
-                        >
-                            {link.label}
-                        </Link>
-                    ))}
-                </div>
-
-                <div className="hidden md:flex items-center gap-3">
+                <div className="hidden items-center gap-8 md:flex">
+                    {navLinks.map((link) =>
+                        link.external ? (
+                            <a key={link.href} href={link.href} className={navItemClass(link)}>
+                                {link.label}
+                            </a>
+                        ) : (
+                            <Link key={`${link.href}-${link.label}`} to={link.href} className={navItemClass(link)}>
+                                {link.label}
+                            </Link>
+                        ),
+                    )}
                     <Link
-                        to="/login"
-                        className="rounded-full px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)]"
+                        to={loginPath}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800"
                     >
+                        <LogIn size={18} />
                         Sign In
                     </Link>
                     <Link
-                        to="/register"
-                        className="rounded-full bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] px-5 py-2.5 text-sm font-semibold text-white shadow-[var(--shadow-brand)] transition-transform duration-200 hover:-translate-y-px"
+                        to={registerPath}
+                        className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-950/10 transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     >
+                        <UserPlus size={18} />
                         Get Started
                     </Link>
                 </div>
 
                 <button
-                    className="rounded-xl p-2 text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] md:hidden"
+                    type="button"
+                    className="rounded-lg p-2 text-gray-700 transition-colors hover:bg-gray-100 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800 md:hidden"
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                     aria-label="Toggle navigation"
+                    aria-expanded={isMenuOpen}
+                    aria-controls="public-mobile-navigation"
                 >
                     {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
             </nav>
 
             {isMenuOpen && (
-                <div className="absolute left-0 top-[72px] w-full border-b border-[var(--border-soft)] bg-[var(--surface-base)] shadow-[var(--shadow-floating)] md:hidden">
-                    <div className="page-shell space-y-4 py-5">
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.href}
-                                to={link.href}
-                                className={`block rounded-2xl px-4 py-3 text-sm font-medium ${isActive(link.href)
-                                    ? 'bg-[var(--accent-soft)] text-[var(--accent-emphasis)]'
-                                    : 'text-[var(--text-muted)]'
+                <div
+                    id="public-mobile-navigation"
+                    className="fixed inset-x-0 top-16 z-50 max-h-[calc(100vh-4rem)] overflow-y-auto border-t border-gray-100 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 sm:top-20 sm:max-h-[calc(100vh-5rem)] md:hidden"
+                >
+                    <div className="mx-auto max-w-7xl space-y-1 px-4 py-4 sm:px-6">
+                        {navLinks.map((link) =>
+                            link.external ? (
+                                <a
+                                    key={link.href}
+                                    href={link.href}
+                                    className="block rounded-lg px-3 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-gray-200 dark:hover:bg-gray-800"
+                                    onClick={closeMenu}
+                                >
+                                    {link.label}
+                                </a>
+                            ) : (
+                                <Link
+                                    key={`${link.href}-${link.label}`}
+                                    to={link.href}
+                                    className={`block rounded-lg px-3 py-3 text-sm font-medium transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-800 ${
+                                        isActive(link) ? 'text-primary' : 'text-gray-700 dark:text-gray-200'
                                     }`}
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
-                        <div className="space-y-3 border-t border-[var(--border-soft)] pt-4">
+                                    onClick={closeMenu}
+                                >
+                                    {link.label}
+                                </Link>
+                            ),
+                        )}
+                        <div className="space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">
                             <Link
-                                to="/login"
-                                className="block rounded-2xl border border-[var(--border-soft)] px-4 py-3 text-center text-sm font-medium text-[var(--text-strong)]"
-                                onClick={() => setIsMenuOpen(false)}
+                                to={loginPath}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition-colors hover:bg-orange-50 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
+                                onClick={closeMenu}
                             >
+                                <LogIn size={18} />
                                 Sign In
                             </Link>
                             <Link
-                                to="/register"
-                                className="block rounded-2xl bg-[linear-gradient(135deg,var(--accent-strong),var(--accent-emphasis))] px-4 py-3 text-center text-sm font-semibold text-white"
-                                onClick={() => setIsMenuOpen(false)}
+                                to={registerPath}
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-orange-950/10 transition-colors hover:bg-primary-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                onClick={closeMenu}
                             >
+                                <UserPlus size={18} />
                                 Get Started
                             </Link>
                         </div>

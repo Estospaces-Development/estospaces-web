@@ -25,10 +25,10 @@ jobs:
       TARGET_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
@@ -39,7 +39,12 @@ jobs:
       - name: Build and Push
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/estospaces/${SERVICE_NAME}:${GITHUB_SHA}"
+          NGINX_CONF="nginx.prod.conf"
+          if [ "${TARGET_ENV}" = "dev" ]; then
+            NGINX_CONF="nginx.gcp-dev.conf"
+          fi
           docker build \
+            --build-arg NGINX_CONF="$NGINX_CONF" \
             --build-arg VITE_CORE_SERVICE_URL=${{ vars.CORE_SERVICE_URL }} \
             --build-arg VITE_BOOKING_SERVICE_URL=${{ vars.BOOKING_SERVICE_URL }} \
             --build-arg VITE_PAYMENT_SERVICE_URL=${{ vars.PAYMENT_SERVICE_URL }} \
@@ -63,9 +68,9 @@ jobs:
         run: |
           SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
           if [ "${TARGET_ENV}" = "prod" ]; then
-            HEALTH_URL="https://app.estospaces.com/login"
+            HEALTH_URL="https://app.estospaces.com/login/"
           else
             SERVICE_URL="$(gcloud run services describe "$SERVICE_TARGET" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
-            HEALTH_URL="${SERVICE_URL}/login"
+            HEALTH_URL="${SERVICE_URL}/login/"
           fi
           curl --fail --show-error --silent --location "${HEALTH_URL}" > /dev/null

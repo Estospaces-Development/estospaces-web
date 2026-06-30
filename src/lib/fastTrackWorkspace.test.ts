@@ -1,16 +1,33 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import type { FastTrackCase } from '@/services/fastTrackService';
 
 import {
+    buildFastTrackDocumentDraftStorageKey,
+    buildFastTrackSelectionSearchParams,
+    buildFastTrackDocumentSearchParams,
+    buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
+    canUserConfirmFastTrackHandover,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
+    getFastTrackDecisionGuard,
+    getFastTrackFinalDecisionGuard,
+    isFastTrackDocumentDraftDirty,
+    resolveFastTrackDocumentSearchParam,
+    resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from './fastTrackWorkspace';
+
+const fastTrackWorkspaceComponent = readFileSync(
+    resolve(process.cwd(), 'src/components/fast-track/FastTrackWorkspace.tsx'),
+    'utf8',
+);
 
 const buildCase = (overrides: Partial<FastTrackCase> = {}): FastTrackCase => ({
     id: 'case-record-1',
@@ -105,6 +122,97 @@ test('selection falls back to previous case when the query does not match', () =
     assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('application=missing'), 'case-b'), 'case-b');
 });
 
+test('selection restores case query params after copy-paste casing and whitespace changes', () => {
+    const cases = [buildCase({ caseId: 'case-a' }), buildCase({ caseId: 'case-b' })];
+
+    assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('case=%20CASE-B%20'), null), 'case-b');
+});
+
+test('selection search params replace stale case ids when a completed journey is selected', () => {
+    const next = buildFastTrackSelectionSearchParams(
+        new URLSearchParams('case=active-case&section=documents'),
+        'completed-case',
+    );
+
+    assert.equal(next.get('case'), 'completed-case');
+    assert.equal(next.get('section'), 'documents');
+});
+
+test('stage search params preserve manager-selected viewing stage across refresh', () => {
+    const next = buildFastTrackStageSearchParams(new URLSearchParams('case=case-1'), 'viewing');
+
+    assert.equal(next.get('case'), 'case-1');
+    assert.equal(next.get('section'), 'viewing');
+    assert.equal(resolveFastTrackStageSearchParam(next), 'viewing');
+    assert.equal(resolveFastTrackStageSearchParam(new URLSearchParams('section=bad-stage')), null);
+});
+
+test('document search params preserve selected address row across refresh', () => {
+    const next = buildFastTrackDocumentSearchParams(
+        new URLSearchParams('case=case-1&section=documents'),
+        'address',
+    );
+
+    assert.equal(next.get('document'), 'address');
+    assert.equal(resolveFastTrackDocumentSearchParam(next, ['identity', 'address']), 'address');
+    assert.equal(resolveFastTrackDocumentSearchParam(new URLSearchParams('document=missing'), ['identity', 'address']), null);
+});
+
+test('document draft helpers keep notes scoped to role and case', () => {
+    assert.equal(
+        buildFastTrackDocumentDraftStorageKey('user', ' Case 123 '),
+        'fast-track:document-drafts:user:Case%20123',
+    );
+    assert.equal(buildFastTrackDocumentDraftStorageKey('user', ''), '');
+    assert.equal(isFastTrackDocumentDraftDirty({}), false);
+    assert.equal(isFastTrackDocumentDraftDirty({ address: '   ' }), false);
+    assert.equal(isFastTrackDocumentDraftDirty({ address: 'Council tax bill attached.' }), true);
+});
+
+test('decision guard blocks manager offer actions until prerequisites are satisfied', () => {
+    const pendingSaleCase = buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        stage: 'selected',
+        viewing: { status: 'pending' },
+    });
+    assert.match(
+        getFastTrackDecisionGuard(pendingSaleCase, 'approved', '', 'manager') || '',
+        /viewing/i,
+    );
+
+    const readySaleCase = buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        stage: 'decision',
+        viewing: { status: 'completed' },
+    });
+    assert.match(
+        getFastTrackDecisionGuard(readySaleCase, 'approved', '', 'manager') || '',
+        /offer amount/i,
+    );
+    assert.equal(getFastTrackDecisionGuard(readySaleCase, 'approved', '325000', 'manager'), null);
+    assert.equal(getFastTrackDecisionGuard(readySaleCase, 'rejected', '', 'manager'), null);
+});
+
+test('final decision guard lets managers approve ready sale offers with amount', () => {
+    const readySaleCase = buildCase({
+        journeyMode: 'sale',
+        listingType: 'sale',
+        stage: 'decision',
+        viewing: { status: 'completed' },
+        decision: {
+            mode: 'sale',
+            status: 'pending',
+            amount: undefined,
+            currency: 'GBP',
+        },
+    });
+
+    assert.equal(getFastTrackFinalDecisionGuard(readySaleCase, 'approved', '325000', 'manager'), null);
+    assert.equal(getFastTrackFinalDecisionGuard(readySaleCase, 'rejected', '', 'manager'), null);
+});
+
 test('case search matches application and workflow identifiers', () => {
     const fastTrackCase = buildCase({
         caseId: 'case-live-1',
@@ -137,7 +245,7 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
         stage: 'agreement',
         agreement: { status: 'sent', paymentStatus: 'requested', amountDue: 1200 },
     });
-    assert.equal(describeFastTrackWorkspaceFocus(agreementCase, 'manager'), 'Confirm payment and move to handover');
+    assert.equal(describeFastTrackWorkspaceFocus(agreementCase, 'manager'), 'Publish the agreement');
 
     const completedCase = buildCase({ workspaceFinalStatus: 'completed' });
     assert.equal(describeFastTrackWorkspaceFocus(completedCase, 'admin'), 'Case finished');
@@ -149,4 +257,63 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     });
     assert.equal(describeFastTrackWorkspaceFocus(completedHandoverCase, 'user'), 'Your journey is complete');
     assert.equal(describeFastTrackWorkspaceStatus(completedHandoverCase, 'user'), 'Every step is complete. You can keep this page for records and updates.');
+});
+
+test('user handover stays actionable after manager completion until receipt is confirmed', () => {
+    const managerCompletedCase = buildCase({
+        stage: 'handover',
+        workspaceFinalStatus: 'completed',
+        finalStatus: 'completed',
+        handover: {
+            status: 'completed',
+            completedAt: '2026-05-05T12:00:00Z',
+            completedBy: 'manager-1',
+            confirmedByUser: false,
+        },
+    });
+
+    assert.equal(canUserConfirmFastTrackHandover(managerCompletedCase), true);
+    assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'user'), 'Confirm key handover');
+    assert.match(describeFastTrackWorkspaceStatus(managerCompletedCase, 'user'), /Confirm the final handover/i);
+    assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'manager'), 'Case finished');
+});
+
+test('fast-track document preview opens a modal for selected and uploaded files', () => {
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const canPreview = Boolean\(selectedFile \|\| item\.documentRecordId \|\| item\.fileUrl\)/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /if \(selectedFile\) \{/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /setPreviewItemId\(uploadedItem\.id\);\s*setPreviewModalOpen\(true\);/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /onClick=\{\(\) => void ensureDocumentPreview\(previewItem, \{ openInModal: true \}\)\}/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /aria-label="Zoom out document preview"/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /aria-label="Zoom in document preview"/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /<iframe/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /window\.requestAnimationFrame\(\(\) => revealPreviewSection\(\)\)/,
+    );
+});
+
+test('fast-track cancel case uses an in-app confirmation dialog', () => {
+    assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.confirm/);
+    assert.match(fastTrackWorkspaceComponent, /aria-label="Cancel fast-track case confirmation"/);
 });

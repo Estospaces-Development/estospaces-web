@@ -4,8 +4,29 @@ import React, { useEffect, useRef, useState } from 'react';
 import { User, Mail, Phone, MapPin, Building, Globe, Save, Loader2, CheckCircle, Upload, Hash } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import { normalizeManagerServiceAreas } from '@/services/managerVerificationService';
 import { uploadMediaFile } from '@/services/mediaService';
 import { userService } from '@/services/userService';
+import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
+import {
+    formatLaunchLocationCode,
+    formatLaunchPropertyLocation,
+    formatLaunchPropertyText,
+    normalizeLaunchLocationCode,
+} from '@/lib/launchLocale';
+
+const MANAGER_LICENSE_MAX_LENGTH = 64;
+const MANAGER_BIO_MAX_LENGTH = 1000;
+const MANAGER_PHONE_MAX_LENGTH = 20;
+const MANAGER_LICENSE_PATTERN = '[A-Za-z0-9][A-Za-z0-9 ./_-]*';
+const MANAGER_PHONE_PATTERN = '\\+?[0-9 ()-]{7,20}';
+
+type ManagerProfileFieldErrors = ProfileNameErrors & Partial<Record<'licenseNumber', string>>;
+
+const formatOptionalLaunchPropertyLocation = (value?: string | null) => {
+    const raw = String(value || '').trim();
+    return raw ? formatLaunchPropertyLocation(raw) : '';
+};
 
 export default function ManagerProfilePage() {
     const { user, refreshUser, mergeCurrentUserProfile } = useAuth();
@@ -20,6 +41,7 @@ export default function ManagerProfilePage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<ManagerProfileFieldErrors>({});
     const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -35,6 +57,7 @@ export default function ManagerProfilePage() {
         postcode: '',
         companyName: '',
         branchName: '',
+        serviceAreas: '',
         businessPhone: '',
         companyAddress: '',
         registeredOfficeAddress: '',
@@ -61,16 +84,17 @@ export default function ManagerProfilePage() {
             lastName,
             email: user?.email || '',
             phone: user?.phone || prev.phone || '',
-            address: user?.address || prev.address || '',
-            postcode: user?.postcode || prev.postcode || '',
+            address: formatOptionalLaunchPropertyLocation(user?.address || prev.address || ''),
+            postcode: formatLaunchLocationCode(user?.postcode || prev.postcode || ''),
             bio: managerProfile?.company_description || user?.user_metadata?.bio || prev.bio || '',
             website: user?.user_metadata?.website || prev.website || '',
             // Broker / manager fields
             companyName: managerProfile?.company_name || prev.companyName || '',
-            branchName: managerProfile?.branch_name || prev.branchName || '',
+            branchName: formatLaunchPropertyText(managerProfile?.branch_name || prev.branchName || '', ''),
+            serviceAreas: normalizeManagerServiceAreas(managerProfile?.service_areas).join(', ') || prev.serviceAreas || '',
             businessPhone: managerProfile?.business_phone || prev.businessPhone || '',
-            companyAddress: managerProfile?.company_address || prev.companyAddress || '',
-            registeredOfficeAddress: managerProfile?.registered_office_address || prev.registeredOfficeAddress || '',
+            companyAddress: formatOptionalLaunchPropertyLocation(managerProfile?.company_address || prev.companyAddress || ''),
+            registeredOfficeAddress: formatOptionalLaunchPropertyLocation(managerProfile?.registered_office_address || prev.registeredOfficeAddress || ''),
             complaintsContact: managerProfile?.complaints_contact || prev.complaintsContact || '',
             redressSchemeName: managerProfile?.redress_scheme_name || prev.redressSchemeName || '',
             redressMembershipNumber: managerProfile?.redress_membership_number || prev.redressMembershipNumber || '',
@@ -86,12 +110,35 @@ export default function ManagerProfilePage() {
     }, [user, managerProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const nextValue = (() => {
+            if (e.target.name === 'postcode') {
+                return normalizeLaunchLocationCode(e.target.value);
+            }
+
+            if (e.target.name === 'address' || e.target.name === 'companyAddress' || e.target.name === 'registeredOfficeAddress') {
+                return formatOptionalLaunchPropertyLocation(e.target.value);
+            }
+
+            if (e.target.name === 'branchName') {
+                return formatLaunchPropertyText(e.target.value, '');
+            }
+
+            if (e.target.name === 'serviceAreas') {
+                return e.target.value.toUpperCase();
+            }
+
+            return e.target.value;
+        })();
+
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [e.target.name]: nextValue
         }));
         setIsSaved(false);
         setSaveError('');
+        if (e.target.name === 'firstName' || e.target.name === 'lastName' || e.target.name === 'licenseNumber') {
+            setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));
+        }
     };
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,6 +183,22 @@ export default function ManagerProfilePage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        const nameErrors = validateProfileNameFields({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+        });
+        const nextFieldErrors: ManagerProfileFieldErrors = { ...nameErrors };
+        if (!formData.licenseNumber.trim()) {
+            nextFieldErrors.licenseNumber = managerProfile?.profile_type === 'company'
+                ? 'Company registration number is required'
+                : 'Broker license number is required';
+        }
+        if (Object.keys(nextFieldErrors).length > 0) {
+            setFieldErrors(nextFieldErrors);
+            setSaveError('Please correct the highlighted profile fields.');
+            return;
+        }
+
         setIsLoading(true);
         setSaveError('');
         
@@ -146,6 +209,7 @@ export default function ManagerProfilePage() {
             const businessPhone = formData.businessPhone.trim();
             const companyAddress = formData.companyAddress.trim();
             const registeredOfficeAddress = formData.registeredOfficeAddress.trim();
+            const serviceAreas = normalizeManagerServiceAreas(formData.serviceAreas);
             const isBrokerProfile = managerProfile?.profile_type !== 'company';
             let avatarValue = storedAvatarValue?.startsWith('data:') ? undefined : storedAvatarValue || undefined;
 
@@ -183,6 +247,7 @@ export default function ManagerProfilePage() {
                     business_phone: businessPhone || formData.phone.trim(),
                     company_address: companyAddress || formData.address.trim(),
                     registered_office_address: registeredOfficeAddress || companyAddress || formData.address.trim(),
+                    service_areas: JSON.stringify(serviceAreas),
                     complaints_contact: formData.complaintsContact,
                     redress_scheme_name: formData.redressSchemeName,
                     redress_membership_number: formData.redressMembershipNumber,
@@ -231,6 +296,11 @@ export default function ManagerProfilePage() {
 
     const inputClass = "w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
     const iconInputClass = "w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100";
+    const saveDisabled = isLoading
+        || uploadingImage
+        || !formData.firstName.trim()
+        || !formData.lastName.trim()
+        || !formData.licenseNumber.trim();
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500">
@@ -290,6 +360,8 @@ export default function ManagerProfilePage() {
                             <input
                                 id="manager-avatar-upload"
                                 type="file"
+                                name="manager-avatar"
+                                aria-label="Upload manager profile photo"
                                 className="hidden"
                                 accept="image/*"
                                 ref={avatarInputRef}
@@ -308,7 +380,10 @@ export default function ManagerProfilePage() {
                         <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">{formData.companyName || 'No company set'}</p>
                         {formData.address && (
                             <p className="text-gray-400 dark:text-gray-500 text-xs flex items-center gap-1 justify-center">
-                                <MapPin size={12} /> {formData.address}{formData.postcode ? `, ${formData.postcode}` : ''}
+                                <MapPin size={12} /> {formatLaunchPropertyLocation([
+                                    formData.address,
+                                    formData.postcode || undefined,
+                                ])}
                             </p>
                         )}
 
@@ -363,48 +438,71 @@ export default function ManagerProfilePage() {
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
-                                    <input type="text" name="firstName" value={formData.firstName} onChange={handleChange}
+                                    <label htmlFor="manager-first-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">First Name</label>
+                                    <input id="manager-first-name" type="text" name="firstName" value={formData.firstName} onChange={handleChange}
+                                        required
+                                        maxLength={80}
+                                        aria-invalid={fieldErrors.firstName ? 'true' : 'false'}
+                                        aria-describedby={fieldErrors.firstName ? 'manager-first-name-error' : undefined}
                                         className={inputClass} />
+                                    {fieldErrors.firstName && (
+                                        <p id="manager-first-name-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                            {fieldErrors.firstName}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
-                                    <input type="text" name="lastName" value={formData.lastName} onChange={handleChange}
+                                    <label htmlFor="manager-last-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Last Name</label>
+                                    <input id="manager-last-name" type="text" name="lastName" value={formData.lastName} onChange={handleChange}
+                                        required
+                                        maxLength={80}
+                                        aria-invalid={fieldErrors.lastName ? 'true' : 'false'}
+                                        aria-describedby={fieldErrors.lastName ? 'manager-last-name-error' : undefined}
                                         className={inputClass} />
+                                    {fieldErrors.lastName && (
+                                        <p id="manager-last-name-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                            {fieldErrors.lastName}
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
+                                    <label htmlFor="manager-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Email</label>
                                     <div className="relative">
                                         <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="email" name="email" value={formData.email} disabled
+                                        <input id="manager-email" type="email" name="email" value={formData.email} disabled
                                             className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700/30 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 cursor-not-allowed" />
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">Email cannot be changed directly for security.</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
+                                    <label htmlFor="manager-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Phone Number</label>
                                     <div className="relative">
                                         <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="tel" name="phone" value={formData.phone} onChange={handleChange}
-                                            placeholder="+44 7700 000000"
+                                        <input id="manager-phone" type="tel" name="phone" value={formData.phone} onChange={handleChange}
+                                            maxLength={MANAGER_PHONE_MAX_LENGTH}
+                                            pattern={MANAGER_PHONE_PATTERN}
+                                            placeholder="+91 98765 43210"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Home / Location Address</label>
+                                    <label htmlFor="manager-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Home / Location Address</label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="text" name="address" value={formData.address} onChange={handleChange}
-                                            placeholder="123 Example Street, London"
+                                        <input id="manager-address" type="text" name="address" value={formData.address} onChange={handleChange}
+                                            placeholder="123 Example Street, Chennai"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Postcode</label>
+                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code / postcode</label>
                                     <div className="relative">
                                         <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="text" name="postcode" value={formData.postcode} onChange={handleChange}
-                                            placeholder="SW1A 1AA"
+                                        <input id="manager-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange}
+                                            inputMode="text"
+                                            pattern="[A-Za-z0-9 ]*"
+                                            maxLength={8}
+                                            placeholder="600001 or SW1A 1AA"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
@@ -422,68 +520,90 @@ export default function ManagerProfilePage() {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Company Name</label>
+                                        <label htmlFor="manager-company-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Company Name</label>
                                         <div className="relative">
                                             <Building size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                            <input type="text" name="companyName" value={formData.companyName} onChange={handleChange}
+                                            <input id="manager-company-name" type="text" name="companyName" value={formData.companyName} onChange={handleChange}
                                                 placeholder="Acme Properties Ltd"
                                                 className={iconInputClass} />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Phone</label>
+                                        <label htmlFor="manager-business-phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Phone</label>
                                         <div className="relative">
                                             <Phone size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                            <input type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange}
-                                                placeholder="+44 20 0000 0000"
+                                            <input id="manager-business-phone" type="tel" name="businessPhone" value={formData.businessPhone} onChange={handleChange}
+                                                maxLength={MANAGER_PHONE_MAX_LENGTH}
+                                                pattern={MANAGER_PHONE_PATTERN}
+                                                placeholder="+91 44 0000 0000"
                                                 className={iconInputClass} />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Branch Name</label>
-                                        <input type="text" name="branchName" value={formData.branchName} onChange={handleChange}
-                                            placeholder="Westminster Branch"
+                                        <label htmlFor="manager-branch-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Branch Name</label>
+                                        <input id="manager-branch-name" type="text" name="branchName" value={formData.branchName} onChange={handleChange}
+                                            placeholder="Chennai Branch"
                                             className={inputClass} />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License / Reg Number</label>
-                                        <input type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
+                                        <label htmlFor="manager-license-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">License / Reg Number</label>
+                                        <input id="manager-license-number" type="text" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange}
+                                            required
+                                            maxLength={MANAGER_LICENSE_MAX_LENGTH}
+                                            pattern={MANAGER_LICENSE_PATTERN}
                                             placeholder="REG123456"
+                                            aria-invalid={fieldErrors.licenseNumber ? 'true' : 'false'}
+                                            aria-describedby={fieldErrors.licenseNumber ? 'manager-license-number-error' : undefined}
                                             className={inputClass} />
+                                        {fieldErrors.licenseNumber && (
+                                            <p id="manager-license-number-error" role="alert" className="mt-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                                {fieldErrors.licenseNumber}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Tax ID</label>
-                                        <input type="text" name="taxId" value={formData.taxId} onChange={handleChange}
-                                            placeholder="GB123456789"
+                                        <label htmlFor="manager-tax-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Tax ID</label>
+                                        <input id="manager-tax-id" type="text" name="taxId" value={formData.taxId} onChange={handleChange}
+                                            placeholder="GSTIN or local tax ID"
                                             className={inputClass} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Website</label>
+                                    <label htmlFor="manager-service-areas" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dispatch service areas</label>
+                                    <textarea id="manager-service-areas" name="serviceAreas" value={formData.serviceAreas} onChange={handleChange} rows={2}
+                                        placeholder="600001, 600, SW1A"
+                                        className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Add exact PIN codes/postcodes or area prefixes for live requests.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="manager-website" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Website</label>
                                     <div className="relative">
                                         <Globe size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input type="url" name="website" value={formData.website} onChange={handleChange}
-                                            placeholder="https://yourcompany.co.uk"
+                                        <input id="manager-website" type="url" name="website" value={formData.website} onChange={handleChange}
+                                            placeholder="https://yourcompany.in"
                                             className={iconInputClass} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office / Company Address</label>
+                                    <label htmlFor="manager-company-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Office / Company Address</label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
-                                        <textarea name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
-                                            placeholder="1 Office Road, London, EC1A 1AA"
+                                        <textarea id="manager-company-address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={2}
+                                            placeholder="1 Office Road, Chennai, 600001"
                                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registered Office Address</label>
+                                    <label htmlFor="manager-registered-office-address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registered Office Address</label>
                                     <div className="relative">
                                         <MapPin size={16} className="absolute left-3 top-[14px] text-gray-400" />
-                                        <textarea name="registeredOfficeAddress" value={formData.registeredOfficeAddress} onChange={handleChange} rows={2}
+                                        <textarea id="manager-registered-office-address" name="registeredOfficeAddress" value={formData.registeredOfficeAddress} onChange={handleChange} rows={2}
                                             placeholder="Registered office or branch legal address"
                                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     </div>
@@ -491,44 +611,45 @@ export default function ManagerProfilePage() {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Complaints Contact</label>
+                                        <label htmlFor="manager-complaints-contact" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Complaints Contact</label>
                                         <div className="relative">
                                             <Mail size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                            <input type="text" name="complaintsContact" value={formData.complaintsContact} onChange={handleChange}
-                                                placeholder="complaints@agency.co.uk"
-                                                className={iconInputClass} />
+                                            <input id="manager-complaints-contact" type="text" name="complaintsContact" value={formData.complaintsContact} onChange={handleChange}
+                                            placeholder="complaints@agency.in"
+                                            className={iconInputClass} />
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Scheme</label>
-                                        <input type="text" name="redressSchemeName" value={formData.redressSchemeName} onChange={handleChange}
+                                        <label htmlFor="manager-redress-scheme" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Scheme</label>
+                                        <input id="manager-redress-scheme" type="text" name="redressSchemeName" value={formData.redressSchemeName} onChange={handleChange}
                                             placeholder="The Property Ombudsman"
                                             className={inputClass} />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Membership Number</label>
-                                        <input type="text" name="redressMembershipNumber" value={formData.redressMembershipNumber} onChange={handleChange}
+                                        <label htmlFor="manager-redress-membership-number" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Redress Membership Number</label>
+                                        <input id="manager-redress-membership-number" type="text" name="redressMembershipNumber" value={formData.redressMembershipNumber} onChange={handleChange}
                                             placeholder="TPO-123456"
                                             className={inputClass} />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Provider</label>
-                                        <input type="text" name="cmpProvider" value={formData.cmpProvider} onChange={handleChange}
+                                        <label htmlFor="manager-cmp-provider" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Provider</label>
+                                        <input id="manager-cmp-provider" type="text" name="cmpProvider" value={formData.cmpProvider} onChange={handleChange}
                                             placeholder="Client money protection provider"
                                             className={inputClass} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Certificate URL</label>
-                                    <input type="url" name="cmpCertificateUrl" value={formData.cmpCertificateUrl} onChange={handleChange}
+                                    <label htmlFor="manager-cmp-certificate-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">CMP Certificate URL</label>
+                                    <input id="manager-cmp-certificate-url" type="url" name="cmpCertificateUrl" value={formData.cmpCertificateUrl} onChange={handleChange}
                                         placeholder="https://..."
                                         className={inputClass} />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Bio</label>
-                                    <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4}
+                                    <label htmlFor="manager-business-bio" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Business Bio</label>
+                                    <textarea id="manager-business-bio" name="bio" value={formData.bio} onChange={handleChange} rows={4}
+                                        maxLength={MANAGER_BIO_MAX_LENGTH}
                                         placeholder="Tell clients about your company, specialties, and experience..."
                                         className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                 </div>
@@ -548,7 +669,7 @@ export default function ManagerProfilePage() {
                                     Profile Updated
                                 </span>
                             )}
-                            <button type="submit" disabled={isLoading || uploadingImage}
+                            <button type="submit" disabled={saveDisabled}
                                 className="flex items-center gap-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 disabled:bg-orange-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors shadow-sm">
                                 {isLoading ? (
                                     <><Loader2 size={18} className="animate-spin" /> Saving...</>

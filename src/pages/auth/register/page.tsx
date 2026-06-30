@@ -4,13 +4,123 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getServiceUrl } from '@/lib/apiUtils';
-import { getHostedLoginRedirectUrl, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
+import { getAuthPath, getHostedLoginRedirectUrl, getLoginPath, getRedirectPath, requiresHostedLoginRedirect } from '@/lib/authUtils';
 import AuthBrand from '@/components/auth/AuthBrand';
 import TermsDocument, { TERMS_LAST_UPDATED, TERMS_VERSION } from '@/components/legal/TermsDocument';
 import { Check, X, Eye, EyeOff, User, Briefcase, RefreshCw, FileText } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = getServiceUrl('core');
+const authFocusClass = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900';
+export const REGISTER_DRAFT_STORAGE_KEY = 'estospaces:register:draft:v1';
+
+type RegisterDraft = {
+    name: string;
+    email: string;
+    role: string;
+};
+
+const commonMistypedEmailTlds = new Set([
+    'cim',
+    'cmo',
+    'cm',
+    'con',
+    'comm',
+    'coom',
+    'nett',
+    'orrg',
+]);
+
+export function normalizeRegisterEmail(value: string): string {
+    return value.trim().toLowerCase();
+}
+
+export function validateRegisterName(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return 'Please enter your name';
+    }
+    if (trimmed.length < 2) {
+        return 'Name must be at least 2 characters';
+    }
+    if (trimmed.length > 80) {
+        return 'Name must be 80 characters or fewer';
+    }
+    if (!/^[A-Za-z .'-]+$/.test(trimmed)) {
+        return 'Name can only include letters, spaces, apostrophes, periods, and hyphens';
+    }
+    if ((trimmed.match(/[A-Za-z]/g) || []).length < 2) {
+        return 'Name must include at least 2 letters';
+    }
+    return null;
+}
+
+export function validateRegisterEmail(value: string): string | null {
+    const trimmed = normalizeRegisterEmail(value);
+    if (!trimmed) {
+        return 'Please enter a valid email address';
+    }
+    if (trimmed.length > 254 || /\s/.test(trimmed)) {
+        return 'Please enter a valid email address';
+    }
+    if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,24}$/.test(trimmed)) {
+        return 'Please enter a valid email address';
+    }
+
+    const tld = trimmed.split('.').pop() || '';
+    if (commonMistypedEmailTlds.has(tld)) {
+        return 'Please enter a valid email address';
+    }
+
+    return null;
+}
+
+function normalizeRegisterRole(value: string): string {
+    return value === 'manager' ? 'manager' : 'user';
+}
+
+function readRegisterDraft(): RegisterDraft | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        const rawDraft = window.sessionStorage.getItem(REGISTER_DRAFT_STORAGE_KEY);
+        if (!rawDraft) {
+            return null;
+        }
+        const parsed = JSON.parse(rawDraft) as Partial<RegisterDraft>;
+        return {
+            name: typeof parsed.name === 'string' ? parsed.name : '',
+            email: typeof parsed.email === 'string' ? parsed.email : '',
+            role: normalizeRegisterRole(typeof parsed.role === 'string' ? parsed.role : 'user'),
+        };
+    } catch {
+        window.sessionStorage.removeItem(REGISTER_DRAFT_STORAGE_KEY);
+        return null;
+    }
+}
+
+function saveRegisterDraft(draft: RegisterDraft) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.sessionStorage.setItem(
+        REGISTER_DRAFT_STORAGE_KEY,
+        JSON.stringify({
+            name: draft.name,
+            email: draft.email,
+            role: normalizeRegisterRole(draft.role),
+        }),
+    );
+}
+
+function clearRegisterDraft() {
+    if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(REGISTER_DRAFT_STORAGE_KEY);
+    }
+}
 
 type TermsAcceptanceModalProps = {
     isOpen: boolean;
@@ -20,17 +130,25 @@ type TermsAcceptanceModalProps = {
     onReachedEnd: () => void;
 };
 
-function TermsAcceptanceModal({
+export function TermsAcceptanceModal({
     isOpen,
     canAccept,
     onClose,
     onAccept,
     onReachedEnd,
 }: TermsAcceptanceModalProps) {
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+    const previousFocusedElementRef = useRef<HTMLElement | null>(null);
+
     useEffect(() => {
         if (!isOpen) {
             return undefined;
         }
+
+        previousFocusedElementRef.current = document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+        window.setTimeout(() => closeButtonRef.current?.focus(), 0);
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -44,6 +162,7 @@ function TermsAcceptanceModal({
         return () => {
             document.body.style.overflow = '';
             window.removeEventListener('keydown', handleEscape);
+            previousFocusedElementRef.current?.focus();
         };
     }, [isOpen, onClose]);
 
@@ -54,22 +173,29 @@ function TermsAcceptanceModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-gray-950/70 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-4xl rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+            <div
+                className="relative w-full max-w-4xl rounded-[2rem] bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="terms-dialog-title"
+                aria-describedby="terms-dialog-description"
+            >
                 <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between gap-4">
                     <div>
                         <div className="inline-flex items-center gap-2 rounded-full bg-orange-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-600 mb-3">
                             <FileText size={12} />
                             Required Read-Through
                         </div>
-                        <h3 className="text-xl font-black text-gray-900 dark:text-white">Review Terms & Conditions</h3>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <h3 id="terms-dialog-title" className="text-xl font-black text-gray-900 dark:text-white">Review Terms & Conditions</h3>
+                        <p id="terms-dialog-description" className="text-sm text-gray-500 mt-1">
                             Scroll through the full terms before accepting. Last updated: {TERMS_LAST_UPDATED}
                         </p>
                     </div>
                     <button
+                        ref={closeButtonRef}
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        className={`px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${authFocusClass}`}
                     >
                         Close
                     </button>
@@ -91,7 +217,10 @@ function TermsAcceptanceModal({
                 </div>
 
                 <div className="px-6 py-5 border-t border-gray-100 dark:border-gray-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <p className={`text-sm font-medium ${canAccept ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                    <p
+                        className={`break-words text-sm font-medium ${canAccept ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}
+                        aria-live="polite"
+                    >
                         {canAccept
                             ? 'You have reached the end of the terms. You can now accept and continue.'
                             : 'Scroll to the bottom of the terms to enable acceptance.'}
@@ -100,7 +229,7 @@ function TermsAcceptanceModal({
                         type="button"
                         onClick={onAccept}
                         disabled={!canAccept}
-                        className="px-6 py-3 rounded-2xl bg-orange-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors"
+                        className={`px-6 py-3 rounded-2xl bg-orange-500 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors ${authFocusClass}`}
                     >
                         I Have Read and Agree
                     </button>
@@ -114,6 +243,7 @@ export default function RegisterPage() {
     const navigate = useNavigate();
     const { isAuthenticated, loading: authLoading, getRole, register, signOut, user: authUser } = useAuth();
     const resendCooldownTimerRef = useRef<number | null>(null);
+    const registerDraftSaveReadyRef = useRef(false);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -122,6 +252,8 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [nameError, setNameError] = useState('');
+    const [emailError, setEmailError] = useState('');
     const [success, setSuccess] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [termsAcceptedAt, setTermsAcceptedAt] = useState('');
@@ -145,6 +277,8 @@ export default function RegisterPage() {
         : '';
 
     const isSwitching = new URLSearchParams(window.location.search).get('switch') === 'true';
+    const loginPath = getLoginPath();
+    const registerPath = getAuthPath('/register');
 
     const continueWithRole = async (nextRole?: string) => {
         if (requiresHostedLoginRedirect(nextRole)) {
@@ -161,6 +295,29 @@ export default function RegisterPage() {
             window.clearInterval(resendCooldownTimerRef.current);
         }
     }, []);
+
+    useEffect(() => {
+        const draft = readRegisterDraft();
+        if (!draft) {
+            return;
+        }
+
+        setName(draft.name);
+        setEmail(draft.email);
+        setRole(normalizeRegisterRole(draft.role));
+    }, []);
+
+    useEffect(() => {
+        if (success) {
+            return;
+        }
+        if (!registerDraftSaveReadyRef.current) {
+            registerDraftSaveReadyRef.current = true;
+            return;
+        }
+
+        saveRegisterDraft({ name, email, role });
+    }, [email, name, role, success]);
 
     const openTermsModal = () => {
         setHasScrolledTermsToEnd(agreedToTerms);
@@ -190,15 +347,36 @@ export default function RegisterPage() {
         setIsTermsModalOpen(false);
     };
 
+    const handleNameChange = (value: string) => {
+        setName(value);
+        setError('');
+        if (nameError) {
+            setNameError(validateRegisterName(value) || '');
+        }
+    };
+
+    const handleEmailChange = (value: string) => {
+        setEmail(value);
+        setError('');
+        if (emailError) {
+            setEmailError(validateRegisterEmail(value) || '');
+        }
+    };
+
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!name.trim()) {
-            setError('Please enter your name');
+        const nextNameError = validateRegisterName(name);
+        const nextEmailError = validateRegisterEmail(email);
+        setNameError(nextNameError || '');
+        setEmailError(nextEmailError || '');
+
+        if (nextNameError) {
+            setError(nextNameError);
             return;
         }
-        if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
-            setError('Please enter a valid email');
+        if (nextEmailError) {
+            setError(nextEmailError);
             return;
         }
         if (!allRulesPassed) {
@@ -212,9 +390,11 @@ export default function RegisterPage() {
 
         setLoading(true);
         setError('');
+        const normalizedEmail = normalizeRegisterEmail(email);
+        setEmail(normalizedEmail);
 
         try {
-            const result = await register(name, email, password, role, {
+            const result = await register(name.trim(), normalizedEmail, password, role, {
                 acceptedAt: termsAcceptedAt,
                 version: TERMS_VERSION,
             });
@@ -225,6 +405,7 @@ export default function RegisterPage() {
                 return;
             }
 
+            clearRegisterDraft();
             setSuccess(true);
         } catch {
             setError('An unexpected error occurred. Please try again.');
@@ -247,9 +428,9 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center text-center w-full">
                 <AuthBrand className="mb-6" />
 
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     Already signed in
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-8">
                     You are currently signed in as <strong>{authUser?.email}</strong>.
@@ -257,15 +438,17 @@ export default function RegisterPage() {
 
                 <div className="space-y-3 w-full">
                     <button
+                        type="button"
                         onClick={() => void continueWithRole(getRole())}
                         className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all"
                     >
                         Continue to Dashboard
                     </button>
                     <button
+                        type="button"
                         onClick={async () => {
                             await signOut();
-                            navigate('/register?switch=true');
+                            navigate(`${registerPath}?switch=true`);
                         }}
                         className="w-full py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                     >
@@ -285,9 +468,9 @@ export default function RegisterPage() {
                     <Check className="text-green-600 dark:text-green-400" size={32} />
                 </div>
 
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
                     Account Created!
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
                     We sent a verification link to <strong>{email}</strong>.
@@ -305,6 +488,7 @@ export default function RegisterPage() {
                 )}
 
                 <button
+                    type="button"
                     onClick={async () => {
                         setResending(true);
                         setResendMessage('');
@@ -341,7 +525,7 @@ export default function RegisterPage() {
                 </button>
 
                 <Link
-                    to="/login"
+                    to={loginPath}
                     className="w-full inline-block py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-center"
                 >
                     Back to Sign In
@@ -355,9 +539,9 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center">
                 <AuthBrand className="mb-6" />
 
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 text-center">
                     Sign up for Estospaces
-                </h2>
+                </h1>
 
                 <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 text-center">
                     Create your account to get started
@@ -365,15 +549,16 @@ export default function RegisterPage() {
 
                 <form onSubmit={handleSignup} className="w-full">
                     <div className="mb-5">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">I am a</label>
-                        <div className="grid grid-cols-2 gap-3">
+                        <p id="register-role-label" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">I am a</p>
+                        <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-2 gap-3">
                             <button
                                 type="button"
+                                aria-pressed={role === 'user'}
                                 onClick={() => setRole('user')}
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'user'
                                     ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
                                     : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                                    }`}
+                                    } ${authFocusClass}`}
                             >
                                 <User size={24} className={role === 'user' ? 'text-primary' : 'text-gray-400'} />
                                 <span className="mt-2 font-medium text-sm">User</span>
@@ -381,11 +566,12 @@ export default function RegisterPage() {
                             </button>
                             <button
                                 type="button"
+                                aria-pressed={role === 'manager'}
                                 onClick={() => setRole('manager')}
                                 className={`flex flex-col items-center justify-center p-4 rounded-lg border-2 transition-all duration-200 ${role === 'manager'
                                     ? 'border-primary bg-orange-50 dark:bg-orange-900/20 text-primary'
                                     : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
-                                    }`}
+                                    } ${authFocusClass}`}
                             >
                                 <Briefcase size={24} className={role === 'manager' ? 'text-primary' : 'text-gray-400'} />
                                 <span className="mt-2 font-medium text-sm">Manager</span>
@@ -395,44 +581,68 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
+                        <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Full Name</label>
                         <input
+                            id="register-name"
+                            name="name"
                             type="text"
                             autoComplete="name"
                             placeholder="Enter your full name"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                            onChange={(e) => handleNameChange(e.target.value)}
+                            onBlur={() => setNameError(validateRegisterName(name) || '')}
+                            maxLength={80}
+                            aria-invalid={Boolean(nameError)}
+                            aria-describedby={nameError ? 'register-name-error' : undefined}
+                            className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${nameError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
                         />
+                        {nameError && (
+                            <p id="register-name-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                {nameError}
+                            </p>
+                        )}
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+                        <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
                         <input
+                            id="register-email"
+                            name="email"
                             type="email"
                             autoComplete="email"
                             placeholder="Enter your email"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                            onChange={(e) => handleEmailChange(e.target.value)}
+                            onBlur={() => setEmailError(validateRegisterEmail(email) || '')}
+                            aria-invalid={Boolean(emailError)}
+                            aria-describedby={emailError ? 'register-email-error' : undefined}
+                            className={`w-full px-4 py-3 border rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${emailError ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} ${authFocusClass}`}
                         />
+                        {emailError && (
+                            <p id="register-email-error" role="alert" className="mt-1 text-xs font-medium text-red-500">
+                                {emailError}
+                            </p>
+                        )}
                     </div>
 
                     <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Password</label>
+                        <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Password</label>
                         <div className="relative">
                             <input
+                                id="register-password"
+                                name="password"
                                 type={showPassword ? 'text' : 'password'}
                                 autoComplete="new-password"
                                 placeholder="Create a password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                                className={`w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-md outline-none focus:border-primary transition-colors bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 ${authFocusClass}`}
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 ${authFocusClass}`}
                             >
                                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                             </button>
@@ -458,7 +668,7 @@ export default function RegisterPage() {
                     </ul>
 
                     {error && (
-                        <p className="text-red-500 text-sm mb-4 text-center">{error}</p>
+                        <p role="alert" className="mb-4 break-words text-center text-sm text-red-500">{error}</p>
                     )}
 
                     <div className="mb-5 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/60 p-4">
@@ -469,7 +679,7 @@ export default function RegisterPage() {
                                     type="checkbox"
                                     checked={agreedToTerms}
                                     onChange={(e) => handleTermsCheckboxChange(e.target.checked)}
-                                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer"
+                                    className={`w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer ${authFocusClass}`}
                                 />
                             </div>
                             <div className="flex-1">
@@ -487,14 +697,18 @@ export default function RegisterPage() {
                             <button
                                 type="button"
                                 onClick={openTermsModal}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm hover:bg-orange-100 transition-colors"
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-50 text-orange-600 font-bold text-sm hover:bg-orange-100 transition-colors ${authFocusClass}`}
                             >
                                 <FileText size={16} />
                                 {agreedToTerms ? 'Review Terms Again' : 'Read Terms & Conditions'}
                             </button>
-                            <Link to="/privacy" className="text-sm font-medium text-primary hover:underline">
-                                Privacy Policy
-                            </Link>
+                                <Link
+                                    to="/privacy"
+                                    onClick={() => saveRegisterDraft({ name, email, role })}
+                                    className={`text-sm font-medium text-primary hover:underline ${authFocusClass}`}
+                                >
+                                    Privacy Policy
+                                </Link>
                             {acceptedTermsLabel && (
                                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                     Accepted on {acceptedTermsLabel}
@@ -506,7 +720,7 @@ export default function RegisterPage() {
                     <button
                         type="submit"
                         disabled={loading || !agreedToTerms || !termsAcceptedAt}
-                        className="w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`w-full py-3 bg-primary text-white font-medium rounded-md hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${authFocusClass}`}
                     >
                         {loading ? 'Creating account...' : 'Sign Up'}
                     </button>
@@ -514,7 +728,7 @@ export default function RegisterPage() {
 
                 <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
                     Already have an account?{' '}
-                    <Link to="/login" className="text-primary font-medium hover:underline">
+                    <Link to={loginPath} className={`text-primary font-medium hover:underline ${authFocusClass}`}>
                         Sign in
                     </Link>
                 </div>

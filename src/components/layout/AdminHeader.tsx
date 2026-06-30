@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, Menu, Globe, X } from 'lucide-react';
+import { ArrowLeft, Search, Menu, Globe, X } from 'lucide-react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import { useAuth } from '../../contexts/AuthContext';
 import Avatar from '../ui/Avatar';
+import { getProfileLinkLabel } from '@/lib/profileMenuAccessibility';
 
 const ADMIN_PAGES = [
     { label: 'Dashboard', path: '/admin/dashboard' },
@@ -17,10 +18,13 @@ const ADMIN_PAGES = [
     { label: 'Fast Track', path: '/admin/fast-track' },
     { label: 'Help & Support', path: '/admin/help' },
     { label: 'Reviews', path: '/admin/reviews' },
+    { label: 'Observational Research', path: '/admin/research' },
     { label: 'Analytics', path: '/admin/analytics' },
     { label: 'Profile', path: '/admin/profile' },
     { label: 'System Settings', path: '/admin/settings' },
 ];
+
+const normalizeCommandSearch = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
 interface AdminHeaderProps {
     onMenuToggle?: () => void;
@@ -46,18 +50,23 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
         if (pathname?.includes('/properties')) return 'Properties';
         if (pathname?.includes('/chat') || pathname?.includes('/help')) return 'Help & Support';
         if (pathname?.includes('/reviews')) return 'Reviews';
+        if (pathname?.includes('/research')) return 'Observational Research';
         if (pathname?.includes('/profile')) return 'Admin Profile';
         if (pathname?.includes('/settings')) return 'System Settings';
         return 'Admin Panel';
     };
 
+    const normalizedSearchQuery = normalizeCommandSearch(searchQuery);
+    const visibleSearchQuery = searchQuery.trim().replace(/\s+/g, ' ');
+
     const filteredPages = useMemo(() => {
-        if (!searchQuery.trim()) return ADMIN_PAGES;
-        const q = searchQuery.toLowerCase();
+        if (!normalizedSearchQuery) return ADMIN_PAGES;
+        const q = normalizedSearchQuery;
         return ADMIN_PAGES.filter(p => p.label.toLowerCase().includes(q));
-    }, [searchQuery]);
-    const normalizedSearchQuery = searchQuery.trim();
+    }, [normalizedSearchQuery]);
     const showFastTrackSearchAction = normalizedSearchQuery.length > 0 && filteredPages.length === 0;
+    const adminDisplayName = user?.name || user?.email || 'Admin';
+    const isDashboard = pathname === '/admin/dashboard';
 
     const handleNavigate = useCallback((path: string) => {
         setSearchOpen(false);
@@ -112,7 +121,19 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                 <Menu size={20} />
                             </button>
                         )}
-                        <h1 className="truncate text-lg font-bold tracking-tight text-gray-800 dark:text-white sm:text-2xl">{getPageTitle()}</h1>
+                        {!isDashboard && (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/admin/dashboard')}
+                                aria-label="Back to admin dashboard"
+                                title="Back to dashboard"
+                                className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-600 transition-colors hover:border-orange-200 hover:bg-orange-50 hover:text-orange-700 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-orange-900 dark:hover:bg-orange-900/20 dark:hover:text-orange-300"
+                            >
+                                <ArrowLeft size={16} />
+                                <span className="hidden xl:inline">Dashboard</span>
+                            </button>
+                        )}
+                        <h1 className="min-w-0 break-words text-lg font-bold leading-tight tracking-tight text-gray-800 dark:text-white sm:text-2xl">{getPageTitle()}</h1>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2 sm:gap-4">
@@ -146,11 +167,12 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                             to="/admin/profile"
                             className="rounded-full hover:ring-2 hover:ring-orange-500/30 transition-all"
                             title="Admin Profile"
+                            aria-label={getProfileLinkLabel({ displayName: adminDisplayName, role: 'admin' })}
                         >
                             <Avatar
                                 userId={user?.id}
                                 src={user?.avatar || user?.avatar_url}
-                                name={user?.name || user?.email || 'Admin'}
+                                name={adminDisplayName}
                                 size="md"
                             />
                         </Link>
@@ -160,9 +182,9 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
 
             {/* Command Palette */}
             {searchOpen && (
-                <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]">
+                <div className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[15vh]">
                     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setSearchOpen(false); setSearchQuery(''); }} />
-                    <div className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="relative max-h-[80vh] w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-gray-700 dark:bg-gray-900">
                         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
                             <Search size={20} className="text-gray-400 shrink-0" />
                             <input
@@ -172,9 +194,14 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={handleSearchKeyDown}
                                 placeholder="Navigate to..."
-                                className="flex-1 bg-transparent outline-none text-gray-900 dark:text-white text-sm font-medium placeholder-gray-400"
+                                className="min-w-0 flex-1 bg-transparent text-sm font-medium text-gray-900 outline-none placeholder-gray-400 dark:text-white"
                             />
-                            <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <button
+                                type="button"
+                                aria-label="Close admin command palette"
+                                onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+                                className="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 dark:hover:text-gray-300"
+                            >
                                 <X size={18} />
                             </button>
                         </div>
@@ -200,12 +227,12 @@ const AdminHeader = ({ onMenuToggle }: AdminHeaderProps) => {
                                     className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
                                 >
                                     <span className="block font-semibold text-gray-900 dark:text-white">Search fast-track cases</span>
-                                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-                                        Look for case, application, lead, or property ID matching "{normalizedSearchQuery}".
+                                    <span className="mt-1 block break-words text-xs text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">
+                                        No admin page matched "{visibleSearchQuery}". Search case, application, lead, or property IDs instead.
                                     </span>
                                 </button>
                             ) : (
-                                <p className="px-4 py-6 text-center text-sm text-gray-400">No matching pages</p>
+                                <p className="px-4 py-6 text-center text-sm text-gray-400">No matching admin pages</p>
                             )}
                         </div>
                         <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 text-[10px] font-bold text-gray-400 flex items-center gap-4">

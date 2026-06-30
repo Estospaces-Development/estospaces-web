@@ -14,10 +14,30 @@ test("sanitizeWorkspaceCaseId keeps a valid case id", () => {
   });
 });
 
+test("sanitizeWorkspaceCaseId accepts copied case ids with casing and whitespace changes", () => {
+  assert.deepEqual(sanitizeWorkspaceCaseId(" CASE-2 ", ["case-1", "case-2"]), {
+    caseId: "case-2",
+    removedCaseId: null,
+  });
+});
+
 test("sanitizeWorkspaceCaseId strips a deleted case id", () => {
   assert.deepEqual(sanitizeWorkspaceCaseId("case-9", ["case-1", "case-2"]), {
     caseId: null,
     removedCaseId: "case-9",
+  });
+});
+
+test("sanitizeWorkspaceCaseId strips malformed and overlong case ids", () => {
+  assert.deepEqual(sanitizeWorkspaceCaseId("<script>alert(1)</script>", ["case-1"]), {
+    caseId: null,
+    removedCaseId: "<script>alert(1)</script>",
+  });
+
+  const overlongCaseId = "x".repeat(120);
+  assert.deepEqual(sanitizeWorkspaceCaseId(overlongCaseId, ["case-1"]), {
+    caseId: null,
+    removedCaseId: overlongCaseId,
   });
 });
 

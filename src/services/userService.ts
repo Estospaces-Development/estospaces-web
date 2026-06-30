@@ -36,9 +36,24 @@ export const userService = {
         }
     },
 
-    getAllUsers: async (page: number = 1, limit: number = 20): Promise<{ data: User[], pagination: any, error: string | null }> => {
+    getAllUsers: async (
+        page: number = 1,
+        limit: number = 20,
+        filters: { search?: string; role?: string } = {},
+    ): Promise<{ data: User[], pagination: any, error: string | null }> => {
         try {
-            const response = await apiFetchEnvelope<User[]>(`${CORE_URL()}/api/v1/users?page=${page}&limit=${limit}`);
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+            });
+            if (filters.search?.trim()) {
+                params.set('search', filters.search.trim());
+            }
+            if (filters.role?.trim()) {
+                params.set('role', filters.role.trim());
+            }
+
+            const response = await apiFetchEnvelope<User[]>(`${CORE_URL()}/api/v1/users?${params.toString()}`);
             return {
                 data: response.data || [],
                 pagination: response.pagination || null,
@@ -62,6 +77,7 @@ export const userService = {
         try {
             const data = await apiFetch<UserProfileSummary[]>(`${CORE_URL()}/api/v1/users/summaries`, {
                 method: 'POST',
+                suppressErrorToast: true,
                 body: JSON.stringify({ ids }),
             });
             return { data: data || [], error: null };
@@ -70,10 +86,12 @@ export const userService = {
         }
     },
 
-    setUserActiveState: async (userId: string, isActive: boolean): Promise<{ error: string | null }> => {
+    setUserActiveState: async (userId: string, isActive: boolean, reason: string): Promise<{ error: string | null }> => {
         try {
             await apiFetch(`${CORE_URL()}/api/v1/users/${userId}/${isActive ? 'activate' : 'deactivate'}`, {
                 method: 'PUT',
+                suppressErrorToast: true,
+                body: JSON.stringify({ reason: reason.trim() }),
             });
             return { error: null };
         } catch (error: any) {

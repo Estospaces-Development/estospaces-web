@@ -3,9 +3,13 @@ import test from 'node:test';
 
 import {
     getHostedLoginRedirectUrl,
+    getLoginPath,
+    getPostLoginRedirectPath,
     getRedirectPath,
+    isPublicUserPropertyDetailPath,
     isProtectedRoutePath,
     normalizeRole,
+    resolveAuthRecoveryRedirect,
     requiresHostedLoginRedirect,
     resolveProtectedRedirect,
     shouldAwaitSessionResolution,
@@ -25,6 +29,15 @@ test('protected route detection covers all workspace prefixes', () => {
     assert.equal(isProtectedRoutePath('/contact'), false);
 });
 
+test('public user property detail stays readable from signed-out search results', () => {
+    assert.equal(isPublicUserPropertyDetailPath('/user/properties/property-123'), true);
+    assert.equal(isPublicUserPropertyDetailPath('/user/properties/property-123/'), true);
+    assert.equal(isPublicUserPropertyDetailPath('/user/dashboard/properties/property-123'), false);
+    assert.equal(isProtectedRoutePath('/user/properties/property-123'), false);
+    assert.equal(resolveProtectedRedirect('/user/properties/property-123', false, undefined), null);
+    assert.equal(resolveProtectedRedirect('/user/properties/property-123', true, 'admin'), null);
+});
+
 test('resolveProtectedRedirect sends signed-out users to login for protected pages', () => {
     assert.equal(resolveProtectedRedirect('/manager/help', false, 'manager'), '/login');
 });
@@ -41,10 +54,52 @@ test('resolveProtectedRedirect allows matching workspace access', () => {
     assert.equal(resolveProtectedRedirect('/contact', true, 'user'), null);
 });
 
+test('resolveAuthRecoveryRedirect sends signed-in users away from recovery forms', () => {
+    assert.equal(resolveAuthRecoveryRedirect('/forgot-password', true, 'admin'), '/admin/dashboard');
+    assert.equal(resolveAuthRecoveryRedirect('/reset-password', true, 'manager'), '/manager/dashboard');
+    assert.equal(resolveAuthRecoveryRedirect('/login', true, 'user'), null);
+    assert.equal(resolveAuthRecoveryRedirect('/forgot-password', false, 'admin'), null);
+});
+
 test('getRedirectPath stays aligned with normalized roles', () => {
     assert.equal(getRedirectPath('broker'), '/manager/dashboard');
     assert.equal(getRedirectPath('admin'), '/admin/dashboard');
     assert.equal(getRedirectPath('user'), '/user/dashboard');
+});
+
+test('getPostLoginRedirectPath returns matching-role protected deep links', () => {
+    assert.equal(
+        getPostLoginRedirectPath('manager', {
+            pathname: '/manager/fast-track',
+            search: '?case=case-123&section=documents',
+        }),
+        '/manager/fast-track?case=case-123&section=documents',
+    );
+    assert.equal(
+        getPostLoginRedirectPath('user', {
+            pathname: '/user/dashboard/fast-track',
+            search: '?case=case-123',
+            hash: '#documents',
+        }),
+        '/user/dashboard/fast-track?case=case-123#documents',
+    );
+});
+
+test('getPostLoginRedirectPath rejects wrong-role and public return targets', () => {
+    assert.equal(
+        getPostLoginRedirectPath('user', {
+            pathname: '/manager/fast-track',
+            search: '?case=case-123',
+        }),
+        '/user/dashboard',
+    );
+    assert.equal(
+        getPostLoginRedirectPath('manager', {
+            pathname: '/contact',
+            search: '?case=case-123',
+        }),
+        '/manager/dashboard',
+    );
 });
 
 test('requiresHostedLoginRedirect enforces admin login on the admin host only', () => {
@@ -82,8 +137,14 @@ test('getHostedLoginRedirectUrl targets the correct hosted login domain', () => 
     }
 });
 
-test('shouldAwaitSessionResolution blocks whenever auth is still resolving', () => {
+test('login path avoids the Cloud Run reserved exact login route', () => {
+    assert.equal(getLoginPath('localhost'), '/login');
+    assert.equal(getLoginPath('127.0.0.1'), '/login');
+    assert.equal(getLoginPath('estospaces-web-dev-zaryfkxmeq-nw.a.run.app'), '/login/');
+});
+
+test('shouldAwaitSessionResolution allows cached authenticated workspaces during refresh', () => {
     assert.equal(shouldAwaitSessionResolution(true, false), true);
-    assert.equal(shouldAwaitSessionResolution(true, true), true);
+    assert.equal(shouldAwaitSessionResolution(true, true), false);
     assert.equal(shouldAwaitSessionResolution(false, false), false);
 });

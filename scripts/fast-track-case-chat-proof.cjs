@@ -37,16 +37,16 @@ async function attachDiagnostics(page, bucket) {
 }
 
 async function collectChatMetrics(page) {
-  await page.getByRole('heading', { name: /^Case chat$/i }).waitFor({ timeout: 120000 });
-  await page.getByLabel('Case chat transcript').waitFor({ timeout: 120000 });
+  await openCaseChat(page);
+  await page.locator('[aria-label="Journey messages"], [aria-label="Case chat transcript"]').first().waitFor({ timeout: 120000 });
   return page.evaluate(() => {
-    const heading = Array.from(document.querySelectorAll('h3')).find((node) => (node.textContent || '').trim() === 'Case chat');
+    const heading = Array.from(document.querySelectorAll('p, h2, h3, span')).find((node) => /^(case chat|messages)$/i.test((node.textContent || '').trim()));
     const previewHeading = Array.from(document.querySelectorAll('h3')).find((node) => (node.textContent || '').trim() === 'Preview');
-    const section = heading?.closest('section');
+    const section = heading?.closest('[data-fast-track-utility-panel], section, div');
     const previewSection = previewHeading?.closest('section');
     const rect = section?.getBoundingClientRect();
     const previewRect = previewSection?.getBoundingClientRect();
-    const transcript = section?.querySelector('[aria-label="Case chat transcript"]');
+    const transcript = section?.querySelector('[aria-label="Journey messages"], [aria-label="Case chat transcript"]');
     return {
       viewportHeight: window.innerHeight,
       caseChatTop: rect ? Math.round(rect.top) : null,
@@ -62,8 +62,31 @@ async function collectChatMetrics(page) {
   });
 }
 
+async function waitForWorkspace(page) {
+  await page.locator('[data-fast-track-workspace-status]').waitFor({ timeout: 120000 });
+  await page.locator('[data-fast-track-stage-tab]').first().waitFor({ timeout: 120000 });
+}
+
+async function openCaseChat(page) {
+  const tab = page.locator('[data-fast-track-utility-tab="case_chat"]').first();
+  if (await tab.count()) {
+    if (!(await tab.isVisible().catch(() => false))) {
+      const detailsSummary = page.locator('summary').filter({ hasText: /see details/i }).first();
+      if (await detailsSummary.count()) {
+        await detailsSummary.click();
+      }
+    }
+    await tab.waitFor({ state: 'visible', timeout: 120000 });
+    await tab.scrollIntoViewIfNeeded();
+    await tab.click();
+  } else {
+    await page.getByRole('button', { name: /case chat|messages/i }).first().click({ timeout: 120000 });
+  }
+}
+
 async function sendMessageFromPage(page, text) {
-  const box = page.getByPlaceholder('Write one clear update for this case.');
+  await openCaseChat(page);
+  const box = page.locator('textarea[placeholder*="Write one clear"]').first();
   await box.scrollIntoViewIfNeeded();
   await box.fill(text);
   await page.getByRole('button', { name: /^Send update$/i }).click();
@@ -71,7 +94,8 @@ async function sendMessageFromPage(page, text) {
 }
 
 async function waitForMessage(page, text) {
-  await page.getByLabel('Case chat transcript').waitFor({ timeout: 120000 });
+  await openCaseChat(page);
+  await page.locator('[aria-label="Journey messages"], [aria-label="Case chat transcript"]').first().waitFor({ timeout: 120000 });
   await page.getByText(text, { exact: true }).waitFor({ timeout: 120000 });
 }
 
@@ -140,14 +164,14 @@ async function main() {
     await attachDiagnostics(managerPage, result.managerDiagnostics);
 
     await userPage.goto(userRoute, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await userPage.getByRole('heading', { name: /^Fast-track workspace$/i }).waitFor({ timeout: 120000 });
+    await waitForWorkspace(userPage);
     result.userMetricsInitial = await collectChatMetrics(userPage);
     await userPage.screenshot({ path: userShot });
     await sendMessageFromPage(userPage, result.userMessage);
     result.userSentOk = true;
 
     await managerPage.goto(managerRoute, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await managerPage.getByRole('heading', { name: /^Fast-track workspace$/i }).waitFor({ timeout: 120000 });
+    await waitForWorkspace(managerPage);
     result.managerMetricsInitial = await collectChatMetrics(managerPage);
     await managerPage.screenshot({ path: managerShot });
     await waitForMessage(managerPage, result.userMessage);
@@ -156,7 +180,7 @@ async function main() {
     result.managerSentOk = true;
 
     await userPage.reload({ waitUntil: 'domcontentloaded', timeout: 120000 });
-    await userPage.getByRole('heading', { name: /^Fast-track workspace$/i }).waitFor({ timeout: 120000 });
+    await waitForWorkspace(userPage);
     await waitForMessage(userPage, result.managerReply);
     result.userSawManagerReply = true;
 

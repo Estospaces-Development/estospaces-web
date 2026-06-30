@@ -18,6 +18,7 @@ interface TimeFieldProps {
     max?: string;
     step?: number;
     name?: string;
+    ariaDescribedBy?: string;
 }
 
 export default function TimeField({
@@ -33,6 +34,7 @@ export default function TimeField({
     max,
     step,
     name,
+    ariaDescribedBy,
 }: TimeFieldProps) {
     const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -45,6 +47,10 @@ export default function TimeField({
         input?.focus();
         input?.showPicker?.();
     }, [disabled]);
+
+    const commitTimeValue = useCallback((event: React.FormEvent<HTMLInputElement>) => {
+        onChange(event.currentTarget.value);
+    }, [onChange]);
 
     const sizeClass = size === 'sm'
         ? 'min-h-[44px] rounded-xl px-3 py-2 text-sm'
@@ -88,8 +94,10 @@ export default function TimeField({
                 step={step}
                 disabled={disabled}
                 aria-label={ariaLabel}
+                aria-describedby={ariaDescribedBy}
                 onClick={openPicker}
-                onChange={(event) => onChange(event.target.value)}
+                onInput={commitTimeValue}
+                onChange={commitTimeValue}
                 data-time-field-input="true"
                 className="modern-time-input absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
             />

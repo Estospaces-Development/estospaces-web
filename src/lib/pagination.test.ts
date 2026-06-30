@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getPaginationRange, getVisiblePageTokens } from './pagination';
+import { getPaginationNavigationState, getPaginationRange, getVisiblePageTokens } from './pagination';
 
 test('getVisiblePageTokens keeps compact leading pages readable', () => {
     assert.deepEqual(getVisiblePageTokens(2, 10), [1, 2, 3, 4, 5, 'ellipsis', 10]);
@@ -24,4 +24,30 @@ test('getPaginationRange handles a short final page', () => {
 
 test('getPaginationRange returns null without total context', () => {
     assert.equal(getPaginationRange(1, undefined, 38, 12), null);
+});
+
+test('getPaginationNavigationState exposes first and last page affordance state', () => {
+    assert.deepEqual(getPaginationNavigationState(3, 5), {
+        safeCurrentPage: 3,
+        firstPage: 1,
+        previousPage: 2,
+        nextPage: 4,
+        lastPage: 5,
+        canGoFirst: true,
+        canGoPrevious: true,
+        canGoNext: true,
+        canGoLast: true,
+    });
+
+    assert.deepEqual(getPaginationNavigationState(1, 5), {
+        safeCurrentPage: 1,
+        firstPage: 1,
+        previousPage: 1,
+        nextPage: 2,
+        lastPage: 5,
+        canGoFirst: false,
+        canGoPrevious: false,
+        canGoNext: true,
+        canGoLast: true,
+    });
 });

@@ -1,3 +1,5 @@
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
+
 export type FastTrackDocStatus = 'pending' | 'uploaded' | 'reupload_required' | 'verified';
 
 export interface FastTrackDocumentsLike {
@@ -698,7 +700,7 @@ export const deriveLiveFastTrackCurrentStep = (
         return 'completed';
     }
 
-    const hasPendingRentFinanceTasks = (linkedJourney?.payments || []).some((payment) => {
+    const hasPendingRentFinanceTasks = PAYMENTS_ENABLED && ((linkedJourney?.payments || []).some((payment) => {
         const type = String(payment.payment_type || '').toLowerCase();
         const status = String(payment.status || '').toLowerCase();
         return (type.includes('deposit') || type.includes('rent')) && ['pending', 'failed'].includes(status);
@@ -706,7 +708,7 @@ export const deriveLiveFastTrackCurrentStep = (
         const type = String(invoice.payment_type || '').toLowerCase();
         const status = String(invoice.status || '').toLowerCase();
         return (type.includes('deposit') || type.includes('rent')) && ['draft', 'open', 'uncollectible'].includes(status);
-    });
+    }));
 
     const normalizedContractStatus = (() => {
         switch (String(linkedJourney?.contract?.status || '').trim()) {

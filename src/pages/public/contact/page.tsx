@@ -55,6 +55,7 @@ export default function ContactPage() {
             <header className="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 sticky top-0 z-10">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
                     <button
+                        type="button"
                         onClick={handleBack}
                         className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-orange-500 transition-colors"
                     >
@@ -83,7 +84,7 @@ export default function ContactPage() {
                                     <Mail className="text-orange-500" size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Email Us</h3>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Email Us</h2>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">For general enquiries</p>
                                     <a href="mailto:hello@estospaces.com" className="text-orange-500 hover:underline text-sm">
                                         hello@estospaces.com
@@ -98,7 +99,7 @@ export default function ContactPage() {
                                     <Phone className="text-green-500" size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Call Us</h3>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Call Us</h2>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Mon-Fri, 9am-6pm GMT</p>
                                     <a href="tel:+442012345678" className="text-orange-500 hover:underline text-sm">
                                         +44 20 1234 5678
@@ -113,7 +114,7 @@ export default function ContactPage() {
                                     <MapPin className="text-blue-500" size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Visit Us</h3>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Visit Us</h2>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Our office location</p>
                                     <p className="text-sm text-gray-700 dark:text-gray-300">
                                         123 Property Street<br />
@@ -130,7 +131,7 @@ export default function ContactPage() {
                                     <Clock className="text-purple-500" size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold text-gray-900 dark:text-white mb-1">Response Time</h3>
+                                    <h2 className="font-semibold text-gray-900 dark:text-white mb-1">Response Time</h2>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Average response</p>
                                     <p className="text-sm text-gray-700 dark:text-gray-300">
                                         Within 24 hours on business days
@@ -148,11 +149,12 @@ export default function ContactPage() {
                                     <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
                                         <CheckCircle className="text-green-500" size={32} />
                                     </div>
-                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Email Draft Ready</h3>
+                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Email Draft Ready</h2>
                                     <p className="text-gray-600 dark:text-gray-400 mb-6">
                                         Your email client should open with the message pre-filled so you can send it directly to our team.
                                     </p>
                                     <button
+                                        type="button"
                                         onClick={() => setIsSubmitted(false)}
                                         className="text-orange-500 hover:underline font-medium"
                                     >
@@ -216,7 +218,7 @@ export default function ContactPage() {
                                                 <option value="general">General Enquiry</option>
                                                 <option value="property">Property Listing Question</option>
                                                 <option value="account">Account Support</option>
-                                                <option value="payment">Payment Issue</option>
+                                                <option value="booking">Booking Issue</option>
                                                 <option value="feedback">Feedback &amp; Suggestions</option>
                                                 <option value="partnership">Business Partnership</option>
                                                 <option value="other">Other</option>

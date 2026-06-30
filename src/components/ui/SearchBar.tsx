@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Home, DollarSign, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Home, IndianRupee, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { searchService, FilterOptions, AutocompleteSuggestion } from '../../services/searchService';
+import { formatLaunchCurrency, LAUNCH_CURRENCY_SYMBOL } from '@/lib/launchLocale';
 
 export interface SearchFilters {
     keyword: string;
@@ -56,20 +57,20 @@ const propertyTypes = [
 
 const priceRanges = {
     rent: [
-        { min: null, max: 500, label: 'Under £500' },
-        { min: 500, max: 1000, label: '£500 - £1,000' },
-        { min: 1000, max: 1500, label: '£1,000 - £1,500' },
-        { min: 1500, max: 2000, label: '£1,500 - £2,000' },
-        { min: 2000, max: 3000, label: '£2,000 - £3,000' },
-        { min: 3000, max: null, label: '£3,000+' },
+        { min: null, max: 500, label: `Under ${formatLaunchCurrency(500)}` },
+        { min: 500, max: 1000, label: `${formatLaunchCurrency(500)} - ${formatLaunchCurrency(1000)}` },
+        { min: 1000, max: 1500, label: `${formatLaunchCurrency(1000)} - ${formatLaunchCurrency(1500)}` },
+        { min: 1500, max: 2000, label: `${formatLaunchCurrency(1500)} - ${formatLaunchCurrency(2000)}` },
+        { min: 2000, max: 3000, label: `${formatLaunchCurrency(2000)} - ${formatLaunchCurrency(3000)}` },
+        { min: 3000, max: null, label: `${formatLaunchCurrency(3000)}+` },
     ],
     sale: [
-        { min: null, max: 100000, label: 'Under £100k' },
-        { min: 100000, max: 250000, label: '£100k - £250k' },
-        { min: 250000, max: 500000, label: '£250k - £500k' },
-        { min: 500000, max: 750000, label: '£500k - £750k' },
-        { min: 750000, max: 1000000, label: '£750k - £1M' },
-        { min: 1000000, max: null, label: '£1M+' },
+        { min: null, max: 100000, label: `Under ${formatLaunchCurrency(100000)}` },
+        { min: 100000, max: 250000, label: `${formatLaunchCurrency(100000)} - ${formatLaunchCurrency(250000)}` },
+        { min: 250000, max: 500000, label: `${formatLaunchCurrency(250000)} - ${formatLaunchCurrency(500000)}` },
+        { min: 500000, max: 750000, label: `${formatLaunchCurrency(500000)} - ${formatLaunchCurrency(750000)}` },
+        { min: 750000, max: 1000000, label: `${formatLaunchCurrency(750000)} - ${formatLaunchCurrency(1000000)}` },
+        { min: 1000000, max: null, label: `${formatLaunchCurrency(1000000)}+` },
     ],
 };
 
@@ -173,21 +174,29 @@ const SearchBar: React.FC<SearchBarProps> = ({
         setFilters((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleSearch = (e?: React.FormEvent) => {
+    const handleSearch = (e?: React.FormEvent, nextFilters = filters) => {
         if (e) e.preventDefault();
 
         const params = new URLSearchParams();
-        if (filters.keyword) params.set('q', filters.keyword);
-        if (filters.location) params.set('location', filters.location);
-        if (filters.listingType !== 'all') params.set('type', filters.listingType);
-        if (filters.propertyType) params.set('propertyType', filters.propertyType);
-        if (filters.minPrice !== null) params.set('minPrice', filters.minPrice.toString());
-        if (filters.maxPrice !== null) params.set('maxPrice', filters.maxPrice.toString());
-        if (filters.minBedrooms !== null) params.set('beds', filters.minBedrooms.toString());
-        if (filters.minBathrooms !== null) params.set('baths', filters.minBathrooms.toString());
+        if (nextFilters.keyword) params.set('q', nextFilters.keyword);
+        if (nextFilters.location) params.set('location', nextFilters.location);
+        if (nextFilters.listingType !== 'all') params.set('type', nextFilters.listingType);
+        if (nextFilters.propertyType) params.set('propertyType', nextFilters.propertyType);
+        if (nextFilters.minPrice !== null) params.set('minPrice', nextFilters.minPrice.toString());
+        if (nextFilters.maxPrice !== null) params.set('maxPrice', nextFilters.maxPrice.toString());
+        if (nextFilters.minBedrooms !== null) params.set('beds', nextFilters.minBedrooms.toString());
+        if (nextFilters.minBathrooms !== null) params.set('baths', nextFilters.minBathrooms.toString());
 
-        if (onSearch) onSearch(filters);
+        if (onSearch) onSearch(nextFilters);
         if (navigateOnSearch) navigate(`${searchPath}?${params.toString()}`);
+    };
+
+    const handleCompactKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const nextFilters: SearchFilters = { ...filters, keyword: e.currentTarget.value, location: '' };
+        setFilters(nextFilters);
+        handleSearch(undefined, nextFilters);
     };
 
     const handleClearFilters = () => {
@@ -238,7 +247,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Location</label>
                         <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <MapPin size={18} className="text-primary mr-2" />
-                            <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City, Postcode..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
+                            <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City, PIN code, or postcode..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
                         </div>
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
@@ -301,15 +310,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Min Price</label>
                             <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
-                                <DollarSign size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: £${filterOptions.price_range.min.toLocaleString()}` : "Min £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <IndianRupee size={16} className="text-gray-400 mr-2" />
+                                <input type="number" value={filters.minPrice || ''} min={filterOptions?.price_range.min} max={filters.maxPrice || filterOptions?.price_range.max} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : `Min ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Max Price</label>
                             <div className="flex items-center border border-gray-100 dark:border-gray-700 rounded px-3 py-2">
-                                <DollarSign size={16} className="text-gray-400 mr-2" />
-                                <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: £${filterOptions.price_range.max.toLocaleString()}` : "Max £"} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
+                                <IndianRupee size={16} className="text-gray-400 mr-2" />
+                                <input type="number" value={filters.maxPrice || ''} min={filters.minPrice || filterOptions?.price_range.min} max={filterOptions?.price_range.max} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={filterOptions ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : `Max ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent" />
                             </div>
                         </div>
                         <div>
@@ -348,8 +357,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     // Compact variant
     if (variant === 'compact') {
         return (
-            <form onSubmit={handleSearch} className={`flex items-center gap-2 ${className}`}>
-                <div className="relative flex-1">
+            <form onSubmit={handleSearch} className={`flex min-w-0 items-center gap-2 ${className}`}>
+                <div className="relative min-w-0 flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
@@ -360,12 +369,18 @@ const SearchBar: React.FC<SearchBarProps> = ({
                                 handleInputChange('location', ''); // Ensure old hidden locations don't silently apply
                             }
                         }}
+                        onKeyDown={handleCompactKeywordKeyDown}
                         placeholder="Search properties..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        className="w-full rounded-lg border border-gray-100 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary dark:border-gray-700 dark:bg-gray-800 dark:text-white sm:text-base"
                     />
                 </div>
-                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors">
-                    Search
+                <button
+                    type="submit"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary px-0 font-medium text-white transition-colors hover:bg-primary/90 sm:w-auto sm:px-4"
+                >
+                    <Search size={18} className="sm:hidden" aria-hidden="true" />
+                    <span className="sr-only sm:hidden">Search properties</span>
+                    <span className="hidden sm:inline">Search</span>
                 </button>
             </form>
         );
@@ -376,7 +391,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         <form onSubmit={handleSearch} className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-4 lg:p-6 ${className}`}>
             <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input type="text" value={filters.keyword} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Search by postcode, street, address, keyword, or property title..." className="w-full pl-10 pr-4 py-3 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                <input type="text" value={filters.keyword} onChange={(e) => handleInputChange('keyword', e.target.value)} placeholder="Search by PIN code, postcode, street, address, keyword, or property title..." className="w-full pl-10 pr-4 py-3 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-base bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                 {filters.keyword && (
                     <button type="button" onClick={() => handleInputChange('keyword', '')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <X size={18} />
@@ -389,7 +404,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
                     <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                        <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City or Postcode" className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                        <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City, PIN code, or postcode" className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         {showSuggestions && locationSuggestions.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
                                 {locationSuggestions.map((suggestion, index) => (
@@ -435,11 +450,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price Range</label>
                     <div className="flex items-center gap-2">
                         <div className="relative flex-1">
-                            <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Min £" className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                            <input type="number" value={filters.minPrice || ''} onChange={(e) => handleInputChange('minPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={`Min ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         </div>
                         <span className="text-gray-400">-</span>
                         <div className="relative flex-1">
-                            <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder="Max £" className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
+                            <input type="number" value={filters.maxPrice || ''} onChange={(e) => handleInputChange('maxPrice', e.target.value ? parseInt(e.target.value) : null)} placeholder={`Max ${LAUNCH_CURRENCY_SYMBOL}`} className="w-full px-3 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         </div>
                     </div>
                 </div>

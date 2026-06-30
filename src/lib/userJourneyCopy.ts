@@ -50,6 +50,12 @@ export const getJourneyStageLabel = (
   if (stage === 'decision' && journeyMode === 'sale') {
     return 'Review the offer';
   }
+  if (stage === 'agreement' && journeyMode === 'sale') {
+    return 'Legal, exchange, and agreement';
+  }
+  if (stage === 'handover' && journeyMode === 'sale') {
+    return 'Completion and keys';
+  }
 
   return USER_STAGE_LABELS[stage];
 };
@@ -141,8 +147,8 @@ export const getJourneyChromeCopy = (role: UserJourneyRole) => {
     moduleHiddenLabel: 'Hidden',
     moduleDefaultDescription: 'Opens first in Helpful tools',
     moduleAvailableDescription: 'Available under Helpful tools',
-    noSelectionTitle: 'No journey is selected.',
-    noSelectionDescription: 'Open a journey from the list to continue.',
+      noSelectionTitle: 'Choose a journey to continue.',
+      noSelectionDescription: 'Open a journey from the list when you want to switch context.',
   };
 };
 
@@ -195,7 +201,7 @@ export const getBrokerRequestCopy = (requestType?: string) => ({
   nearbyBrokersTitle: 'Nearest property agents',
   nearbyBrokersSubtitle: 'These are the nearest available property agents for your area.',
   nearbyBrokersLoading: 'Looking for nearby property agents...',
-  nearbyBrokersEmpty: 'Add a postcode to see nearby property agents.',
+  nearbyBrokersEmpty: 'Add a PIN code or postcode to see nearby property agents.',
   nearbyBrokerAvailableLabel: 'Available',
   nearbyBrokerQueuedLabel: 'Waiting',
   liveCountdownLabel: 'Response time',
@@ -215,7 +221,7 @@ export const getCaseFileSupportCopy = (role: UserJourneyRole) => {
     return {
       primaryLabel: 'Continue in fast-track',
       primaryDescription:
-        'Use the live workspace for viewing, decision, agreement, payment, and handover.',
+        'Use the live workspace for viewing, decision, agreement, and handover.',
       secondaryLabel: 'Open document lane',
       secondaryDescription: 'Jump straight to the shared document lane inside fast-track.',
       supportTitle: 'Case file is support-only. Continue the journey in fast-track.',

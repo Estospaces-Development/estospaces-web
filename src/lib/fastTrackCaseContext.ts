@@ -2,6 +2,9 @@ export const DELETED_FAST_TRACK_CASE_MESSAGE =
   "This fast-track case was deleted. We removed the stale case link and kept any surviving records open.";
 
 const normalizeCaseId = (value?: string | null) =>
+  typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const cleanCaseId = (value?: string | null) =>
   typeof value === "string" ? value.trim() : "";
 
 export const sanitizeWorkspaceCaseId = (
@@ -16,19 +19,19 @@ export const sanitizeWorkspaceCaseId = (
     };
   }
 
-  const validCaseIdSet = new Set(
-    validCaseIds.map((caseId) => normalizeCaseId(caseId)).filter(Boolean),
-  );
-  if (validCaseIdSet.has(normalizedRequestedCaseId)) {
+  const matchingCaseId = validCaseIds.find((caseId) => (
+    normalizeCaseId(caseId) === normalizedRequestedCaseId
+  ));
+  if (matchingCaseId) {
     return {
-      caseId: normalizedRequestedCaseId,
+      caseId: cleanCaseId(matchingCaseId),
       removedCaseId: null,
     };
   }
 
   return {
     caseId: null,
-    removedCaseId: normalizedRequestedCaseId,
+    removedCaseId: cleanCaseId(requestedCaseId),
   };
 };
 

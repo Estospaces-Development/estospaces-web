@@ -64,12 +64,12 @@ const DashboardFooter = () => {
                         <ul className="space-y-2 text-sm">
                             <li>
                                 <Link to="/user/dashboard/discover?location=uk" className="text-gray-700 hover:text-orange-600 transition-colors">
-                                    Major towns and cities in the UK
+                                    Major supported towns and cities
                                 </Link>
                             </li>
                             <li>
                                 <Link to="/user/dashboard/discover?location=london" className="text-gray-700 hover:text-orange-600 transition-colors">
-                                    London
+                                    Chennai
                                 </Link>
                             </li>
                             <li>

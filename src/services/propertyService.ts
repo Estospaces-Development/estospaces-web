@@ -10,6 +10,8 @@ import {
   getErrorMessage,
   getServiceUrl,
 } from "@/lib/apiUtils";
+import { LAUNCH_COUNTRY_CODE } from "@/lib/launchLocale";
+import { normalizeSavedPropertyId } from "@/lib/savedPropertyState";
 import type {
   JourneyAction,
   JourneyBlocker,
@@ -334,7 +336,7 @@ export const createProperty = async (
     const data = await apiFetch<Property>(`${CORE_URL()}/api/v1/properties`, {
       method: "POST",
       body: JSON.stringify(propertyData),
-      suppressErrorToast: options.suppressErrorToast,
+      suppressErrorToast: options.suppressErrorToast ?? true,
     });
     return { data, error: null };
   } catch (error: any) {
@@ -360,7 +362,7 @@ export const updateProperty = async (
       {
         method: "PUT",
         body: JSON.stringify(propertyData),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data, error: null };
@@ -425,8 +427,14 @@ export const saveProperty = async (
   id: string,
 ): Promise<{ error: string | null }> => {
   try {
-    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}/save`, {
+    const propertyId = normalizeSavedPropertyId(id);
+    if (!propertyId) {
+      return { error: "Missing property id" };
+    }
+
+    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${propertyId}/save`, {
       method: "POST",
+      suppressErrorToast: true,
     });
     return { error: null };
   } catch (error: any) {
@@ -442,8 +450,14 @@ export const unsaveProperty = async (
   id: string,
 ): Promise<{ error: string | null }> => {
   try {
-    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${id}/save`, {
+    const propertyId = normalizeSavedPropertyId(id);
+    if (!propertyId) {
+      return { error: "Missing property id" };
+    }
+
+    await apiFetch<any>(`${CORE_URL()}/api/v1/properties/${propertyId}/save`, {
       method: "DELETE",
+      suppressErrorToast: true,
     });
     return { error: null };
   } catch (error: any) {
@@ -462,6 +476,7 @@ export const getSavedProperties = async (): Promise<{
   try {
     const data = await apiFetch<Property[]>(
       `${CORE_URL()}/api/v1/properties/saved`,
+      { suppressErrorToast: true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -474,7 +489,7 @@ export const getSavedProperties = async (): Promise<{
  * GET /api/v1/properties/sections (core-service)
  */
 export const getPropertySections = async (
-  country: string = "UK",
+  country: string = LAUNCH_COUNTRY_CODE,
 ): Promise<{ data: any; error: string | null }> => {
   try {
     const data = await apiFetch<any>(
@@ -496,7 +511,7 @@ export const getPropertyComplianceReadiness = async (
   try {
     const data = await apiFetch<PropertyComplianceReadiness>(
       `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-readiness`,
-      { suppressErrorToast: options.suppressErrorToast },
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -514,7 +529,7 @@ export const getPropertyComplianceEvidence = async (
   try {
     const data = await apiFetch<PropertyComplianceEvidenceEnvelope>(
       `${CORE_URL()}/api/v1/properties/${propertyId}/compliance-evidence`,
-      { suppressErrorToast: options.suppressErrorToast },
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -537,7 +552,7 @@ export const upsertPropertyComplianceEvidence = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data, error: null };

@@ -43,21 +43,30 @@ import {
 import {
   buildCaseFileMutationContext,
   buildCaseFileUploadContext,
+  sanitizeCaseFileRouteCaseId,
 } from "@/lib/caseFileContext";
 import { DELETED_FAST_TRACK_CASE_MESSAGE } from "@/lib/fastTrackCaseContext";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
 import {
+  buildCaseFileDocumentRequestDraftStorageKey,
+  CASE_FILE_REQUIREMENT_CODE_FORMAT,
+  DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT,
   filterReusableDocumentsForRequest,
   matchCaseFileRequestForFileName,
   inferCaseFileUploadDescriptor,
+  isCaseFileDocumentRequestDraftDirty,
+  parseCaseFileRequirementCodes,
   summarizeCaseFileDocuments,
+  validateCaseFileDocumentRequestDraft,
   type CaseFileUploadDescriptor,
+  type CaseFileDocumentRequestValidationErrors,
 } from "@/lib/caseFileDocuments";
 import { getCaseFileWaitingCopy } from "@/lib/caseFileWorkflow";
 import { resolveFastTrackLinkedJourney } from "@/lib/fastTrackLinkedJourney";
 import type { FastTrackCase } from "@/services/fastTrackService";
 import { deriveLiveFastTrackCurrentStep } from "@/lib/fastTrackWorkflow";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
+import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import {
   caseFileTabToWorkspaceSection,
   resolveWorkspaceSection,
@@ -122,6 +131,44 @@ interface CaseFileWorkspaceProps {
   workflowStageOverride?: string | null;
   workflowSummaryOverride?: string | null;
 }
+
+interface CaseFileBulkFileChooserProps {
+  onFilesSelected: (files: FileList | null) => void;
+  disabled?: boolean;
+}
+
+export const CaseFileBulkFileChooser = ({
+  onFilesSelected,
+  disabled = false,
+}: CaseFileBulkFileChooserProps) => (
+  <span className="relative inline-flex">
+    <input
+      data-case-file-bulk-file-input="true"
+      type="file"
+      name="case-file-documents"
+      multiple
+      accept="application/pdf,image/*,.pdf"
+      aria-label="Choose case-file documents to upload"
+      disabled={disabled}
+      className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+      onChange={(event) => {
+        onFilesSelected(event.target.files);
+        event.currentTarget.value = "";
+      }}
+    />
+    <span
+      aria-hidden="true"
+      className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-orange-400/60 peer-focus-visible:ring-offset-2 dark:peer-focus-visible:ring-offset-black ${
+        disabled
+          ? "bg-gray-300 text-gray-500 dark:bg-zinc-800 dark:text-gray-500"
+          : "bg-orange-500 hover:bg-orange-600"
+      }`}
+    >
+      <Upload className="h-4 w-4" />
+      Choose files
+    </span>
+  </span>
+);
 
 const normalizeNestedFastTrackCase = (fastTrackCase: CaseFile["fast_track_case"]): FastTrackCase | null => {
   if (!fastTrackCase) {
@@ -504,7 +551,7 @@ const buildWorkspaceLinks = (role: CaseFileRole, caseFile: CaseFile) => {
     viewingId: caseFile.viewing?.id,
     contractId: caseFile.contract_id,
     paymentId: undefined,
-    invoiceId: caseFile.invoices[0]?.id,
+    invoiceId: PAYMENTS_ENABLED ? caseFile.invoices[0]?.id : undefined,
     caseId: caseFile.case_id,
     leadId: caseFile.lead_id,
     propertyId: caseFile.property_id,
@@ -569,7 +616,12 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const toast = useToast();
-  const resolvedCaseId = caseId || searchParams.get("case") || "";
+  const routeCaseId = caseId || searchParams.get("case") || "";
+  const caseRouteReference = useMemo(
+    () => sanitizeCaseFileRouteCaseId(routeCaseId),
+    [routeCaseId],
+  );
+  const resolvedCaseId = caseRouteReference.caseId;
   const resolvedAppearance =
     appearance ?? (role === "manager" ? "manager" : "default");
   const routeRequestedSection = resolveWorkspaceSection(
@@ -588,14 +640,11 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const [caseFile, setCaseFile] = useState<CaseFile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [requestForm, setRequestForm] = useState({
-    title: "",
-    description: "",
-    requirement_codes: "",
-    visibility: "shared_with_user",
-    link_family: "client_reusable",
-    due_at: "",
-  });
+  const [requestForm, setRequestForm] = useState(() => ({
+    ...DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT,
+  }));
+  const [requestFormErrors, setRequestFormErrors] =
+    useState<CaseFileDocumentRequestValidationErrors>({});
   const [creatingRequest, setCreatingRequest] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [reviewReasonByLinkId, setReviewReasonByLinkId] = useState<
@@ -606,6 +655,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const [bulkUploading, setBulkUploading] = useState(false);
   const [activityPage, setActivityPage] = useState(1);
   const deletedCaseRedirectRef = useRef<string | null>(null);
+  const requestTitleRef = useRef<HTMLInputElement | null>(null);
+  const requestRequirementCodesRef = useRef<HTMLInputElement | null>(null);
   const sectionRefs = useRef<Record<CaseFileTab, HTMLElement | null>>({
     overview: null,
     documents: null,
@@ -615,6 +666,37 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
   const publishWorkspaceSync = usePublishWorkspaceSync();
   const managerAppearance = resolvedAppearance === "manager";
   const compactManagerEmbeddedLayout = managerAppearance && embedded;
+  const requestDraftStorageKey = useMemo(
+    () =>
+      role === "manager"
+        ? buildCaseFileDocumentRequestDraftStorageKey(role, resolvedCaseId)
+        : "",
+    [resolvedCaseId, role],
+  );
+  const updateRequestForm = (patch: Partial<typeof requestForm>) => {
+    setRequestForm((previous) => ({
+      ...previous,
+      ...patch,
+    }));
+    setRequestFormErrors({});
+  };
+  const focusFirstRequestFormError = (
+    errors: CaseFileDocumentRequestValidationErrors,
+  ) => {
+    window.requestAnimationFrame(() => {
+      if (errors.title) {
+        requestTitleRef.current?.focus();
+        return;
+      }
+      if (errors.requirement_codes) {
+        requestRequirementCodesRef.current?.focus();
+        return;
+      }
+      if (errors.due_at) {
+        document.getElementById("case-file-request-due-at")?.focus();
+      }
+    });
+  };
   const liveFastTrackCase = useMemo(
     () => normalizeNestedFastTrackCase(caseFile?.fast_track_case || null),
     [caseFile?.fast_track_case],
@@ -678,6 +760,13 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
 
   const loadCaseFile = useCallback(
     async (silent: boolean = false) => {
+      if (caseRouteReference.error) {
+        setCaseFile(null);
+        setLoading(false);
+        setError(caseRouteReference.error);
+        return;
+      }
+
       if (!resolvedCaseId) {
         setCaseFile(null);
         setLoading(false);
@@ -729,7 +818,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
         setLoading(false);
       }
     },
-    [resolvedCaseId],
+    [caseRouteReference.error, resolvedCaseId],
   );
 
   useEffect(() => {
@@ -747,6 +836,45 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     refresh: () => loadCaseFile(true),
     enabled: Boolean(resolvedCaseId),
   });
+
+  useEffect(() => {
+    if (!requestDraftStorageKey) {
+      return;
+    }
+
+    const savedDraft = window.localStorage.getItem(requestDraftStorageKey);
+    if (!savedDraft) {
+      setRequestForm({ ...DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT });
+      setRequestFormErrors({});
+      return;
+    }
+
+    try {
+      setRequestForm({
+        ...DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT,
+        ...JSON.parse(savedDraft),
+      });
+      setRequestFormErrors({});
+    } catch {
+      window.localStorage.removeItem(requestDraftStorageKey);
+    }
+  }, [requestDraftStorageKey]);
+
+  useEffect(() => {
+    if (!requestDraftStorageKey) {
+      return;
+    }
+
+    if (!isCaseFileDocumentRequestDraftDirty(requestForm)) {
+      window.localStorage.removeItem(requestDraftStorageKey);
+      return;
+    }
+
+    window.localStorage.setItem(
+      requestDraftStorageKey,
+      JSON.stringify(requestForm),
+    );
+  }, [requestDraftStorageKey, requestForm]);
 
   useEffect(() => {
     if (embedded) {
@@ -812,6 +940,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       ),
     [caseFile],
   );
+  const documentLimit = caseFile?.document_limit || 30;
+  const documentCount = caseFile?.document_count ?? caseFile?.documents.length ?? 0;
+  const remainingDocumentSlots = Math.max(0, documentLimit - documentCount);
+  const documentLimitReached = documentLimit > 0 && documentCount >= documentLimit;
   const workspaceLinks = useMemo(
     () => (caseFile ? buildWorkspaceLinks(role, caseFile) : []),
     [caseFile, role],
@@ -951,10 +1083,19 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     if (!caseFile) {
       return;
     }
-    if (!requestForm.title.trim()) {
-      toast.error("Add a short title for the document request.");
+    const validationErrors =
+      validateCaseFileDocumentRequestDraft(requestForm);
+    if (Object.keys(validationErrors).length > 0) {
+      setRequestFormErrors(validationErrors);
+      focusFirstRequestFormError(validationErrors);
+      toast.error(
+        "Complete the document request title, requirement codes, and due date.",
+      );
       return;
     }
+    const requirementCodes = parseCaseFileRequirementCodes(
+      requestForm.requirement_codes,
+    );
 
     setCreatingRequest(true);
     const context = buildCaseFileMutationContext(caseFile);
@@ -964,10 +1105,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       description: requestForm.description.trim(),
       visibility: requestForm.visibility,
       link_family: requestForm.link_family,
-      requirement_codes: requestForm.requirement_codes
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      requirement_codes: requirementCodes,
       due_at: requestForm.due_at
         ? new Date(requestForm.due_at).toISOString()
         : undefined,
@@ -996,14 +1134,11 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
         propertyId: caseFile.property_id,
       },
     });
-    setRequestForm({
-      title: "",
-      description: "",
-      requirement_codes: "",
-      visibility: "shared_with_user",
-      link_family: "client_reusable",
-      due_at: "",
-    });
+    setRequestForm({ ...DEFAULT_CASE_FILE_DOCUMENT_REQUEST_DRAFT });
+    setRequestFormErrors({});
+    if (requestDraftStorageKey) {
+      window.localStorage.removeItem(requestDraftStorageKey);
+    }
     setTab("documents");
     await loadCaseFile(true);
   };
@@ -1013,6 +1148,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     request?: CaseFileRequest | null,
   ) => {
     if (!caseFile) {
+      return;
+    }
+    if (documentLimitReached) {
+      toast.error(`This fast-track case already has ${documentLimit}/${documentLimit} documents.`);
       return;
     }
 
@@ -1068,6 +1207,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     if (!caseFile) {
       return;
     }
+    if (documentLimitReached) {
+      toast.error(`This fast-track case already has ${documentLimit}/${documentLimit} documents.`);
+      return;
+    }
 
     const descriptor = inferCaseFileUploadDescriptor(request);
     const actionKey = `upload:${request.id}`;
@@ -1118,6 +1261,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     if (!fileList || fileList.length === 0) {
       return;
     }
+    if (documentLimitReached) {
+      toast.error(`This fast-track case already has ${documentLimit}/${documentLimit} documents.`);
+      return;
+    }
 
     const nextItems = Array.from(fileList).map((file, index) => {
       const requestMatch = matchCaseFileRequestForFileName(file.name, openRequests);
@@ -1140,7 +1287,14 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
       };
     });
 
-    setBulkUploadItems((previous) => [...previous, ...nextItems]);
+    setBulkUploadItems((previous) => {
+      const queuedCount = previous.filter((item) => item.status !== "uploaded").length;
+      const openSlots = Math.max(0, remainingDocumentSlots - queuedCount);
+      if (nextItems.length > openSlots) {
+        toast.error(`Only ${openSlots} document slot${openSlots === 1 ? "" : "s"} remain for this fast-track case.`);
+      }
+      return [...previous, ...nextItems.slice(0, openSlots)];
+    });
     setTab("documents");
   };
 
@@ -1219,6 +1373,10 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
     );
     if (queuedItems.length === 0) {
       toast.info("Choose at least one file before starting the upload.");
+      return;
+    }
+    if (documentLimitReached || queuedItems.length > remainingDocumentSlots) {
+      toast.error(`This fast-track case supports ${documentLimit} documents. Remove a queued file or unlink an existing document first.`);
       return;
     }
 
@@ -1555,7 +1713,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
           : "Everything is uploaded or approved";
 
   return (
-    <div className={embedded ? "space-y-6" : "space-y-8"}>
+    <div className={`case-file-workspace ${embedded ? "space-y-6" : "space-y-8"}`}>
       {embedded && stackedLayout ? (
         <section className={stackedHeroClass}>
           <div
@@ -1925,21 +2083,34 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     : "Choose your files once, confirm where each one belongs, and upload them into the same live case without bouncing between pages."}
                 </p>
               </div>
-              <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={(event) => {
-                    handleQueueBulkFiles(event.target.files);
-                    event.currentTarget.value = "";
-                  }}
-                />
-                <Upload className="h-4 w-4" />
-                Choose files
-              </label>
+              <CaseFileBulkFileChooser
+                onFilesSelected={handleQueueBulkFiles}
+                disabled={documentLimitReached}
+              />
             </div>
+
+            <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+              documentLimitReached
+                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-200"
+                : "border-orange-100 bg-orange-50 text-orange-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-orange-200"
+            }`}>
+              {documentCount}/{documentLimit} documents
+              {documentLimitReached
+                ? " - document limit reached for this 24-hour fast-track case."
+                : ` - ${remainingDocumentSlots} slot${remainingDocumentSlots === 1 ? "" : "s"} remaining.`}
+            </div>
+            {(caseFile.manager_suggested_categories || []).length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(caseFile.manager_suggested_categories || []).map((category) => (
+                  <span
+                    key={category.id}
+                    className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-semibold text-orange-700 dark:border-orange-500/30 dark:bg-black dark:text-orange-200"
+                  >
+                    {category.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
             <div className={documentsGridClass}>
               <div className={checklistPanelClass}>
@@ -2320,7 +2491,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={() => void handleUploadAllDocuments()}
-                    disabled={bulkUploading}
+                    disabled={bulkUploading || documentLimitReached}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {bulkUploading ? (
@@ -2365,34 +2536,71 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     Title
                   </span>
                   <input
+                    id="case-file-request-title"
+                    ref={requestTitleRef}
                     type="text"
                     value={requestForm.title}
                     onChange={(event) =>
-                      setRequestForm((previous) => ({
-                        ...previous,
-                        title: event.target.value,
-                      }))
+                      updateRequestForm({ title: event.target.value })
+                    }
+                    aria-invalid={Boolean(requestFormErrors.title)}
+                    aria-describedby={
+                      requestFormErrors.title
+                        ? "case-file-request-title-error"
+                        : undefined
                     }
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     placeholder="Proof of funds / MIP"
                   />
+                  {requestFormErrors.title ? (
+                    <p
+                      id="case-file-request-title-error"
+                      role="alert"
+                      className="text-xs font-medium text-red-600 dark:text-red-300"
+                    >
+                      {requestFormErrors.title}
+                    </p>
+                  ) : null}
                 </label>
                 <label className="space-y-2 text-sm">
                   <span className="font-medium text-gray-700 dark:text-gray-300">
                     Requirement codes
                   </span>
                   <input
+                    id="case-file-request-requirement-codes"
+                    ref={requestRequirementCodesRef}
                     type="text"
                     value={requestForm.requirement_codes}
                     onChange={(event) =>
-                      setRequestForm((previous) => ({
-                        ...previous,
+                      updateRequestForm({
                         requirement_codes: event.target.value,
-                      }))
+                      })
+                    }
+                    aria-invalid={Boolean(requestFormErrors.requirement_codes)}
+                    aria-describedby={
+                      requestFormErrors.requirement_codes
+                        ? "case-file-request-requirement-codes-help case-file-request-requirement-codes-error"
+                        : "case-file-request-requirement-codes-help"
                     }
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     placeholder="proof_of_funds,mortgage_in_principle"
                   />
+                  <p
+                    id="case-file-request-requirement-codes-help"
+                    className="text-xs text-gray-500 dark:text-gray-400"
+                  >
+                    Use comma-separated lowercase codes with letters, numbers,
+                    and underscores.
+                  </p>
+                  {requestFormErrors.requirement_codes ? (
+                    <p
+                      id="case-file-request-requirement-codes-error"
+                      role="alert"
+                      className="text-xs font-medium text-red-600 dark:text-red-300"
+                    >
+                      {CASE_FILE_REQUIREMENT_CODE_FORMAT}
+                    </p>
+                  ) : null}
                 </label>
                 <label className="space-y-2 text-sm md:col-span-2">
                   <span className="font-medium text-gray-700 dark:text-gray-300">
@@ -2402,10 +2610,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     rows={3}
                     value={requestForm.description}
                     onChange={(event) =>
-                      setRequestForm((previous) => ({
-                        ...previous,
-                        description: event.target.value,
-                      }))
+                      updateRequestForm({ description: event.target.value })
                     }
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     placeholder="Explain exactly what the client should upload and why it is needed."
@@ -2418,10 +2623,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   <select
                     value={requestForm.visibility}
                     onChange={(event) =>
-                      setRequestForm((previous) => ({
-                        ...previous,
-                        visibility: event.target.value,
-                      }))
+                      updateRequestForm({ visibility: event.target.value })
                     }
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                   >
@@ -2437,10 +2639,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                   <select
                     value={requestForm.link_family}
                     onChange={(event) =>
-                      setRequestForm((previous) => ({
-                        ...previous,
-                        link_family: event.target.value,
-                      }))
+                      updateRequestForm({ link_family: event.target.value })
                     }
                     className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                   >
@@ -2459,17 +2658,29 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                     Due date
                   </span>
                   <DateField
+                    id="case-file-request-due-at"
                     value={requestForm.due_at}
                     onChange={(nextValue) =>
-                      setRequestForm((previous) => ({
-                        ...previous,
-                        due_at: nextValue,
-                      }))
+                      updateRequestForm({ due_at: nextValue })
                     }
                     className="w-full"
                     buttonClassName="bg-gray-50 dark:bg-zinc-900"
                     ariaLabel="Case file request due date"
+                    ariaDescribedBy={
+                      requestFormErrors.due_at
+                        ? "case-file-request-due-at-error"
+                        : undefined
+                    }
                   />
+                  {requestFormErrors.due_at ? (
+                    <p
+                      id="case-file-request-due-at-error"
+                      role="alert"
+                      className="text-xs font-medium text-red-600 dark:text-red-300"
+                    >
+                      {requestFormErrors.due_at}
+                    </p>
+                  ) : null}
                 </label>
               </div>
               <button
@@ -2568,7 +2779,7 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                                         request,
                                       )
                                     }
-                                    disabled={busyKey === actionKey}
+                                    disabled={documentLimitReached || busyKey === actionKey}
                                     className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-900"
                                   >
                                     {busyKey === actionKey ? (
@@ -2593,12 +2804,15 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                       </div>
 
                       {(role === "user" || role === "manager") &&
-                      canUploadAgainstRequest(request) ? (
+                      canUploadAgainstRequest(request) &&
+                      !documentLimitReached ? (
                         <label className="flex cursor-pointer flex-col justify-between rounded-2xl border border-dashed border-orange-300 bg-orange-50 p-4 transition hover:border-orange-400 hover:bg-orange-100/60 dark:border-orange-900/40 dark:bg-orange-950/20 dark:hover:bg-orange-950/30">
                           <input
                             type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
+                            name="case-file-request-document"
+                            accept="application/pdf,image/*,.pdf"
+                            aria-label="Choose case-file request document"
+                            className="sr-only"
                             onChange={async (event) => {
                               const file = event.target.files?.[0];
                               event.currentTarget.value = "";
@@ -2637,7 +2851,9 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                             Request status
                           </p>
                           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                            {role === "manager"
+                            {documentLimitReached
+                              ? `This fast-track case already has ${documentCount}/${documentLimit} documents. Remove an existing link before adding another.`
+                              : role === "manager"
                               ? "This request is already satisfied or in review. Use the document controls below to approve it, request a replacement, or remove the link."
                               : "The manager will review the linked or uploaded file directly from this shared case file."}
                           </p>
@@ -2932,8 +3148,8 @@ const CaseFileWorkspace: React.FC<CaseFileWorkspaceProps> = ({
                 ))
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Contracts, invoices, receipts, and progression files will
-                  appear here when they are generated.
+                  Contracts and progression files will appear here when they
+                  are generated.
                 </p>
               )}
             </div>

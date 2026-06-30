@@ -851,7 +851,7 @@ test('live fast-track step follows linked viewing, rent contract, and payment re
                 },
             },
         ),
-        'ready_for_contract',
+        'completed',
     );
 
     assert.equal(

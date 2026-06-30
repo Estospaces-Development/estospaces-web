@@ -30,25 +30,50 @@ const tsxCommand = join(
     '.bin',
     process.platform === 'win32' ? 'tsx.cmd' : 'tsx',
 );
+const tsxCli = join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs');
 
-if (!existsSync(tsxCommand)) {
+if (!existsSync(tsxCommand) || !existsSync(tsxCli)) {
     console.error(`Unable to locate tsx binary at ${tsxCommand}`);
     process.exit(1);
 }
 
-const windowsCommand = `"${tsxCommand}" --test ${testFiles.map((file) => `"${file}"`).join(' ')}`;
-const result = process.platform === 'win32'
-    ? spawnSync(windowsCommand, {
-        stdio: 'inherit',
-        shell: true,
-    })
-    : spawnSync(tsxCommand, ['--test', ...testFiles], {
+function chunkFiles(files, maxLength = 24000) {
+    const chunks = [];
+    let current = [];
+    let length = process.execPath.length + tsxCli.length + '--test'.length;
+
+    for (const file of files) {
+        const nextLength = length + file.length + 3;
+        if (current.length > 0 && nextLength > maxLength) {
+            chunks.push(current);
+            current = [];
+            length = process.execPath.length + tsxCli.length + '--test'.length;
+        }
+
+        current.push(file);
+        length += file.length + 3;
+    }
+
+    if (current.length > 0) {
+        chunks.push(current);
+    }
+
+    return chunks;
+}
+
+for (const chunk of chunkFiles(testFiles)) {
+    const result = spawnSync(process.execPath, [tsxCli, '--test', ...chunk], {
         stdio: 'inherit',
     });
 
-if (result.error) {
-    console.error(result.error.message);
-    process.exit(1);
+    if (result.error) {
+        console.error(result.error.message);
+        process.exit(1);
+    }
+
+    if (result.status !== 0) {
+        process.exit(result.status ?? 1);
+    }
 }
 
-process.exit(result.status ?? 1);
+process.exit(0);

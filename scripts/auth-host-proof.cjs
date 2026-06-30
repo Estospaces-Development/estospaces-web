@@ -12,6 +12,16 @@ function hostLabel(url) {
   return new URL(url).host;
 }
 
+function resolveCredential(roleName) {
+  const role = credentials[roleName];
+  const email = process.env[role.emailEnv];
+  const password = process.env[role.passwordEnv];
+  if (!email || !password) {
+    throw new Error(`Missing ${roleName} test credentials: ${role.emailEnv} and ${role.passwordEnv}`);
+  }
+  return { email, password };
+}
+
 async function attachDiagnostics(page, errors) {
   page.on('pageerror', (error) => errors.page.push(String(error)));
   page.on('console', (msg) => {
@@ -87,6 +97,11 @@ async function main() {
 
   const browser = await chromium.launch({ headless: true });
   const results = [];
+  const testCredentials = {
+    user: resolveCredential('user'),
+    manager: resolveCredential('manager'),
+    admin: resolveCredential('admin'),
+  };
 
   try {
     results.push(await runScenario(browser, 'app-login-page', async (page, result) => {
@@ -108,21 +123,21 @@ async function main() {
     }));
 
     results.push(await runScenario(browser, 'user-login-on-app-host', async (page, result) => {
-      await submitLogin(page, appBaseUrl, credentials.user.email, credentials.user.password);
+      await submitLogin(page, appBaseUrl, testCredentials.user.email, testCredentials.user.password);
       await page.waitForURL((url) => url.hostname === new URL(appBaseUrl).hostname && url.pathname.startsWith('/user/dashboard'), { timeout: 120000 });
       result.expectedHost = hostLabel(appBaseUrl);
       result.expectedPathPrefix = '/user/dashboard';
     }));
 
     results.push(await runScenario(browser, 'manager-login-on-app-host', async (page, result) => {
-      await submitLogin(page, appBaseUrl, credentials.manager.email, credentials.manager.password);
+      await submitLogin(page, appBaseUrl, testCredentials.manager.email, testCredentials.manager.password);
       await page.waitForURL((url) => url.hostname === new URL(appBaseUrl).hostname && url.pathname.startsWith('/manager/dashboard'), { timeout: 120000 });
       result.expectedHost = hostLabel(appBaseUrl);
       result.expectedPathPrefix = '/manager/dashboard';
     }));
 
     results.push(await runScenario(browser, 'admin-login-on-app-host-redirects-to-admin-login', async (page, result) => {
-      await submitLogin(page, appBaseUrl, credentials.admin.email, credentials.admin.password);
+      await submitLogin(page, appBaseUrl, testCredentials.admin.email, testCredentials.admin.password);
       await page.waitForURL((url) => url.hostname === new URL(adminBaseUrl).hostname && url.pathname.startsWith('/login'), { timeout: 120000 });
       await waitForLoginUi(page);
       result.expectedHost = hostLabel(adminBaseUrl);
@@ -130,14 +145,14 @@ async function main() {
     }));
 
     results.push(await runScenario(browser, 'admin-login-on-admin-host', async (page, result) => {
-      await submitLogin(page, adminBaseUrl, credentials.admin.email, credentials.admin.password);
+      await submitLogin(page, adminBaseUrl, testCredentials.admin.email, testCredentials.admin.password);
       await page.waitForURL((url) => url.hostname === new URL(adminBaseUrl).hostname && url.pathname.startsWith('/admin/dashboard'), { timeout: 120000 });
       result.expectedHost = hostLabel(adminBaseUrl);
       result.expectedPathPrefix = '/admin/dashboard';
     }));
 
     results.push(await runScenario(browser, 'manager-login-on-admin-host-redirects-to-app-login', async (page, result) => {
-      await submitLogin(page, adminBaseUrl, credentials.manager.email, credentials.manager.password);
+      await submitLogin(page, adminBaseUrl, testCredentials.manager.email, testCredentials.manager.password);
       await page.waitForURL((url) => url.hostname === new URL(appBaseUrl).hostname && url.pathname.startsWith('/login'), { timeout: 120000 });
       await waitForLoginUi(page);
       result.expectedHost = hostLabel(appBaseUrl);
@@ -145,7 +160,7 @@ async function main() {
     }));
 
     results.push(await runScenario(browser, 'user-login-on-admin-host-redirects-to-app-login', async (page, result) => {
-      await submitLogin(page, adminBaseUrl, credentials.user.email, credentials.user.password);
+      await submitLogin(page, adminBaseUrl, testCredentials.user.email, testCredentials.user.password);
       await page.waitForURL((url) => url.hostname === new URL(appBaseUrl).hostname && url.pathname.startsWith('/login'), { timeout: 120000 });
       await waitForLoginUi(page);
       result.expectedHost = hostLabel(appBaseUrl);

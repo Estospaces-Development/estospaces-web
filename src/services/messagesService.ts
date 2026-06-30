@@ -4,6 +4,7 @@ const MESSAGING_URL = () => getServiceUrl('messaging');
 
 export interface MessageAttachment {
     id?: string;
+    media_id?: string;
     file_url: string;
     file_name: string;
     mime_type?: string;
@@ -219,6 +220,7 @@ export async function updateConversationPreferences(
 ): Promise<void> {
     await apiFetch(`${MESSAGING_URL()}/api/v1/conversations/${conversationId}/preferences`, {
         method: 'PUT',
+        suppressErrorToast: true,
         body: JSON.stringify(preferences),
     });
 }

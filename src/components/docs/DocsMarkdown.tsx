@@ -76,7 +76,7 @@ const components: Components = {
     pre: ({ children }) => <pre className="mb-5 overflow-x-auto">{children}</pre>,
     table: ({ children }) => (
         <div className="mb-8 overflow-hidden rounded-[1.7rem] border border-orange-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0} aria-label="Scrollable documentation table">
                 <table className="min-w-full divide-y divide-orange-100 text-left dark:divide-gray-800">
                     {children}
                 </table>
@@ -95,7 +95,7 @@ const components: Components = {
         <tbody className="divide-y divide-orange-100 dark:divide-gray-800">{children}</tbody>
     ),
     td: ({ children }) => (
-        <td className="px-4 py-3 align-top text-sm leading-6 text-gray-700 dark:text-gray-300">
+        <td className="px-4 py-3 align-top text-sm leading-6 text-gray-700 [overflow-wrap:anywhere] dark:text-gray-300">
             {children}
         </td>
     ),
@@ -108,7 +108,7 @@ const components: Components = {
             return (
                 <Link
                     to={href}
-                    className="font-semibold text-orange-600 underline decoration-orange-200 underline-offset-4 transition-colors hover:text-orange-700 dark:text-orange-300 dark:decoration-orange-500/40 dark:hover:text-orange-200"
+                    className="break-words font-semibold text-orange-600 underline decoration-orange-200 underline-offset-4 transition-colors [overflow-wrap:anywhere] hover:text-orange-700 dark:text-orange-300 dark:decoration-orange-500/40 dark:hover:text-orange-200"
                 >
                     {children}
                 </Link>
@@ -120,7 +120,7 @@ const components: Components = {
                 href={href}
                 target="_blank"
                 rel="noreferrer"
-                className="font-semibold text-orange-600 underline decoration-orange-200 underline-offset-4 transition-colors hover:text-orange-700 dark:text-orange-300 dark:decoration-orange-500/40 dark:hover:text-orange-200"
+                className="break-words font-semibold text-orange-600 underline decoration-orange-200 underline-offset-4 transition-colors [overflow-wrap:anywhere] hover:text-orange-700 dark:text-orange-300 dark:decoration-orange-500/40 dark:hover:text-orange-200"
             >
                 {children}
             </a>

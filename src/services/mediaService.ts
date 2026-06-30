@@ -36,6 +36,7 @@ export const uploadMediaFile = async (
 
     return apiFetch<MediaFile>(`${MEDIA_URL()}/api/v1/media`, {
         method: 'POST',
+        suppressErrorToast: true,
         body,
     });
 };
@@ -48,6 +49,7 @@ export const reassignMediaEntity = async (
 ): Promise<void> => {
     await apiFetch(`${MEDIA_URL()}/api/v1/media/reassign`, {
         method: 'PUT',
+        suppressErrorToast: true,
         body: JSON.stringify({
             from_entity_type: fromEntityType,
             from_entity_id: fromEntityId,
@@ -57,8 +59,15 @@ export const reassignMediaEntity = async (
     });
 };
 
+export const getMyMediaFiles = async (limit = 50): Promise<MediaFile[]> => {
+    return apiFetch<MediaFile[]>(`${MEDIA_URL()}/api/v1/media/mine?limit=${limit}`, {
+        suppressErrorToast: true,
+    });
+};
+
 export const deleteMediaFile = async (mediaId: string): Promise<void> => {
     await apiFetch(`${MEDIA_URL()}/api/v1/media/${mediaId}`, {
         method: 'DELETE',
+        suppressErrorToast: true,
     });
 };

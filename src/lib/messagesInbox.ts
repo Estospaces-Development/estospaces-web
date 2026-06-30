@@ -11,6 +11,7 @@ export interface ConversationQueryResolutionInput {
     hasLoadedConversations: boolean;
     availableConversationIds: string[];
     hasAttemptedRefresh?: boolean;
+    ignoredConversationId?: string | null;
 }
 
 export interface ConversationQueryResolution {
@@ -31,12 +32,20 @@ export function resolveConversationQuerySelection({
     hasLoadedConversations,
     availableConversationIds,
     hasAttemptedRefresh = false,
+    ignoredConversationId,
 }: ConversationQueryResolutionInput): ConversationQueryResolution {
     const conversationId = normalizeConversationId(requestedConversationId);
     if (!conversationId) {
         return {
             status: 'ignore',
             conversationId: null,
+        };
+    }
+
+    if (conversationId === normalizeConversationId(ignoredConversationId)) {
+        return {
+            status: 'ignore',
+            conversationId,
         };
     }
 
@@ -65,6 +74,14 @@ export function resolveConversationQuerySelection({
         status: 'select',
         conversationId,
     };
+}
+
+export function buildConversationListUrl(pathname: string, search: string) {
+    const params = new URLSearchParams(search);
+    params.delete('conversation');
+
+    const nextSearch = params.toString();
+    return nextSearch ? `${pathname}?${nextSearch}` : pathname;
 }
 
 export function isUnavailableConversationThreadError(error: unknown) {

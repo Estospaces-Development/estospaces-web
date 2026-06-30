@@ -1,4 +1,5 @@
 import type { FastTrackStep } from '@/services/fastTrackService';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 import type { FastTrackLinkedJourney } from './fastTrackLinkedJourney';
 
@@ -20,6 +21,7 @@ export type FastTrackStageGuidanceTarget =
     | 'fast_track';
 
 const CONTINUE_IN_FAST_TRACK_LABEL = 'Continue in fast-track workspace';
+const inactiveFinanceWorkspaceCopyPattern = /deposit|first-rent|payment|invoice|billing/i;
 
 export interface FastTrackStageGuidance {
     title: string;
@@ -41,11 +43,18 @@ const isPendingInvoiceTask = (item: FinanceTask) => {
 };
 
 export const hasPendingRentFinanceTasks = (linkedJourney?: LinkedJourneyLike) => (
-    (linkedJourney?.payments || []).some(isPendingPaymentTask)
+    PAYMENTS_ENABLED && ((linkedJourney?.payments || []).some(isPendingPaymentTask)
     || (linkedJourney?.invoices || []).some(isPendingInvoiceTask)
+    )
 );
 
 export const getPurchaseWorkspaceLabel = (_linkedJourney?: Pick<FastTrackLinkedJourney, 'liveStage' | 'saleProgression'> | null) => 'Open linked purchase details';
+
+const hideInactiveFinanceCopy = (value?: string | null) => (
+    !PAYMENTS_ENABLED && inactiveFinanceWorkspaceCopyPattern.test(String(value || ''))
+        ? ''
+        : String(value || '')
+);
 
 const applicationsTitle = (journeyType: JourneyType, linkedJourney?: LinkedJourneyLike) => (
     linkedJourney?.primaryHeadline
@@ -118,7 +127,10 @@ export const resolveFastTrackStageGuidance = ({
                 description: applicationsDescription(journeyType, linkedJourney),
                 target: 'fast_track',
             };
-        case 'ready_for_contract':
+        case 'ready_for_contract': {
+            const linkedHeadline = hideInactiveFinanceCopy(linkedJourney?.primaryHeadline);
+            const linkedNextStep = hideInactiveFinanceCopy(linkedJourney?.nextStep);
+
             if (journeyType === 'buy') {
                 return {
                     title: applicationsTitle(journeyType, linkedJourney),
@@ -128,7 +140,7 @@ export const resolveFastTrackStageGuidance = ({
                 };
             }
 
-            if (hasPendingFinanceTasks) {
+            if (PAYMENTS_ENABLED && hasPendingFinanceTasks) {
                 return {
                     title: linkedJourney?.primaryHeadline || 'Deposit and first-rent tasks',
                     actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
@@ -138,11 +150,12 @@ export const resolveFastTrackStageGuidance = ({
             }
 
             return {
-                title: linkedJourney?.primaryHeadline || 'Tenancy agreement and signatures',
+                title: linkedHeadline || 'Tenancy agreement and signatures',
                 actionLabel: CONTINUE_IN_FAST_TRACK_LABEL,
-                description: linkedJourney?.nextStep || 'Draft, issue, and complete the tenancy agreement from this fast-track case.',
+                description: linkedNextStep || 'Draft, issue, and complete the tenancy agreement from this fast-track case.',
                 target: 'fast_track',
             };
+        }
         default:
             return null;
     }

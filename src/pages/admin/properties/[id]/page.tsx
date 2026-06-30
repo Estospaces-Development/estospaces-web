@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
     ArrowLeft,
@@ -11,6 +11,7 @@ import {
     Calendar,
     CheckCircle,
     Home,
+    ImageOff,
     Loader2,
     Mail,
     MapPin,
@@ -30,7 +31,8 @@ import {
 } from '@/services/propertyService';
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
-import VirtualTourRequestPanel from '@/components/virtual-tour/VirtualTourRequestPanel';
+import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -64,12 +66,7 @@ const formatPrice = (property: Property) => {
         return 'Price on request';
     }
 
-    return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: property.currency || 'GBP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(property.price);
+    return formatLaunchCurrency(property.price);
 };
 
 const formatDate = (value?: string) => {
@@ -87,14 +84,6 @@ const formatDate = (value?: string) => {
         month: 'short',
         year: 'numeric',
     });
-};
-
-const getPropertyImages = (property: Property | null) => {
-    if (!property) {
-        return [];
-    }
-
-    return parseStringArray(property.image_urls);
 };
 
 const getPropertyVideos = (property: Property | null) => {
@@ -126,8 +115,13 @@ export default function AdminPropertyDetailPage() {
     const [property, setProperty] = useState<Property | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
+    const [showRejectDialog, setShowRejectDialog] = useState(false);
+    const [rejectReason, setRejectReason] = useState('');
+    const [rejectReasonError, setRejectReasonError] = useState('');
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-    const imageUrls = useMemo(() => getPropertyImages(property), [property]);
+    const mediaState = useMemo(() => getAdminPropertyDetailMedia(property), [property]);
+    const imageUrls = mediaState.imageUrls;
     const videoUrls = useMemo(() => getPropertyVideos(property), [property]);
     const statusBadge = getManagerPropertyStatusBadge(property?.status);
     const amenities = useMemo(() => parseStringArray(property?.amenities), [property?.amenities]);
@@ -168,27 +162,39 @@ export default function AdminPropertyDetailPage() {
         setProperty(data);
     };
 
-    const handleStatusChange = async (nextStatus: 'published' | 'rejected' | 'suspended') => {
+    const closeRejectDialog = () => {
+        setShowRejectDialog(false);
+        setRejectReason('');
+        setRejectReasonError('');
+    };
+
+    const openRejectDialog = () => {
+        setShowDeleteDialog(false);
+        setShowRejectDialog(true);
+        setRejectReason('');
+        setRejectReasonError('');
+    };
+
+    const openDeleteDialog = () => {
+        setShowRejectDialog(false);
+        setRejectReason('');
+        setRejectReasonError('');
+        setShowDeleteDialog(true);
+    };
+
+    const handleStatusChange = async (nextStatus: 'published' | 'rejected' | 'suspended', reason?: string): Promise<boolean> => {
         if (!propertyId) {
-            return;
+            return false;
         }
 
-        let reason: string | undefined;
-        if (nextStatus === 'rejected') {
-            const promptValue = window.prompt('Enter a rejection reason for the manager:');
-            if (promptValue === null) {
-                return;
-            }
-            if (!promptValue.trim()) {
-                showWarningToast('A rejection reason is required to reject a property.');
-                return;
-            }
-            reason = promptValue.trim();
+        if (nextStatus === 'rejected' && !reason?.trim()) {
+            showWarningToast('A rejection reason is required to reject a property.');
+            return false;
         }
 
         setActionLoading(true);
         try {
-            const { error } = await adminUpdatePropertyStatus(propertyId, nextStatus, reason);
+            const { error } = await adminUpdatePropertyStatus(propertyId, nextStatus, reason?.trim());
             if (error) {
                 throw new Error(error);
             }
@@ -202,19 +208,31 @@ export default function AdminPropertyDetailPage() {
             } else {
                 showSuccessToast('Property suspended successfully.');
             }
+            return true;
         } catch (error: any) {
             showErrorToast(error?.message || 'Failed to update property status.');
+            return false;
         } finally {
             setActionLoading(false);
         }
     };
 
-    const handleDelete = async () => {
-        if (!propertyId) {
+    const handleRejectSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const trimmedReason = rejectReason.trim();
+        if (!trimmedReason) {
+            setRejectReasonError('A rejection reason is required to reject a property.');
             return;
         }
 
-        if (!window.confirm('Delete this property from the registry?')) {
+        const rejected = await handleStatusChange('rejected', trimmedReason);
+        if (rejected) {
+            closeRejectDialog();
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!propertyId) {
             return;
         }
 
@@ -253,7 +271,7 @@ export default function AdminPropertyDetailPage() {
                     <button
                         type="button"
                         disabled={actionLoading}
-                        onClick={() => handleStatusChange('rejected')}
+                        onClick={openRejectDialog}
                         className="flex-1 rounded-2xl bg-red-500 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Reject
@@ -268,7 +286,7 @@ export default function AdminPropertyDetailPage() {
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleStatusChange('suspended')}
-                    className="w-full rounded-2xl bg-amber-500 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl bg-amber-700 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {actionLoading ? 'Working...' : 'Suspend Listing'}
                 </button>
@@ -281,7 +299,7 @@ export default function AdminPropertyDetailPage() {
                     type="button"
                     disabled={actionLoading}
                     onClick={() => handleStatusChange('published')}
-                    className="w-full rounded-2xl bg-blue-500 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full rounded-2xl bg-blue-700 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {actionLoading ? 'Working...' : 'Publish Listing'}
                 </button>
@@ -309,14 +327,14 @@ export default function AdminPropertyDetailPage() {
     if (!property) {
         return (
             <div className="space-y-6">
-                <button
-                    type="button"
-                    onClick={() => navigate('/admin/properties')}
+                <Link
+                    to="/admin/properties"
+                    data-testid="admin-property-back-to-registry"
                     className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Back to Registry
-                </button>
+                </Link>
                 <div className="rounded-[2rem] border bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-800">
                     <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-900">
                         <Home className="h-8 w-8" />
@@ -332,23 +350,125 @@ export default function AdminPropertyDetailPage() {
 
     return (
         <div className="space-y-8">
+            {showRejectDialog ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-8 backdrop-blur-sm">
+                    <form
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="reject-property-dialog-title"
+                        aria-describedby="reject-property-dialog-description"
+                        onSubmit={handleRejectSubmit}
+                        className="w-full max-w-lg rounded-3xl border border-red-100 bg-white p-6 shadow-2xl dark:border-red-900/50 dark:bg-gray-900"
+                    >
+                        <div className="mb-5">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Admin decision</p>
+                            <h2 id="reject-property-dialog-title" className="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                                Reject property
+                            </h2>
+                            <p id="reject-property-dialog-description" className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Add a clear reason so the manager knows what to correct before resubmitting.
+                            </p>
+                        </div>
+                        <label htmlFor="admin-detail-reject-property-reason" className="mb-2 block text-xs font-black uppercase tracking-widest text-gray-500">
+                            Reason
+                        </label>
+                        <textarea
+                            id="admin-detail-reject-property-reason"
+                            aria-label="Reject property reason"
+                            aria-invalid={rejectReasonError ? 'true' : undefined}
+                            aria-describedby={rejectReasonError ? 'admin-detail-reject-property-reason-error' : undefined}
+                            value={rejectReason}
+                            onChange={(event) => {
+                                setRejectReason(event.target.value);
+                                if (rejectReasonError) {
+                                    setRejectReasonError('');
+                                }
+                            }}
+                            className="min-h-32 w-full rounded-2xl border border-gray-200 bg-white p-4 text-sm font-semibold text-gray-900 outline-none transition-all focus:border-red-400 focus:ring-4 focus:ring-red-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                            placeholder="Explain what the manager must update..."
+                        />
+                        {rejectReasonError ? (
+                            <p id="admin-detail-reject-property-reason-error" className="mt-2 text-sm font-bold text-red-600">
+                                {rejectReasonError}
+                            </p>
+                        ) : null}
+                        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={closeRejectDialog}
+                                disabled={actionLoading}
+                                className="rounded-2xl border border-gray-200 px-6 py-3 text-xs font-black uppercase tracking-widest text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={actionLoading}
+                                className="rounded-2xl bg-red-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-red-600/20 transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {actionLoading ? 'Rejecting...' : 'Reject property'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            ) : null}
+            {showDeleteDialog ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4 py-8 backdrop-blur-sm">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Delete property confirmation"
+                        aria-labelledby="delete-property-dialog-title"
+                        aria-describedby="delete-property-dialog-description"
+                        className="w-full max-w-md rounded-3xl border border-red-100 bg-white p-6 shadow-2xl dark:border-red-900/50 dark:bg-gray-900"
+                    >
+                        <div className="mb-6">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Permanent action</p>
+                            <h2 id="delete-property-dialog-title" className="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                                Delete property
+                            </h2>
+                            <p id="delete-property-dialog-description" className="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+                                Remove this listing from the registry. This action cannot be undone from the admin workspace.
+                            </p>
+                        </div>
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteDialog(false)}
+                                disabled={actionLoading}
+                                className="rounded-2xl border border-gray-200 px-6 py-3 text-xs font-black uppercase tracking-widest text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleDeleteConfirm}
+                                disabled={actionLoading}
+                                className="rounded-2xl bg-red-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-red-600/20 transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {actionLoading ? 'Deleting...' : 'Delete property'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate('/admin/properties')}
+                    <Link
+                        to="/admin/properties"
+                        data-testid="admin-property-back-to-registry"
                         className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
                     >
                         <ArrowLeft className="h-4 w-4" />
                         Back to Registry
-                    </button>
+                    </Link>
                     <div>
                         <div className="mb-3 flex flex-wrap items-center gap-3">
                             <span className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg ring-1 ring-inset backdrop-blur-md ${statusBadge.badgeClassName}`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${statusBadge.dotClassName}`} />
                                 <span>{statusBadge.label}</span>
                             </span>
-                            <span className="rounded-full bg-blue-500 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-500/20">
+                            <span className="rounded-full bg-blue-700 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-700/20">
                                 Admin View
                             </span>
                         </div>
@@ -372,15 +492,30 @@ export default function AdminPropertyDetailPage() {
                 <div className="space-y-8">
                     <div className="overflow-hidden rounded-[2rem] border bg-white shadow-xl shadow-gray-200/40 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
                         <div className="relative h-[360px] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
-                            {imageUrls[0] ? (
+                            {mediaState.primaryImageUrl ? (
                                 <img
-                                    src={imageUrls[0]}
+                                    src={mediaState.primaryImageUrl}
                                     alt={property.title}
                                     className="h-full w-full object-cover"
                                 />
                             ) : (
-                                <div className="flex h-full w-full items-center justify-center text-gray-400">
-                                    <Home className="h-16 w-16" />
+                                <div
+                                    role="img"
+                                    aria-label={mediaState.fallbackAriaLabel}
+                                    data-testid="admin-property-media-fallback"
+                                    className="flex h-full w-full flex-col items-center justify-center gap-4 px-8 text-center text-gray-500 dark:text-gray-300"
+                                >
+                                    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/80 text-gray-400 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800/80 dark:ring-gray-700">
+                                        <ImageOff className="h-10 w-10" />
+                                    </div>
+                                    <div className="max-w-sm">
+                                        <p className="text-sm font-black uppercase tracking-widest text-gray-700 dark:text-gray-100">
+                                            {mediaState.fallbackTitle}
+                                        </p>
+                                        <p className="mt-2 text-sm font-semibold leading-6 text-gray-500 dark:text-gray-400">
+                                            {mediaState.fallbackDescription}
+                                        </p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -417,12 +552,6 @@ export default function AdminPropertyDetailPage() {
                             </div>
                         </div>
                     ) : null}
-
-                    <VirtualTourRequestPanel
-                        propertyId={property.id}
-                        propertyTitle={property.title}
-                        adminView={true}
-                    />
 
                     <div className="rounded-[2rem] border bg-white p-8 shadow-xl shadow-gray-200/40 dark:border-gray-700 dark:bg-gray-800 dark:shadow-none">
                         <h2 className="text-2xl font-black text-gray-900 dark:text-white">Listing Overview</h2>
@@ -510,7 +639,7 @@ export default function AdminPropertyDetailPage() {
                             <button
                                 type="button"
                                 disabled={actionLoading}
-                                onClick={handleDelete}
+                                onClick={openDeleteDialog}
                                 className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 px-5 py-4 text-sm font-black uppercase tracking-widest text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30"
                             >
                                 <Trash2 className="h-4 w-4" />

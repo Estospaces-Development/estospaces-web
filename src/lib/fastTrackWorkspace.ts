@@ -1,6 +1,16 @@
-import type { FastTrackCase } from '@/services/fastTrackService';
+import type { FastTrackCase, FastTrackStage } from '@/services/fastTrackService';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 export type FastTrackWorkspaceRole = 'user' | 'manager' | 'admin';
+
+const FAST_TRACK_STAGE_KEYS: FastTrackStage[] = [
+    'selected',
+    'documents',
+    'viewing',
+    'decision',
+    'agreement',
+    'handover',
+];
 
 export const isFastTrackCaseComplete = (fastTrackCase: FastTrackCase | null | undefined) => (
     Boolean(fastTrackCase)
@@ -11,6 +21,25 @@ export const isFastTrackCaseComplete = (fastTrackCase: FastTrackCase | null | un
     )
 );
 
+export const canUserConfirmFastTrackHandover = (fastTrackCase: FastTrackCase | null | undefined) => {
+    const handoverStatus = String(fastTrackCase?.handover.status || '').trim().toLowerCase();
+    return Boolean(
+        fastTrackCase
+        && !fastTrackCase?.handover.confirmedByUser
+        && (handoverStatus === 'ready' || handoverStatus === 'completed'),
+    );
+};
+
+export const isFastTrackCaseCompleteForRole = (
+    fastTrackCase: FastTrackCase | null | undefined,
+    role: FastTrackWorkspaceRole,
+) => {
+    if (role === 'user' && canUserConfirmFastTrackHandover(fastTrackCase)) {
+        return false;
+    }
+    return isFastTrackCaseComplete(fastTrackCase);
+};
+
 export const resolveFastTrackSelectionCaseId = (
     cases: FastTrackCase[],
     params: URLSearchParams,
@@ -20,14 +49,19 @@ export const resolveFastTrackSelectionCaseId = (
         return null;
     }
 
+    const normalizeSelectionValue = (value: string | null | undefined) => (
+        String(value || '').trim().toLowerCase()
+    );
+
     const matchByField = (
         requestedValue: string | null,
         selector: (item: FastTrackCase) => string | undefined,
     ) => {
-        if (!requestedValue) {
+        const normalizedRequestedValue = normalizeSelectionValue(requestedValue);
+        if (!normalizedRequestedValue) {
             return null;
         }
-        const match = cases.find((item) => selector(item) === requestedValue);
+        const match = cases.find((item) => normalizeSelectionValue(selector(item)) === normalizedRequestedValue);
         return match?.caseId || null;
     };
 
@@ -42,9 +76,12 @@ export const resolveFastTrackSelectionCaseId = (
         return matchedRecord;
     }
 
-    const requestedCaseId = params.get('case');
-    if (requestedCaseId && cases.some((item) => item.caseId === requestedCaseId)) {
-        return requestedCaseId;
+    const requestedCaseId = normalizeSelectionValue(params.get('case'));
+    if (requestedCaseId) {
+        const match = cases.find((item) => normalizeSelectionValue(item.caseId) === requestedCaseId);
+        if (match) {
+            return match.caseId;
+        }
     }
 
     const fallbacks = [
@@ -57,12 +94,119 @@ export const resolveFastTrackSelectionCaseId = (
         return matchedFallback;
     }
 
-    if (previous && cases.some((item) => item.caseId === previous)) {
-        return previous;
+    const previousCaseId = normalizeSelectionValue(previous);
+    if (previousCaseId) {
+        const match = cases.find((item) => normalizeSelectionValue(item.caseId) === previousCaseId);
+        if (match) {
+            return match.caseId;
+        }
     }
 
     return cases[0].caseId;
 };
+
+export const buildFastTrackSelectionSearchParams = (
+    current: URLSearchParams,
+    selectedCaseId: string,
+) => {
+    const next = new URLSearchParams(current);
+    next.set('case', selectedCaseId.trim());
+    return next;
+};
+
+export const resolveFastTrackStageSearchParam = (params: URLSearchParams): FastTrackStage | null => {
+    const requestedStage = String(params.get('section') || params.get('stage') || '').trim().toLowerCase();
+    if (FAST_TRACK_STAGE_KEYS.includes(requestedStage as FastTrackStage)) {
+        return requestedStage as FastTrackStage;
+    }
+    return null;
+};
+
+export const buildFastTrackStageSearchParams = (
+    current: URLSearchParams,
+    stage: FastTrackStage,
+) => {
+    const next = new URLSearchParams(current);
+    next.set('section', stage);
+    return next;
+};
+
+export const resolveFastTrackDocumentSearchParam = (
+    params: URLSearchParams,
+    validDocumentIds: string[] = [],
+) => {
+    const requestedDocument = String(params.get('document') || params.get('file') || '').trim().toLowerCase();
+    if (!requestedDocument) {
+        return null;
+    }
+    if (validDocumentIds.length === 0) {
+        return requestedDocument;
+    }
+    const match = validDocumentIds.find((id) => String(id || '').trim().toLowerCase() === requestedDocument);
+    return match || null;
+};
+
+export const buildFastTrackDocumentSearchParams = (
+    current: URLSearchParams,
+    documentId: string,
+) => {
+    const next = new URLSearchParams(current);
+    next.set('document', documentId.trim());
+    next.set('section', 'documents');
+    return next;
+};
+
+export const buildFastTrackDocumentDraftStorageKey = (
+    role: FastTrackWorkspaceRole,
+    caseId?: string | null,
+) => {
+    const normalizedCaseId = String(caseId || '').trim();
+    if (!normalizedCaseId) {
+        return '';
+    }
+    return `fast-track:document-drafts:${role}:${encodeURIComponent(normalizedCaseId)}`;
+};
+
+export const isFastTrackDocumentDraftDirty = (
+    notes: Record<string, string | null | undefined>,
+) => Object.values(notes).some((value) => String(value || '').trim() !== '');
+
+export const getFastTrackDecisionGuard = (
+    fastTrackCase: FastTrackCase,
+    outcome: 'approved' | 'rejected',
+    amount: string | number | null | undefined,
+    role: FastTrackWorkspaceRole,
+) => {
+    if (role === 'user') {
+        return null;
+    }
+
+    const viewingStatus = String(fastTrackCase.viewing.status || '').trim().toLowerCase();
+    const stageIndex = FAST_TRACK_STAGE_KEYS.indexOf(fastTrackCase.stage);
+    const decisionStageIndex = FAST_TRACK_STAGE_KEYS.indexOf('decision');
+    const viewingReady = viewingStatus === 'completed'
+        || viewingStatus === 'skipped'
+        || stageIndex >= decisionStageIndex;
+    if (!viewingReady) {
+        return 'Complete or skip the viewing before recording an outcome.';
+    }
+
+    const numericAmount = typeof amount === 'number'
+        ? amount
+        : Number(String(amount || '').trim());
+    if (fastTrackCase.journeyMode === 'sale' && outcome === 'approved' && (!Number.isFinite(numericAmount) || numericAmount <= 0)) {
+        return 'Enter a valid offer amount before approving.';
+    }
+
+    return null;
+};
+
+export const getFastTrackFinalDecisionGuard = (
+    fastTrackCase: FastTrackCase,
+    outcome: 'approved' | 'rejected',
+    amount: string | number | null | undefined,
+    role: FastTrackWorkspaceRole,
+) => getFastTrackDecisionGuard(fastTrackCase, outcome, amount, role);
 
 export const fastTrackCaseMatchesQuery = (
     fastTrackCase: FastTrackCase,
@@ -144,7 +288,7 @@ export const describeFastTrackWorkspaceFocus = (
     fastTrackCase: FastTrackCase,
     role: FastTrackWorkspaceRole,
 ) => {
-    if (isFastTrackCaseComplete(fastTrackCase)) {
+    if (isFastTrackCaseCompleteForRole(fastTrackCase, role)) {
         return role === 'user' ? 'Your journey is complete' : 'Case finished';
     }
     if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
@@ -166,16 +310,29 @@ export const describeFastTrackWorkspaceFocus = (
                     : 'Record the application result';
         case 'agreement':
             if (role === 'user') {
-                return 'Read and sign the agreement';
+                return fastTrackCase.journeyMode === 'sale'
+                    ? 'Review the memorandum, solicitor conveyancing, and exchange plan'
+                    : 'Read and sign the agreement';
             }
-            return fastTrackCase.agreement.paymentStatus === 'requested' || fastTrackCase.agreement.paymentStatus === 'paid'
+            if (fastTrackCase.journeyMode === 'sale') {
+                return 'Prepare legal memorandum, conveyancing, exchange, and completion';
+            }
+            return PAYMENTS_ENABLED && (fastTrackCase.agreement.paymentStatus === 'requested' || fastTrackCase.agreement.paymentStatus === 'paid')
                 ? 'Confirm payment and move to handover'
                 : 'Publish the agreement';
         case 'handover':
-            return role === 'user' ? 'Confirm key handover' : 'Finish handover';
+            return role === 'user'
+                ? fastTrackCase.journeyMode === 'sale'
+                    ? 'Track completion and final keys'
+                    : 'Confirm key handover'
+                : fastTrackCase.journeyMode === 'sale'
+                    ? 'Finish sale completion and key handover'
+                    : 'Finish handover';
         default:
             if (role === 'user') {
-                return 'We are preparing your next step';
+                return fastTrackCase.journeyMode === 'sale'
+                    ? 'Offer, memorandum, conveyancing, exchange, and completion stay visible here'
+                    : 'We are preparing your next step';
             }
             return fastTrackCase.managerId ? 'Start documents' : 'Claim and start';
     }
@@ -185,7 +342,7 @@ export const describeFastTrackWorkspaceStatus = (
     fastTrackCase: FastTrackCase,
     role: FastTrackWorkspaceRole,
 ) => {
-    if (isFastTrackCaseComplete(fastTrackCase)) {
+    if (isFastTrackCaseCompleteForRole(fastTrackCase, role)) {
         return role === 'user'
             ? 'Every step is complete. You can keep this page for records and updates.'
             : 'Every core step was completed inside this workspace.';
@@ -215,15 +372,25 @@ export const describeFastTrackWorkspaceStatus = (
                     : 'Application decisions stay on this page. No handoff to another review screen is needed.';
         case 'agreement':
             return role === 'user'
-                ? 'Signing and any payment confirmation stay in this one place.'
-                : 'Agreement publishing and payment confirmation stay inside this case.';
+                ? fastTrackCase.journeyMode === 'sale'
+                    ? 'The legal path stays here: memorandum, solicitor conveyancing, exchange, and completion before final keys.'
+                    : 'Signing and handover preparation stay in this one place.'
+                : fastTrackCase.journeyMode === 'sale'
+                    ? 'Keep the memorandum, solicitor conveyancing, exchange, and completion checks inside this case before handover.'
+                    : 'Agreement publishing and handover preparation stay inside this case.';
         case 'handover':
             return role === 'user'
-                ? 'Confirm the final handover here to close your journey.'
-                : 'Mark the case ready, confirm the final note, and complete it here.';
+                ? fastTrackCase.journeyMode === 'sale'
+                    ? 'Completion and key handover happen after the legal memorandum, conveyancing, and exchange steps are ready.'
+                    : 'Confirm the final handover here to close your journey.'
+                : fastTrackCase.journeyMode === 'sale'
+                    ? 'Only finish handover after offer acceptance, memorandum, solicitor conveyancing, exchange, and completion are ready.'
+                    : 'Mark the case ready, confirm the final note, and complete it here.';
         default:
             return role === 'user'
-                ? 'The team will open the next step here. You stay in this journey from start to finish.'
+                ? fastTrackCase.journeyMode === 'sale'
+                    ? 'Your purchase journey moves through offer review, memorandum, solicitor conveyancing, exchange, completion, and keys in one place.'
+                    : 'The team will open the next step here. You stay in this journey from start to finish.'
                 : 'Claim the case if needed, then open documents here so the rest of the journey stays on one page.';
     }
 };

@@ -9,6 +9,7 @@ import {
     RefreshCw,
     Star,
     Trash2,
+    X,
 } from 'lucide-react';
 import { reviewsService, type Review } from '@/services/reviewsService';
 import {
@@ -19,6 +20,12 @@ import { useToast } from '@/contexts/ToastContext';
 
 type FilterTab = 'all' | 'pending' | 'approved';
 type ReviewMode = 'property' | 'manager';
+type ReviewAction = {
+    id: string;
+    mode: ReviewMode;
+    action: 'approve' | 'remove';
+    label: string;
+};
 
 export default function AdminReviewsPage() {
     const toast = useToast();
@@ -29,6 +36,7 @@ export default function AdminReviewsPage() {
     const [activeTab, setActiveTab] = useState<FilterTab>('pending');
     const [reviewMode, setReviewMode] = useState<ReviewMode>('property');
     const [actionId, setActionId] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<ReviewAction | null>(null);
 
     const fetchReviews = useCallback(async (mode: ReviewMode, status: FilterTab) => {
         try {
@@ -64,46 +72,39 @@ export default function AdminReviewsPage() {
         void fetchReviews(reviewMode, activeTab);
     };
 
-    const handleApprove = async (id: string) => {
-        setActionId(id);
-        const result = reviewMode === 'property'
-            ? await reviewsService.approveReview(id)
-            : await managerReviewsService.approveManagerReview(id);
-
-        if (result.success) {
-            if (reviewMode === 'property') {
-                setPropertyReviews((previous) => previous.map((item) => (
-                    item.id === id ? { ...item, is_approved: true, status: 'approved' } : item
-                )));
-            } else {
-                setManagerReviews((previous) => previous.map((item) => (
-                    item.id === id ? { ...item, approval_status: 'approved' } : item
-                )));
-            }
-            toast.success('Review approved');
-        } else {
-            toast.error(result.error || 'Failed to approve');
-        }
-        setActionId(null);
+    const requestApprove = (id: string, label: string) => {
+        setPendingAction({ id, label, mode: reviewMode, action: 'approve' });
     };
 
-    const handleDelete = async (id: string) => {
-        setActionId(id);
-        const result = reviewMode === 'property'
-            ? await reviewsService.deleteReview(id)
-            : await managerReviewsService.deleteManagerReview(id);
+    const requestRemove = (id: string, label: string) => {
+        setPendingAction({ id, label, mode: reviewMode, action: 'remove' });
+    };
+
+    const handleConfirmedAction = async () => {
+        if (!pendingAction) return;
+
+        setActionId(pendingAction.id);
+        const result = pendingAction.action === 'approve'
+            ? pendingAction.mode === 'property'
+                ? await reviewsService.approveReview(pendingAction.id)
+                : await managerReviewsService.approveManagerReview(pendingAction.id)
+            : pendingAction.mode === 'property'
+                ? await reviewsService.deleteReview(pendingAction.id)
+                : await managerReviewsService.deleteManagerReview(pendingAction.id);
 
         if (result.success) {
-            if (reviewMode === 'property') {
-                setPropertyReviews((previous) => previous.filter((item) => item.id !== id));
-            } else {
-                setManagerReviews((previous) => previous.filter((item) => item.id !== id));
-            }
-            toast.success(reviewMode === 'property' ? 'Review deleted' : 'Manager review rejected');
+            toast.success(
+                pendingAction.action === 'approve'
+                    ? 'Review approved'
+                    : pendingAction.mode === 'property' ? 'Review deleted' : 'Manager review rejected',
+            );
+            await fetchReviews(pendingAction.mode, activeTab);
         } else {
-            toast.error(result.error || 'Failed to remove review');
+            toast.error(result.error || (pendingAction.action === 'approve' ? 'Failed to approve' : 'Failed to remove review'));
         }
+
         setActionId(null);
+        setPendingAction(null);
     };
 
     const filteredPropertyReviews = useMemo(() => propertyReviews.filter((review) => {
@@ -146,6 +147,7 @@ export default function AdminReviewsPage() {
                 <button
                     type="button"
                     onClick={handleRefresh}
+                    aria-label="Refresh review moderation queue"
                     className="rounded-2xl border bg-white p-4 text-gray-600 shadow-sm transition-all hover:scale-105 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
                 >
                     <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
@@ -161,6 +163,7 @@ export default function AdminReviewsPage() {
                         key={mode.id}
                         type="button"
                         onClick={() => setReviewMode(mode.id)}
+                        aria-pressed={reviewMode === mode.id}
                         className={`rounded-2xl px-5 py-2.5 text-sm font-bold transition-all ${
                             reviewMode === mode.id
                                 ? 'bg-orange-500 text-white shadow-xl shadow-orange-500/20'
@@ -182,6 +185,7 @@ export default function AdminReviewsPage() {
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
+                        aria-pressed={activeTab === tab.id}
                         className={`flex items-center gap-2 whitespace-nowrap rounded-2xl px-5 py-2.5 text-sm font-bold transition-all ${
                             activeTab === tab.id
                                 ? 'bg-gray-900 text-white shadow-xl dark:bg-white dark:text-gray-900'
@@ -232,7 +236,7 @@ export default function AdminReviewsPage() {
                                 <span>Property: <span className="font-mono">{review.property_id.slice(0, 8)}...</span></span>
                                 <span>{new Date(review.created_at).toLocaleDateString()}</span>
                                 <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
-                                    review.is_approved ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
+                                    review.is_approved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'
                                 }`}>
                                     {review.is_approved ? 'Approved' : 'Pending'}
                                 </span>
@@ -241,9 +245,10 @@ export default function AdminReviewsPage() {
                                 {!review.is_approved ? (
                                     <button
                                         type="button"
-                                        onClick={() => void handleApprove(review.id)}
+                                        onClick={() => requestApprove(review.id, `property review for ${review.property_id}`)}
                                         disabled={actionId === review.id}
-                                        className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-600 disabled:opacity-50"
+                                        aria-label={`Approve review for property ${review.property_id}`}
+                                        className="flex items-center gap-1.5 rounded-xl bg-green-700 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
                                     >
                                         {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                         Approve
@@ -251,9 +256,10 @@ export default function AdminReviewsPage() {
                                 ) : null}
                                 <button
                                     type="button"
-                                    onClick={() => void handleDelete(review.id)}
+                                    onClick={() => requestRemove(review.id, `property review for ${review.property_id}`)}
                                     disabled={actionId === review.id}
-                                    className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
+                                    aria-label={`Delete review for property ${review.property_id}`}
+                                    className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
                                 >
                                     {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                     Delete
@@ -306,9 +312,10 @@ export default function AdminReviewsPage() {
                                         {isPending ? (
                                             <button
                                                 type="button"
-                                                onClick={() => void handleApprove(review.id)}
+                                                onClick={() => requestApprove(review.id, `manager review from ${review.user_name || review.user_id}`)}
                                                 disabled={actionId === review.id}
-                                                className="flex items-center gap-1.5 rounded-xl bg-green-500 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-600 disabled:opacity-50"
+                                                aria-label={`Approve manager review from ${review.user_name || review.user_id}`}
+                                                className="flex items-center gap-1.5 rounded-xl bg-green-700 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-green-800 disabled:opacity-50"
                                             >
                                                 {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
                                                 Approve
@@ -317,9 +324,10 @@ export default function AdminReviewsPage() {
                                         {isPending ? (
                                             <button
                                                 type="button"
-                                                onClick={() => void handleDelete(review.id)}
+                                                onClick={() => requestRemove(review.id, `manager review from ${review.user_name || review.user_id}`)}
                                                 disabled={actionId === review.id}
-                                                className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
+                                                aria-label={`Reject manager review from ${review.user_name || review.user_id}`}
+                                                className="flex items-center gap-1.5 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/20 dark:hover:bg-red-900/40"
                                             >
                                                 {actionId === review.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                                 Reject
@@ -341,6 +349,61 @@ export default function AdminReviewsPage() {
                         : 'Manager feedback only affects the public star score after admin approval.'}
                 </p>
             </div>
+
+            {pendingAction ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 px-4 py-6 backdrop-blur-sm">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Review action confirmation"
+                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900"
+                    >
+                        <div className="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-orange-500">Confirm review action</p>
+                                <h2 className="mt-2 text-xl font-black text-gray-900 dark:text-white">
+                                    {pendingAction.action === 'approve' ? 'Approve this review?' : pendingAction.mode === 'property' ? 'Delete this review?' : 'Reject this manager review?'}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPendingAction(null)}
+                                disabled={actionId === pendingAction.id}
+                                aria-label="Close review action confirmation"
+                                className="rounded-xl p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                            You are about to {pendingAction.action === 'approve' ? 'approve' : pendingAction.mode === 'property' ? 'delete' : 'reject'} {pendingAction.label}. The queue will refresh after the action completes.
+                        </p>
+                        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setPendingAction(null)}
+                                disabled={actionId === pendingAction.id}
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void handleConfirmedAction()}
+                                disabled={actionId === pendingAction.id}
+                                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white transition-colors disabled:opacity-50 ${
+                                    pendingAction.action === 'approve'
+                                        ? 'bg-green-700 hover:bg-green-800'
+                                        : 'bg-red-700 hover:bg-red-800'
+                                }`}
+                            >
+                                {actionId === pendingAction.id ? <Loader2 size={14} className="animate-spin" /> : null}
+                                {pendingAction.action === 'approve' ? 'Approve' : pendingAction.mode === 'property' ? 'Delete' : 'Reject'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

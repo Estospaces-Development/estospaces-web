@@ -13,6 +13,7 @@ import {
   Mail,
   Building2,
   User,
+  FileCheck,
   FileText,
   AlertCircle,
   ChevronRight,
@@ -48,6 +49,7 @@ import {
   getFastTrackCases,
   type FastTrackCase,
 } from "@/services/fastTrackService";
+import { formatLaunchCurrency } from "@/lib/launchLocale";
 import {
   getAMLReview,
   getBuyerQualification,
@@ -74,7 +76,6 @@ import {
 } from "@/services/propertyService";
 import { createOffer, getSaleProgressions } from "@/services/salesService";
 import {
-  canWithdrawApplicationRecord,
   getNextSaleJourneyActions,
   getSaleJourneySummary,
   getSaleJourneyStageLabel,
@@ -105,6 +106,8 @@ import CaseFileWorkspace from "@/components/case-file/CaseFileWorkspace";
 import {
   resolveManagerApplicationOverviewFocus,
   resolveManagerApplicationTab,
+  shouldShowManagerDecisionControls,
+  shouldShowManagerManagedPurchaseWorkspace,
   type ManagerApplicationTab,
 } from "@/lib/managerApplicationWorkspace";
 import type { WorkspaceSection } from "@/lib/liveCaseWorkspace";
@@ -120,9 +123,60 @@ interface ApplicationDetailProps {
   onUpdateStatus?: (
     id: string,
     status: ApplicationStatus,
+    reviewNotes?: string,
   ) => Promise<void> | void;
   requestedSection?: WorkspaceSection;
 }
+
+const MAX_MANAGER_APPLICATION_REVIEW_NOTE_LENGTH = 1000;
+const MAX_MANAGER_APPLICATION_EVIDENCE_TYPE_LENGTH = 40;
+
+const normalizeManagerApplicationReviewNote = (value: string) =>
+  value.trim().replace(/\s+/g, " ");
+
+const validateManagerWorkflowNote = (reviewNotes: string) => {
+  const normalizedNotes = normalizeManagerApplicationReviewNote(reviewNotes);
+  if (normalizedNotes.length > MAX_MANAGER_APPLICATION_REVIEW_NOTE_LENGTH) {
+    return { reviewNotes: normalizedNotes, error: "Review note must be 1000 characters or fewer." };
+  }
+  return { reviewNotes: normalizedNotes, error: "" };
+};
+
+const validateRightToRentUpdate = (
+  status: "in_progress" | "completed" | "not_required",
+  evidenceType: string,
+  reviewNotes: string,
+) => {
+  const evidence = normalizeManagerApplicationReviewNote(evidenceType);
+  const noteValidation = validateManagerWorkflowNote(reviewNotes);
+  if (noteValidation.error) {
+    return { evidenceType: evidence, reviewNotes: noteValidation.reviewNotes, error: noteValidation.error };
+  }
+  if (evidence.length > MAX_MANAGER_APPLICATION_EVIDENCE_TYPE_LENGTH) {
+    return { evidenceType: evidence, reviewNotes: noteValidation.reviewNotes, error: "Evidence type must be 40 characters or fewer." };
+  }
+  if (status === "completed" && !evidence) {
+    return { evidenceType: evidence, reviewNotes: noteValidation.reviewNotes, error: "Enter the evidence type used for the check." };
+  }
+  if (status === "not_required" && !noteValidation.reviewNotes) {
+    return { evidenceType: evidence, reviewNotes: noteValidation.reviewNotes, error: "Add a note explaining why this check is not required." };
+  }
+  return { evidenceType: evidence, reviewNotes: noteValidation.reviewNotes, error: "" };
+};
+
+const validateManagerApplicationStatusUpdate = (
+  status: ApplicationStatus,
+  reviewNotes: string,
+) => {
+  const normalizedNotes = normalizeManagerApplicationReviewNote(reviewNotes);
+  if (status === APPLICATION_STATUS.REJECTED && !normalizedNotes) {
+    return { reviewNotes: normalizedNotes, error: "Enter a rejection reason." };
+  }
+  if (normalizedNotes.length > MAX_MANAGER_APPLICATION_REVIEW_NOTE_LENGTH) {
+    return { reviewNotes: normalizedNotes, error: "Review note must be 1000 characters or fewer." };
+  }
+  return { reviewNotes: normalizedNotes, error: "" };
+};
 
 const managerRentPanelLabels: Record<
   ManagerRentNextActionPanel,
@@ -130,7 +184,7 @@ const managerRentPanelLabels: Record<
 > = {
   documents: "Shared documents",
   referencing: "Referencing",
-  compliance: "Compliance",
+  compliance: "Right-to-rent",
   approval: "Approval",
   property_readiness: "Property readiness",
   appointments: "Appointments",
@@ -146,14 +200,21 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const { allApplications, fetchApplications, withdrawApplication } =
-    useApplications();
+  const { allApplications, fetchApplications } = useApplications();
   const application =
     allApplications?.find((app) => app.id === applicationId) ||
     initialApplication;
-  const [showWithdrawConfirm, setShowWithdrawConfirm] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [managerDecisionAction, setManagerDecisionAction] = useState<
+    "approved" | "rejected" | "under_review" | "documents_requested" | null
+  >(null);
+  const [managerDecisionNote, setManagerDecisionNote] = useState("");
+  const [managerDecisionNoteError, setManagerDecisionNoteError] = useState("");
+  const [manualStatusDraft, setManualStatusDraft] = useState<ApplicationStatus>(
+    APPLICATION_STATUS.UNDER_REVIEW as ApplicationStatus,
+  );
+  const [isUpdatingManualStatus, setIsUpdatingManualStatus] = useState(false);
   const [activeTab, setActiveTab] = useState(() =>
     resolveManagerApplicationTab(requestedSection),
   );
@@ -174,11 +235,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     proofOfFundsVerified: false,
     reviewNotes: "",
   });
+  const [buyerQualificationError, setBuyerQualificationError] = useState("");
   const [amlReviewDraft, setAmlReviewDraft] = useState({
     identityStatus: "pending",
     sourceOfFundsStatus: "pending",
     reviewNotes: "",
   });
+  const [amlReviewError, setAmlReviewError] = useState("");
   const [resolvedFastTrackCase, setResolvedFastTrackCase] =
     useState<FastTrackCase | null>(application?.fastTrackCase || null);
   const [offerDraft, setOfferDraft] = useState({
@@ -194,8 +257,18 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const [rentCaseFile, setRentCaseFile] = useState<SharedCaseFile | null>(null);
   const [referencingCheck, setReferencingCheck] =
     useState<ReferencingCheck | null>(null);
+  const [referencingDraft, setReferencingDraft] = useState({
+    reviewNotes: "",
+  });
+  const [referencingError, setReferencingError] = useState("");
   const [rightToRentCheck, setRightToRentCheck] =
     useState<RightToRentCheck | null>(null);
+  const [rightToRentDraft, setRightToRentDraft] = useState({
+    evidenceType: "",
+    reviewNotes: "",
+    timeLimited: false,
+  });
+  const [rightToRentError, setRightToRentError] = useState("");
   const [rentWorkflowError, setRentWorkflowError] = useState<string | null>(
     null,
   );
@@ -223,12 +296,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   const isPurchaseApplication = application?.listingType !== "rent";
   const isRentApplication = application?.listingType === "rent";
   const supportsManagedPurchaseWorkflow = Boolean(
-    application &&
-    isPurchaseApplication &&
-    !isSaleProgression &&
-    ["viewing_completed", "buyer_qualification", "offer"].includes(
-      purchaseDisplayStage || "",
-    ),
+    application && shouldShowManagerManagedPurchaseWorkspace(application),
   );
   const liveSaleJourneyStage = saleProgressionStageForStatus(
     application?.status || "",
@@ -246,6 +314,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       notes: "",
     });
   }, [application?.id, application?.propertyPrice]);
+
+  useEffect(() => {
+    setManagerDecisionNote("");
+    setManagerDecisionNoteError("");
+    setManualStatusDraft((application?.status || APPLICATION_STATUS.UNDER_REVIEW) as ApplicationStatus);
+  }, [application?.id, application?.status]);
 
   useEffect(() => {
     if (!application) {
@@ -310,12 +384,22 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     setAmlReview(null);
     setPropertyComplianceReadiness(null);
     setPropertyComplianceDrafts({});
+    setBuyerQualificationError("");
+    setAmlReviewError("");
   };
 
   const resetManagedRentWorkflowState = () => {
     setRentCaseFile(null);
     setReferencingCheck(null);
     setRightToRentCheck(null);
+    setReferencingDraft({ reviewNotes: "" });
+    setRightToRentDraft({
+      evidenceType: "",
+      reviewNotes: "",
+      timeLimited: false,
+    });
+    setReferencingError("");
+    setRightToRentError("");
   };
 
   const scrollToWorkflowSection = (
@@ -461,11 +545,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         qualificationResult.data?.proof_of_funds_verified || false,
       reviewNotes: qualificationResult.data?.review_notes || "",
     });
+    setBuyerQualificationError("");
     setAmlReviewDraft({
       identityStatus: amlResult.data?.identity_status || "pending",
       sourceOfFundsStatus: amlResult.data?.source_of_funds_status || "pending",
       reviewNotes: amlResult.data?.review_notes || "",
     });
+    setAmlReviewError("");
     setPurchaseWorkflowError(null);
   };
 
@@ -494,6 +580,16 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     setRentCaseFile(caseFileResult.data);
     setReferencingCheck(referencingResult.data);
     setRightToRentCheck(rightToRentResult.data);
+    setReferencingDraft({
+      reviewNotes: referencingResult.data?.review_notes || "",
+    });
+    setRightToRentDraft({
+      evidenceType: rightToRentResult.data?.evidence_type || "",
+      reviewNotes: rightToRentResult.data?.review_notes || "",
+      timeLimited: Boolean(rightToRentResult.data?.time_limited),
+    });
+    setReferencingError("");
+    setRightToRentError("");
     setRentWorkflowError(null);
   };
 
@@ -583,21 +679,60 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const formatPrice = (price?: number) => {
     if (price === undefined) return "Price on request";
-    return `£${price.toLocaleString("en-GB")}`;
+    return formatLaunchCurrency(price);
   };
 
-  const handleWithdraw = async () => {
-    if (onUpdateStatus) {
-      await Promise.resolve(
-        onUpdateStatus(
-          applicationId,
-          APPLICATION_STATUS.WITHDRAWN as ApplicationStatus,
-        ),
-      );
-    } else {
-      await withdrawApplication(applicationId);
+  const handleManagerDecision = async (
+    nextStatus: "approved" | "rejected" | "under_review" | "documents_requested",
+  ) => {
+    if (!onUpdateStatus || managerDecisionAction) {
+      return;
     }
-    setShowWithdrawConfirm(false);
+
+    const { reviewNotes, error } = validateManagerApplicationStatusUpdate(
+      nextStatus as ApplicationStatus,
+      managerDecisionNote,
+    );
+    setManagerDecisionNoteError(error);
+    if (error) {
+      return;
+    }
+
+    setManagerDecisionAction(nextStatus);
+    try {
+      await Promise.resolve(
+        onUpdateStatus(applicationId, nextStatus as ApplicationStatus, reviewNotes || undefined),
+      );
+      setManagerDecisionNote("");
+    } finally {
+      setManagerDecisionAction(null);
+    }
+  };
+
+  const handleManualStatusUpdate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!onUpdateStatus || isUpdatingManualStatus) {
+      return;
+    }
+
+    const { reviewNotes, error } = validateManagerApplicationStatusUpdate(
+      manualStatusDraft,
+      managerDecisionNote,
+    );
+    setManagerDecisionNoteError(error);
+    if (error) {
+      return;
+    }
+
+    setIsUpdatingManualStatus(true);
+    try {
+      await Promise.resolve(
+        onUpdateStatus(applicationId, manualStatusDraft, reviewNotes || undefined),
+      );
+      setManagerDecisionNote("");
+    } finally {
+      setIsUpdatingManualStatus(false);
+    }
   };
 
   const handleComplete = async () => {
@@ -618,7 +753,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     }
 
     await Promise.resolve(
-      onUpdateStatus(applicationId, nextStatus as ApplicationStatus),
+      onUpdateStatus(applicationId, nextStatus as ApplicationStatus, managerDecisionNote || undefined),
     );
   };
 
@@ -688,7 +823,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const displayApplication = linkedApplication || application;
 
-  const canWithdraw = canWithdrawApplicationRecord(application);
+  const showManagerDecisionControls =
+    shouldShowManagerDecisionControls(application);
   const saleNextActions = getNextSaleJourneyActions(application.status);
   const purchaseStageLabel = purchaseDisplayStage
     ? getSaleJourneyStageLabel(purchaseDisplayStage)
@@ -986,7 +1122,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
     },
     {
       key: "compliance",
-      label: "Compliance",
+      label: "Right-to-rent",
       description:
         "Complete the right-to-rent or equivalent jurisdiction check here.",
       complete:
@@ -999,7 +1135,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       key: "approval",
       label: "Approval",
       description:
-        "Approve once referencing and compliance are both clear.",
+        "Approve once referencing and right-to-rent are both clear.",
       complete: application.status === APPLICATION_STATUS.APPROVED,
       active: managerRentNextAction?.panel === "approval",
       onClick: () => scrollToRentPanel("approval"),
@@ -1069,14 +1205,23 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
+    const { reviewNotes, error } = validateManagerWorkflowNote(
+      referencingDraft.reviewNotes,
+    );
+    setReferencingError(error);
+    if (error) {
+      return;
+    }
+
     setRentWorkflowAction(`referencing:${status}`);
     try {
       const result = await updateReferencingCheck(application.id, {
         status,
         review_notes:
-          status === "completed"
+          reviewNotes ||
+          (status === "completed"
             ? "Referencing completed from the manager application workflow."
-            : "Referencing started from the manager application workflow.",
+            : "Referencing started from the manager application workflow."),
       }, managerWorkflowRequestOptions);
       if (result.error) {
         throw new Error(result.error);
@@ -1105,16 +1250,29 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
+    const { evidenceType, reviewNotes, error } = validateRightToRentUpdate(
+      status,
+      rightToRentDraft.evidenceType,
+      rightToRentDraft.reviewNotes,
+    );
+    setRightToRentError(error);
+    if (error) {
+      return;
+    }
+
     setRentWorkflowAction(`right_to_rent:${status}`);
     try {
       const result = await updateRightToRentCheck(application.id, {
         status,
+        evidence_type: status === "not_required" ? "" : evidenceType,
+        time_limited: status === "not_required" ? false : rightToRentDraft.timeLimited,
         review_notes:
-          status === "completed"
+          reviewNotes ||
+          (status === "completed"
             ? "Right-to-rent check completed from the manager application workflow."
             : status === "not_required"
               ? "Jurisdiction-specific right-to-rent check marked as not required."
-              : "Right-to-rent check started from the manager application workflow.",
+              : "Right-to-rent check started from the manager application workflow."),
         checked_at:
           status === "completed" ? new Date().toISOString() : undefined,
       }, managerWorkflowRequestOptions);
@@ -1266,11 +1424,19 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
+    const { reviewNotes, error } = validateManagerWorkflowNote(
+      buyerQualificationDraft.reviewNotes,
+    );
+    setBuyerQualificationError(error);
+    if (error) {
+      return;
+    }
+
     setPurchaseWorkflowAction("buyer_qualification");
     try {
       const result = await updateBuyerQualification(application.id, {
         status: buyerQualificationReady ? "completed" : "pending",
-        review_notes: buyerQualificationDraft.reviewNotes,
+        review_notes: reviewNotes,
         verified_at: buyerQualificationReady
           ? new Date().toISOString()
           : undefined,
@@ -1304,11 +1470,19 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       return;
     }
 
+    const { reviewNotes, error } = validateManagerWorkflowNote(
+      amlReviewDraft.reviewNotes,
+    );
+    setAmlReviewError(error);
+    if (error) {
+      return;
+    }
+
     setPurchaseWorkflowAction("aml_review");
     try {
       const result = await updateAMLReview(application.id, {
         status: amlReviewReady ? "completed" : "pending",
-        review_notes: amlReviewDraft.reviewNotes,
+        review_notes: reviewNotes,
         verified_at: amlReviewReady ? new Date().toISOString() : undefined,
         identity_status: amlReviewDraft.identityStatus,
         source_of_funds_status: amlReviewDraft.sourceOfFundsStatus,
@@ -1350,6 +1524,12 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
     setPurchaseWorkflowAction("create_offer");
     try {
+      const offerNoteValidation = validateManagerWorkflowNote(offerDraft.notes);
+      if (offerNoteValidation.error) {
+        toast.error(offerNoteValidation.error);
+        return;
+      }
+
       const propertyId = application.propertyId!;
       const managerId = application.managerId!;
       const offerResult = await createOffer({
@@ -1359,7 +1539,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         lead_id: application.leadId,
         fast_track_case_id: application.fastTrackCaseId,
         amount: offerAmountValue,
-        notes: offerDraft.notes,
+        notes: offerNoteValidation.reviewNotes,
       }, { suppressErrorToast: true });
       if (offerResult.error || !offerResult.data) {
         throw new Error(
@@ -1434,6 +1614,14 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
       toast.error("The seller-readiness record is not ready to update yet.");
       return;
     }
+    const noteValidation = validateManagerWorkflowNote(draft.reviewNotes);
+    if (noteValidation.error) {
+      toast.error(noteValidation.error);
+      return;
+    }
+    const referenceNumber = normalizeManagerApplicationReviewNote(
+      draft.referenceNumber,
+    );
 
     setPurchaseWorkflowAction(`property_compliance:${requirementCode}`);
     try {
@@ -1445,8 +1633,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         {
           status: draft.status,
           jurisdiction: propertyComplianceReadiness?.jurisdiction_profile,
-          reference_number: draft.referenceNumber.trim() || undefined,
-          review_notes: draft.reviewNotes.trim() || undefined,
+          reference_number: referenceNumber || undefined,
+          review_notes: noteValidation.reviewNotes || undefined,
         },
         managerWorkflowRequestOptions,
       );
@@ -1650,14 +1838,120 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
               <span className="font-medium">Back to Applications</span>
             </button>
 
-            <div className="flex items-center gap-3">
-              {canWithdraw && (
-                <button
-                  onClick={() => setShowWithdrawConfirm(true)}
-                  className="px-4 py-2 border border-red-300 dark:border-red-700 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  Withdraw
-                </button>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {showManagerDecisionControls && (
+                <>
+                  <div className="w-full min-w-[16rem] sm:w-64">
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                      Review note
+                      <textarea
+                        value={managerDecisionNote}
+                        onChange={(event) => {
+                          setManagerDecisionNote(event.target.value);
+                          if (managerDecisionNoteError) {
+                            setManagerDecisionNoteError("");
+                          }
+                        }}
+                        rows={2}
+                        maxLength={MAX_MANAGER_APPLICATION_REVIEW_NOTE_LENGTH + 1}
+                        aria-invalid={Boolean(managerDecisionNoteError)}
+                        aria-describedby={managerDecisionNoteError ? "manager-application-review-note-error" : undefined}
+                        className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition focus:border-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                      />
+                    </label>
+                    {managerDecisionNoteError && (
+                      <p id="manager-application-review-note-error" className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                        {managerDecisionNoteError}
+                      </p>
+                    )}
+                  </div>
+                  <form
+                    onSubmit={handleManualStatusUpdate}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                      Manual status update
+                      <select
+                        value={manualStatusDraft}
+                        onChange={(event) => setManualStatusDraft(event.target.value as ApplicationStatus)}
+                        className="ml-0 mt-1 block rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm normal-case tracking-normal text-gray-900 outline-none transition focus:border-orange-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white sm:ml-2 sm:mt-0 sm:inline-block"
+                      >
+                        <option value={APPLICATION_STATUS.SUBMITTED}>Submitted</option>
+                        <option value={APPLICATION_STATUS.UNDER_REVIEW}>Under review</option>
+                        <option value={APPLICATION_STATUS.DOCUMENTS_REQUESTED}>Documents requested</option>
+                        <option value={APPLICATION_STATUS.APPROVED}>Approved</option>
+                        <option value={APPLICATION_STATUS.REJECTED}>Rejected</option>
+                        <option value={APPLICATION_STATUS.COMPLETED}>Completed</option>
+                      </select>
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={isUpdatingManualStatus || managerDecisionAction !== null}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                    >
+                      {isUpdatingManualStatus && <Loader2 size={16} className="animate-spin" />}
+                      Save status
+                    </button>
+                  </form>
+                  <button
+                    type="button"
+                    aria-label="Mark application under review"
+                    onClick={() => void handleManagerDecision("under_review")}
+                    disabled={managerDecisionAction !== null}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-orange-300 dark:border-orange-700 rounded-lg text-sm font-medium text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {managerDecisionAction === "under_review" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Clock size={16} />
+                    )}
+                    Under review
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Request documents for application"
+                    onClick={() =>
+                      void handleManagerDecision("documents_requested")
+                    }
+                    disabled={managerDecisionAction !== null}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-amber-300 dark:border-amber-700 rounded-lg text-sm font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {managerDecisionAction === "documents_requested" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <FileCheck size={16} />
+                    )}
+                    Request documents
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Reject application"
+                    onClick={() => void handleManagerDecision("rejected")}
+                    disabled={managerDecisionAction !== null}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-red-300 dark:border-red-700 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {managerDecisionAction === "rejected" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <XCircle size={16} />
+                    )}
+                    Reject application
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Approve application"
+                    onClick={() => void handleManagerDecision("approved")}
+                    disabled={managerDecisionAction !== null}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-sm font-medium text-white hover:bg-green-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {managerDecisionAction === "approved" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <CheckCircle size={16} />
+                    )}
+                    Approve application
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -2130,16 +2424,22 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           </label>
                           <textarea
                             value={buyerQualificationDraft.reviewNotes}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              setBuyerQualificationError("");
                               setBuyerQualificationDraft((previous) => ({
                                 ...previous,
                                 reviewNotes: event.target.value,
-                              }))
-                            }
+                              }));
+                            }}
                             rows={3}
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                             placeholder="Add notes about the affordability evidence or follow-up needed."
                           />
+                          {buyerQualificationError ? (
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                              {buyerQualificationError}
+                            </p>
+                          ) : null}
                           <button
                             onClick={() =>
                               void handleBuyerQualificationUpdate()
@@ -2192,12 +2492,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             </span>
                             <select
                               value={amlReviewDraft.identityStatus}
-                              onChange={(event) =>
+                              onChange={(event) => {
+                                setAmlReviewError("");
                                 setAmlReviewDraft((previous) => ({
                                   ...previous,
                                   identityStatus: event.target.value,
-                                }))
-                              }
+                                }));
+                              }}
                               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                             >
                               <option value="pending">Pending</option>
@@ -2210,12 +2511,13 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             </span>
                             <select
                               value={amlReviewDraft.sourceOfFundsStatus}
-                              onChange={(event) =>
+                              onChange={(event) => {
+                                setAmlReviewError("");
                                 setAmlReviewDraft((previous) => ({
                                   ...previous,
                                   sourceOfFundsStatus: event.target.value,
-                                }))
-                              }
+                                }));
+                              }}
                               className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                             >
                               <option value="pending">Pending</option>
@@ -2224,16 +2526,22 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           </label>
                           <textarea
                             value={amlReviewDraft.reviewNotes}
-                            onChange={(event) =>
+                            onChange={(event) => {
+                              setAmlReviewError("");
                               setAmlReviewDraft((previous) => ({
                                 ...previous,
                                 reviewNotes: event.target.value,
-                              }))
-                            }
+                              }));
+                            }}
                             rows={3}
                             className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                             placeholder="Add AML or source-of-funds notes for the live audit trail."
                           />
+                          {amlReviewError ? (
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                              {amlReviewError}
+                            </p>
+                          ) : null}
                           <button
                             onClick={() => void handleAMLReviewUpdate()}
                             disabled={purchaseWorkflowAction !== null}
@@ -2607,6 +2915,23 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           Start referencing after the viewing is complete, then
                           mark it complete here when the checks are cleared.
                         </p>
+                        <textarea
+                          value={referencingDraft.reviewNotes}
+                          onChange={(event) => {
+                            setReferencingError("");
+                            setReferencingDraft({
+                              reviewNotes: event.target.value,
+                            });
+                          }}
+                          rows={3}
+                          className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                          placeholder="Add referencing notes for the application audit trail."
+                        />
+                        {referencingError ? (
+                          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                            {referencingError}
+                          </p>
+                        ) : null}
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -2642,7 +2967,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                         className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950/40"
                       >
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
-                          Compliance
+                          Right-to-rent
                         </p>
                         <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-white">
                           {rightToRentCheck?.status?.replace(/_/g, " ") ||
@@ -2652,6 +2977,58 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           Complete the right-to-rent or equivalent jurisdiction
                           check here before approving the tenancy application.
                         </p>
+                        <div className="mt-4 space-y-3">
+                          <label className="block text-sm">
+                            <span className="mb-1 block font-medium text-gray-700 dark:text-gray-300">
+                              Evidence type
+                            </span>
+                            <input
+                              type="text"
+                              value={rightToRentDraft.evidenceType}
+                              onChange={(event) => {
+                                setRightToRentError("");
+                                setRightToRentDraft((previous) => ({
+                                  ...previous,
+                                  evidenceType: event.target.value,
+                                }));
+                              }}
+                              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                              placeholder="Passport, share code, visa, or local equivalent"
+                            />
+                          </label>
+                          <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                            <input
+                              type="checkbox"
+                              checked={rightToRentDraft.timeLimited}
+                              onChange={(event) =>
+                                setRightToRentDraft((previous) => ({
+                                  ...previous,
+                                  timeLimited: event.target.checked,
+                                }))
+                              }
+                              className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-400"
+                            />
+                            Time-limited evidence
+                          </label>
+                          <textarea
+                            value={rightToRentDraft.reviewNotes}
+                            onChange={(event) => {
+                              setRightToRentError("");
+                              setRightToRentDraft((previous) => ({
+                                ...previous,
+                                reviewNotes: event.target.value,
+                              }));
+                            }}
+                            rows={3}
+                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                            placeholder="Add compliance notes or a reason if this check is not required."
+                          />
+                          {rightToRentError ? (
+                            <p className="text-sm text-red-600 dark:text-red-400">
+                              {rightToRentError}
+                            </p>
+                          ) : null}
+                        </div>
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button
                             type="button"
@@ -2664,7 +3041,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }
                             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                           >
-                            Start
+                            Start right-to-rent
                           </button>
                           <button
                             type="button"
@@ -2677,7 +3054,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                             }
                             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Mark complete
+                            Mark right-to-rent complete
                           </button>
                           {rightToRentCheck?.jurisdiction &&
                           rightToRentCheck.jurisdiction !== "england" ? (
@@ -3115,40 +3492,6 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Withdraw Confirmation Modal */}
-      {showWithdrawConfirm &&
-        createPortal(
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200">
-              <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                <XCircle size={28} className="text-red-600 dark:text-red-400" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white text-center mb-2">
-                Withdraw Application?
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
-                This will remove your interest in the property. This action
-                cannot be undone.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowWithdrawConfirm(false)}
-                  className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Keep it
-                </button>
-                <button
-                  onClick={handleWithdraw}
-                  className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors shadow-sm"
-                >
-                  Confirm Withdraw
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
 
       {/* Complete Confirmation Modal */}
       {showCompleteConfirm &&

@@ -5,6 +5,7 @@ import type { Invoice, Payment } from '@/services/paymentsService';
 import type { SaleProgression } from '@/services/salesService';
 import type { Contract } from '@/types/booking';
 import type { JourneyAction, JourneyBlocker, JourneyDeadline, JourneyRequirement, JourneyStateFields } from '@/types/journey';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import { getNextSaleJourneyActions, getSaleJourneySummary } from './saleJourney';
 import { isEnglandJurisdiction } from './fastTrackWorkflow';
 
@@ -140,6 +141,14 @@ const formatLabel = (value?: string | null) => {
         .replace(/\b\w/g, (character) => character.toUpperCase());
 };
 
+const inactiveFinanceWorkspaceCopyPattern = /deposit|first-rent|payment|invoice|billing/i;
+
+const launchSafeFinanceCopy = (value: string, fallback: string) => (
+    !PAYMENTS_ENABLED && inactiveFinanceWorkspaceCopyPattern.test(value)
+        ? fallback
+        : value
+);
+
 const liveStageLabel = (value?: string | null, journeyType?: FastTrackCase['journeyType'], jurisdiction?: string | null) => {
     switch (String(value || '').trim()) {
         case 'documents_requested':
@@ -161,7 +170,7 @@ const liveStageLabel = (value?: string | null, journeyType?: FastTrackCase['jour
         case 'signatures_pending':
             return 'Signatures pending';
         case 'deposit_and_first_rent':
-            return 'Deposit and first-rent tasks';
+            return PAYMENTS_ENABLED ? 'Deposit and first-rent tasks' : 'Tenancy agreement handoff';
         case 'active_tenancy':
             return 'Active tenancy';
         case 'buyer_qualification':
@@ -286,7 +295,9 @@ const buildRentJourneySummary = (
                 ? 'Active tenancy'
                 : `Tenancy agreement: ${statusLabel}`,
             primarySummary: contractStatus === 'active'
-                ? 'The tenancy agreement is fully signed and no rent or deposit blockers are left on this fast-track case.'
+                ? (PAYMENTS_ENABLED
+                    ? 'The tenancy agreement is fully signed and no rent or deposit blockers are left on this fast-track case.'
+                    : 'The tenancy agreement is fully signed and the case is ready for handover.')
                 : contractStatus === 'pending_user_signature'
                     ? 'The tenancy agreement is ready and is waiting for the tenant signature.'
                     : contractStatus === 'pending_manager_signature'
@@ -297,8 +308,12 @@ const buildRentJourneySummary = (
                 : contractStatus === 'pending_user_signature'
                     ? 'Open the contracts workspace to chase the tenant signature.'
                     : contractStatus === 'pending_manager_signature'
-                        ? 'Open the contracts workspace to countersign and unlock billing tasks.'
-                        : 'Open the contracts or billing workspace to continue the tenancy handoff.',
+                        ? (PAYMENTS_ENABLED
+                            ? 'Open the contracts workspace to countersign and unlock billing tasks.'
+                            : 'Open the contracts workspace to countersign and continue the tenancy handoff.')
+                        : (PAYMENTS_ENABLED
+                            ? 'Open the contracts or billing workspace to continue the tenancy handoff.'
+                            : 'Open the contracts workspace to continue the tenancy handoff.'),
         };
     }
 
@@ -453,19 +468,23 @@ export const resolveFastTrackLinkedJourney = (
     const saleProgressions = filterPreferredWorkflowMatches(input.saleProgressions || [], fastTrackCase);
     const saleProgression = pickLatest(saleProgressions);
 
-    const payments = (input.payments || [])
-        .filter((item) => (
-            (application ? sameId(item.application_id, application.id) : false)
-            || (contract ? sameId(item.contract_id, contract.id) : false)
-        ))
-        .sort((left, right) => toTimestamp(right.created_at) - toTimestamp(left.created_at));
+    const payments = PAYMENTS_ENABLED
+        ? (input.payments || [])
+            .filter((item) => (
+                (application ? sameId(item.application_id, application.id) : false)
+                || (contract ? sameId(item.contract_id, contract.id) : false)
+            ))
+            .sort((left, right) => toTimestamp(right.created_at) - toTimestamp(left.created_at))
+        : [];
 
-    const invoices = (input.invoices || [])
-        .filter((item) => (
-            (application ? sameId(item.application_id, application.id) : false)
-            || (contract ? sameId(item.contract_id, contract.id) : false)
-        ))
-        .sort((left, right) => toTimestamp(right.created_at) - toTimestamp(left.created_at));
+    const invoices = PAYMENTS_ENABLED
+        ? (input.invoices || [])
+            .filter((item) => (
+                (application ? sameId(item.application_id, application.id) : false)
+                || (contract ? sameId(item.contract_id, contract.id) : false)
+            ))
+            .sort((left, right) => toTimestamp(right.created_at) - toTimestamp(left.created_at))
+        : [];
 
     const fallbackSummary = fastTrackCase.journeyType === 'buy'
         ? buildBuyJourneySummary(saleProgression, viewing, application)
@@ -489,17 +508,17 @@ export const resolveFastTrackLinkedJourney = (
         && liveViewingStage !== journeyState.liveStage,
     );
     const resolvedLiveStage = shouldUseViewingFallback ? liveViewingStage : journeyState.liveStage;
-    const primaryHeadline = shouldUseViewingFallback
+    const primaryHeadline = launchSafeFinanceCopy(shouldUseViewingFallback
         ? fallbackSummary.primaryHeadline
         : resolvedLiveStage
             ? liveStageLabel(resolvedLiveStage, fastTrackCase.journeyType, fastTrackCase.jurisdiction)
-            : fallbackSummary.primaryHeadline;
-    const primarySummary = shouldUseViewingFallback
+            : fallbackSummary.primaryHeadline, fallbackSummary.primaryHeadline);
+    const primarySummary = launchSafeFinanceCopy(shouldUseViewingFallback
         ? fallbackSummary.primarySummary
-        : journeyState.journeyStatusReason || fallbackSummary.primarySummary;
-    const nextStep = shouldUseViewingFallback
+        : journeyState.journeyStatusReason || fallbackSummary.primarySummary, fallbackSummary.primarySummary);
+    const nextStep = launchSafeFinanceCopy(shouldUseViewingFallback
         ? fallbackSummary.nextStep
-        : journeyState.nextActions[0]?.description || journeyState.nextActions[0]?.label || fallbackSummary.nextStep;
+        : journeyState.nextActions[0]?.description || journeyState.nextActions[0]?.label || fallbackSummary.nextStep, fallbackSummary.nextStep);
 
     return {
         application,

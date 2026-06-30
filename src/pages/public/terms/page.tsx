@@ -38,7 +38,7 @@ export default function TermsPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12 space-y-8">
                     <TermsDocument />
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">12. Contact Us</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 mb-4">11. Contact Us</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
                             If you have any questions about these Terms, please contact us:
                         </p>

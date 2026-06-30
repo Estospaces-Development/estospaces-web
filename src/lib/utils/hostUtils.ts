@@ -21,6 +21,9 @@ export const resolveCurrentAppFromHostname = (hostname: string): HostedApp => {
     if (hostname.startsWith('app.') || hostname.startsWith('user.') || hostname.startsWith('manager.')) {
         return 'app';
     }
+    if (hostname.startsWith('estospaces-web-') && isSingleOriginHostedHost(hostname)) {
+        return 'app';
+    }
     return 'landing';
 };
 
@@ -57,6 +60,14 @@ export const resolveHostedWorkspaceRedirect = (
     }
 
     return null;
+};
+
+export const shouldBypassHostedWorkspaceRedirect = (hostname: string, pathname: string) => {
+    if (!isSingleOriginHostedHost(hostname)) {
+        return false;
+    }
+
+    return pathname.startsWith('/admin') || pathname.startsWith('/manager') || pathname.startsWith('/user');
 };
 
 export const getHostConfig = () => {

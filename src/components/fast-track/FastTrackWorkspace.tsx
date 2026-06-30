@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    AlertCircle,
     ArrowUpRight,
     CalendarDays,
     CircleDot,
@@ -16,6 +17,9 @@ import {
     ShieldCheck,
     Star,
     Upload,
+    X,
+    ZoomIn,
+    ZoomOut,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,11 +29,21 @@ import {
     useWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
 import {
+    buildFastTrackDocumentDraftStorageKey,
+    buildFastTrackDocumentSearchParams,
+    buildFastTrackSelectionSearchParams,
+    buildFastTrackStageSearchParams,
     buildFastTrackThreadRecipientLabel,
+    canUserConfirmFastTrackHandover,
     describeFastTrackWorkspaceFocus,
     describeFastTrackWorkspaceStatus,
     fastTrackCaseMatchesQuery,
-    isFastTrackCaseComplete,
+    getFastTrackDecisionGuard,
+    getFastTrackFinalDecisionGuard,
+    isFastTrackDocumentDraftDirty,
+    isFastTrackCaseCompleteForRole,
+    resolveFastTrackDocumentSearchParam,
+    resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
 } from '@/lib/fastTrackWorkspace';
@@ -37,11 +51,17 @@ import {
     WORKSPACE_SYNC_INTERVALS,
     WORKSPACE_SYNC_TAGS,
 } from '@/lib/workspaceSync';
-import { getDocumentAccessBlob, getDocumentAccessUrl } from '@/services/documentAccessService';
+import {
+    loadFastTrackWorkspaceCases,
+    sortFastTrackWorkspaceCases,
+} from '@/lib/fastTrackWorkspaceLoad';
+import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
+import { getDocumentAccessUrl } from '@/services/documentAccessService';
 import {
     FastTrackCase,
     FastTrackDocumentItem,
     FastTrackStage,
+    getFastTrackCaseById,
     getFastTrackCases,
     performFastTrackAction,
 } from '@/services/fastTrackService';
@@ -58,6 +78,11 @@ import {
     managerReviewsService,
     type ManagerReview,
 } from '@/services/managerReviewsService';
+import {
+    DELETED_FAST_TRACK_CASE_MESSAGE,
+    sanitizeWorkspaceCaseId,
+    stripCaseSearchParam,
+} from '@/lib/fastTrackCaseContext';
 import DateField from '@/components/ui/DateField';
 import TimeField from '@/components/ui/TimeField';
 import FastTrackCelebrationOverlay from '@/components/dashboard/FastTrackCelebrationOverlay';
@@ -75,6 +100,7 @@ import {
     moveFastTrackWorkspaceModule,
     normalizeFastTrackWorkspacePreferences,
     orderVisibleFastTrackWorkspaceModules,
+    resolveFastTrackCaseRailLayout,
     type FastTrackWorkspaceModule,
     type FastTrackWorkspacePreferences,
     type FastTrackWorkspaceRole,
@@ -85,6 +111,8 @@ import {
 } from '@/services/workspacePreferencesService';
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
+import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
+import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -93,6 +121,11 @@ const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     user: '/user/dashboard',
     manager: '/manager/dashboard',
     admin: '/admin/dashboard',
+};
+const FAST_TRACK_DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
+const FAST_TRACK_DOCUMENT_GUIDANCE: Record<FastTrackDocumentItem['id'], string> = {
+    identity: 'Accepted identity proof: Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN card or Form 60 may be requested for tax/KYC details. Upload a clear PDF, JPG, PNG, or WebP; prefer masked Aadhaar unless full-number verification is required.',
+    address: 'Upload a recent utility bill, bank statement, rent agreement, property tax receipt, or government address document as a clear PDF, JPG, PNG, or WebP.',
 };
 
 const STAGES: FastTrackStage[] = [
@@ -151,65 +184,6 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     return `${hoursRemaining}h left`;
 };
 
-const sortCases = (cases: FastTrackCase[]) => [...cases].sort((left, right) => {
-    if (left.workspaceFinalStatus !== right.workspaceFinalStatus) {
-        if (left.workspaceFinalStatus === 'active') {
-            return -1;
-        }
-        if (right.workspaceFinalStatus === 'active') {
-            return 1;
-        }
-    }
-    if (left.hoursRemaining !== right.hoursRemaining) {
-        return left.hoursRemaining - right.hoursRemaining;
-    }
-    return new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
-});
-
-const buildFastTrackCasesSignature = (cases: FastTrackCase[]) => JSON.stringify(
-    cases.map((item) => ({
-        caseId: item.caseId,
-        stage: item.stage,
-        finalStatus: item.workspaceFinalStatus,
-        hoursRemaining: item.hoursRemaining,
-        statusReason: item.statusReason || '',
-        nextAction: item.nextAction || '',
-        documents: item.documents.items.map((document) => ({
-            id: document.id,
-            status: document.status,
-            recordId: document.documentRecordId || '',
-            uploadedAt: document.uploadedAt || '',
-            reviewedAt: document.reviewedAt || '',
-        })),
-        viewing: {
-            status: item.viewing.status,
-            scheduledAt: item.viewing.scheduledAt || '',
-            requestedChangeAt: item.viewing.requestedChangeAt || '',
-            confirmedByUser: Boolean(item.viewing.confirmedByUser),
-        },
-        decision: {
-            status: item.decision.status,
-            amount: item.decision.amount || 0,
-            decidedAt: item.decision.decidedAt || '',
-        },
-        agreement: {
-            status: item.agreement.status,
-            paymentStatus: item.agreement.paymentStatus,
-            amountDue: item.agreement.amountDue || 0,
-            acceptedAt: item.agreement.acceptedAt || '',
-        },
-        handover: {
-            status: item.handover.status,
-            confirmedAt: item.handover.confirmedAt || '',
-            completedAt: item.handover.completedAt || '',
-        },
-        activity: {
-            count: item.activity.length,
-            lastId: item.activity[item.activity.length - 1]?.id || '',
-        },
-    })),
-);
-
 const formatDateTime = (value?: string) => {
     if (!value) {
         return 'Not set';
@@ -222,12 +196,42 @@ const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
         case 'approved':
             return 'Approved';
         case 'reupload_needed':
-            return 'Replacement needed';
+            return 'Reupload requested';
         case 'uploaded':
             return 'Waiting for review';
         default:
             return 'Waiting for upload';
     }
+};
+
+export const getFastTrackDocumentUploadCopy = ({
+    status,
+    hasAttachedFile,
+}: {
+    status: FastTrackDocumentItem['status'];
+    hasAttachedFile: boolean;
+}) => {
+    if (status === 'reupload_needed') {
+        return {
+            chooserSummary: 'No replacement selected',
+            actionLabel: 'Reupload file',
+            statusMessage: 'Reupload requested. Choose a replacement file and submit it here.',
+        };
+    }
+
+    if (hasAttachedFile || status === 'uploaded' || status === 'approved') {
+        return {
+            chooserSummary: 'No reupload selected',
+            actionLabel: 'Reupload file',
+            statusMessage: 'Uploaded and visible to your manager. Preview is ready in this workspace.',
+        };
+    }
+
+    return {
+        chooserSummary: 'No file selected',
+        actionLabel: 'Upload file',
+        statusMessage: 'Upload the requested file so your manager can review it.',
+    };
 };
 
 const documentStatusTone = (status: FastTrackDocumentItem['status']) => {
@@ -317,13 +321,47 @@ const ActionButton = ({
             disabled={disabled || busy}
             aria-label={ariaLabel}
             title={title}
-            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors disabled:cursor-wait disabled:opacity-70 ${toneClass} ${className}`.trim()}
+            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-950 ${toneClass} ${className}`.trim()}
         >
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             {children}
         </button>
     );
 };
+
+interface FastTrackDocumentFileChooserProps {
+    documentId: string;
+    label: string;
+    inputRef?: (node: HTMLInputElement | null) => void;
+    onFileSelected: (file: File | null) => void;
+}
+
+export const FastTrackDocumentFileChooser = ({
+    documentId,
+    label,
+    inputRef,
+    onFileSelected,
+}: FastTrackDocumentFileChooserProps) => (
+    <span className="relative inline-flex">
+        <input
+            data-fast-track-document-file-input={documentId}
+            ref={inputRef}
+            type="file"
+            name={`fast-track-document-${documentId}`}
+            aria-label={`Choose file for ${label}`}
+            accept={FAST_TRACK_DOCUMENT_ACCEPT}
+            className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            onChange={(event) => onFileSelected(event.target.files?.[0] || null)}
+        />
+        <span
+            aria-hidden="true"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 peer-focus-visible:ring-2 peer-focus-visible:ring-orange-500 peer-focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800 dark:peer-focus-visible:ring-offset-gray-950"
+        >
+            <Upload size={14} />
+            Choose file
+        </span>
+    </span>
+);
 
 export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const navigate = useNavigate();
@@ -358,6 +396,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewError, setPreviewError] = useState<string | null>(null);
     const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
+    const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [previewZoom, setPreviewZoom] = useState(0);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
     const [threadMessages, setThreadMessages] = useState<Message[]>([]);
     const [threadDraft, setThreadDraft] = useState('');
@@ -373,21 +413,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [managerReviewRating, setManagerReviewRating] = useState(0);
     const [managerReviewComment, setManagerReviewComment] = useState('');
     const [managerReviewError, setManagerReviewError] = useState<string | null>(null);
+    const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
         () => defaultFastTrackWorkspacePreferences(role),
     );
     const [customizationOpen, setCustomizationOpen] = useState(false);
     const [caseRailDrawerOpen, setCaseRailDrawerOpen] = useState(false);
+    const [compactCaseRailViewport, setCompactCaseRailViewport] = useState(
+        () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1279px)').matches,
+    );
     const [activeUtilityModule, setActiveUtilityModule] = useState<FastTrackWorkspaceModule>('core_files');
+    const [userDetailsOpen, setUserDetailsOpen] = useState(false);
+    const [cancelCaseDialogOpen, setCancelCaseDialogOpen] = useState(false);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
+    const recoveredCaseNoticeRef = useRef<HTMLDivElement | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
     const workspacePreferencesLoadedRef = useRef(false);
     const lastSavedWorkspacePreferencesRef = useRef('');
     const lastCasesSignatureRef = useRef('');
+    const pendingSelectedCaseIdRef = useRef<string | null>(null);
     const publishWorkspaceSync = usePublishWorkspaceSync();
     const searchParamsKey = searchParams.toString();
     const journeyChromeCopy = getJourneyChromeCopy(role);
@@ -412,6 +460,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         previewObjectUrlRef.current = null;
     }, []);
 
+    const handleDocumentFocus = useCallback((documentId: string) => {
+        setDocumentFocusId(documentId);
+        setSearchParams((previous) => buildFastTrackDocumentSearchParams(previous, documentId));
+    }, [setSearchParams]);
+
     const revealPreviewSection = useCallback(() => {
         previewSectionRef.current?.scrollIntoView({
             behavior: 'smooth',
@@ -426,27 +479,54 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setError(null);
         }
 
-        const { data, error: requestError } = await getFastTrackCases({ suppressErrorToast: true });
-        if (data) {
-            const nextCases = sortCases(data);
-            const nextSignature = buildFastTrackCasesSignature(nextCases);
-            if (nextSignature !== lastCasesSignatureRef.current) {
-                lastCasesSignatureRef.current = nextSignature;
-                setCases(nextCases);
+        try {
+            const result = await loadFastTrackWorkspaceCases(
+                () => getFastTrackCases({ suppressErrorToast: true }),
+                lastCasesSignatureRef.current,
+            );
+            if (result.cases) {
+                if (result.changed) {
+                    lastCasesSignatureRef.current = result.signature;
+                    setCases(result.cases);
+                }
+                setError(null);
+            } else if (!silent) {
+                setError(result.error || 'Unable to load fast-track cases.');
             }
-            setError(null);
-        } else if (!silent) {
-            setError(requestError || 'Unable to load fast-track cases.');
-        }
-
-        if (!silent) {
-            setLoading(false);
+        } finally {
+            if (!silent) {
+                setLoading(false);
+            }
         }
     }, []);
 
     useEffect(() => {
         void fetchCases();
     }, [fetchCases]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const mediaQuery = window.matchMedia('(max-width: 1279px)');
+        const syncCompactCaseRailViewport = () => {
+            setCompactCaseRailViewport(mediaQuery.matches);
+        };
+
+        syncCompactCaseRailViewport();
+        mediaQuery.addEventListener('change', syncCompactCaseRailViewport);
+
+        return () => {
+            mediaQuery.removeEventListener('change', syncCompactCaseRailViewport);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!compactCaseRailViewport && caseRailDrawerOpen) {
+            setCaseRailDrawerOpen(false);
+        }
+    }, [caseRailDrawerOpen, compactCaseRailViewport]);
 
     useWorkspaceRefresh({
         tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
@@ -543,19 +623,79 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [searchParamsKey],
     );
     const requestedCaseParam = selectionParams.get('case');
+    const requestedStageParam = resolveFastTrackStageSearchParam(selectionParams);
     const celebrateRequested = selectionParams.get('celebrate') === '1';
+    const requestedCaseIsAvailable = useMemo(
+        () => Boolean(
+            requestedCaseParam
+            && !sanitizeWorkspaceCaseId(requestedCaseParam, cases.map((item) => item.caseId)).removedCaseId,
+        ),
+        [cases, requestedCaseParam],
+    );
+    const hasInvalidRequestedCase = Boolean(requestedCaseParam && !loading && !requestedCaseIsAvailable);
+    const selectionParamsForResolution = useMemo(
+        () => (hasInvalidRequestedCase ? stripCaseSearchParam(selectionParams) : selectionParams),
+        [hasInvalidRequestedCase, selectionParams],
+    );
+
+    useEffect(() => {
+        if (!requestedCaseParam || loading) {
+            return;
+        }
+
+        const { removedCaseId } = sanitizeWorkspaceCaseId(
+            requestedCaseParam,
+            cases.map((item) => item.caseId),
+        );
+
+        if (!removedCaseId) {
+            setRecoveredCaseLink(null);
+            return;
+        }
+
+        setRecoveredCaseLink(removedCaseId);
+        setSearchParams((previous) => stripCaseSearchParam(previous), { replace: true });
+    }, [cases, loading, requestedCaseParam, setSearchParams]);
+
+    useEffect(() => {
+        if (!recoveredCaseLink) {
+            return;
+        }
+
+        const frame = window.requestAnimationFrame(() => {
+            recoveredCaseNoticeRef.current?.focus();
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [recoveredCaseLink]);
 
     useEffect(() => {
         if (cases.length === 0) {
+            pendingSelectedCaseIdRef.current = null;
             setSelectedCaseId(null);
             return;
         }
 
-        const resolvedCaseId = resolveFastTrackSelectionCaseId(cases, selectionParams, selectedCaseId);
+        const pendingSelectedCaseId = pendingSelectedCaseIdRef.current;
+        if (pendingSelectedCaseId) {
+            const pendingCaseExists = cases.some((item) => item.caseId === pendingSelectedCaseId);
+            if (pendingCaseExists) {
+                if (requestedCaseParam === pendingSelectedCaseId) {
+                    pendingSelectedCaseIdRef.current = null;
+                }
+                if (selectedCaseId !== pendingSelectedCaseId) {
+                    setSelectedCaseId(pendingSelectedCaseId);
+                }
+                return;
+            }
+            pendingSelectedCaseIdRef.current = null;
+        }
+
+        const resolvedCaseId = resolveFastTrackSelectionCaseId(cases, selectionParamsForResolution, selectedCaseId);
         if (resolvedCaseId !== selectedCaseId) {
             setSelectedCaseId(resolvedCaseId);
         }
-    }, [cases, searchParamsKey, selectedCaseId, selectionParams]);
+    }, [cases, requestedCaseParam, searchParamsKey, selectedCaseId, selectionParamsForResolution]);
 
     useEffect(() => {
         if (filteredCases.length === 0) {
@@ -602,36 +742,93 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        const requestedCaseStillAvailable = Boolean(
-            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
-        );
-        if (requestedCaseStillAvailable && requestedCaseParam !== selectedCaseId) {
+        if (hasInvalidRequestedCase || recoveredCaseLink) {
             return;
         }
 
-        if (requestedCaseParam === selectedCaseId) {
+        const requestedCase = requestedCaseParam
+            ? sanitizeWorkspaceCaseId(requestedCaseParam, cases.map((item) => item.caseId)).caseId
+            : null;
+        if (requestedCase && requestedCase !== selectedCaseId) {
             return;
         }
 
-        setSearchParams((previous) => {
-            const next = new URLSearchParams(previous);
-            next.set('case', selectedCaseId);
-            return next;
-        });
-    }, [cases, requestedCaseParam, selectedCaseId, setSearchParams]);
+        if (requestedCase === selectedCaseId && requestedCaseParam === selectedCaseId) {
+            return;
+        }
+
+        setSearchParams((previous) => buildFastTrackSelectionSearchParams(previous, selectedCaseId));
+    }, [cases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
         [cases, filteredCases, selectedCaseId],
     );
+    const requestedDocumentId = useMemo(
+        () => selectedCase
+            ? resolveFastTrackDocumentSearchParam(selectionParams, selectedCase.documents.items.map((item) => item.id))
+            : null,
+        [selectedCase, selectionParams],
+    );
     const visibleStage = activeStageOverride ?? selectedCase?.stage ?? 'selected';
+    const documentDraftStorageKey = useMemo(
+        () => selectedCase
+            ? buildFastTrackDocumentDraftStorageKey(role, selectedCase.caseId)
+            : '',
+        [role, selectedCase?.caseId],
+    );
     const isManagerReviewEligible = role === 'user'
         && Boolean(selectedCase?.managerId)
         && selectedCase?.workspaceFinalStatus !== 'cancelled';
 
     useEffect(() => {
+        if (!documentDraftStorageKey) {
+            setDocumentNotes({});
+            return;
+        }
+
+        const savedDraft = window.localStorage.getItem(documentDraftStorageKey);
+        if (!savedDraft) {
+            setDocumentNotes({});
+            return;
+        }
+
+        try {
+            setDocumentNotes(JSON.parse(savedDraft));
+        } catch {
+            window.localStorage.removeItem(documentDraftStorageKey);
+        }
+    }, [documentDraftStorageKey]);
+
+    useEffect(() => {
+        if (!documentDraftStorageKey) {
+            return;
+        }
+
+        if (!isFastTrackDocumentDraftDirty(documentNotes)) {
+            window.localStorage.removeItem(documentDraftStorageKey);
+            return;
+        }
+
+        window.localStorage.setItem(
+            documentDraftStorageKey,
+            JSON.stringify(documentNotes),
+        );
+    }, [documentDraftStorageKey, documentNotes]);
+
+    useEffect(() => {
+        if (!selectedCase) {
+            setActiveStageOverride(null);
+            return;
+        }
+
+        if (requestedStageParam) {
+            setActiveStageOverride(requestedStageParam === selectedCase.stage ? null : requestedStageParam);
+            return;
+        }
+
         setActiveStageOverride(null);
-    }, [selectedCase?.caseId]);
+    }, [requestedStageParam, selectedCase?.caseId, selectedCase?.stage]);
 
     useEffect(() => {
         if (!isManagerReviewEligible || !selectedCase) {
@@ -709,7 +906,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     );
 
     const updateLocalCase = useCallback((nextCase: FastTrackCase) => {
-        setCases((previous) => sortCases(previous.map((item) => (
+        setCases((previous) => sortFastTrackWorkspaceCases(previous.map((item) => (
             item.caseId === nextCase.caseId ? nextCase : item
         ))));
         setSelectedCaseId(nextCase.caseId);
@@ -787,21 +984,42 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        updateLocalCase(data);
+        const shouldRefreshMutatedCase = [
+            'publish_agreement',
+            'confirm_agreement',
+            'mark_handover_ready',
+            'confirm_handover',
+            'complete_handover',
+        ].includes(action) || data.workspaceFinalStatus === 'completed';
+        const refreshedCase = shouldRefreshMutatedCase
+            ? await getFastTrackCaseById(data.caseId, { suppressErrorToast: true })
+            : { data: null };
+        const nextCase = refreshedCase.data || data;
+
+        updateLocalCase(nextCase);
         publishWorkspaceSync({
             source: 'mutation',
             tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
             reason: `Fast-track action: ${action}`,
             ids: {
-                caseId: data.caseId,
-                leadId: data.leadId,
-                propertyId: data.propertyId,
+                caseId: nextCase.caseId,
+                leadId: nextCase.leadId,
+                propertyId: nextCase.propertyId,
             },
         });
-        if (data.workspaceFinalStatus !== 'completed') {
+        if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
     }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase]);
+
+    const handleConfirmCancelCase = useCallback(() => {
+        setCancelCaseDialogOpen(false);
+        void runAction(
+            'cancel_case',
+            { reason: 'Cancelled from manager workspace.' },
+            'Case cancelled.',
+        );
+    }, [runAction]);
 
     const handleUploadDocument = useCallback(async (item: FastTrackDocumentItem) => {
         if (!selectedCase) {
@@ -857,11 +1075,22 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setSelectedFiles((previous) => ({ ...previous, [item.id]: null }));
+        setDocumentNotes((previous) => {
+            const next = { ...previous };
+            delete next[item.id];
+            return next;
+        });
         const input = fileInputRefs.current[item.id];
         if (input) {
             input.value = '';
         }
         updateLocalCase(data);
+        const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
+        if (uploadedItem) {
+            handleDocumentFocus(uploadedItem.id);
+            setPreviewItemId(uploadedItem.id);
+            setPreviewModalOpen(true);
+        }
         publishWorkspaceSync({
             source: 'mutation',
             tags: [WORKSPACE_SYNC_TAGS.FAST_TRACK],
@@ -873,13 +1102,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             },
         });
         toast.success(`${item.label} uploaded.`);
-    }, [documentNotes, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
+    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, revealPreviewSection, role, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;
     const parsedAgreementAmount = amountDue.trim() ? Number(amountDue) : 0;
     const hasValidAgreementPaymentAmount = Number.isFinite(parsedAgreementAmount) && parsedAgreementAmount > 0;
-    const publishAgreementNeedsAmount = paymentRequired && !hasValidAgreementPaymentAmount;
+    const publishAgreementNeedsAmount = PAYMENTS_ENABLED && paymentRequired && !hasValidAgreementPaymentAmount;
     const stats = useMemo(() => ({
         active: cases.filter((item) => item.workspaceFinalStatus === 'active').length,
         completed: cases.filter((item) => item.workspaceFinalStatus === 'completed').length,
@@ -913,7 +1142,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         setDecisionNote(selectedCase.decision.note || '');
         setAgreementNote(selectedCase.agreement.note || '');
         setAmountDue(selectedCase.agreement.amountDue ? String(selectedCase.agreement.amountDue) : '');
-        setPaymentRequired(selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid');
+        setPaymentRequired(PAYMENTS_ENABLED && (selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid'));
         setHandoverNote(selectedCase.handover.note || '');
         setRequestChangeNote(selectedCase.viewing.requestedChange || '');
         setDocumentNotes(
@@ -923,6 +1152,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ])),
         );
         setDocumentFocusId((previous) => {
+            if (requestedDocumentId) {
+                return requestedDocumentId;
+            }
             if (previous && selectedCase.documents.items.some((item) => item.id === previous)) {
                 return previous;
             }
@@ -934,7 +1166,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
             return null;
         });
-    }, [role, selectedCase?.caseId]);
+    }, [requestedDocumentId, role, selectedCase?.caseId]);
 
     useEffect(() => {
         if (utilityModules.length === 0) {
@@ -999,7 +1231,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setActiveUtilityModule('preview');
-    }, [previewItemId, utilityModules]);
+        if (role === 'user') {
+            setUserDetailsOpen(true);
+        }
+    }, [previewItemId, role, utilityModules]);
 
     const compactActivity = useMemo(
         () => (selectedCase?.activity || []).slice(0, 8),
@@ -1037,8 +1272,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             'publish_agreement',
             {
                 note: agreementNote,
-                payment_required: paymentRequired && hasValidAgreementPaymentAmount,
-                amount_due: paymentRequired && hasValidAgreementPaymentAmount ? parsedAgreementAmount : undefined,
+                payment_required: PAYMENTS_ENABLED && paymentRequired && hasValidAgreementPaymentAmount,
+                amount_due: PAYMENTS_ENABLED && paymentRequired && hasValidAgreementPaymentAmount ? parsedAgreementAmount : undefined,
             },
             'Agreement published.',
         );
@@ -1059,7 +1294,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [role]);
 
     const handleToggleRail = useCallback(() => {
-        if (window.matchMedia('(max-width: 1279px)').matches) {
+        if (compactCaseRailViewport) {
             setCaseRailDrawerOpen((previous) => !previous);
             return;
         }
@@ -1068,7 +1303,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ...previous,
             caseRailCollapsed: !previous.caseRailCollapsed,
         }));
-    }, [updateWorkspacePreferencesState]);
+    }, [compactCaseRailViewport, updateWorkspacePreferencesState]);
 
     const handleToggleModuleVisibility = useCallback((module: FastTrackWorkspaceModule) => {
         updateWorkspacePreferencesState((previous) => {
@@ -1109,49 +1344,65 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         options?: {
             openInNewTab?: boolean;
             revealInViewport?: boolean;
+            openInModal?: boolean;
         },
     ) => {
         const openInNewTab = options?.openInNewTab === true;
         const revealInViewport = options?.revealInViewport === true;
+        const openInModal = options?.openInModal === true;
+        const selectedFile = selectedFiles[item.id] || null;
+        if (openInModal) {
+            setPreviewModalOpen(true);
+        }
+        setPreviewItemId(item.id);
+        if (selectedFile) {
+            releasePreviewObjectUrl();
+            const nextUrl = URL.createObjectURL(selectedFile);
+            previewObjectUrlRef.current = nextUrl;
+            setPreviewBusyItemId(null);
+            setPreviewError(null);
+            setPreviewUrl(nextUrl);
+            if (openInNewTab) {
+                window.open(nextUrl, '_blank', 'noopener,noreferrer');
+            }
+            if (revealInViewport) {
+                if (role === 'user') {
+                    setUserDetailsOpen(true);
+                }
+                revealPreviewSection();
+            }
+            return nextUrl;
+        }
+
         if (!item.documentRecordId && !item.fileUrl) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
+            setPreviewBusyItemId(null);
             if (revealInViewport) {
+                if (role === 'user') {
+                    setUserDetailsOpen(true);
+                }
                 revealPreviewSection();
             }
             return null;
         }
 
         setPreviewBusyItemId(item.id);
-        setDocumentFocusId(item.id);
-        setPreviewItemId(item.id);
+        handleDocumentFocus(item.id);
         setPreviewError(null);
 
-        const previewKind = detectDocumentPreviewKind(item);
         let nextUrl = item.fileUrl || null;
         let nextAccessUrl = item.fileUrl || null;
-        if (item.documentRecordId) {
-            if (!openInNewTab && (previewKind === 'image' || previewKind === 'pdf')) {
-                const access = await getDocumentAccessBlob(item.documentRecordId);
-                if (access.error || !access.url || !access.blob) {
-                    setPreviewBusyItemId(null);
-                    setPreviewUrl(null);
-                    setPreviewError(access.error || 'Preview is unavailable for this document.');
-                    if (revealInViewport) {
-                        revealPreviewSection();
-                    }
-                    return null;
-                }
-                releasePreviewObjectUrl();
-                nextUrl = URL.createObjectURL(access.blob);
-                previewObjectUrlRef.current = nextUrl;
-            } else {
+        try {
+            if (item.documentRecordId) {
                 const access = await getDocumentAccessUrl(item.documentRecordId);
                 if (access.error || !access.url) {
-                    setPreviewBusyItemId(null);
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
                     if (revealInViewport) {
+                        if (role === 'user') {
+                            setUserDetailsOpen(true);
+                        }
                         revealPreviewSection();
                     }
                     return null;
@@ -1159,41 +1410,72 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 releasePreviewObjectUrl();
                 nextUrl = access.url;
                 nextAccessUrl = access.url;
+            } else {
+                releasePreviewObjectUrl();
             }
-        } else {
-            releasePreviewObjectUrl();
-        }
 
-        if (!nextUrl) {
-            setPreviewBusyItemId(null);
-            setPreviewUrl(null);
-            setPreviewError('Preview is unavailable for this document.');
+            if (!nextUrl) {
+                setPreviewUrl(null);
+                setPreviewError('Preview is unavailable for this document.');
+                if (revealInViewport) {
+                    if (role === 'user') {
+                        setUserDetailsOpen(true);
+                    }
+                    revealPreviewSection();
+                }
+                return null;
+            }
+
+            setPreviewUrl(nextUrl);
+            setPreviewError(null);
             if (revealInViewport) {
+                if (role === 'user') {
+                    setUserDetailsOpen(true);
+                }
                 revealPreviewSection();
             }
+
+            if (openInNewTab && nextAccessUrl) {
+                window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
+            }
+            return nextUrl;
+        } catch (error: any) {
+            setPreviewUrl(null);
+            setPreviewError(error?.message || 'Preview is unavailable for this document.');
             return null;
+        } finally {
+            setPreviewBusyItemId(null);
         }
-
-        setPreviewBusyItemId(null);
-        setPreviewUrl(nextUrl);
-        setPreviewError(null);
-        if (revealInViewport) {
-            revealPreviewSection();
-        }
-
-        if (openInNewTab && nextAccessUrl) {
-            window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
-        }
-        return nextUrl;
-    }, [releasePreviewObjectUrl, revealPreviewSection]);
+    }, [handleDocumentFocus, releasePreviewObjectUrl, revealPreviewSection, role, selectedFiles]);
 
     const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { revealInViewport: true });
+        await ensureDocumentPreview(item, { openInModal: true });
     }, [ensureDocumentPreview]);
 
     const handleRailDownload = useCallback(async (item: FastTrackDocumentItem) => {
         await ensureDocumentPreview(item, { openInNewTab: true });
     }, [ensureDocumentPreview]);
+
+    const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
+        setPreviewZoom((previous) => {
+            if (direction === 'reset') {
+                return 0;
+            }
+
+            if (direction === 'in' && previous === 0) {
+                return 1.25;
+            }
+
+            if (direction === 'out' && previous <= 1) {
+                return 0;
+            }
+
+            const nextZoom = direction === 'in'
+                ? previous + 0.25
+                : previous - 0.25;
+            return Math.min(2.5, Math.max(0.5, Number(nextZoom.toFixed(2))));
+        });
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -1206,16 +1488,24 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError(null);
+            setPreviewZoom(0);
             return;
         }
-        if (!previewItem.documentRecordId && !previewItem.fileUrl) {
+        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
+        if (!selectedPreviewFile && !previewItem.documentRecordId && !previewItem.fileUrl) {
             releasePreviewObjectUrl();
             setPreviewUrl(null);
             setPreviewError('Choose a document to preview once a file has been attached.');
             return;
         }
         void ensureDocumentPreview(previewItem);
-    }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl]);
+    }, [ensureDocumentPreview, previewItem?.documentRecordId, previewItem?.fileUrl, previewItem?.mimeType, previewItemId, releasePreviewObjectUrl, selectedFiles]);
+
+    useEffect(() => {
+        if (previewModalOpen) {
+            setPreviewZoom(0);
+        }
+    }, [previewItemId, previewModalOpen]);
 
     useEffect(() => {
         let cancelled = false;
@@ -1330,7 +1620,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             );
         }
 
-        const previewKind = detectDocumentPreviewKind(previewItem);
+        const selectedPreviewFile = selectedFiles[previewItem.id] || null;
+        const previewDisplayItem: FastTrackDocumentItem = selectedPreviewFile
+            ? {
+                ...previewItem,
+                fileName: selectedPreviewFile.name,
+                mimeType: selectedPreviewFile.type || previewItem.mimeType,
+            }
+            : previewItem;
+        const previewKind = detectDocumentPreviewKind(previewDisplayItem);
+        const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
 
         return (
             <div className="space-y-4">
@@ -1339,19 +1638,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <div>
                             <p className="text-base font-semibold text-gray-900 dark:text-white">{previewItem.label}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                {previewItem.fileName || 'No file attached yet'}
+                                {previewDisplayItem.fileName || 'No file attached yet'}
                             </p>
                         </div>
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(previewItem.status)}`}>
-                            {formatDocumentStatus(previewItem.status)}
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${documentStatusTone(previewDisplayItem.status)}`}>
+                            {formatDocumentStatus(previewDisplayItem.status)}
                         </span>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-3">
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, { revealInViewport: true })}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInModal: true })}
                             busy={previewBusyItemId === previewItem.id}
-                            disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
+                            disabled={!previewAvailable}
                         >
                             <Eye size={16} />
                             Preview
@@ -1360,7 +1659,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             tone="secondary"
                             onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
                             busy={previewBusyItemId === previewItem.id}
-                            disabled={!previewItem.documentRecordId && !previewItem.fileUrl}
+                            disabled={!previewAvailable}
                         >
                             <Download size={16} />
                             Download
@@ -1376,23 +1675,56 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                 {!previewUrl ? (
                     <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
-                        Upload a file to preview it here.
+                        Choose or upload a file to preview it here.
                     </div>
                 ) : previewKind === 'image' ? (
-                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
+                    <div
+                        className={cn(
+                            'rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
+                            previewZoom === 0
+                                ? 'flex h-[min(520px,calc(100vh-20rem))] min-h-[260px] items-center justify-center overflow-hidden p-3'
+                                : 'max-h-[520px] overflow-auto',
+                        )}
+                    >
                         <img
                             src={previewUrl}
-                            alt={previewItem.fileName || previewItem.label}
-                            className="max-h-[420px] w-full object-contain"
+                            alt={previewDisplayItem.fileName || previewDisplayItem.label}
+                            className={cn(
+                                'mx-auto object-contain transition-[width] duration-150',
+                                previewZoom === 0 ? 'max-h-full max-w-full' : 'max-w-none',
+                            )}
+                            style={{ width: previewZoom === 0 ? 'auto' : `${previewZoom * 100}%` }}
                         />
                     </div>
                 ) : previewKind === 'pdf' ? (
-                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950">
-                        <iframe
-                            title={previewItem.fileName || previewItem.label}
-                            src={previewUrl}
-                            className="h-[420px] w-full"
-                        />
+                    <div className="rounded-3xl border border-gray-100 bg-white p-5 text-sm dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                    <FileText size={18} />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="font-semibold text-gray-900 dark:text-white">PDF is ready</p>
+                                    <p className="mt-1 text-gray-500 dark:text-gray-400">
+                                        PDFs open in the browser viewer to avoid the broken embedded preview.
+                                    </p>
+                                    <p className="mt-2 truncate text-xs font-medium text-gray-500 dark:text-gray-400">
+                                        {previewDisplayItem.fileName || previewDisplayItem.label}
+                                    </p>
+                                </div>
+                            </div>
+                            <ActionButton
+                                tone="secondary"
+                                onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
+                                busy={previewBusyItemId === previewItem.id}
+                                disabled={!previewAvailable}
+                                ariaLabel={`Open ${previewItem.label} PDF`}
+                                className="px-3 py-2 text-xs"
+                            >
+                                <ArrowUpRight size={14} />
+                                Open PDF
+                            </ActionButton>
+                        </div>
                     </div>
                 ) : (
                     <div className="rounded-3xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
@@ -1407,10 +1739,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                                Type: {previewItem.mimeType || 'Unknown'}
+                                Type: {previewDisplayItem.mimeType || 'Unknown'}
                             </div>
                             <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
-                                Uploaded: {formatDateTime(previewItem.uploadedAt)}
+                                {selectedPreviewFile ? 'Ready to upload' : `Uploaded: ${formatDateTime(previewDisplayItem.uploadedAt)}`}
                             </div>
                         </div>
                     </div>
@@ -1423,6 +1755,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!selectedCase) {
             return null;
         }
+        const threadMessageKeyFor = createDuplicateSafeKeyResolver('fast-track-thread-message');
 
         return (
             <div className="space-y-4">
@@ -1454,11 +1787,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                             {role === 'user' ? 'No messages yet. Keep your updates here.' : 'No case messages yet. Keep every update here instead of leaving the workspace.'}
                         </p>
-                    ) : threadMessages.map((message) => {
+                    ) : threadMessages.map((message, messageIndex) => {
                         const mine = message.sender_id === user?.id;
                         return (
                             <div
-                                key={message.id}
+                                key={threadMessageKeyFor(message.id, messageIndex)}
                                 className={[
                                     'rounded-3xl px-4 py-3',
                                     mine
@@ -1511,18 +1844,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             );
         }
 
-        const canPreview = Boolean(activeDocument.documentRecordId || activeDocument.fileUrl);
+        const activeSelectedFile = selectedFiles[activeDocument.id] || null;
+        const canPreview = Boolean(activeSelectedFile || activeDocument.documentRecordId || activeDocument.fileUrl);
         const helperNote = activeDocument.reviewNote || activeDocument.uploadNote || activeDocument.note || '';
+        const coreFileKeyFor = createDuplicateSafeKeyResolver('fast-track-core-file');
 
         return (
             <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
-                    {selectedCase.documents.items.map((item) => (
+                    {selectedCase.documents.items.map((item, itemIndex) => (
                         <button
-                            key={item.id}
+                            key={coreFileKeyFor(item.id, itemIndex)}
                             type="button"
                             data-fast-track-document={item.id}
-                            onClick={() => setDocumentFocusId(item.id)}
+                            onClick={() => handleDocumentFocus(item.id)}
                             className={cn(
                                 'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors',
                                 activeDocument.id === item.id
@@ -1607,15 +1942,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         );
     };
 
-    const renderActivityModule = () => (
+    const renderActivityModule = () => {
+        const activityKeyFor = createDuplicateSafeKeyResolver('fast-track-activity');
+
+        return (
         <div className="space-y-3">
             {compactActivity.length === 0 ? (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
                 </p>
-            ) : compactActivity.map((entry) => (
+            ) : compactActivity.map((entry, entryIndex) => (
                 <div
-                    key={entry.id}
+                    key={activityKeyFor(entry.id, entryIndex)}
                     className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
                 >
                     <div className="flex items-center justify-between gap-3">
@@ -1628,7 +1966,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ))}
         </div>
-    );
+        );
+    };
 
     const renderConnectedRecordsModule = () => {
         if (!selectedCase) {
@@ -1640,7 +1979,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ['Application', selectedCase.applicationId],
             ['Viewing', selectedCase.viewingId],
             ['Contract', selectedCase.contractId],
-            ['Payment', selectedCase.paymentId],
+            ...(PAYMENTS_ENABLED ? [['Payment', selectedCase.paymentId]] : []),
             ['Property', selectedCase.propertyId],
         ].filter(([, value]) => Boolean(value));
 
@@ -1729,6 +2068,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         >
                             Start documents
                         </ActionButton>
+                        {selectedCase.workspaceFinalStatus === 'active' ? (
+                            <ActionButton
+                                tone="danger"
+                                onClick={() => setCancelCaseDialogOpen(true)}
+                                busy={activeAction === 'cancel_case'}
+                            >
+                                Cancel case
+                            </ActionButton>
+                        ) : null}
                     </div>
                 ) : (
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-300">
@@ -1750,6 +2098,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const approvedCount = selectedCase.documents.items.filter(
             (item) => item.status === 'approved',
         ).length;
+        const documentCardKeyFor = createDuplicateSafeKeyResolver('fast-track-document-card');
 
         return (
             <SectionShell
@@ -1774,15 +2123,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
 
                 <div className="space-y-2.5 rounded-[24px] border border-gray-100 bg-gray-50/70 p-2.5 dark:border-gray-800 dark:bg-gray-900/30">
-                    {selectedCase.documents.items.map((item) => {
+                    {selectedCase.documents.items.map((item, itemIndex) => {
                         const canUpload = role === 'user';
                         const busyKey = `upload-${item.id}`;
-                        const canPreview = Boolean(item.documentRecordId || item.fileUrl);
+                        const selectedFile = selectedFiles[item.id] || null;
+                        const canPreview = Boolean(selectedFile || item.documentRecordId || item.fileUrl);
+                        const uploadCopy = getFastTrackDocumentUploadCopy({
+                            status: item.status,
+                            hasAttachedFile: Boolean(item.documentRecordId || item.fileUrl),
+                        });
                         const focused = focusedDocumentItem?.id === item.id;
                         const supportingNote = item.reviewNote || item.uploadNote || item.note || '';
                         return (
                             <div
-                                key={item.id}
+                                key={documentCardKeyFor(item.id, itemIndex)}
                                 data-fast-track-document-card={item.id}
                                 className={cn(
                                     'grid gap-3 rounded-[22px] border bg-white px-3.5 py-3.5 shadow-sm transition-colors dark:bg-gray-950 lg:grid-cols-[minmax(0,1fr)_272px]',
@@ -1794,7 +2148,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <div className="space-y-2.5">
                                     <button
                                         type="button"
-                                        onClick={() => setDocumentFocusId(item.id)}
+                                        onClick={() => handleDocumentFocus(item.id)}
                                         className="w-full text-left"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1840,13 +2194,35 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                             ? 'Add a file and one short upload note.'
                                             : 'Review the file, leave one short note, and move on.')}
                                     </div>
+                                    {canUpload ? (
+                                        <>
+                                            <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+                                                {FAST_TRACK_DOCUMENT_GUIDANCE[item.id]}
+                                            </p>
+                                        <div
+                                            data-fast-track-document-upload-state={item.id}
+                                            className={cn(
+                                                'rounded-2xl border px-4 py-3 text-sm font-medium',
+                                                item.status === 'reupload_needed'
+                                                    ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300'
+                                                    : canPreview
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                                        : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300',
+                                            )}
+                                        >
+                                            {selectedFile
+                                                ? `Ready to ${uploadCopy.actionLabel.toLowerCase()}: ${selectedFile.name}`
+                                                : uploadCopy.statusMessage}
+                                        </div>
+                                        </>
+                                    ) : null}
                                 </div>
 
                                     <div className="rounded-[20px] border border-gray-100 bg-white/80 p-3.5 dark:border-gray-800 dark:bg-gray-950/80">
                                     <div className="flex flex-wrap gap-2">
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { revealInViewport: true })}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true })}
                                             busy={previewBusyItemId === item.id}
                                             disabled={!canPreview}
                                             ariaLabel={`Preview ${item.label}`}
@@ -1882,29 +2258,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
                                     {canUpload ? (
                                         <div className="mt-3 space-y-3">
-                                            <input
-                                                ref={(node) => {
-                                                    fileInputRefs.current[item.id] = node;
-                                                }}
-                                                type="file"
-                                                aria-label={`Upload ${item.label}`}
-                                                onChange={(event) => setSelectedFiles((previous) => ({
-                                                    ...previous,
-                                                    [item.id]: event.target.files?.[0] || null,
-                                                }))}
-                                                className="hidden"
-                                            />
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <ActionButton
-                                                    tone="secondary"
-                                                    onClick={() => fileInputRefs.current[item.id]?.click()}
-                                                    className="px-3 py-2 text-xs"
-                                                >
-                                                    <Upload size={14} />
-                                                    Choose file
-                                                </ActionButton>
+                                                <FastTrackDocumentFileChooser
+                                                    documentId={item.id}
+                                                    label={item.label}
+                                                    inputRef={(node) => {
+                                                        fileInputRefs.current[item.id] = node;
+                                                    }}
+                                                    onFileSelected={(file) => setSelectedFiles((previous) => ({
+                                                        ...previous,
+                                                        [item.id]: file,
+                                                    }))}
+                                                />
                                                 <span className="min-w-0 flex-1 truncate rounded-full border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                                    {selectedFiles[item.id]?.name || 'No replacement selected'}
+                                                    {selectedFile?.name || uploadCopy.chooserSummary}
                                                 </span>
                                             </div>
                                             {item.status === 'reupload_needed' ? (
@@ -1919,7 +2286,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                 className="w-full"
                                             >
                                                 <Upload size={16} />
-                                                Upload file
+                                                {uploadCopy.actionLabel}
                                             </ActionButton>
                                         </div>
                                     ) : (
@@ -2161,6 +2528,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         const decisionLabel = selectedCase.journeyMode === 'sale' ? 'Offer outcome' : 'Application outcome';
+        const rejectDecisionGuard = getFastTrackDecisionGuard(selectedCase, 'rejected', decisionAmount, role);
+        const approveFinalDecisionGuard = getFastTrackFinalDecisionGuard(selectedCase, 'approved', decisionAmount, role);
+        const rejectFinalDecisionGuard = getFastTrackFinalDecisionGuard(selectedCase, 'rejected', decisionAmount, role);
+        const decisionStatus = String(selectedCase.decision.status || '').trim().toLowerCase();
+        const isSaleDecision = selectedCase.journeyMode === 'sale';
+        const offerReviewStarted = decisionStatus === 'under_review';
+        const offerDecisionFinal = decisionStatus === 'approved' || decisionStatus === 'rejected';
+        const startOfferReviewGuard = isSaleDecision ? rejectDecisionGuard : null;
+        const decisionGuardMessage = approveFinalDecisionGuard || rejectFinalDecisionGuard;
         if (role === 'user') {
             return (
                 <SectionShell
@@ -2190,6 +2566,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 title={decisionLabel}
                 description="Record the live outcome here. Approved cases move forward. Rejected cases close."
             >
+                {decisionGuardMessage ? (
+                    <div
+                        role="status"
+                        data-fast-track-decision-prerequisite
+                        className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
+                    >
+                        {decisionGuardMessage}
+                    </div>
+                ) : null}
                 {selectedCase.journeyMode === 'sale' ? (
                     <input
                         type="number"
@@ -2206,7 +2591,35 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     placeholder="Add one short decision note."
                     className="mt-4 h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                 />
+                {isSaleDecision ? (
+                    <div
+                        role="status"
+                        data-fast-track-offer-review-status
+                        className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-800 dark:bg-gray-900/40 dark:text-gray-200"
+                    >
+                        {offerDecisionFinal
+                            ? `Offer ${decisionStatus.replace('_', ' ')}.`
+                            : offerReviewStarted
+                                ? 'Offer is under review.'
+                                : 'Offer review has not started.'}
+                    </div>
+                ) : null}
                 <div className="mt-5 flex flex-wrap gap-3">
+                    {isSaleDecision && !offerDecisionFinal ? (
+                        <ActionButton
+                            tone="secondary"
+                            onClick={() => void runAction(
+                                'start_offer_review',
+                                { note: decisionNote },
+                                'Offer review started.',
+                            )}
+                            busy={activeAction === 'start_offer_review'}
+                            disabled={Boolean(startOfferReviewGuard) || offerReviewStarted}
+                            ariaLabel="Start offer review"
+                        >
+                            Start offer review
+                        </ActionButton>
+                    ) : null}
                     <ActionButton
                         onClick={() => void runAction(
                             'record_decision',
@@ -2214,11 +2627,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 outcome: 'approved',
                                 note: decisionNote,
                                 amount: decisionAmount ? Number(decisionAmount) : undefined,
-                                currency: 'GBP',
+                                currency: LAUNCH_CURRENCY_CODE,
                             },
                             `${decisionLabel} approved.`,
                         )}
                         busy={activeAction === 'record_decision'}
+                        disabled={Boolean(approveFinalDecisionGuard)}
                     >
                         Approve
                     </ActionButton>
@@ -2233,6 +2647,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             `${decisionLabel} rejected.`,
                         )}
                         busy={activeAction === 'record_decision'}
+                        disabled={Boolean(rejectFinalDecisionGuard)}
                     >
                         Reject
                     </ActionButton>
@@ -2250,7 +2665,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return (
                 <SectionShell
                     title={getJourneyStageLabel('agreement', selectedCase.journeyMode, role)}
-                    description="Read and sign the agreement here. If a payment is needed, it will appear here too."
+                    description="Read and sign the agreement here."
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
@@ -2263,10 +2678,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                             {selectedCase.agreement.note || 'Your agreement summary stays here.'}
                         </p>
-                        {selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid' ? (
+                        {PAYMENTS_ENABLED && (selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid') ? (
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Payment: {selectedCase.agreement.paymentStatus.replace(/_/g, ' ')}
-                                {selectedCase.agreement.amountDue ? ` / GBP ${selectedCase.agreement.amountDue}` : ''}
+                                {selectedCase.agreement.amountDue ? ` / ${formatLaunchCurrency(selectedCase.agreement.amountDue, { showCode: true })}` : ''}
                             </p>
                         ) : null}
                     </div>
@@ -2286,7 +2701,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         return (
             <SectionShell
                 title="Agreement"
-                description="Send the agreement and keep payment tracking in this workspace."
+                description="Send the agreement and keep this case moving toward handover."
             >
                 <textarea
                     value={agreementNote}
@@ -2295,26 +2710,28 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     className="h-28 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus:border-orange-400 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                 />
 
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                {PAYMENTS_ENABLED ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                            <input
+                                type="checkbox"
+                                checked={paymentRequired}
+                                onChange={(event) => setPaymentRequired(event.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                            />
+                            Payment required
+                        </label>
                         <input
-                            type="checkbox"
-                            checked={paymentRequired}
-                            onChange={(event) => setPaymentRequired(event.target.checked)}
-                            className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                            type="number"
+                            min="0"
+                            value={amountDue}
+                            onChange={(event) => setAmountDue(event.target.value)}
+                            placeholder="Amount due"
+                            disabled={!paymentRequired}
+                            className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
                         />
-                        Payment required
-                    </label>
-                    <input
-                        type="number"
-                        min="0"
-                        value={amountDue}
-                        onChange={(event) => setAmountDue(event.target.value)}
-                        placeholder="Amount due"
-                        disabled={!paymentRequired}
-                        className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-orange-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-                    />
-                </div>
+                    </div>
+                ) : null}
 
                 <div className="mt-5 flex flex-wrap gap-3">
                     <ActionButton
@@ -2325,7 +2742,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     >
                         Publish agreement
                     </ActionButton>
-                    {paymentRequired ? (
+                    {PAYMENTS_ENABLED && paymentRequired ? (
                         <ActionButton
                             tone="secondary"
                             onClick={() => void runAction(
@@ -2349,8 +2766,28 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
+        const decisionStatus = String(selectedCase.decision.status || '').trim().toLowerCase();
+        const agreementStatus = String(selectedCase.agreement.status || '').trim().toLowerCase();
+        const handoverStatus = String(selectedCase.handover.status || '').trim().toLowerCase();
+        const decisionAccepted = decisionStatus === 'approved' || decisionStatus === 'accepted';
+        const agreementAccepted = ['accepted', 'signed', 'completed'].includes(agreementStatus);
+        const handoverCompleted = handoverStatus === 'completed';
+        const handoverReady = handoverStatus === 'ready';
+        const handoverPrerequisiteGuard = !decisionAccepted
+            ? selectedCase.journeyMode === 'sale'
+                ? 'Accept the offer before starting handover.'
+                : 'Approve the application before starting handover.'
+            : !agreementAccepted
+                ? selectedCase.journeyMode === 'sale'
+                    ? 'Finish the memorandum, solicitor conveyancing, exchange, and signed agreement steps before handover.'
+                    : 'Send and confirm the agreement before handover.'
+                : null;
+        const completeHandoverGuard = handoverPrerequisiteGuard || (!handoverReady && !handoverCompleted
+            ? 'Mark handover ready before completing it.'
+            : null);
+
         if (role === 'user') {
-            if (isFastTrackCaseComplete(selectedCase)) {
+            if (isFastTrackCaseCompleteForRole(selectedCase, role)) {
                 return (
                     <SectionShell
                         title={getJourneyStageLabel('handover', selectedCase.journeyMode, role)}
@@ -2373,9 +2810,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 >
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/40">
                         <p className="text-base font-semibold text-gray-900 dark:text-white">
-                            {selectedCase.handover.status === 'completed'
+                            {selectedCase.handover.status === 'completed' && selectedCase.handover.confirmedByUser
                                 ? 'Completed'
-                                : selectedCase.handover.status === 'ready'
+                                : selectedCase.handover.status === 'ready' || canUserConfirmFastTrackHandover(selectedCase)
                                     ? 'Ready for your confirmation'
                                     : 'Waiting for the team'}
                         </p>
@@ -2387,7 +2824,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <ActionButton
                             onClick={() => void runAction('confirm_handover', {}, 'Handover confirmed.')}
                             busy={activeAction === 'confirm_handover'}
-                            disabled={selectedCase.handover.confirmedByUser}
+                            disabled={selectedCase.handover.confirmedByUser || !canUserConfirmFastTrackHandover(selectedCase)}
+                            title={!canUserConfirmFastTrackHandover(selectedCase) ? 'The manager must mark handover ready first.' : undefined}
                         >
                             Confirm I got the keys
                         </ActionButton>
@@ -2401,6 +2839,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 title="Handover"
                 description="Mark the case ready, then complete it from this workspace."
             >
+                {handoverPrerequisiteGuard ? (
+                    <div
+                        role="status"
+                        data-fast-track-handover-prerequisite
+                        className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100"
+                    >
+                        {handoverPrerequisiteGuard}
+                    </div>
+                ) : null}
                 <textarea
                     value={handoverNote}
                     onChange={(event) => setHandoverNote(event.target.value)}
@@ -2415,6 +2862,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             'Handover marked ready.',
                         )}
                         busy={activeAction === 'mark_handover_ready'}
+                        disabled={Boolean(handoverPrerequisiteGuard) || handoverReady || handoverCompleted}
+                        title={handoverPrerequisiteGuard || (handoverReady ? 'Handover is already ready.' : undefined)}
                     >
                         Mark ready
                     </ActionButton>
@@ -2426,6 +2875,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             'Fast-track completed.',
                         )}
                         busy={activeAction === 'complete_handover'}
+                        disabled={Boolean(completeHandoverGuard) || handoverCompleted}
+                        title={completeHandoverGuard || (handoverCompleted ? 'Handover is already complete.' : undefined)}
                     >
                         Complete handover
                     </ActionButton>
@@ -2619,6 +3070,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [paginatedCases, role, selectedCaseId],
     );
 
+    const caseRailLayout = useMemo(
+        () => resolveFastTrackCaseRailLayout({
+            compactViewport: compactCaseRailViewport,
+            desktopRailCollapsed: workspacePreferences.caseRailCollapsed,
+            compactDrawerOpen: caseRailDrawerOpen,
+        }),
+        [caseRailDrawerOpen, compactCaseRailViewport, workspacePreferences.caseRailCollapsed],
+    );
+
     const handleStageSelect = useCallback((stage: string) => {
         if (!selectedCase || !STAGES.includes(stage as FastTrackStage)) {
             return;
@@ -2626,7 +3086,23 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const nextStage = stage as FastTrackStage;
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
-    }, [selectedCase]);
+        setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
+    }, [selectedCase, setSearchParams]);
+
+    const handleSelectCase = useCallback((caseId: string) => {
+        pendingSelectedCaseIdRef.current = caseId;
+        setSelectedCaseId(caseId);
+        setActiveStageOverride(null);
+        setSearchParams((previous) => {
+            const next = buildFastTrackSelectionSearchParams(previous, caseId);
+            next.delete('section');
+            next.delete('stage');
+            next.delete('document');
+            next.delete('file');
+            next.delete('celebrate');
+            return next;
+        });
+    }, [setSearchParams]);
 
     const stepperItems = useMemo(
         () => STAGES.map((stage, index) => {
@@ -2650,9 +3126,27 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ? `${selectedCase.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home in one guided journey.`
             : `${selectedCase.clientName} / ${selectedCase.listingType === 'sale' ? 'Sale' : 'Rent'} / ${selectedCase.propertyType} / Case ${selectedCase.caseId}`
         : '';
+    const workspaceStatusMessage = recoveredCaseLink
+        ? DELETED_FAST_TRACK_CASE_MESSAGE
+        : loading
+            ? role === 'user'
+                ? 'Loading your fast-track journeys.'
+                : 'Loading fast-track cases.'
+            : error
+                ? error
+                : selectedCase
+                    ? `${selectedCase.propertyTitle} selected. ${workspaceStatus}`
+                    : filteredCases.length === 0
+                        ? role === 'user'
+                            ? 'No fast-track journeys match the current filters.'
+                            : 'No fast-track cases match the current filters.'
+                        : `${filteredCases.length} ${role === 'user' ? 'journeys' : 'cases'} available.`;
 
     return (
         <div className="space-y-6 pb-16">
+            <p role="status" aria-live="polite" className="sr-only" data-fast-track-workspace-status>
+                {workspaceStatusMessage}
+            </p>
             <FastTrackCelebrationOverlay
                 active={showCompletionCelebration}
                 role={role}
@@ -2677,7 +3171,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             />
             <FastTrackWorkspaceHeader
                 role={role}
-                railCollapsed={workspacePreferences.caseRailCollapsed}
+                railCollapsed={caseRailLayout.headerRailCollapsed}
                 showMetricsStrip={workspacePreferences.showMetricsStrip}
                 stats={headerStats}
                 onBack={() => navigate(WORKSPACE_HOME_PATH[role])}
@@ -2685,13 +3179,58 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 onOpenCustomize={() => setCustomizationOpen(true)}
             />
 
+            {recoveredCaseLink ? (
+                <div
+                    ref={recoveredCaseNoticeRef}
+                    role="alert"
+                    tabIndex={-1}
+                    data-fast-track-link-recovery
+                    className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100 dark:focus-visible:ring-offset-gray-950"
+                >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex min-w-0 gap-3">
+                            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                            <div>
+                                <p className="font-semibold">Journey link recovered</p>
+                                <p className="mt-1 leading-6">
+                                    {DELETED_FAST_TRACK_CASE_MESSAGE} Choose an available journey below or return to your dashboard.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setRecoveredCaseLink(null)}
+                                className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-100 dark:hover:bg-amber-900/40"
+                            >
+                                View available journeys
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate(WORKSPACE_HOME_PATH[role])}
+                                className="inline-flex items-center justify-center rounded-xl bg-amber-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950"
+                            >
+                                Back to dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
                     {error}
                 </div>
             ) : null}
 
-            {caseRailDrawerOpen ? (
+            {loading ? (
+                <div role="status" className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-5 py-4 text-sm font-medium text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {role === 'user' ? 'Loading your fast-track journeys...' : 'Loading fast-track cases...'}
+                </div>
+            ) : null}
+
+            {caseRailLayout.renderCompactDrawerRail ? (
                 <div className="fixed inset-0 z-40 xl:hidden">
                     <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
                     <div className="absolute inset-y-0 left-0 w-full max-w-sm p-4">
@@ -2706,10 +3245,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             pageSize={FAST_TRACK_CASES_PAGE_SIZE}
                             paginatedCount={paginatedCases.length}
                             items={caseRailItems}
+                            isLoading={loading}
                             onQueryChange={setQuery}
                             onFilterChange={setFilter}
                             onSelectCase={(caseId) => {
-                                setSelectedCaseId(caseId);
+                                handleSelectCase(caseId);
                                 setCaseRailDrawerOpen(false);
                             }}
                             onPageChange={setCurrentCasePage}
@@ -2728,12 +3268,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             <div
                 className={cn(
                     'grid gap-4',
-                    workspacePreferences.caseRailCollapsed
-                        ? 'xl:grid-cols-[minmax(0,1fr)]'
-                        : 'xl:grid-cols-[224px_minmax(0,1fr)]',
+                    caseRailLayout.renderDesktopRail
+                        ? 'xl:grid-cols-[224px_minmax(0,1fr)]'
+                        : 'xl:grid-cols-[minmax(0,1fr)]',
                 )}
             >
-                {!workspacePreferences.caseRailCollapsed ? (
+                {caseRailLayout.renderDesktopRail ? (
                     <div className="hidden xl:block">
                         <FastTrackCaseRail
                             role={role}
@@ -2746,10 +3286,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             pageSize={FAST_TRACK_CASES_PAGE_SIZE}
                             paginatedCount={paginatedCases.length}
                             items={caseRailItems}
+                            isLoading={loading}
                             onQueryChange={setQuery}
                             onFilterChange={setFilter}
                             onSelectCase={(caseId) => {
-                                setSelectedCaseId(caseId);
+                                handleSelectCase(caseId);
                                 setCaseRailDrawerOpen(false);
                             }}
                             onPageChange={setCurrentCasePage}
@@ -2786,7 +3327,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {renderManagerReviewCard()}
                                 </div>
                                 {role === 'user' ? (
-                                    <details className="group rounded-[28px] border border-gray-100 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+                                    <details
+                                        open={userDetailsOpen}
+                                        onToggle={(event) => setUserDetailsOpen(event.currentTarget.open)}
+                                        className="group rounded-[28px] border border-gray-100 bg-white px-4 py-4 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+                                    >
                                         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-gray-900 dark:text-white">
                                             <span>See details</span>
                                             <span className="text-xs font-medium text-gray-500 transition-transform group-open:rotate-180 dark:text-gray-400">
@@ -2831,6 +3376,68 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             </div>
 
+            {previewModalOpen ? (
+                <div
+                    className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={previewItem ? `Preview ${previewItem.label}` : 'Document preview'}
+                >
+                    <div className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-[28px] border border-white/20 bg-white shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:text-orange-300">Document preview</p>
+                                <h2 className="mt-1 truncate text-lg font-semibold text-gray-900 dark:text-white">
+                                    {previewItem?.label || 'Preview'}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPreviewModalOpen(false)}
+                                className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition hover:border-orange-300 hover:text-orange-700 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Close document preview"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+                            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                                Zoom
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => updatePreviewZoom('out')}
+                                disabled={previewZoom === 0}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:border-orange-300 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Zoom out document preview"
+                            >
+                                <ZoomOut size={16} />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => updatePreviewZoom('reset')}
+                                className="min-w-[4rem] rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-700 dark:border-gray-800 dark:text-gray-200 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Reset document preview zoom"
+                            >
+                                {previewZoom === 0 ? 'Fit' : `${Math.round(previewZoom * 100)}%`}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => updatePreviewZoom('in')}
+                                disabled={previewZoom >= 2.5}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 text-gray-600 transition hover:border-orange-300 hover:text-orange-700 disabled:cursor-not-allowed disabled:opacity-45 dark:border-gray-800 dark:text-gray-300 dark:hover:border-orange-800 dark:hover:text-orange-300"
+                                aria-label="Zoom in document preview"
+                            >
+                                <ZoomIn size={16} />
+                            </button>
+                        </div>
+                        <div className="max-h-[calc(100vh-14.5rem)] overflow-y-auto px-5 py-5">
+                            {renderDocumentPreview()}
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             <FastTrackWorkspaceCustomizationDrawer
                 role={role}
                 open={customizationOpen}
@@ -2857,6 +3464,50 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     defaultActiveModule: module,
                 }))}
             />
+
+            {cancelCaseDialogOpen && selectedCase ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    onClick={() => {
+                        if (activeAction !== 'cancel_case') {
+                            setCancelCaseDialogOpen(false);
+                        }
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Cancel fast-track case confirmation"
+                        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-950"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            Cancel fast-track case
+                        </h2>
+                        <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                            Cancel the fast-track case for {selectedCase.propertyTitle}? This will stop the active journey for the connected client.
+                        </p>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setCancelCaseDialogOpen(false)}
+                                disabled={activeAction === 'cancel_case'}
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                Keep case
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmCancelCase}
+                                disabled={activeAction === 'cancel_case'}
+                                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {activeAction === 'cancel_case' ? 'Cancelling...' : 'Cancel case'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

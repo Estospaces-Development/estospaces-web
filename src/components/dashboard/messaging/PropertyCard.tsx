@@ -2,6 +2,8 @@ import { useState, Suspense, lazy } from 'react';
 import { MapPin, ExternalLink, Map, Square } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
+import { VIRTUAL_TOUR_ENABLED } from '@/lib/launchFlags';
+import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 // Dynamic imports for modals
 const StreetViewModal = lazy(() => import('@/components/ui/StreetViewModal'));
@@ -33,7 +35,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
     const formatPrice = (price?: number) => {
         if (!price) return 'Price on request';
-        return `£${price.toLocaleString()}`;
+        return formatLaunchCurrency(price);
     };
 
     const handleViewDetails = () => {
@@ -100,13 +102,15 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
                                 <Map size={14} />
                             </button>
 
-                            <button
-                                onClick={() => setShowTour(true)}
-                                className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
-                                title="360 Tour"
-                            >
-                                <Square size={14} />
-                            </button>
+                            {VIRTUAL_TOUR_ENABLED && (
+                                <button
+                                    onClick={() => setShowTour(true)}
+                                    className="p-1.5 bg-white dark:bg-gray-800 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition-colors shadow-sm"
+                                    title="360 Tour"
+                                >
+                                    <Square size={14} />
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -114,7 +118,7 @@ const MessagingPropertyCard = ({ property }: MessagingPropertyCardProps) => {
 
             <Suspense fallback={null}>
                 {showStreetView && <StreetViewModal location={location} onClose={() => setShowStreetView(false)} />}
-                {showTour && <Tour360Modal tourUrl={property.tourUrl} onClose={() => setShowTour(false)} />}
+                {VIRTUAL_TOUR_ENABLED && showTour && <Tour360Modal tourUrl={property.tourUrl} onClose={() => setShowTour(false)} />}
             </Suspense>
         </>
     );

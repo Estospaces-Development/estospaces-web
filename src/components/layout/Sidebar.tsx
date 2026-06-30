@@ -30,6 +30,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useManagerVerification } from "../../contexts/ManagerVerificationContext";
 import Avatar from "../ui/Avatar";
+import { getLoginPath } from "@/lib/authUtils";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate("/login");
+      navigate(getLoginPath());
     } catch (error) {}
   };
 
@@ -98,6 +99,7 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
     { icon: Search, label: "Explore", path: "/user/dashboard" },
     { icon: Heart, label: "Saved", path: "/user/saved" },
     { icon: FileText, label: "Applications", path: "/user/applications" },
+    { icon: BookOpen, label: "Virtual Storage", path: "/user/virtual-storage" },
     {
       icon: MessageSquare,
       label: "Messages",
@@ -232,11 +234,11 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
                     title={!isOpen ? item.label : ""}
                   >
                     <item.icon
-                      className={`w-5 h-5 transition-transform duration-300 ${!active && "group-hover:scale-110"}`}
+                      className={`w-5 h-5 transition-transform duration-300 ${!active ? "group-hover:scale-110" : ""}`}
                     />
                     {isOpen && (
                       <span
-                        className={`menu-item transition-all duration-300 ${!active && "group-hover:translate-x-1"}`}
+                        className={`menu-item transition-all duration-300 ${!active ? "group-hover:translate-x-1" : ""}`}
                       >
                         {item.label}
                       </span>
@@ -268,11 +270,11 @@ const Sidebar = ({ isOpen, onToggle, useSubdomain = false }: SidebarProps) => {
                     title={!isOpen ? item.label : ""}
                   >
                     <item.icon
-                      className={`w-5 h-5 transition-transform duration-300 ${!active && "group-hover:scale-110"}`}
+                      className={`w-5 h-5 transition-transform duration-300 ${!active ? "group-hover:scale-110" : ""}`}
                     />
                     {isOpen && (
                       <span
-                        className={`menu-item transition-all duration-300 ${!active && "group-hover:translate-x-1"}`}
+                        className={`menu-item transition-all duration-300 ${!active ? "group-hover:translate-x-1" : ""}`}
                       >
                         {item.label}
                       </span>

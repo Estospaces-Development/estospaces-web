@@ -4,12 +4,14 @@ import { useState, useEffect } from 'react';
 import { Shield, Bell, Globe, Database, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { adminService, type SystemSettings, type PlatformStats } from '../../../services/adminService';
 import { useToast } from '../../../contexts/ToastContext';
+import { LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 export default function AdminSettingsPage() {
     const toast = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [settings, setSettings] = useState<SystemSettings | null>(null);
+    const [savedSettings, setSavedSettings] = useState<SystemSettings | null>(null);
     const [stats, setStats] = useState<PlatformStats | null>(null);
 
     useEffect(() => {
@@ -20,7 +22,9 @@ export default function AdminSettingsPage() {
                     adminService.getSettings(),
                     adminService.getPlatformStats(),
                 ]);
-                setSettings(settingsData);
+                const launchSettings = { ...settingsData, defaultCurrency: LAUNCH_CURRENCY_CODE };
+                setSettings(launchSettings);
+                setSavedSettings(launchSettings);
                 setStats(statsData);
             } catch (error: any) {
                 toast.error('Failed to load system settings');
@@ -34,10 +38,15 @@ export default function AdminSettingsPage() {
 
     const handleSave = async () => {
         if (!settings || isSaving) return;
+        if (settingsErrors.length > 0) {
+            toast.error(settingsErrors[0]);
+            return;
+        }
 
         try {
             setIsSaving(true);
             await adminService.updateSettings(settings);
+            setSavedSettings(settings);
             toast.success('Settings updated successfully');
         } catch (error: any) {
             toast.error('Failed to update settings');
@@ -70,6 +79,13 @@ export default function AdminSettingsPage() {
 
     if (!settings) return null;
 
+    const platformNameError = settings.platformName.trim() ? null : 'Platform name is required';
+    const supportEmailError = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(settings.supportEmail.trim())
+        ? null
+        : 'Enter a valid support email';
+    const settingsErrors = [platformNameError, supportEmailError].filter((entry): entry is string => Boolean(entry));
+    const hasSettingsChanges = JSON.stringify(settings) !== JSON.stringify(savedSettings);
+    const canSaveSettings = settingsErrors.length === 0 && hasSettingsChanges;
     const hasStorageQuota = Boolean(stats && stats.storageTotal > 0);
     const storageUsagePercent = hasStorageQuota
         ? Math.min(100, ((stats?.storageUsed || 0) / (stats?.storageTotal || 1)) * 100)
@@ -84,7 +100,8 @@ export default function AdminSettingsPage() {
                 </div>
                 <button
                     onClick={handleSave}
-                    disabled={isSaving}
+                    disabled={isSaving || !canSaveSettings}
+                    aria-disabled={isSaving || !canSaveSettings}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSaving ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
@@ -102,33 +119,46 @@ export default function AdminSettingsPage() {
                     </div>
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Platform Name</label>
+                            <label htmlFor="admin-settings-platform-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Platform Name *</label>
                             <input
+                                id="admin-settings-platform-name"
                                 type="text"
+                                required
                                 value={settings.platformName}
                                 onChange={(e) => setSettings({ ...settings, platformName: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                                aria-invalid={platformNameError ? 'true' : 'false'}
+                                aria-describedby={platformNameError ? 'admin-settings-platform-name-error' : undefined}
+                                className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white ${platformNameError ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'}`}
                             />
+                            {platformNameError && (
+                                <p id="admin-settings-platform-name-error" className="mt-1 text-sm font-semibold text-red-600 dark:text-red-300">{platformNameError}</p>
+                            )}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Support Email</label>
+                            <label htmlFor="admin-settings-support-email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Support Email *</label>
                             <input
+                                id="admin-settings-support-email"
                                 type="email"
+                                required
                                 value={settings.supportEmail}
                                 onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
+                                aria-invalid={supportEmailError ? 'true' : 'false'}
+                                aria-describedby={supportEmailError ? 'admin-settings-support-email-error' : undefined}
+                                className={`w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white ${supportEmailError ? 'border-red-500' : 'border-gray-100 dark:border-gray-700'}`}
                             />
+                            {supportEmailError && (
+                                <p id="admin-settings-support-email-error" className="mt-1 text-sm font-semibold text-red-600 dark:text-red-300">{supportEmailError}</p>
+                            )}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Currency</label>
+                            <label htmlFor="admin-settings-currency" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Currency</label>
                             <select
+                                id="admin-settings-currency"
                                 value={settings.defaultCurrency}
                                 onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })}
                                 className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white"
                             >
-                                <option>GBP</option>
-                                <option>EUR</option>
-                                <option>USD</option>
+                                <option>{LAUNCH_CURRENCY_CODE}</option>
                             </select>
                         </div>
                     </div>
@@ -148,6 +178,11 @@ export default function AdminSettingsPage() {
                                 <p className="text-sm text-gray-500">Require 2FA for admin accounts</p>
                             </div>
                             <button
+                                type="button"
+                                role="switch"
+                                aria-label="Require two-factor authentication for admin accounts"
+                                aria-checked={settings.twoFactorAuth}
+                                title="Require two-factor authentication for admin accounts"
                                 onClick={() => setSettings({ ...settings, twoFactorAuth: !settings.twoFactorAuth })}
                                 className={`relative w-12 h-6 rounded-full transition-colors ${settings.twoFactorAuth ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
                             >
@@ -160,6 +195,7 @@ export default function AdminSettingsPage() {
                                 <p className="text-sm text-gray-500">Auto-logout after inactivity</p>
                             </div>
                             <select
+                                aria-label="Session timeout"
                                 value={settings.sessionTimeout}
                                 onChange={(e) => setSettings({ ...settings, sessionTimeout: e.target.value })}
                                 className="px-3 py-1.5 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
@@ -189,6 +225,11 @@ export default function AdminSettingsPage() {
                             <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl">
                                 <p className="font-medium text-gray-900 dark:text-white text-sm">{item.label}</p>
                                 <button
+                                    type="button"
+                                    role="switch"
+                                    aria-label={`${item.label} notifications`}
+                                    aria-checked={settings.notifications[item.key]}
+                                    title={`${item.label} notifications`}
                                     onClick={() => updateNestedSetting(item.key, !settings.notifications[item.key])}
                                     className={`relative w-12 h-6 rounded-full transition-colors ${settings.notifications[item.key] ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-700'}`}
                                 >

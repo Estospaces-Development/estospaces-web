@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Shield,
     Upload,
@@ -15,8 +15,14 @@ import {
     CreditCard,
     MapPin,
     ArrowRight,
+    Trash2,
 } from 'lucide-react';
-import { leadsService } from '@/services/leadsService';
+import {
+    getMissingVerificationBundleFileKeys,
+    shouldRequireFirstTimeVerificationBundle,
+    USER_FIRST_TIME_VERIFICATION_REQUIREMENTS,
+} from '@/lib/verificationUploadGate';
+import { leadsService, type UserDocument } from '@/services/leadsService';
 
 interface VerificationSectionProps {
     userId?: string;
@@ -25,6 +31,7 @@ interface VerificationSectionProps {
 
 type StepKey = 'email' | 'phone' | 'identity' | 'address';
 type StepStatus = 'pending' | 'submitted' | 'verified' | 'reupload_required';
+type UserVerificationDocumentStep = (typeof USER_FIRST_TIME_VERIFICATION_REQUIREMENTS)[number];
 
 type StepState = {
     status: StepStatus;
@@ -33,6 +40,15 @@ type StepState = {
 const documentTypeByStep: Partial<Record<StepKey, string>> = {
     identity: 'identity',
     address: 'address',
+};
+const VERIFICATION_DOCUMENT_ACCEPT = 'application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg';
+const firstTimeDocumentLabels: Record<UserVerificationDocumentStep, string> = {
+    identity: 'Identity document',
+    address: 'Proof of address',
+};
+const verificationDocumentGuidance: Record<UserVerificationDocumentStep, string> = {
+    identity: 'Identity proof: Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN/Form 60 may be requested separately.',
+    address: 'Recent utility bill, bank statement, rent agreement, property tax receipt, or government address document',
 };
 
 const mapDocumentStatus = (status?: string): StepStatus => {
@@ -55,7 +71,12 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [showUploadModal, setShowUploadModal] = useState<StepKey | null>(null);
+    const [showFirstTimeUploadModal, setShowFirstTimeUploadModal] = useState(false);
+    const [firstTimeUploadFiles, setFirstTimeUploadFiles] = useState<Partial<Record<UserVerificationDocumentStep, File | null>>>({});
     const [uploadingFile, setUploadingFile] = useState(false);
+    const [documents, setDocuments] = useState<UserDocument[]>([]);
+    const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+    const documentVaultRef = useRef<HTMLDivElement | null>(null);
     const [verificationSteps, setVerificationSteps] = useState<Record<StepKey, StepState>>({
         email: { status: 'pending' },
         phone: { status: 'pending' },
@@ -71,33 +92,60 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
         }));
     }, [currentUser]);
 
-    useEffect(() => {
-        const syncDocuments = async () => {
-            if (!userId) return;
+    const syncDocuments = useCallback(async () => {
+        if (!userId) return;
 
-            const { data, error: documentsError } = await leadsService.getUserDocuments();
-            if (documentsError) {
-                return;
-            }
+        const { data, error: documentsError } = await leadsService.getUserDocuments();
+        if (documentsError) {
+            setError(documentsError);
+            return;
+        }
 
-            const identityDocument = data.find((document) => document.document_category === 'identity');
-            const addressDocument = data.find((document) => document.document_category === 'address');
+        setDocuments(data);
+        const identityDocument = data.find((document) => document.document_category === 'identity');
+        const addressDocument = data.find((document) => document.document_category === 'address');
 
-            setVerificationSteps((prev) => ({
-                ...prev,
-                identity: { status: mapDocumentStatus(identityDocument?.status) },
-                address: { status: mapDocumentStatus(addressDocument?.status) },
-            }));
-        };
-
-        syncDocuments();
+        setVerificationSteps((prev) => ({
+            ...prev,
+            identity: { status: mapDocumentStatus(identityDocument?.status) },
+            address: { status: mapDocumentStatus(addressDocument?.status) },
+        }));
     }, [userId]);
+
+    useEffect(() => {
+        syncDocuments();
+    }, [syncDocuments]);
+
+    const documentMetrics = useMemo(() => {
+        const pending = documents.filter((document) => document.status === 'pending').length;
+        const underReview = documents.filter((document) => document.status === 'under_review').length;
+        const approved = documents.filter((document) => document.status === 'approved').length;
+
+        return { pending, underReview, approved };
+    }, [documents]);
 
     const completedSteps = Object.values(verificationSteps).filter(
         (step) => step.status === 'verified' || step.status === 'submitted',
     ).length;
     const totalSteps = Object.keys(verificationSteps).length;
     const completionPercentage = Math.round((completedSteps / totalSteps) * 100);
+    const needsFirstTimeDocumentBundle = useMemo(() => (
+        shouldRequireFirstTimeVerificationBundle(documents, USER_FIRST_TIME_VERIFICATION_REQUIREMENTS)
+    ), [documents]);
+
+    const missingFirstTimeFiles = useMemo(() => (
+        getMissingVerificationBundleFileKeys(firstTimeUploadFiles, USER_FIRST_TIME_VERIFICATION_REQUIREMENTS)
+    ), [firstTimeUploadFiles]);
+
+    const openDocumentUpload = (step: UserVerificationDocumentStep) => {
+        setError(null);
+        if (needsFirstTimeDocumentBundle) {
+            setShowFirstTimeUploadModal(true);
+            return;
+        }
+
+        setShowUploadModal(step);
+    };
 
     const handleDocumentUpload = async (step: StepKey, file: File) => {
         if (!file || !userId) return;
@@ -120,11 +168,75 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
             }));
             setSuccess(`Your ${step === 'identity' ? 'identity document' : 'proof of address'} has been submitted for review.`);
             setShowUploadModal(null);
+            await syncDocuments();
+            requestAnimationFrame(() => documentVaultRef.current?.focus());
         } catch (err: any) {
             setError(err.message || 'Failed to upload document. Please try again.');
         } finally {
             setUploadingFile(false);
         }
+    };
+
+    const handleFirstTimeDocumentBundleUpload = async () => {
+        if (!userId) return;
+
+        if (missingFirstTimeFiles.length > 0) {
+            setError(`Add ${missingFirstTimeFiles.map((key) => firstTimeDocumentLabels[key]).join(' and ')} before submitting first-time verification.`);
+            return;
+        }
+
+        setUploadingFile(true);
+        setError(null);
+
+        try {
+            for (const step of USER_FIRST_TIME_VERIFICATION_REQUIREMENTS) {
+                const uploadType = documentTypeByStep[step];
+                const file = firstTimeUploadFiles[step];
+                if (!uploadType || !file) {
+                    continue;
+                }
+
+                const { success: uploaded, error: uploadError } = await leadsService.uploadDocument(uploadType, file);
+                if (!uploaded) {
+                    throw new Error(uploadError || `Failed to submit ${firstTimeDocumentLabels[step].toLowerCase()} for review`);
+                }
+            }
+
+            setVerificationSteps((prev) => ({
+                ...prev,
+                identity: { status: 'submitted' },
+                address: { status: 'submitted' },
+            }));
+            setSuccess('Your identity document and proof of address have been submitted for admin review.');
+            setFirstTimeUploadFiles({});
+            setShowFirstTimeUploadModal(false);
+            await syncDocuments();
+            requestAnimationFrame(() => documentVaultRef.current?.focus());
+        } catch (err: any) {
+            setError(err.message || 'Failed to upload documents. Please try again.');
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+
+    const handleDeleteDocument = async (document: UserDocument) => {
+        if (document.status !== 'pending') {
+            setError('Only pending documents can be deleted before review starts.');
+            return;
+        }
+
+        setDeletingDocumentId(document.id);
+        setError(null);
+        const { success: deleted, error: deleteError } = await leadsService.deleteDocument(document.id);
+        setDeletingDocumentId(null);
+        if (!deleted) {
+            setError(deleteError || 'Failed to delete document.');
+            return;
+        }
+
+        setSuccess(`${document.file_name} was removed from your document vault.`);
+        await syncDocuments();
+        requestAnimationFrame(() => documentVaultRef.current?.focus());
     };
 
     const handleEmailVerification = async () => {
@@ -144,6 +256,10 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
     const handlePhoneVerification = () => {
         setSuccess('Please add your phone number in the Personal Information section above.');
     };
+
+    const formatDocumentStatus = (status: string) => (
+        status.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+    );
 
     const VerificationStep = ({
         step,
@@ -190,7 +306,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     : 'text-gray-900 dark:text-white';
 
         const subtitleClass = isVerified
-            ? 'text-green-600 dark:text-green-400'
+            ? 'text-green-700 dark:text-green-300'
             : isSubmitted
                 ? 'text-blue-600 dark:text-blue-400'
                 : needsReupload
@@ -214,7 +330,7 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h4 className={`font-bold text-sm ${titleClass}`}>{title}</h4>
+                            <h3 className={`font-bold text-sm ${titleClass}`}>{title}</h3>
                             <p className={`text-xs mt-0.5 ${subtitleClass}`}>{subtitle}</p>
                         </div>
 
@@ -321,10 +437,10 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                 <VerificationStep
                     step="identity"
                     title="Identity Document"
-                    description="Government issued passport or photo ID"
+                    description={verificationDocumentGuidance.identity}
                     icon={CreditCard}
                     actionLabel="Upload"
-                    onAction={() => setShowUploadModal('identity')}
+                    onAction={() => openDocumentUpload('identity')}
                 />
                 <VerificationStep
                     step="address"
@@ -332,8 +448,71 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                     description="Bank statement or utility bill"
                     icon={MapPin}
                     actionLabel="Upload"
-                    onAction={() => setShowUploadModal('address')}
+                    onAction={() => openDocumentUpload('address')}
                 />
+            </div>
+
+            <div
+                id="document-vault"
+                ref={documentVaultRef}
+                tabIndex={-1}
+                className="border-t border-gray-100 p-6 outline-none focus:ring-2 focus:ring-orange-500 dark:border-gray-700"
+            >
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Document vault</h3>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Pending files can be removed before review starts.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">{documentMetrics.pending} pending</span>
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-blue-700">{documentMetrics.underReview} review</span>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{documentMetrics.approved} approved</span>
+                    </div>
+                </div>
+
+                {documents.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-400">
+                        No documents are stored yet.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {documents.map((document) => {
+                            const canDelete = document.status === 'pending';
+                            const isDeleting = deletingDocumentId === document.id;
+
+                            return (
+                                <div
+                                    key={document.id}
+                                    className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-bold text-gray-900 dark:text-white">{document.file_name}</p>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {formatDocumentStatus(document.document_category)} - {formatDocumentStatus(document.status)}
+                                        </p>
+                                        {document.reject_reason && (
+                                            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                                                {document.reject_reason}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleDeleteDocument(document)}
+                                        disabled={!canDelete || isDeleting || Boolean(deletingDocumentId)}
+                                        aria-label={`Delete ${document.file_name}`}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-2 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/20"
+                                    >
+                                        {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                        Delete
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {showUploadModal && (
@@ -352,8 +531,11 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                             <label className="block border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-3xl p-10 text-center hover:border-orange-500 dark:hover:border-orange-500 transition-all cursor-pointer group">
                                 <input
                                     type="file"
-                                    className="hidden"
-                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    id={`${showUploadModal}-verification-document-upload`}
+                                    name={`${showUploadModal}-verification-document`}
+                                    aria-label={`Upload ${showUploadModal === 'identity' ? 'identity document' : 'proof of address'}`}
+                                    className="sr-only"
+                                    accept={VERIFICATION_DOCUMENT_ACCEPT}
                                     onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) handleDocumentUpload(showUploadModal, file);
@@ -364,6 +546,11 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                 </div>
                                 <p className="font-bold text-gray-900 dark:text-white">Choose a file</p>
                                 <p className="text-sm text-gray-500 mt-1">or drag and drop it here</p>
+                                <p className="mx-auto mt-3 max-w-[26rem] text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                    {showUploadModal === 'identity'
+                                        ? `${verificationDocumentGuidance.identity}.`
+                                        : `${verificationDocumentGuidance.address}.`}
+                                </p>
                                 <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mt-4">PDF, PNG, JPG (Max 10MB)</p>
                             </label>
 
@@ -373,6 +560,71 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                                     <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300">What happens next?</h4>
                                     <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Your upload is submitted into the verification queue. Admin approval is still required before the step becomes verified.</p>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showFirstTimeUploadModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white">First-time verification</h3>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Upload identity and address proof together for admin review.</p>
+                            </div>
+                            <button onClick={() => setShowFirstTimeUploadModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl" aria-label="Close first-time verification upload">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            {USER_FIRST_TIME_VERIFICATION_REQUIREMENTS.map((step) => (
+                                <label
+                                    key={step}
+                                    className="block rounded-2xl border border-gray-100 bg-gray-50 p-4 transition-colors hover:border-orange-300 dark:border-gray-700 dark:bg-gray-900/40"
+                                >
+                                    <span className="block text-sm font-bold text-gray-900 dark:text-white">{firstTimeDocumentLabels[step]}</span>
+                                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                                        {firstTimeUploadFiles[step]?.name || 'PDF, PNG or JPG'}
+                                    </span>
+                                    <span className="mt-2 block text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                        {verificationDocumentGuidance[step]}.
+                                    </span>
+                                    <input
+                                        type="file"
+                                        name={`first-time-${step}-verification-document`}
+                                        aria-label={`Upload ${firstTimeDocumentLabels[step].toLowerCase()}`}
+                                        className="mt-3 block w-full text-sm text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-orange-50 file:px-4 file:py-2 file:text-sm file:font-bold file:text-orange-700 hover:file:bg-orange-100 dark:text-gray-300 dark:file:bg-orange-900/30 dark:file:text-orange-300"
+                                        accept={VERIFICATION_DOCUMENT_ACCEPT}
+                                        disabled={uploadingFile}
+                                        onChange={(event) => {
+                                            const file = event.currentTarget.files?.[0] || null;
+                                            setFirstTimeUploadFiles((prev) => ({ ...prev, [step]: file }));
+                                        }}
+                                    />
+                                </label>
+                            ))}
+
+                            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowFirstTimeUploadModal(false)}
+                                    disabled={uploadingFile}
+                                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleFirstTimeDocumentBundleUpload()}
+                                    disabled={uploadingFile || missingFirstTimeFiles.length > 0}
+                                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                                    Submit both documents
+                                </button>
                             </div>
                         </div>
                     </div>

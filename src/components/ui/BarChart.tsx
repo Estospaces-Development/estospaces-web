@@ -1,5 +1,7 @@
 'use client';
 
+import { formatLaunchCurrency } from '@/lib/launchLocale';
+
 interface BarChartData {
     label: string;
     value: number;
@@ -30,7 +32,7 @@ const BarChart = ({ data, title, height = 200, showValues = true, formatValue, s
 
     const defaultFormatter = (value: number): string => {
         if (showCurrency) {
-            return value >= 1000 ? `£${(value / 1000).toFixed(0)}k` : `£${value}`;
+            return formatLaunchCurrency(value);
         }
         return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`;
     };
@@ -39,7 +41,7 @@ const BarChart = ({ data, title, height = 200, showValues = true, formatValue, s
 
     const formatAxisLabel = (value: number): string => {
         if (showCurrency) {
-            return value >= 1000 ? `£${(value / 1000).toFixed(0)}k` : `£${value.toFixed(0)}`;
+            return formatLaunchCurrency(value);
         }
         return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value.toFixed(0)}`;
     };
@@ -54,7 +56,7 @@ const BarChart = ({ data, title, height = 200, showValues = true, formatValue, s
                     <span>{formatAxisLabel(maxValue * 0.75)}</span>
                     <span>{formatAxisLabel(maxValue * 0.5)}</span>
                     <span>{formatAxisLabel(maxValue * 0.25)}</span>
-                    <span>{showCurrency ? '£0' : '0'}</span>
+                    <span>{showCurrency ? formatLaunchCurrency(0) : '0'}</span>
                 </div>
 
                 {/* Chart area */}

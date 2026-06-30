@@ -29,6 +29,7 @@ export interface Application extends JourneyStateFields {
   applicant_phone?: string;
   property_title?: string;
   property_address?: string;
+  property_country?: string;
   property_image?: string;
   property_type?: string;
   listing_type?: string;
@@ -141,7 +142,7 @@ export const getApplications = async (
   try {
     const data = await apiFetch<Application[]>(
       `${BOOKING_URL()}/api/v1/applications`,
-      options,
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data: data?.map(normalizeApplication) || [], error: null };
   } catch (error: any) {
@@ -180,6 +181,7 @@ export const createApplication = async (applicationData: {
   applicant_phone?: string;
   property_title?: string;
   property_address?: string;
+  property_country?: string;
   property_image?: string;
   property_type?: string;
   listing_type?: string;
@@ -202,6 +204,7 @@ export const createApplication = async (applicationData: {
       `${BOOKING_URL()}/api/v1/applications`,
       {
         method: "POST",
+        suppressErrorToast: true,
         body: JSON.stringify(applicationData),
       },
     );
@@ -223,7 +226,7 @@ export const updateApplicationStatus = async (
       {
         method: "PUT",
         body: JSON.stringify({ status, review_notes: reviewNotes }),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data: data ? normalizeApplication(data) : null, error: null };
@@ -234,12 +237,15 @@ export const updateApplicationStatus = async (
 
 export const withdrawApplication = async (
   applicationId: string,
+  reason: string,
 ): Promise<ApplicationResponse> => {
   try {
     const data = await apiFetch<Application>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/withdraw`,
       {
         method: "PUT",
+        suppressErrorToast: true,
+        body: JSON.stringify({ reason }),
       },
     );
     return { data: data ? normalizeApplication(data) : null, error: null };
@@ -262,6 +268,7 @@ export const reviewApplication = async (
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/review`,
       {
         method: "PUT",
+        suppressErrorToast: true,
         body: JSON.stringify({ status, review_notes: reviewNotes }),
       },
     );
@@ -278,7 +285,7 @@ export const getBuyerQualification = async (
   try {
     const data = await apiFetch<BuyerQualification>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/buyer-qualification`,
-      options,
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -303,7 +310,7 @@ export const updateBuyerQualification = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data, error: null };
@@ -319,7 +326,7 @@ export const getAMLReview = async (
   try {
     const data = await apiFetch<AMLReview>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/aml-review`,
-      options,
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -334,7 +341,7 @@ export const getReferencingCheck = async (
   try {
     const data = await apiFetch<ReferencingCheck>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/referencing`,
-      options,
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -356,7 +363,7 @@ export const updateReferencingCheck = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data, error: null };
@@ -372,7 +379,7 @@ export const getRightToRentCheck = async (
   try {
     const data = await apiFetch<RightToRentCheck>(
       `${BOOKING_URL()}/api/v1/applications/${applicationId}/right-to-rent`,
-      options,
+      { suppressErrorToast: options.suppressErrorToast ?? true },
     );
     return { data, error: null };
   } catch (error: any) {
@@ -398,7 +405,7 @@ export const updateRightToRentCheck = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data, error: null };
@@ -424,7 +431,7 @@ export const updateAMLReview = async (
       {
         method: "PUT",
         body: JSON.stringify(payload),
-        suppressErrorToast: options.suppressErrorToast,
+        suppressErrorToast: options.suppressErrorToast ?? true,
       },
     );
     return { data, error: null };

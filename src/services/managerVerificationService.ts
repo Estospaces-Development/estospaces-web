@@ -55,6 +55,7 @@ export interface ManagerProfile {
     cmp_certificate_url?: string;
     authorized_representative_name?: string;
     authorized_representative_email?: string;
+    service_areas?: string[];
     has_ombudsman: boolean;
     has_insurance: boolean;
     has_client_money: boolean;
@@ -150,6 +151,89 @@ export const isPlaceholderManagerCompanyName = (value?: string): boolean => {
     return PLACEHOLDER_MANAGER_COMPANY_NAMES.has(String(value || '').trim().toLowerCase());
 };
 
+const hasText = (value?: string | null): boolean => String(value || '').trim().length > 0;
+
+const getLatestManagerDocumentsByType = (documents: ManagerDocument[]): Map<ManagerDocumentType, ManagerDocument> => {
+    const latestDocuments = [...documents].sort((left, right) => (
+        new Date(right.submitted_at || right.updated_at).getTime() - new Date(left.submitted_at || left.updated_at).getTime()
+    ));
+
+    return latestDocuments.reduce((latestByType, document) => {
+        if (!latestByType.has(document.document_type)) {
+            latestByType.set(document.document_type, document);
+        }
+
+        return latestByType;
+    }, new Map<ManagerDocumentType, ManagerDocument>());
+};
+
+export const getManagerApprovalBlocker = (
+    profile: ManagerProfile | null,
+    documents: ManagerDocument[],
+): string | null => {
+    if (!profile) {
+        return 'Load the manager profile before approving this manager.';
+    }
+
+    const missingFields: string[] = [];
+    if (!hasText(profile.company_name) || isPlaceholderManagerCompanyName(profile.company_name)) {
+        missingFields.push('company name');
+    }
+    if (!hasText(profile.business_phone)) {
+        missingFields.push('business phone');
+    }
+    if (!hasText(profile.company_address)) {
+        missingFields.push('company address');
+    }
+
+    const registrationNumber = profile.company_registration_number || profile.license_number;
+    if (!hasText(registrationNumber)) {
+        missingFields.push(profile.profile_type === 'company' ? 'company registration number' : 'broker license number');
+    }
+    if (!hasText(profile.branch_name)) {
+        missingFields.push('branch name');
+    }
+    if (!hasText(profile.registered_office_address)) {
+        missingFields.push('registered office address');
+    }
+    if (!hasText(profile.complaints_contact)) {
+        missingFields.push('complaints contact');
+    }
+    if (!hasText(profile.redress_scheme_name)) {
+        missingFields.push('redress scheme name');
+    }
+    if (!hasText(profile.redress_membership_number)) {
+        missingFields.push('redress membership number');
+    }
+    if (profile.has_client_money && !hasText(profile.cmp_provider)) {
+        missingFields.push('client money protection provider');
+    }
+    if (profile.has_client_money && !hasText(profile.cmp_certificate_url)) {
+        missingFields.push('client money protection certificate');
+    }
+
+    if (missingFields.length > 0) {
+        return `Complete ${missingFields.join(', ')} before approving this manager.`;
+    }
+
+    const latestDocumentsByType = getLatestManagerDocumentsByType(documents);
+    const requiredDocuments = getRequiredDocuments(profile.profile_type);
+    const missingDocuments = requiredDocuments.filter((documentType) => !latestDocumentsByType.has(documentType));
+    if (missingDocuments.length > 0) {
+        return `Upload required verification documents before approving this manager: ${missingDocuments.map(getManagerDocumentTypeName).join(', ')}.`;
+    }
+
+    const blockedDocuments = requiredDocuments.filter((documentType) => {
+        const document = latestDocumentsByType.get(documentType);
+        return document?.verification_status === 'rejected' || document?.verification_status === 'reupload_required';
+    });
+    if (blockedDocuments.length > 0) {
+        return `Replace rejected verification documents before approving this manager: ${blockedDocuments.map(getManagerDocumentTypeName).join(', ')}.`;
+    }
+
+    return null;
+};
+
 export const getManagerDisplayName = (
     profile: Pick<ManagerProfile, 'company_name' | 'authorized_representative_name'>,
 ): string => {
@@ -168,6 +252,39 @@ export const getManagerDisplayName = (
 
 const normalizeProfileType = (value?: string): ManagerProfileType => {
     return value === 'company' ? 'company' : 'broker';
+};
+
+export const normalizeManagerServiceAreas = (value?: string[] | string | null): string[] => {
+    const rawValues = Array.isArray(value)
+        ? value
+        : (() => {
+            const raw = String(value || '').trim();
+            if (!raw || raw === '[]') return [];
+
+            if (raw.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch {
+                    return raw.replace(/^\[/, '').replace(/\]$/, '').split(',');
+                }
+            }
+
+            return raw.split(/[\n,]+/);
+        })();
+
+    const seen = new Set<string>();
+    return rawValues.reduce<string[]>((areas, area) => {
+        const normalized = String(area || '')
+            .trim()
+            .replace(/^["']|["']$/g, '')
+            .replace(/\s+/g, ' ')
+            .toUpperCase();
+        if (!normalized || seen.has(normalized)) return areas;
+        seen.add(normalized);
+        areas.push(normalized);
+        return areas;
+    }, []);
 };
 
 const isProfileNotFoundError = (error: string | null | undefined): boolean => {
@@ -263,6 +380,7 @@ const mapManagerProfile = (data: any, userInfo?: any): ManagerProfile => {
         tax_id: data.tax_id || undefined,
         company_address: data.company_address || undefined,
         registered_office_address: data.registered_office_address || undefined,
+        service_areas: normalizeManagerServiceAreas(data.service_areas),
         complaints_contact: data.complaints_contact || undefined,
         redress_scheme_name: data.redress_scheme_name || undefined,
         redress_membership_number: data.redress_membership_number || undefined,
@@ -441,7 +559,7 @@ const buildCreateManagerProfilePayload = (data: Partial<ManagerProfile>) => ({
     tax_id: data.tax_id || '',
     authorized_representative_name: data.authorized_representative_name || '',
     authorized_representative_email: data.authorized_representative_email || '',
-    service_areas: '[]',
+    service_areas: JSON.stringify(normalizeManagerServiceAreas(data.service_areas)),
     profile_type: data.profile_type || 'broker',
     has_ombudsman: data.has_ombudsman || false,
     has_insurance: data.has_insurance || false,
@@ -474,6 +592,7 @@ const buildUpdateManagerProfilePayload = (data: Partial<ManagerProfile>) => {
     if (data.tax_id !== undefined) payload.tax_id = data.tax_id;
     if (data.authorized_representative_name !== undefined) payload.authorized_representative_name = data.authorized_representative_name;
     if (data.authorized_representative_email !== undefined) payload.authorized_representative_email = data.authorized_representative_email;
+    if (data.service_areas !== undefined) payload.service_areas = JSON.stringify(normalizeManagerServiceAreas(data.service_areas));
     if (data.has_ombudsman !== undefined) payload.has_ombudsman = data.has_ombudsman;
     if (data.has_insurance !== undefined) payload.has_insurance = data.has_insurance;
     if (data.has_client_money !== undefined) payload.has_client_money = data.has_client_money;
@@ -488,6 +607,7 @@ export const createManagerProfile = async (_userId: string, data: Partial<Manage
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/register`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify(buildCreateManagerProfilePayload(data)),
         });
 
@@ -501,6 +621,7 @@ export const updateManagerProfile = async (_userId: string, data: Partial<Manage
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify(buildUpdateManagerProfilePayload(data)),
         });
 
@@ -520,6 +641,7 @@ export const uploadManagerDocument = async (
 
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 document_type: documentType,
                 document_category: mapDocumentCategory(documentType),
@@ -541,6 +663,7 @@ export const submitManagerDocument = async (data: any): Promise<{ data: ManagerD
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/documents`, {
             method: 'POST',
+            suppressErrorToast: true,
             body: JSON.stringify(data),
         });
 
@@ -560,6 +683,7 @@ export const deleteManagerDocument = async (_managerId: string, documentType: Ma
 
         await apiFetch(`${CORE_URL()}/api/v1/documents/${document.id}`, {
             method: 'DELETE',
+            suppressErrorToast: true,
         });
 
         return { error: null };
@@ -570,7 +694,9 @@ export const deleteManagerDocument = async (_managerId: string, documentType: Ma
 
 export const getManagerVerificationDetails = async (userId: string): Promise<{ data: ManagerVerificationDetails | null; error: string | null }> => {
     try {
-        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${userId}`);
+        const data = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/${userId}`, {
+            suppressErrorToast: true,
+        });
         const profile = data?.profile ? mapManagerProfile(data.profile, data.user_info) : null;
         const documents = Array.isArray(data?.documents) ? data.documents.map(mapManagerDocument) : [];
         const auditLog = Array.isArray(data?.audit_log)
@@ -613,6 +739,7 @@ export const startReview = async (managerId: string, _actorId: string): Promise<
         await Promise.all(
             pendingDocuments.map((document) => apiFetch(`${CORE_URL()}/api/v1/documents/${document.id}/review`, {
                 method: 'PUT',
+                suppressErrorToast: true,
                 body: JSON.stringify({ status: 'under_review' }),
             })),
         );
@@ -627,6 +754,7 @@ export const approveManager = async (managerId: string, _actorId: string, notes?
     try {
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'approved',
                 admin_notes: notes || '',
@@ -644,6 +772,7 @@ export const rejectManager = async (managerId: string, _actorId: string, reason:
     try {
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'rejected',
                 admin_notes: reason,
@@ -661,6 +790,7 @@ export const revokeManagerApproval = async (managerId: string, _actorId: string,
     try {
         await apiFetch(`${CORE_URL()}/api/v1/brokers/${managerId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'rejected',
                 admin_notes: `Approval revoked: ${reason}`,
@@ -683,6 +813,7 @@ export const requestDocumentReupload = async (
     try {
         await apiFetch(`${CORE_URL()}/api/v1/documents/${documentId}/review`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status: 'reupload_required',
                 reject_reason: reason,
@@ -699,6 +830,7 @@ export const submitForVerification = async (_managerId: string): Promise<{ data:
     try {
         const result = await apiFetch<any>(`${CORE_URL()}/api/v1/brokers/profile/submit`, {
             method: 'POST',
+            suppressErrorToast: true,
         });
 
         return { data: mapManagerProfile(result), error: null };
@@ -725,6 +857,7 @@ export interface UserVerificationInfo {
     has_identity_doc: boolean;
     has_address_doc: boolean;
     has_financial_doc: boolean;
+    documents_uploaded: boolean;
     documents_verified: boolean;
     lead_count: number;
     pending_leads: number;
@@ -755,7 +888,9 @@ export interface UserVerificationDetails {
 
 export const getManagerPendingUserVerifications = async (): Promise<{ data: UserVerificationInfo[]; error: string | null }> => {
     try {
-        const response = await apiFetchEnvelope<UserVerificationInfo[]>(`${CORE_URL()}/api/v1/manager/users/pending-verification`);
+        const response = await apiFetchEnvelope<UserVerificationInfo[]>(`${CORE_URL()}/api/v1/manager/users/pending-verification`, {
+            suppressErrorToast: true,
+        });
         return { data: response.data || [], error: null };
     } catch (error: any) {
         return { data: [], error: getErrorMessage(error) };
@@ -764,7 +899,9 @@ export const getManagerPendingUserVerifications = async (): Promise<{ data: User
 
 export const getManagerUserVerificationDetails = async (userId: string): Promise<{ data: UserVerificationDetails | null; error: string | null }> => {
     try {
-        const data = await apiFetch<UserVerificationDetails>(`${CORE_URL()}/api/v1/manager/users/${userId}/verification`);
+        const data = await apiFetch<UserVerificationDetails>(`${CORE_URL()}/api/v1/manager/users/${userId}/verification`, {
+            suppressErrorToast: true,
+        });
         return { data, error: null };
     } catch (error: any) {
         return { data: null, error: getErrorMessage(error) };
@@ -775,6 +912,7 @@ export const verifyUserByManager = async (userId: string, status: string, notes?
     try {
         await apiFetch(`${CORE_URL()}/api/v1/manager/users/${userId}/verify`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status,
                 notes: notes || '',
@@ -790,6 +928,7 @@ export const reviewUserDocumentByManager = async (documentId: string, status: st
     try {
         await apiFetch(`${CORE_URL()}/api/v1/manager/documents/${documentId}/review`, {
             method: 'PUT',
+            suppressErrorToast: true,
             body: JSON.stringify({
                 status,
                 reject_reason: rejectReason || '',

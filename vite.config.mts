@@ -5,6 +5,27 @@ import { fileURLToPath } from 'node:url';
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
+const SECURITY_HEADERS = {
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'accelerometer=(), autoplay=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
+    "connect-src 'self' http: https: ws: wss:",
+    "frame-src 'self' blob: https://js.stripe.com https://hooks.stripe.com https://maps.google.com https://www.google.com https://cdn.pannellum.org",
+    "form-action 'self'",
+  ].join('; '),
+};
+
 const DEV_PROXY_PATHS = {
   core: {
     keys: ['VITE_CORE_SERVICE_URL', 'VITE_CORE_API'],
@@ -95,19 +116,40 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      headers: SECURITY_HEADERS,
       fs: {
         allow: [path.resolve(rootDir, '..')],
       },
       proxy: buildServiceProxy(env),
     },
+    preview: {
+      headers: SECURITY_HEADERS,
+    },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      sourcemap: mode !== 'production' && mode !== 'staging',
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (!id.includes('node_modules')) {
               return;
+            }
+
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/scheduler/') ||
+              id.includes('/react-router/')
+            ) {
+              return 'react-core';
+            }
+
+            if (
+              id.includes('/react-hook-form/') ||
+              id.includes('/@hookform/resolvers/') ||
+              id.includes('/zod/')
+            ) {
+              return 'forms';
             }
 
             if (id.includes('leaflet') || id.includes('react-leaflet')) {
@@ -118,12 +160,24 @@ export default defineConfig(({ mode }) => {
               return 'motion';
             }
 
+            if (id.includes('/three/')) {
+              return 'three';
+            }
+
+            if (id.includes('/react-markdown/') || id.includes('/remark-gfm/')) {
+              return 'markdown';
+            }
+
             if (id.includes('pdf-lib') || id.includes('exceljs')) {
               return 'documents';
             }
 
             if (id.includes('@tanstack/react-query')) {
               return 'query';
+            }
+
+            if (id.includes('/lucide-react/')) {
+              return 'icons';
             }
           },
         },

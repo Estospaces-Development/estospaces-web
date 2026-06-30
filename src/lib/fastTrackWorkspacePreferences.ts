@@ -24,6 +24,18 @@ export interface FastTrackWorkspacePreferences {
   defaultActiveModule: FastTrackWorkspaceModule;
 }
 
+export interface FastTrackCaseRailLayoutOptions {
+  compactViewport: boolean;
+  desktopRailCollapsed: boolean;
+  compactDrawerOpen: boolean;
+}
+
+export interface FastTrackCaseRailLayout {
+  headerRailCollapsed: boolean;
+  renderCompactDrawerRail: boolean;
+  renderDesktopRail: boolean;
+}
+
 export const FAST_TRACK_WORKSPACE_MODULES: FastTrackWorkspaceModule[] = [
   'core_files',
   'case_chat',
@@ -86,6 +98,24 @@ const normalizeModuleList = (
   return normalized.length > 0 ? normalized : [...fallback];
 };
 
+const normalizeModuleOrder = (
+  values: Array<string | FastTrackWorkspaceModule> | null | undefined,
+  fallback: FastTrackWorkspaceModule[],
+): FastTrackWorkspaceModule[] => {
+  const normalized = normalizeModuleList(values, fallback);
+  const seen = new Set<FastTrackWorkspaceModule>(normalized);
+
+  for (const module of fallback) {
+    if (seen.has(module)) {
+      continue;
+    }
+    normalized.push(module);
+    seen.add(module);
+  }
+
+  return normalized;
+};
+
 const normalizeDensity = (
   value: string | null | undefined,
 ): FastTrackWorkspaceSecondaryDensity =>
@@ -134,7 +164,7 @@ export const normalizeFastTrackWorkspacePreferences = (
     raw?.visibleModules,
     defaults.visibleModules,
   );
-  const moduleOrder = normalizeModuleList(raw?.moduleOrder, defaults.moduleOrder);
+  const moduleOrder = normalizeModuleOrder(raw?.moduleOrder, defaults.moduleOrder);
   let defaultActiveModule = normalizeModule(raw?.defaultActiveModule);
 
   if (!defaultActiveModule) {
@@ -156,6 +186,16 @@ export const normalizeFastTrackWorkspacePreferences = (
     defaultActiveModule,
   };
 };
+
+export const resolveFastTrackCaseRailLayout = ({
+  compactViewport,
+  desktopRailCollapsed,
+  compactDrawerOpen,
+}: FastTrackCaseRailLayoutOptions): FastTrackCaseRailLayout => ({
+  headerRailCollapsed: compactViewport ? !compactDrawerOpen : desktopRailCollapsed,
+  renderCompactDrawerRail: compactViewport && compactDrawerOpen,
+  renderDesktopRail: !compactViewport && !desktopRailCollapsed,
+});
 
 export const orderVisibleFastTrackWorkspaceModules = (
   preferences: FastTrackWorkspacePreferences,

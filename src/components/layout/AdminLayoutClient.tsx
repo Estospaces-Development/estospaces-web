@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
-import { getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
+import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/lib/authUtils';
 
 interface AdminLayoutClientProps {
     children: React.ReactNode;
@@ -15,6 +15,7 @@ interface AdminLayoutClientProps {
 }
 
 export default function AdminLayoutClient({ children, isSubdomain = false }: AdminLayoutClientProps) {
+    const location = useLocation();
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         if (typeof window === 'undefined') {
             return true;
@@ -24,12 +25,38 @@ export default function AdminLayoutClient({ children, isSubdomain = false }: Adm
     const { user, loading, isAuthenticated } = useAuth();
     const shouldWaitForSession = shouldAwaitSessionResolution(loading, isAuthenticated);
 
+    useEffect(() => {
+        if (typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches) {
+            return;
+        }
+
+        setSidebarOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!sidebarOpen) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== 'Escape') {
+                return;
+            }
+
+            event.preventDefault();
+            setSidebarOpen(false);
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [sidebarOpen]);
+
     if (shouldWaitForSession) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={getLoginPath()} replace />;
     }
 
     if (user?.role !== 'admin') {

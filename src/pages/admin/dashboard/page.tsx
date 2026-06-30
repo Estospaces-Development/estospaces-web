@@ -15,18 +15,34 @@ import {
     ArrowRight,
     Loader2,
     FileText,
-    Info
+    Info,
+    ClipboardList,
+    Calendar,
+    Search,
+    X,
 } from 'lucide-react';
 import { getPlatformAnalytics, invalidateAnalyticsCache, AnalyticsData } from '@/services/analyticsService';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { buildAdminDashboardSnapshot, type AdminAnalyticsIconKey } from '@/lib/adminPlatformAnalytics';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getNotificationNavigationPath,
-    isPropertyWorkflowNotification,
     NOTIFICATION_TYPES,
     type Notification,
 } from '@/services/notificationsService';
+import { getNotificationIconColorClass, getNotificationTone } from '@/lib/notificationVisuals';
+import { getLaunchSafeNotificationCopy } from '@/lib/notificationLaunchCopy';
+
+const snapshotIconMap: Record<AdminAnalyticsIconKey, React.ComponentType<{ size?: number }>> = {
+    activity: Activity,
+    building: Building2,
+    eye: Activity,
+    file: FileText,
+    trending: TrendingUp,
+    users: Users,
+    zap: Shield,
+};
 
 const formatNotificationTime = (isoString: string) => {
     const date = new Date(isoString);
@@ -44,24 +60,67 @@ const formatNotificationTime = (isoString: string) => {
 };
 
 const getNotificationIcon = (notification: Notification) => {
-    if (isPropertyWorkflowNotification(notification)) {
-        return <Building2 size={16} className="text-blue-500" />;
-    }
-
     const { type } = notification;
+    const iconClass = getNotificationIconColorClass(notification);
+    const tone = getNotificationTone(notification);
+
     switch (type) {
         case NOTIFICATION_TYPES.USER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.MANAGER_VERIFICATION_SUBMITTED:
         case NOTIFICATION_TYPES.DOCUMENT_VERIFIED:
         case NOTIFICATION_TYPES.PROFILE_VERIFIED:
-            return <Shield size={16} className="text-orange-500" />;
+        case NOTIFICATION_TYPES.USER_VERIFICATION_REUPLOAD_REQUESTED:
+        case NOTIFICATION_TYPES.MANAGER_VERIFICATION_REUPLOAD_REQUESTED:
+            return <Shield size={16} className={iconClass} />;
         case NOTIFICATION_TYPES.APPLICATION_SUBMITTED:
         case NOTIFICATION_TYPES.APPLICATION_UPDATE:
         case NOTIFICATION_TYPES.APPLICATION_APPROVED:
+        case NOTIFICATION_TYPES.APPLICATION_REJECTED:
         case NOTIFICATION_TYPES.DOCUMENTS_REQUESTED:
-            return <FileText size={16} className="text-purple-500" />;
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REQUESTED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_UPLOADED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REVIEWED:
+        case NOTIFICATION_TYPES.CASE_FILE_DOCUMENT_REUPLOAD_REQUESTED:
+        case NOTIFICATION_TYPES.CONTRACT_UPDATE:
+        case NOTIFICATION_TYPES.CONTRACT_EXPIRING:
+            return <FileText size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.MESSAGE_RECEIVED:
+        case NOTIFICATION_TYPES.TICKET_RESPONSE:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_CREATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_STATUS_UPDATED:
+        case NOTIFICATION_TYPES.SUPPORT_TICKET_ASSIGNED:
+            return <MessageSquare size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.APPOINTMENT_APPROVED:
+        case NOTIFICATION_TYPES.APPOINTMENT_REJECTED:
+        case NOTIFICATION_TYPES.APPOINTMENT_REMINDER:
+        case NOTIFICATION_TYPES.VIEWING_BOOKED:
+        case NOTIFICATION_TYPES.VIEWING_CONFIRMED:
+        case NOTIFICATION_TYPES.VIEWING_COMPLETED:
+        case NOTIFICATION_TYPES.VIEWING_CANCELLED:
+        case NOTIFICATION_TYPES.VIEWING_RESCHEDULED:
+            return <Calendar size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.PAYMENT_REMINDER:
+        case NOTIFICATION_TYPES.PAYMENT_RECEIVED:
+        case NOTIFICATION_TYPES.PAYMENT_FAILED:
+            return <FileText size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.PROPERTY_SAVED:
+        case NOTIFICATION_TYPES.PROPERTY_SELECTED:
+        case NOTIFICATION_TYPES.PRICE_DROP:
+        case NOTIFICATION_TYPES.NEW_PROPERTY_MATCH:
+        case NOTIFICATION_TYPES.PROPERTY_AVAILABLE:
+        case NOTIFICATION_TYPES.PROPERTY_UNAVAILABLE:
+            return <Building2 size={16} className={iconClass} />;
+        case NOTIFICATION_TYPES.FAST_TRACK_STARTED:
+        case NOTIFICATION_TYPES.FAST_TRACK_UPDATED:
+        case NOTIFICATION_TYPES.FAST_TRACK_COMPLETED:
+        case NOTIFICATION_TYPES.SALE_JOURNEY_UPDATED:
+        case NOTIFICATION_TYPES.SALE_JOURNEY_COMPLETED:
+            return <Zap size={16} className={iconClass} />;
         default:
-            return <Info size={16} className="text-gray-500" />;
+            if (tone === 'orange') {
+                return <Building2 size={16} className={iconClass} />;
+            }
+            return <Info size={16} className={iconClass} />;
     }
 };
 
@@ -70,6 +129,7 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<AnalyticsData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [recentNotificationSearch, setRecentNotificationSearch] = useState('');
     const {
         notifications,
         loading: notificationsLoading,
@@ -141,16 +201,26 @@ export default function AdminDashboard() {
         activeTransactions: data?.leadAnalytics?.totalLeads || data?.active_leads || 0
     };
 
-    const platformSnapshot = [
-        { id: 'users', label: 'Total Users', value: data?.total_users || 0, icon: Users, color: 'text-blue-500' },
-        { id: 'properties', label: 'Total Properties', value: data?.total_properties || 0, icon: Building2, color: 'text-emerald-500' },
-        { id: 'brokers', label: 'Verified Brokers', value: data?.total_brokers || 0, icon: Shield, color: 'text-purple-500' },
-        { id: 'pending', label: 'Pending Verifications', value: data?.pending_verifications || 0, icon: Activity, color: 'text-orange-500' },
-    ];
+    const platformSnapshot = buildAdminDashboardSnapshot(data);
 
+    const recentNotificationSearchTerm = recentNotificationSearch.trim().toLowerCase();
     const recentNotifications = [...notifications]
         .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+        .filter((notification) => {
+            if (!recentNotificationSearchTerm) {
+                return true;
+            }
+
+            const displayCopy = getLaunchSafeNotificationCopy(notification);
+            return [
+                displayCopy.title,
+                displayCopy.message,
+                notification.type,
+                formatNotificationTime(notification.created_at),
+            ].join(' ').toLowerCase().includes(recentNotificationSearchTerm);
+        })
         .slice(0, 5);
+    const hasRecentNotificationSearch = recentNotificationSearchTerm.length > 0;
 
     const handleRecentNotificationClick = async (notification: Notification) => {
         if (!notification.is_read) {
@@ -363,6 +433,24 @@ export default function AdminDashboard() {
                                     <ArrowRight size={16} />
                                 </div>
                             </button>
+
+                            <button
+                                onClick={() => navigate('/admin/research')}
+                                className="group p-4 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-orange-50 dark:hover:bg-orange-900/10 border border-transparent hover:border-orange-100 dark:hover:border-orange-900/30 transition-all text-left flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm text-orange-500 group-hover:scale-110 transition-transform">
+                                        <ClipboardList size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-orange-700 dark:group-hover:text-orange-400 transition-colors">Observational Research</h3>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 group-hover:text-orange-700/80 dark:group-hover:text-orange-300/80">Shadow journeys and review friction</p>
+                                    </div>
+                                </div>
+                                <div className="h-8 w-8 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm text-orange-500">
+                                    <ArrowRight size={16} />
+                                </div>
+                            </button>
                         </div>
                     </div>
 
@@ -402,20 +490,24 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="space-y-4">
-                            {platformSnapshot.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
-                                            <item.icon size={16} />
+                            {platformSnapshot.map((item) => {
+                                const SnapshotIcon = snapshotIconMap[item.icon];
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center justify-between rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-800/40 px-4 py-3"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`rounded-lg bg-white dark:bg-gray-900 p-2 ${item.color}`}>
+                                                <SnapshotIcon size={16} />
+                                            </div>
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
                                         </div>
-                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.label}</p>
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value}</p>
                                     </div>
-                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{item.value.toLocaleString()}</p>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         <p className="mt-6 text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -441,6 +533,40 @@ export default function AdminDashboard() {
                             </span>
                         </div>
 
+                        <div className="mb-4">
+                            <label
+                                htmlFor="recent-notification-search"
+                                className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300"
+                            >
+                                Search recent notifications
+                            </label>
+                            <div className="relative">
+                                <Search
+                                    size={16}
+                                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                    id="recent-notification-search"
+                                    type="search"
+                                    value={recentNotificationSearch}
+                                    onChange={(event) => setRecentNotificationSearch(event.target.value)}
+                                    aria-label="Search recent notifications"
+                                    placeholder="Search recent notifications"
+                                    className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-10 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-orange-300 focus:bg-white focus:ring-2 focus:ring-orange-100 dark:border-gray-800 dark:bg-gray-800/70 dark:text-white dark:focus:border-orange-700 dark:focus:bg-gray-900 dark:focus:ring-orange-950"
+                                />
+                                {recentNotificationSearch && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setRecentNotificationSearch('')}
+                                        aria-label="Clear recent notification search"
+                                        className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
                         {notificationsLoading && recentNotifications.length === 0 ? (
                             <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 px-4 py-8 text-center">
                                 <Loader2 size={20} className="mx-auto mb-3 animate-spin text-orange-500" />
@@ -454,24 +580,31 @@ export default function AdminDashboard() {
                                     <Bell size={18} />
                                 </div>
                                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                                    No recent notifications
+                                    {hasRecentNotificationSearch
+                                        ? 'No recent notifications match this search'
+                                        : 'No recent notifications'}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    New user and manager verification submissions will appear here.
+                                    {hasRecentNotificationSearch
+                                        ? 'Try another title, type, message, or time keyword.'
+                                        : 'New user and manager verification submissions will appear here.'}
                                 </p>
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {recentNotifications.map((notification) => (
-                                    <button
-                                        key={notification.id}
-                                        onClick={() => handleRecentNotificationClick(notification)}
-                                        className={`w-full rounded-xl border px-4 py-4 text-left transition-all hover:shadow-sm ${
-                                            notification.is_read
-                                                ? 'border-gray-100 bg-gray-50/70 hover:border-gray-200 dark:border-gray-800 dark:bg-gray-800/30 dark:hover:border-gray-700'
-                                                : 'border-orange-100 bg-orange-50/60 hover:border-orange-200 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:border-orange-800/60'
-                                        }`}
-                                    >
+                                {recentNotifications.map((notification) => {
+                                    const displayCopy = getLaunchSafeNotificationCopy(notification);
+
+                                    return (
+                                        <button
+                                            key={notification.id}
+                                            onClick={() => handleRecentNotificationClick(notification)}
+                                            className={`w-full rounded-xl border px-4 py-4 text-left transition-all hover:shadow-sm ${
+                                                notification.is_read
+                                                    ? 'border-gray-100 bg-gray-50/70 hover:border-gray-200 dark:border-gray-800 dark:bg-gray-800/30 dark:hover:border-gray-700'
+                                                    : 'border-orange-100 bg-orange-50/60 hover:border-orange-200 dark:border-orange-900/40 dark:bg-orange-900/10 dark:hover:border-orange-800/60'
+                                            }`}
+                                        >
                                         <div className="flex items-start gap-3">
                                             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 dark:bg-gray-900">
                                                 {getNotificationIcon(notification)}
@@ -479,16 +612,16 @@ export default function AdminDashboard() {
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div className="min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                                                {notification.title}
+                                                        <div className="flex items-start gap-2">
+                                                            <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-gray-900 dark:text-white">
+                                                                {displayCopy.title}
                                                             </p>
                                                             {!notification.is_read && (
-                                                                <span className="h-2 w-2 rounded-full bg-orange-500" />
+                                                                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-orange-500" />
                                                             )}
                                                         </div>
                                                         <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                                                            {notification.message}
+                                                            {displayCopy.message}
                                                         </p>
                                                     </div>
                                                     <span className="shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-600 dark:text-gray-300">
@@ -497,8 +630,9 @@ export default function AdminDashboard() {
                                                 </div>
                                             </div>
                                         </div>
-                                    </button>
-                                ))}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

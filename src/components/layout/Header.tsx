@@ -9,6 +9,8 @@ import { useManagerVerification } from '../../contexts/ManagerVerificationContex
 import NotificationDropdown from '../dashboard/NotificationDropdown';
 import ThemeSwitcher from '../dashboard/ThemeSwitcher';
 import Avatar from '../ui/Avatar';
+import { getProfileMenuControlLabel } from '@/lib/profileMenuAccessibility';
+import { getLoginPath } from '@/lib/authUtils';
 
 interface HeaderProps {
     onMenuToggle?: () => void;
@@ -28,6 +30,12 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     const [searchQuery, setSearchQuery] = useState('');
     const role = getRole();
     const workspaceRole = role === 'broker' ? 'manager' : role;
+    const displayName = getDisplayName();
+    const profileMenuLabel = getProfileMenuControlLabel({
+        displayName,
+        role: workspaceRole || 'manager',
+        isOpen: isProfileOpen,
+    });
 
     const profileRef = useRef<HTMLDivElement>(null);
 
@@ -42,17 +50,19 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleSearch = (e: React.FormEvent) => {
+    const handleSearch = (e: React.FormEvent | React.KeyboardEvent<HTMLInputElement>) => {
         e.preventDefault();
-        if (searchQuery.trim()) {
-            // Implement global search or redirect to search page
+        const normalizedSearchQuery = searchQuery.trim().replace(/\s+/g, ' ');
+        if (normalizedSearchQuery) {
+            setSearchQuery(normalizedSearchQuery);
+            navigate(`/manager/leads?search=${encodeURIComponent(normalizedSearchQuery)}`);
         }
     };
 
     const handleSignOut = async () => {
         try {
             await signOut();
-            navigate('/login');
+            navigate(getLoginPath());
         } catch (error) {
         }
     };
@@ -128,6 +138,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                             placeholder="Search properties, leads, or tasks..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleSearch(e);
+                                }
+                            }}
                             className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border-none rounded-xl text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-white dark:focus:bg-gray-800 transition-all"
                         />
                     </form>
@@ -162,12 +177,14 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         <button
                             onClick={() => setIsProfileOpen(!isProfileOpen)}
                             className="flex items-center gap-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            aria-label="Open profile menu"
+                            aria-label={profileMenuLabel}
+                            aria-haspopup="menu"
+                            aria-expanded={isProfileOpen}
                         >
                             <Avatar
                                 userId={user?.id}
                                 src={user?.avatar || user?.avatar_url}
-                                name={getDisplayName()}
+                                name={displayName}
                                 size="sm"
                             />
                         </button>
@@ -175,7 +192,7 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                         {isProfileOpen && (
                             <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 py-2 animate-in fade-in slide-in-from-top-2">
                                 <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-                                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{getDisplayName()}</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{displayName}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{role}</p>
                                 </div>
                                 <div className="py-1">

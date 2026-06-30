@@ -1,3 +1,4 @@
+const fs = require('node:fs');
 const path = require('node:path');
 
 function requireEnv(name) {
@@ -7,6 +8,57 @@ function requireEnv(name) {
   }
   return value;
 }
+
+function readEnvValueFromFile(filename, envKey) {
+  const filePath = path.join(process.cwd(), filename);
+  if (!fs.existsSync(filePath)) {
+    return '';
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+    const [key, ...valueParts] = line.split('=');
+    if (key === envKey) {
+      return valueParts.join('=').trim();
+    }
+  }
+
+  return '';
+}
+
+function readEnvValue(envKey, filenames) {
+  for (const filename of filenames) {
+    const value = readEnvValueFromFile(filename, envKey);
+    if (value) {
+      return value;
+    }
+  }
+  return '';
+}
+
+const DEV_WEB_BASE_URL = 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app';
+
+function resolveDevBaseUrl() {
+  return (
+    process.env.E2E_DEV_BASE_URL
+    || readEnvValue('FRONTEND_URL', ['.env.development', '.env.gcp-dev'])
+    || DEV_WEB_BASE_URL
+  );
+}
+
+function resolveDevServiceUrl(envKey, fallback) {
+  return (
+    process.env[envKey]
+    || readEnvValue(envKey.replace(/^E2E_DEV_/, 'VITE_').replace(/_URL$/, '_SERVICE_URL'), ['.env.development', '.env.gcp-dev'])
+    || fallback
+  );
+}
+
+const devBaseUrl = resolveDevBaseUrl();
 
 const targets = {
   local: {
@@ -26,17 +78,32 @@ const targets = {
   },
   dev: {
     name: 'dev',
-    baseUrl: process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
-    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
-    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || 'https://estospaces-web-dev-zaryfkxmeq-nw.a.run.app',
+    baseUrl: devBaseUrl,
+    appBaseUrl: process.env.E2E_DEV_APP_BASE_URL || process.env.E2E_DEV_BASE_URL || devBaseUrl,
+    adminBaseUrl: process.env.E2E_DEV_ADMIN_BASE_URL || process.env.E2E_DEV_BASE_URL || devBaseUrl,
     services: {
-      core: process.env.E2E_DEV_CORE_URL || 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app',
-      booking: process.env.E2E_DEV_BOOKING_URL || 'https://estospaces-booking-service-dev-zaryfkxmeq-nw.a.run.app',
-      payment: process.env.E2E_DEV_PAYMENT_URL || 'https://estospaces-payment-service-dev-zaryfkxmeq-nw.a.run.app',
-      notification: process.env.E2E_DEV_NOTIFICATION_URL || 'https://estospaces-notification-service-dev-zaryfkxmeq-nw.a.run.app',
-      search: process.env.E2E_DEV_SEARCH_URL || 'https://estospaces-search-service-dev-zaryfkxmeq-nw.a.run.app',
-      media: process.env.E2E_DEV_MEDIA_URL || 'https://estospaces-media-service-dev-zaryfkxmeq-nw.a.run.app',
-      messaging: process.env.E2E_DEV_MESSAGING_URL || 'https://estospaces-messaging-service-dev-zaryfkxmeq-nw.a.run.app',
+      core: resolveDevServiceUrl('E2E_DEV_CORE_URL', 'https://estospaces-core-service-dev-zaryfkxmeq-nw.a.run.app'),
+      booking: resolveDevServiceUrl('E2E_DEV_BOOKING_URL', 'https://estospaces-booking-service-dev-zaryfkxmeq-nw.a.run.app'),
+      payment: resolveDevServiceUrl('E2E_DEV_PAYMENT_URL', 'https://estospaces-payment-service-dev-zaryfkxmeq-nw.a.run.app'),
+      notification: resolveDevServiceUrl('E2E_DEV_NOTIFICATION_URL', 'https://estospaces-notification-service-dev-zaryfkxmeq-nw.a.run.app'),
+      search: resolveDevServiceUrl('E2E_DEV_SEARCH_URL', 'https://estospaces-search-service-dev-zaryfkxmeq-nw.a.run.app'),
+      media: resolveDevServiceUrl('E2E_DEV_MEDIA_URL', 'https://estospaces-media-service-dev-zaryfkxmeq-nw.a.run.app'),
+      messaging: resolveDevServiceUrl('E2E_DEV_MESSAGING_URL', 'https://estospaces-messaging-service-dev-zaryfkxmeq-nw.a.run.app'),
+    },
+  },
+  staging: {
+    name: 'staging',
+    baseUrl: process.env.E2E_STAGING_BASE_URL || 'https://estospaces-web-staging-zaryfkxmeq-nw.a.run.app',
+    appBaseUrl: process.env.E2E_STAGING_APP_BASE_URL || process.env.E2E_STAGING_BASE_URL || 'https://estospaces-web-staging-zaryfkxmeq-nw.a.run.app',
+    adminBaseUrl: process.env.E2E_STAGING_ADMIN_BASE_URL || process.env.E2E_STAGING_BASE_URL || 'https://estospaces-web-staging-zaryfkxmeq-nw.a.run.app',
+    services: {
+      core: process.env.E2E_STAGING_CORE_URL || 'https://estospaces-core-service-staging-zaryfkxmeq-nw.a.run.app',
+      booking: process.env.E2E_STAGING_BOOKING_URL || 'https://estospaces-booking-service-staging-zaryfkxmeq-nw.a.run.app',
+      payment: process.env.E2E_STAGING_PAYMENT_URL || 'https://estospaces-payment-service-staging-zaryfkxmeq-nw.a.run.app',
+      notification: process.env.E2E_STAGING_NOTIFICATION_URL || 'https://estospaces-notification-service-staging-zaryfkxmeq-nw.a.run.app',
+      search: process.env.E2E_STAGING_SEARCH_URL || 'https://estospaces-search-service-staging-zaryfkxmeq-nw.a.run.app',
+      media: process.env.E2E_STAGING_MEDIA_URL || 'https://estospaces-media-service-staging-zaryfkxmeq-nw.a.run.app',
+      messaging: process.env.E2E_STAGING_MESSAGING_URL || 'https://estospaces-messaging-service-staging-zaryfkxmeq-nw.a.run.app',
     },
   },
   prod: {
@@ -129,15 +196,25 @@ async function parseJson(response, label) {
   return payload;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function loginViaApi(target, roleName) {
   const role = credentials[roleName];
   const email = requireEnv(role.emailEnv);
   const password = requireEnv(role.passwordEnv);
-  const response = await fetch(`${target.services.core}/api/v1/auth/login`, {
+  const loginUrl = `${target.services.core}/api/v1/auth/login`;
+  const request = () => fetch(loginUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   });
+  let response = await request();
+  if (response.status === 429) {
+    await sleep(65000);
+    response = await request();
+  }
   const payload = await parseJson(response, `login ${email}`);
   const rawUser = payload?.data?.user ?? payload?.user;
   const token = payload?.data?.token ?? payload?.token;
@@ -180,6 +257,12 @@ function buildArtifactPath(filename) {
   return path.join(process.cwd(), 'output', 'playwright', filename);
 }
 
+function isIgnorableConsoleError(message) {
+  const text = String(message || '').toLowerCase();
+  return text.includes('downloadable font: download failed')
+    && text.includes('fonts.gstatic.com');
+}
+
 function normalizeRole(roleName) {
   const role = String(roleName || '').trim().toLowerCase();
   if (role === 'admin') {
@@ -205,6 +288,7 @@ module.exports = {
   credentials,
   ensureReachable,
   getRoleBaseUrl,
+  isIgnorableConsoleError,
   loginViaApi,
   parseOption,
   parseTarget,

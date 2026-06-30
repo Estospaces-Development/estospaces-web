@@ -80,6 +80,95 @@ function toTimeInputValue(dateTime: string) {
     });
 }
 
+export const MAX_MANAGER_APPOINTMENT_NOTE_LENGTH = 1000;
+export const MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH = 500;
+
+export type ManagerRescheduleForm = {
+    requested_date: string;
+    requested_time: string;
+    manager_notes: string;
+};
+
+export type ManagerRescheduleValidationErrors = Partial<Record<keyof ManagerRescheduleForm, string>>;
+
+export function normalizeManagerAppointmentNote(value: string) {
+    return value.trim().replace(/\s+/g, ' ');
+}
+
+export function normalizeManagerAppointmentCancelReason(value: string) {
+    return value.trim().replace(/\s+/g, ' ');
+}
+
+export function validateManagerAppointmentCancelReason(value: string) {
+    const normalizedReason = normalizeManagerAppointmentCancelReason(value);
+    if (!normalizedReason) {
+        return 'Enter a cancellation reason.';
+    }
+    if (normalizedReason.length > MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH) {
+        return 'Keep the cancellation reason to 500 characters or fewer.';
+    }
+    return null;
+}
+
+export function validateManagerRescheduleForm(form: ManagerRescheduleForm, now = new Date()): ManagerRescheduleValidationErrors {
+    const errors: ManagerRescheduleValidationErrors = {};
+    const requestedDate = form.requested_date.trim();
+    const requestedTime = form.requested_time.trim();
+    const dateMatch = requestedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const timeMatch = requestedTime.match(/^(\d{2}):(\d{2})$/);
+    let dateParts: { year: number; month: number; day: number } | null = null;
+    let timeParts: { hour: number; minute: number } | null = null;
+
+    if (!requestedDate) {
+        errors.requested_date = 'Choose a new appointment date.';
+    } else if (!dateMatch) {
+        errors.requested_date = 'Enter a valid appointment date.';
+    } else {
+        const year = Number(dateMatch[1]);
+        const month = Number(dateMatch[2]);
+        const day = Number(dateMatch[3]);
+        const parsed = new Date(year, month - 1, day);
+        if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
+            errors.requested_date = 'Enter a valid appointment date.';
+        } else {
+            dateParts = { year, month, day };
+        }
+    }
+
+    if (!requestedTime) {
+        errors.requested_time = 'Choose a new appointment time.';
+    } else if (!timeMatch) {
+        errors.requested_time = 'Enter a valid appointment time.';
+    } else {
+        const hour = Number(timeMatch[1]);
+        const minute = Number(timeMatch[2]);
+        if (hour > 23 || minute > 59) {
+            errors.requested_time = 'Enter a valid appointment time.';
+        } else {
+            timeParts = { hour, minute };
+        }
+    }
+
+    if (dateParts && timeParts) {
+        const scheduledAt = new Date(
+            dateParts.year,
+            dateParts.month - 1,
+            dateParts.day,
+            timeParts.hour,
+            timeParts.minute,
+        );
+        if (scheduledAt <= now) {
+            errors.requested_time = 'Choose a future appointment time.';
+        }
+    }
+
+    if (normalizeManagerAppointmentNote(form.manager_notes).length > MAX_MANAGER_APPOINTMENT_NOTE_LENGTH) {
+        errors.manager_notes = 'Keep manager notes to 1000 characters or fewer.';
+    }
+
+    return errors;
+}
+
 function getClientName(viewing: Viewing) {
     return viewing.client_name || viewing.client_email || (viewing.user_id ? `Client ${viewing.user_id.slice(0, 8)}` : 'Client');
 }
@@ -118,13 +207,18 @@ export default function ManagerAppointmentsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [actingID, setActingID] = useState<string | null>(null);
     const [rescheduleTarget, setRescheduleTarget] = useState<Viewing | null>(null);
+    const [cancelTarget, setCancelTarget] = useState<Viewing | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelReasonError, setCancelReasonError] = useState<string | null>(null);
     const [verificationTarget, setVerificationTarget] = useState<Viewing | null>(null);
     const removedCaseNoticeRef = useRef<string | null>(null);
-    const [rescheduleForm, setRescheduleForm] = useState({
+    const cancelInFlightRef = useRef(false);
+    const [rescheduleForm, setRescheduleForm] = useState<ManagerRescheduleForm>({
         requested_date: '',
         requested_time: '10:00',
         manager_notes: '',
     });
+    const [rescheduleFormErrors, setRescheduleFormErrors] = useState<ManagerRescheduleValidationErrors>({});
 
     const fetchAppointments = async () => {
         setLoading(true);
@@ -232,6 +326,7 @@ export default function ManagerAppointmentsPage() {
         cancelled: appointments.filter((appointment) => appointment.status === 'cancelled').length,
     }), [appointments]);
     const isSavingReschedule = Boolean(rescheduleTarget && actingID === rescheduleTarget.id);
+    const isSavingCancel = Boolean(cancelTarget && actingID === cancelTarget.id);
 
     const runAction = async (
         appointmentID: string,
@@ -292,8 +387,25 @@ export default function ManagerAppointmentsPage() {
         }
     };
 
+    const updateRescheduleFormField = (field: keyof ManagerRescheduleForm, value: string) => {
+        setRescheduleForm((previous) => ({ ...previous, [field]: value }));
+        setRescheduleFormErrors((previous) => {
+            if (!previous[field]) {
+                return previous;
+            }
+            const { [field]: _removedError, ...remainingErrors } = previous;
+            return remainingErrors;
+        });
+    };
+
+    const closeReschedule = () => {
+        setRescheduleTarget(null);
+        setRescheduleFormErrors({});
+    };
+
     const openReschedule = (appointment: Viewing) => {
         setRescheduleTarget(appointment);
+        setRescheduleFormErrors({});
         setRescheduleForm({
             requested_date: toDateInputValue(appointment.scheduled_at),
             requested_time: toTimeInputValue(appointment.scheduled_at),
@@ -305,30 +417,82 @@ export default function ManagerAppointmentsPage() {
         if (!rescheduleTarget) {
             return;
         }
-        if (!rescheduleForm.requested_date || !rescheduleForm.requested_time) {
-            toast.error('Please choose the new date and time.');
+        const validationErrors = validateManagerRescheduleForm(rescheduleForm);
+        setRescheduleFormErrors(validationErrors);
+        if (Object.keys(validationErrors).length > 0) {
+            toast.error('Please fix the reschedule details.');
             return;
         }
+        const requestedDate = rescheduleForm.requested_date.trim();
+        const requestedTime = rescheduleForm.requested_time.trim();
+        const managerNotes = normalizeManagerAppointmentNote(rescheduleForm.manager_notes);
 
         await runAction(
             rescheduleTarget.id,
             async () => {
                 await bookingsService.updateViewing(rescheduleTarget.id, {
-                    requested_date: rescheduleForm.requested_date,
-                    requested_time: rescheduleForm.requested_time,
-                    manager_notes: rescheduleForm.manager_notes,
+                    requested_date: requestedDate,
+                    requested_time: requestedTime,
+                    manager_notes: managerNotes,
                 });
-                setRescheduleTarget(null);
+                closeReschedule();
             },
             'Appointment rescheduled successfully.',
             {
                 action: 'reschedule_viewing',
                 payload: {
-                    scheduled_at: new Date(`${rescheduleForm.requested_date}T${rescheduleForm.requested_time}:00`).toISOString(),
-                    note: rescheduleForm.manager_notes,
+                    scheduled_at: new Date(`${requestedDate}T${requestedTime}:00`).toISOString(),
+                    note: managerNotes,
                 },
             },
         );
+    };
+
+    const openCancel = (appointment: Viewing) => {
+        setCancelTarget(appointment);
+        setCancelReason('');
+        setCancelReasonError(null);
+    };
+
+    const closeCancel = () => {
+        if (cancelInFlightRef.current) {
+            return;
+        }
+        setCancelTarget(null);
+        setCancelReason('');
+        setCancelReasonError(null);
+    };
+
+    const submitCancel = async () => {
+        if (!cancelTarget || cancelInFlightRef.current) {
+            return;
+        }
+        const validationError = validateManagerAppointmentCancelReason(cancelReason);
+        setCancelReasonError(validationError);
+        if (validationError) {
+            toast.error('Please enter a valid cancellation reason.');
+            return;
+        }
+
+        const normalizedReason = normalizeManagerAppointmentCancelReason(cancelReason);
+        cancelInFlightRef.current = true;
+        await runAction(
+            cancelTarget.id,
+            async () => {
+                await bookingsService.cancelViewing(cancelTarget.id, normalizedReason);
+                setCancelTarget(null);
+                setCancelReason('');
+                setCancelReasonError(null);
+            },
+            'Appointment cancelled successfully.',
+            {
+                action: 'skip_viewing',
+                payload: {
+                    note: normalizedReason,
+                },
+            },
+        );
+        cancelInFlightRef.current = false;
     };
 
     return (
@@ -382,6 +546,7 @@ export default function ManagerAppointmentsPage() {
                         </div>
                         <input
                             type="text"
+                            aria-label="Search appointments"
                             placeholder="Search by client or property..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -539,7 +704,7 @@ export default function ManagerAppointmentsPage() {
                                                         },
                                                     )}
                                                     disabled={isBusy}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-700 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
                                                     {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                                                     Confirm
@@ -578,17 +743,7 @@ export default function ManagerAppointmentsPage() {
 
                                             {!isWorkflowLocked && (appointment.status === 'pending' || appointment.status === 'confirmed' || appointment.status === 'rescheduled') && (
                                                 <button
-                                                    onClick={() => runAction(
-                                                        appointment.id,
-                                                        () => bookingsService.cancelViewing(appointment.id, 'Cancelled by manager'),
-                                                        'Appointment cancelled successfully.',
-                                                        {
-                                                            action: 'skip_viewing',
-                                                            payload: {
-                                                                note: 'Cancelled by manager',
-                                                            },
-                                                        },
-                                                    )}
+                                                    onClick={() => openCancel(appointment)}
                                                     disabled={isBusy}
                                                     className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
                                                 >
@@ -608,7 +763,7 @@ export default function ManagerAppointmentsPage() {
                 isOpen={Boolean(rescheduleTarget)}
                 onClose={() => {
                     if (!isSavingReschedule) {
-                        setRescheduleTarget(null);
+                        closeReschedule();
                     }
                 }}
                 title="Reschedule Appointment"
@@ -617,7 +772,7 @@ export default function ManagerAppointmentsPage() {
                 footer={rescheduleTarget ? (
                     <div className="flex justify-end gap-3">
                         <button
-                            onClick={() => setRescheduleTarget(null)}
+                            onClick={closeReschedule}
                             disabled={isSavingReschedule}
                             className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                         >
@@ -643,21 +798,33 @@ export default function ManagerAppointmentsPage() {
                                 <span className="font-medium text-gray-700 dark:text-gray-300">Date</span>
                                 <DateField
                                     value={rescheduleForm.requested_date}
-                                    onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_date: nextValue }))}
+                                    onChange={(nextValue) => updateRescheduleFormField('requested_date', nextValue)}
                                     className="w-full"
                                     buttonClassName="bg-gray-50 dark:bg-gray-900"
                                     ariaLabel="Appointment reschedule date"
+                                    ariaDescribedBy={rescheduleFormErrors.requested_date ? 'manager-reschedule-date-error' : undefined}
                                 />
+                                {rescheduleFormErrors.requested_date ? (
+                                    <p id="manager-reschedule-date-error" role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">
+                                        {rescheduleFormErrors.requested_date}
+                                    </p>
+                                ) : null}
                             </label>
                             <label className="space-y-2 text-sm">
                                 <span className="font-medium text-gray-700 dark:text-gray-300">Time</span>
                                 <TimeField
                                     value={rescheduleForm.requested_time}
-                                    onChange={(nextValue) => setRescheduleForm((previous) => ({ ...previous, requested_time: nextValue }))}
+                                    onChange={(nextValue) => updateRescheduleFormField('requested_time', nextValue)}
                                     className="w-full"
                                     inputClassName="bg-gray-50 dark:bg-gray-900"
                                     ariaLabel="Appointment reschedule time"
+                                    ariaDescribedBy={rescheduleFormErrors.requested_time ? 'manager-reschedule-time-error' : undefined}
                                 />
+                                {rescheduleFormErrors.requested_time ? (
+                                    <p id="manager-reschedule-time-error" role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">
+                                        {rescheduleFormErrors.requested_time}
+                                    </p>
+                                ) : null}
                             </label>
                         </div>
 
@@ -666,12 +833,79 @@ export default function ManagerAppointmentsPage() {
                             <textarea
                                 rows={4}
                                 value={rescheduleForm.manager_notes}
-                                onChange={(event) => setRescheduleForm((previous) => ({ ...previous, manager_notes: event.target.value }))}
+                                onChange={(event) => updateRescheduleFormField('manager_notes', event.target.value)}
+                                aria-describedby={rescheduleFormErrors.manager_notes ? 'manager-reschedule-notes-error' : undefined}
                                 className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none focus:border-orange-400 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                                 placeholder="Explain the new slot or what the client should bring."
                             />
+                            {rescheduleFormErrors.manager_notes ? (
+                                <p id="manager-reschedule-notes-error" role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">
+                                    {rescheduleFormErrors.manager_notes}
+                                </p>
+                            ) : null}
                         </label>
                     </>
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={Boolean(cancelTarget)}
+                onClose={closeCancel}
+                title="Cancel Appointment"
+                size="md"
+                closeOnBackdrop={!isSavingCancel}
+                footer={cancelTarget ? (
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                            type="button"
+                            onClick={closeCancel}
+                            disabled={isSavingCancel}
+                            className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                        >
+                            Keep Appointment
+                        </button>
+                        <button
+                            type="button"
+                            onClick={submitCancel}
+                            disabled={isSavingCancel}
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isSavingCancel && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Cancel Appointment
+                        </button>
+                    </div>
+                ) : null}
+            >
+                {cancelTarget && (
+                    <div className="space-y-4">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{getPropertyName(cancelTarget)}</p>
+                        <label className="block space-y-2 text-sm">
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Cancellation reason</span>
+                            <textarea
+                                rows={4}
+                                value={cancelReason}
+                                onChange={(event) => {
+                                    setCancelReason(event.target.value);
+                                    if (cancelReasonError) {
+                                        setCancelReasonError(null);
+                                    }
+                                }}
+                                aria-describedby={cancelReasonError ? 'manager-cancel-reason-error' : 'manager-cancel-reason-count'}
+                                disabled={isSavingCancel}
+                                className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition-colors focus:border-red-300 focus:ring-2 focus:ring-red-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+                                placeholder="Explain why this appointment needs to be cancelled."
+                            />
+                            {cancelReasonError ? (
+                                <p id="manager-cancel-reason-error" role="alert" className="text-xs font-medium text-red-600 dark:text-red-400">
+                                    {cancelReasonError}
+                                </p>
+                            ) : (
+                                <p id="manager-cancel-reason-count" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    {normalizeManagerAppointmentCancelReason(cancelReason).length}/{MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH}
+                                </p>
+                            )}
+                        </label>
+                    </div>
                 )}
             </Modal>
 
@@ -680,6 +914,11 @@ export default function ManagerAppointmentsPage() {
                     scope="manager"
                     userId={verificationTarget.user_id}
                     variant="fast_track"
+                    missingUserContext={{
+                        name: verificationTarget.client_name,
+                        email: verificationTarget.client_email,
+                        source: 'appointment',
+                    }}
                     onUpdated={async () => {
                         await fetchAppointments();
                     }}

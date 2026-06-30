@@ -92,6 +92,7 @@ const ApplicationFilters: React.FC<ApplicationFiltersProps> = ({
                 />
                 <input
                     type="text"
+                    aria-label="Search applications"
                     placeholder="Search by property name, location, or application ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
