@@ -6,7 +6,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { SavedPropertiesProvider } from "@/contexts/SavedPropertiesContext";
 import { ApplicationsProvider } from "@/contexts/ApplicationsContext";
-import { PropertyProvider } from "@/contexts/PropertyContext";
 import { UserProfileSummaryProvider } from "@/contexts/UserProfileSummaryContext";
 import { WorkspaceSyncProvider } from "@/contexts/WorkspaceSyncContext";
 import { BrowserRouter } from 'react-router-dom';
@@ -18,13 +17,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <WorkspaceSyncProvider>
           <UserProfileSummaryProvider>
             <SavedPropertiesProvider>
-              <PropertyProvider>
-                <ApplicationsProvider>
-                  <ToastProvider>
-                    <App />
-                  </ToastProvider>
-                </ApplicationsProvider>
-              </PropertyProvider>
+              <ApplicationsProvider>
+                <ToastProvider>
+                  <App />
+                </ToastProvider>
+              </ApplicationsProvider>
             </SavedPropertiesProvider>
           </UserProfileSummaryProvider>
         </WorkspaceSyncProvider>
