@@ -73,6 +73,33 @@ export const filterManagerLivePropertyPerformance = (
     (propertyPerformance || []).filter((property) => isManagerLivePropertyStatus(property.status))
 );
 
+export const getManagerLiveListingCount = (
+    analytics?: {
+        active_listings?: number | null;
+        total_properties?: number | null;
+        leadAnalytics?: { totalProperties?: number | null } | null;
+        propertyPerformance?: readonly PropertyPerformance[] | null;
+    } | null,
+    fallbackProperties?: readonly { status?: string | null }[] | null,
+) => {
+    const analyticsCount = analytics?.active_listings
+        ?? analytics?.total_properties
+        ?? analytics?.leadAnalytics?.totalProperties;
+    const numericAnalyticsCount = Number(analyticsCount);
+
+    if (Number.isFinite(numericAnalyticsCount)) {
+        return Math.max(0, numericAnalyticsCount);
+    }
+
+    if (analytics?.propertyPerformance) {
+        return filterManagerLivePropertyPerformance(analytics.propertyPerformance).length;
+    }
+
+    return (fallbackProperties || []).filter((property) => (
+        isManagerLivePropertyStatus(property.status)
+    )).length;
+};
+
 export const getManagerPropertyStatusFilters = (searchParams: URLSearchParams) => (
     normalizeManagerPropertyStatusFilters(
         (searchParams.get('status') || '').split(','),

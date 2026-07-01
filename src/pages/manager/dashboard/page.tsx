@@ -11,6 +11,7 @@ import {
   buildManagerActiveListingsPath,
   filterManagerLivePropertyPerformance,
   formatManagerAnalyticsPercentage,
+  getManagerLiveListingCount,
   isManagerLivePropertyStatus,
 } from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
@@ -232,12 +233,10 @@ function DashboardContent() {
     .sort((left, right) => new Date(left.check_in_date).getTime() - new Date(right.check_in_date).getTime())
     .slice(0, 4);
   const livePropertiesFallback = properties.filter((property) => isManagerLivePropertyStatus(property.status));
-  const livePropertyCountFallback = livePropertiesFallback.length;
   const livePropertyViewsFallback = livePropertiesFallback.reduce((total, property) => (
     total + (property.analytics?.views || 0)
   ), 0);
   const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
-  const livePropertyCountFromAnalytics = livePropertyPerformance.length;
   const livePropertyViewsFromAnalytics = livePropertyPerformance.reduce((total, property) => (
     total + (property.views || 0)
   ), 0);
@@ -245,11 +244,7 @@ function DashboardContent() {
   const stats = {
     openActions: String(activeFastTrackCount + reservationSummary.pending),
     openActionsChange: `${closingSoonFastTrackCount} urgent`,
-    activeProperties: (
-      analytics
-        ? livePropertyCountFromAnalytics
-        : livePropertyCountFallback
-    ).toString(),
+    activeProperties: getManagerLiveListingCount(analytics, properties).toString(),
     activeListingsChange: analytics?.property_growth || '0%',
     totalViews: analytics?.total_views?.toString() || String(
       analytics

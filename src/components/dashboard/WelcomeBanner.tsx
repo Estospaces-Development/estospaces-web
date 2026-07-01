@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
-import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
+import { filterManagerLivePropertyPerformance, getManagerLiveListingCount } from '@/lib/managerPropertyDashboard';
 
 interface WelcomeBannerProps {
     analytics?: analyticsService.AnalyticsData | null;
@@ -30,7 +30,7 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
         if (analytics !== undefined) {
             const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
             setStats({
-                activeProperties: livePropertyPerformance.length,
+                activeProperties: getManagerLiveListingCount(analytics),
                 activeLeads: analytics?.active_leads || 0,
                 totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
             });
@@ -46,7 +46,7 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
                 if (res.data) {
                     const livePropertyPerformance = filterManagerLivePropertyPerformance(res.data.propertyPerformance);
                     setStats({
-                        activeProperties: livePropertyPerformance.length,
+                        activeProperties: getManagerLiveListingCount(res.data),
                         activeLeads: res.data.active_leads || 0,
                         totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
                     });

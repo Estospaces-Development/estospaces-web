@@ -7,11 +7,12 @@ import {
     buildManagerLivePresetFilters,
     buildManagerPropertySearchParams,
     formatManagerAnalyticsPercentage,
-    normalizeManagerAnalyticsPercentage,
     filterManagerLivePropertyPerformance,
+    getManagerLiveListingCount,
     getManagerPropertyStatusFilters,
     isManagerLivePropertyStatus,
     managerPropertyStatusFiltersEqual,
+    normalizeManagerAnalyticsPercentage,
     normalizeManagerPropertyStatusFilters,
 } from './managerPropertyDashboard';
 
@@ -117,5 +118,40 @@ test('filterManagerLivePropertyPerformance keeps only live listings', () => {
     assert.deepEqual(
         filterManagerLivePropertyPerformance(propertyPerformance).map((property) => property.property_id),
         ['1', '4'],
+    );
+});
+
+test('manager live listing count uses the analytics total before top performer rows', () => {
+    assert.equal(
+        getManagerLiveListingCount({
+            total_properties: 8,
+            propertyPerformance: [],
+        }),
+        8,
+    );
+    assert.equal(
+        getManagerLiveListingCount({
+            active_listings: 3,
+            total_properties: 8,
+            propertyPerformance: [],
+        }),
+        3,
+    );
+    assert.equal(
+        getManagerLiveListingCount({
+            propertyPerformance: [
+                { property: 'Published listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+                { property: 'Draft listing', property_id: '2', status: 'draft', views: 4, applications: 0, conversionRate: 0 },
+            ],
+        }),
+        1,
+    );
+    assert.equal(
+        getManagerLiveListingCount(null, [
+            { status: 'available' },
+            { status: 'pending_approval' },
+            { status: 'online' },
+        ]),
+        2,
     );
 });
