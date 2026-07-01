@@ -293,11 +293,11 @@ test('fast-track document preview opens a modal for selected and uploaded files'
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onClick=\{\(\) => void ensureDocumentPreview\(previewItem, \{ openInModal: true \}\)\}/,
+        /onClick=\{\(\) => void ensureDocumentPreview\(previewItem, \{ openInModal: true, busyAction: 'preview' \}\)\}/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /const previewLoading = previewBusyItemId === previewItem\.id && !previewUrl && !previewError/,
+        /const previewLoading = isPreviewDocumentBusy\(previewItem\.id\) && !previewUrl && !previewError/,
     );
     assert.match(
         fastTrackWorkspaceComponent,
@@ -324,7 +324,7 @@ test('fast-track document preview opens a modal for selected and uploaded files'
 test('manager completed-case document open stays in the in-app preview modal', () => {
     assert.match(
         fastTrackWorkspaceComponent,
-        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true \}\);/,
+        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\);/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
@@ -340,7 +340,38 @@ test('manager completed-case document open stays in the in-app preview modal', (
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onClick=\{\(\) => void ensureDocumentPreview\(item, \{ openInModal: true \}\)\}\s*busy=\{previewBusyItemId === item\.id\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
+        /onClick=\{\(\) => void ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)\}\s*busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
+    );
+});
+
+test('document preview busy state is scoped to the clicked action', () => {
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /type FastTrackDocumentPreviewAction = 'preview' \| 'open' \| 'download' \| 'auto'/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const documentPreviewBusyKey = \(/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const isPreviewActionBusy = useCallback\(/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /setPreviewBusyKey\(\(current\) => current \?\? busyKey\)/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /busy=\{isPreviewActionBusy\(item\.id, 'preview'\)\}/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /busy=\{previewBusyItemId === item\.id\}/,
     );
 });
 

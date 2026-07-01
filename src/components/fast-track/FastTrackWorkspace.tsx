@@ -260,6 +260,13 @@ const detectDocumentPreviewKind = (item: FastTrackDocumentItem) => {
     return 'file' as const;
 };
 
+type FastTrackDocumentPreviewAction = 'preview' | 'open' | 'download' | 'auto';
+
+const documentPreviewBusyKey = (
+    itemId: FastTrackDocumentItem['id'],
+    action: FastTrackDocumentPreviewAction,
+) => `${itemId}:${action}`;
+
 const SectionShell = ({
     title,
     description,
@@ -395,7 +402,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewItemId, setPreviewItemId] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewError, setPreviewError] = useState<string | null>(null);
-    const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
+    const [previewBusyKey, setPreviewBusyKey] = useState<string | null>(null);
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [previewZoom, setPreviewZoom] = useState(0);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
@@ -467,6 +474,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             { replace: true, preventScrollReset: true },
         );
     }, [setSearchParams]);
+
+    const isPreviewActionBusy = useCallback((
+        itemId: FastTrackDocumentItem['id'],
+        action: FastTrackDocumentPreviewAction,
+    ) => previewBusyKey === documentPreviewBusyKey(itemId, action), [previewBusyKey]);
+
+    const isPreviewDocumentBusy = useCallback(
+        (itemId: FastTrackDocumentItem['id']) => previewBusyKey?.startsWith(`${itemId}:`) === true,
+        [previewBusyKey],
+    );
 
     const shouldIgnoreDocumentCardFocus = useCallback((target: EventTarget | null) => {
         if (!target || !('closest' in target)) {
@@ -1361,11 +1378,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             openInNewTab?: boolean;
             revealInViewport?: boolean;
             openInModal?: boolean;
+            busyAction?: FastTrackDocumentPreviewAction;
         },
     ) => {
         const openInNewTab = options?.openInNewTab === true;
         const revealInViewport = options?.revealInViewport === true;
         const openInModal = options?.openInModal === true;
+        const busyAction = options?.busyAction || (openInNewTab ? 'download' : openInModal ? 'preview' : 'auto');
+        const busyKey = documentPreviewBusyKey(item.id, busyAction);
         const selectedFile = selectedFiles[item.id] || null;
         if (openInModal) {
             setPreviewModalOpen(true);
@@ -1375,7 +1395,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             releasePreviewObjectUrl();
             const nextUrl = URL.createObjectURL(selectedFile);
             previewObjectUrlRef.current = nextUrl;
-            setPreviewBusyItemId(null);
+            setPreviewBusyKey(null);
             setPreviewError(null);
             setPreviewUrl(nextUrl);
             if (openInNewTab) {
@@ -1393,7 +1413,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!item.documentRecordId && !item.fileUrl) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
-            setPreviewBusyItemId(null);
+            setPreviewBusyKey(null);
             if (revealInViewport) {
                 if (role === 'user') {
                     setUserDetailsOpen(true);
@@ -1403,7 +1423,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
-        setPreviewBusyItemId(item.id);
+        setPreviewBusyKey((current) => current ?? busyKey);
         handleDocumentFocus(item.id);
         setPreviewError(null);
 
@@ -1460,16 +1480,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewError(error?.message || 'Preview is unavailable for this document.');
             return null;
         } finally {
-            setPreviewBusyItemId(null);
+            setPreviewBusyKey((current) => current === busyKey ? null : current);
         }
     }, [handleDocumentFocus, releasePreviewObjectUrl, revealPreviewSection, role, selectedFiles]);
 
     const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInModal: true });
+        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'preview' });
     }, [ensureDocumentPreview]);
 
     const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInModal: true });
+        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
@@ -1646,7 +1666,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : previewItem;
         const previewKind = detectDocumentPreviewKind(previewDisplayItem);
         const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
-        const previewLoading = previewBusyItemId === previewItem.id && !previewUrl && !previewError;
+        const previewLoading = isPreviewDocumentBusy(previewItem.id) && !previewUrl && !previewError;
 
         return (
             <div className="space-y-4">
@@ -1665,8 +1685,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div className="mt-4 flex flex-wrap gap-3">
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, { openInModal: true })}
-                            busy={previewBusyItemId === previewItem.id}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInModal: true, busyAction: 'preview' })}
+                            busy={isPreviewActionBusy(previewItem.id, 'preview')}
                             disabled={!previewAvailable}
                         >
                             <Eye size={16} />
@@ -1674,8 +1694,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
-                            busy={previewBusyItemId === previewItem.id}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true, busyAction: 'download' })}
+                            busy={isPreviewActionBusy(previewItem.id, 'download')}
                             disabled={!previewAvailable}
                         >
                             <Download size={16} />
@@ -1736,8 +1756,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             </div>
                             <ActionButton
                                 tone="secondary"
-                                onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
-                                busy={previewBusyItemId === previewItem.id}
+                                onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true, busyAction: 'download' })}
+                                busy={isPreviewActionBusy(previewItem.id, 'download')}
                                 disabled={!previewAvailable}
                                 ariaLabel={`Open ${previewItem.label} PDF`}
                                 className="px-3 py-2 text-xs"
@@ -1939,7 +1959,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             tone="secondary"
                             onClick={() => void handleRailPreview(activeDocument)}
                             disabled={!canPreview}
-                            busy={previewBusyItemId === activeDocument.id}
+                            busy={isPreviewActionBusy(activeDocument.id, 'preview')}
                             ariaLabel={`Preview ${activeDocument.label} from core files`}
                             className="px-3 py-2 text-xs"
                         >
@@ -1950,7 +1970,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             tone="secondary"
                             onClick={() => void handleRailOpen(activeDocument)}
                             disabled={!canPreview}
-                            busy={previewBusyItemId === activeDocument.id}
+                            busy={isPreviewActionBusy(activeDocument.id, 'open')}
                             ariaLabel={`Open ${activeDocument.label} from core files`}
                             className="px-3 py-2 text-xs"
                         >
@@ -2255,8 +2275,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     <div className="flex flex-wrap gap-2">
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true })}
-                                            busy={previewBusyItemId === item.id}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true, busyAction: 'preview' })}
+                                            busy={isPreviewActionBusy(item.id, 'preview')}
                                             disabled={!canPreview}
                                             ariaLabel={`Preview ${item.label}`}
                                             className="px-3 py-2 text-xs"
@@ -2266,8 +2286,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true })}
-                                            busy={previewBusyItemId === item.id}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' })}
+                                            busy={isPreviewActionBusy(item.id, 'open')}
                                             disabled={!canPreview}
                                             ariaLabel={`Open ${item.label}`}
                                             className="px-3 py-2 text-xs"

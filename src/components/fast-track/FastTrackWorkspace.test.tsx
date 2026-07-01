@@ -64,7 +64,7 @@ const workspaceSource = () => readFileSync(
 test("fast-track preview buttons open a modal with zoom controls", () => {
   const source = workspaceSource();
 
-  assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true \}\)/);
+  assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'preview' \}\)/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
   assert.match(source, /aria-label="Zoom out document preview"/);
