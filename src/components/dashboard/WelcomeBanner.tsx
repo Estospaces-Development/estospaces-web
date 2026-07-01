@@ -5,14 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
-import { filterManagerLivePropertyPerformance, getManagerLiveListingCount } from '@/lib/managerPropertyDashboard';
+import { getManagerApplicationCount, getManagerLiveListingCount } from '@/lib/managerPropertyDashboard';
 
 interface WelcomeBannerProps {
     analytics?: analyticsService.AnalyticsData | null;
     loading?: boolean;
+    liveListingCount?: number | null;
 }
 
-const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeBannerProps) => {
+const WelcomeBanner = ({ analytics, loading: externalLoading = false, liveListingCount = null }: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -28,11 +29,10 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
 
     useEffect(() => {
         if (analytics !== undefined) {
-            const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
             setStats({
-                activeProperties: getManagerLiveListingCount(analytics),
+                activeProperties: getManagerLiveListingCount(analytics, undefined, liveListingCount),
                 activeLeads: analytics?.active_leads || 0,
-                totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
+                totalApplications: getManagerApplicationCount(analytics),
             });
             setLoading(externalLoading);
             return;
@@ -44,11 +44,10 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
             try {
                 const res = await analyticsService.getManagerAnalytics();
                 if (res.data) {
-                    const livePropertyPerformance = filterManagerLivePropertyPerformance(res.data.propertyPerformance);
                     setStats({
-                        activeProperties: getManagerLiveListingCount(res.data),
+                        activeProperties: getManagerLiveListingCount(res.data, undefined, liveListingCount),
                         activeLeads: res.data.active_leads || 0,
-                        totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
+                        totalApplications: getManagerApplicationCount(res.data),
                     });
                 } else {
                     setStats({
@@ -63,7 +62,7 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
         };
 
         fetchStats();
-    }, [analytics, externalLoading, user]);
+    }, [analytics, externalLoading, liveListingCount, user]);
 
     return (
         <div className="mb-6">

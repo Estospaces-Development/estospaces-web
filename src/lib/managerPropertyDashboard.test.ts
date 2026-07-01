@@ -8,6 +8,8 @@ import {
     buildManagerPropertySearchParams,
     formatManagerAnalyticsPercentage,
     filterManagerLivePropertyPerformance,
+    getManagerApplicationCount,
+    getManagerFastTrackSummary,
     getManagerLiveListingCount,
     getManagerPropertyStatusFilters,
     isManagerLivePropertyStatus,
@@ -153,5 +155,55 @@ test('manager live listing count uses the analytics total before top performer r
             { status: 'online' },
         ]),
         2,
+    );
+});
+
+test('manager live listing count can use the exact properties API total before stale analytics', () => {
+    assert.equal(
+        getManagerLiveListingCount({
+            active_listings: 0,
+            total_properties: 0,
+            propertyPerformance: [],
+        }, [], 5),
+        5,
+    );
+});
+
+test('manager fast track summary follows workspace final statuses and legacy fallbacks', () => {
+    assert.deepEqual(
+        getManagerFastTrackSummary([
+            { workspaceFinalStatus: 'active', finalStatus: 'in_progress', hoursRemaining: 5 },
+            { workspaceFinalStatus: 'active', finalStatus: 'in_progress', hoursRemaining: 12 },
+            { workspaceFinalStatus: 'completed', finalStatus: 'completed' },
+            { workspaceFinalStatus: 'cancelled', finalStatus: 'rejected' },
+            { finalStatus: 'expired' },
+        ]),
+        {
+            active: 2,
+            completed: 1,
+            cancelled: 2,
+            closingSoon: 1,
+        },
+    );
+});
+
+test('manager application count prefers analytics total when present', () => {
+    assert.equal(
+        getManagerApplicationCount({
+            total_applications: 7,
+            propertyPerformance: [
+                { property: 'Published listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+            ],
+        }),
+        7,
+    );
+    assert.equal(
+        getManagerApplicationCount({
+            propertyPerformance: [
+                { property: 'Published listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+                { property: 'Online listing', property_id: '2', status: 'online', views: 12, applications: 3, conversionRate: 10 },
+            ],
+        }),
+        5,
     );
 });

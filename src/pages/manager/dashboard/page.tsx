@@ -11,10 +11,13 @@ import {
   buildManagerActiveListingsPath,
   filterManagerLivePropertyPerformance,
   formatManagerAnalyticsPercentage,
+  getManagerFastTrackSummary,
   getManagerLiveListingCount,
+  MANAGER_LIVE_LISTINGS_STATUS_FILTERS,
   isManagerLivePropertyStatus,
 } from '@/lib/managerPropertyDashboard';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
+import { dedupeFastTrackWorkspaceCases } from '@/lib/fastTrackWorkspaceLoad';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
@@ -66,6 +69,7 @@ function DashboardContent() {
   const [activeTab, setActiveTab] = useState('overview');
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
+  const [livePropertyTotal, setLivePropertyTotal] = useState<number | null>(null);
   const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isManualFastTrackOpen, setIsManualFastTrackOpen] = useState(false);
@@ -91,29 +95,47 @@ function DashboardContent() {
         analyticsService.invalidateAnalyticsCache('manager_analytics');
       }
 
-      const [analyticsRes, fastTrackRes, bookingsRes] = await Promise.allSettled([
-        analyticsService.getManagerAnalytics(forceRefresh),
-        getFastTrackCases({ suppressErrorToast: true }),
-        bookingsService.getBookings({ suppressErrorToast: true }),
+      const analyticsTask = analyticsService.getManagerAnalytics(forceRefresh);
+      const fastTrackTask = getFastTrackCases({ suppressErrorToast: true });
+      const livePropertiesTask = getUserProperties({
+        page: 1,
+        limit: 1,
+        status: [...MANAGER_LIVE_LISTINGS_STATUS_FILTERS],
+      });
+      const bookingsTask = bookingsService.getBookings({ suppressErrorToast: true });
+
+      const [analyticsRes, fastTrackRes, livePropertiesRes] = await Promise.allSettled([
+        analyticsTask,
+        fastTrackTask,
+        livePropertiesTask,
       ]);
 
       if (analyticsRes.status === 'fulfilled' && analyticsRes.value.data) {
         setAnalytics(analyticsRes.value.data);
       }
       if (fastTrackRes.status === 'fulfilled' && fastTrackRes.value.data) {
-        setFastTrackCases(fastTrackRes.value.data);
+        setFastTrackCases(dedupeFastTrackWorkspaceCases(fastTrackRes.value.data));
         setFastTrackError(null);
       } else if (fastTrackRes.status === 'fulfilled' && fastTrackRes.value.error) {
         setFastTrackError(fastTrackRes.value.error);
       } else if (fastTrackRes.status === 'rejected') {
         setFastTrackError(fastTrackRes.reason?.message || 'Fast-track lane failed to load.');
       }
-      if (bookingsRes.status === 'fulfilled') {
-        setBookings(bookingsRes.value || []);
+      if (livePropertiesRes.status === 'fulfilled' && !livePropertiesRes.value.error) {
+        setLivePropertyTotal(livePropertiesRes.value.pagination?.total ?? livePropertiesRes.value.data?.length ?? 0);
+      }
+      if (!silent) {
+        setIsLoading(false);
+      }
+
+      const bookingsRes = await Promise.allSettled([bookingsTask]);
+      const bookingResult = bookingsRes[0];
+      if (bookingResult.status === 'fulfilled') {
+        setBookings(bookingResult.value || []);
         setBookingError(null);
       } else {
         setBookings([]);
-        setBookingError(bookingsRes.reason?.message || 'Reservations failed to load.');
+        setBookingError(bookingResult.reason?.message || 'Reservations failed to load.');
       }
     } finally {
       if (!silent) {
@@ -217,11 +239,7 @@ function DashboardContent() {
     })
     .sort((left, right) => new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime())
     .slice(0, 3);
-  const activeFastTrackCount = fastTrackCases.filter((caseItem) => caseItem.finalStatus === 'in_progress').length;
-  const closingSoonFastTrackCount = fastTrackCases.filter((caseItem) => (
-    caseItem.finalStatus === 'in_progress' && caseItem.hoursRemaining > 0 && caseItem.hoursRemaining <= 6
-  )).length;
-  const completedFastTrackCount = fastTrackCases.filter((caseItem) => caseItem.finalStatus === 'completed').length;
+  const fastTrackSummary = getManagerFastTrackSummary(fastTrackCases);
   const reservationSummary = {
     pending: bookings.filter((booking) => booking.status === 'pending').length,
     confirmed: bookings.filter((booking) => booking.status === 'confirmed').length,
@@ -242,9 +260,9 @@ function DashboardContent() {
   ), 0);
 
   const stats = {
-    openActions: String(activeFastTrackCount + reservationSummary.pending),
-    openActionsChange: `${closingSoonFastTrackCount} urgent`,
-    activeProperties: getManagerLiveListingCount(analytics, properties).toString(),
+    liveFastTrack: String(fastTrackSummary.active),
+    liveFastTrackChange: `${fastTrackSummary.completed} done · ${fastTrackSummary.cancelled} closed · ${fastTrackSummary.closingSoon} urgent`,
+    activeProperties: getManagerLiveListingCount(analytics, properties, livePropertyTotal).toString(),
     activeListingsChange: analytics?.property_growth || '0%',
     totalViews: analytics?.total_views?.toString() || String(
       analytics
@@ -322,14 +340,14 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
-      <WelcomeBanner analytics={analytics} loading={!analytics && isLoading} />
+      <WelcomeBanner analytics={analytics} loading={!analytics && isLoading} liveListingCount={livePropertyTotal} />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
-          title="Open Actions"
-          value={stats.openActions}
-          change={stats.openActionsChange}
+          title="Live Fast Track"
+          value={stats.liveFastTrack}
+          change={stats.liveFastTrackChange}
           icon={CalendarCheck}
           iconColor="bg-emerald-500"
           trendColor="text-emerald-700"
@@ -480,16 +498,16 @@ function DashboardContent() {
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Active cases</p>
                 <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                  {activeFastTrackCount}
+                  {fastTrackSummary.active}
                 </p>
               </div>
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Closing soon</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{closingSoonFastTrackCount}</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{fastTrackSummary.closingSoon}</p>
               </div>
               <div className="rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/70 dark:bg-gray-900/40 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Completed</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{completedFastTrackCount}</p>
+                <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">{fastTrackSummary.completed}</p>
               </div>
             </div>
 
