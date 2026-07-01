@@ -313,6 +313,24 @@ test('fast-track document preview opens a modal for selected and uploaded files'
     );
 });
 
+test('document row focus is single-click and does not reset scroll position', () => {
+    assert.match(fastTrackWorkspaceComponent, /buildFastTrackDocumentSearchParams\(previous, documentId\)/);
+    assert.match(fastTrackWorkspaceComponent, /replace: true/);
+    assert.match(fastTrackWorkspaceComponent, /preventScrollReset: true/);
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /data-fast-track-document-focus-trigger/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /onPointerDown=\{\(event\) => \{\s*if \(event\.button === 0\) \{\s*handleDocumentFocus\(item\.id\);/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /onPointerDownCapture=\{\(event\) => \{/,
+    );
+});
+
 test('fast-track cancel case uses an in-app confirmation dialog', () => {
     assert.doesNotMatch(fastTrackWorkspaceComponent, /window\.confirm/);
     assert.match(fastTrackWorkspaceComponent, /aria-label="Cancel fast-track case confirmation"/);

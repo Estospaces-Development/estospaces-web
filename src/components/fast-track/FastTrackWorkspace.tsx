@@ -462,8 +462,24 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const handleDocumentFocus = useCallback((documentId: string) => {
         setDocumentFocusId(documentId);
-        setSearchParams((previous) => buildFastTrackDocumentSearchParams(previous, documentId));
+        setSearchParams(
+            (previous) => buildFastTrackDocumentSearchParams(previous, documentId),
+            { replace: true, preventScrollReset: true },
+        );
     }, [setSearchParams]);
+
+    const shouldIgnoreDocumentCardFocus = useCallback((target: EventTarget | null) => {
+        if (!target || !('closest' in target)) {
+            return false;
+        }
+
+        const element = target as Element;
+        if (element.closest('[data-fast-track-document-focus-trigger]')) {
+            return false;
+        }
+
+        return Boolean(element.closest('a,button,input,label,select,textarea,[role="button"]'));
+    }, []);
 
     const revealPreviewSection = useCallback(() => {
         previewSectionRef.current?.scrollIntoView({
@@ -2138,6 +2154,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <div
                                 key={documentCardKeyFor(item.id, itemIndex)}
                                 data-fast-track-document-card={item.id}
+                                onPointerDownCapture={(event) => {
+                                    if (event.button !== 0 || shouldIgnoreDocumentCardFocus(event.target)) {
+                                        return;
+                                    }
+                                    handleDocumentFocus(item.id);
+                                }}
                                 className={cn(
                                     'grid gap-3 rounded-[22px] border bg-white px-3.5 py-3.5 shadow-sm transition-colors dark:bg-gray-950 lg:grid-cols-[minmax(0,1fr)_272px]',
                                     focused
@@ -2148,6 +2170,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 <div className="space-y-2.5">
                                     <button
                                         type="button"
+                                        data-fast-track-document-focus-trigger
+                                        onPointerDown={(event) => {
+                                            if (event.button === 0) {
+                                                handleDocumentFocus(item.id);
+                                            }
+                                        }}
                                         onClick={() => handleDocumentFocus(item.id)}
                                         className="w-full text-left"
                                     >
