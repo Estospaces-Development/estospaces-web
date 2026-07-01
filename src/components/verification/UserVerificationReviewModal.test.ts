@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
     USER_VERIFICATION_REVIEW_CLOSE_LABEL,
     canCompleteUserVerification,
+    dedupeVerificationReviewDocuments,
     formatVerificationLeadPropertyAddress,
     formatVerificationLeadPropertyLabel,
     formatVerificationLeadReference,
@@ -103,6 +104,45 @@ test('disabled verification approval explains missing required document approval
     );
     assert.match(source, /id="verification-approval-blocker"/);
     assert.match(source, /aria-describedby=\{approvalBlocker \? 'verification-approval-blocker' : undefined\}/);
+});
+
+test('verification review documents collapse same-day duplicate uploads by file type and name', () => {
+    const baseDocument = {
+        user_id: 'user-1',
+        document_type: 'government_id',
+        document_category: 'identity',
+        file_name: 'codex-smoke-panorama.jpg',
+        file_url: 'https://example.com/codex-smoke-panorama.jpg',
+        reject_reason: '',
+        status: 'pending',
+        updated_at: '2026-06-26T10:00:00.000Z',
+    };
+
+    const documents = dedupeVerificationReviewDocuments([
+        {
+            ...baseDocument,
+            id: 'older-duplicate',
+            created_at: '2026-06-26T09:00:00.000Z',
+        },
+        {
+            ...baseDocument,
+            id: 'newer-duplicate',
+            created_at: '2026-06-26T10:00:00.000Z',
+        },
+        {
+            ...baseDocument,
+            id: 'different-file',
+            file_name: 'address-proof.jpg',
+            document_type: 'address_proof',
+            document_category: 'address',
+            created_at: '2026-06-26T10:30:00.000Z',
+        },
+    ] as any);
+
+    assert.deepEqual(
+        documents.map((document) => document.id),
+        ['different-file', 'newer-duplicate'],
+    );
 });
 
 test('recent lead statuses render readable labels instead of backend enums', () => {

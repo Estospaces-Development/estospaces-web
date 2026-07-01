@@ -84,13 +84,58 @@ export const getVerificationReviewErrorMessage = (
     return error || 'Failed to load user details';
 };
 
-const dedupeDocumentsById = (documents: UserDocument[]) => {
-    const seen = new Set<string>();
-    return documents.filter((document) => {
-        if (seen.has(document.id)) {
+const normalizeVerificationDocumentDuplicatePart = (value?: string | null) => (
+    String(value || '').trim().toLowerCase()
+);
+
+const getVerificationDocumentUploadDay = (createdAt?: string | null) => {
+    const timestamp = Date.parse(String(createdAt || ''));
+    return Number.isNaN(timestamp) ? '' : new Date(timestamp).toISOString().slice(0, 10);
+};
+
+const getVerificationDocumentDuplicateKey = (document: UserDocument) => {
+    const fileName = normalizeVerificationDocumentDuplicatePart(document.file_name);
+    const documentType = normalizeVerificationDocumentDuplicatePart(document.document_type);
+    const documentCategory = normalizeVerificationDocumentDuplicatePart(document.document_category);
+    const uploadDay = getVerificationDocumentUploadDay(document.created_at);
+
+    if (!fileName || !documentType || !documentCategory || !uploadDay) {
+        return '';
+    }
+
+    return [
+        normalizeVerificationDocumentDuplicatePart(document.user_id),
+        fileName,
+        documentType,
+        documentCategory,
+        uploadDay,
+    ].join('|');
+};
+
+export const dedupeVerificationReviewDocuments = (documents: UserDocument[]) => {
+    const seenIds = new Set<string>();
+    const seenUploadKeys = new Set<string>();
+    const newestFirst = [...documents].sort((left, right) => (
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+    ));
+
+    return newestFirst.filter((document) => {
+        const id = String(document.id || '').trim();
+        if (id && seenIds.has(id)) {
             return false;
         }
-        seen.add(document.id);
+        if (id) {
+            seenIds.add(id);
+        }
+
+        const uploadKey = getVerificationDocumentDuplicateKey(document);
+        if (uploadKey && seenUploadKeys.has(uploadKey)) {
+            return false;
+        }
+        if (uploadKey) {
+            seenUploadKeys.add(uploadKey);
+        }
+
         return true;
     });
 };
@@ -248,7 +293,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const reviewDocuments = useMemo(
         () => isFastTrackReview
             ? getLatestFastTrackReviewDocuments(details?.documents || [])
-            : dedupeDocumentsById(details?.documents || []),
+            : dedupeVerificationReviewDocuments(details?.documents || []),
         [details?.documents, isFastTrackReview],
     );
     const visibleReviewDocuments = useMemo(() => {
