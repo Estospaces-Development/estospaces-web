@@ -67,7 +67,8 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
+import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -176,6 +177,14 @@ export const buildPropertyFastTrackStartRequest = ({
             : undefined,
         started_from: startsFromBrokerRequest ? 'broker_request_selection' : 'direct_property',
     };
+};
+
+export const getPropertyDetailDisplayAddress = (property: Property | null | undefined) => {
+    if (!property) {
+        return '';
+    }
+
+    return formatLaunchPropertyLocation(getSavedPropertyLocationLabel(property));
 };
 
 const toDateValue = (date: Date) => {
@@ -965,10 +974,10 @@ const UserPropertyDetail = () => {
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
     const isSaved = id ? isPropertySaved(id) : false;
-    const propertyAddress = property?.address_line_1
-        ? [property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ')
-        : [property?.city, property?.postcode].filter(Boolean).join(', ');
-    const locationLabel = [property?.city, property?.country].filter(Boolean).join(', ') || 'Prime location';
+    const propertyAddress = getPropertyDetailDisplayAddress(property);
+    const locationLabel = property
+        ? formatLaunchPropertyLocation([property.city, property.country])
+        : 'Prime location';
     const propertyMapState = useMemo(
         () => getPropertyMapState(property ?? {}, {
             userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
