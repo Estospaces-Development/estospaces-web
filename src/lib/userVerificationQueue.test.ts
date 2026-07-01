@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   getUserVerificationQueueStats,
+  getUserVerificationWorkflowStatus,
+  getUserVerificationWorkflowStatusLabel,
   userMatchesVerificationTab,
 } from "./userVerificationQueue";
 
@@ -22,7 +24,7 @@ const baseUser = {
   last_active: "2026-04-29T00:00:00Z",
 };
 
-test("user verification queue stats count pending document users as unverified", () => {
+test("user verification queue stats use the shared admin verification vocabulary", () => {
   const needsUpload = { ...baseUser, user_id: "needs-upload" };
   const pendingReview = {
     ...baseUser,
@@ -41,17 +43,20 @@ test("user verification queue stats count pending document users as unverified",
 
   assert.deepEqual(getUserVerificationQueueStats([needsUpload, pendingReview, verified]), {
     all: 3,
-    unverified: 2,
-    pendingDocs: 1,
-    verified: 1,
+    pending: 1,
+    inReview: 1,
+    approved: 1,
   });
-  assert.equal(userMatchesVerificationTab(needsUpload, "unverified"), true);
-  assert.equal(userMatchesVerificationTab(pendingReview, "unverified"), true);
-  assert.equal(userMatchesVerificationTab(needsUpload, "pending_docs"), false);
-  assert.equal(userMatchesVerificationTab(pendingReview, "pending_docs"), true);
+  assert.equal(getUserVerificationWorkflowStatusLabel(getUserVerificationWorkflowStatus(needsUpload)), "Pending");
+  assert.equal(getUserVerificationWorkflowStatusLabel(getUserVerificationWorkflowStatus(pendingReview)), "In Review");
+  assert.equal(getUserVerificationWorkflowStatusLabel(getUserVerificationWorkflowStatus(verified)), "Approved");
+  assert.equal(userMatchesVerificationTab(needsUpload, "pending"), true);
+  assert.equal(userMatchesVerificationTab(pendingReview, "pending"), false);
+  assert.equal(userMatchesVerificationTab(pendingReview, "review"), true);
+  assert.equal(userMatchesVerificationTab(verified, "approved"), true);
 });
 
-test("verification queue avoids zero unverified when pending docs exist", () => {
+test("verification queue keeps uploaded documents in the in-review workflow state", () => {
   const pendingUsers = Array.from({ length: 6 }, (_, index) => ({
     ...baseUser,
     user_id: `pending-review-${index + 1}`,
@@ -60,8 +65,8 @@ test("verification queue avoids zero unverified when pending docs exist", () => 
 
   assert.deepEqual(getUserVerificationQueueStats(pendingUsers), {
     all: 6,
-    unverified: 6,
-    pendingDocs: 6,
-    verified: 0,
+    pending: 0,
+    inReview: 6,
+    approved: 0,
   });
 });

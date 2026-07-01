@@ -21,8 +21,6 @@ import {
     VerificationScope,
     UserVerificationInfo,
     getPendingUserVerifications,
-    getVerificationLevelColor,
-    getVerificationLevelLabel,
 } from '@/services/userVerificationService';
 import UserVerificationReviewModal from '@/components/verification/UserVerificationReviewModal';
 import Avatar from '@/components/ui/Avatar';
@@ -30,8 +28,11 @@ import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import {
     getUserVerificationQueueStats,
+    getUserVerificationWorkflowStatus,
+    getUserVerificationWorkflowStatusLabel,
     userMatchesVerificationTab,
     type UserVerificationQueueTab,
+    type UserVerificationWorkflowStatus,
 } from '@/lib/userVerificationQueue';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 
@@ -67,6 +68,12 @@ const scopeContent = {
         description: 'Review users connected to your properties and leads',
     },
 } as const;
+
+const userWorkflowStatusStyles: Record<UserVerificationWorkflowStatus, { bg: string; text: string }> = {
+    pending: { bg: 'bg-amber-100', text: 'text-amber-800' },
+    review: { bg: 'bg-blue-100', text: 'text-blue-800' },
+    approved: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
+};
 
 const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     scope,
@@ -136,9 +143,9 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
 
         return [
             { id: 'all', label: 'All Users', count: queueStats.all, icon: User, color: 'text-gray-500', bg: 'bg-gray-50' },
-            { id: 'unverified', label: 'Unverified', count: queueStats.unverified, icon: ShieldAlert, color: 'text-red-500', bg: 'bg-red-50' },
-            { id: 'pending_docs', label: 'Pending Docs', count: queueStats.pendingDocs, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
-            { id: 'verified', label: 'Verified', count: queueStats.verified, icon: BadgeCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+            { id: 'pending', label: 'Pending', count: queueStats.pending, icon: ShieldAlert, color: 'text-amber-500', bg: 'bg-amber-50' },
+            { id: 'review', label: 'In Review', count: queueStats.inReview, icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50' },
+            { id: 'approved', label: 'Approved', count: queueStats.approved, icon: BadgeCheck, color: 'text-emerald-500', bg: 'bg-emerald-50' },
         ];
     }, [users]);
 
@@ -308,8 +315,9 @@ const UserVerificationCard: React.FC<{
     hoverClass: string;
     isAdmin: boolean;
 }> = ({ user, onViewDetails, hoverClass, isAdmin }) => {
-    const levelConfig = getVerificationLevelColor(user.verification_level);
-    const levelLabel = getVerificationLevelLabel(user.verification_level);
+    const workflowStatus = getUserVerificationWorkflowStatus(user);
+    const statusStyle = userWorkflowStatusStyles[workflowStatus];
+    const statusLabel = getUserVerificationWorkflowStatusLabel(workflowStatus);
 
     return (
         <div className="p-8 rounded-[2rem] bg-gray-50/50 dark:bg-gray-900/50 border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:bg-white dark:hover:bg-gray-800 transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-xl overflow-hidden">
@@ -325,8 +333,8 @@ const UserVerificationCard: React.FC<{
                 <div className="min-w-0">
                     <div className="flex min-w-0 flex-wrap items-center gap-3 mb-1">
                         <h3 className="min-w-0 text-lg font-black text-gray-900 dark:text-white tracking-tight break-words [overflow-wrap:anywhere]">{user.full_name}</h3>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${levelConfig.bg} ${levelConfig.text}`}>
-                            {levelLabel}
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyle.bg} ${statusStyle.text}`}>
+                            {statusLabel}
                         </span>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
