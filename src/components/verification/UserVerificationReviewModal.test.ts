@@ -11,6 +11,7 @@ import {
     formatVerificationLeadPropertyLabel,
     formatVerificationLeadReference,
     formatVerificationLeadStatus,
+    getVerificationApprovalBlocker,
     getVerificationReviewErrorMessage,
 } from './UserVerificationReviewModal';
 
@@ -72,6 +73,36 @@ test('user verification approval requires approved identity and address document
         { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
         { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
     ] as any), true);
+});
+
+test('disabled verification approval explains missing required document approvals', () => {
+    const baseDocument = {
+        id: 'doc-1',
+        user_id: 'user-1',
+        document_type: 'government_id',
+        file_name: 'document.pdf',
+        file_url: 'https://example.com/document.pdf',
+        reject_reason: '',
+        created_at: '2026-06-16T10:00:00.000Z',
+        updated_at: '2026-06-16T10:00:00.000Z',
+    };
+
+    assert.equal(
+        getVerificationApprovalBlocker([
+            { ...baseDocument, id: 'identity-pending', document_category: 'identity', status: 'pending' },
+            { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
+        ] as any),
+        '1 required document approval is still needed before approving: identity proof (Pending).',
+    );
+    assert.equal(
+        getVerificationApprovalBlocker([
+            { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
+            { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
+        ] as any),
+        null,
+    );
+    assert.match(source, /id="verification-approval-blocker"/);
+    assert.match(source, /aria-describedby=\{approvalBlocker \? 'verification-approval-blocker' : undefined\}/);
 });
 
 test('recent lead statuses render readable labels instead of backend enums', () => {

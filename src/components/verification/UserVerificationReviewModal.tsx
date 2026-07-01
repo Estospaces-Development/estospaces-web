@@ -100,6 +100,39 @@ const isVerificationDocumentApproved = (document: UserDocument | undefined) => {
     return status === 'approved' || status === 'verified';
 };
 
+const formatVerificationDocumentStatus = (status?: string | null) => (
+    String(status || 'not uploaded')
+        .trim()
+        .toLowerCase()
+        .split(/[_-]+/)
+        .filter(Boolean)
+        .map((word, index) => (
+            index === 0
+                ? `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+                : word
+        ))
+        .join(' ') || 'Not uploaded'
+);
+
+export const getVerificationApprovalBlocker = (documents: UserDocument[]) => {
+    const latestDocuments = latestDocumentByCategory(documents);
+    const missingApprovals = [
+        { label: 'identity proof', document: latestDocuments.get('identity') },
+        { label: 'address proof', document: latestDocuments.get('address') },
+    ].filter(({ document }) => !isVerificationDocumentApproved(document));
+
+    if (missingApprovals.length === 0) {
+        return null;
+    }
+
+    const labels = missingApprovals
+        .map(({ label, document }) => `${label} (${formatVerificationDocumentStatus(document?.status)})`)
+        .join(', ');
+    const noun = missingApprovals.length === 1 ? 'document approval is' : 'document approvals are';
+
+    return `${missingApprovals.length} required ${noun} still needed before approving: ${labels}.`;
+};
+
 export const formatVerificationLeadStatus = (status?: string | null) => {
     const normalizedStatus = String(status || '').trim().toLowerCase();
 
@@ -239,6 +272,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const canApprove = !isVerificationApproved && (isFastTrackReview
         ? canCompleteFastTrackVerification(details?.documents || [])
         : canCompleteUserVerification(details?.documents || []));
+    const approvalBlocker = !isVerificationApproved && !canApprove
+        ? getVerificationApprovalBlocker(reviewDocuments)
+        : null;
 
     const getDocumentReviewSuccessMessage = (
         status: 'approved' | 'reupload_required' | 'rejected',
@@ -631,6 +667,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     <button
                         onClick={() => handleVerificationUpdate('verified')}
                         disabled={verificationActionLoading || Boolean(activeDocumentId) || !canApprove}
+                        aria-describedby={approvalBlocker ? 'verification-approval-blocker' : undefined}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
                         {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
@@ -638,10 +675,14 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     </button>
                     </div>
                 )}
-                {isFastTrackReview && !isVerificationApproved && !canApprove && (
-                    <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                        Approve the latest identity proof and the latest address proof individually before completing the fast-track verification.
-                    </p>
+                {approvalBlocker && (
+                    <div
+                        id="verification-approval-blocker"
+                        className="mt-3 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
+                    >
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                        <p>{approvalBlocker}</p>
+                    </div>
                 )}
             </div>
         </ModalWrapper>
