@@ -22,7 +22,7 @@ const baseUser = {
   last_active: "2026-04-29T00:00:00Z",
 };
 
-test("user verification queue stats do not count missing documents as pending uploads", () => {
+test("user verification queue stats count pending document users as unverified", () => {
   const needsUpload = { ...baseUser, user_id: "needs-upload" };
   const pendingReview = {
     ...baseUser,
@@ -41,10 +41,27 @@ test("user verification queue stats do not count missing documents as pending up
 
   assert.deepEqual(getUserVerificationQueueStats([needsUpload, pendingReview, verified]), {
     all: 3,
-    unverified: 1,
+    unverified: 2,
     pendingDocs: 1,
     verified: 1,
   });
+  assert.equal(userMatchesVerificationTab(needsUpload, "unverified"), true);
+  assert.equal(userMatchesVerificationTab(pendingReview, "unverified"), true);
   assert.equal(userMatchesVerificationTab(needsUpload, "pending_docs"), false);
   assert.equal(userMatchesVerificationTab(pendingReview, "pending_docs"), true);
+});
+
+test("verification queue avoids zero unverified when pending docs exist", () => {
+  const pendingUsers = Array.from({ length: 6 }, (_, index) => ({
+    ...baseUser,
+    user_id: `pending-review-${index + 1}`,
+    documents_uploaded: true,
+  }));
+
+  assert.deepEqual(getUserVerificationQueueStats(pendingUsers), {
+    all: 6,
+    unverified: 6,
+    pendingDocs: 6,
+    verified: 0,
+  });
 });

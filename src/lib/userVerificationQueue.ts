@@ -33,15 +33,15 @@ export const hasPendingVerificationDocuments = (
   >,
 ) => hasUploadedVerificationDocuments(user) && !user.documents_verified;
 
+export const isUnverifiedUser = (
+  user: Pick<UserVerificationInfo, "verification_level">,
+) => user.verification_level === "basic";
+
 export const getUserVerificationQueueStats = (
   users: UserVerificationInfo[],
 ) => ({
   all: users.length,
-  unverified: users.filter(
-    (user) =>
-      user.verification_level === "basic" &&
-      !hasUploadedVerificationDocuments(user),
-  ).length,
+  unverified: users.filter(isUnverifiedUser).length,
   pendingDocs: users.filter(hasPendingVerificationDocuments).length,
   verified: users.filter(
     (user) =>
@@ -55,10 +55,7 @@ export const userMatchesVerificationTab = (
   activeTab: UserVerificationQueueTab,
 ) => {
   if (activeTab === "unverified") {
-    return (
-      user.verification_level === "basic" &&
-      !hasUploadedVerificationDocuments(user)
-    );
+    return isUnverifiedUser(user);
   }
   if (activeTab === "pending_docs") {
     return hasPendingVerificationDocuments(user);
