@@ -152,6 +152,62 @@ test("dedupeFastTrackWorkspaceCases collapses repeated 24-hour journey records",
   );
 });
 
+test("dedupeFastTrackWorkspaceCases keeps distinct property journeys sharing one lead", () => {
+  const deduped = dedupeFastTrackWorkspaceCases([
+    fastTrackCase({
+      caseId: "case-downtown",
+      leadId: "lead-shared",
+      propertyId: "property-downtown",
+      propertyTitle: "Downtown Property x",
+      clientId: "client-1",
+      journeyMode: "rent",
+      startedFrom: "direct_property",
+    }),
+    fastTrackCase({
+      caseId: "case-control",
+      leadId: "lead-shared",
+      propertyId: "property-control",
+      propertyTitle: "Dev validation proof",
+      clientId: "client-1",
+      journeyMode: "rent",
+      startedFrom: "direct_property",
+    }),
+  ]);
+
+  assert.deepEqual(
+    deduped.map((item) => item.caseId),
+    ["case-downtown", "case-control"],
+  );
+});
+
+test("dedupeFastTrackWorkspaceCases still collapses same lead and property duplicates", () => {
+  const deduped = dedupeFastTrackWorkspaceCases([
+    fastTrackCase({
+      caseId: "case-property-older",
+      leadId: "lead-shared",
+      propertyId: "property-1",
+      clientId: "client-1",
+      journeyMode: "rent",
+      hoursRemaining: 18,
+      startedFrom: "direct_property",
+    }),
+    fastTrackCase({
+      caseId: "case-property-newer",
+      leadId: "lead-shared",
+      propertyId: "property-1",
+      clientId: "client-1",
+      journeyMode: "rent",
+      hoursRemaining: 6,
+      startedFrom: "direct_property",
+    }),
+  ]);
+
+  assert.deepEqual(
+    deduped.map((item) => item.caseId),
+    ["case-property-newer"],
+  );
+});
+
 test("loadFastTrackWorkspaceCases does not surface repeated journey cards", async () => {
   const result = await loadFastTrackWorkspaceCases(
     async () => ({

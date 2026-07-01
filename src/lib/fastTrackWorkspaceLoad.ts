@@ -55,7 +55,6 @@ const getFastTrackCaseIdentityKeys = (fastTrackCase: FastTrackCase) => {
     ["viewing", fastTrackCase.viewingId],
     ["contract", fastTrackCase.contractId],
     ["payment", fastTrackCase.paymentId],
-    ["lead", fastTrackCase.leadId],
   ].map(([prefix, value]) => (
     value ? `${prefix}:${normalizeIdentityValue(value)}` : ""
   ));
@@ -64,6 +63,13 @@ const getFastTrackCaseIdentityKeys = (fastTrackCase: FastTrackCase) => {
     ...strongKeys,
     buildCompoundIdentity("broker-property-client-status", [
       fastTrackCase.brokerRequestId,
+      fastTrackCase.propertyId,
+      fastTrackCase.clientId,
+      fastTrackCase.journeyMode,
+      status,
+    ]),
+    buildCompoundIdentity("lead-property-client-status", [
+      fastTrackCase.leadId,
       fastTrackCase.propertyId,
       fastTrackCase.clientId,
       fastTrackCase.journeyMode,
