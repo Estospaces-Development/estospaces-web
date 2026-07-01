@@ -151,13 +151,10 @@ export function UserVirtualStoragePageContent({
     () => sortFastTrackWorkspaceCases(fastTrackCases),
     [fastTrackCases],
   );
-  const activeFastTrackCases = sortedFastTrackCases.filter(
+  const currentFastTrackCases = sortedFastTrackCases.filter(
     (caseItem) => caseItem.workspaceFinalStatus === "active",
-  );
-  const inactiveFastTrackCases = sortedFastTrackCases.filter(
-    (caseItem) => caseItem.workspaceFinalStatus !== "active",
-  );
-  const activeFastTrackCount = activeFastTrackCases.length;
+  ).slice(0, 1);
+  const activeFastTrackCount = currentFastTrackCases.length;
 
   const loadVault = async () => {
     setLoading(true);
@@ -413,10 +410,7 @@ export function UserVirtualStoragePageContent({
             </div>
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/10 dark:text-orange-200">
-                {activeFastTrackCases.length} active
-              </span>
-              <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-gray-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-300">
-                {inactiveFastTrackCases.length} inactive
+                {currentFastTrackCases.length} current
               </span>
             </div>
           </div>
@@ -432,18 +426,12 @@ export function UserVirtualStoragePageContent({
                 {fastTrackError}
               </div>
             ) : sortedFastTrackCases.length > 0 ? (
-              <div className="grid gap-6 xl:grid-cols-2">
+              <div className="grid gap-6">
                 {renderFastTrackCaseList(
-                  "Active fast-track",
-                  activeFastTrackCases.length,
-                  activeFastTrackCases,
-                  "No active fast-track cases right now.",
-                )}
-                {renderFastTrackCaseList(
-                  "Inactive fast-track",
-                  inactiveFastTrackCases.length,
-                  inactiveFastTrackCases,
-                  "No inactive fast-track cases yet.",
+                  "Current fast-track",
+                  currentFastTrackCases.length,
+                  currentFastTrackCases,
+                  "No active selected-property journey right now.",
                 )}
               </div>
             ) : (
