@@ -1,5 +1,6 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getServiceUrl } from '@/lib/apiUtils';
 import type { ApiFetchOptions } from '@/lib/apiUtils';
+import type { Lead } from '@/services/leadsService';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -46,12 +47,7 @@ export interface UserDocument {
 export interface UserVerificationDetails {
     user: UserVerificationInfo;
     documents: UserDocument[];
-    recent_leads: Array<{
-        id: string;
-        status: string;
-        created_at: string;
-        property_id?: string;
-    }>;
+    recent_leads: Lead[];
 }
 
 const getScopeBasePath = (scope: VerificationScope): string => (

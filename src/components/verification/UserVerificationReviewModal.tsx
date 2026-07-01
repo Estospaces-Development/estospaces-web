@@ -50,6 +50,7 @@ const VERIFICATION_NOTES_MAX_LENGTH = 1000;
 const VERIFICATION_REASON_MAX_LENGTH = 500;
 type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
 type VerificationSortMode = 'newest' | 'oldest' | 'status';
+type VerificationRecentLead = UserVerificationDetails['recent_leads'][number];
 
 export interface UserVerificationReviewMissingUserContext {
     name?: string | null;
@@ -119,6 +120,50 @@ export const formatVerificationLeadStatus = (status?: string | null) => {
                 .join(' ') || 'Status unavailable';
     }
 };
+
+const formatShortReference = (value?: string | null) => {
+    const normalizedValue = String(value || '').trim();
+
+    if (!normalizedValue) {
+        return '';
+    }
+
+    return normalizedValue.length > 12
+        ? normalizedValue.slice(0, 8).toUpperCase()
+        : normalizedValue;
+};
+
+export const formatVerificationLeadReference = (
+    lead: Pick<VerificationRecentLead, 'id' | 'lead_number'>,
+) => {
+    const leadNumber = String(lead.lead_number || '').trim();
+    return leadNumber || formatShortReference(lead.id) || 'Unassigned lead';
+};
+
+export const formatVerificationLeadPropertyLabel = (
+    lead: Pick<VerificationRecentLead, 'property' | 'property_id' | 'property_name'>,
+) => {
+    const propertyTitle = String(lead.property?.title || lead.property_name || '').trim();
+
+    if (propertyTitle) {
+        return propertyTitle;
+    }
+
+    return formatShortReference(lead.property_id) || 'Property context pending';
+};
+
+export const formatVerificationLeadPropertyAddress = (
+    lead: Pick<VerificationRecentLead, 'property'>,
+) => (
+    [
+        lead.property?.address_line_1,
+        lead.property?.city,
+        lead.property?.postcode,
+    ]
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .join(', ')
+);
 
 export const canCompleteUserVerification = (documents: UserDocument[]) => {
     const latestDocuments = latestDocumentByCategory(documents);
@@ -506,10 +551,17 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                     className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800"
                                 >
                                     <div className="min-w-0">
-                                        <p className="font-semibold text-gray-900 break-all dark:text-white">Lead {lead.id}</p>
-                                        {lead.property_id && (
-                                            <p className="mt-1 text-xs text-gray-500 break-all dark:text-gray-400">Property {lead.property_id}</p>
+                                        <p className="font-semibold text-gray-900 break-words [overflow-wrap:anywhere] dark:text-white">
+                                            {formatVerificationLeadPropertyLabel(lead)}
+                                        </p>
+                                        {formatVerificationLeadPropertyAddress(lead) && (
+                                            <p className="mt-1 text-xs text-gray-500 break-words [overflow-wrap:anywhere] dark:text-gray-400">
+                                                {formatVerificationLeadPropertyAddress(lead)}
+                                            </p>
                                         )}
+                                        <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            Lead {formatVerificationLeadReference(lead)}
+                                        </p>
                                     </div>
                                     <div className="text-right">
                                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{formatVerificationLeadStatus(lead.status)}</p>

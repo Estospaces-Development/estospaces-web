@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 import {
     USER_VERIFICATION_REVIEW_CLOSE_LABEL,
     canCompleteUserVerification,
+    formatVerificationLeadPropertyAddress,
+    formatVerificationLeadPropertyLabel,
+    formatVerificationLeadReference,
     formatVerificationLeadStatus,
     getVerificationReviewErrorMessage,
 } from './UserVerificationReviewModal';
@@ -79,6 +82,29 @@ test('recent lead statuses render readable labels instead of backend enums', () 
     assert.match(source, /formatVerificationLeadStatus\(lead\.status\)/);
     assert.doesNotMatch(source, />\{lead\.status\}<\/p>/);
     assert.doesNotMatch(source, />\{status\.replace\(\/_\/g, ' '\)\}<\/option>/);
+});
+
+test('recent lead rows prefer property context and compact references', () => {
+    const lead = {
+        id: '5fcd5515-9d55-463b-9a9c-415ed286311d',
+        lead_number: 'LD-2026-000123',
+        property_id: 'aa6e8134-2206-4362-a96a-170f0968f535',
+        property_name: '',
+        property: {
+            title: 'Launch Rent Apartment',
+            address_line_1: '1 Test Street',
+            city: 'London',
+            postcode: 'SW1A 1AA',
+        },
+    };
+
+    assert.equal(formatVerificationLeadReference(lead as any), 'LD-2026-000123');
+    assert.equal(formatVerificationLeadReference({ id: lead.id } as any), '5FCD5515');
+    assert.equal(formatVerificationLeadPropertyLabel(lead as any), 'Launch Rent Apartment');
+    assert.equal(formatVerificationLeadPropertyLabel({ property_id: lead.property_id } as any), 'AA6E8134');
+    assert.equal(formatVerificationLeadPropertyAddress(lead as any), '1 Test Street, London, SW1A 1AA');
+    assert.doesNotMatch(source, /Lead \{lead\.id\}/);
+    assert.doesNotMatch(source, /Property \{lead\.property_id\}/);
 });
 
 test('user verification review surfaces are cleanly scoped and avoid mojibake', () => {
