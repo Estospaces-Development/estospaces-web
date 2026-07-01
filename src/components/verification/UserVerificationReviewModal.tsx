@@ -99,6 +99,27 @@ const isVerificationDocumentApproved = (document: UserDocument | undefined) => {
     return status === 'approved' || status === 'verified';
 };
 
+export const formatVerificationLeadStatus = (status?: string | null) => {
+    const normalizedStatus = String(status || '').trim().toLowerCase();
+
+    switch (normalizedStatus) {
+        case 'pending_broker_response':
+            return 'Waiting for broker response';
+        case 'broker_responded':
+            return 'Broker has responded';
+        default:
+            return normalizedStatus
+                .split(/[_-]+/)
+                .filter(Boolean)
+                .map((word, index) => (
+                    index === 0
+                        ? `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+                        : word
+                ))
+                .join(' ') || 'Status unavailable';
+    }
+};
+
 export const canCompleteUserVerification = (documents: UserDocument[]) => {
     const latestDocuments = latestDocumentByCategory(documents);
     return isVerificationDocumentApproved(latestDocuments.get('identity'))
@@ -311,7 +332,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         ));
         const sortedLeads = [...filteredLeads].sort((left, right) => {
             if (leadSortMode === 'status') {
-                return String(left.status || '').localeCompare(String(right.status || ''))
+                return formatVerificationLeadStatus(left.status).localeCompare(formatVerificationLeadStatus(right.status))
                     || new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
             }
 
@@ -456,7 +477,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                             >
                                 <option value="all">All leads</option>
                                 {leadStatusOptions.map((status) => (
-                                    <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                                    <option key={status} value={status}>{formatVerificationLeadStatus(status)}</option>
                                 ))}
                             </select>
                             <label className="sr-only" htmlFor="verification-lead-sort">Sort recent leads</label>
@@ -491,7 +512,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                         )}
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{lead.status}</p>
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{formatVerificationLeadStatus(lead.status)}</p>
                                         <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</p>
                                     </div>
                                 </div>

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
     USER_VERIFICATION_REVIEW_CLOSE_LABEL,
     canCompleteUserVerification,
+    formatVerificationLeadStatus,
     getVerificationReviewErrorMessage,
 } from './UserVerificationReviewModal';
 
@@ -68,6 +69,16 @@ test('user verification approval requires approved identity and address document
         { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
         { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
     ] as any), true);
+});
+
+test('recent lead statuses render readable labels instead of backend enums', () => {
+    assert.equal(formatVerificationLeadStatus('PENDING_BROKER_RESPONSE'), 'Waiting for broker response');
+    assert.equal(formatVerificationLeadStatus('BROKER_RESPONDED'), 'Broker has responded');
+    assert.equal(formatVerificationLeadStatus('viewing_scheduled'), 'Viewing scheduled');
+    assert.equal(formatVerificationLeadStatus(''), 'Status unavailable');
+    assert.match(source, /formatVerificationLeadStatus\(lead\.status\)/);
+    assert.doesNotMatch(source, />\{lead\.status\}<\/p>/);
+    assert.doesNotMatch(source, />\{status\.replace\(\/_\/g, ' '\)\}<\/option>/);
 });
 
 test('user verification review surfaces are cleanly scoped and avoid mojibake', () => {
