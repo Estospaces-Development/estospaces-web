@@ -37,3 +37,14 @@ test('manager review modal treats approved profile documents as approved for sta
     assert.match(source, /getManagerApprovalBlocker\(profile, effectiveDocuments\)/);
     assert.match(source, /effectiveDocuments\.map/);
 });
+
+test('manager review modal requires meaningful rejection reupload and revocation reasons', () => {
+    assert.match(source, /MANAGER_REVIEW_REASON_MIN_LENGTH = 20/);
+    assert.match(source, /MANAGER_REVIEW_REASON_MIN_WORDS = 4/);
+    assert.match(source, /getManagerReviewReasonError\(revokeReason, 'reason for revocation'\)/);
+    assert.match(source, /getManagerReviewReasonError\(rejectReason, 'rejection reason'\)/);
+    assert.match(source, /getManagerReviewReasonError\(reuploadReason, 'reason for re-upload'\)/);
+    assert.match(source, /disabled=\{Boolean\(revokeReasonError\) \|\| actionLoading === 'revoke'\}/);
+    assert.match(source, /disabled=\{Boolean\(rejectReasonError\) \|\| actionLoading === 'reject'\}/);
+    assert.match(source, /disabled=\{Boolean\(reuploadReasonError\) \|\| actionLoading\}/);
+});
