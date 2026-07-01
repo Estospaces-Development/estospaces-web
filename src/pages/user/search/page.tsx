@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle } from 'lucide-react';
+import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
 import Modal from '../../../components/ui/Modal';
 import { searchService, SearchResult, FilterOptions, AutocompleteSuggestion, SearchHistoryEntry } from '../../../services/searchService';
@@ -33,6 +33,7 @@ import {
     formatLaunchPropertyText,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
+import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 
 const PropertySearch = () => {
     const navigate = useNavigate();
@@ -63,6 +64,7 @@ const PropertySearch = () => {
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [propertyTypeMenuOpen, setPropertyTypeMenuOpen] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [popularSearchTerms, setPopularSearchTerms] = useState<string[]>([]);
@@ -72,6 +74,11 @@ const PropertySearch = () => {
     const [searchSaveStatus, setSearchSaveStatus] = useState('');
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
     const queryValidationMessage = getSearchQueryValidationMessage(query, searchParams.has('q') || searchParams.has('keyword'));
+    const propertyTypeOptions = useMemo(
+        () => buildPropertyTypeOptions(filterOptions?.property_types),
+        [filterOptions?.property_types],
+    );
+    const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -546,14 +553,54 @@ const PropertySearch = () => {
                             onChange={(val) => { setListingType(val); setPage(1); }}
                             placeholder="Any"
                         />
-                        <Select
-                            id="public-search-property-type"
-                            label="Property Type"
-                            options={(filterOptions?.property_types || []).map((t: string) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
-                            value={propertyType}
-                            onChange={(val) => { setPropertyType(val); setPage(1); }}
-                            placeholder="Any type"
-                        />
+                        <div className="relative flex flex-col gap-1.5">
+                            <label id="public-search-property-type-label" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Property Type
+                            </label>
+                            <button
+                                id="public-search-property-type"
+                                type="button"
+                                aria-haspopup="listbox"
+                                aria-expanded={propertyTypeMenuOpen}
+                                aria-labelledby="public-search-property-type-label public-search-property-type"
+                                onClick={() => setPropertyTypeMenuOpen((open) => !open)}
+                                className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-left text-sm text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                            >
+                                <span>{selectedPropertyType.value ? selectedPropertyType.label : 'Any type'}</span>
+                                <ChevronDown
+                                    size={16}
+                                    className={`shrink-0 text-gray-500 transition-transform ${propertyTypeMenuOpen ? 'rotate-180' : ''}`}
+                                />
+                            </button>
+                            {propertyTypeMenuOpen && (
+                                <div
+                                    id="public-search-property-type-listbox"
+                                    role="listbox"
+                                    aria-labelledby="public-search-property-type-label"
+                                    className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                                >
+                                    {propertyTypeOptions.map((option) => (
+                                        <button
+                                            key={option.value || 'all-types'}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={propertyType === option.value}
+                                            onClick={() => {
+                                                setPropertyType(option.value);
+                                                setPropertyTypeMenuOpen(false);
+                                                setPage(1);
+                                            }}
+                                            className={`w-full px-3 py-2 text-left text-sm transition-colors ${propertyType === option.value
+                                                ? 'bg-orange-50 font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-200'
+                                                : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-zinc-800'
+                                                }`}
+                                        >
+                                            {option.value ? option.label : 'Any type'}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <div>
                             <label htmlFor="public-search-location" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Location</label>
                             <input

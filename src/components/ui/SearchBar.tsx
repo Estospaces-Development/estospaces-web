@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Home, IndianRupee, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { searchService, FilterOptions, AutocompleteSuggestion } from '../../services/searchService';
 import { formatLaunchCurrency, LAUNCH_CURRENCY_SYMBOL } from '@/lib/launchLocale';
+import { buildPropertyTypeOptions, propertyTypes } from '@/lib/propertyTypeOptions';
 
 export interface SearchFilters {
     keyword: string;
@@ -40,21 +41,6 @@ const defaultFilters: SearchFilters = {
     minBathrooms: null,
 };
 
-const propertyTypes = [
-    { value: '', label: 'All Types' },
-    { value: 'apartment', label: 'Apartment' },
-    { value: 'house', label: 'House' },
-    { value: 'villa', label: 'Villa' },
-    { value: 'studio', label: 'Studio' },
-    { value: 'penthouse', label: 'Penthouse' },
-    { value: 'duplex', label: 'Duplex' },
-    { value: 'condo', label: 'Condo' },
-    { value: 'townhouse', label: 'Townhouse' },
-    { value: 'commercial', label: 'Commercial' },
-    { value: 'office', label: 'Office' },
-    { value: 'land', label: 'Land' },
-];
-
 const priceRanges = {
     rent: [
         { min: null, max: 500, label: `Under ${formatLaunchCurrency(500)}` },
@@ -89,6 +75,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [propertyTypeMenuOpen, setPropertyTypeMenuOpen] = useState(false);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const usesDynamicFilters = variant !== 'compact';
 
@@ -213,6 +200,12 @@ const SearchBar: React.FC<SearchBarProps> = ({
         filters.maxPrice !== null ||
         filters.minBedrooms !== null ||
         filters.minBathrooms !== null;
+    const propertyTypeOptions = useMemo(
+        () => buildPropertyTypeOptions(filterOptions?.property_types),
+        [filterOptions?.property_types],
+    );
+    const selectedPropertyType = propertyTypeOptions.find((option) => option.value === filters.propertyType)
+        || propertyTypeOptions[0];
 
     // Hero variant
     if (variant === 'hero') {
@@ -281,15 +274,47 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <label className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1">Type</label>
                         <div className="flex items-center border-b border-gray-100 dark:border-gray-700 pb-2">
                             <Home size={18} className="text-primary mr-2" />
-                            <select value={filters.propertyType} onChange={(e) => handleInputChange('propertyType', e.target.value)} className="w-full outline-none text-gray-900 dark:text-gray-100 bg-transparent cursor-pointer" aria-label="Property type">
-                                <option value="">All Types</option>
-                                {filterOptions?.property_types.length
-                                    ? filterOptions.property_types.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)
-                                    : propertyTypes.slice(1).map((type) => (
-                                        <option key={type.value} value={type.value}>{type.label}</option>
-                                    ))}
-                            </select>
+                            <button
+                                type="button"
+                                aria-haspopup="listbox"
+                                aria-expanded={propertyTypeMenuOpen}
+                                aria-label="Property type"
+                                onClick={() => setPropertyTypeMenuOpen((open) => !open)}
+                                className="flex w-full items-center justify-between gap-3 bg-transparent text-left text-gray-900 outline-none dark:text-gray-100"
+                            >
+                                <span className="truncate">{selectedPropertyType.label}</span>
+                                <ChevronDown
+                                    size={16}
+                                    className={`shrink-0 text-gray-400 transition-transform ${propertyTypeMenuOpen ? 'rotate-180' : ''}`}
+                                />
+                            </button>
                         </div>
+                        {propertyTypeMenuOpen && (
+                            <div
+                                role="listbox"
+                                aria-label="Property type options"
+                                className="absolute bottom-full left-0 right-0 z-50 mb-2 max-h-64 overflow-auto rounded-lg border border-gray-100 bg-white py-1 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+                            >
+                                {propertyTypeOptions.map((option) => (
+                                    <button
+                                        key={option.value || 'all-types'}
+                                        type="button"
+                                        role="option"
+                                        aria-selected={filters.propertyType === option.value}
+                                        onClick={() => {
+                                            handleInputChange('propertyType', option.value);
+                                            setPropertyTypeMenuOpen(false);
+                                        }}
+                                        className={`w-full px-4 py-2 text-left text-sm transition-colors ${filters.propertyType === option.value
+                                            ? 'bg-orange-50 font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-200'
+                                            : 'text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-700'
+                                            }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex items-end gap-2">
