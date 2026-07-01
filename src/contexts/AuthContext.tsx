@@ -102,6 +102,15 @@ const buildFullName = (
     return getEmailPrefix(fallbackEmail);
 };
 
+export const splitRegistrationName = (name: string) => {
+    const normalizedName = name.trim().replace(/\s+/g, ' ');
+    const nameParts = normalizedName ? normalizedName.split(' ') : [];
+    const first_name = nameParts[0] || 'Unknown';
+    const last_name = nameParts.slice(1).join(' ');
+
+    return { first_name, last_name };
+};
+
 const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User => {
     const metadata = {
         ...parseMetadata(rawUser.metadata),
@@ -379,9 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ) => {
         setError(null);
         try {
-            const nameParts = name.trim().split(' ');
-            const first_name = nameParts[0] || 'Unknown';
-            const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : first_name;
+            const { first_name, last_name } = splitRegistrationName(name);
 
             const data = await apiFetch<any>(
                 `${CORE_SERVICE_URL()}/api/v1/auth/register`,
