@@ -20,3 +20,12 @@ test('manager review modal blocks approval when manager evidence is incomplete',
     assert.match(source, /Approval blocked/);
     assert.match(source, /disabled=\{approvalBlocker !== null\}/);
 });
+
+test('manager review modal treats rejected profiles as closed review states', () => {
+    assert.match(source, /getEffectiveManagerDocumentStatus/);
+    assert.match(source, /profileStatus === 'rejected'/);
+    assert.match(source, /const isRejected = profile\.verification_status === 'rejected'/);
+    assert.match(source, /disabled=\{isClosed\}/);
+    assert.match(source, /Manager Rejected/);
+    assert.match(source, /The manager must upload corrected documents before admin review can continue/);
+});

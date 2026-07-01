@@ -35,6 +35,8 @@ import {
     ManagerProfile,
     ManagerDocument,
     AuditLogEntry,
+    type DocumentStatus,
+    type VerificationStatus,
 } from '@/services/managerVerificationService';
 
 // ============================================================================
@@ -56,6 +58,21 @@ interface ReviewDetails {
 export const MANAGER_REVIEW_CLOSE_LABEL = 'Close manager verification review panel';
 const MANAGER_REVIEW_NOTES_MAX_LENGTH = 1000;
 const MANAGER_REVIEW_REASON_MAX_LENGTH = 500;
+
+export const getEffectiveManagerDocumentStatus = (
+    documentStatus: DocumentStatus,
+    profileStatus?: VerificationStatus,
+): DocumentStatus => {
+    if (
+        profileStatus === 'rejected'
+        && documentStatus !== 'rejected'
+        && documentStatus !== 'reupload_required'
+    ) {
+        return 'reupload_required';
+    }
+
+    return documentStatus;
+};
 
 // ============================================================================
 // Main Component
@@ -278,6 +295,9 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
     const isBroker = profile.profile_type === 'broker';
     const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, documents);
     const isApproved = profile.verification_status === 'approved' && approvalBlocker === null;
+    const isRejected = profile.verification_status === 'rejected';
+    const isClosed = isApproved || isRejected;
+    const rejectionReason = profile.rejection_reason || profile.agency_verification_reason || profile.revision_notes;
     const effectiveStatus = profile.verification_status === 'approved' && approvalBlocker !== null
         ? 'verification_required'
         : profile.verification_status;
@@ -440,7 +460,9 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                         setReuploadReason('');
                                     }}
                                     actionLoading={actionLoading === `reupload-${doc.id}`}
-                                    disabled={profile.verification_status === 'approved'}
+                                    disabled={isClosed}
+                                    profileStatus={profile.verification_status}
+                                    profileRejectionReason={rejectionReason}
                                 />
                             ))
                         )}
@@ -492,7 +514,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
 
             {/* Actions Footer */}
             <div className="p-6 border-t border-gray-100 bg-gradient-to-br from-gray-50 to-white flex-shrink-0">
-                {approvalBlocker && (
+                {!isRejected && approvalBlocker && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
                         <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={18} />
                         <div className="min-w-0">
@@ -501,7 +523,24 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                         </div>
                     </div>
                 )}
-                {isApproved ? (
+                {isRejected ? (
+                    <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                        <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                            <XCircle className="text-red-600" size={20} />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="font-semibold text-red-950">Manager Rejected</p>
+                            <p className="text-sm text-red-800">
+                                This verification is closed. The manager must upload corrected documents before admin review can continue.
+                            </p>
+                            {rejectionReason && (
+                                <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-xs text-red-700">
+                                    <strong>Reason:</strong> {rejectionReason}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                ) : isApproved ? (
                     showRevokeConfirm ? (
                         <div className="space-y-4">
                             <div>
@@ -745,6 +784,8 @@ const DocumentCard: React.FC<{
     onCancelReupload: () => void;
     actionLoading: boolean;
     disabled: boolean;
+    profileStatus?: VerificationStatus;
+    profileRejectionReason?: string;
 }> = ({
     document,
     onRequestReupload,
@@ -755,10 +796,18 @@ const DocumentCard: React.FC<{
     onCancelReupload,
     actionLoading,
     disabled,
+    profileStatus,
+    profileRejectionReason,
 }) => {
         const toast = useToast();
         const [viewLoading, setViewLoading] = useState(false);
-        const docStatusConfig = getDocStatusConfig(document.verification_status);
+        const effectiveStatus = getEffectiveManagerDocumentStatus(document.verification_status, profileStatus);
+        const docStatusConfig = getDocStatusConfig(effectiveStatus);
+        const effectiveRejectionReason = document.rejection_reason || (
+            profileStatus === 'rejected'
+                ? profileRejectionReason || 'Manager verification was rejected. Upload corrected documents before resubmitting.'
+                : undefined
+        );
 
         const handleOpenDocument = useCallback(async () => {
             setViewLoading(true);
@@ -797,9 +846,9 @@ const DocumentCard: React.FC<{
                     </span>
                 </div>
 
-                {document.rejection_reason && (
+                {effectiveRejectionReason && (
                     <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-700">
-                        <strong>Rejection reason:</strong> {document.rejection_reason}
+                        <strong>Rejection reason:</strong> {effectiveRejectionReason}
                     </div>
                 )}
 
@@ -854,7 +903,7 @@ const DocumentCard: React.FC<{
                             <Download size={12} />
                             Download
                         </button>
-                        {!disabled && document.verification_status !== 'rejected' && document.verification_status !== 'reupload_required' && (
+                        {!disabled && effectiveStatus !== 'rejected' && effectiveStatus !== 'reupload_required' && (
                             <button
                                 onClick={onRequestReupload}
                                 aria-label={`Request re-upload for ${managerVerificationService.getManagerDocumentTypeName(document.document_type)}`}
