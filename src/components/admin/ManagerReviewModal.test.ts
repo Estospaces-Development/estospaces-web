@@ -29,3 +29,11 @@ test('manager review modal treats rejected profiles as closed review states', ()
     assert.match(source, /Manager Rejected/);
     assert.match(source, /The manager must upload corrected documents before admin review can continue/);
 });
+
+test('manager review modal treats approved profile documents as approved for stale records', () => {
+    assert.match(source, /profileStatus === 'approved'/);
+    assert.match(source, /return 'approved'/);
+    assert.match(source, /const effectiveDocuments = documents\.map/);
+    assert.match(source, /getManagerApprovalBlocker\(profile, effectiveDocuments\)/);
+    assert.match(source, /effectiveDocuments\.map/);
+});

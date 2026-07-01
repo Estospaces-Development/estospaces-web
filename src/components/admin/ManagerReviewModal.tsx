@@ -63,6 +63,10 @@ export const getEffectiveManagerDocumentStatus = (
     documentStatus: DocumentStatus,
     profileStatus?: VerificationStatus,
 ): DocumentStatus => {
+    if (profileStatus === 'approved' && documentStatus !== 'approved') {
+        return 'approved';
+    }
+
     if (
         profileStatus === 'rejected'
         && documentStatus !== 'rejected'
@@ -293,7 +297,11 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
 
     const { profile, documents, auditLog, userInfo } = details;
     const isBroker = profile.profile_type === 'broker';
-    const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, documents);
+    const effectiveDocuments = documents.map((document) => ({
+        ...document,
+        verification_status: getEffectiveManagerDocumentStatus(document.verification_status, profile.verification_status),
+    }));
+    const approvalBlocker = managerVerificationService.getManagerApprovalBlocker(profile, effectiveDocuments);
     const isApproved = profile.verification_status === 'approved' && approvalBlocker === null;
     const isRejected = profile.verification_status === 'rejected';
     const isClosed = isApproved || isRejected;
@@ -446,7 +454,7 @@ const ManagerReviewModal: React.FC<ManagerReviewModalProps> = ({ managerId, onCl
                                 <p className="text-sm text-gray-500">No documents uploaded yet</p>
                             </div>
                         ) : (
-                            documents.map((doc) => (
+                            effectiveDocuments.map((doc) => (
                                 <DocumentCard
                                     key={doc.id}
                                     document={doc}
