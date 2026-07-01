@@ -6,12 +6,15 @@ import { fileURLToPath } from 'node:url';
 
 import {
     USER_VERIFICATION_REVIEW_CLOSE_LABEL,
+    VERIFICATION_REASON_MIN_LENGTH,
+    VERIFICATION_REASON_MIN_WORDS,
     canCompleteUserVerification,
     dedupeVerificationReviewDocuments,
     formatVerificationLeadPropertyAddress,
     formatVerificationLeadPropertyLabel,
     formatVerificationLeadReference,
     formatVerificationLeadStatus,
+    getVerificationDocumentReviewReasonError,
     getVerificationApprovalBlocker,
     getVerificationReviewErrorMessage,
 } from './UserVerificationReviewModal';
@@ -104,6 +107,32 @@ test('disabled verification approval explains missing required document approval
     );
     assert.match(source, /id="verification-approval-blocker"/);
     assert.match(source, /aria-describedby=\{approvalBlocker \? 'verification-approval-blocker' : undefined\}/);
+});
+
+test('document review reasons require specific actionable text', () => {
+    assert.equal(VERIFICATION_REASON_MIN_LENGTH, 20);
+    assert.equal(VERIFICATION_REASON_MIN_WORDS, 4);
+
+    assert.match(
+        getVerificationDocumentReviewReasonError('bad') || '',
+        /20 characters/,
+    );
+    assert.match(
+        getVerificationDocumentReviewReasonError('sfffffdsdc') || '',
+        /20 characters/,
+    );
+    assert.match(
+        getVerificationDocumentReviewReasonError('bad bad bad bad bad bad') || '',
+        /4 clear words/,
+    );
+    assert.equal(
+        getVerificationDocumentReviewReasonError('Document image is blurry and the address is cut off.'),
+        null,
+    );
+
+    assert.match(source, /minLength=\{VERIFICATION_REASON_MIN_LENGTH\}/);
+    assert.match(source, /aria-invalid=\{Boolean\(visibleReviewReasonError\)\}/);
+    assert.match(source, /disabled=\{loading \|\| disabled \|\| Boolean\(reviewReasonError\)\}/);
 });
 
 test('verification review documents collapse same-day duplicate uploads by file type and name', () => {

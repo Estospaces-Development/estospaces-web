@@ -48,6 +48,8 @@ interface UserVerificationReviewModalProps {
 export const USER_VERIFICATION_REVIEW_CLOSE_LABEL = 'Close verification review panel';
 const VERIFICATION_NOTES_MAX_LENGTH = 1000;
 const VERIFICATION_REASON_MAX_LENGTH = 500;
+export const VERIFICATION_REASON_MIN_LENGTH = 20;
+export const VERIFICATION_REASON_MIN_WORDS = 4;
 type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
 type VerificationSortMode = 'newest' | 'oldest' | 'status';
 type VerificationRecentLead = UserVerificationDetails['recent_leads'][number];
@@ -82,6 +84,26 @@ export const getVerificationReviewErrorMessage = (
     }
 
     return error || 'Failed to load user details';
+};
+
+export const getVerificationDocumentReviewReasonError = (reason: string) => {
+    const normalizedReason = reason.trim().replace(/\s+/g, ' ');
+    const words = normalizedReason.match(/[A-Za-z0-9]+/g) || [];
+    const uniqueWords = new Set(words.map((word) => word.toLowerCase()));
+
+    if (!normalizedReason) {
+        return 'Enter a specific reason before continuing.';
+    }
+
+    if (normalizedReason.length < VERIFICATION_REASON_MIN_LENGTH) {
+        return `Use at least ${VERIFICATION_REASON_MIN_LENGTH} characters so the user knows what to fix.`;
+    }
+
+    if (words.length < VERIFICATION_REASON_MIN_WORDS || uniqueWords.size < 3) {
+        return `Write at least ${VERIFICATION_REASON_MIN_WORDS} clear words, such as "Document image is blurry and expired."`;
+    }
+
+    return null;
 };
 
 const normalizeVerificationDocumentDuplicatePart = (value?: string | null) => (
@@ -771,6 +793,10 @@ const DocumentReviewCard: React.FC<{
         || document.status === 'reupload_required'
     );
     const isApprovedDocument = document.status === 'approved';
+    const reviewReasonError = reviewMode ? getVerificationDocumentReviewReasonError(rejectReason) : null;
+    const visibleReviewReasonError = rejectReason.trim() ? reviewReasonError : null;
+    const reviewReasonHelpId = `document-review-reason-help-${document.id}`;
+    const reviewReasonErrorId = `document-review-reason-error-${document.id}`;
 
     return (
         <div className={`rounded-xl border p-4 ${
@@ -809,14 +835,25 @@ const DocumentReviewCard: React.FC<{
                             placeholder={reviewMode === 'reject' ? 'Reason for rejecting this document...' : 'Reason for requesting a re-upload...'}
                             aria-label={reviewMode === 'reject' ? `Reject reason for ${document.file_name}` : `Re-upload reason for ${document.file_name}`}
                             required
+                            minLength={VERIFICATION_REASON_MIN_LENGTH}
                             maxLength={VERIFICATION_REASON_MAX_LENGTH}
+                            aria-invalid={Boolean(visibleReviewReasonError)}
+                            aria-describedby={`${reviewReasonHelpId}${visibleReviewReasonError ? ` ${reviewReasonErrorId}` : ''}`}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none"
                             rows={2}
                         />
+                        <p id={reviewReasonHelpId} className="text-xs text-gray-500 dark:text-gray-400">
+                            Use at least {VERIFICATION_REASON_MIN_WORDS} clear words and {VERIFICATION_REASON_MIN_LENGTH} characters. Include what is wrong and what the user should upload next.
+                        </p>
+                        {visibleReviewReasonError && (
+                            <p id={reviewReasonErrorId} className="text-xs font-medium text-red-600 dark:text-red-300">
+                                {reviewReasonError}
+                            </p>
+                        )}
                         <div className="flex gap-2">
                             <button
                                 onClick={() => reviewMode === 'reject' ? onReject(rejectReason) : onRequestChanges(rejectReason)}
-                                disabled={loading || disabled || !rejectReason.trim()}
+                                disabled={loading || disabled || Boolean(reviewReasonError)}
                                 aria-label={reviewMode === 'reject' ? `Confirm rejection for ${document.file_name}` : `Request re-upload for ${document.file_name}`}
                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
                             >
