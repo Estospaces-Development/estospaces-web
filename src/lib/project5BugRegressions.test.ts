@@ -20,6 +20,7 @@ const userApplicationFilters = readFileSync(resolve(root, 'src/components/dashbo
 const managerApplicationFilters = readFileSync(resolve(root, 'src/components/manager/applications/ApplicationFilters.tsx'), 'utf8');
 const adminHeader = readFileSync(resolve(root, 'src/components/layout/AdminHeader.tsx'), 'utf8');
 const adminDashboardPage = readFileSync(resolve(root, 'src/pages/admin/dashboard/page.tsx'), 'utf8');
+const adminVerificationsPage = readFileSync(resolve(root, 'src/pages/admin/verifications/page.tsx'), 'utf8');
 const adminReviewsPage = readFileSync(resolve(root, 'src/pages/admin/reviews/page.tsx'), 'utf8');
 const conversationList = readFileSync(resolve(root, 'src/components/dashboard/messaging/ConversationList.tsx'), 'utf8');
 const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspaceLayout.tsx'), 'utf8');
@@ -170,6 +171,12 @@ test('admin review moderation confirms destructive actions and refreshes after a
     assert.match(adminReviewsPage, /requestRemove/);
     assert.match(adminReviewsPage, /await fetchReviews\(pendingAction\.mode, activeTab\)/);
     assert.doesNotMatch(adminReviewsPage, /window\.confirm/);
+});
+
+test('admin manager verification modal pauses queue refresh while reviewing', () => {
+    assert.match(adminVerificationsPage, /enabled:\s*selectedManagerId === null/);
+    assert.match(adminVerificationsPage, /<ManagerReviewModal/);
+    assert.match(adminVerificationsPage, /fetchManagers\(\);/);
 });
 
 test('read message conversations do not render a zero unread-count badge', () => {
