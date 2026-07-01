@@ -297,6 +297,14 @@ test('fast-track document preview opens a modal for selected and uploaded files'
     );
     assert.match(
         fastTrackWorkspaceComponent,
+        /const previewLoading = previewBusyItemId === previewItem\.id && !previewUrl && !previewError/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /Loading document preview\.\.\./,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
         /aria-label="Zoom out document preview"/,
     );
     assert.match(
@@ -310,6 +318,29 @@ test('fast-track document preview opens a modal for selected and uploaded files'
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
         /window\.requestAnimationFrame\(\(\) => revealPreviewSection\(\)\)/,
+    );
+});
+
+test('manager completed-case document open stays in the in-app preview modal', () => {
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true \}\);/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /handleRailDownload/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /onClick=\{\(\) => void handleRailOpen\(activeDocument\)\}/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /ariaLabel=\{`Open \$\{activeDocument\.label\} from core files`\}/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /onClick=\{\(\) => void ensureDocumentPreview\(item, \{ openInModal: true \}\)\}\s*busy=\{previewBusyItemId === item\.id\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
     );
 });
 

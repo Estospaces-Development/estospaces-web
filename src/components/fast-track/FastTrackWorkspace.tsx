@@ -1468,8 +1468,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         await ensureDocumentPreview(item, { openInModal: true });
     }, [ensureDocumentPreview]);
 
-    const handleRailDownload = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInNewTab: true });
+    const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
+        await ensureDocumentPreview(item, { openInModal: true });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
@@ -1646,6 +1646,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : previewItem;
         const previewKind = detectDocumentPreviewKind(previewDisplayItem);
         const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
+        const previewLoading = previewBusyItemId === previewItem.id && !previewUrl && !previewError;
 
         return (
             <div className="space-y-4">
@@ -1689,7 +1690,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                {!previewUrl ? (
+                {previewLoading ? (
+                    <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 px-4 py-10 text-center text-sm font-semibold text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
+                        Loading document preview...
+                    </div>
+                ) : !previewUrl ? (
                     <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
                         Choose or upload a file to preview it here.
                     </div>
@@ -1943,14 +1948,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void handleRailDownload(activeDocument)}
+                            onClick={() => void handleRailOpen(activeDocument)}
                             disabled={!canPreview}
                             busy={previewBusyItemId === activeDocument.id}
-                            ariaLabel={`Download ${activeDocument.label} from core files`}
+                            ariaLabel={`Open ${activeDocument.label} from core files`}
                             className="px-3 py-2 text-xs"
                         >
-                            <Download size={12} />
-                            Download
+                            <ArrowUpRight size={12} />
+                            Open
                         </ActionButton>
                     </div>
                 </div>
@@ -2261,7 +2266,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInNewTab: true })}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true })}
                                             busy={previewBusyItemId === item.id}
                                             disabled={!canPreview}
                                             ariaLabel={`Open ${item.label}`}
