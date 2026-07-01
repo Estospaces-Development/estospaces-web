@@ -34,3 +34,12 @@ test('user dashboard search uses the shared hero search type control', () => {
     assert.match(userDashboardSource, /<SearchBar[\s\S]*variant="hero"/);
     assert.match(userDashboardSource, /onSearch=\{handleDashboardSearch\}/);
 });
+
+test('user dashboard hero search defaults to all sale and rental homes', () => {
+    assert.match(userDashboardSource, /listingType: 'all'/);
+    assert.match(source, /\{ label: 'All', value: 'all' \}/);
+    assert.match(source, /\{ label: 'Buy', value: 'sale' \}/);
+    assert.match(source, /\{ label: 'Rent', value: 'rent' \}/);
+    assert.match(userDashboardSource, /dashboardSearchFilters\.listingType === 'all'\s*\?\s*undefined/);
+    assert.doesNotMatch(userDashboardSource, /listingType: selectedPropertyType === 'rent' \? 'rent' : 'sale'/);
+});

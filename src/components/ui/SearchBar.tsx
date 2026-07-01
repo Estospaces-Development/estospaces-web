@@ -212,17 +212,21 @@ const SearchBar: React.FC<SearchBarProps> = ({
         return (
             <form onSubmit={handleSearch} className={`w-full ${className}`}>
                 <div className="inline-flex p-1.5 bg-slate-100/95 backdrop-blur-sm rounded-t-2xl border border-slate-200 shadow-sm">
-                    {['buy', 'rent'].map((type) => (
+                    {[
+                        { label: 'All', value: 'all' },
+                        { label: 'Buy', value: 'sale' },
+                        { label: 'Rent', value: 'rent' },
+                    ].map((option) => (
                         <button
-                            key={type}
+                            key={option.value}
                             type="button"
-                            className={`flex min-w-[100px] items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 ${filters.listingType === (type === 'buy' ? 'sale' : type)
+                            className={`flex min-w-[84px] items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm tracking-wide transition-all duration-300 ${filters.listingType === option.value
                                 ? 'bg-primary text-white shadow-lg shadow-primary/25'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-white'
                                 }`}
-                            onClick={() => handleInputChange('listingType', type === 'buy' ? 'sale' : 'rent')}
+                            onClick={() => handleInputChange('listingType', option.value)}
                         >
-                            {type === 'buy' ? 'Buy' : 'Rent'}
+                            {option.label}
                         </button>
                     ))}
                 </div>
