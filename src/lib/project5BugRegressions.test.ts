@@ -22,6 +22,7 @@ const adminHeader = readFileSync(resolve(root, 'src/components/layout/AdminHeade
 const adminDashboardPage = readFileSync(resolve(root, 'src/pages/admin/dashboard/page.tsx'), 'utf8');
 const adminReviewsPage = readFileSync(resolve(root, 'src/pages/admin/reviews/page.tsx'), 'utf8');
 const conversationList = readFileSync(resolve(root, 'src/components/dashboard/messaging/ConversationList.tsx'), 'utf8');
+const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspaceLayout.tsx'), 'utf8');
 const userPropertyDetailPage = readFileSync(resolve(root, 'src/pages/user/properties/[id]/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
@@ -175,6 +176,19 @@ test('read message conversations do not render a zero unread-count badge', () =>
     assert.match(conversationList, /unreadCount > 0 && \(/);
     assert.match(conversationList, /const unreadLabel = unreadCount > 0 \? `\$\{unreadCount\} unread` : "Read"/);
     assert.doesNotMatch(conversationList, /Read, 0 unread/);
+});
+
+test('manager workspace search inputs keep typed text and caret visible in dark mode', () => {
+    for (const source of [conversationList, fastTrackWorkspaceLayout]) {
+        assert.match(source, /text-gray-950/);
+        assert.match(source, /dark:text-white/);
+        assert.match(source, /caret-gray-900/);
+        assert.match(source, /dark:caret-white/);
+        assert.match(source, /placeholder:text-gray-500/);
+        assert.match(source, /dark:placeholder:text-gray-500/);
+    }
+    assert.match(conversationList, /placeholder="Search messages\.\.\."/);
+    assert.match(fastTrackWorkspaceLayout, /placeholder=\{copy\.searchPlaceholder\}/);
 });
 
 test('manager add-property full description is visibly length-limited', () => {

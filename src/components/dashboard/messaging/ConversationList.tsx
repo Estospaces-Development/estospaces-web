@@ -103,7 +103,7 @@ export default function ConversationList({
           <input
             type="text"
             placeholder="Search messages..."
-            className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:focus:border-orange-500/50 dark:focus:ring-orange-500/10"
+            className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-10 pr-4 text-sm text-gray-950 caret-gray-900 outline-none transition-all placeholder:text-gray-500 focus:border-orange-300 focus:bg-white focus:ring-4 focus:ring-orange-100 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:caret-white dark:placeholder:text-gray-500 dark:focus:border-orange-500/50 dark:focus:ring-orange-500/10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
