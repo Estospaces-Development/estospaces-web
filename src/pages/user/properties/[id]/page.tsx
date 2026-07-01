@@ -46,6 +46,7 @@ import {
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
 import {
+    resolveCreatedPropertyFastTrackCase,
     resolvePropertyFastTrackSummaryDocuments,
     resolvePropertyFastTrackPanelLabels,
     resolvePropertyFastTrackWorkspaceSelection,
@@ -1702,16 +1703,23 @@ const UserPropertyDetail = () => {
                 throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
             }
 
+            const createdFastTrackCase = fastTrackResult.data;
             try {
                 const refreshedWorkspace = await loadFastTrackWorkspace();
-                if (!refreshedWorkspace.fastTrackCase) {
-                    setActiveLead(leadToUse);
-                    setActiveFastTrackCase(fastTrackResult.data);
-                }
-                setLiveWorkspaceLoaded(Boolean(refreshedWorkspace.lead || refreshedWorkspace.fastTrackCase || fastTrackResult.data));
+                const selectedFastTrackCase = resolveCreatedPropertyFastTrackCase(
+                    createdFastTrackCase,
+                    refreshedWorkspace.fastTrackCase,
+                );
+                const selectedLead = refreshedWorkspace.lead?.id === selectedFastTrackCase.leadId
+                    ? refreshedWorkspace.lead
+                    : leadToUse || refreshedWorkspace.lead;
+
+                setActiveLead(selectedLead || null);
+                setActiveFastTrackCase(selectedFastTrackCase);
+                setLiveWorkspaceLoaded(Boolean(refreshedWorkspace.lead || selectedFastTrackCase));
             } catch {
                 setActiveLead(leadToUse);
-                setActiveFastTrackCase(fastTrackResult.data);
+                setActiveFastTrackCase(createdFastTrackCase);
                 setLiveWorkspaceLoaded(true);
             }
             publishWorkspaceSync({
@@ -1723,8 +1731,8 @@ const UserPropertyDetail = () => {
                 ],
                 reason: 'User started fast-track from property detail',
                 ids: {
-                    caseId: fastTrackResult.data.caseId,
-                    leadId: fastTrackResult.data.leadId || leadToUse?.id,
+                    caseId: createdFastTrackCase.caseId,
+                    leadId: createdFastTrackCase.leadId || leadToUse?.id,
                     propertyId: property.id,
                 },
             });

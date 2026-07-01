@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
+  resolveCreatedPropertyFastTrackCase,
   resolvePropertyFastTrackSummaryDocuments,
   resolvePropertyFastTrackPanelLabels,
   resolvePropertyFastTrackWorkspaceSelection,
@@ -141,9 +142,56 @@ test("property summary keeps documents linked to the selected active case", () =
   assert.equal(documents[0].id, "doc-current");
 });
 
+test("created property fast-track case wins when refresh returns a different active case", () => {
+  const createdCase = {
+    id: "case-new",
+    caseId: "FT-NEW",
+    finalStatus: "in_progress",
+    workspaceFinalStatus: "active",
+  };
+  const staleRefreshedCase = {
+    id: "case-dev-smoke",
+    caseId: "FT-OLD",
+    finalStatus: "in_progress",
+    workspaceFinalStatus: "active",
+  };
+
+  const selectedCase = resolveCreatedPropertyFastTrackCase(
+    createdCase as any,
+    staleRefreshedCase as any,
+  );
+
+  assert.equal(selectedCase.caseId, "FT-NEW");
+});
+
+test("created property fast-track case accepts refreshed data for the same case", () => {
+  const createdCase = {
+    id: "case-new",
+    caseId: "FT-NEW",
+    finalStatus: "in_progress",
+    workspaceFinalStatus: "active",
+    stage: "selected",
+  };
+  const refreshedCase = {
+    id: "case-new",
+    caseId: "FT-NEW",
+    finalStatus: "in_progress",
+    workspaceFinalStatus: "active",
+    stage: "documents",
+  };
+
+  const selectedCase = resolveCreatedPropertyFastTrackCase(
+    createdCase as any,
+    refreshedCase as any,
+  );
+
+  assert.equal(selectedCase.stage, "documents");
+});
+
 test("property detail keeps the newly created fast-track case available before refresh catches up", () => {
   const source = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
-  assert.match(source, /setActiveFastTrackCase\(fastTrackResult\.data\)/);
-  assert.match(source, /setLiveWorkspaceLoaded\(Boolean\(refreshedWorkspace\.lead \|\| refreshedWorkspace\.fastTrackCase \|\| fastTrackResult\.data\)\)/);
+  assert.match(source, /const createdFastTrackCase = fastTrackResult\.data/);
+  assert.match(source, /resolveCreatedPropertyFastTrackCase\(\s*createdFastTrackCase,\s*refreshedWorkspace\.fastTrackCase,\s*\)/);
+  assert.match(source, /setActiveFastTrackCase\(selectedFastTrackCase\)/);
 });
