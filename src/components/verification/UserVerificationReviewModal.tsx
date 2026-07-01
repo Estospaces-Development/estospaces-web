@@ -684,9 +684,14 @@ const DocumentReviewCard: React.FC<{
         || document.status === 'rejected'
         || document.status === 'reupload_required'
     );
+    const isApprovedDocument = document.status === 'approved';
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <div className={`rounded-xl border p-4 ${
+            isApprovedDocument
+                ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20'
+                : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+        }`}>
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                     <div className={`p-2.5 rounded-xl ${config.bg}`}>
@@ -744,8 +749,33 @@ const DocumentReviewCard: React.FC<{
                         </div>
                     </div>
                 ) : (
-                    <div className="flex gap-2">
-                        {canEdit && (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        {isApprovedDocument ? (
+                            <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-emerald-200 bg-white/80 px-3 py-2 dark:border-emerald-900/50 dark:bg-gray-900/40 sm:flex-row sm:items-center">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                    <CheckCircle size={14} />
+                                    Approved document - correction actions
+                                </div>
+                                <div className="flex flex-wrap gap-2 sm:ml-3">
+                                    <button
+                                        onClick={() => setReviewMode('reupload')}
+                                        disabled={disabled}
+                                        aria-label={`Request re-upload for approved ${document.file_name}`}
+                                        className="px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900/50 dark:bg-gray-900 dark:text-amber-300"
+                                    >
+                                        <RefreshCw size={12} className="inline-block mr-1" /> Request Re-upload
+                                    </button>
+                                    <button
+                                        onClick={() => setReviewMode('reject')}
+                                        disabled={disabled}
+                                        aria-label={`Reject approved ${document.file_name}`}
+                                        className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-900 dark:text-red-300"
+                                    >
+                                        <X size={12} className="inline-block mr-1" /> Reject
+                                    </button>
+                                </div>
+                            </div>
+                        ) : canEdit && (
                             <>
                                 <button
                                     onClick={onApprove}
@@ -777,7 +807,7 @@ const DocumentReviewCard: React.FC<{
                             onClick={onView}
                             disabled={viewLoading}
                             aria-label={`View ${document.file_name}`}
-                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 ml-auto"
+                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 sm:ml-auto"
                         >
                             {viewLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
                             View

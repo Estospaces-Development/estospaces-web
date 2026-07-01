@@ -107,6 +107,15 @@ test('recent lead rows prefer property context and compact references', () => {
     assert.doesNotMatch(source, /Property \{lead\.property_id\}/);
 });
 
+test('approved document rows separate correction actions from pending review actions', () => {
+    assert.match(source, /const isApprovedDocument = document\.status === 'approved'/);
+    assert.match(source, /Approved document - correction actions/);
+    assert.match(source, /border-emerald-200 bg-emerald-50\/70/);
+    assert.match(source, /aria-label=\{`Request re-upload for approved \$\{document\.file_name\}`\}/);
+    assert.match(source, /aria-label=\{`Reject approved \$\{document\.file_name\}`\}/);
+    assert.match(source, /\) : canEdit && \(/);
+});
+
 test('user verification review surfaces are cleanly scoped and avoid mojibake', () => {
     for (let index = 0; index < source.length; index += 1) {
         const code = source.codePointAt(index);
