@@ -20,8 +20,10 @@ const userApplicationFilters = readFileSync(resolve(root, 'src/components/dashbo
 const managerApplicationFilters = readFileSync(resolve(root, 'src/components/manager/applications/ApplicationFilters.tsx'), 'utf8');
 const adminHeader = readFileSync(resolve(root, 'src/components/layout/AdminHeader.tsx'), 'utf8');
 const adminDashboardPage = readFileSync(resolve(root, 'src/pages/admin/dashboard/page.tsx'), 'utf8');
+const adminVerificationsPage = readFileSync(resolve(root, 'src/pages/admin/verifications/page.tsx'), 'utf8');
 const adminReviewsPage = readFileSync(resolve(root, 'src/pages/admin/reviews/page.tsx'), 'utf8');
 const conversationList = readFileSync(resolve(root, 'src/components/dashboard/messaging/ConversationList.tsx'), 'utf8');
+const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspaceLayout.tsx'), 'utf8');
 const userPropertyDetailPage = readFileSync(resolve(root, 'src/pages/user/properties/[id]/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
@@ -171,10 +173,29 @@ test('admin review moderation confirms destructive actions and refreshes after a
     assert.doesNotMatch(adminReviewsPage, /window\.confirm/);
 });
 
+test('admin manager verification modal pauses queue refresh while reviewing', () => {
+    assert.match(adminVerificationsPage, /enabled:\s*selectedManagerId === null/);
+    assert.match(adminVerificationsPage, /<ManagerReviewModal/);
+    assert.match(adminVerificationsPage, /fetchManagers\(\);/);
+});
+
 test('read message conversations do not render a zero unread-count badge', () => {
     assert.match(conversationList, /unreadCount > 0 && \(/);
     assert.match(conversationList, /const unreadLabel = unreadCount > 0 \? `\$\{unreadCount\} unread` : "Read"/);
     assert.doesNotMatch(conversationList, /Read, 0 unread/);
+});
+
+test('manager workspace search inputs keep typed text and caret visible in dark mode', () => {
+    for (const source of [conversationList, fastTrackWorkspaceLayout]) {
+        assert.match(source, /text-gray-950/);
+        assert.match(source, /dark:text-white/);
+        assert.match(source, /caret-gray-900/);
+        assert.match(source, /dark:caret-white/);
+        assert.match(source, /placeholder:text-gray-500/);
+        assert.match(source, /dark:placeholder:text-gray-500/);
+    }
+    assert.match(conversationList, /placeholder="Search messages\.\.\."/);
+    assert.match(fastTrackWorkspaceLayout, /placeholder=\{copy\.searchPlaceholder\}/);
 });
 
 test('manager add-property full description is visibly length-limited', () => {

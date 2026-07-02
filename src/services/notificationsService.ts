@@ -315,6 +315,7 @@ export function getNotificationNavigationPath(
 export function getNotificationsPagePath(role: string = 'user'): string {
     switch (role) {
         case 'manager':
+        case 'broker':
             return '/manager/notifications';
         case 'admin':
             return '/admin/notifications';

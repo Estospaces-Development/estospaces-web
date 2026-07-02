@@ -162,3 +162,22 @@ test("getPropertyMapState falls back to service-address search without coordinat
   );
   assert.match(state.externalUrl ?? "", /221B%20Smoke%20Test%20Lane/);
 });
+
+test("getPropertyMapState uses a sanitized display address override for address search", () => {
+  const state = getPropertyMapState(
+    {
+      address_line_1: "Attur",
+      city: "Edinburgh",
+      postcode: "SW1A 1AA",
+      country: "IN",
+    },
+    { displayAddress: "Attur, Chennai, 600001" },
+  );
+
+  assert.equal(state.hasCoordinates, false);
+  assert.equal(state.hasAddress, true);
+  assert.equal(state.displayAddress, "Attur, Chennai, 600001");
+  assert.doesNotMatch(state.displayAddress, /Edinburgh|SW1A/i);
+  assert.doesNotMatch(decodeURIComponent(state.externalUrl ?? ""), /Edinburgh|SW1A/i);
+  assert.match(decodeURIComponent(state.externalUrl ?? ""), /Attur, Chennai, 600001/);
+});

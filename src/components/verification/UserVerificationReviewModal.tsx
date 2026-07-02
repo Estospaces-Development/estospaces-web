@@ -48,8 +48,11 @@ interface UserVerificationReviewModalProps {
 export const USER_VERIFICATION_REVIEW_CLOSE_LABEL = 'Close verification review panel';
 const VERIFICATION_NOTES_MAX_LENGTH = 1000;
 const VERIFICATION_REASON_MAX_LENGTH = 500;
+export const VERIFICATION_REASON_MIN_LENGTH = 20;
+export const VERIFICATION_REASON_MIN_WORDS = 4;
 type VerificationDocumentFilter = 'all' | 'pending' | 'approved' | 'reupload_required' | 'rejected';
 type VerificationSortMode = 'newest' | 'oldest' | 'status';
+type VerificationRecentLead = UserVerificationDetails['recent_leads'][number];
 
 export interface UserVerificationReviewMissingUserContext {
     name?: string | null;
@@ -83,13 +86,78 @@ export const getVerificationReviewErrorMessage = (
     return error || 'Failed to load user details';
 };
 
-const dedupeDocumentsById = (documents: UserDocument[]) => {
-    const seen = new Set<string>();
-    return documents.filter((document) => {
-        if (seen.has(document.id)) {
+export const getVerificationDocumentReviewReasonError = (reason: string) => {
+    const normalizedReason = reason.trim().replace(/\s+/g, ' ');
+    const words = normalizedReason.match(/[A-Za-z0-9]+/g) || [];
+    const uniqueWords = new Set(words.map((word) => word.toLowerCase()));
+
+    if (!normalizedReason) {
+        return 'Enter a specific reason before continuing.';
+    }
+
+    if (normalizedReason.length < VERIFICATION_REASON_MIN_LENGTH) {
+        return `Use at least ${VERIFICATION_REASON_MIN_LENGTH} characters so the user knows what to fix.`;
+    }
+
+    if (words.length < VERIFICATION_REASON_MIN_WORDS || uniqueWords.size < 3) {
+        return `Write at least ${VERIFICATION_REASON_MIN_WORDS} clear words, such as "Document image is blurry and expired."`;
+    }
+
+    return null;
+};
+
+const normalizeVerificationDocumentDuplicatePart = (value?: string | null) => (
+    String(value || '').trim().toLowerCase()
+);
+
+const getVerificationDocumentUploadDay = (createdAt?: string | null) => {
+    const timestamp = Date.parse(String(createdAt || ''));
+    return Number.isNaN(timestamp) ? '' : new Date(timestamp).toISOString().slice(0, 10);
+};
+
+const getVerificationDocumentDuplicateKey = (document: UserDocument) => {
+    const fileName = normalizeVerificationDocumentDuplicatePart(document.file_name);
+    const documentType = normalizeVerificationDocumentDuplicatePart(document.document_type);
+    const documentCategory = normalizeVerificationDocumentDuplicatePart(document.document_category);
+    const uploadDay = getVerificationDocumentUploadDay(document.created_at);
+
+    if (!fileName || !documentType || !documentCategory || !uploadDay) {
+        return '';
+    }
+
+    return [
+        normalizeVerificationDocumentDuplicatePart(document.user_id),
+        fileName,
+        documentType,
+        documentCategory,
+        uploadDay,
+    ].join('|');
+};
+
+export const dedupeVerificationReviewDocuments = (documents: UserDocument[]) => {
+    const seenIds = new Set<string>();
+    const seenUploadKeys = new Set<string>();
+    const newestFirst = [...documents].sort((left, right) => (
+        new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+    ));
+
+    return newestFirst.filter((document) => {
+        const id = String(document.id || '').trim();
+        if (id && seenIds.has(id)) {
             return false;
         }
-        seen.add(document.id);
+        if (id) {
+            seenIds.add(id);
+        }
+
+        const uploadKey = getVerificationDocumentDuplicateKey(document);
+        if (uploadKey && seenUploadKeys.has(uploadKey)) {
+            return false;
+        }
+        if (uploadKey) {
+            seenUploadKeys.add(uploadKey);
+        }
+
         return true;
     });
 };
@@ -98,6 +166,104 @@ const isVerificationDocumentApproved = (document: UserDocument | undefined) => {
     const status = String(document?.status || '').trim().toLowerCase();
     return status === 'approved' || status === 'verified';
 };
+
+const formatVerificationDocumentStatus = (status?: string | null) => (
+    String(status || 'not uploaded')
+        .trim()
+        .toLowerCase()
+        .split(/[_-]+/)
+        .filter(Boolean)
+        .map((word, index) => (
+            index === 0
+                ? `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+                : word
+        ))
+        .join(' ') || 'Not uploaded'
+);
+
+export const getVerificationApprovalBlocker = (documents: UserDocument[]) => {
+    const latestDocuments = latestDocumentByCategory(documents);
+    const missingApprovals = [
+        { label: 'identity proof', document: latestDocuments.get('identity') },
+        { label: 'address proof', document: latestDocuments.get('address') },
+    ].filter(({ document }) => !isVerificationDocumentApproved(document));
+
+    if (missingApprovals.length === 0) {
+        return null;
+    }
+
+    const labels = missingApprovals
+        .map(({ label, document }) => `${label} (${formatVerificationDocumentStatus(document?.status)})`)
+        .join(', ');
+    const noun = missingApprovals.length === 1 ? 'document approval is' : 'document approvals are';
+
+    return `${missingApprovals.length} required ${noun} still needed before approving: ${labels}.`;
+};
+
+export const formatVerificationLeadStatus = (status?: string | null) => {
+    const normalizedStatus = String(status || '').trim().toLowerCase();
+
+    switch (normalizedStatus) {
+        case 'pending_broker_response':
+            return 'Waiting for broker response';
+        case 'broker_responded':
+            return 'Broker has responded';
+        default:
+            return normalizedStatus
+                .split(/[_-]+/)
+                .filter(Boolean)
+                .map((word, index) => (
+                    index === 0
+                        ? `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+                        : word
+                ))
+                .join(' ') || 'Status unavailable';
+    }
+};
+
+const formatShortReference = (value?: string | null) => {
+    const normalizedValue = String(value || '').trim();
+
+    if (!normalizedValue) {
+        return '';
+    }
+
+    return normalizedValue.length > 12
+        ? normalizedValue.slice(0, 8).toUpperCase()
+        : normalizedValue;
+};
+
+export const formatVerificationLeadReference = (
+    lead: Pick<VerificationRecentLead, 'id' | 'lead_number'>,
+) => {
+    const leadNumber = String(lead.lead_number || '').trim();
+    return leadNumber || formatShortReference(lead.id) || 'Unassigned lead';
+};
+
+export const formatVerificationLeadPropertyLabel = (
+    lead: Pick<VerificationRecentLead, 'property' | 'property_id' | 'property_name'>,
+) => {
+    const propertyTitle = String(lead.property?.title || lead.property_name || '').trim();
+
+    if (propertyTitle) {
+        return propertyTitle;
+    }
+
+    return formatShortReference(lead.property_id) || 'Property context pending';
+};
+
+export const formatVerificationLeadPropertyAddress = (
+    lead: Pick<VerificationRecentLead, 'property'>,
+) => (
+    [
+        lead.property?.address_line_1,
+        lead.property?.city,
+        lead.property?.postcode,
+    ]
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .join(', ')
+);
 
 export const canCompleteUserVerification = (documents: UserDocument[]) => {
     const latestDocuments = latestDocumentByCategory(documents);
@@ -149,7 +315,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const reviewDocuments = useMemo(
         () => isFastTrackReview
             ? getLatestFastTrackReviewDocuments(details?.documents || [])
-            : dedupeDocumentsById(details?.documents || []),
+            : dedupeVerificationReviewDocuments(details?.documents || []),
         [details?.documents, isFastTrackReview],
     );
     const visibleReviewDocuments = useMemo(() => {
@@ -173,6 +339,9 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
     const canApprove = !isVerificationApproved && (isFastTrackReview
         ? canCompleteFastTrackVerification(details?.documents || [])
         : canCompleteUserVerification(details?.documents || []));
+    const approvalBlocker = !isVerificationApproved && !canApprove
+        ? getVerificationApprovalBlocker(reviewDocuments)
+        : null;
 
     const getDocumentReviewSuccessMessage = (
         status: 'approved' | 'reupload_required' | 'rejected',
@@ -311,7 +480,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
         ));
         const sortedLeads = [...filteredLeads].sort((left, right) => {
             if (leadSortMode === 'status') {
-                return String(left.status || '').localeCompare(String(right.status || ''))
+                return formatVerificationLeadStatus(left.status).localeCompare(formatVerificationLeadStatus(right.status))
                     || new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
             }
 
@@ -456,7 +625,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                             >
                                 <option value="all">All leads</option>
                                 {leadStatusOptions.map((status) => (
-                                    <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>
+                                    <option key={status} value={status}>{formatVerificationLeadStatus(status)}</option>
                                 ))}
                             </select>
                             <label className="sr-only" htmlFor="verification-lead-sort">Sort recent leads</label>
@@ -485,13 +654,20 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                                     className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm dark:border-gray-700 dark:bg-gray-800"
                                 >
                                     <div className="min-w-0">
-                                        <p className="font-semibold text-gray-900 break-all dark:text-white">Lead {lead.id}</p>
-                                        {lead.property_id && (
-                                            <p className="mt-1 text-xs text-gray-500 break-all dark:text-gray-400">Property {lead.property_id}</p>
+                                        <p className="font-semibold text-gray-900 break-words [overflow-wrap:anywhere] dark:text-white">
+                                            {formatVerificationLeadPropertyLabel(lead)}
+                                        </p>
+                                        {formatVerificationLeadPropertyAddress(lead) && (
+                                            <p className="mt-1 text-xs text-gray-500 break-words [overflow-wrap:anywhere] dark:text-gray-400">
+                                                {formatVerificationLeadPropertyAddress(lead)}
+                                            </p>
                                         )}
+                                        <p className="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+                                            Lead {formatVerificationLeadReference(lead)}
+                                        </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{lead.status}</p>
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{formatVerificationLeadStatus(lead.status)}</p>
                                         <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{new Date(lead.created_at).toLocaleDateString()}</p>
                                     </div>
                                 </div>
@@ -558,6 +734,7 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     <button
                         onClick={() => handleVerificationUpdate('verified')}
                         disabled={verificationActionLoading || Boolean(activeDocumentId) || !canApprove}
+                        aria-describedby={approvalBlocker ? 'verification-approval-blocker' : undefined}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-medium disabled:opacity-50 transition-all ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     >
                         {verificationActionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
@@ -565,10 +742,14 @@ const UserVerificationReviewModal: React.FC<UserVerificationReviewModalProps> = 
                     </button>
                     </div>
                 )}
-                {isFastTrackReview && !isVerificationApproved && !canApprove && (
-                    <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-gray-400">
-                        Approve the latest identity proof and the latest address proof individually before completing the fast-track verification.
-                    </p>
+                {approvalBlocker && (
+                    <div
+                        id="verification-approval-blocker"
+                        className="mt-3 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
+                    >
+                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                        <p>{approvalBlocker}</p>
+                    </div>
                 )}
             </div>
         </ModalWrapper>
@@ -611,9 +792,18 @@ const DocumentReviewCard: React.FC<{
         || document.status === 'rejected'
         || document.status === 'reupload_required'
     );
+    const isApprovedDocument = document.status === 'approved';
+    const reviewReasonError = reviewMode ? getVerificationDocumentReviewReasonError(rejectReason) : null;
+    const visibleReviewReasonError = rejectReason.trim() ? reviewReasonError : null;
+    const reviewReasonHelpId = `document-review-reason-help-${document.id}`;
+    const reviewReasonErrorId = `document-review-reason-error-${document.id}`;
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <div className={`rounded-xl border p-4 ${
+            isApprovedDocument
+                ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20'
+                : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+        }`}>
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
                     <div className={`p-2.5 rounded-xl ${config.bg}`}>
@@ -645,14 +835,25 @@ const DocumentReviewCard: React.FC<{
                             placeholder={reviewMode === 'reject' ? 'Reason for rejecting this document...' : 'Reason for requesting a re-upload...'}
                             aria-label={reviewMode === 'reject' ? `Reject reason for ${document.file_name}` : `Re-upload reason for ${document.file_name}`}
                             required
+                            minLength={VERIFICATION_REASON_MIN_LENGTH}
                             maxLength={VERIFICATION_REASON_MAX_LENGTH}
+                            aria-invalid={Boolean(visibleReviewReasonError)}
+                            aria-describedby={`${reviewReasonHelpId}${visibleReviewReasonError ? ` ${reviewReasonErrorId}` : ''}`}
                             className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none"
                             rows={2}
                         />
+                        <p id={reviewReasonHelpId} className="text-xs text-gray-500 dark:text-gray-400">
+                            Use at least {VERIFICATION_REASON_MIN_WORDS} clear words and {VERIFICATION_REASON_MIN_LENGTH} characters. Include what is wrong and what the user should upload next.
+                        </p>
+                        {visibleReviewReasonError && (
+                            <p id={reviewReasonErrorId} className="text-xs font-medium text-red-600 dark:text-red-300">
+                                {reviewReasonError}
+                            </p>
+                        )}
                         <div className="flex gap-2">
                             <button
                                 onClick={() => reviewMode === 'reject' ? onReject(rejectReason) : onRequestChanges(rejectReason)}
-                                disabled={loading || disabled || !rejectReason.trim()}
+                                disabled={loading || disabled || Boolean(reviewReasonError)}
                                 aria-label={reviewMode === 'reject' ? `Confirm rejection for ${document.file_name}` : `Request re-upload for ${document.file_name}`}
                                 className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 disabled:opacity-50"
                             >
@@ -671,8 +872,33 @@ const DocumentReviewCard: React.FC<{
                         </div>
                     </div>
                 ) : (
-                    <div className="flex gap-2">
-                        {canEdit && (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        {isApprovedDocument ? (
+                            <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-emerald-200 bg-white/80 px-3 py-2 dark:border-emerald-900/50 dark:bg-gray-900/40 sm:flex-row sm:items-center">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                    <CheckCircle size={14} />
+                                    Approved document - correction actions
+                                </div>
+                                <div className="flex flex-wrap gap-2 sm:ml-3">
+                                    <button
+                                        onClick={() => setReviewMode('reupload')}
+                                        disabled={disabled}
+                                        aria-label={`Request re-upload for approved ${document.file_name}`}
+                                        className="px-3 py-1.5 rounded-lg border border-amber-200 bg-white text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900/50 dark:bg-gray-900 dark:text-amber-300"
+                                    >
+                                        <RefreshCw size={12} className="inline-block mr-1" /> Request Re-upload
+                                    </button>
+                                    <button
+                                        onClick={() => setReviewMode('reject')}
+                                        disabled={disabled}
+                                        aria-label={`Reject approved ${document.file_name}`}
+                                        className="px-3 py-1.5 rounded-lg border border-red-200 bg-white text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-gray-900 dark:text-red-300"
+                                    >
+                                        <X size={12} className="inline-block mr-1" /> Reject
+                                    </button>
+                                </div>
+                            </div>
+                        ) : canEdit && (
                             <>
                                 <button
                                     onClick={onApprove}
@@ -704,7 +930,7 @@ const DocumentReviewCard: React.FC<{
                             onClick={onView}
                             disabled={viewLoading}
                             aria-label={`View ${document.file_name}`}
-                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 ml-auto"
+                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium hover:bg-gray-200 flex items-center gap-1 sm:ml-auto"
                         >
                             {viewLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
                             View

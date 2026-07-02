@@ -63,6 +63,7 @@ function VerificationsContent() {
       WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
     ],
     refresh: fetchManagers,
+    enabled: selectedManagerId === null,
   });
 
   useEffect(() => {

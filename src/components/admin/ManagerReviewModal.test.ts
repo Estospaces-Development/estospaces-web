@@ -20,3 +20,31 @@ test('manager review modal blocks approval when manager evidence is incomplete',
     assert.match(source, /Approval blocked/);
     assert.match(source, /disabled=\{approvalBlocker !== null\}/);
 });
+
+test('manager review modal treats rejected profiles as closed review states', () => {
+    assert.match(source, /getEffectiveManagerDocumentStatus/);
+    assert.match(source, /profileStatus === 'rejected'/);
+    assert.match(source, /const isRejected = profile\.verification_status === 'rejected'/);
+    assert.match(source, /disabled=\{isClosed\}/);
+    assert.match(source, /Manager Rejected/);
+    assert.match(source, /The manager must upload corrected documents before admin review can continue/);
+});
+
+test('manager review modal treats approved profile documents as approved for stale records', () => {
+    assert.match(source, /profileStatus === 'approved'/);
+    assert.match(source, /return 'approved'/);
+    assert.match(source, /const effectiveDocuments = documents\.map/);
+    assert.match(source, /getManagerApprovalBlocker\(profile, effectiveDocuments\)/);
+    assert.match(source, /effectiveDocuments\.map/);
+});
+
+test('manager review modal requires meaningful rejection reupload and revocation reasons', () => {
+    assert.match(source, /MANAGER_REVIEW_REASON_MIN_LENGTH = 20/);
+    assert.match(source, /MANAGER_REVIEW_REASON_MIN_WORDS = 4/);
+    assert.match(source, /getManagerReviewReasonError\(revokeReason, 'reason for revocation'\)/);
+    assert.match(source, /getManagerReviewReasonError\(rejectReason, 'rejection reason'\)/);
+    assert.match(source, /getManagerReviewReasonError\(reuploadReason, 'reason for re-upload'\)/);
+    assert.match(source, /disabled=\{Boolean\(revokeReasonError\) \|\| actionLoading === 'revoke'\}/);
+    assert.match(source, /disabled=\{Boolean\(rejectReasonError\) \|\| actionLoading === 'reject'\}/);
+    assert.match(source, /disabled=\{Boolean\(reuploadReasonError\) \|\| actionLoading\}/);
+});

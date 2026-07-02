@@ -15,6 +15,28 @@ const LIVE_PROPERTY_STATUSES = new Set<string>([
 
 const normalizeStatusToken = (value?: string | null) => value?.trim().toLowerCase() || '';
 
+type ManagerFastTrackMetricCase = {
+    workspaceFinalStatus?: string | null;
+    finalStatus?: string | null;
+    hoursRemaining?: number | null;
+};
+
+const normalizeFastTrackFinalStatus = (
+    value?: string | null,
+    fallback?: string | null,
+) => {
+    const normalized = normalizeStatusToken(value) || normalizeStatusToken(fallback);
+
+    if (normalized === 'completed') {
+        return 'completed';
+    }
+    if (['cancelled', 'expired', 'rejected'].includes(normalized)) {
+        return 'cancelled';
+    }
+
+    return 'active';
+};
+
 export const normalizeManagerAnalyticsPercentage = (value?: number | null) => {
     const numericValue = Number(value ?? 0);
 
@@ -72,6 +94,87 @@ export const filterManagerLivePropertyPerformance = (
 ) => (
     (propertyPerformance || []).filter((property) => isManagerLivePropertyStatus(property.status))
 );
+
+export const getManagerLiveListingCount = (
+    analytics?: {
+        active_listings?: number | null;
+        total_properties?: number | null;
+        leadAnalytics?: { totalProperties?: number | null } | null;
+        propertyPerformance?: readonly PropertyPerformance[] | null;
+    } | null,
+    fallbackProperties?: readonly { status?: string | null }[] | null,
+    liveListingTotal?: number | null,
+) => {
+    const numericLiveListingTotal = Number(liveListingTotal);
+    if (Number.isFinite(numericLiveListingTotal)) {
+        return Math.max(0, numericLiveListingTotal);
+    }
+
+    const analyticsCount = analytics?.active_listings
+        ?? analytics?.total_properties
+        ?? analytics?.leadAnalytics?.totalProperties;
+    const numericAnalyticsCount = Number(analyticsCount);
+
+    if (Number.isFinite(numericAnalyticsCount)) {
+        return Math.max(0, numericAnalyticsCount);
+    }
+
+    if (analytics?.propertyPerformance) {
+        return filterManagerLivePropertyPerformance(analytics.propertyPerformance).length;
+    }
+
+    return (fallbackProperties || []).filter((property) => (
+        isManagerLivePropertyStatus(property.status)
+    )).length;
+};
+
+export const getManagerFastTrackSummary = (
+    cases?: readonly ManagerFastTrackMetricCase[] | null,
+) => {
+    const summary = {
+        active: 0,
+        completed: 0,
+        cancelled: 0,
+        closingSoon: 0,
+    };
+
+    (cases || []).forEach((caseItem) => {
+        const status = normalizeFastTrackFinalStatus(
+            caseItem.workspaceFinalStatus,
+            caseItem.finalStatus,
+        );
+
+        summary[status] += 1;
+
+        const hoursRemaining = Number(caseItem.hoursRemaining ?? 0);
+        if (
+            status === 'active'
+            && Number.isFinite(hoursRemaining)
+            && hoursRemaining > 0
+            && hoursRemaining <= 6
+        ) {
+            summary.closingSoon += 1;
+        }
+    });
+
+    return summary;
+};
+
+export const getManagerApplicationCount = (
+    analytics?: {
+        total_applications?: number | null;
+        propertyPerformance?: readonly PropertyPerformance[] | null;
+    } | null,
+) => {
+    const analyticsTotal = Number(analytics?.total_applications);
+    if (Number.isFinite(analyticsTotal)) {
+        return Math.max(0, analyticsTotal);
+    }
+
+    return (analytics?.propertyPerformance || []).reduce((total, property) => (
+        total + (property.applications || 0)
+    ), 0);
+};
 
 export const getManagerPropertyStatusFilters = (searchParams: URLSearchParams) => (
     normalizeManagerPropertyStatusFilters(

@@ -2,7 +2,7 @@ import type { SupportTicketSummary } from '@/services/messagesService';
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 
 export const hasPrefilledSupportComposerContext = (searchParams: URLSearchParams): boolean => (
-    ['category', 'subject', 'message'].some((key) => Boolean(searchParams.get(key)?.trim()))
+    ['category', 'subject', 'message', 'priority'].some((key) => Boolean(searchParams.get(key)?.trim()))
 );
 
 const SUPPORT_CATEGORY_LABEL_TO_VALUE: Record<string, string> = {
@@ -39,6 +39,7 @@ const SUPPORT_CATEGORY_VALUE_TO_LABEL: Record<string, string> = {
 
 const normalizeCategoryKey = (value: string) => value.trim().toLowerCase();
 const inactiveFinanceCategoryPattern = /\b(payment|payments|invoice|invoices|billing)\b/i;
+const SUPPORT_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
 
 export const normalizeSupportTicketCategory = (value: string, fallback = 'General Inquiry'): string => (
     SUPPORT_CATEGORY_LABEL_TO_VALUE[normalizeCategoryKey(value)]
@@ -93,6 +94,16 @@ export const resolveSupportComposerCategory = (
     return fallbackCategory;
 };
 
+export const resolveSupportComposerPriority = (
+    value: string,
+    fallbackPriority: SupportTicketSummary['priority'],
+): SupportTicketSummary['priority'] => {
+    const normalizedPriority = value.trim().toLowerCase();
+    return SUPPORT_PRIORITIES.has(normalizedPriority)
+        ? normalizedPriority as SupportTicketSummary['priority']
+        : fallbackPriority;
+};
+
 export const buildPrefilledSupportComposer = ({
     searchParams,
     availableCategories,
@@ -116,7 +127,7 @@ export const buildPrefilledSupportComposer = ({
     ),
     subject: searchParams.get('subject') || '',
     message: searchParams.get('message') || '',
-    priority,
+    priority: resolveSupportComposerPriority(searchParams.get('priority') || '', priority),
 });
 
 export const getAutoSelectedSupportTicketId = ({

@@ -27,6 +27,8 @@ import {
     ADMIN_PROPERTY_TYPE_FILTERS,
     type AdminPropertyRegistrySortOption,
     filterAdminPropertyRegistry,
+    filterVisibleAdminPropertyRegistry,
+    getAdminPropertyWorkflowFallbackLabel,
     getAdminPropertySortControlLabel,
     sortAdminPropertyRegistry,
 } from '@/lib/adminPropertyRegistry';
@@ -75,6 +77,7 @@ function PropertyManagementContent() {
         setStatusFilter('all');
     };
 
+    const visibleRegistryProperties = filterVisibleAdminPropertyRegistry(properties);
     const filteredProperties = sortAdminPropertyRegistry(
         filterAdminPropertyRegistry(properties, {
             searchQuery,
@@ -267,7 +270,7 @@ function PropertyManagementContent() {
 
         return (
             <div className="flex-1 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-400 dark:border-gray-600">
-                Awaiting Manager Submission
+                {getAdminPropertyWorkflowFallbackLabel(property)}
             </div>
         );
     };
@@ -476,7 +479,7 @@ function PropertyManagementContent() {
                     </div>
                     <div className="flex items-center gap-4 border-t pt-4 dark:border-gray-700 xl:border-l xl:border-t-0 xl:px-6 xl:pt-0">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Total Listed: <span className="text-gray-900 dark:text-white">{pagination.total || properties.length}</span>
+                            Total Listed: <span className="text-gray-900 dark:text-white">{visibleRegistryProperties.length}</span>
                         </span>
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                             Showing: <span className="text-gray-900 dark:text-white">{filteredProperties.length}</span>

@@ -1,23 +1,45 @@
+import { formatPropertyStatusLabel } from './propertyStatusBadge';
+
 export type AdminPropertyRegistryProperty = {
     id?: string;
     propertyId?: string;
     property_id?: string;
     title?: string;
+    description?: string;
     city?: string;
     location?: {
+        addressLine1?: string;
+        addressLine2?: string;
         city?: string;
+        postalCode?: string;
+        country?: string;
     };
     listingType?: string;
+    listing_type?: string;
     propertyType?: string;
+    property_type?: string;
     status?: string;
     contactName?: string;
+    agent_name?: string;
+    address_line_1?: string;
+    address_line_2?: string;
+    postcode?: string;
+    country?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    rooms?: {
+        bedrooms?: number;
+        bathrooms?: number;
+    };
     createdAt?: string;
     updatedAt?: string;
-    price?: {
+    price?: number | {
         amount?: number;
     };
     priceString?: string;
 };
+
+export const ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL = 'Awaiting Manager Submission';
 
 export type AdminPropertyRegistryFilters = {
     searchQuery?: string;
@@ -75,10 +97,30 @@ const normalizeFilterToken = (value?: string | null) => value?.trim().toLowerCas
 
 const normalizePropertyValue = (value?: string | null) => value?.trim().toLowerCase() || '';
 
+const INTERNAL_AUTOMATION_TEXT_PATTERNS = [
+    /\bqa\b/i,
+    /\bcodex\b/i,
+    /\bdev smoke\b/i,
+    /\bsmoke test\b/i,
+    /\be2e\b/i,
+    /\bissue\d+\b/i,
+    /\btest\b/i,
+] as const;
+
+const RAW_AUTOMATION_TIMESTAMP_PATTERNS = [
+    /\b20\d{12}\b/,
+    /\b20\d{2}-\d{2}-\d{2}t\d{2}-\d{2}-\d{2}-\d{3}z\b/i,
+    /\b1\d{12,}\b/,
+] as const;
+
 const getPropertyTimestamp = (property: AdminPropertyRegistryProperty) =>
     new Date(property.updatedAt || property.createdAt || 0).getTime();
 
 const getPropertyPriceAmount = (property: AdminPropertyRegistryProperty) => {
+    if (typeof property.price === 'number') {
+        return property.price;
+    }
+
     if (typeof property.price?.amount === 'number') {
         return property.price.amount;
     }
@@ -86,6 +128,70 @@ const getPropertyPriceAmount = (property: AdminPropertyRegistryProperty) => {
     const parsed = Number.parseFloat(String(property.priceString || '').replace(/[^0-9.-]/g, ''));
     return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const hasTextValue = (value?: string | null) => Boolean(value?.trim());
+
+const hasPositiveNumber = (value?: number | null) =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+const hasMeaningfulPrice = (property: AdminPropertyRegistryProperty) =>
+    hasPositiveNumber(getPropertyPriceAmount(property));
+
+export const hasAdminPropertyListingContent = (property: AdminPropertyRegistryProperty) => [
+    property.title,
+    property.description,
+    property.city,
+    property.location?.addressLine1,
+    property.location?.addressLine2,
+    property.location?.city,
+    property.location?.postalCode,
+    property.location?.country,
+    property.address_line_1,
+    property.address_line_2,
+    property.postcode,
+    property.country,
+    property.listingType,
+    property.listing_type,
+    property.propertyType,
+    property.property_type,
+    property.contactName,
+    property.agent_name,
+].some(hasTextValue)
+    || hasMeaningfulPrice(property)
+    || hasPositiveNumber(property.bedrooms)
+    || hasPositiveNumber(property.bathrooms)
+    || hasPositiveNumber(property.rooms?.bedrooms)
+    || hasPositiveNumber(property.rooms?.bathrooms);
+
+export const isAdminPropertyAwaitingManagerSubmission = (property: AdminPropertyRegistryProperty) => {
+    const normalizedStatus = normalizePropertyValue(property.status) || 'draft';
+    return normalizedStatus === 'draft' && !hasAdminPropertyListingContent(property);
+};
+
+export const getAdminPropertyWorkflowFallbackLabel = (property: AdminPropertyRegistryProperty) =>
+    isAdminPropertyAwaitingManagerSubmission(property)
+        ? ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL
+        : formatPropertyStatusLabel(property.status);
+
+const getAdminPropertyRegistryText = (property: AdminPropertyRegistryProperty) => [
+    property.id,
+    property.propertyId,
+    property.property_id,
+    property.title,
+    property.description,
+    property.contactName,
+    property.agent_name,
+].filter(Boolean).join(' ');
+
+export const isInternalAutomationProperty = (property: AdminPropertyRegistryProperty) => {
+    const searchableText = getAdminPropertyRegistryText(property);
+    return INTERNAL_AUTOMATION_TEXT_PATTERNS.some((pattern) => pattern.test(searchableText))
+        || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(searchableText));
+};
+
+export const filterVisibleAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
+    properties: readonly Property[],
+) => properties.filter((property) => !isInternalAutomationProperty(property));
 
 const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: string) => {
     const normalizedQuery = normalizePropertyValue(searchQuery);
@@ -133,7 +239,7 @@ const matchesStatusFilter = (property: AdminPropertyRegistryProperty, statusFilt
 export const filterAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
     properties: readonly Property[],
     filters: AdminPropertyRegistryFilters,
-) => properties.filter((property) => (
+) => filterVisibleAdminPropertyRegistry(properties).filter((property) => (
     matchesSearch(property, filters.searchQuery)
     && matchesTypeFilter(property, filters.typeFilter)
     && matchesStatusFilter(property, filters.statusFilter)

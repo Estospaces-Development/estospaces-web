@@ -46,6 +46,7 @@ import {
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
 import {
+    resolveCreatedPropertyFastTrackCase,
     resolvePropertyFastTrackSummaryDocuments,
     resolvePropertyFastTrackPanelLabels,
     resolvePropertyFastTrackWorkspaceSelection,
@@ -66,7 +67,8 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
+import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -175,6 +177,14 @@ export const buildPropertyFastTrackStartRequest = ({
             : undefined,
         started_from: startsFromBrokerRequest ? 'broker_request_selection' : 'direct_property',
     };
+};
+
+export const getPropertyDetailDisplayAddress = (property: Property | null | undefined) => {
+    if (!property) {
+        return '';
+    }
+
+    return formatLaunchPropertyLocation(getSavedPropertyLocationLabel(property));
 };
 
 const toDateValue = (date: Date) => {
@@ -964,15 +974,16 @@ const UserPropertyDetail = () => {
     const coverImage = images[selectedImageIndex] || images[0] || PROPERTY_PLACEHOLDER_IMAGE;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
     const isSaved = id ? isPropertySaved(id) : false;
-    const propertyAddress = property?.address_line_1
-        ? [property.address_line_1, property.city, property.postcode].filter(Boolean).join(', ')
-        : [property?.city, property?.postcode].filter(Boolean).join(', ');
-    const locationLabel = [property?.city, property?.country].filter(Boolean).join(', ') || 'Prime location';
+    const propertyAddress = getPropertyDetailDisplayAddress(property);
+    const locationLabel = property
+        ? formatLaunchPropertyLocation([property.city, property.country])
+        : 'Prime location';
     const propertyMapState = useMemo(
         () => getPropertyMapState(property ?? {}, {
             userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
+            displayAddress: propertyAddress || locationLabel,
         }),
-        [property],
+        [locationLabel, property, propertyAddress],
     );
     const propertyMapAddress = propertyMapState.displayAddress || propertyAddress || locationLabel;
     const preferredMapsLabel = propertyMapState.provider === 'apple' ? 'Apple Maps' : 'Google Maps';
@@ -1702,16 +1713,23 @@ const UserPropertyDetail = () => {
                 throw new Error(fastTrackResult.error || 'Unable to create the fast-track case.');
             }
 
+            const createdFastTrackCase = fastTrackResult.data;
             try {
                 const refreshedWorkspace = await loadFastTrackWorkspace();
-                if (!refreshedWorkspace.fastTrackCase) {
-                    setActiveLead(leadToUse);
-                    setActiveFastTrackCase(fastTrackResult.data);
-                }
-                setLiveWorkspaceLoaded(Boolean(refreshedWorkspace.lead || refreshedWorkspace.fastTrackCase || fastTrackResult.data));
+                const selectedFastTrackCase = resolveCreatedPropertyFastTrackCase(
+                    createdFastTrackCase,
+                    refreshedWorkspace.fastTrackCase,
+                );
+                const selectedLead = refreshedWorkspace.lead?.id === selectedFastTrackCase.leadId
+                    ? refreshedWorkspace.lead
+                    : leadToUse || refreshedWorkspace.lead;
+
+                setActiveLead(selectedLead || null);
+                setActiveFastTrackCase(selectedFastTrackCase);
+                setLiveWorkspaceLoaded(Boolean(refreshedWorkspace.lead || selectedFastTrackCase));
             } catch {
                 setActiveLead(leadToUse);
-                setActiveFastTrackCase(fastTrackResult.data);
+                setActiveFastTrackCase(createdFastTrackCase);
                 setLiveWorkspaceLoaded(true);
             }
             publishWorkspaceSync({
@@ -1723,8 +1741,8 @@ const UserPropertyDetail = () => {
                 ],
                 reason: 'User started fast-track from property detail',
                 ids: {
-                    caseId: fastTrackResult.data.caseId,
-                    leadId: fastTrackResult.data.leadId || leadToUse?.id,
+                    caseId: createdFastTrackCase.caseId,
+                    leadId: createdFastTrackCase.leadId || leadToUse?.id,
                     propertyId: property.id,
                 },
             });
@@ -2579,7 +2597,7 @@ const UserPropertyDetail = () => {
                             )}
                         </section>
 
-                        <PropertyContactInfo property={property as any} />
+                        <PropertyContactInfo property={property as any} propertyAddress={propertyAddress || locationLabel} />
                     </div>
                 </div>
 

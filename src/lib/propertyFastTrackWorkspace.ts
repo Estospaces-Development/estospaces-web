@@ -54,6 +54,32 @@ export const isLiveFastTrackCase = (fastTrackCase: FastTrackCase | null | undefi
 
 const normalizeId = (value?: string | null) => String(value || "").trim();
 
+const getFastTrackCaseIds = (fastTrackCase: FastTrackCase | null | undefined) => [
+  normalizeId(fastTrackCase?.id),
+  normalizeId(fastTrackCase?.caseId),
+].filter(Boolean);
+
+export const isSameFastTrackCase = (
+  left: FastTrackCase | null | undefined,
+  right: FastTrackCase | null | undefined,
+) => {
+  const leftIds = getFastTrackCaseIds(left);
+  const rightIds = getFastTrackCaseIds(right);
+
+  return leftIds.length > 0 && rightIds.some((id) => leftIds.includes(id));
+};
+
+export const resolveCreatedPropertyFastTrackCase = (
+  createdCase: FastTrackCase,
+  refreshedCase: FastTrackCase | null | undefined,
+) => {
+  if (isSameFastTrackCase(createdCase, refreshedCase)) {
+    return refreshedCase || createdCase;
+  }
+
+  return createdCase;
+};
+
 type CaseLinkedDocument = UserDocument & {
   fast_track_case_id?: string | null;
   fastTrackCaseId?: string | null;
@@ -67,10 +93,7 @@ const documentBelongsToFastTrackCase = (
   const directDocumentCaseId = normalizeId(
     caseLinkedDocument.fast_track_case_id || caseLinkedDocument.fastTrackCaseId,
   );
-  const caseIds = [
-    normalizeId(fastTrackCase?.id),
-    normalizeId(fastTrackCase?.caseId),
-  ].filter(Boolean);
+  const caseIds = getFastTrackCaseIds(fastTrackCase);
 
   if (directDocumentCaseId && caseIds.includes(directDocumentCaseId)) {
     return true;

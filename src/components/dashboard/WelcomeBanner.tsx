@@ -5,14 +5,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import * as analyticsService from '@/services/analyticsService';
-import { filterManagerLivePropertyPerformance } from '@/lib/managerPropertyDashboard';
+import { getManagerApplicationCount, getManagerLiveListingCount } from '@/lib/managerPropertyDashboard';
 
 interface WelcomeBannerProps {
     analytics?: analyticsService.AnalyticsData | null;
     loading?: boolean;
+    liveListingCount?: number | null;
+    actionLabel?: string;
+    actionPath?: string;
 }
 
-const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeBannerProps) => {
+const WelcomeBanner = ({
+    analytics,
+    loading: externalLoading = false,
+    liveListingCount = null,
+    actionLabel = 'Add Property',
+    actionPath = '/manager/dashboard/properties/add',
+}: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -28,11 +37,10 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
 
     useEffect(() => {
         if (analytics !== undefined) {
-            const livePropertyPerformance = filterManagerLivePropertyPerformance(analytics?.propertyPerformance);
             setStats({
-                activeProperties: livePropertyPerformance.length,
+                activeProperties: getManagerLiveListingCount(analytics, undefined, liveListingCount),
                 activeLeads: analytics?.active_leads || 0,
-                totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
+                totalApplications: getManagerApplicationCount(analytics),
             });
             setLoading(externalLoading);
             return;
@@ -44,11 +52,10 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
             try {
                 const res = await analyticsService.getManagerAnalytics();
                 if (res.data) {
-                    const livePropertyPerformance = filterManagerLivePropertyPerformance(res.data.propertyPerformance);
                     setStats({
-                        activeProperties: livePropertyPerformance.length,
+                        activeProperties: getManagerLiveListingCount(res.data, undefined, liveListingCount),
                         activeLeads: res.data.active_leads || 0,
-                        totalApplications: livePropertyPerformance.reduce((acc, p) => acc + (p.applications || 0), 0),
+                        totalApplications: getManagerApplicationCount(res.data),
                     });
                 } else {
                     setStats({
@@ -63,7 +70,7 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
         };
 
         fetchStats();
-    }, [analytics, externalLoading, user]);
+    }, [analytics, externalLoading, liveListingCount, user]);
 
     return (
         <div className="mb-6">
@@ -75,11 +82,11 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false }: WelcomeB
                     </p>
                 </div>
                 <button
-                    onClick={() => navigate('/manager/dashboard/properties/add')}
+                    onClick={() => navigate(actionPath)}
                     className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-primary/20"
                 >
                     <Plus className="w-5 h-5" />
-                    <span>Add Property</span>
+                    <span>{actionLabel}</span>
                 </button>
             </div>
 

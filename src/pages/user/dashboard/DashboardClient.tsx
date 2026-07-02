@@ -53,7 +53,7 @@ const dashboardFilterOptions = [
 const defaultDashboardSearchFilters: DashboardSearchFilters = {
   keyword: '',
   location: '',
-  listingType: 'sale',
+  listingType: 'all',
   propertyType: '',
   minPrice: null,
   maxPrice: null,
@@ -83,7 +83,14 @@ const mapSearchParamsToDashboardType = (
 };
 
 const buildDashboardSearchFiltersFromParams = (searchParams: URLSearchParams): DashboardSearchFilters => {
-  const listingType = searchParams.get('type') === 'rent' ? 'rent' : 'sale';
+  const typeParam = searchParams.get('type');
+  const listingType = searchParams.get('status') === 'sold'
+    ? 'sale'
+    : typeParam === 'rent'
+      ? 'rent'
+      : typeParam === 'buy' || typeParam === 'sale'
+        ? 'sale'
+        : 'all';
 
   return {
     keyword: searchParams.get('q') || searchParams.get('keyword') || '',
@@ -151,13 +158,13 @@ const buildDiscoverParams = (
 ) => {
   const params = new URLSearchParams();
 
-  if (selectedPropertyType === 'rent') {
-    params.set('type', 'rent');
-  } else if (selectedPropertyType === 'sold') {
+  if (selectedPropertyType === 'sold') {
     params.set('type', 'buy');
     params.set('status', 'sold');
-  } else {
+  } else if (searchFilters.listingType === 'sale') {
     params.set('type', 'buy');
+  } else if (searchFilters.listingType === 'rent') {
+    params.set('type', 'rent');
   }
 
   if (selectedFilters.length > 0) {
@@ -520,7 +527,11 @@ const DashboardClient = () => {
           maxPrice: dashboardSearchFilters.maxPrice ?? undefined,
           minBedrooms: dashboardSearchFilters.minBedrooms ?? undefined,
           minBathrooms: dashboardSearchFilters.minBathrooms ?? undefined,
-          listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
+          listingType: selectedPropertyType === 'sold'
+            ? 'sale'
+            : dashboardSearchFilters.listingType === 'all'
+              ? undefined
+              : dashboardSearchFilters.listingType,
           status: selectedPropertyType === 'sold' ? 'sold' : undefined,
           sortBy: buildDashboardSortValue(selectedFilters),
           page: currentFilteredPage,
@@ -569,7 +580,11 @@ const DashboardClient = () => {
 
   const handleDashboardSearch = useCallback((nextFilters: DashboardSearchFilters) => {
     setDashboardSearchFilters(nextFilters);
-    setSelectedPropertyType(nextFilters.listingType === 'rent' ? 'rent' : 'buy');
+    if (nextFilters.listingType === 'rent') {
+      setSelectedPropertyType('rent');
+    } else if (nextFilters.listingType === 'sale') {
+      setSelectedPropertyType('buy');
+    }
     setCurrentFilteredPage(1);
     setError(null);
     setLocationMessage(null);
@@ -599,10 +614,7 @@ const DashboardClient = () => {
   const clearFilteredResults = useCallback(() => {
     setSelectedFilters([]);
     setSelectedPropertyType((current) => (current === 'rent' ? 'rent' : 'buy'));
-    setDashboardSearchFilters({
-      ...defaultDashboardSearchFilters,
-      listingType: selectedPropertyType === 'rent' ? 'rent' : 'sale',
-    });
+    setDashboardSearchFilters(defaultDashboardSearchFilters);
     setFilteredProperties([]);
     setFilteredCount(0);
     setFilteredTotalPages(0);
@@ -610,7 +622,7 @@ const DashboardClient = () => {
     setShowFilteredResults(false);
     setError(null);
     setLocationMessage(null);
-  }, [selectedPropertyType]);
+  }, []);
 
   const clearDashboardSearchParams = useCallback(() => {
     setSearchParams((previous) => {

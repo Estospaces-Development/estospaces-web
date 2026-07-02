@@ -2,9 +2,14 @@ import type { UserVerificationInfo } from "@/services/userVerificationService";
 
 export type UserVerificationQueueTab =
   | "all"
-  | "unverified"
-  | "pending_docs"
-  | "verified";
+  | "pending"
+  | "review"
+  | "approved";
+
+export type UserVerificationWorkflowStatus =
+  | "pending"
+  | "review"
+  | "approved";
 
 export const hasUploadedVerificationDocuments = (
   user: Pick<
@@ -33,20 +38,60 @@ export const hasPendingVerificationDocuments = (
   >,
 ) => hasUploadedVerificationDocuments(user) && !user.documents_verified;
 
+export const isUnverifiedUser = (
+  user: Pick<UserVerificationInfo, "verification_level">,
+) => user.verification_level === "basic";
+
+export const getUserVerificationWorkflowStatus = (
+  user: Pick<
+    UserVerificationInfo,
+    | "verification_level"
+    | "documents_uploaded"
+    | "documents_verified"
+    | "has_identity_doc"
+    | "has_address_doc"
+    | "has_financial_doc"
+  >,
+): UserVerificationWorkflowStatus => {
+  if (
+    user.verification_level === "verified" ||
+    user.verification_level === "fully_verified"
+  ) {
+    return "approved";
+  }
+
+  if (hasPendingVerificationDocuments(user)) {
+    return "review";
+  }
+
+  return "pending";
+};
+
+export const getUserVerificationWorkflowStatusLabel = (
+  status: UserVerificationWorkflowStatus,
+) => {
+  switch (status) {
+    case "approved":
+      return "Approved";
+    case "review":
+      return "In Review";
+    default:
+      return "Pending";
+  }
+};
+
 export const getUserVerificationQueueStats = (
   users: UserVerificationInfo[],
 ) => ({
   all: users.length,
-  unverified: users.filter(
-    (user) =>
-      user.verification_level === "basic" &&
-      !hasUploadedVerificationDocuments(user),
+  pending: users.filter(
+    (user) => getUserVerificationWorkflowStatus(user) === "pending",
   ).length,
-  pendingDocs: users.filter(hasPendingVerificationDocuments).length,
-  verified: users.filter(
-    (user) =>
-      user.verification_level === "verified" ||
-      user.verification_level === "fully_verified",
+  inReview: users.filter(
+    (user) => getUserVerificationWorkflowStatus(user) === "review",
+  ).length,
+  approved: users.filter(
+    (user) => getUserVerificationWorkflowStatus(user) === "approved",
   ).length,
 });
 
@@ -54,20 +99,9 @@ export const userMatchesVerificationTab = (
   user: UserVerificationInfo,
   activeTab: UserVerificationQueueTab,
 ) => {
-  if (activeTab === "unverified") {
-    return (
-      user.verification_level === "basic" &&
-      !hasUploadedVerificationDocuments(user)
-    );
+  if (activeTab !== "all") {
+    return getUserVerificationWorkflowStatus(user) === activeTab;
   }
-  if (activeTab === "pending_docs") {
-    return hasPendingVerificationDocuments(user);
-  }
-  if (activeTab === "verified") {
-    return (
-      user.verification_level === "verified" ||
-      user.verification_level === "fully_verified"
-    );
-  }
+
   return true;
 };

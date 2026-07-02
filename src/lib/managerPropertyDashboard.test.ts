@@ -7,11 +7,14 @@ import {
     buildManagerLivePresetFilters,
     buildManagerPropertySearchParams,
     formatManagerAnalyticsPercentage,
-    normalizeManagerAnalyticsPercentage,
     filterManagerLivePropertyPerformance,
+    getManagerApplicationCount,
+    getManagerFastTrackSummary,
+    getManagerLiveListingCount,
     getManagerPropertyStatusFilters,
     isManagerLivePropertyStatus,
     managerPropertyStatusFiltersEqual,
+    normalizeManagerAnalyticsPercentage,
     normalizeManagerPropertyStatusFilters,
 } from './managerPropertyDashboard';
 
@@ -117,5 +120,90 @@ test('filterManagerLivePropertyPerformance keeps only live listings', () => {
     assert.deepEqual(
         filterManagerLivePropertyPerformance(propertyPerformance).map((property) => property.property_id),
         ['1', '4'],
+    );
+});
+
+test('manager live listing count uses the analytics total before top performer rows', () => {
+    assert.equal(
+        getManagerLiveListingCount({
+            total_properties: 8,
+            propertyPerformance: [],
+        }),
+        8,
+    );
+    assert.equal(
+        getManagerLiveListingCount({
+            active_listings: 3,
+            total_properties: 8,
+            propertyPerformance: [],
+        }),
+        3,
+    );
+    assert.equal(
+        getManagerLiveListingCount({
+            propertyPerformance: [
+                { property: 'Published listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+                { property: 'Draft listing', property_id: '2', status: 'draft', views: 4, applications: 0, conversionRate: 0 },
+            ],
+        }),
+        1,
+    );
+    assert.equal(
+        getManagerLiveListingCount(null, [
+            { status: 'available' },
+            { status: 'pending_approval' },
+            { status: 'online' },
+        ]),
+        2,
+    );
+});
+
+test('manager live listing count can use the exact properties API total before stale analytics', () => {
+    assert.equal(
+        getManagerLiveListingCount({
+            active_listings: 0,
+            total_properties: 0,
+            propertyPerformance: [],
+        }, [], 5),
+        5,
+    );
+});
+
+test('manager fast track summary follows workspace final statuses and legacy fallbacks', () => {
+    assert.deepEqual(
+        getManagerFastTrackSummary([
+            { workspaceFinalStatus: 'active', finalStatus: 'in_progress', hoursRemaining: 5 },
+            { workspaceFinalStatus: 'active', finalStatus: 'in_progress', hoursRemaining: 12 },
+            { workspaceFinalStatus: 'completed', finalStatus: 'completed' },
+            { workspaceFinalStatus: 'cancelled', finalStatus: 'rejected' },
+            { finalStatus: 'expired' },
+        ]),
+        {
+            active: 2,
+            completed: 1,
+            cancelled: 2,
+            closingSoon: 1,
+        },
+    );
+});
+
+test('manager application count prefers analytics total when present', () => {
+    assert.equal(
+        getManagerApplicationCount({
+            total_applications: 7,
+            propertyPerformance: [
+                { property: 'Published listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+            ],
+        }),
+        7,
+    );
+    assert.equal(
+        getManagerApplicationCount({
+            propertyPerformance: [
+                { property: 'Published listing', property_id: '1', status: 'published', views: 12, applications: 2, conversionRate: 10 },
+                { property: 'Online listing', property_id: '2', status: 'online', views: 12, applications: 3, conversionRate: 10 },
+            ],
+        }),
+        5,
     );
 });

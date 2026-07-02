@@ -53,6 +53,26 @@ test('normalizeNotificationToWorkspaceSyncEvent routes inactive billing notifica
     assert.equal(paymentPathTags.includes(WORKSPACE_SYNC_TAGS.BILLING), false);
 });
 
+test('broker fast-track notifications trigger manager dashboard refresh tags', () => {
+    const event = normalizeNotificationToWorkspaceSyncEvent({
+        id: 'notif-broker-fast-track-1',
+        type: NOTIFICATION_TYPES.FAST_TRACK_STARTED,
+        data: {
+            entity: 'broker_request',
+            case_id: 'case-1',
+            lead_id: 'lead-1',
+            property_id: 'property-1',
+        },
+    }, 'broker');
+
+    assert.ok(event);
+    assert.equal(event.targetPath, '/manager/fast-track?case=case-1&lead=lead-1&property=property-1');
+    assert.ok(event.tags.includes(WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD));
+    assert.ok(event.tags.includes(WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY));
+    assert.ok(event.tags.includes(WORKSPACE_SYNC_TAGS.BROKER_REQUESTS));
+    assert.ok(event.tags.includes(WORKSPACE_SYNC_TAGS.FAST_TRACK));
+});
+
 test('normalizeNotificationToWorkspaceSyncEvent infers support refresh tags from payloads and paths', () => {
     const supportEvent = normalizeNotificationToWorkspaceSyncEvent({
         id: 'notif-support-1',

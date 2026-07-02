@@ -6,7 +6,16 @@ import { fileURLToPath } from 'node:url';
 
 import {
     USER_VERIFICATION_REVIEW_CLOSE_LABEL,
+    VERIFICATION_REASON_MIN_LENGTH,
+    VERIFICATION_REASON_MIN_WORDS,
     canCompleteUserVerification,
+    dedupeVerificationReviewDocuments,
+    formatVerificationLeadPropertyAddress,
+    formatVerificationLeadPropertyLabel,
+    formatVerificationLeadReference,
+    formatVerificationLeadStatus,
+    getVerificationDocumentReviewReasonError,
+    getVerificationApprovalBlocker,
     getVerificationReviewErrorMessage,
 } from './UserVerificationReviewModal';
 
@@ -68,6 +77,143 @@ test('user verification approval requires approved identity and address document
         { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
         { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
     ] as any), true);
+});
+
+test('disabled verification approval explains missing required document approvals', () => {
+    const baseDocument = {
+        id: 'doc-1',
+        user_id: 'user-1',
+        document_type: 'government_id',
+        file_name: 'document.pdf',
+        file_url: 'https://example.com/document.pdf',
+        reject_reason: '',
+        created_at: '2026-06-16T10:00:00.000Z',
+        updated_at: '2026-06-16T10:00:00.000Z',
+    };
+
+    assert.equal(
+        getVerificationApprovalBlocker([
+            { ...baseDocument, id: 'identity-pending', document_category: 'identity', status: 'pending' },
+            { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
+        ] as any),
+        '1 required document approval is still needed before approving: identity proof (Pending).',
+    );
+    assert.equal(
+        getVerificationApprovalBlocker([
+            { ...baseDocument, id: 'identity-approved', document_category: 'identity', status: 'approved' },
+            { ...baseDocument, id: 'address-approved', document_category: 'address', status: 'approved' },
+        ] as any),
+        null,
+    );
+    assert.match(source, /id="verification-approval-blocker"/);
+    assert.match(source, /aria-describedby=\{approvalBlocker \? 'verification-approval-blocker' : undefined\}/);
+});
+
+test('document review reasons require specific actionable text', () => {
+    assert.equal(VERIFICATION_REASON_MIN_LENGTH, 20);
+    assert.equal(VERIFICATION_REASON_MIN_WORDS, 4);
+
+    assert.match(
+        getVerificationDocumentReviewReasonError('bad') || '',
+        /20 characters/,
+    );
+    assert.match(
+        getVerificationDocumentReviewReasonError('sfffffdsdc') || '',
+        /20 characters/,
+    );
+    assert.match(
+        getVerificationDocumentReviewReasonError('bad bad bad bad bad bad') || '',
+        /4 clear words/,
+    );
+    assert.equal(
+        getVerificationDocumentReviewReasonError('Document image is blurry and the address is cut off.'),
+        null,
+    );
+
+    assert.match(source, /minLength=\{VERIFICATION_REASON_MIN_LENGTH\}/);
+    assert.match(source, /aria-invalid=\{Boolean\(visibleReviewReasonError\)\}/);
+    assert.match(source, /disabled=\{loading \|\| disabled \|\| Boolean\(reviewReasonError\)\}/);
+});
+
+test('verification review documents collapse same-day duplicate uploads by file type and name', () => {
+    const baseDocument = {
+        user_id: 'user-1',
+        document_type: 'government_id',
+        document_category: 'identity',
+        file_name: 'codex-smoke-panorama.jpg',
+        file_url: 'https://example.com/codex-smoke-panorama.jpg',
+        reject_reason: '',
+        status: 'pending',
+        updated_at: '2026-06-26T10:00:00.000Z',
+    };
+
+    const documents = dedupeVerificationReviewDocuments([
+        {
+            ...baseDocument,
+            id: 'older-duplicate',
+            created_at: '2026-06-26T09:00:00.000Z',
+        },
+        {
+            ...baseDocument,
+            id: 'newer-duplicate',
+            created_at: '2026-06-26T10:00:00.000Z',
+        },
+        {
+            ...baseDocument,
+            id: 'different-file',
+            file_name: 'address-proof.jpg',
+            document_type: 'address_proof',
+            document_category: 'address',
+            created_at: '2026-06-26T10:30:00.000Z',
+        },
+    ] as any);
+
+    assert.deepEqual(
+        documents.map((document) => document.id),
+        ['different-file', 'newer-duplicate'],
+    );
+});
+
+test('recent lead statuses render readable labels instead of backend enums', () => {
+    assert.equal(formatVerificationLeadStatus('PENDING_BROKER_RESPONSE'), 'Waiting for broker response');
+    assert.equal(formatVerificationLeadStatus('BROKER_RESPONDED'), 'Broker has responded');
+    assert.equal(formatVerificationLeadStatus('viewing_scheduled'), 'Viewing scheduled');
+    assert.equal(formatVerificationLeadStatus(''), 'Status unavailable');
+    assert.match(source, /formatVerificationLeadStatus\(lead\.status\)/);
+    assert.doesNotMatch(source, />\{lead\.status\}<\/p>/);
+    assert.doesNotMatch(source, />\{status\.replace\(\/_\/g, ' '\)\}<\/option>/);
+});
+
+test('recent lead rows prefer property context and compact references', () => {
+    const lead = {
+        id: '5fcd5515-9d55-463b-9a9c-415ed286311d',
+        lead_number: 'LD-2026-000123',
+        property_id: 'aa6e8134-2206-4362-a96a-170f0968f535',
+        property_name: '',
+        property: {
+            title: 'Launch Rent Apartment',
+            address_line_1: '1 Test Street',
+            city: 'London',
+            postcode: 'SW1A 1AA',
+        },
+    };
+
+    assert.equal(formatVerificationLeadReference(lead as any), 'LD-2026-000123');
+    assert.equal(formatVerificationLeadReference({ id: lead.id } as any), '5FCD5515');
+    assert.equal(formatVerificationLeadPropertyLabel(lead as any), 'Launch Rent Apartment');
+    assert.equal(formatVerificationLeadPropertyLabel({ property_id: lead.property_id } as any), 'AA6E8134');
+    assert.equal(formatVerificationLeadPropertyAddress(lead as any), '1 Test Street, London, SW1A 1AA');
+    assert.doesNotMatch(source, /Lead \{lead\.id\}/);
+    assert.doesNotMatch(source, /Property \{lead\.property_id\}/);
+});
+
+test('approved document rows separate correction actions from pending review actions', () => {
+    assert.match(source, /const isApprovedDocument = document\.status === 'approved'/);
+    assert.match(source, /Approved document - correction actions/);
+    assert.match(source, /border-emerald-200 bg-emerald-50\/70/);
+    assert.match(source, /aria-label=\{`Request re-upload for approved \$\{document\.file_name\}`\}/);
+    assert.match(source, /aria-label=\{`Reject approved \$\{document\.file_name\}`\}/);
+    assert.match(source, /\) : canEdit && \(/);
 });
 
 test('user verification review surfaces are cleanly scoped and avoid mojibake', () => {

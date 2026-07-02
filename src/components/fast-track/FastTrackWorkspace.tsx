@@ -58,6 +58,7 @@ import {
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import { getDocumentAccessUrl } from '@/services/documentAccessService';
 import {
+    FastTrackActivityEntry,
     FastTrackCase,
     FastTrackDocumentItem,
     FastTrackStage,
@@ -115,8 +116,31 @@ import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
-type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
+export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
+const THREAD_SEND_RECOVERY_WINDOW_MS = 2 * 60 * 1000;
+
+export const isThreadSendTimeoutError = (message?: string | null) => (
+    (message || '').trim().toLowerCase() === 'request timed out' || (message || '').toLowerCase().includes('timed out')
+);
+
+export const findRecoveredThreadMessage = (
+    messages: Message[],
+    content: string,
+    senderId: string,
+    sendStartedAtMs: number,
+) => {
+    const expectedContent = content.trim();
+    const earliestAcceptedAtMs = sendStartedAtMs - THREAD_SEND_RECOVERY_WINDOW_MS;
+
+    return [...messages].reverse().find((message) => {
+        if (message.sender_id !== senderId || message.content.trim() !== expectedContent) {
+            return false;
+        }
+        const createdAtMs = new Date(message.created_at).getTime();
+        return Number.isNaN(createdAtMs) || createdAtMs >= earliestAcceptedAtMs;
+    }) || null;
+};
 const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     user: '/user/dashboard',
     manager: '/manager/dashboard',
@@ -184,6 +208,29 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     return `${hoursRemaining}h left`;
 };
 
+export const isFastTrackCaseVisibleForFilter = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
+    filter: FilterMode,
+) => filter === 'all' || fastTrackCase.workspaceFinalStatus === filter;
+
+export const formatFastTrackCaseDeadline = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
+    if (fastTrackCase.workspaceFinalStatus === 'completed') {
+        if (role === 'user' && canUserConfirmFastTrackHandover(fastTrackCase)) {
+            return 'Confirm handover';
+        }
+        return role === 'user' ? 'Done' : 'Completed';
+    }
+    if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
+        return role === 'user' ? 'Closed' : 'Cancelled';
+    }
+    return formatDeadline(fastTrackCase.hoursRemaining, role);
+};
+
+export const formatFastTrackCaseStage = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
+    const stage = fastTrackCase.workspaceFinalStatus === 'completed' ? 'handover' : fastTrackCase.stage;
+    return formatStageLabel(stage, fastTrackCase.journeyMode, role);
+};
+
 const formatDateTime = (value?: string) => {
     if (!value) {
         return 'Not set';
@@ -203,6 +250,45 @@ const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
             return 'Waiting for upload';
     }
 };
+
+const ADMIN_OVERRIDE_ACTION_LABELS: Record<string, string> = {
+    claim_case: 'claim this case',
+    start_documents: 'start document collection',
+    review_document: 'review a document',
+    schedule_viewing: 'schedule a viewing',
+    reschedule_viewing: 'reschedule a viewing',
+    skip_viewing: 'skip the viewing',
+    complete_viewing: 'complete the viewing',
+    start_offer_review: 'start offer review',
+    record_decision: 'record a decision',
+    publish_agreement: 'publish the agreement',
+    mark_payment_requested: 'request payment',
+    mark_payment_received: 'mark payment received',
+    mark_handover_ready: 'mark handover ready',
+    complete_handover: 'complete handover',
+    cancel_case: 'cancel this case',
+};
+
+export const isAdminOverrideFastTrackCase = (
+    role: WorkspaceRole,
+    fastTrackCase: Pick<FastTrackCase, 'managerId'> | null | undefined,
+) => role === 'admin' && Boolean(String(fastTrackCase?.managerId || '').trim());
+
+export const getAdminOverrideActionLabel = (action: string) => (
+    ADMIN_OVERRIDE_ACTION_LABELS[action] || action.replace(/_/g, ' ')
+);
+
+export const buildAdminOverrideConfirmationMessage = (
+    fastTrackCase: Pick<FastTrackCase, 'managerId' | 'propertyTitle'>,
+    action: string,
+) => (
+    `You are about to act on behalf of the assigned manager for ${fastTrackCase.propertyTitle}. `
+    + `Action: ${getAdminOverrideActionLabel(action)}. Continue?`
+);
+
+export const isAdminOverrideActivityEntry = (
+    entry: Pick<FastTrackActivityEntry, 'actorRole'>,
+) => String(entry.actorRole || '').trim().toLowerCase() === 'admin';
 
 export const getFastTrackDocumentUploadCopy = ({
     status,
@@ -260,6 +346,13 @@ const detectDocumentPreviewKind = (item: FastTrackDocumentItem) => {
     return 'file' as const;
 };
 
+type FastTrackDocumentPreviewAction = 'preview' | 'open' | 'download' | 'auto';
+
+const documentPreviewBusyKey = (
+    itemId: FastTrackDocumentItem['id'],
+    action: FastTrackDocumentPreviewAction,
+) => `${itemId}:${action}`;
+
 const SectionShell = ({
     title,
     description,
@@ -271,17 +364,17 @@ const SectionShell = ({
     icon?: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <section className="rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
         <div className="flex items-start gap-2.5">
             {Icon ? (
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
                     <Icon size={16} />
                 </span>
             ) : null}
-            <div className="flex flex-col gap-1">
-                <h3 className="text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
+            <div className="min-w-0 flex flex-col gap-1">
+                <h3 className="break-words text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
                 {description ? (
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
+                    <p className="break-words text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
                 ) : null}
             </div>
         </div>
@@ -334,6 +427,12 @@ interface FastTrackDocumentFileChooserProps {
     label: string;
     inputRef?: (node: HTMLInputElement | null) => void;
     onFileSelected: (file: File | null) => void;
+}
+
+interface PendingFastTrackAction {
+    action: string;
+    payload?: Record<string, unknown>;
+    successMessage?: string;
 }
 
 export const FastTrackDocumentFileChooser = ({
@@ -395,7 +494,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [previewItemId, setPreviewItemId] = useState<string | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [previewError, setPreviewError] = useState<string | null>(null);
-    const [previewBusyItemId, setPreviewBusyItemId] = useState<string | null>(null);
+    const [previewBusyKey, setPreviewBusyKey] = useState<string | null>(null);
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
     const [previewZoom, setPreviewZoom] = useState(0);
     const [threadConversation, setThreadConversation] = useState<Conversation | null>(null);
@@ -425,11 +524,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [activeUtilityModule, setActiveUtilityModule] = useState<FastTrackWorkspaceModule>('core_files');
     const [userDetailsOpen, setUserDetailsOpen] = useState(false);
     const [cancelCaseDialogOpen, setCancelCaseDialogOpen] = useState(false);
+    const [pendingAdminOverrideAction, setPendingAdminOverrideAction] = useState<PendingFastTrackAction | null>(null);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
     const recoveredCaseNoticeRef = useRef<HTMLDivElement | null>(null);
+    const pendingPointerDocumentFocusRef = useRef<string | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
     const workspacePreferencesLoadedRef = useRef(false);
@@ -460,10 +561,60 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         previewObjectUrlRef.current = null;
     }, []);
 
+    const replaceDocumentFocusUrl = useCallback((documentId: string) => {
+        const nextSearchParams = buildFastTrackDocumentSearchParams(
+            new URLSearchParams(window.location.search),
+            documentId,
+        );
+        const nextSearch = nextSearchParams.toString();
+        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+        window.history.replaceState(window.history.state, '', nextUrl);
+    }, []);
+
+    const restoreDocumentFocusScroll = useCallback((scrollX: number, scrollY: number) => {
+        const restore = () => {
+            window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
+        };
+
+        restore();
+        window.requestAnimationFrame(() => {
+            restore();
+            window.requestAnimationFrame(restore);
+        });
+        window.setTimeout(restore, 0);
+        window.setTimeout(restore, 80);
+    }, []);
+
     const handleDocumentFocus = useCallback((documentId: string) => {
+        const previousScrollX = window.scrollX;
+        const previousScrollY = window.scrollY;
         setDocumentFocusId(documentId);
-        setSearchParams((previous) => buildFastTrackDocumentSearchParams(previous, documentId));
-    }, [setSearchParams]);
+        replaceDocumentFocusUrl(documentId);
+        restoreDocumentFocusScroll(previousScrollX, previousScrollY);
+    }, [replaceDocumentFocusUrl, restoreDocumentFocusScroll]);
+
+    const isPreviewActionBusy = useCallback((
+        itemId: FastTrackDocumentItem['id'],
+        action: FastTrackDocumentPreviewAction,
+    ) => previewBusyKey === documentPreviewBusyKey(itemId, action), [previewBusyKey]);
+
+    const isPreviewDocumentBusy = useCallback(
+        (itemId: FastTrackDocumentItem['id']) => previewBusyKey?.startsWith(`${itemId}:`) === true,
+        [previewBusyKey],
+    );
+
+    const shouldIgnoreDocumentCardFocus = useCallback((target: EventTarget | null) => {
+        if (!target || !('closest' in target)) {
+            return false;
+        }
+
+        const element = target as Element;
+        if (element.closest('[data-fast-track-document-focus-trigger]')) {
+            return true;
+        }
+
+        return Boolean(element.closest('a,button,input,label,select,textarea,[role="button"]'));
+    }, []);
 
     const revealPreviewSection = useCallback(() => {
         previewSectionRef.current?.scrollIntoView({
@@ -597,13 +748,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const filteredCases = useMemo(() => {
         return cases.filter((item) => {
-            if (filter === 'active' && item.workspaceFinalStatus !== 'active') {
-                return false;
-            }
-            if (filter === 'completed' && item.workspaceFinalStatus !== 'completed') {
-                return false;
-            }
-            if (filter === 'cancelled' && item.workspaceFinalStatus !== 'cancelled') {
+            if (!isFastTrackCaseVisibleForFilter(item, filter)) {
                 return false;
             }
             if (!query.trim()) {
@@ -702,15 +847,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        const requestedCaseStillAvailable = Boolean(
-            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
+        const requestedCaseStillVisible = Boolean(
+            requestedCaseParam && filteredCases.some((item) => item.caseId === requestedCaseParam),
         );
-        if (requestedCaseStillAvailable) {
+        if (requestedCaseStillVisible) {
             return;
         }
 
         if (query.trim()) {
-            if (!selectedCaseId) {
+            if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
                 setSelectedCaseId(filteredCases[0].caseId);
             }
             return;
@@ -719,7 +864,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
             setSelectedCaseId(filteredCases[0].caseId);
         }
-    }, [cases, filteredCases, query, requestedCaseParam, selectedCaseId]);
+    }, [filteredCases, query, requestedCaseParam, selectedCaseId]);
 
     const totalCasePages = useMemo(
         () => Math.max(1, Math.ceil(filteredCases.length / FAST_TRACK_CASES_PAGE_SIZE)),
@@ -749,7 +894,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const requestedCase = requestedCaseParam
             ? sanitizeWorkspaceCaseId(requestedCaseParam, cases.map((item) => item.caseId)).caseId
             : null;
-        if (requestedCase && requestedCase !== selectedCaseId) {
+        const requestedCaseIsVisible = requestedCase
+            ? filteredCases.some((item) => item.caseId === requestedCase)
+            : false;
+        if (requestedCase && requestedCase !== selectedCaseId && requestedCaseIsVisible) {
             return;
         }
 
@@ -758,12 +906,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setSearchParams((previous) => buildFastTrackSelectionSearchParams(previous, selectedCaseId));
-    }, [cases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
+    }, [cases, filteredCases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
-        () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
-        [cases, filteredCases, selectedCaseId],
+        () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
+        [filteredCases, selectedCaseId],
     );
+
+    useEffect(() => {
+        setPendingAdminOverrideAction(null);
+    }, [selectedCase?.caseId]);
+
     const requestedDocumentId = useMemo(
         () => selectedCase
             ? resolveFastTrackDocumentSearchParam(selectionParams, selectedCase.documents.items.map((item) => item.id))
@@ -962,19 +1115,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         toast,
     ]);
 
-    const runAction = useCallback(async (
+    const executeFastTrackAction = useCallback(async (
         action: string,
         payload?: Record<string, unknown>,
         successMessage?: string,
+        adminOverride: boolean = false,
     ) => {
         if (!selectedCase) {
             return;
         }
 
+        const actionPayload = adminOverride
+            ? {
+                ...payload,
+                admin_override: true,
+                admin_override_actor_id: user?.id,
+                admin_override_manager_id: selectedCase.managerId,
+            }
+            : payload;
+
         setActiveAction(action);
         const { data, error: actionError } = await performFastTrackAction(
             selectedCase.id,
-            { action, payload },
+            { action, payload: actionPayload },
             { suppressErrorToast: true },
         );
         setActiveAction(null);
@@ -1010,7 +1173,34 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
-    }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase]);
+    }, [publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
+
+    const runAction = useCallback((
+        action: string,
+        payload?: Record<string, unknown>,
+        successMessage?: string,
+    ) => {
+        if (!selectedCase) {
+            return;
+        }
+
+        if (isAdminOverrideFastTrackCase(role, selectedCase)) {
+            setPendingAdminOverrideAction({ action, payload, successMessage });
+            return;
+        }
+
+        void executeFastTrackAction(action, payload, successMessage);
+    }, [executeFastTrackAction, role, selectedCase]);
+
+    const handleConfirmAdminOverrideAction = useCallback(() => {
+        if (!pendingAdminOverrideAction) {
+            return;
+        }
+
+        const { action, payload, successMessage } = pendingAdminOverrideAction;
+        setPendingAdminOverrideAction(null);
+        void executeFastTrackAction(action, payload, successMessage, true);
+    }, [executeFastTrackAction, pendingAdminOverrideAction]);
 
     const handleConfirmCancelCase = useCallback(() => {
         setCancelCaseDialogOpen(false);
@@ -1240,6 +1430,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => (selectedCase?.activity || []).slice(0, 8),
         [selectedCase?.activity],
     );
+    const showAdminOverrideBanner = isAdminOverrideFastTrackCase(role, selectedCase);
 
     const previewItem = useMemo(
         () => selectedCase?.documents.items.find((item) => item.id === previewItemId) || null,
@@ -1345,11 +1536,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             openInNewTab?: boolean;
             revealInViewport?: boolean;
             openInModal?: boolean;
+            busyAction?: FastTrackDocumentPreviewAction;
         },
     ) => {
         const openInNewTab = options?.openInNewTab === true;
         const revealInViewport = options?.revealInViewport === true;
         const openInModal = options?.openInModal === true;
+        const busyAction = options?.busyAction || (openInNewTab ? 'download' : openInModal ? 'preview' : 'auto');
+        const busyKey = documentPreviewBusyKey(item.id, busyAction);
         const selectedFile = selectedFiles[item.id] || null;
         if (openInModal) {
             setPreviewModalOpen(true);
@@ -1359,7 +1553,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             releasePreviewObjectUrl();
             const nextUrl = URL.createObjectURL(selectedFile);
             previewObjectUrlRef.current = nextUrl;
-            setPreviewBusyItemId(null);
+            setPreviewBusyKey(null);
             setPreviewError(null);
             setPreviewUrl(nextUrl);
             if (openInNewTab) {
@@ -1377,7 +1571,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!item.documentRecordId && !item.fileUrl) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
-            setPreviewBusyItemId(null);
+            setPreviewBusyKey(null);
             if (revealInViewport) {
                 if (role === 'user') {
                     setUserDetailsOpen(true);
@@ -1387,7 +1581,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
-        setPreviewBusyItemId(item.id);
+        setPreviewBusyKey((current) => current ?? busyKey);
         handleDocumentFocus(item.id);
         setPreviewError(null);
 
@@ -1444,16 +1638,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewError(error?.message || 'Preview is unavailable for this document.');
             return null;
         } finally {
-            setPreviewBusyItemId(null);
+            setPreviewBusyKey((current) => current === busyKey ? null : current);
         }
     }, [handleDocumentFocus, releasePreviewObjectUrl, revealPreviewSection, role, selectedFiles]);
 
     const handleRailPreview = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInModal: true });
+        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'preview' });
     }, [ensureDocumentPreview]);
 
-    const handleRailDownload = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInNewTab: true });
+    const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
+        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
@@ -1584,10 +1778,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const draftContent = threadDraft.trim();
+        const sendStartedAt = Date.now();
+        const successMessage = role === 'user' ? 'Message sent.' : 'Case update sent.';
         setThreadSending(true);
         setThreadError(null);
+        let conversation: Conversation | null = null;
         try {
-            const conversation = threadConversation || await upsertDirectConversation(threadRecipientId, {
+            conversation = threadConversation || await upsertDirectConversation(threadRecipientId, {
                 fastTrackCaseId: selectedCase.caseId,
                 propertyId: selectedCase.propertyId,
                 propertyTitle: selectedCase.propertyTitle,
@@ -1599,17 +1797,35 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             });
             const nextMessage = await sendMessage({
                 conversationId: conversation.id,
-                content: threadDraft.trim(),
+                content: draftContent,
             });
             setThreadConversation(conversation);
             setThreadMessages((previous) => [...previous, nextMessage]);
             setThreadDraft('');
+            toast.success(successMessage);
         } catch (error: any) {
+            if (conversation && isThreadSendTimeoutError(error?.message)) {
+                try {
+                    const messages = await getMessages(conversation.id, 1, 50);
+                    const sortedMessages = [...messages].sort((left, right) => (
+                        new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+                    ));
+                    if (findRecoveredThreadMessage(sortedMessages, draftContent, user.id, sendStartedAt)) {
+                        setThreadConversation(conversation);
+                        setThreadMessages(sortedMessages);
+                        setThreadDraft('');
+                        toast.success(successMessage);
+                        return;
+                    }
+                } catch {
+                    // Keep the original send timeout visible when recovery cannot prove delivery.
+                }
+            }
             setThreadError(error?.message || (role === 'user' ? 'Unable to send your message right now.' : 'Unable to send this case message.'));
         } finally {
             setThreadSending(false);
         }
-    }, [role, selectedCase, threadConversation, threadDraft, threadRecipientId, user]);
+    }, [role, selectedCase, threadConversation, threadDraft, threadRecipientId, toast, user]);
 
     const renderDocumentPreview = () => {
         if (!previewItem) {
@@ -1630,6 +1846,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             : previewItem;
         const previewKind = detectDocumentPreviewKind(previewDisplayItem);
         const previewAvailable = Boolean(selectedPreviewFile || previewItem.documentRecordId || previewItem.fileUrl);
+        const previewLoading = isPreviewDocumentBusy(previewItem.id) && !previewUrl && !previewError;
 
         return (
             <div className="space-y-4">
@@ -1648,8 +1865,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     <div className="mt-4 flex flex-wrap gap-3">
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, { openInModal: true })}
-                            busy={previewBusyItemId === previewItem.id}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInModal: true, busyAction: 'preview' })}
+                            busy={isPreviewActionBusy(previewItem.id, 'preview')}
                             disabled={!previewAvailable}
                         >
                             <Eye size={16} />
@@ -1657,8 +1874,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
-                            busy={previewBusyItemId === previewItem.id}
+                            onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true, busyAction: 'download' })}
+                            busy={isPreviewActionBusy(previewItem.id, 'download')}
                             disabled={!previewAvailable}
                         >
                             <Download size={16} />
@@ -1673,7 +1890,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                {!previewUrl ? (
+                {previewLoading ? (
+                    <div className="rounded-3xl border border-dashed border-orange-200 bg-orange-50 px-4 py-10 text-center text-sm font-semibold text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200">
+                        Loading document preview...
+                    </div>
+                ) : !previewUrl ? (
                     <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-4 py-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400">
                         Choose or upload a file to preview it here.
                     </div>
@@ -1715,8 +1936,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             </div>
                             <ActionButton
                                 tone="secondary"
-                                onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true })}
-                                busy={previewBusyItemId === previewItem.id}
+                                onClick={() => void ensureDocumentPreview(previewItem, { openInNewTab: true, busyAction: 'download' })}
+                                busy={isPreviewActionBusy(previewItem.id, 'download')}
                                 disabled={!previewAvailable}
                                 ariaLabel={`Open ${previewItem.label} PDF`}
                                 className="px-3 py-2 text-xs"
@@ -1874,14 +2095,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
 
                 <div className="rounded-[24px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                             <p className="text-base font-semibold text-gray-900 dark:text-white">{activeDocument.label}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 {activeDocument.fileName || 'No file attached yet'}
                             </p>
                         </div>
-                        <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(activeDocument.status))}>
+                        <span className={cn('max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(activeDocument.status))}>
                             {formatDocumentStatus(activeDocument.status)}
                         </span>
                     </div>
@@ -1891,7 +2112,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
                                 Last upload
                             </p>
-                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                            <p className="mt-2 break-words text-sm font-semibold text-gray-900 dark:text-white">
                                 {formatDateTime(activeDocument.uploadedAt)}
                             </p>
                         </div>
@@ -1918,7 +2139,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             tone="secondary"
                             onClick={() => void handleRailPreview(activeDocument)}
                             disabled={!canPreview}
-                            busy={previewBusyItemId === activeDocument.id}
+                            busy={isPreviewActionBusy(activeDocument.id, 'preview')}
                             ariaLabel={`Preview ${activeDocument.label} from core files`}
                             className="px-3 py-2 text-xs"
                         >
@@ -1927,14 +2148,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </ActionButton>
                         <ActionButton
                             tone="secondary"
-                            onClick={() => void handleRailDownload(activeDocument)}
+                            onClick={() => void handleRailOpen(activeDocument)}
                             disabled={!canPreview}
-                            busy={previewBusyItemId === activeDocument.id}
-                            ariaLabel={`Download ${activeDocument.label} from core files`}
+                            busy={isPreviewActionBusy(activeDocument.id, 'open')}
+                            ariaLabel={`Open ${activeDocument.label} from core files`}
                             className="px-3 py-2 text-xs"
                         >
-                            <Download size={12} />
-                            Download
+                            <ArrowUpRight size={12} />
+                            Open
                         </ActionButton>
                     </div>
                 </div>
@@ -1951,20 +2172,41 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
                 </p>
-            ) : compactActivity.map((entry, entryIndex) => (
-                <div
-                    key={activityKeyFor(entry.id, entryIndex)}
-                    className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
-                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            {entry.actorRole}
-                        </span>
+            ) : compactActivity.map((entry, entryIndex) => {
+                const adminOverrideActivity = isAdminOverrideActivityEntry(entry);
+                return (
+                    <div
+                        key={activityKeyFor(entry.id, entryIndex)}
+                        data-fast-track-admin-override-activity={adminOverrideActivity || undefined}
+                        className={cn(
+                            'rounded-[24px] border px-4 py-4',
+                            adminOverrideActivity
+                                ? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20'
+                                : 'border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
+                        )}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                {adminOverrideActivity ? (
+                                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                                        Admin override
+                                    </p>
+                                ) : null}
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
+                            </div>
+                            <span className={cn(
+                                'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]',
+                                adminOverrideActivity
+                                    ? 'border-amber-300 bg-white text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+                                    : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                            )}>
+                                {adminOverrideActivity ? 'Admin' : entry.actorRole}
+                            </span>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
-                </div>
-            ))}
+                );
+            })}
         </div>
         );
     };
@@ -2138,6 +2380,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <div
                                 key={documentCardKeyFor(item.id, itemIndex)}
                                 data-fast-track-document-card={item.id}
+                                onPointerDownCapture={(event) => {
+                                    if (event.button !== 0 || shouldIgnoreDocumentCardFocus(event.target)) {
+                                        return;
+                                    }
+                                    handleDocumentFocus(item.id);
+                                }}
                                 className={cn(
                                     'grid gap-3 rounded-[22px] border bg-white px-3.5 py-3.5 shadow-sm transition-colors dark:bg-gray-950 lg:grid-cols-[minmax(0,1fr)_272px]',
                                     focused
@@ -2145,14 +2393,28 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         : 'border-gray-100 dark:border-gray-800',
                                 )}
                             >
-                                <div className="space-y-2.5">
+                                <div className="min-w-0 space-y-2.5">
                                     <button
                                         type="button"
-                                        onClick={() => handleDocumentFocus(item.id)}
+                                        data-fast-track-document-focus-trigger
+                                        onPointerDown={(event) => {
+                                            if (event.button === 0) {
+                                                event.preventDefault();
+                                                pendingPointerDocumentFocusRef.current = item.id;
+                                                handleDocumentFocus(item.id);
+                                            }
+                                        }}
+                                        onClick={() => {
+                                            if (pendingPointerDocumentFocusRef.current === item.id) {
+                                                pendingPointerDocumentFocusRef.current = null;
+                                                return;
+                                            }
+                                            handleDocumentFocus(item.id);
+                                        }}
                                         className="w-full text-left"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{item.label}</p>
                                                     {focused ? (
@@ -2165,18 +2427,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                     {item.fileName || 'No file attached yet'}
                                                 </p>
                                             </div>
-                                            <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(item.status))}>
+                                            <span className={cn('max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(item.status))}>
                                                 {formatDocumentStatus(item.status)}
                                             </span>
                                         </div>
                                     </button>
 
                                     <div className="flex flex-wrap gap-2">
-                                        <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                        <span className="max-w-full rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium leading-5 break-words text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                             Last upload {formatDateTime(item.uploadedAt)}
                                         </span>
                                         {item.reviewedAt ? (
-                                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                            <span className="max-w-full rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium leading-5 break-words text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                                 Reviewed {formatDateTime(item.reviewedAt)}
                                             </span>
                                         ) : null}
@@ -2222,8 +2484,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     <div className="flex flex-wrap gap-2">
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true })}
-                                            busy={previewBusyItemId === item.id}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true, busyAction: 'preview' })}
+                                            busy={isPreviewActionBusy(item.id, 'preview')}
                                             disabled={!canPreview}
                                             ariaLabel={`Preview ${item.label}`}
                                             className="px-3 py-2 text-xs"
@@ -2233,8 +2495,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInNewTab: true })}
-                                            busy={previewBusyItemId === item.id}
+                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' })}
+                                            busy={isPreviewActionBusy(item.id, 'open')}
                                             disabled={!canPreview}
                                             ariaLabel={`Open ${item.label}`}
                                             className="px-3 py-2 text-xs"
@@ -2834,6 +3096,39 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             );
         }
 
+        if (isFastTrackCaseCompleteForRole(selectedCase, role)) {
+            return (
+                <SectionShell
+                    title="Handover"
+                    description="The final handover is complete and this case is read-only."
+                >
+                    <div
+                        role="status"
+                        data-fast-track-completed-handover-summary
+                        className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"
+                    >
+                        <p className="text-base font-semibold">Case already completed</p>
+                        <p className="mt-2">
+                            The final handover has already been completed. No additional handover action is required from this workspace.
+                        </p>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 dark:border-emerald-900/40 dark:bg-gray-950/40">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Completed at</p>
+                                <p className="mt-2 break-words text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                                    {formatDateTime(selectedCase.handover.completedAt)}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 dark:border-emerald-900/40 dark:bg-gray-950/40">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Final note</p>
+                                <p className="mt-2 break-words text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                                    {selectedCase.handover.note || 'No final note was added.'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </SectionShell>
+            );
+        }
         return (
             <SectionShell
                 title="Handover"
@@ -3060,8 +3355,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 subtitle: role === 'user'
                     ? `${item.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home`
                     : item.clientName,
-                stageLabel: formatStageLabel(item.stage, item.journeyMode, role),
-                deadlineLabel: formatDeadline(item.hoursRemaining, role),
+                stageLabel: formatFastTrackCaseStage(item, role),
+                deadlineLabel: formatFastTrackCaseDeadline(item, role),
                 statusLabel: chip.label,
                 statusTone: chip.tone,
                 selected: selectedCaseId === item.caseId,
@@ -3143,7 +3438,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         : `${filteredCases.length} ${role === 'user' ? 'journeys' : 'cases'} available.`;
 
     return (
-        <div className="space-y-6 pb-16">
+        <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden pb-16">
             <p role="status" aria-live="polite" className="sr-only" data-fast-track-workspace-status>
                 {workspaceStatusMessage}
             </p>
@@ -3267,14 +3562,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
             <div
                 className={cn(
-                    'grid gap-4',
+                    'grid min-w-0 max-w-full gap-4',
                     caseRailLayout.renderDesktopRail
                         ? 'xl:grid-cols-[224px_minmax(0,1fr)]'
                         : 'xl:grid-cols-[minmax(0,1fr)]',
                 )}
             >
                 {caseRailLayout.renderDesktopRail ? (
-                    <div className="hidden xl:block">
+                    <div className="hidden min-w-0 xl:block">
                         <FastTrackCaseRail
                             role={role}
                             query={query}
@@ -3298,17 +3593,40 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                <div className="space-y-6">
+                <div className="min-w-0 max-w-full space-y-6">
                     {selectedCase ? (
                         <>
+                            {showAdminOverrideBanner ? (
+                                <div
+                                    role="status"
+                                    data-fast-track-admin-override-banner
+                                    className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100"
+                                >
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="flex min-w-0 gap-3">
+                                            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                                            <div>
+                                                <p className="font-semibold">Admin override mode</p>
+                                                <p className="mt-1 leading-6">
+                                                    You are viewing a manager-owned Fast Track case. Stage actions require confirmation and are recorded in Activity as admin override actions.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="shrink-0 rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                                            Acting as admin
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <FastTrackCaseMasthead
                                 role={role}
                                 title={selectedCase.propertyTitle}
                                 subtitle={selectedCaseSubtitle}
                                 statusLabel={statusChip?.label || 'Active'}
                                 statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
-                                deadlineLabel={formatDeadline(selectedCase.hoursRemaining, role)}
-                                currentStage={formatStageLabel(selectedCase.stage, selectedCase.journeyMode, role)}
+                                deadlineLabel={formatFastTrackCaseDeadline(selectedCase, role)}
+                                currentStage={formatFastTrackCaseStage(selectedCase, role)}
                                 focus={workspaceFocus}
                                 statusSummary={workspaceStatus}
                                 onOpenCustomize={() => setCustomizationOpen(true)}
@@ -3317,12 +3635,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <FastTrackStageStepper items={stepperItems} onSelect={handleStageSelect} />
 
                             <div className={cn(
-                                'grid gap-4',
+                                'grid min-w-0 max-w-full gap-4',
                                 role === 'user'
                                     ? 'grid-cols-1'
                                     : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
                             )}>
-                                <div className="space-y-6">
+                                <div className="min-w-0 max-w-full space-y-6">
                                     {renderActiveStage()}
                                     {renderManagerReviewCard()}
                                 </div>
@@ -3350,7 +3668,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </div>
                                     </details>
                                 ) : (
-                                    <div className="space-y-6">
+                                    <div className="min-w-0 max-w-full space-y-6">
                                         <FastTrackUtilityDock
                                             role={role}
                                             density={workspacePreferences.secondaryDensity}
@@ -3464,6 +3782,61 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     defaultActiveModule: module,
                 }))}
             />
+
+            {pendingAdminOverrideAction && selectedCase ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    onClick={() => {
+                        if (activeAction !== pendingAdminOverrideAction.action) {
+                            setPendingAdminOverrideAction(null);
+                        }
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Admin override confirmation"
+                        data-fast-track-admin-override-confirmation
+                        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-950"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-start gap-3">
+                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                                <AlertCircle size={18} aria-hidden="true" />
+                            </span>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                                    Admin override action
+                                </h2>
+                                <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                    {buildAdminOverrideConfirmationMessage(selectedCase, pendingAdminOverrideAction.action)}
+                                </p>
+                                <p className="mt-3 text-sm leading-6 text-amber-800 dark:text-amber-200">
+                                    This action will be recorded in the case Activity panel as an admin override so the manager can distinguish it from manager-owned changes.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setPendingAdminOverrideAction(null)}
+                                disabled={activeAction === pendingAdminOverrideAction.action}
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmAdminOverrideAction}
+                                disabled={activeAction === pendingAdminOverrideAction.action}
+                                className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {activeAction === pendingAdminOverrideAction.action ? 'Recording...' : 'Continue as admin'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {cancelCaseDialogOpen && selectedCase ? (
                 <div
