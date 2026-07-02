@@ -1,3 +1,5 @@
+import { getLeadDeadline, resolveLeadStage, type LeadLike } from "./fastTrackWorkflow";
+
 export type ManagerLeadSortMode = "newest" | "client_az" | "budget_desc" | "score_desc";
 
 export interface ManagerLeadListItem {
@@ -7,6 +9,39 @@ export interface ManagerLeadListItem {
   budget?: string;
   score?: number;
 }
+
+export interface ManagerLeadSummaryItem extends ManagerLeadListItem, LeadLike {
+  sla_remaining_seconds?: number;
+  viewing_scheduled?: boolean;
+}
+
+export interface ManagerLeadSummary {
+  total: number;
+  awaitingResponse: number;
+  documentsQueue: number;
+  viewingScheduled: number;
+  breached: number;
+}
+
+const LIVE_PROCESSING_STAGES = new Set([
+  "matching",
+  "broker_matched",
+  "docs_requested",
+  "docs_uploaded",
+  "under_review",
+  "approved",
+  "viewing_scheduled",
+]);
+
+const DOCUMENT_QUEUE_STAGES = new Set([
+  "docs_requested",
+  "docs_uploaded",
+  "under_review",
+  "approved",
+]);
+
+const CLOSED_MANAGER_LEAD_STATUSES = new Set(["closed_won", "closed_lost", "cancelled"]);
+const CLOSED_MANAGER_LEAD_STAGES = new Set(["completed", "expired", "rejected", "withdrawn"]);
 
 const parseBudgetAmount = (value?: string) => {
   const normalized = String(value || "").replace(/,/g, "");
@@ -21,6 +56,55 @@ const getClientLabel = (lead: ManagerLeadListItem) => (
 const getCreatedAt = (lead: ManagerLeadListItem) => {
   const timestamp = new Date(lead.created_at || "").getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+const normalizeStage = (value?: string) => String(value || "").trim().toLowerCase();
+
+export const getManagerLeadSlaRemainingSeconds = (lead: ManagerLeadSummaryItem, now: number) => {
+  if (typeof lead.sla_remaining_seconds === "number") {
+    return Math.max(0, lead.sla_remaining_seconds);
+  }
+
+  const deadline = getLeadDeadline(lead);
+  if (!deadline) {
+    return 0;
+  }
+
+  const remaining = Math.ceil((new Date(deadline).getTime() - now) / 1000);
+  return remaining > 0 ? remaining : 0;
+};
+
+export const isManagerLeadLiveProcessing = (lead: ManagerLeadSummaryItem) => {
+  const status = normalizeStage(lead.status);
+  const stage = normalizeStage(resolveLeadStage(lead));
+
+  return !CLOSED_MANAGER_LEAD_STATUSES.has(status)
+    && !CLOSED_MANAGER_LEAD_STAGES.has(stage)
+    && LIVE_PROCESSING_STAGES.has(stage);
+};
+
+export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
+  leads: readonly T[],
+  now: number,
+): ManagerLeadSummary => {
+  const documentsQueue = leads.filter((lead) => (
+    DOCUMENT_QUEUE_STAGES.has(normalizeStage(resolveLeadStage(lead)))
+  )).length;
+  const viewingScheduled = leads.filter((lead) => (
+    lead.status === "viewing_scheduled" || normalizeStage(resolveLeadStage(lead)) === "viewing_scheduled" || lead.viewing_scheduled
+  )).length;
+  const breached = leads.filter((lead) => {
+    const remaining = getManagerLeadSlaRemainingSeconds(lead, now);
+    return lead.sla_status === "breach" || (lead.status === "pending_broker_response" && remaining === 0);
+  }).length;
+
+  return {
+    total: leads.length,
+    awaitingResponse: leads.filter(isManagerLeadLiveProcessing).length,
+    documentsQueue,
+    viewingScheduled,
+    breached,
+  };
 };
 
 export const sortManagerLeads = <T extends ManagerLeadListItem>(

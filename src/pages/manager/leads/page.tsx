@@ -21,9 +21,15 @@ import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackServi
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
-import { canRequestLeadDocuments, formatLeadStage, getLeadDeadline, resolveLeadStage } from '@/lib/fastTrackWorkflow';
+import { canRequestLeadDocuments, formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
-import { paginateManagerLeads, sortManagerLeads, type ManagerLeadSortMode } from '@/lib/managerLeadList';
+import {
+    getManagerLeadSlaRemainingSeconds,
+    paginateManagerLeads,
+    sortManagerLeads,
+    summarizeManagerLeads,
+    type ManagerLeadSortMode,
+} from '@/lib/managerLeadList';
 import { buildCsvContent } from '@/lib/csvExport';
 
 const STATUS_FILTERS = [
@@ -124,17 +130,7 @@ function isLeadLifecycleClosed(lead: Lead) {
 }
 
 function getSlaRemainingSeconds(lead: Lead, now: number) {
-    if (typeof lead.sla_remaining_seconds === 'number') {
-        return Math.max(0, lead.sla_remaining_seconds);
-    }
-
-    const deadline = getLeadDeadline(lead);
-    if (!deadline) {
-        return 0;
-    }
-
-    const remaining = Math.ceil((new Date(deadline).getTime() - now) / 1000);
-    return remaining > 0 ? remaining : 0;
+    return getManagerLeadSlaRemainingSeconds(lead, now);
 }
 
 function formatCountdown(totalSeconds: number) {
@@ -362,26 +358,7 @@ export default function ManagerLeadsPage() {
         }
     }, [currentPage, paginatedLeads.currentPage]);
 
-    const summary = useMemo(() => {
-        const awaitingResponse = leads.filter((lead) => resolveLeadStage(lead) === 'matching').length;
-        const documentsQueue = leads.filter((lead) => {
-            const stage = resolveLeadStage(lead);
-            return stage === 'docs_requested' || stage === 'under_review' || stage === 'approved';
-        }).length;
-        const viewingScheduled = leads.filter((lead) => lead.status === 'viewing_scheduled').length;
-        const breached = leads.filter((lead) => {
-            const remaining = getSlaRemainingSeconds(lead, now);
-            return lead.sla_status === 'breach' || (lead.status === 'pending_broker_response' && remaining === 0);
-        }).length;
-
-        return {
-            total: leads.length,
-            awaitingResponse,
-            documentsQueue,
-            viewingScheduled,
-            breached,
-        };
-    }, [leads, now]);
+    const summary = useMemo(() => summarizeManagerLeads(leads, now), [leads, now]);
     const fastTrackCaseByLeadId = useMemo(() => {
         const mapping = new Map<string, FastTrackCase>();
 
