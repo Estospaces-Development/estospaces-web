@@ -372,17 +372,17 @@ export function FastTrackCaseMasthead({
     <section className="overflow-hidden rounded-[30px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)]" data-fast-track-masthead>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl">
+          <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h2 className="text-[24px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+              <h2 className="min-w-0 max-w-full break-words text-[24px] font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
                 {title}
               </h2>
-              <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', statusTone)}>
+              <span className={cn('max-w-full shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold', statusTone)}>
                 {statusLabel}
               </span>
             </div>
-            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
-            <p className="mt-3 max-w-2xl text-[13px] leading-6 text-gray-700 dark:text-gray-200">
+            <p className="mt-1 max-w-full break-words text-sm text-gray-600 dark:text-gray-300">{subtitle}</p>
+            <p className="mt-3 max-w-2xl break-words text-[13px] leading-6 text-gray-700 dark:text-gray-200">
               {statusSummary}
             </p>
           </div>
@@ -415,11 +415,14 @@ export function FastTrackCaseMasthead({
 
 function MastheadInfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="inline-flex items-center gap-2.5 rounded-full border border-white/70 bg-white/85 px-3.5 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
+    <div
+      className="flex min-w-0 max-w-full flex-wrap items-center gap-2.5 rounded-2xl border border-white/70 bg-white/85 px-3.5 py-2 backdrop-blur dark:border-white/10 dark:bg-white/5"
+      data-fast-track-masthead-info-card={label}
+    >
+      <p className="min-w-0 max-w-full break-words text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
         {label}
       </p>
-      <p className="text-sm font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
+      <p className="min-w-0 max-w-full break-words text-sm font-semibold tracking-[-0.02em] text-gray-900 dark:text-white">
         {value}
       </p>
     </div>
@@ -461,7 +464,7 @@ export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepper
               )}
             >
               <span className="shrink-0">{item.icon}</span>
-              <span className="text-xs font-semibold">{item.label}</span>
+              <span className="min-w-0 break-words text-xs font-semibold">{item.label}</span>
             </button>
             {index < items.length - 1 ? (
               <div

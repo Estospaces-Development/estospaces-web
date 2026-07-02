@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { FastTrackWorkspaceCustomizationDrawer } from './FastTrackWorkspaceLayout';
 import {
   FastTrackCaseRail,
+  FastTrackCaseMasthead,
   FastTrackStageStepper,
   type FastTrackCaseRailItem,
 } from './FastTrackWorkspaceLayout';
@@ -126,4 +127,29 @@ test('fast-track stage controls expose visible focus for keyboard users', () => 
 
   assert.match(markup, /data-fast-track-stage-tab="selected"/);
   assert.match(markup, /focus-visible:ring-2/);
+});
+
+test('admin fast-track masthead wraps long completed case copy inside the panel', () => {
+  const longCaseId = 'case-' + 'x'.repeat(160);
+  const markup = renderToStaticMarkup(
+    <FastTrackCaseMasthead
+      role="admin"
+      title={`Completed handover for ${longCaseId}`}
+      subtitle={`Test Client / Sale / Apartment / Case ${longCaseId}`}
+      statusLabel="Completed"
+      statusTone="border-green-200 bg-green-50 text-green-700"
+      deadlineLabel="Completed"
+      currentStage="Handover"
+      focus={`Final audit note ${longCaseId}`}
+      statusSummary={`This completed admin fast-track case remains read-only for audit history ${longCaseId}`}
+      onOpenCustomize={() => {}}
+    />,
+  );
+
+  assert.match(markup, /data-fast-track-masthead/);
+  assert.match(markup, /min-w-0 max-w-full break-words text-\[24px\]/);
+  assert.match(markup, /max-w-full break-words text-sm text-gray-600/);
+  assert.match(markup, /data-fast-track-masthead-info-card="Focus"/);
+  assert.match(markup, /flex min-w-0 max-w-full flex-wrap items-center/);
+  assert.match(markup, /min-w-0 max-w-full break-words text-sm font-semibold/);
 });
