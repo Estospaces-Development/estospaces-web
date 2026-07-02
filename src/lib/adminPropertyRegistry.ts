@@ -1,23 +1,45 @@
+import { formatPropertyStatusLabel } from './propertyStatusBadge';
+
 export type AdminPropertyRegistryProperty = {
     id?: string;
     propertyId?: string;
     property_id?: string;
     title?: string;
+    description?: string;
     city?: string;
     location?: {
+        addressLine1?: string;
+        addressLine2?: string;
         city?: string;
+        postalCode?: string;
+        country?: string;
     };
     listingType?: string;
+    listing_type?: string;
     propertyType?: string;
+    property_type?: string;
     status?: string;
     contactName?: string;
+    agent_name?: string;
+    address_line_1?: string;
+    address_line_2?: string;
+    postcode?: string;
+    country?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    rooms?: {
+        bedrooms?: number;
+        bathrooms?: number;
+    };
     createdAt?: string;
     updatedAt?: string;
-    price?: {
+    price?: number | {
         amount?: number;
     };
     priceString?: string;
 };
+
+export const ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL = 'Awaiting Manager Submission';
 
 export type AdminPropertyRegistryFilters = {
     searchQuery?: string;
@@ -79,6 +101,10 @@ const getPropertyTimestamp = (property: AdminPropertyRegistryProperty) =>
     new Date(property.updatedAt || property.createdAt || 0).getTime();
 
 const getPropertyPriceAmount = (property: AdminPropertyRegistryProperty) => {
+    if (typeof property.price === 'number') {
+        return property.price;
+    }
+
     if (typeof property.price?.amount === 'number') {
         return property.price.amount;
     }
@@ -86,6 +112,50 @@ const getPropertyPriceAmount = (property: AdminPropertyRegistryProperty) => {
     const parsed = Number.parseFloat(String(property.priceString || '').replace(/[^0-9.-]/g, ''));
     return Number.isFinite(parsed) ? parsed : 0;
 };
+
+const hasTextValue = (value?: string | null) => Boolean(value?.trim());
+
+const hasPositiveNumber = (value?: number | null) =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+const hasMeaningfulPrice = (property: AdminPropertyRegistryProperty) =>
+    hasPositiveNumber(getPropertyPriceAmount(property));
+
+export const hasAdminPropertyListingContent = (property: AdminPropertyRegistryProperty) => [
+    property.title,
+    property.description,
+    property.city,
+    property.location?.addressLine1,
+    property.location?.addressLine2,
+    property.location?.city,
+    property.location?.postalCode,
+    property.location?.country,
+    property.address_line_1,
+    property.address_line_2,
+    property.postcode,
+    property.country,
+    property.listingType,
+    property.listing_type,
+    property.propertyType,
+    property.property_type,
+    property.contactName,
+    property.agent_name,
+].some(hasTextValue)
+    || hasMeaningfulPrice(property)
+    || hasPositiveNumber(property.bedrooms)
+    || hasPositiveNumber(property.bathrooms)
+    || hasPositiveNumber(property.rooms?.bedrooms)
+    || hasPositiveNumber(property.rooms?.bathrooms);
+
+export const isAdminPropertyAwaitingManagerSubmission = (property: AdminPropertyRegistryProperty) => {
+    const normalizedStatus = normalizePropertyValue(property.status) || 'draft';
+    return normalizedStatus === 'draft' && !hasAdminPropertyListingContent(property);
+};
+
+export const getAdminPropertyWorkflowFallbackLabel = (property: AdminPropertyRegistryProperty) =>
+    isAdminPropertyAwaitingManagerSubmission(property)
+        ? ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL
+        : formatPropertyStatusLabel(property.status);
 
 const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: string) => {
     const normalizedQuery = normalizePropertyValue(searchQuery);

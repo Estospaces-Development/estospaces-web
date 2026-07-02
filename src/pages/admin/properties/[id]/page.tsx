@@ -32,6 +32,7 @@ import {
 import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
+import { getAdminPropertyWorkflowFallbackLabel } from '@/lib/adminPropertyRegistry';
 import { formatLaunchCurrency } from '@/lib/launchLocale';
 
 const parseStringArray = (value: unknown): string[] => {
@@ -308,7 +309,7 @@ export default function AdminPropertyDetailPage() {
 
         return (
             <div className="rounded-2xl border border-dashed border-gray-300 px-5 py-4 text-center text-xs font-black uppercase tracking-widest text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                Awaiting Manager Submission
+                {getAdminPropertyWorkflowFallbackLabel(property)}
             </div>
         );
     };

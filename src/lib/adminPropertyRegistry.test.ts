@@ -5,10 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+    ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL,
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
     filterAdminPropertyRegistry,
     getAdminPropertySortControlLabel,
+    getAdminPropertyWorkflowFallbackLabel,
+    isAdminPropertyAwaitingManagerSubmission,
     sortAdminPropertyRegistry,
 } from './adminPropertyRegistry';
 
@@ -151,4 +154,35 @@ test('admin properties page exposes visible sort and first-last pagination contr
     assert.match(adminPropertiesPageSource, /PaginationBar/);
     assert.match(adminPropertiesPageSource, /getAdminPropertySortControlLabel/);
     assert.match(adminPropertiesPageSource, /useSearchParams/);
+});
+
+test('admin property workflow only shows awaiting manager submission for empty drafts', () => {
+    assert.equal(
+        getAdminPropertyWorkflowFallbackLabel({
+            id: 'empty-draft',
+            status: 'draft',
+        }),
+        ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL,
+    );
+
+    assert.equal(isAdminPropertyAwaitingManagerSubmission(properties[2]), false);
+    assert.equal(getAdminPropertyWorkflowFallbackLabel(properties[2]), 'Draft');
+});
+
+test('admin property workflow treats populated service-shaped drafts as submitted content', () => {
+    const populatedServiceDraft = {
+        id: 'service-draft',
+        title: 'Populated draft from backend',
+        city: 'Chennai',
+        listing_type: 'rent',
+        property_type: 'apartment',
+        status: 'draft',
+        price: 650000,
+        bedrooms: 2,
+        bathrooms: 2,
+        agent_name: 'Launch Manager',
+    };
+
+    assert.equal(isAdminPropertyAwaitingManagerSubmission(populatedServiceDraft), false);
+    assert.equal(getAdminPropertyWorkflowFallbackLabel(populatedServiceDraft), 'Draft');
 });

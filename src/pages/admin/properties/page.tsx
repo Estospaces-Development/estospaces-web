@@ -27,6 +27,7 @@ import {
     ADMIN_PROPERTY_TYPE_FILTERS,
     type AdminPropertyRegistrySortOption,
     filterAdminPropertyRegistry,
+    getAdminPropertyWorkflowFallbackLabel,
     getAdminPropertySortControlLabel,
     sortAdminPropertyRegistry,
 } from '@/lib/adminPropertyRegistry';
@@ -267,7 +268,7 @@ function PropertyManagementContent() {
 
         return (
             <div className="flex-1 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-400 dark:border-gray-600">
-                Awaiting Manager Submission
+                {getAdminPropertyWorkflowFallbackLabel(property)}
             </div>
         );
     };
