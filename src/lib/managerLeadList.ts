@@ -15,6 +15,23 @@ export interface ManagerLeadSummaryItem extends ManagerLeadListItem, LeadLike {
   viewing_scheduled?: boolean;
 }
 
+export interface ManagerLeadVisibilityItem extends ManagerLeadSummaryItem {
+  id?: string;
+  lead_number?: string;
+  property_name?: string;
+  propertyInterested?: string;
+  broker_request_id?: string;
+  source?: string;
+  journey_source?: string;
+  notes?: string;
+  property?: {
+    title?: string;
+    address_line_1?: string;
+    city?: string;
+    postcode?: string;
+  };
+}
+
 export interface ManagerLeadSummary {
   total: number;
   awaitingResponse: number;
@@ -50,6 +67,24 @@ const DOCUMENT_QUEUE_STAGES = new Set([
 const CLOSED_MANAGER_LEAD_STATUSES = new Set(["closed_won", "closed_lost", "cancelled"]);
 const CLOSED_MANAGER_LEAD_STAGES = new Set(["completed", "expired", "rejected", "withdrawn"]);
 
+const INTERNAL_AUTOMATION_TEXT_PATTERNS = [
+  /\bqa\b/i,
+  /\bcodex\b/i,
+  /\bdev smoke\b/i,
+  /\bsmoke test\b/i,
+  /\be2e\b/i,
+  /\bissue\d+\b/i,
+  /\bmobile-live-\d+\b/i,
+  /\bmobile live approval\b/i,
+  /\btest\b/i,
+] as const;
+
+const RAW_AUTOMATION_TIMESTAMP_PATTERNS = [
+  /\b20\d{12}\b/,
+  /\b20\d{2}-\d{2}-\d{2}t\d{2}-\d{2}-\d{2}-\d{3}z\b/i,
+  /\b1\d{12,}\b/,
+] as const;
+
 const parseBudgetAmount = (value?: string) => {
   const normalized = String(value || "").replace(/,/g, "");
   const match = normalized.match(/\d+(?:\.\d+)?/);
@@ -66,6 +101,28 @@ const getCreatedAt = (lead: ManagerLeadListItem) => {
 };
 
 const normalizeStage = (value?: string) => String(value || "").trim().toLowerCase();
+
+const getManagerLeadVisibilityText = (lead: ManagerLeadVisibilityItem) => [
+  lead.id,
+  lead.broker_request_id,
+  lead.property?.title,
+  lead.property_name,
+  lead.propertyInterested,
+  lead.notes,
+  lead.source,
+  lead.journey_source,
+].filter(Boolean).join(" ");
+
+export const isInternalAutomationManagerLead = (lead: ManagerLeadVisibilityItem) => {
+  const searchableText = getManagerLeadVisibilityText(lead);
+
+  return INTERNAL_AUTOMATION_TEXT_PATTERNS.some((pattern) => pattern.test(searchableText))
+    || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(searchableText));
+};
+
+export const filterVisibleManagerLeads = <T extends ManagerLeadVisibilityItem>(
+  leads: readonly T[],
+) => leads.filter((lead) => !isInternalAutomationManagerLead(lead));
 
 export const getManagerLeadSlaRemainingSeconds = (lead: ManagerLeadSummaryItem, now: number) => {
   if (typeof lead.sla_remaining_seconds === "number") {

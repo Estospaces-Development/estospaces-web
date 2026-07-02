@@ -2,8 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  filterVisibleManagerLeads,
   getManagerLeadOperationalState,
   isManagerLeadBreached,
+  isInternalAutomationManagerLead,
   isManagerLeadLiveProcessing,
   paginateManagerLeads,
   sortManagerLeads,
@@ -157,4 +159,43 @@ test("closed breached manager leads do not keep an escalation action", () => {
   assert.equal(state.isBreached, true);
   assert.equal(state.requiresEscalation, false);
   assert.equal(state.statusLabel, "Lost");
+});
+
+test("manager lead list hides internal QA titles and raw automation identifiers", () => {
+  const leads = [
+    {
+      id: "real-lead",
+      status: "broker_responded",
+      created_at: "2026-07-02T09:00:00Z",
+      property: {
+        title: "Two-bedroom apartment in Chennai",
+      },
+    },
+    {
+      id: "qa-lead",
+      status: "broker_responded",
+      created_at: "2026-07-02T09:01:00Z",
+      property: {
+        title: "QA Manual FT E2E 2026-06-25T18-30-15-991Z",
+      },
+    },
+    {
+      id: "mobile-live-lead",
+      status: "broker_responded",
+      created_at: "2026-07-02T09:02:00Z",
+      propertyInterested: "Mobile Live Approval mobile-live-1781788492687917",
+    },
+    {
+      id: "raw-timestamp-lead",
+      status: "pending_broker_response",
+      created_at: "2026-07-02T09:03:00Z",
+      property_name: "QA Admin Notice Dashboard Search 20260702001933",
+    },
+  ];
+
+  assert.equal(isInternalAutomationManagerLead(leads[0]), false);
+  assert.equal(isInternalAutomationManagerLead(leads[1]), true);
+  assert.equal(isInternalAutomationManagerLead(leads[2]), true);
+  assert.equal(isInternalAutomationManagerLead(leads[3]), true);
+  assert.deepEqual(filterVisibleManagerLeads(leads).map((lead) => lead.id), ["real-lead"]);
 });

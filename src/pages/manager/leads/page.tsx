@@ -24,6 +24,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { canRequestLeadDocuments, formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import {
+    filterVisibleManagerLeads,
     getManagerLeadOperationalState,
     getManagerLeadSlaRemainingSeconds,
     paginateManagerLeads,
@@ -332,13 +333,17 @@ export default function ManagerLeadsPage() {
         refresh: () => fetchLeads(statusFilter, { silent: true }),
     });
 
+    const visibleSourceLeads = useMemo(() => (
+        filterVisibleManagerLeads(leads)
+    ), [leads]);
+
     const filteredLeads = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
         if (!query) {
-            return leads;
+            return visibleSourceLeads;
         }
 
-        return leads.filter((lead) => {
+        return visibleSourceLeads.filter((lead) => {
             const haystack = [
                 lead.lead_number,
                 getLeadTitle(lead),
@@ -356,7 +361,7 @@ export default function ManagerLeadsPage() {
 
             return haystack.includes(query);
         });
-    }, [leads, searchQuery]);
+    }, [searchQuery, visibleSourceLeads]);
 
     const visibleLeads = useMemo(() => (
         sortManagerLeads(filteredLeads, sortMode)
@@ -380,7 +385,7 @@ export default function ManagerLeadsPage() {
         }
     }, [currentPage, paginatedLeads.currentPage]);
 
-    const summary = useMemo(() => summarizeManagerLeads(leads, now), [leads, now]);
+    const summary = useMemo(() => summarizeManagerLeads(visibleSourceLeads, now), [now, visibleSourceLeads]);
     const fastTrackCaseByLeadId = useMemo(() => {
         const mapping = new Map<string, FastTrackCase>();
 
