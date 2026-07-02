@@ -533,8 +533,8 @@ const deriveStatusReason = (
 const mapBackendToFrontend = (
   raw: BackendFastTrackWorkspaceCase,
 ): FastTrackCase => {
-  const stage = normalizeStage(raw.stage);
   const workspaceFinalStatus = normalizeWorkspaceFinalStatus(raw.final_status);
+  const stage = workspaceFinalStatus === "completed" ? "handover" : normalizeStage(raw.stage);
   const items = (raw.documents?.items || []).map((item) => ({
     id: item.id,
     label: item.label,
@@ -554,6 +554,9 @@ const mapBackendToFrontend = (
   const addressItem = items.find((item) => item.id === "address");
   const journeyMode = normalizeJourneyMode(raw.header?.journey_type || raw.header?.listing_type);
   const documentPhase = deriveDocumentPhase(stage, items);
+  const handoverStatus = workspaceFinalStatus === "completed"
+    ? "completed"
+    : raw.handover?.status || "pending";
 
   return {
     id: raw.id,
@@ -577,8 +580,8 @@ const mapBackendToFrontend = (
     startedFrom: raw.header.started_from,
     submittedAt: raw.header.submitted_at,
     expiresAt: raw.header.expires_at,
-    hoursRemaining: Number(raw.header.hours_remaining || 0),
-    overdue: Boolean(raw.header.overdue),
+    hoursRemaining: workspaceFinalStatus === "completed" ? 0 : Number(raw.header.hours_remaining || 0),
+    overdue: workspaceFinalStatus === "active" && Boolean(raw.header.overdue),
     stage,
     currentStep: toLegacyStep(stage, workspaceFinalStatus),
     backendCurrentStep: toLegacyStep(stage, workspaceFinalStatus),
@@ -618,7 +621,7 @@ const mapBackendToFrontend = (
       acceptedAt: raw.agreement?.accepted_at,
     },
     handover: {
-      status: raw.handover?.status || "pending",
+      status: handoverStatus,
       note: raw.handover?.note,
       readyAt: raw.handover?.ready_at,
       confirmedByUser: raw.handover?.confirmed_by_user,

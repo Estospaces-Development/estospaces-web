@@ -184,6 +184,24 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     return `${hoursRemaining}h left`;
 };
 
+export const formatFastTrackCaseDeadline = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
+    if (fastTrackCase.workspaceFinalStatus === 'completed') {
+        if (role === 'user' && canUserConfirmFastTrackHandover(fastTrackCase)) {
+            return 'Confirm handover';
+        }
+        return role === 'user' ? 'Done' : 'Completed';
+    }
+    if (fastTrackCase.workspaceFinalStatus === 'cancelled') {
+        return role === 'user' ? 'Closed' : 'Cancelled';
+    }
+    return formatDeadline(fastTrackCase.hoursRemaining, role);
+};
+
+export const formatFastTrackCaseStage = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
+    const stage = fastTrackCase.workspaceFinalStatus === 'completed' ? 'handover' : fastTrackCase.stage;
+    return formatStageLabel(stage, fastTrackCase.journeyMode, role);
+};
+
 const formatDateTime = (value?: string) => {
     if (!value) {
         return 'Not set';
@@ -1940,14 +1958,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
 
                 <div className="rounded-[24px] border border-gray-100 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
                             <p className="text-base font-semibold text-gray-900 dark:text-white">{activeDocument.label}</p>
                             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                 {activeDocument.fileName || 'No file attached yet'}
                             </p>
                         </div>
-                        <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(activeDocument.status))}>
+                        <span className={cn('max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(activeDocument.status))}>
                             {formatDocumentStatus(activeDocument.status)}
                         </span>
                     </div>
@@ -1957,7 +1975,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">
                                 Last upload
                             </p>
-                            <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
+                            <p className="mt-2 break-words text-sm font-semibold text-gray-900 dark:text-white">
                                 {formatDateTime(activeDocument.uploadedAt)}
                             </p>
                         </div>
@@ -2217,7 +2235,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         : 'border-gray-100 dark:border-gray-800',
                                 )}
                             >
-                                <div className="space-y-2.5">
+                                <div className="min-w-0 space-y-2.5">
                                     <button
                                         type="button"
                                         data-fast-track-document-focus-trigger
@@ -2238,7 +2256,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         className="w-full text-left"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <p className="text-[15px] font-semibold text-gray-900 dark:text-white">{item.label}</p>
                                                     {focused ? (
@@ -2251,18 +2269,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                                     {item.fileName || 'No file attached yet'}
                                                 </p>
                                             </div>
-                                            <span className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold', documentStatusTone(item.status))}>
+                                            <span className={cn('max-w-full rounded-full border px-3 py-1 text-center text-[11px] font-semibold leading-5 break-words', documentStatusTone(item.status))}>
                                                 {formatDocumentStatus(item.status)}
                                             </span>
                                         </div>
                                     </button>
 
                                     <div className="flex flex-wrap gap-2">
-                                        <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                        <span className="max-w-full rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium leading-5 break-words text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                             Last upload {formatDateTime(item.uploadedAt)}
                                         </span>
                                         {item.reviewedAt ? (
-                                            <span className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                            <span className="max-w-full rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[11px] font-medium leading-5 break-words text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                                 Reviewed {formatDateTime(item.reviewedAt)}
                                             </span>
                                         ) : null}
@@ -2920,6 +2938,39 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             );
         }
 
+        if (isFastTrackCaseCompleteForRole(selectedCase, role)) {
+            return (
+                <SectionShell
+                    title="Handover"
+                    description="The final handover is complete and this case is read-only."
+                >
+                    <div
+                        role="status"
+                        data-fast-track-completed-handover-summary
+                        className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"
+                    >
+                        <p className="text-base font-semibold">Case already completed</p>
+                        <p className="mt-2">
+                            The final handover has already been completed. No additional handover action is required from this workspace.
+                        </p>
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 dark:border-emerald-900/40 dark:bg-gray-950/40">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Completed at</p>
+                                <p className="mt-2 break-words text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                                    {formatDateTime(selectedCase.handover.completedAt)}
+                                </p>
+                            </div>
+                            <div className="rounded-2xl border border-emerald-200/70 bg-white/70 px-4 py-3 dark:border-emerald-900/40 dark:bg-gray-950/40">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-300">Final note</p>
+                                <p className="mt-2 break-words text-sm font-semibold text-emerald-950 dark:text-emerald-100">
+                                    {selectedCase.handover.note || 'No final note was added.'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </SectionShell>
+            );
+        }
         return (
             <SectionShell
                 title="Handover"
@@ -3146,8 +3197,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 subtitle: role === 'user'
                     ? `${item.journeyMode === 'sale' ? 'Buying' : 'Renting'} this home`
                     : item.clientName,
-                stageLabel: formatStageLabel(item.stage, item.journeyMode, role),
-                deadlineLabel: formatDeadline(item.hoursRemaining, role),
+                stageLabel: formatFastTrackCaseStage(item, role),
+                deadlineLabel: formatFastTrackCaseDeadline(item, role),
                 statusLabel: chip.label,
                 statusTone: chip.tone,
                 selected: selectedCaseId === item.caseId,
@@ -3393,8 +3444,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 subtitle={selectedCaseSubtitle}
                                 statusLabel={statusChip?.label || 'Active'}
                                 statusTone={statusChip?.tone || 'border-orange-200 bg-orange-50 text-orange-700'}
-                                deadlineLabel={formatDeadline(selectedCase.hoursRemaining, role)}
-                                currentStage={formatStageLabel(selectedCase.stage, selectedCase.journeyMode, role)}
+                                deadlineLabel={formatFastTrackCaseDeadline(selectedCase, role)}
+                                currentStage={formatFastTrackCaseStage(selectedCase, role)}
                                 focus={workspaceFocus}
                                 statusSummary={workspaceStatus}
                                 onOpenCustomize={() => setCustomizationOpen(true)}

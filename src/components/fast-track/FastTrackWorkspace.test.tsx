@@ -8,8 +8,47 @@ import { dirname, join } from "node:path";
 
 import {
   FastTrackDocumentFileChooser,
+  formatFastTrackCaseDeadline,
+  formatFastTrackCaseStage,
   getFastTrackDocumentUploadCopy,
 } from "./FastTrackWorkspace";
+import type { FastTrackCase } from "@/services/fastTrackService";
+
+const buildFastTrackCase = (overrides: Partial<FastTrackCase> = {}): FastTrackCase => ({
+  id: "case-record-1",
+  caseId: "case-1",
+  propertyId: "property-1",
+  propertyTitle: "Example property",
+  propertyType: "Apartment",
+  clientId: "user-1",
+  clientName: "Example user",
+  managerId: "manager-1",
+  listingType: "rent",
+  journeyMode: "rent",
+  journeyType: "rent",
+  submittedAt: "2026-04-14T00:00:00Z",
+  hoursRemaining: -6,
+  overdue: true,
+  stage: "viewing",
+  currentStep: "viewing_scheduled",
+  backendCurrentStep: "viewing_scheduled",
+  workspaceFinalStatus: "active",
+  finalStatus: "in_progress",
+  documents: {
+    identityProof: "pending",
+    addressProof: "pending",
+    items: [],
+    allUploaded: false,
+    allApproved: false,
+  },
+  viewing: { status: "pending" },
+  decision: { mode: "rent", status: "pending" },
+  agreement: { status: "pending", paymentStatus: "not_requested" },
+  handover: { status: "pending" },
+  activity: [],
+  documentPhase: "not_requested",
+  ...overrides,
+});
 
 test("fast-track document file chooser exposes a named file input with visible focus", () => {
   const markup = renderToStaticMarkup(
@@ -95,4 +134,57 @@ test("fast-track identity upload copy names Indian identity documents", () => {
   assert.match(source, /PAN card or Form 60 may be requested/);
   assert.match(source, /prefer masked Aadhaar/);
   assert.match(source, /clear PDF, JPG, PNG, or WebP/);
+});
+
+test("completed fast-track cases show completed handover instead of old SLA and stage", () => {
+  const completedCase = buildFastTrackCase({
+    workspaceFinalStatus: "completed",
+    finalStatus: "completed",
+    stage: "viewing",
+    hoursRemaining: -8,
+    overdue: true,
+    handover: {
+      status: "completed",
+      completedAt: "2026-05-05T12:00:00Z",
+      completedBy: "manager-1",
+      confirmedByUser: true,
+    },
+  });
+
+  assert.equal(formatFastTrackCaseDeadline(completedCase, "manager"), "Completed");
+  assert.equal(formatFastTrackCaseStage(completedCase, "manager"), "Handover");
+});
+
+test("user still sees handover confirmation when manager has completed the case", () => {
+  const waitingForUserCase = buildFastTrackCase({
+    workspaceFinalStatus: "completed",
+    finalStatus: "completed",
+    stage: "handover",
+    handover: {
+      status: "completed",
+      completedAt: "2026-05-05T12:00:00Z",
+      completedBy: "manager-1",
+      confirmedByUser: false,
+    },
+  });
+
+  assert.equal(formatFastTrackCaseDeadline(waitingForUserCase, "user"), "Confirm handover");
+  assert.equal(formatFastTrackCaseStage(waitingForUserCase, "user"), "Get your keys");
+});
+
+test("fast-track document status and upload metadata wrap inside cards", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /max-w-full rounded-full border px-3 py-1 text-center text-\[11px\] font-semibold leading-5 break-words/);
+  assert.match(source, /mt-2 break-words text-sm font-semibold text-gray-900/);
+  assert.match(source, /Last upload \{formatDateTime\(item\.uploadedAt\)\}/);
+  assert.match(source, /Reviewed \{formatDateTime\(item\.reviewedAt\)\}/);
+});
+
+test("completed manager handover is read-only with clear feedback", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /data-fast-track-completed-handover-summary/);
+  assert.match(source, /Case already completed/);
+  assert.match(source, /No additional handover action is required from this workspace/);
 });
