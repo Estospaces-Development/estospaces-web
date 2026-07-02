@@ -116,7 +116,7 @@ import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
-type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
+export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
 const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     user: '/user/dashboard',
@@ -184,6 +184,11 @@ const formatDeadline = (hoursRemaining: number, role: WorkspaceRole) => {
     }
     return `${hoursRemaining}h left`;
 };
+
+export const isFastTrackCaseVisibleForFilter = (
+    fastTrackCase: Pick<FastTrackCase, 'workspaceFinalStatus'>,
+    filter: FilterMode,
+) => filter === 'all' || fastTrackCase.workspaceFinalStatus === filter;
 
 export const formatFastTrackCaseDeadline = (fastTrackCase: FastTrackCase, role: WorkspaceRole) => {
     if (fastTrackCase.workspaceFinalStatus === 'completed') {
@@ -720,13 +725,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
     const filteredCases = useMemo(() => {
         return cases.filter((item) => {
-            if (filter === 'active' && item.workspaceFinalStatus !== 'active') {
-                return false;
-            }
-            if (filter === 'completed' && item.workspaceFinalStatus !== 'completed') {
-                return false;
-            }
-            if (filter === 'cancelled' && item.workspaceFinalStatus !== 'cancelled') {
+            if (!isFastTrackCaseVisibleForFilter(item, filter)) {
                 return false;
             }
             if (!query.trim()) {
@@ -825,15 +824,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
-        const requestedCaseStillAvailable = Boolean(
-            requestedCaseParam && cases.some((item) => item.caseId === requestedCaseParam),
+        const requestedCaseStillVisible = Boolean(
+            requestedCaseParam && filteredCases.some((item) => item.caseId === requestedCaseParam),
         );
-        if (requestedCaseStillAvailable) {
+        if (requestedCaseStillVisible) {
             return;
         }
 
         if (query.trim()) {
-            if (!selectedCaseId) {
+            if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
                 setSelectedCaseId(filteredCases[0].caseId);
             }
             return;
@@ -842,7 +841,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (!selectedCaseId || !filteredCases.some((item) => item.caseId === selectedCaseId)) {
             setSelectedCaseId(filteredCases[0].caseId);
         }
-    }, [cases, filteredCases, query, requestedCaseParam, selectedCaseId]);
+    }, [filteredCases, query, requestedCaseParam, selectedCaseId]);
 
     const totalCasePages = useMemo(
         () => Math.max(1, Math.ceil(filteredCases.length / FAST_TRACK_CASES_PAGE_SIZE)),
@@ -884,8 +883,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [cases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
-        () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
-        [cases, filteredCases, selectedCaseId],
+        () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
+        [filteredCases, selectedCaseId],
     );
 
     useEffect(() => {

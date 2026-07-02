@@ -14,6 +14,7 @@ import {
   getFastTrackDocumentUploadCopy,
   isAdminOverrideActivityEntry,
   isAdminOverrideFastTrackCase,
+  isFastTrackCaseVisibleForFilter,
 } from "./FastTrackWorkspace";
 import type { FastTrackCase } from "@/services/fastTrackService";
 
@@ -219,4 +220,25 @@ test("admin override warning and activity indicator are rendered from shared wor
   assert.match(source, /data-fast-track-admin-override-activity/);
   assert.equal(isAdminOverrideActivityEntry({ actorRole: "admin" }), true);
   assert.equal(isAdminOverrideActivityEntry({ actorRole: "manager" }), false);
+});
+
+test("fast-track filter selection cannot render a stale hidden case", () => {
+  const activeCase = buildFastTrackCase({
+    caseId: "active-case",
+    workspaceFinalStatus: "active",
+  });
+  const completedCase = buildFastTrackCase({
+    caseId: "completed-case",
+    workspaceFinalStatus: "completed",
+  });
+  const source = workspaceSource();
+
+  assert.equal(isFastTrackCaseVisibleForFilter(activeCase, "active"), true);
+  assert.equal(isFastTrackCaseVisibleForFilter(completedCase, "active"), false);
+  assert.match(source, /requestedCaseStillVisible/);
+  assert.match(source, /filteredCases\.some\(\(item\) => item\.caseId === requestedCaseParam\)/);
+  assert.doesNotMatch(
+    source,
+    /filteredCases\.find\(\(item\) => item\.caseId === selectedCaseId\) \|\| cases\.find/,
+  );
 });
