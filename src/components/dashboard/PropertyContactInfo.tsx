@@ -29,9 +29,30 @@ interface Property {
 
 interface PropertyContactInfoProps {
     property: Property | null;
+    propertyAddress?: string | null;
 }
 
-const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
+export const getPropertyContactAddress = (
+    property: Property | null | undefined,
+    propertyAddress?: string | null,
+) => {
+    const providedAddress = typeof propertyAddress === 'string' ? propertyAddress.trim() : '';
+    if (providedAddress) {
+        return providedAddress;
+    }
+
+    return [
+        property?.address_line_1,
+        property?.address_line_2,
+        property?.city,
+        property?.postcode,
+    ]
+        .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+        .map((part) => part.trim())
+        .join(', ');
+};
+
+const PropertyContactInfo = ({ property, propertyAddress }: PropertyContactInfoProps) => {
     const { success: showToastSuccess, error: showToastError } = useToast();
     const { user } = useAuth();
     const [showContactForm, setShowContactForm] = useState(false);
@@ -48,6 +69,10 @@ const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
         phone: user?.phone || user?.user_metadata?.phone || '',
         message: '',
     }), [user]);
+    const contactAddress = useMemo(
+        () => getPropertyContactAddress(property, propertyAddress),
+        [property, propertyAddress],
+    );
 
     useEffect(() => {
         if (!showContactForm) {
@@ -72,7 +97,7 @@ const PropertyContactInfo = ({ property }: PropertyContactInfoProps) => {
         setIsSubmitting(true);
         try {
             const messageContent = `
-Inquiry regarding: ${property.address_line_1}, ${property.city}
+Inquiry regarding: ${contactAddress || property.title || 'this property'}
 From: ${contactForm.name} (${contactForm.email})
 Phone: ${contactForm.phone || 'Not provided'}
 
@@ -86,7 +111,7 @@ ${contactForm.message}
                 context: {
                     propertyId: property.id,
                     propertyTitle: property.title,
-                    propertyAddress: [property.address_line_1, property.city, property.postcode].filter(Boolean).join(', '),
+                    propertyAddress: contactAddress,
                     propertyImage: getPrimaryPropertyImage(property) || undefined,
                     listingType: property.listing_type,
                     propertyPrice: property.price,
@@ -173,15 +198,13 @@ ${contactForm.message}
                         </a>
                     )}
 
-                    {property.address_line_1 && (
+                    {contactAddress && (
                         <div className="flex min-h-[5.5rem] items-start gap-3 rounded-[1.45rem] border border-stone-200/80 bg-white px-4 py-4 text-gray-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-300">
                             <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 dark:bg-orange-950/40 dark:text-orange-200">
                                 <MapPin size={18} />
                             </div>
                             <div className="min-w-0 text-sm leading-6">
-                                <p>{property.address_line_1}</p>
-                                {property.address_line_2 && <p>{property.address_line_2}</p>}
-                                <p>{property.city}, {property.postcode}</p>
+                                <p>{contactAddress}</p>
                             </div>
                         </div>
                     )}

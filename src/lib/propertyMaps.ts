@@ -160,11 +160,15 @@ export const getPropertyDisplayAddress = (
 
 export const getPropertyMapState = (
   property: PropertyMapLocationLike,
-  options?: { userAgent?: string | null },
+  options?: { userAgent?: string | null; displayAddress?: string | null },
 ): PropertyMapState => {
   const provider = getPreferredMapsProvider(options?.userAgent);
   const coordinates = getPropertyMapCoordinates(property);
-  const displayAddress = getPropertyDisplayAddress(property);
+  const overrideDisplayAddress =
+    typeof options?.displayAddress === "string"
+      ? options.displayAddress.trim()
+      : "";
+  const displayAddress = overrideDisplayAddress || getPropertyDisplayAddress(property);
 
   if (coordinates) {
     const pinQuery = `${coordinates.latitude},${coordinates.longitude}`;

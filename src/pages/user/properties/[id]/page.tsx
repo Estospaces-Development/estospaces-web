@@ -981,8 +981,9 @@ const UserPropertyDetail = () => {
     const propertyMapState = useMemo(
         () => getPropertyMapState(property ?? {}, {
             userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
+            displayAddress: propertyAddress || locationLabel,
         }),
-        [property],
+        [locationLabel, property, propertyAddress],
     );
     const propertyMapAddress = propertyMapState.displayAddress || propertyAddress || locationLabel;
     const preferredMapsLabel = propertyMapState.provider === 'apple' ? 'Apple Maps' : 'Google Maps';
@@ -2596,7 +2597,7 @@ const UserPropertyDetail = () => {
                             )}
                         </section>
 
-                        <PropertyContactInfo property={property as any} />
+                        <PropertyContactInfo property={property as any} propertyAddress={propertyAddress || locationLabel} />
                     </div>
                 </div>
 

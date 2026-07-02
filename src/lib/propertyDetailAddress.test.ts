@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { getPropertyDetailDisplayAddress } from "../pages/user/properties/[id]/page";
 
@@ -22,4 +24,11 @@ test("property detail address matches dashboard card launch formatting", () => {
 
   assert.equal(address, "Attur, Chennai");
   assert.doesNotMatch(address, /SW1A|Edinburgh|United Kingdom|UK/i);
+});
+
+test("property detail wires the sanitized address into maps and contact sections", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
+
+  assert.match(source, /displayAddress:\s*propertyAddress\s*\|\|\s*locationLabel/);
+  assert.match(source, /<PropertyContactInfo property=\{property as any\} propertyAddress=\{propertyAddress \|\| locationLabel\} \/>/);
 });
