@@ -376,9 +376,18 @@ test('document preview busy state is scoped to the clicked action', () => {
 });
 
 test('document row focus is single-click and does not reset scroll position', () => {
-    assert.match(fastTrackWorkspaceComponent, /buildFastTrackDocumentSearchParams\(previous, documentId\)/);
-    assert.match(fastTrackWorkspaceComponent, /replace: true/);
-    assert.match(fastTrackWorkspaceComponent, /preventScrollReset: true/);
+    const focusHandler = fastTrackWorkspaceComponent.match(
+        /const handleDocumentFocus = useCallback\(\(documentId: string\) => \{[\s\S]*?\}, \[replaceDocumentFocusUrl\]\);/,
+    )?.[0] || '';
+
+    assert.match(fastTrackWorkspaceComponent, /const replaceDocumentFocusUrl = useCallback\(\(documentId: string\) => \{/);
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /buildFastTrackDocumentSearchParams\(\s*new URLSearchParams\(window\.location\.search\),\s*documentId,/,
+    );
+    assert.match(fastTrackWorkspaceComponent, /window\.history\.replaceState\(window\.history\.state, '', nextUrl\)/);
+    assert.match(focusHandler, /replaceDocumentFocusUrl\(documentId\)/);
+    assert.doesNotMatch(focusHandler, /setSearchParams\(/);
     assert.match(
         fastTrackWorkspaceComponent,
         /data-fast-track-document-focus-trigger/,

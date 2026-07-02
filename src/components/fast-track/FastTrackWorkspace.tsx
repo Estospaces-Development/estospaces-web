@@ -467,13 +467,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         previewObjectUrlRef.current = null;
     }, []);
 
+    const replaceDocumentFocusUrl = useCallback((documentId: string) => {
+        const nextSearchParams = buildFastTrackDocumentSearchParams(
+            new URLSearchParams(window.location.search),
+            documentId,
+        );
+        const nextSearch = nextSearchParams.toString();
+        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+        window.history.replaceState(window.history.state, '', nextUrl);
+    }, []);
+
     const handleDocumentFocus = useCallback((documentId: string) => {
         setDocumentFocusId(documentId);
-        setSearchParams(
-            (previous) => buildFastTrackDocumentSearchParams(previous, documentId),
-            { replace: true, preventScrollReset: true },
-        );
-    }, [setSearchParams]);
+        replaceDocumentFocusUrl(documentId);
+    }, [replaceDocumentFocusUrl]);
 
     const isPreviewActionBusy = useCallback((
         itemId: FastTrackDocumentItem['id'],
