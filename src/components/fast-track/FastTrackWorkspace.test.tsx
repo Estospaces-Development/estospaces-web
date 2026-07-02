@@ -7,10 +7,13 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import {
+  buildAdminOverrideConfirmationMessage,
   FastTrackDocumentFileChooser,
   formatFastTrackCaseDeadline,
   formatFastTrackCaseStage,
   getFastTrackDocumentUploadCopy,
+  isAdminOverrideActivityEntry,
+  isAdminOverrideFastTrackCase,
 } from "./FastTrackWorkspace";
 import type { FastTrackCase } from "@/services/fastTrackService";
 
@@ -187,4 +190,33 @@ test("completed manager handover is read-only with clear feedback", () => {
   assert.match(source, /data-fast-track-completed-handover-summary/);
   assert.match(source, /Case already completed/);
   assert.match(source, /No additional handover action is required from this workspace/);
+});
+
+test("admin manager-owned fast-track actions require override confirmation", () => {
+  const fastTrackCase = buildFastTrackCase({
+    managerId: "manager-123",
+    propertyTitle: "Live manager case",
+  });
+
+  assert.equal(isAdminOverrideFastTrackCase("admin", fastTrackCase), true);
+  assert.equal(isAdminOverrideFastTrackCase("manager", fastTrackCase), false);
+  assert.equal(isAdminOverrideFastTrackCase("admin", { managerId: "" }), false);
+  assert.equal(
+    buildAdminOverrideConfirmationMessage(fastTrackCase, "schedule_viewing"),
+    "You are about to act on behalf of the assigned manager for Live manager case. Action: schedule a viewing. Continue?",
+  );
+});
+
+test("admin override warning and activity indicator are rendered from shared workspace source", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /data-fast-track-admin-override-banner/);
+  assert.match(source, /Admin override mode/);
+  assert.match(source, /data-fast-track-admin-override-confirmation/);
+  assert.match(source, /Continue as admin/);
+  assert.doesNotMatch(source, /window\.confirm/);
+  assert.match(source, /admin_override: true/);
+  assert.match(source, /data-fast-track-admin-override-activity/);
+  assert.equal(isAdminOverrideActivityEntry({ actorRole: "admin" }), true);
+  assert.equal(isAdminOverrideActivityEntry({ actorRole: "manager" }), false);
 });

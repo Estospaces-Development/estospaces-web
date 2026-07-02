@@ -58,6 +58,7 @@ import {
 import { PAYMENTS_ENABLED } from '@/lib/launchFlags';
 import { getDocumentAccessUrl } from '@/services/documentAccessService';
 import {
+    FastTrackActivityEntry,
     FastTrackCase,
     FastTrackDocumentItem,
     FastTrackStage,
@@ -222,6 +223,45 @@ const formatDocumentStatus = (status: FastTrackDocumentItem['status']) => {
     }
 };
 
+const ADMIN_OVERRIDE_ACTION_LABELS: Record<string, string> = {
+    claim_case: 'claim this case',
+    start_documents: 'start document collection',
+    review_document: 'review a document',
+    schedule_viewing: 'schedule a viewing',
+    reschedule_viewing: 'reschedule a viewing',
+    skip_viewing: 'skip the viewing',
+    complete_viewing: 'complete the viewing',
+    start_offer_review: 'start offer review',
+    record_decision: 'record a decision',
+    publish_agreement: 'publish the agreement',
+    mark_payment_requested: 'request payment',
+    mark_payment_received: 'mark payment received',
+    mark_handover_ready: 'mark handover ready',
+    complete_handover: 'complete handover',
+    cancel_case: 'cancel this case',
+};
+
+export const isAdminOverrideFastTrackCase = (
+    role: WorkspaceRole,
+    fastTrackCase: Pick<FastTrackCase, 'managerId'> | null | undefined,
+) => role === 'admin' && Boolean(String(fastTrackCase?.managerId || '').trim());
+
+export const getAdminOverrideActionLabel = (action: string) => (
+    ADMIN_OVERRIDE_ACTION_LABELS[action] || action.replace(/_/g, ' ')
+);
+
+export const buildAdminOverrideConfirmationMessage = (
+    fastTrackCase: Pick<FastTrackCase, 'managerId' | 'propertyTitle'>,
+    action: string,
+) => (
+    `You are about to act on behalf of the assigned manager for ${fastTrackCase.propertyTitle}. `
+    + `Action: ${getAdminOverrideActionLabel(action)}. Continue?`
+);
+
+export const isAdminOverrideActivityEntry = (
+    entry: Pick<FastTrackActivityEntry, 'actorRole'>,
+) => String(entry.actorRole || '').trim().toLowerCase() === 'admin';
+
 export const getFastTrackDocumentUploadCopy = ({
     status,
     hasAttachedFile,
@@ -361,6 +401,12 @@ interface FastTrackDocumentFileChooserProps {
     onFileSelected: (file: File | null) => void;
 }
 
+interface PendingFastTrackAction {
+    action: string;
+    payload?: Record<string, unknown>;
+    successMessage?: string;
+}
+
 export const FastTrackDocumentFileChooser = ({
     documentId,
     label,
@@ -450,6 +496,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [activeUtilityModule, setActiveUtilityModule] = useState<FastTrackWorkspaceModule>('core_files');
     const [userDetailsOpen, setUserDetailsOpen] = useState(false);
     const [cancelCaseDialogOpen, setCancelCaseDialogOpen] = useState(false);
+    const [pendingAdminOverrideAction, setPendingAdminOverrideAction] = useState<PendingFastTrackAction | null>(null);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
     const previewObjectUrlRef = useRef<string | null>(null);
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
@@ -840,6 +887,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || cases.find((item) => item.caseId === selectedCaseId) || null,
         [cases, filteredCases, selectedCaseId],
     );
+
+    useEffect(() => {
+        setPendingAdminOverrideAction(null);
+    }, [selectedCase?.caseId]);
+
     const requestedDocumentId = useMemo(
         () => selectedCase
             ? resolveFastTrackDocumentSearchParam(selectionParams, selectedCase.documents.items.map((item) => item.id))
@@ -1038,19 +1090,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         toast,
     ]);
 
-    const runAction = useCallback(async (
+    const executeFastTrackAction = useCallback(async (
         action: string,
         payload?: Record<string, unknown>,
         successMessage?: string,
+        adminOverride: boolean = false,
     ) => {
         if (!selectedCase) {
             return;
         }
 
+        const actionPayload = adminOverride
+            ? {
+                ...payload,
+                admin_override: true,
+                admin_override_actor_id: user?.id,
+                admin_override_manager_id: selectedCase.managerId,
+            }
+            : payload;
+
         setActiveAction(action);
         const { data, error: actionError } = await performFastTrackAction(
             selectedCase.id,
-            { action, payload },
+            { action, payload: actionPayload },
             { suppressErrorToast: true },
         );
         setActiveAction(null);
@@ -1086,7 +1148,34 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         if (nextCase.workspaceFinalStatus !== 'completed') {
             toast.success(successMessage || 'Workspace updated.');
         }
-    }, [publishWorkspaceSync, selectedCase, toast, updateLocalCase]);
+    }, [publishWorkspaceSync, role, selectedCase, toast, updateLocalCase, user?.id]);
+
+    const runAction = useCallback((
+        action: string,
+        payload?: Record<string, unknown>,
+        successMessage?: string,
+    ) => {
+        if (!selectedCase) {
+            return;
+        }
+
+        if (isAdminOverrideFastTrackCase(role, selectedCase)) {
+            setPendingAdminOverrideAction({ action, payload, successMessage });
+            return;
+        }
+
+        void executeFastTrackAction(action, payload, successMessage);
+    }, [executeFastTrackAction, role, selectedCase]);
+
+    const handleConfirmAdminOverrideAction = useCallback(() => {
+        if (!pendingAdminOverrideAction) {
+            return;
+        }
+
+        const { action, payload, successMessage } = pendingAdminOverrideAction;
+        setPendingAdminOverrideAction(null);
+        void executeFastTrackAction(action, payload, successMessage, true);
+    }, [executeFastTrackAction, pendingAdminOverrideAction]);
 
     const handleConfirmCancelCase = useCallback(() => {
         setCancelCaseDialogOpen(false);
@@ -1316,6 +1405,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => (selectedCase?.activity || []).slice(0, 8),
         [selectedCase?.activity],
     );
+    const showAdminOverrideBanner = isAdminOverrideFastTrackCase(role, selectedCase);
 
     const previewItem = useMemo(
         () => selectedCase?.documents.items.find((item) => item.id === previewItemId) || null,
@@ -2035,20 +2125,41 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                     {role === 'user' ? 'Recent updates about your journey will appear here.' : 'Recent case updates will appear here.'}
                 </p>
-            ) : compactActivity.map((entry, entryIndex) => (
-                <div
-                    key={activityKeyFor(entry.id, entryIndex)}
-                    className="rounded-[24px] border border-gray-100 bg-white px-4 py-4 dark:border-gray-800 dark:bg-gray-950"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
-                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                            {entry.actorRole}
-                        </span>
+            ) : compactActivity.map((entry, entryIndex) => {
+                const adminOverrideActivity = isAdminOverrideActivityEntry(entry);
+                return (
+                    <div
+                        key={activityKeyFor(entry.id, entryIndex)}
+                        data-fast-track-admin-override-activity={adminOverrideActivity || undefined}
+                        className={cn(
+                            'rounded-[24px] border px-4 py-4',
+                            adminOverrideActivity
+                                ? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20'
+                                : 'border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-950',
+                        )}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                {adminOverrideActivity ? (
+                                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+                                        Admin override
+                                    </p>
+                                ) : null}
+                                <p className="text-sm font-semibold text-gray-900 dark:text-white">{entry.message}</p>
+                            </div>
+                            <span className={cn(
+                                'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]',
+                                adminOverrideActivity
+                                    ? 'border-amber-300 bg-white text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
+                                    : 'border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300',
+                            )}>
+                                {adminOverrideActivity ? 'Admin' : entry.actorRole}
+                            </span>
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
                     </div>
-                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{formatDateTime(entry.createdAt)}</p>
-                </div>
-            ))}
+                );
+            })}
         </div>
         );
     };
@@ -3438,6 +3549,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 <div className="space-y-6">
                     {selectedCase ? (
                         <>
+                            {showAdminOverrideBanner ? (
+                                <div
+                                    role="status"
+                                    data-fast-track-admin-override-banner
+                                    className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-100"
+                                >
+                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="flex min-w-0 gap-3">
+                                            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                                            <div>
+                                                <p className="font-semibold">Admin override mode</p>
+                                                <p className="mt-1 leading-6">
+                                                    You are viewing a manager-owned Fast Track case. Stage actions require confirmation and are recorded in Activity as admin override actions.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className="shrink-0 rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                                            Acting as admin
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             <FastTrackCaseMasthead
                                 role={role}
                                 title={selectedCase.propertyTitle}
@@ -3601,6 +3735,61 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     defaultActiveModule: module,
                 }))}
             />
+
+            {pendingAdminOverrideAction && selectedCase ? (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    onClick={() => {
+                        if (activeAction !== pendingAdminOverrideAction.action) {
+                            setPendingAdminOverrideAction(null);
+                        }
+                    }}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Admin override confirmation"
+                        data-fast-track-admin-override-confirmation
+                        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-950"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="flex items-start gap-3">
+                            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                                <AlertCircle size={18} aria-hidden="true" />
+                            </span>
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                                    Admin override action
+                                </h2>
+                                <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                                    {buildAdminOverrideConfirmationMessage(selectedCase, pendingAdminOverrideAction.action)}
+                                </p>
+                                <p className="mt-3 text-sm leading-6 text-amber-800 dark:text-amber-200">
+                                    This action will be recorded in the case Activity panel as an admin override so the manager can distinguish it from manager-owned changes.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setPendingAdminOverrideAction(null)}
+                                disabled={activeAction === pendingAdminOverrideAction.action}
+                                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleConfirmAdminOverrideAction}
+                                disabled={activeAction === pendingAdminOverrideAction.action}
+                                className="rounded-xl bg-amber-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {activeAction === pendingAdminOverrideAction.action ? 'Recording...' : 'Continue as admin'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {cancelCaseDialogOpen && selectedCase ? (
                 <div
