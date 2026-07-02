@@ -236,7 +236,9 @@ test("fast-track filter selection cannot render a stale hidden case", () => {
   assert.equal(isFastTrackCaseVisibleForFilter(activeCase, "active"), true);
   assert.equal(isFastTrackCaseVisibleForFilter(completedCase, "active"), false);
   assert.match(source, /requestedCaseStillVisible/);
+  assert.match(source, /requestedCaseIsVisible/);
   assert.match(source, /filteredCases\.some\(\(item\) => item\.caseId === requestedCaseParam\)/);
+  assert.match(source, /requestedCase && requestedCase !== selectedCaseId && requestedCaseIsVisible/);
   assert.doesNotMatch(
     source,
     /filteredCases\.find\(\(item\) => item\.caseId === selectedCaseId\) \|\| cases\.find/,

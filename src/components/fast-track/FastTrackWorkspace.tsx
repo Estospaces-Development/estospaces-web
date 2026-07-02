@@ -871,7 +871,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const requestedCase = requestedCaseParam
             ? sanitizeWorkspaceCaseId(requestedCaseParam, cases.map((item) => item.caseId)).caseId
             : null;
-        if (requestedCase && requestedCase !== selectedCaseId) {
+        const requestedCaseIsVisible = requestedCase
+            ? filteredCases.some((item) => item.caseId === requestedCase)
+            : false;
+        if (requestedCase && requestedCase !== selectedCaseId && requestedCaseIsVisible) {
             return;
         }
 
@@ -880,7 +883,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         setSearchParams((previous) => buildFastTrackSelectionSearchParams(previous, selectedCaseId));
-    }, [cases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
+    }, [cases, filteredCases, hasInvalidRequestedCase, recoveredCaseLink, requestedCaseParam, selectedCaseId, setSearchParams]);
 
     const selectedCase = useMemo(
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
