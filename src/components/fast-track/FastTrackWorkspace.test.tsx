@@ -241,6 +241,15 @@ test("completed manager handover is read-only with clear feedback", () => {
   assert.match(source, /No additional handover action is required from this workspace/);
 });
 
+test("admin fast-track workspace constrains compact layouts inside the viewport", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /min-w-0 max-w-full space-y-6 overflow-x-hidden pb-16/);
+  assert.match(source, /grid min-w-0 max-w-full gap-4/);
+  assert.match(source, /min-w-0 max-w-full space-y-6/);
+  assert.match(source, /min-w-0 max-w-full overflow-hidden rounded-\[26px\]/);
+});
+
 test("admin manager-owned fast-track actions require override confirmation", () => {
   const fastTrackCase = buildFastTrackCase({
     managerId: "manager-123",

@@ -364,17 +364,17 @@ const SectionShell = ({
     icon?: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <section className="rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[26px] border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950">
         <div className="flex items-start gap-2.5">
             {Icon ? (
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
                     <Icon size={16} />
                 </span>
             ) : null}
-            <div className="flex flex-col gap-1">
-                <h3 className="text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
+            <div className="min-w-0 flex flex-col gap-1">
+                <h3 className="break-words text-[20px] font-semibold text-gray-900 dark:text-white">{title}</h3>
                 {description ? (
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
+                    <p className="break-words text-[13px] text-gray-500 dark:text-gray-400">{description}</p>
                 ) : null}
             </div>
         </div>
@@ -3438,7 +3438,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         : `${filteredCases.length} ${role === 'user' ? 'journeys' : 'cases'} available.`;
 
     return (
-        <div className="space-y-6 pb-16">
+        <div className="min-w-0 max-w-full space-y-6 overflow-x-hidden pb-16">
             <p role="status" aria-live="polite" className="sr-only" data-fast-track-workspace-status>
                 {workspaceStatusMessage}
             </p>
@@ -3562,14 +3562,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
             <div
                 className={cn(
-                    'grid gap-4',
+                    'grid min-w-0 max-w-full gap-4',
                     caseRailLayout.renderDesktopRail
                         ? 'xl:grid-cols-[224px_minmax(0,1fr)]'
                         : 'xl:grid-cols-[minmax(0,1fr)]',
                 )}
             >
                 {caseRailLayout.renderDesktopRail ? (
-                    <div className="hidden xl:block">
+                    <div className="hidden min-w-0 xl:block">
                         <FastTrackCaseRail
                             role={role}
                             query={query}
@@ -3593,7 +3593,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     </div>
                 ) : null}
 
-                <div className="space-y-6">
+                <div className="min-w-0 max-w-full space-y-6">
                     {selectedCase ? (
                         <>
                             {showAdminOverrideBanner ? (
@@ -3635,12 +3635,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             <FastTrackStageStepper items={stepperItems} onSelect={handleStageSelect} />
 
                             <div className={cn(
-                                'grid gap-4',
+                                'grid min-w-0 max-w-full gap-4',
                                 role === 'user'
                                     ? 'grid-cols-1'
                                     : 'xl:grid-cols-[minmax(0,1.58fr)_minmax(260px,0.58fr)]',
                             )}>
-                                <div className="space-y-6">
+                                <div className="min-w-0 max-w-full space-y-6">
                                     {renderActiveStage()}
                                     {renderManagerReviewCard()}
                                 </div>
@@ -3668,7 +3668,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </div>
                                     </details>
                                 ) : (
-                                    <div className="space-y-6">
+                                    <div className="min-w-0 max-w-full space-y-6">
                                         <FastTrackUtilityDock
                                             role={role}
                                             density={workspacePreferences.secondaryDensity}

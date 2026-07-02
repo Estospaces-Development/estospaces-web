@@ -85,7 +85,7 @@ export function FastTrackWorkspaceHeader({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <div className="flex flex-col gap-3" data-fast-track-header>
+    <div className="flex min-w-0 max-w-full flex-col gap-3 overflow-hidden" data-fast-track-header>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex flex-wrap items-start gap-2.5">
           <button
@@ -221,7 +221,7 @@ export function FastTrackCaseRail({
   return (
     <aside
       className={cn(
-        'space-y-3 rounded-[26px] border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-950',
+        'min-w-0 max-w-full space-y-3 rounded-[26px] border border-gray-100 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gray-950',
         className,
       )}
       data-fast-track-case-rail
@@ -369,7 +369,7 @@ export function FastTrackCaseMasthead({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <section className="overflow-hidden rounded-[30px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)]" data-fast-track-masthead>
+    <section className="min-w-0 max-w-full overflow-hidden rounded-[30px] border border-orange-100 bg-[radial-gradient(circle_at_top_left,_rgba(255,243,232,0.95),_rgba(255,255,255,1)_55%)] p-4 shadow-[0_18px_36px_-28px_rgba(234,88,12,0.28)] dark:border-orange-900/30 dark:bg-[radial-gradient(circle_at_top_left,_rgba(124,45,18,0.28),_rgba(3,7,18,1)_58%)]" data-fast-track-masthead>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 max-w-3xl">
@@ -436,7 +436,7 @@ interface FastTrackStageStepperProps {
 
 export function FastTrackStageStepper({ items, onSelect }: FastTrackStageStepperProps) {
   return (
-    <section className="sticky top-20 z-20 rounded-[24px] border border-gray-100 bg-white/92 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/92" data-fast-track-stepper>
+    <section className="sticky top-20 z-20 min-w-0 max-w-full rounded-[24px] border border-gray-100 bg-white/92 px-3 py-3 shadow-sm backdrop-blur dark:border-gray-800 dark:bg-gray-950/92" data-fast-track-stepper>
       <div
         className="flex gap-1.5 overflow-x-auto pb-1"
         tabIndex={0}
@@ -505,7 +505,7 @@ export function FastTrackUtilityDock({
   const copy = getJourneyChromeCopy(role);
 
   return (
-    <section className="rounded-[28px] border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
+    <section className="min-w-0 max-w-full rounded-[28px] border border-gray-100 bg-white p-3.5 shadow-sm dark:border-gray-800 dark:bg-gray-950" data-fast-track-utility-dock>
       <div className="space-y-3.5">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
