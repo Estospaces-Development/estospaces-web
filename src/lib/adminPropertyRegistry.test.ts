@@ -9,8 +9,10 @@ import {
     ADMIN_PROPERTY_STATUS_FILTERS,
     ADMIN_PROPERTY_SORT_OPTIONS,
     filterAdminPropertyRegistry,
+    filterVisibleAdminPropertyRegistry,
     getAdminPropertySortControlLabel,
     getAdminPropertyWorkflowFallbackLabel,
+    isInternalAutomationProperty,
     isAdminPropertyAwaitingManagerSubmission,
     sortAdminPropertyRegistry,
 } from './adminPropertyRegistry';
@@ -185,4 +187,48 @@ test('admin property workflow treats populated service-shaped drafts as submitte
 
     assert.equal(isAdminPropertyAwaitingManagerSubmission(populatedServiceDraft), false);
     assert.equal(getAdminPropertyWorkflowFallbackLabel(populatedServiceDraft), 'Draft');
+});
+
+test('admin property registry hides internal QA and automated property fixtures', () => {
+    const mixedProperties = [
+        ...properties,
+        {
+            id: 'qa-manual-ft-e2e',
+            title: 'QA Manual FT E2E 2026-06-25T18-30-15-991Z',
+            city: 'Chennai',
+            listingType: 'rent',
+            propertyType: 'apartment',
+            status: 'rented',
+            contactName: 'Estospaces QA',
+            price: { amount: 35000 },
+        },
+        {
+            id: 'codex-qa-sale',
+            title: 'Codex QA Sale Offer Manager 20260617152655',
+            city: 'London',
+            listingType: 'sale',
+            propertyType: 'house',
+            status: 'sold',
+            contactName: 'Property Manager',
+            price: { amount: 125000 },
+        },
+        {
+            id: 'real-preston-home',
+            title: 'Luxurious 3BHK in Preston',
+            city: 'Preston',
+            listingType: 'sale',
+            propertyType: 'house',
+            status: 'published',
+            contactName: 'Jeevi Groups',
+            price: { amount: 650000 },
+        },
+    ];
+
+    assert.equal(isInternalAutomationProperty(mixedProperties[5]), true);
+    assert.equal(isInternalAutomationProperty(mixedProperties[6]), true);
+    assert.equal(isInternalAutomationProperty(mixedProperties[7]), false);
+    assert.deepEqual(
+        filterVisibleAdminPropertyRegistry(mixedProperties).map((property) => property.id),
+        [...properties.map((property) => property.id), 'real-preston-home'],
+    );
 });

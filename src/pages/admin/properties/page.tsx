@@ -27,6 +27,7 @@ import {
     ADMIN_PROPERTY_TYPE_FILTERS,
     type AdminPropertyRegistrySortOption,
     filterAdminPropertyRegistry,
+    filterVisibleAdminPropertyRegistry,
     getAdminPropertyWorkflowFallbackLabel,
     getAdminPropertySortControlLabel,
     sortAdminPropertyRegistry,
@@ -76,6 +77,7 @@ function PropertyManagementContent() {
         setStatusFilter('all');
     };
 
+    const visibleRegistryProperties = filterVisibleAdminPropertyRegistry(properties);
     const filteredProperties = sortAdminPropertyRegistry(
         filterAdminPropertyRegistry(properties, {
             searchQuery,
@@ -477,7 +479,7 @@ function PropertyManagementContent() {
                     </div>
                     <div className="flex items-center gap-4 border-t pt-4 dark:border-gray-700 xl:border-l xl:border-t-0 xl:px-6 xl:pt-0">
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                            Total Listed: <span className="text-gray-900 dark:text-white">{pagination.total || properties.length}</span>
+                            Total Listed: <span className="text-gray-900 dark:text-white">{visibleRegistryProperties.length}</span>
                         </span>
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
                             Showing: <span className="text-gray-900 dark:text-white">{filteredProperties.length}</span>

@@ -97,6 +97,22 @@ const normalizeFilterToken = (value?: string | null) => value?.trim().toLowerCas
 
 const normalizePropertyValue = (value?: string | null) => value?.trim().toLowerCase() || '';
 
+const INTERNAL_AUTOMATION_TEXT_PATTERNS = [
+    /\bqa\b/i,
+    /\bcodex\b/i,
+    /\bdev smoke\b/i,
+    /\bsmoke test\b/i,
+    /\be2e\b/i,
+    /\bissue\d+\b/i,
+    /\btest\b/i,
+] as const;
+
+const RAW_AUTOMATION_TIMESTAMP_PATTERNS = [
+    /\b20\d{12}\b/,
+    /\b20\d{2}-\d{2}-\d{2}t\d{2}-\d{2}-\d{2}-\d{3}z\b/i,
+    /\b1\d{12,}\b/,
+] as const;
+
 const getPropertyTimestamp = (property: AdminPropertyRegistryProperty) =>
     new Date(property.updatedAt || property.createdAt || 0).getTime();
 
@@ -157,6 +173,26 @@ export const getAdminPropertyWorkflowFallbackLabel = (property: AdminPropertyReg
         ? ADMIN_PROPERTY_AWAITING_MANAGER_SUBMISSION_LABEL
         : formatPropertyStatusLabel(property.status);
 
+const getAdminPropertyRegistryText = (property: AdminPropertyRegistryProperty) => [
+    property.id,
+    property.propertyId,
+    property.property_id,
+    property.title,
+    property.description,
+    property.contactName,
+    property.agent_name,
+].filter(Boolean).join(' ');
+
+export const isInternalAutomationProperty = (property: AdminPropertyRegistryProperty) => {
+    const searchableText = getAdminPropertyRegistryText(property);
+    return INTERNAL_AUTOMATION_TEXT_PATTERNS.some((pattern) => pattern.test(searchableText))
+        || RAW_AUTOMATION_TIMESTAMP_PATTERNS.some((pattern) => pattern.test(searchableText));
+};
+
+export const filterVisibleAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
+    properties: readonly Property[],
+) => properties.filter((property) => !isInternalAutomationProperty(property));
+
 const matchesSearch = (property: AdminPropertyRegistryProperty, searchQuery?: string) => {
     const normalizedQuery = normalizePropertyValue(searchQuery);
 
@@ -203,7 +239,7 @@ const matchesStatusFilter = (property: AdminPropertyRegistryProperty, statusFilt
 export const filterAdminPropertyRegistry = <Property extends AdminPropertyRegistryProperty>(
     properties: readonly Property[],
     filters: AdminPropertyRegistryFilters,
-) => properties.filter((property) => (
+) => filterVisibleAdminPropertyRegistry(properties).filter((property) => (
     matchesSearch(property, filters.searchQuery)
     && matchesTypeFilter(property, filters.typeFilter)
     && matchesStatusFilter(property, filters.statusFilter)
