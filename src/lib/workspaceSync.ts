@@ -443,6 +443,28 @@ export const normalizeNotificationToWorkspaceSyncEvent = (
     const ids = pickIDs(notification.data);
 
     const tags = resolveWorkspaceSyncTagsFromPath(targetPath);
+    const normalizedTargetPath = targetPath.toLowerCase();
+
+    if (normalizedTargetPath.startsWith('/manager')) {
+        tags.push(
+            WORKSPACE_SYNC_TAGS.MANAGER_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+        );
+    }
+
+    if (normalizedTargetPath.startsWith('/admin')) {
+        tags.push(
+            WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+        );
+    }
+
+    if (normalizedTargetPath.startsWith('/user')) {
+        tags.push(
+            WORKSPACE_SYNC_TAGS.USER_DASHBOARD,
+            WORKSPACE_SYNC_TAGS.DASHBOARD_SUMMARY,
+        );
+    }
 
     if (isPropertyWorkflowNotification(notification)) {
         tags.push(
