@@ -377,16 +377,21 @@ test('document preview busy state is scoped to the clicked action', () => {
 
 test('document row focus is single-click and does not reset scroll position', () => {
     const focusHandler = fastTrackWorkspaceComponent.match(
-        /const handleDocumentFocus = useCallback\(\(documentId: string\) => \{[\s\S]*?\}, \[replaceDocumentFocusUrl\]\);/,
+        /const handleDocumentFocus = useCallback\(\(documentId: string\) => \{[\s\S]*?\}, \[replaceDocumentFocusUrl, restoreDocumentFocusScroll\]\);/,
     )?.[0] || '';
 
     assert.match(fastTrackWorkspaceComponent, /const replaceDocumentFocusUrl = useCallback\(\(documentId: string\) => \{/);
+    assert.match(fastTrackWorkspaceComponent, /const pendingPointerDocumentFocusRef = useRef<string \| null>\(null\)/);
+    assert.match(fastTrackWorkspaceComponent, /const restoreDocumentFocusScroll = useCallback\(\(scrollX: number, scrollY: number\) => \{/);
+    assert.match(fastTrackWorkspaceComponent, /window\.scrollTo\(\{ left: scrollX, top: scrollY, behavior: 'auto' \}\)/);
+    assert.match(fastTrackWorkspaceComponent, /window\.requestAnimationFrame\(\(\) => \{\s*restore\(\);\s*window\.requestAnimationFrame\(restore\);/);
     assert.match(
         fastTrackWorkspaceComponent,
         /buildFastTrackDocumentSearchParams\(\s*new URLSearchParams\(window\.location\.search\),\s*documentId,/,
     );
     assert.match(fastTrackWorkspaceComponent, /window\.history\.replaceState\(window\.history\.state, '', nextUrl\)/);
     assert.match(focusHandler, /replaceDocumentFocusUrl\(documentId\)/);
+    assert.match(focusHandler, /restoreDocumentFocusScroll\(previousScrollX, previousScrollY\)/);
     assert.doesNotMatch(focusHandler, /setSearchParams\(/);
     assert.match(
         fastTrackWorkspaceComponent,
@@ -394,7 +399,11 @@ test('document row focus is single-click and does not reset scroll position', ()
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onPointerDown=\{\(event\) => \{\s*if \(event\.button === 0\) \{\s*handleDocumentFocus\(item\.id\);/,
+        /onPointerDown=\{\(event\) => \{\s*if \(event\.button === 0\) \{\s*pendingPointerDocumentFocusRef\.current = item\.id;\s*handleDocumentFocus\(item\.id\);/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /if \(pendingPointerDocumentFocusRef\.current === item\.id\) \{\s*pendingPointerDocumentFocusRef\.current = null;\s*return;/,
     );
     assert.match(
         fastTrackWorkspaceComponent,

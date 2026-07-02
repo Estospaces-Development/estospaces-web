@@ -437,6 +437,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const previewSectionRef = useRef<HTMLDivElement | null>(null);
     const managerReviewSectionRef = useRef<HTMLDivElement | null>(null);
     const recoveredCaseNoticeRef = useRef<HTMLDivElement | null>(null);
+    const pendingPointerDocumentFocusRef = useRef<string | null>(null);
     const completionStatusRef = useRef<Record<string, FastTrackCase['workspaceFinalStatus']>>({});
     const celebratedCaseIdRef = useRef<string | null>(null);
     const workspacePreferencesLoadedRef = useRef(false);
@@ -477,10 +478,24 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         window.history.replaceState(window.history.state, '', nextUrl);
     }, []);
 
+    const restoreDocumentFocusScroll = useCallback((scrollX: number, scrollY: number) => {
+        const restore = () => {
+            window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
+        };
+
+        window.requestAnimationFrame(() => {
+            restore();
+            window.requestAnimationFrame(restore);
+        });
+    }, []);
+
     const handleDocumentFocus = useCallback((documentId: string) => {
+        const previousScrollX = window.scrollX;
+        const previousScrollY = window.scrollY;
         setDocumentFocusId(documentId);
         replaceDocumentFocusUrl(documentId);
-    }, [replaceDocumentFocusUrl]);
+        restoreDocumentFocusScroll(previousScrollX, previousScrollY);
+    }, [replaceDocumentFocusUrl, restoreDocumentFocusScroll]);
 
     const isPreviewActionBusy = useCallback((
         itemId: FastTrackDocumentItem['id'],
@@ -499,7 +514,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const element = target as Element;
         if (element.closest('[data-fast-track-document-focus-trigger]')) {
-            return false;
+            return true;
         }
 
         return Boolean(element.closest('a,button,input,label,select,textarea,[role="button"]'));
@@ -2205,10 +2220,17 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         data-fast-track-document-focus-trigger
                                         onPointerDown={(event) => {
                                             if (event.button === 0) {
+                                                pendingPointerDocumentFocusRef.current = item.id;
                                                 handleDocumentFocus(item.id);
                                             }
                                         }}
-                                        onClick={() => handleDocumentFocus(item.id)}
+                                        onClick={() => {
+                                            if (pendingPointerDocumentFocusRef.current === item.id) {
+                                                pendingPointerDocumentFocusRef.current = null;
+                                                return;
+                                            }
+                                            handleDocumentFocus(item.id);
+                                        }}
                                         className="w-full text-left"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-3">
