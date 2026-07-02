@@ -23,6 +23,10 @@ export interface ManagerLeadVisibilityItem extends ManagerLeadSummaryItem {
   broker_request_id?: string;
   source?: string;
   journey_source?: string;
+  fast_track_enabled?: boolean;
+  documents_requested?: boolean;
+  documents_uploaded?: boolean;
+  documents_verified?: boolean;
   notes?: string;
   property?: {
     title?: string;
@@ -30,6 +34,15 @@ export interface ManagerLeadVisibilityItem extends ManagerLeadSummaryItem {
     city?: string;
     postcode?: string;
   };
+}
+
+export interface ManagerLeadWorkspaceCase {
+  id?: string;
+  caseId?: string;
+  leadId?: string;
+  propertyId?: string;
+  workspaceFinalStatus?: string;
+  finalStatus?: string;
 }
 
 export interface ManagerLeadSummary {
@@ -123,6 +136,47 @@ export const isInternalAutomationManagerLead = (lead: ManagerLeadVisibilityItem)
 export const filterVisibleManagerLeads = <T extends ManagerLeadVisibilityItem>(
   leads: readonly T[],
 ) => leads.filter((lead) => !isInternalAutomationManagerLead(lead));
+
+const sameManagerLeadId = (left?: string, right?: string) => {
+  const normalizedLeft = String(left || "").trim();
+  const normalizedRight = String(right || "").trim();
+  return normalizedLeft !== "" && normalizedLeft === normalizedRight;
+};
+
+export const isActiveManagerLeadWorkspaceCase = (caseItem: ManagerLeadWorkspaceCase) => {
+  const workspaceFinalStatus = normalizeStage(caseItem.workspaceFinalStatus);
+  const legacyFinalStatus = normalizeStage(caseItem.finalStatus);
+
+  return (!workspaceFinalStatus || workspaceFinalStatus === "active")
+    && (!legacyFinalStatus || legacyFinalStatus === "in_progress");
+};
+
+export const resolveManagerLeadWorkspaceCase = <T extends ManagerLeadWorkspaceCase>(
+  lead: ManagerLeadVisibilityItem,
+  cases: readonly T[],
+) => cases.find((caseItem) => (
+  isActiveManagerLeadWorkspaceCase(caseItem)
+  && sameManagerLeadId(caseItem.leadId, lead.id)
+)) || null;
+
+export const shouldShowManagerLeadWorkspaceMissingNotice = (
+  lead: ManagerLeadVisibilityItem,
+  hasLinkedCase: boolean,
+) => {
+  if (hasLinkedCase) {
+    return false;
+  }
+
+  const stage = normalizeStage(resolveLeadStage(lead));
+  return Boolean(
+    lead.fast_track_enabled
+    || lead.broker_request_id
+    || lead.documents_requested
+    || lead.documents_uploaded
+    || lead.documents_verified
+    || LIVE_PROCESSING_STAGES.has(stage)
+  );
+};
 
 export const getManagerLeadSlaRemainingSeconds = (lead: ManagerLeadSummaryItem, now: number) => {
   if (typeof lead.sla_remaining_seconds === "number") {

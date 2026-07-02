@@ -28,6 +28,8 @@ import {
     getManagerLeadOperationalState,
     getManagerLeadSlaRemainingSeconds,
     paginateManagerLeads,
+    resolveManagerLeadWorkspaceCase,
+    shouldShowManagerLeadWorkspaceMissingNotice,
     sortManagerLeads,
     summarizeManagerLeads,
     type ManagerLeadSortMode,
@@ -886,11 +888,14 @@ export default function ManagerLeadsPage() {
                             const auditEntries = leadAuditEntries[lead.id] || [];
                             const auditError = leadAuditErrors[lead.id];
                             const isAuditLoading = leadAuditLoadingID === lead.id;
-                            const linkedCase = fastTrackCaseByLeadId.get(lead.id)
-                                || fastTrackCases.find((caseItem) => (
-                                    caseItem.propertyId === lead.property_id
-                                ))
-                                || null;
+                            const linkedCase = resolveManagerLeadWorkspaceCase(
+                                lead,
+                                fastTrackCases,
+                            );
+                            const showWorkspaceMissingNotice = shouldShowManagerLeadWorkspaceMissingNotice(
+                                lead,
+                                Boolean(linkedCase),
+                            );
                             const leadWorkspacePath = linkedCase
                                 ? buildWorkspacePath('/manager/fast-track', {
                                     caseId: linkedCase.caseId,
@@ -1070,6 +1075,14 @@ export default function ManagerLeadsPage() {
                                                 >
                                                     Open Documents
                                                 </button>
+                                            ) : null}
+                                            {showWorkspaceMissingNotice ? (
+                                                <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200">
+                                                    <p className="font-bold">Live workspace unavailable</p>
+                                                    <p className="mt-1">
+                                                        No active Fast Track case is linked to this lead. The stale workspace shortcut is hidden so you can continue from the lead card.
+                                                    </p>
+                                                </div>
                                             ) : null}
                                             <button
                                                 type="button"

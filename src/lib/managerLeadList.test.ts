@@ -5,9 +5,12 @@ import {
   filterVisibleManagerLeads,
   getManagerLeadOperationalState,
   isManagerLeadBreached,
+  isActiveManagerLeadWorkspaceCase,
   isInternalAutomationManagerLead,
   isManagerLeadLiveProcessing,
   paginateManagerLeads,
+  resolveManagerLeadWorkspaceCase,
+  shouldShowManagerLeadWorkspaceMissingNotice,
   sortManagerLeads,
   summarizeManagerLeads,
 } from "./managerLeadList";
@@ -198,4 +201,56 @@ test("manager lead list hides internal QA titles and raw automation identifiers"
   assert.equal(isInternalAutomationManagerLead(leads[2]), true);
   assert.equal(isInternalAutomationManagerLead(leads[3]), true);
   assert.deepEqual(filterVisibleManagerLeads(leads).map((lead) => lead.id), ["real-lead"]);
+});
+
+test("manager lead workspace links require an active case matched to the lead", () => {
+  const lead = {
+    id: "lead-active",
+    property_id: "property-1",
+    status: "broker_responded",
+    documents_requested: true,
+    created_at: "2026-07-02T09:00:00Z",
+  };
+  const cases = [
+    {
+      id: "property-only-case",
+      caseId: "case-property-only",
+      propertyId: "property-1",
+      workspaceFinalStatus: "active",
+      finalStatus: "in_progress",
+    },
+    {
+      id: "cancelled-case",
+      caseId: "case-cancelled",
+      leadId: "lead-active",
+      propertyId: "property-1",
+      workspaceFinalStatus: "cancelled",
+      finalStatus: "rejected",
+    },
+    {
+      id: "active-case",
+      caseId: "case-active",
+      leadId: "lead-active",
+      propertyId: "property-1",
+      workspaceFinalStatus: "active",
+      finalStatus: "in_progress",
+    },
+  ];
+
+  assert.equal(isActiveManagerLeadWorkspaceCase(cases[0]), true);
+  assert.equal(isActiveManagerLeadWorkspaceCase(cases[1]), false);
+  assert.equal(resolveManagerLeadWorkspaceCase(lead, cases)?.caseId, "case-active");
+  assert.equal(resolveManagerLeadWorkspaceCase(lead, cases.slice(0, 2)), null);
+});
+
+test("manager lead card explains missing live workspace instead of exposing stale navigation", () => {
+  const lead = {
+    id: "lead-without-case",
+    status: "broker_responded",
+    documents_uploaded: true,
+    created_at: "2026-07-02T09:00:00Z",
+  };
+
+  assert.equal(shouldShowManagerLeadWorkspaceMissingNotice(lead, false), true);
+  assert.equal(shouldShowManagerLeadWorkspaceMissingNotice(lead, true), false);
 });
