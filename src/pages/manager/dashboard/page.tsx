@@ -19,6 +19,12 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { dedupeFastTrackWorkspaceCases } from '@/lib/fastTrackWorkspaceLoad';
 import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
+import {
+  canLoadManagerOperationalDashboard,
+  getManagerDashboardAccessState,
+  type ManagerDashboardAccessState,
+} from '@/lib/managerDashboardAccess';
 import { Building2, Eye, UserCheck, Plus, Home, Zap, ArrowRight, Search, X, CalendarCheck, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
 
@@ -63,9 +69,42 @@ const managerPropertyStatusOptions = [
   { value: 'rejected', label: 'Rejected' },
 ];
 
+const managerDashboardAccessCopy: Record<Exclude<ManagerDashboardAccessState, 'approved'>, {
+  title: string;
+  description: string;
+  actionLabel: string;
+}> = {
+  loading: {
+    title: 'Checking manager readiness',
+    description: 'Your workspace will unlock after your manager verification state is confirmed.',
+    actionLabel: 'Open verification',
+  },
+  profile_required: {
+    title: 'Complete manager verification',
+    description: 'Operational data stays hidden until your manager profile and required documents are approved.',
+    actionLabel: 'Complete verification',
+  },
+  review_pending: {
+    title: 'Verification review in progress',
+    description: 'Operational data stays hidden while your manager verification is being reviewed.',
+    actionLabel: 'View verification',
+  },
+  changes_required: {
+    title: 'Verification changes required',
+    description: 'Operational data stays hidden until the requested verification changes are resolved and approved.',
+    actionLabel: 'Fix verification',
+  },
+};
+
 function DashboardContent() {
   const navigate = useNavigate();
   const toast = useToast();
+  const {
+    managerProfile,
+    verificationStatus,
+    isLoading: managerVerificationLoading,
+    error: managerVerificationError,
+  } = useManagerVerification();
   const [activeTab, setActiveTab] = useState('overview');
   const [analytics, setAnalytics] = useState<analyticsService.AnalyticsData | null>(null);
   const [properties, setProperties] = useState<any[]>([]);
@@ -85,7 +124,44 @@ function DashboardContent() {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [confirmingBookingID, setConfirmingBookingID] = useState<string | null>(null);
 
+  const dashboardAccessInput = {
+    profile: managerProfile,
+    verificationStatus,
+    isLoading: managerVerificationLoading,
+  };
+  const dashboardAccessState = getManagerDashboardAccessState(dashboardAccessInput);
+  const canLoadOperationalDashboard = canLoadManagerOperationalDashboard(dashboardAccessInput);
+  const readinessCopy = dashboardAccessState === 'approved'
+    ? null
+    : managerDashboardAccessCopy[dashboardAccessState];
+  const readinessDescription = dashboardAccessState === 'profile_required'
+    ? readinessCopy?.description
+    : managerVerificationError || readinessCopy?.description;
+
+  const resetOperationalDashboardData = useCallback(() => {
+    setAnalytics(null);
+    setProperties([]);
+    setLivePropertyTotal(0);
+    setFastTrackCases([]);
+    setBookings([]);
+    setPropertyTotal(0);
+    setPropertyTotalPages(1);
+    setPropertyError(null);
+    setFastTrackError(null);
+    setBookingError(null);
+    setIsLoading(false);
+  }, []);
+
   const fetchDashboardData = useCallback(async (forceRefresh = false, silent = false) => {
+    if (managerVerificationLoading) {
+      return;
+    }
+
+    if (!canLoadOperationalDashboard) {
+      resetOperationalDashboardData();
+      return;
+    }
+
     if (!silent) {
       setIsLoading(true);
     }
@@ -142,9 +218,24 @@ function DashboardContent() {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [canLoadOperationalDashboard, managerVerificationLoading, resetOperationalDashboardData]);
 
   const fetchManagerProperties = useCallback(async (silent = false) => {
+    if (managerVerificationLoading) {
+      return;
+    }
+
+    if (!canLoadOperationalDashboard) {
+      setProperties([]);
+      setPropertyTotal(0);
+      setPropertyTotalPages(1);
+      setPropertyError(null);
+      if (!silent) {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     if (!silent) {
       setIsLoading(true);
       setPropertyError(null);
@@ -175,19 +266,25 @@ function DashboardContent() {
         setIsLoading(false);
       }
     }
-  }, [propertyPage, propertySearchQuery, propertyStatusFilter, propertyTypeFilter]);
+  }, [canLoadOperationalDashboard, managerVerificationLoading, propertyPage, propertySearchQuery, propertyStatusFilter, propertyTypeFilter]);
 
   useEffect(() => {
-    void fetchDashboardData();
-  }, [fetchDashboardData]);
+    if (!managerVerificationLoading) {
+      void fetchDashboardData();
+    }
+  }, [fetchDashboardData, managerVerificationLoading]);
 
   useEffect(() => {
+    if (managerVerificationLoading) {
+      return undefined;
+    }
+
     const timer = window.setTimeout(() => {
       void fetchManagerProperties();
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [fetchManagerProperties]);
+  }, [fetchManagerProperties, managerVerificationLoading]);
 
   useDashboardWorkspaceRefresh({
     tags: [
@@ -209,6 +306,7 @@ function DashboardContent() {
         fetchManagerProperties(true),
       ]);
     },
+    enabled: canLoadOperationalDashboard,
   });
 
   const fastTrackQueueItems = fastTrackCases
@@ -340,7 +438,13 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6 relative min-h-screen pb-20 font-outfit">
-      <WelcomeBanner analytics={analytics} loading={!analytics && isLoading} liveListingCount={livePropertyTotal} />
+      <WelcomeBanner
+        analytics={analytics}
+        loading={!analytics && isLoading}
+        liveListingCount={livePropertyTotal}
+        actionLabel={canLoadOperationalDashboard ? undefined : 'Complete verification'}
+        actionPath={canLoadOperationalDashboard ? undefined : '/manager/verification'}
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -385,18 +489,46 @@ function DashboardContent() {
       {/* Main Content Area */}
       {activeTab === 'overview' && (
         <div className="space-y-8 animate-in fade-in duration-500">
+          {!canLoadOperationalDashboard ? (
+            <div
+              data-testid="manager-dashboard-readiness-gate"
+              className="rounded-3xl border border-orange-100 bg-white p-8 shadow-sm dark:border-orange-900/40 dark:bg-black"
+            >
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-orange-600 dark:text-orange-300">
+                    Manager readiness
+                  </p>
+                  <h2 className="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
+                    {readinessCopy?.title}
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-300">
+                    {readinessDescription}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/manager/verification')}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-orange-500/20 transition-colors hover:bg-orange-600"
+                >
+                  {readinessCopy?.actionLabel}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Broker Response Widget (USP) */}
+              <BrokerResponseWidget />
 
-          {/* Broker Response Widget (USP) */}
-          <BrokerResponseWidget />
+              <RoleDocsPreviewCard
+                title="Manager workflow guide"
+                subtitle="Open the exact docs sections for live response, fast-track, applications, appointments, contracts, and support recovery."
+                hrefBase="/manager/docs"
+                docsDocument={managerDocs.document}
+              />
 
-          <RoleDocsPreviewCard
-            title="Manager workflow guide"
-            subtitle="Open the exact docs sections for live response, fast-track, applications, appointments, contracts, and support recovery."
-            hrefBase="/manager/docs"
-            docsDocument={managerDocs.document}
-          />
-
-          <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-xl">
@@ -458,9 +590,9 @@ function DashboardContent() {
                 </div>
               )}
             </div>
-          </div>
+              </div>
 
-          <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
+              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
               <div>
                 <div className="flex items-center gap-3">
@@ -565,9 +697,9 @@ function DashboardContent() {
                 </div>
               )}
             </div>
-          </div>
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Recent Activity */}
             <div className="lg:col-span-2">
               <RecentActivity />
@@ -577,10 +709,10 @@ function DashboardContent() {
             <div>
               <TopProperties analytics={analytics} loading={!analytics && isLoading} />
             </div>
-          </div>
+              </div>
 
-          {/* Your Properties Section */}
-          <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 relative overflow-hidden group">
+              {/* Your Properties Section */}
+              <div className="bg-white dark:bg-black rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 relative overflow-hidden group">
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out pointer-events-none"></div>
 
             <div className="relative z-10">
@@ -750,12 +882,14 @@ function DashboardContent() {
                 />
               )}
             </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
       <ManualFastTrackModal
-        open={isManualFastTrackOpen}
+        open={canLoadOperationalDashboard && isManualFastTrackOpen}
         existingCases={fastTrackCases}
         onClose={() => setIsManualFastTrackOpen(false)}
         onCreated={handleManualFastTrackCreated}

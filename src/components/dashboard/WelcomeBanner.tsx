@@ -11,9 +11,17 @@ interface WelcomeBannerProps {
     analytics?: analyticsService.AnalyticsData | null;
     loading?: boolean;
     liveListingCount?: number | null;
+    actionLabel?: string;
+    actionPath?: string;
 }
 
-const WelcomeBanner = ({ analytics, loading: externalLoading = false, liveListingCount = null }: WelcomeBannerProps) => {
+const WelcomeBanner = ({
+    analytics,
+    loading: externalLoading = false,
+    liveListingCount = null,
+    actionLabel = 'Add Property',
+    actionPath = '/manager/dashboard/properties/add',
+}: WelcomeBannerProps) => {
     const { getDisplayName, user } = useAuth();
     const navigate = useNavigate();
     const [stats, setStats] = useState({
@@ -74,11 +82,11 @@ const WelcomeBanner = ({ analytics, loading: externalLoading = false, liveListin
                     </p>
                 </div>
                 <button
-                    onClick={() => navigate('/manager/dashboard/properties/add')}
+                    onClick={() => navigate(actionPath)}
                     className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-primary/20"
                 >
                     <Plus className="w-5 h-5" />
-                    <span>Add Property</span>
+                    <span>{actionLabel}</span>
                 </button>
             </div>
 
