@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { isManagerLeadLiveProcessing, paginateManagerLeads, sortManagerLeads, summarizeManagerLeads } from "./managerLeadList";
+import {
+  getManagerLeadOperationalState,
+  isManagerLeadBreached,
+  isManagerLeadLiveProcessing,
+  paginateManagerLeads,
+  sortManagerLeads,
+  summarizeManagerLeads,
+} from "./managerLeadList";
 
 test("manager lead sorting supports newest, client, budget, and score order", () => {
   const leads = [
@@ -114,4 +121,40 @@ test("manager lead summary keeps breached pending leads visible in the breach ca
     viewingScheduled: 0,
     breached: 1,
   });
+});
+
+test("breached active manager leads require escalation instead of normal awaiting copy", () => {
+  const now = Date.parse("2026-07-02T10:00:00Z");
+  const breachedLead = {
+    id: "lead-breached-docs",
+    status: "pending_broker_response",
+    documents_uploaded: true,
+    sla_status: "breach",
+    created_at: "2026-07-02T09:00:00Z",
+  };
+
+  const state = getManagerLeadOperationalState(breachedLead, now, "Awaiting response");
+
+  assert.equal(isManagerLeadBreached(breachedLead, now), true);
+  assert.equal(state.isBreached, true);
+  assert.equal(state.requiresEscalation, true);
+  assert.equal(state.statusLabel, "Escalation required");
+  assert.equal(state.showResponseCountdown, false);
+});
+
+test("closed breached manager leads do not keep an escalation action", () => {
+  const now = Date.parse("2026-07-02T10:00:00Z");
+  const closedLead = {
+    id: "lead-closed-breached",
+    status: "closed_lost",
+    stage: "rejected",
+    sla_status: "breach",
+    created_at: "2026-07-02T09:00:00Z",
+  };
+
+  const state = getManagerLeadOperationalState(closedLead, now, "Lost");
+
+  assert.equal(state.isBreached, true);
+  assert.equal(state.requiresEscalation, false);
+  assert.equal(state.statusLabel, "Lost");
 });

@@ -127,6 +127,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
     const prefilledCategory = searchParams.get('category') || '';
     const prefilledSubject = searchParams.get('subject') || '';
     const prefilledMessage = searchParams.get('message') || '';
+    const prefilledPriority = searchParams.get('priority') || '';
 
     const isAdmin = role === 'admin';
     const selectedTicketId = searchParams.get('ticket');
@@ -278,6 +279,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 ...(prefilledCategory ? { category: prefilledCategory } : {}),
                 ...(prefilledSubject ? { subject: prefilledSubject } : {}),
                 ...(prefilledMessage ? { message: prefilledMessage } : {}),
+                ...(prefilledPriority ? { priority: prefilledPriority } : {}),
             }),
             availableCategories: ROLE_COPY[role].categories,
             fallbackCategory: ROLE_COPY[role].categories[0],
@@ -289,6 +291,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 current.category === nextComposer.category
                 && current.subject === nextComposer.subject
                 && current.message === nextComposer.message
+                && current.priority === nextComposer.priority
             ) {
                 return current;
             }
@@ -298,9 +301,10 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 category: nextComposer.category,
                 subject: nextComposer.subject,
                 message: nextComposer.message,
+                priority: nextComposer.priority,
             };
         });
-    }, [composer.priority, hasPrefilledComposerContext, isAdmin, prefilledCategory, prefilledMessage, prefilledSubject, role]);
+    }, [composer.priority, hasPrefilledComposerContext, isAdmin, prefilledCategory, prefilledMessage, prefilledPriority, prefilledSubject, role]);
 
     useEffect(() => {
         const interval = window.setInterval(() => {

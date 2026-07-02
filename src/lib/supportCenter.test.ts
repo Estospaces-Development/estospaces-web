@@ -231,6 +231,7 @@ test('support composer prefill builds the visible draft from query params', () =
             category: 'technical issue',
             subject: 'Need help cancelling a viewing',
             message: 'How do I cancel my viewing?',
+            priority: 'urgent',
         }),
         availableCategories: ['General Inquiry', 'Technical Issue', 'Fast Track'],
         fallbackCategory: 'General Inquiry',
@@ -241,6 +242,19 @@ test('support composer prefill builds the visible draft from query params', () =
         category: 'Technical Issue',
         subject: 'Need help cancelling a viewing',
         message: 'How do I cancel my viewing?',
-        priority: 'medium',
+        priority: 'urgent',
     });
+});
+
+test('support composer prefill ignores unsupported priority query values', () => {
+    const composer = buildPrefilledSupportComposer({
+        searchParams: new URLSearchParams({
+            priority: 'critical',
+        }),
+        availableCategories: ['General Inquiry', 'Technical Issue', 'Fast Track'],
+        fallbackCategory: 'General Inquiry',
+        priority: 'high',
+    });
+
+    assert.equal(composer.priority, 'high');
 });

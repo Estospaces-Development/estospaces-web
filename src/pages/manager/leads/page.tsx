@@ -24,6 +24,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { canRequestLeadDocuments, formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import {
+    getManagerLeadOperationalState,
     getManagerLeadSlaRemainingSeconds,
     paginateManagerLeads,
     sortManagerLeads,
@@ -220,6 +221,27 @@ function getSlaBadge(status: string, remainingSeconds: number) {
         return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
     }
     return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+}
+
+function buildLeadEscalationPath(lead: Lead, stage: string, remainingSeconds: number) {
+    const subject = `Urgent Fast Track SLA breach: ${getLeadTitle(lead)}`;
+    const message = [
+        `Lead ${lead.lead_number || lead.id} has breached the 10-minute Fast Track response window.`,
+        `Current stage: ${formatLeadStage(stage)}.`,
+        `Client: ${getLeadClientName(lead)} (${getLeadClientContact(lead)}).`,
+        `Property: ${getLeadTitle(lead)} - ${getLeadAddress(lead)}.`,
+        `SLA state: ${lead.sla_status || 'breach'}; ${remainingSeconds > 0 ? `${remainingSeconds} seconds remaining` : 'response window expired'}.`,
+        'Action needed: admin oversight for reassignment, recovery, or the next Fast Track operational step.',
+    ].join('\n');
+
+    const params = new URLSearchParams({
+        category: 'Fast Track',
+        priority: 'urgent',
+        subject,
+        message,
+    });
+
+    return `/manager/help?${params.toString()}`;
 }
 
 export default function ManagerLeadsPage() {
@@ -846,6 +868,11 @@ export default function ManagerLeadsPage() {
                             const remainingSeconds = getSlaRemainingSeconds(lead, now);
                             const stage = resolveLeadStage(lead);
                             const isAwaitingResponse = stage === 'matching';
+                            const operationalState = getManagerLeadOperationalState(
+                                lead,
+                                now,
+                                statusLabels[lead.status] || lead.status,
+                            );
                             const canRequestDocuments = canRequestLeadDocuments(lead);
                             const canScheduleViewing = canScheduleLeadViewing(lead);
                             const canCloseLifecycle = !isLeadLifecycleClosed(lead);
@@ -875,6 +902,9 @@ export default function ManagerLeadsPage() {
                                     section: 'documents',
                                 })
                                 : null;
+                            const leadEscalationPath = operationalState.requiresEscalation
+                                ? buildLeadEscalationPath(lead, stage, remainingSeconds)
+                                : null;
                             const lifecycleActions = canCloseLifecycle ? (
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
@@ -899,7 +929,11 @@ export default function ManagerLeadsPage() {
                             ) : null;
 
                             return (
-                                <article key={lead.id} aria-label={`${getLeadTitle(lead)} lead`} className="p-6">
+                                <article
+                                    key={lead.id}
+                                    aria-label={`${getLeadTitle(lead)} lead`}
+                                    className={`p-6 ${operationalState.requiresEscalation ? 'bg-red-50/70 ring-1 ring-inset ring-red-200 dark:bg-red-950/10 dark:ring-red-900/40' : ''}`}
+                                >
                                     <div className="flex min-w-0 flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
                                         <div className="min-w-0 space-y-4">
                                             <div className="flex flex-wrap items-center gap-3">
@@ -907,17 +941,35 @@ export default function ManagerLeadsPage() {
                                                 <span
                                                     id={`lead-lifecycle-status-${lead.id}`}
                                                     tabIndex={-1}
-                                                    className={`rounded-full px-3 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400 ${getStatusBadge(lead.status)}`}
+                                                    className={`rounded-full px-3 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400 ${operationalState.requiresEscalation ? 'bg-red-600 text-white dark:bg-red-500 dark:text-white' : getStatusBadge(lead.status)}`}
                                                 >
-                                                    {statusLabels[lead.status] || lead.status}
+                                                    {operationalState.statusLabel}
                                                 </span>
                                                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getSlaBadge(lead.sla_status || 'pending', remainingSeconds)}`}>
                                                     {slaLabels[lead.sla_status || 'pending'] || 'Pending'}
                                                 </span>
+                                                {operationalState.requiresEscalation ? (
+                                                    <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
+                                                        Fast Track oversight
+                                                    </span>
+                                                ) : null}
                                                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                                                    {formatLeadStage(stage)}
+                                                    {operationalState.requiresEscalation ? `Current stage: ${formatLeadStage(stage)}` : formatLeadStage(stage)}
                                                 </span>
                                             </div>
+                                            {operationalState.requiresEscalation ? (
+                                                <div role="status" className="rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm text-red-800 shadow-sm dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">
+                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                                        <AlertTriangle className="h-5 w-5 shrink-0" />
+                                                        <div>
+                                                            <p className="font-bold">SLA breached. Admin escalation is required before normal handling continues.</p>
+                                                            <p className="mt-1 text-red-700 dark:text-red-200/80">
+                                                                The 10-minute Fast Track response window expired while this lead is still active. Use the escalation action to open an urgent Fast Track oversight ticket.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : null}
 
                                             <div className="grid gap-3 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
                                                 <div>
@@ -987,7 +1039,7 @@ export default function ManagerLeadsPage() {
                                                         })}
                                                     </div>
                                                 )}
-                                                {isAwaitingResponse && (
+                                                {isAwaitingResponse && operationalState.showResponseCountdown && (
                                                     <div className={`rounded-2xl px-4 py-2 font-semibold ${getSlaBadge(lead.sla_status || 'pending', remainingSeconds)}`}>
                                                         {remainingSeconds > 0 ? `10 min ${formatCountdown(remainingSeconds)}` : 'Response window expired'}
                                                     </div>
@@ -1024,6 +1076,17 @@ export default function ManagerLeadsPage() {
                                                 <History className="h-4 w-4" />
                                                 Audit Trail
                                             </button>
+                                            {leadEscalationPath ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(leadEscalationPath)}
+                                                    aria-label={`Escalate ${getLeadTitle(lead)} to admin oversight`}
+                                                    className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 ${managerLeadFocusClass}`}
+                                                >
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    Escalate to Admin
+                                                </button>
+                                            ) : null}
                                             {isAwaitingResponse ? (
                                                 <>
                                                     <button

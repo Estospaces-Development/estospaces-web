@@ -23,6 +23,13 @@ export interface ManagerLeadSummary {
   breached: number;
 }
 
+export interface ManagerLeadOperationalState {
+  isBreached: boolean;
+  requiresEscalation: boolean;
+  statusLabel: string;
+  showResponseCountdown: boolean;
+}
+
 const LIVE_PROCESSING_STAGES = new Set([
   "matching",
   "broker_matched",
@@ -74,6 +81,12 @@ export const getManagerLeadSlaRemainingSeconds = (lead: ManagerLeadSummaryItem, 
   return remaining > 0 ? remaining : 0;
 };
 
+export const isManagerLeadBreached = (lead: ManagerLeadSummaryItem, now: number) => {
+  const remaining = getManagerLeadSlaRemainingSeconds(lead, now);
+  return normalizeStage(lead.sla_status) === "breach"
+    || (normalizeStage(lead.status) === "pending_broker_response" && remaining === 0);
+};
+
 export const isManagerLeadLiveProcessing = (lead: ManagerLeadSummaryItem) => {
   const status = normalizeStage(lead.status);
   const stage = normalizeStage(resolveLeadStage(lead));
@@ -81,6 +94,31 @@ export const isManagerLeadLiveProcessing = (lead: ManagerLeadSummaryItem) => {
   return !CLOSED_MANAGER_LEAD_STATUSES.has(status)
     && !CLOSED_MANAGER_LEAD_STAGES.has(stage)
     && LIVE_PROCESSING_STAGES.has(stage);
+};
+
+const isManagerLeadExplicitlyClosed = (lead: ManagerLeadSummaryItem) => {
+  const status = normalizeStage(lead.status);
+  const rawStage = normalizeStage(lead.stage);
+
+  return CLOSED_MANAGER_LEAD_STATUSES.has(status)
+    || CLOSED_MANAGER_LEAD_STAGES.has(rawStage);
+};
+
+export const getManagerLeadOperationalState = (
+  lead: ManagerLeadSummaryItem,
+  now: number,
+  defaultStatusLabel: string,
+): ManagerLeadOperationalState => {
+  const stage = normalizeStage(resolveLeadStage(lead));
+  const isBreached = isManagerLeadBreached(lead, now);
+  const requiresEscalation = isBreached && !isManagerLeadExplicitlyClosed(lead);
+
+  return {
+    isBreached,
+    requiresEscalation,
+    statusLabel: requiresEscalation ? "Escalation required" : defaultStatusLabel,
+    showResponseCountdown: stage === "matching" && !requiresEscalation,
+  };
 };
 
 export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
@@ -94,8 +132,7 @@ export const summarizeManagerLeads = <T extends ManagerLeadSummaryItem>(
     lead.status === "viewing_scheduled" || normalizeStage(resolveLeadStage(lead)) === "viewing_scheduled" || lead.viewing_scheduled
   )).length;
   const breached = leads.filter((lead) => {
-    const remaining = getManagerLeadSlaRemainingSeconds(lead, now);
-    return lead.sla_status === "breach" || (lead.status === "pending_broker_response" && remaining === 0);
+    return isManagerLeadBreached(lead, now);
   }).length;
 
   return {
