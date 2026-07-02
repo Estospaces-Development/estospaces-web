@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getNotificationNavigationPath } from '@/lib/notificationNavigation';
+import { getNotificationsPagePath } from '@/services/notificationsService';
 
 test('documents requested notifications deep-link the user into the exact fast-track workspace', () => {
     const path = getNotificationNavigationPath({
@@ -202,4 +203,42 @@ test('support notifications still deep-link to help when ticket context exists',
     }, 'user');
 
     assert.equal(path, '/user/dashboard/help?ticket=ticket-123&conversation=conversation-123');
+});
+
+test('broker role uses manager fast-track notification routes in the manager shell', () => {
+    const path = getNotificationNavigationPath({
+        type: 'fast_track_started',
+        data: {
+            case_id: 'case-manager-1',
+            lead_id: 'lead-manager-1',
+            property_id: 'property-manager-1',
+        },
+    }, 'broker');
+
+    assert.equal(path, '/manager/fast-track?case=case-manager-1&lead=lead-manager-1&property=property-manager-1');
+});
+
+test('broker role uses manager messaging and support notification routes', () => {
+    const messagePath = getNotificationNavigationPath({
+        type: 'message_received',
+        data: {
+            conversation_id: 'conversation-manager-1',
+        },
+    }, 'broker');
+
+    assert.equal(messagePath, '/manager/messages?conversation=conversation-manager-1');
+
+    const supportPath = getNotificationNavigationPath({
+        type: 'ticket_response',
+        data: {
+            ticket_id: 'ticket-manager-1',
+            conversation_id: 'conversation-manager-2',
+        },
+    }, 'broker');
+
+    assert.equal(supportPath, '/manager/help?ticket=ticket-manager-1&conversation=conversation-manager-2');
+});
+
+test('broker role opens the manager notifications page from the dropdown', () => {
+    assert.equal(getNotificationsPagePath('broker'), '/manager/notifications');
 });

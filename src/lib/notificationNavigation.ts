@@ -67,6 +67,7 @@ export function getNotificationNavigationPath(
     notification: { type: string; data?: NotificationNavigationData },
     role: string = 'user',
 ): string | null {
+    const notificationRole = role === 'broker' ? 'manager' : role;
     const data = notification.data;
     const targetPath = readString(data, 'target_path', 'targetPath');
 
@@ -140,7 +141,7 @@ export function getNotificationNavigationPath(
     ]);
 
     if (targetPath) {
-        const isGenericUserHelpTarget = role === 'user'
+        const isGenericUserHelpTarget = notificationRole === 'user'
             && isPathOrNestedPath(targetPath, '/user/dashboard/help')
             && !ticketId
             && !conversationID
@@ -151,18 +152,18 @@ export function getNotificationNavigationPath(
         }
 
         if (supportNotificationTypes.has(notification.type) && (ticketId || conversationID)) {
-            if (role === 'manager' && isPathOrNestedPath(targetPath, '/manager/help')) {
+            if (notificationRole === 'manager' && isPathOrNestedPath(targetPath, '/manager/help')) {
                 return buildSupportPath('/manager/help', ticketId, conversationID);
             }
-            if (role === 'admin' && isPathOrNestedPath(targetPath, '/admin/help')) {
+            if (notificationRole === 'admin' && isPathOrNestedPath(targetPath, '/admin/help')) {
                 return buildSupportPath('/admin/help', ticketId, conversationID);
             }
-            if (role === 'user' && isPathOrNestedPath(targetPath, '/user/dashboard/help')) {
+            if (notificationRole === 'user' && isPathOrNestedPath(targetPath, '/user/dashboard/help')) {
                 return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
             }
         }
 
-        if (role === 'admin' && readNestedPathId(targetPath, '/admin/properties')) {
+        if (notificationRole === 'admin' && readNestedPathId(targetPath, '/admin/properties')) {
             return buildAdminPropertyRegistryNotificationPath(data, propertyId, targetPath);
         }
 
@@ -170,7 +171,7 @@ export function getNotificationNavigationPath(
             isPathOrNestedPath(targetPath, '/user/dashboard/payments')
             || isPathOrNestedPath(targetPath, '/manager/billing')
         ) {
-            return role === 'manager' ? managerContractsPath : userContractsPath;
+            return notificationRole === 'manager' ? managerContractsPath : userContractsPath;
         }
 
         return targetPath;
@@ -187,7 +188,7 @@ export function getNotificationNavigationPath(
 
     switch (notification.type) {
         case 'user_verification_submitted':
-            return role === 'manager' ? managerUserVerificationPath : adminUserVerificationPath;
+            return notificationRole === 'manager' ? managerUserVerificationPath : adminUserVerificationPath;
         case 'manager_verification_submitted':
             return adminManagerVerificationPath;
         case 'user_verification_reupload_requested':
@@ -200,24 +201,24 @@ export function getNotificationNavigationPath(
         case 'viewing_cancelled':
         case 'viewing_rescheduled':
         case 'appointment_reminder':
-            return role === 'manager' ? managerAppointmentsPath : userViewingsPath;
+            return notificationRole === 'manager' ? managerAppointmentsPath : userViewingsPath;
         case 'application_update':
         case 'application_submitted':
         case 'application_approved':
         case 'application_rejected':
-            return role === 'manager' ? managerApplicationsPath : userApplicationsPath;
+            return notificationRole === 'manager' ? managerApplicationsPath : userApplicationsPath;
         case 'sale_journey_updated':
         case 'sale_journey_completed':
-            return role === 'manager' ? managerFastTrackPath : userFastTrackPath;
+            return notificationRole === 'manager' ? managerFastTrackPath : userFastTrackPath;
         case 'fast_track_started':
         case 'fast_track_updated':
         case 'fast_track_completed':
-            return role === 'manager' ? managerFastTrackPath : userFastTrackPath;
+            return notificationRole === 'manager' ? managerFastTrackPath : userFastTrackPath;
         case 'case_file_document_requested':
         case 'case_file_document_uploaded':
         case 'case_file_document_reviewed':
         case 'case_file_document_reupload_requested':
-            return role === 'manager'
+            return notificationRole === 'manager'
                 ? buildWorkspacePath('/manager/case-files', {
                     applicationId,
                     caseId: fastTrackCaseId,
@@ -233,14 +234,14 @@ export function getNotificationNavigationPath(
                     contractId,
                 });
         case 'documents_requested':
-            return role === 'manager'
+            return notificationRole === 'manager'
                 ? buildWorkspacePath('/manager/leads', { caseId: fastTrackCaseId, leadId, propertyId })
                 : userFastTrackPath;
         case 'message_received':
-            if (role === 'manager') {
+            if (notificationRole === 'manager') {
                 return conversationID ? `/manager/messages?conversation=${conversationID}` : '/manager/messages';
             }
-            if (role === 'admin') {
+            if (notificationRole === 'admin') {
                 return buildSupportPath('/admin/help', ticketId, conversationID);
             }
             return conversationID ? `/user/dashboard/messages?conversation=${conversationID}` : '/user/dashboard/messages';
@@ -248,10 +249,10 @@ export function getNotificationNavigationPath(
         case 'ticket_response':
         case 'support_ticket_status_updated':
         case 'support_ticket_assigned':
-            if (role === 'manager') {
+            if (notificationRole === 'manager') {
                 return buildSupportPath('/manager/help', ticketId, conversationID);
             }
-            if (role === 'admin') {
+            if (notificationRole === 'admin') {
                 return buildSupportPath('/admin/help', ticketId, conversationID);
             }
             return buildSupportPath('/user/dashboard/help', ticketId, conversationID);
@@ -262,16 +263,16 @@ export function getNotificationNavigationPath(
         case 'payment_received':
         case 'payment_reminder':
         case 'payment_failed':
-            return role === 'manager' ? managerContractsPath : userContractsPath;
+            return notificationRole === 'manager' ? managerContractsPath : userContractsPath;
         case 'contract_update':
-            return role === 'manager' ? managerContractsPath : userContractsPath;
+            return notificationRole === 'manager' ? managerContractsPath : userContractsPath;
         case 'document_verified':
         case 'profile_verified':
-            if (role === 'manager') {
+            if (notificationRole === 'manager') {
                 return '/manager/verification';
             }
             return fastTrackCaseId || leadId || propertyId ? userFastTrackPath : '/user/dashboard/profile';
         default:
-            return role === 'admin' ? '/admin/notifications' : null;
+            return notificationRole === 'admin' ? '/admin/notifications' : null;
     }
 }
