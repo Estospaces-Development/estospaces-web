@@ -9,13 +9,16 @@ import { dirname, join } from "node:path";
 import {
   buildAdminOverrideConfirmationMessage,
   FastTrackDocumentFileChooser,
+  findRecoveredThreadMessage,
   formatFastTrackCaseDeadline,
   formatFastTrackCaseStage,
   getFastTrackDocumentUploadCopy,
+  isThreadSendTimeoutError,
   isAdminOverrideActivityEntry,
   isAdminOverrideFastTrackCase,
   isFastTrackCaseVisibleForFilter,
 } from "./FastTrackWorkspace";
+import type { Message } from "@/services/messagesService";
 import type { FastTrackCase } from "@/services/fastTrackService";
 
 const buildFastTrackCase = (overrides: Partial<FastTrackCase> = {}): FastTrackCase => ({
@@ -138,6 +141,51 @@ test("fast-track identity upload copy names Indian identity documents", () => {
   assert.match(source, /PAN card or Form 60 may be requested/);
   assert.match(source, /prefer masked Aadhaar/);
   assert.match(source, /clear PDF, JPG, PNG, or WebP/);
+});
+
+test("case chat timeout recovery only accepts a recent matching sender message", () => {
+  const sendStartedAt = new Date("2026-07-02T10:00:00Z").getTime();
+  const recentMine: Message = {
+    id: "message-recent",
+    conversation_id: "conversation-1",
+    sender_id: "manager-1",
+    content: "Please upload the signed agreement.",
+    type: "text",
+    is_read: false,
+    created_at: "2026-07-02T10:00:01Z",
+  };
+  const recentOtherSender: Message = {
+    ...recentMine,
+    id: "message-other",
+    sender_id: "user-1",
+  };
+  const oldMine: Message = {
+    ...recentMine,
+    id: "message-old",
+    created_at: "2026-07-02T09:55:00Z",
+  };
+
+  assert.equal(
+    findRecoveredThreadMessage(
+      [oldMine, recentOtherSender, recentMine],
+      " Please upload the signed agreement. ",
+      "manager-1",
+      sendStartedAt,
+    )?.id,
+    "message-recent",
+  );
+  assert.equal(findRecoveredThreadMessage([oldMine], oldMine.content, "manager-1", sendStartedAt), null);
+  assert.equal(findRecoveredThreadMessage([recentOtherSender], recentOtherSender.content, "manager-1", sendStartedAt), null);
+});
+
+test("case chat send timeout path refreshes messages before showing an error", () => {
+  const source = workspaceSource();
+
+  assert.equal(isThreadSendTimeoutError("Request timed out"), true);
+  assert.equal(isThreadSendTimeoutError("Network failed"), false);
+  assert.match(source, /const messages = await getMessages\(conversation\.id, 1, 50\)/);
+  assert.match(source, /findRecoveredThreadMessage\(sortedMessages, draftContent, user\.id, sendStartedAt\)/);
+  assert.match(source, /toast\.success\(successMessage\)/);
 });
 
 test("completed fast-track cases show completed handover instead of old SLA and stage", () => {

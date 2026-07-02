@@ -118,6 +118,29 @@ import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
+const THREAD_SEND_RECOVERY_WINDOW_MS = 2 * 60 * 1000;
+
+export const isThreadSendTimeoutError = (message?: string | null) => (
+    (message || '').trim().toLowerCase() === 'request timed out' || (message || '').toLowerCase().includes('timed out')
+);
+
+export const findRecoveredThreadMessage = (
+    messages: Message[],
+    content: string,
+    senderId: string,
+    sendStartedAtMs: number,
+) => {
+    const expectedContent = content.trim();
+    const earliestAcceptedAtMs = sendStartedAtMs - THREAD_SEND_RECOVERY_WINDOW_MS;
+
+    return [...messages].reverse().find((message) => {
+        if (message.sender_id !== senderId || message.content.trim() !== expectedContent) {
+            return false;
+        }
+        const createdAtMs = new Date(message.created_at).getTime();
+        return Number.isNaN(createdAtMs) || createdAtMs >= earliestAcceptedAtMs;
+    }) || null;
+};
 const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     user: '/user/dashboard',
     manager: '/manager/dashboard',
@@ -1755,10 +1778,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const draftContent = threadDraft.trim();
+        const sendStartedAt = Date.now();
+        const successMessage = role === 'user' ? 'Message sent.' : 'Case update sent.';
         setThreadSending(true);
         setThreadError(null);
+        let conversation: Conversation | null = null;
         try {
-            const conversation = threadConversation || await upsertDirectConversation(threadRecipientId, {
+            conversation = threadConversation || await upsertDirectConversation(threadRecipientId, {
                 fastTrackCaseId: selectedCase.caseId,
                 propertyId: selectedCase.propertyId,
                 propertyTitle: selectedCase.propertyTitle,
@@ -1770,17 +1797,35 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             });
             const nextMessage = await sendMessage({
                 conversationId: conversation.id,
-                content: threadDraft.trim(),
+                content: draftContent,
             });
             setThreadConversation(conversation);
             setThreadMessages((previous) => [...previous, nextMessage]);
             setThreadDraft('');
+            toast.success(successMessage);
         } catch (error: any) {
+            if (conversation && isThreadSendTimeoutError(error?.message)) {
+                try {
+                    const messages = await getMessages(conversation.id, 1, 50);
+                    const sortedMessages = [...messages].sort((left, right) => (
+                        new Date(left.created_at).getTime() - new Date(right.created_at).getTime()
+                    ));
+                    if (findRecoveredThreadMessage(sortedMessages, draftContent, user.id, sendStartedAt)) {
+                        setThreadConversation(conversation);
+                        setThreadMessages(sortedMessages);
+                        setThreadDraft('');
+                        toast.success(successMessage);
+                        return;
+                    }
+                } catch {
+                    // Keep the original send timeout visible when recovery cannot prove delivery.
+                }
+            }
             setThreadError(error?.message || (role === 'user' ? 'Unable to send your message right now.' : 'Unable to send this case message.'));
         } finally {
             setThreadSending(false);
         }
-    }, [role, selectedCase, threadConversation, threadDraft, threadRecipientId, user]);
+    }, [role, selectedCase, threadConversation, threadDraft, threadRecipientId, toast, user]);
 
     const renderDocumentPreview = () => {
         if (!previewItem) {
