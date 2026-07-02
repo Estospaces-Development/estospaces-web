@@ -385,6 +385,7 @@ test('document row focus is single-click and does not reset scroll position', ()
     assert.match(fastTrackWorkspaceComponent, /const restoreDocumentFocusScroll = useCallback\(\(scrollX: number, scrollY: number\) => \{/);
     assert.match(fastTrackWorkspaceComponent, /window\.scrollTo\(\{ left: scrollX, top: scrollY, behavior: 'auto' \}\)/);
     assert.match(fastTrackWorkspaceComponent, /window\.requestAnimationFrame\(\(\) => \{\s*restore\(\);\s*window\.requestAnimationFrame\(restore\);/);
+    assert.match(fastTrackWorkspaceComponent, /window\.setTimeout\(restore, 80\)/);
     assert.match(
         fastTrackWorkspaceComponent,
         /buildFastTrackDocumentSearchParams\(\s*new URLSearchParams\(window\.location\.search\),\s*documentId,/,
@@ -399,7 +400,7 @@ test('document row focus is single-click and does not reset scroll position', ()
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onPointerDown=\{\(event\) => \{\s*if \(event\.button === 0\) \{\s*pendingPointerDocumentFocusRef\.current = item\.id;\s*handleDocumentFocus\(item\.id\);/,
+        /onPointerDown=\{\(event\) => \{\s*if \(event\.button === 0\) \{\s*event\.preventDefault\(\);\s*pendingPointerDocumentFocusRef\.current = item\.id;\s*handleDocumentFocus\(item\.id\);/,
     );
     assert.match(
         fastTrackWorkspaceComponent,

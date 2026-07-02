@@ -483,10 +483,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
         };
 
+        restore();
         window.requestAnimationFrame(() => {
             restore();
             window.requestAnimationFrame(restore);
         });
+        window.setTimeout(restore, 0);
+        window.setTimeout(restore, 80);
     }, []);
 
     const handleDocumentFocus = useCallback((documentId: string) => {
@@ -2220,6 +2223,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         data-fast-track-document-focus-trigger
                                         onPointerDown={(event) => {
                                             if (event.button === 0) {
+                                                event.preventDefault();
                                                 pendingPointerDocumentFocusRef.current = item.id;
                                                 handleDocumentFocus(item.id);
                                             }
