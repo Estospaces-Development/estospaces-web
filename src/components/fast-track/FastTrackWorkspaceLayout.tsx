@@ -594,7 +594,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
   ].join('. ');
 
   return (
-    <div className="fixed inset-0 z-[90] flex justify-end bg-black/45" data-fast-track-customization-drawer>
+    <div className="fixed inset-0 z-[9999] flex justify-end bg-gray-950/75" data-fast-track-customization-drawer>
       <button
         type="button"
         onClick={onClose}

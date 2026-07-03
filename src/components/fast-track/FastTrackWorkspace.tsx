@@ -3530,11 +3530,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ) : null}
 
             {caseRailLayout.renderCompactDrawerRail ? (
-                <div className="fixed inset-0 z-[90] xl:hidden" data-fast-track-case-rail-drawer>
+                <div className="fixed inset-0 z-[9999] xl:hidden" data-fast-track-case-rail-drawer>
                     <button
                         type="button"
                         onClick={() => setCaseRailDrawerOpen(false)}
-                        className="absolute inset-0 bg-black/45"
+                        className="absolute inset-0 bg-gray-950/75"
                         aria-label="Close case rail"
                     />
                     <div className="absolute inset-y-0 left-0 z-10 w-full max-w-sm p-4">
