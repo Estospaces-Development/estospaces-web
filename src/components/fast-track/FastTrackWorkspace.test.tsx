@@ -349,10 +349,13 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.match(source, /renderFastTrackLayoutPortal\(/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
-  assert.match(source, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-gray-950/);
+  assert.match(source, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-transparent/);
+  assert.match(source, /data-fast-track-customization-scrim/);
+  assert.match(source, /flex-1 cursor-default bg-transparent/);
   assert.match(source, /data-fast-track-customization-drawer/);
   assert.match(source, /const fastTrackChromeOverlayStyle: React\.CSSProperties = \{\s*zIndex: 2147483647,/);
   assert.match(source, /style=\{fastTrackChromeOverlayStyle\}/);
+  assert.doesNotMatch(source, /fixed inset-0[^"]*bg-gray-950"/);
   assert.doesNotMatch(source, /fixed inset-0[^"]*bg-gray-950\/75/);
   assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
 });

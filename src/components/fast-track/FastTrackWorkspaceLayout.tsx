@@ -607,7 +607,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
 
   return renderFastTrackLayoutPortal(
     <div
-      className="fixed inset-0 isolate z-[2147483647] flex justify-end overflow-hidden bg-gray-950"
+      className="fixed inset-0 isolate z-[2147483647] flex justify-end overflow-hidden bg-transparent"
       style={fastTrackChromeOverlayStyle}
       data-fast-track-customization-drawer
       role="dialog"
@@ -617,10 +617,11 @@ export function FastTrackWorkspaceCustomizationDrawer({
       <button
         type="button"
         onClick={onClose}
-        className="flex-1 cursor-default"
+        className="flex-1 cursor-default bg-transparent"
+        data-fast-track-customization-scrim
         aria-label="Close workspace customization drawer"
       />
-      <aside className="relative z-10 h-full w-full max-w-md overflow-y-auto border-l border-gray-200 bg-white px-5 py-6 shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+      <aside className="relative z-10 h-full w-full max-w-md overflow-y-auto border-l border-gray-200 bg-white px-5 py-6 shadow-2xl shadow-gray-950/20 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/50">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
