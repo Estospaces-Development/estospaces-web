@@ -3203,6 +3203,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const isApproved = managerReview?.approval_status === 'approved';
         const showForm = !isApproved && (managerReviewExpanded || !managerReview);
+        const managerReviewSubmitDisabled = managerReviewRating < 1 || managerReviewRating > 5;
 
         return (
             <div ref={managerReviewSectionRef}>
@@ -3275,7 +3276,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 </div>
                             ) : null}
                             <div className="flex flex-wrap gap-3">
-                                <ActionButton onClick={() => void handleSubmitManagerReview()} busy={managerReviewSubmitting}>
+                                <ActionButton
+                                    onClick={() => void handleSubmitManagerReview()}
+                                    busy={managerReviewSubmitting}
+                                    disabled={managerReviewSubmitDisabled}
+                                    title={managerReviewSubmitDisabled ? 'Choose a star rating before submitting feedback.' : undefined}
+                                >
                                     {managerReview ? 'Update feedback' : 'Submit feedback'}
                                 </ActionButton>
                                 {managerReview ? (

@@ -248,6 +248,14 @@ test("completed manager handover is read-only with clear feedback", () => {
   assert.match(source, /No additional handover action is required from this workspace/);
 });
 
+test("manager review submit stays disabled until a star rating is selected", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const managerReviewSubmitDisabled = managerReviewRating < 1 \|\| managerReviewRating > 5;/);
+  assert.match(source, /disabled=\{managerReviewSubmitDisabled\}/);
+  assert.match(source, /Choose a star rating before submitting feedback\./);
+});
+
 test("admin fast-track workspace constrains compact layouts inside the viewport", () => {
   const source = workspaceSource();
 
