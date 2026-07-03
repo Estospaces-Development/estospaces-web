@@ -312,3 +312,13 @@ test("fast-track filter selection resolves from visible filtered cases", () => {
   );
   assert.doesNotMatch(source, /resolveFastTrackSelectionCaseId\(cases, selectionParamsForResolution, selectedCaseId\)/);
 });
+
+test("compact case rail drawer sits above manager chrome without blurring the workspace", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /fixed inset-0 z-\[90\] xl:hidden/);
+  assert.match(source, /data-fast-track-case-rail-drawer/);
+  assert.match(source, /className="absolute inset-0 bg-black\/45"/);
+  assert.doesNotMatch(source, /fixed inset-0 z-40 xl:hidden/);
+  assert.doesNotMatch(source, /absolute inset-0 bg-black\/30 backdrop-blur-sm/);
+});

@@ -48,6 +48,31 @@ test('fast-track customization drawer exposes named switches, radios, and status
   assert.match(markup, /Journey list hidden/);
 });
 
+test('fast-track customization drawer sits above app chrome without blurring the workspace', () => {
+  const preferences = defaultFastTrackWorkspacePreferences('manager');
+  const markup = renderToStaticMarkup(
+    <FastTrackWorkspaceCustomizationDrawer
+      role="manager"
+      open
+      preferences={preferences}
+      orderedModules={FAST_TRACK_WORKSPACE_MODULES}
+      onClose={() => {}}
+      onReset={() => {}}
+      onToggleMetrics={() => {}}
+      onToggleCaseRailCollapsed={() => {}}
+      onDensityChange={() => {}}
+      onToggleModule={() => {}}
+      onMoveModule={() => {}}
+      onSetDefaultModule={() => {}}
+    />,
+  );
+
+  assert.match(markup, /data-fast-track-customization-drawer/);
+  assert.match(markup, /fixed inset-0 z-\[90\] flex justify-end bg-black\/45/);
+  assert.match(markup, /relative z-10 h-full w-full max-w-md/);
+  assert.doesNotMatch(markup, /backdrop-blur-sm/);
+});
+
 test('fast-track journey rail exposes visible focus and pagination controls', () => {
   const items: FastTrackCaseRailItem[] = Array.from({ length: 13 }, (_, index) => ({
     caseId: `case-${index + 1}`,

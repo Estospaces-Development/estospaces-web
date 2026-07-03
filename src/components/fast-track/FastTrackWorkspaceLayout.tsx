@@ -594,14 +594,14 @@ export function FastTrackWorkspaceCustomizationDrawer({
   ].join('. ');
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-sm" data-fast-track-customization-drawer>
+    <div className="fixed inset-0 z-[90] flex justify-end bg-black/45" data-fast-track-customization-drawer>
       <button
         type="button"
         onClick={onClose}
         className="flex-1 cursor-default"
         aria-label="Close workspace customization drawer"
       />
-      <aside className="h-full w-full max-w-md overflow-y-auto border-l border-gray-200 bg-white px-5 py-6 shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+      <aside className="relative z-10 h-full w-full max-w-md overflow-y-auto border-l border-gray-200 bg-white px-5 py-6 shadow-2xl dark:border-gray-800 dark:bg-gray-950">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">

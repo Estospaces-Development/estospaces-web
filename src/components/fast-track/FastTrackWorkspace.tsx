@@ -3530,9 +3530,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ) : null}
 
             {caseRailLayout.renderCompactDrawerRail ? (
-                <div className="fixed inset-0 z-40 xl:hidden">
-                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-                    <div className="absolute inset-y-0 left-0 w-full max-w-sm p-4">
+                <div className="fixed inset-0 z-[90] xl:hidden" data-fast-track-case-rail-drawer>
+                    <button
+                        type="button"
+                        onClick={() => setCaseRailDrawerOpen(false)}
+                        className="absolute inset-0 bg-black/45"
+                        aria-label="Close case rail"
+                    />
+                    <div className="absolute inset-y-0 left-0 z-10 w-full max-w-sm p-4">
                         <FastTrackCaseRail
                             role={role}
                             query={query}
@@ -3555,12 +3560,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             className="h-full overflow-y-auto"
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setCaseRailDrawerOpen(false)}
-                        className="absolute inset-0 -z-10"
-                        aria-label="Close case rail"
-                    />
                 </div>
             ) : null}
 
