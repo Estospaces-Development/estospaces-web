@@ -164,6 +164,15 @@ export function validateAdminLeadReassignSelection(lead: Lead, brokerId: string)
     return null;
 }
 
+export function isAdminLeadReassignActionDisabled(
+    lead: Lead,
+    brokerId: string,
+    brokerCount: number,
+    busy: boolean,
+): boolean {
+    return busy || brokerCount === 0 || validateAdminLeadReassignSelection(lead, brokerId) !== null;
+}
+
 export function buildAdminLeadReassignLabel(lead: Lead, brokerName: string, busy: boolean): string {
     const action = busy ? 'Reassigning' : 'Reassign';
     return `${action} ${getAdminLeadDisplayNumber(lead)} to ${brokerName}`;
@@ -644,7 +653,9 @@ function UserManagementContent() {
                                     const isBusy = reassigningLeadId === lead.id;
                                     const rowError = leadReassignErrors[lead.id];
                                     const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
-                                    const actionLabel = buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
+                                    const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
+                                    const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, adminBrokers.length, isBusy);
+                                    const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
 
                                     return (
                                         <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
@@ -689,8 +700,9 @@ function UserManagementContent() {
                                                 <button
                                                     type="button"
                                                     aria-label={actionLabel}
+                                                    title={selectionError || undefined}
                                                     onClick={() => handleLeadReassign(lead)}
-                                                    disabled={isBusy || adminBrokers.length === 0}
+                                                    disabled={isActionDisabled}
                                                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
                                                 >
                                                     {isBusy ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}

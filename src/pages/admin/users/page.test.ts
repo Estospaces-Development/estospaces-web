@@ -17,6 +17,7 @@ import {
   getAdminUserSortControlLabel,
   buildAdminUserStateDialogTitle,
   getAdminUserDisplayName,
+  isAdminLeadReassignActionDisabled,
   isLeadClosedForReassignment,
   normalizeAdminUserSearch,
   normalizeAdminUserSearchInput,
@@ -164,6 +165,11 @@ test('admin lead reassignment helpers expose safe labels and closed-state guards
   assert.equal(validateAdminLeadReassignSelection(openLead, 'broker-current'), 'This lead is already assigned to that broker.');
   assert.equal(validateAdminLeadReassignSelection(closedLead, 'broker-new'), 'Closed leads cannot be reassigned.');
   assert.equal(validateAdminLeadReassignSelection(openLead, 'broker-new'), null);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, '', 1, false), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-current', 1, false), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-new', 0, false), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-new', 1, true), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-new', 1, false), false);
 });
 
 test('admin lead reassignment load errors stay scoped to the reassignment queue', () => {
