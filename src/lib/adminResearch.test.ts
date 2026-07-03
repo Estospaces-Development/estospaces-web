@@ -7,8 +7,10 @@ import { fileURLToPath } from 'node:url';
 import {
     buildResearchEvidenceTarget,
     canMarkResearchSessionReviewed,
+    getResearchWorkspaceErrorMessage,
     getResearchSessionTitleError,
     getResearchTrackConfig,
+    isMissingAdminResearchEndpoint,
     summarizeResearchWorkspace,
     type ResearchSession,
     type ResearchSummary,
@@ -47,6 +49,17 @@ test('admin research summary keeps empty backend responses useful', () => {
     assert.equal(summary.highSeverityObservations, 3);
     assert.equal(summary.consentPendingReviews, 1);
     assert.equal(summary.topTags[0].tag, 'sla timer confusion');
+});
+
+test('admin research missing backend endpoints use launch-safe copy', () => {
+    const error = new Error('Cannot GET /api/v1/admin/research/sessions');
+
+    assert.equal(isMissingAdminResearchEndpoint(error), true);
+    assert.equal(
+        getResearchWorkspaceErrorMessage(error),
+        'Research workspace is not available in this environment yet.',
+    );
+    assert.doesNotMatch(getResearchWorkspaceErrorMessage(error), /Cannot GET|api\/v1/i);
 });
 
 test('call chat review cannot be marked reviewed before consent is visible', () => {
@@ -116,4 +129,12 @@ test('admin research session modal exposes dialog semantics', () => {
     assert.match(researchPageSource, /research-session-title-error/);
     assert.match(researchPageSource, /aria-invalid=\{sessionTitleError \? 'true' : 'false'\}/);
     assert.match(researchPageSource, /disabled=\{!canSaveSession\}/);
+});
+
+test('admin research service falls back to empty read state when backend route is absent', () => {
+    const serviceSource = readFileSync(path.join(srcRoot, 'services/adminResearchService.ts'), 'utf8');
+
+    assert.match(serviceSource, /isMissingAdminResearchEndpoint/);
+    assert.match(serviceSource, /return EMPTY_RESEARCH_SUMMARY/);
+    assert.match(serviceSource, /return \[\]/);
 });
