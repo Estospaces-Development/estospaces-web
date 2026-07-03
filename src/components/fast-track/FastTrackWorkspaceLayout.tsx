@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -37,6 +38,14 @@ function activateOnEnterOrSpace(
 }
 
 const fastTrackFocusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950';
+
+function renderFastTrackLayoutPortal(content: React.ReactNode) {
+  if (typeof document === 'undefined') {
+    return content;
+  }
+
+  return createPortal(content, document.body);
+}
 
 export interface FastTrackWorkspaceStat {
   label: string;
@@ -593,7 +602,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
     `Secondary density ${preferences.secondaryDensity}`,
   ].join('. ');
 
-  return (
+  return renderFastTrackLayoutPortal(
     <div className="fixed inset-0 z-[9999] flex justify-end bg-gray-950/75" data-fast-track-customization-drawer>
       <button
         type="button"
@@ -812,7 +821,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
           </div>
         </div>
       </aside>
-    </div>
+    </div>,
   );
 }
 

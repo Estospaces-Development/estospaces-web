@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     AlertCircle,
     ArrowUpRight,
@@ -119,6 +120,14 @@ type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
 const THREAD_SEND_RECOVERY_WINDOW_MS = 2 * 60 * 1000;
+
+function renderFastTrackPortal(content: React.ReactNode) {
+    if (typeof document === 'undefined') {
+        return content;
+    }
+
+    return createPortal(content, document.body);
+}
 
 export const isThreadSendTimeoutError = (message?: string | null) => (
     (message || '').trim().toLowerCase() === 'request timed out' || (message || '').toLowerCase().includes('timed out')
@@ -3529,7 +3538,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            {caseRailLayout.renderCompactDrawerRail ? (
+            {caseRailLayout.renderCompactDrawerRail ? renderFastTrackPortal((
                 <div className="fixed inset-0 z-[9999] xl:hidden" data-fast-track-case-rail-drawer>
                     <button
                         type="button"
@@ -3561,7 +3570,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         />
                     </div>
                 </div>
-            ) : null}
+            )) : null}
 
             <div
                 className={cn(
@@ -3697,7 +3706,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             </div>
 
-            {previewModalOpen ? (
+            {previewModalOpen ? renderFastTrackPortal((
                 <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
                     role="dialog"
@@ -3757,7 +3766,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                     </div>
                 </div>
-            ) : null}
+            )) : null}
 
             <FastTrackWorkspaceCustomizationDrawer
                 role={role}
@@ -3786,9 +3795,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 }))}
             />
 
-            {pendingAdminOverrideAction && selectedCase ? (
+            {pendingAdminOverrideAction && selectedCase ? renderFastTrackPortal((
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4"
                     onClick={() => {
                         if (activeAction !== pendingAdminOverrideAction.action) {
                             setPendingAdminOverrideAction(null);
@@ -3839,11 +3848,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                     </div>
                 </div>
-            ) : null}
+            )) : null}
 
-            {cancelCaseDialogOpen && selectedCase ? (
+            {cancelCaseDialogOpen && selectedCase ? renderFastTrackPortal((
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4"
                     onClick={() => {
                         if (activeAction !== 'cancel_case') {
                             setCancelCaseDialogOpen(false);
@@ -3883,7 +3892,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                     </div>
                 </div>
-            ) : null}
+            )) : null}
         </div>
     );
 }

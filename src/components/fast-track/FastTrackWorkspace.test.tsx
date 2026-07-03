@@ -107,12 +107,18 @@ const workspaceSource = () => readFileSync(
   "utf8",
 );
 
+const workspaceLayoutSource = () => readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "FastTrackWorkspaceLayout.tsx"),
+  "utf8",
+);
+
 test("fast-track preview buttons open a modal with zoom controls", () => {
   const source = workspaceSource();
 
   assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'preview' \}\)/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
+  assert.match(source, /createPortal\(content, document\.body\)/);
   assert.match(source, /fixed inset-0 z-\[9999\] flex items-center justify-center/);
   assert.match(source, /aria-label="Zoom out document preview"/);
   assert.match(source, /aria-label="Reset document preview zoom"/);
@@ -317,10 +323,21 @@ test("fast-track filter selection resolves from visible filtered cases", () => {
 test("compact case rail drawer sits above manager chrome without blurring the workspace", () => {
   const source = workspaceSource();
 
+  assert.match(source, /renderFastTrackPortal\(\(/);
   assert.match(source, /fixed inset-0 z-\[9999\] xl:hidden/);
   assert.match(source, /data-fast-track-case-rail-drawer/);
   assert.match(source, /lg:left-\[var\(--workspace-sidebar-offset,0rem\)\]/);
   assert.match(source, /className="absolute inset-0 bg-gray-950\/75"/);
   assert.doesNotMatch(source, /fixed inset-0 z-40 xl:hidden/);
   assert.doesNotMatch(source, /absolute inset-0 bg-black\/30 backdrop-blur-sm/);
+});
+
+test("fast-track customization drawer renders above manager header through a body portal", () => {
+  const source = workspaceLayoutSource();
+
+  assert.match(source, /createPortal\(content, document\.body\)/);
+  assert.match(source, /renderFastTrackLayoutPortal\(/);
+  assert.match(source, /fixed inset-0 z-\[9999\] flex justify-end bg-gray-950\/75/);
+  assert.match(source, /data-fast-track-customization-drawer/);
+  assert.doesNotMatch(source, /fixed inset-0 z-\[9999\] flex justify-end bg-gray-950\/75[^"]*backdrop-blur/);
 });
