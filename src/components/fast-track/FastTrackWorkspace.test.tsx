@@ -342,6 +342,16 @@ test("compact case rail drawer sits above manager chrome without blurring the wo
   assert.doesNotMatch(source, /absolute inset-0 bg-black\/30 backdrop-blur-sm/);
 });
 
+test("fast-track customization closes compact case rail overlay before opening", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const handleOpenCustomization = useCallback\(\(\) => \{\s*setCaseRailDrawerOpen\(false\);\s*setCustomizationOpen\(true\);\s*\}, \[\]\);/);
+  assert.match(source, /compactDrawerOpen: caseRailDrawerOpen && !customizationOpen/);
+  assert.match(source, /\[caseRailDrawerOpen, compactCaseRailViewport, customizationOpen, workspacePreferences\.caseRailCollapsed\]/);
+  assert.match(source, /onOpenCustomize=\{handleOpenCustomization\}/);
+  assert.doesNotMatch(source, /onOpenCustomize=\{\(\) => setCustomizationOpen\(true\)\}/);
+});
+
 test("fast-track customization drawer renders above manager header through a body portal", () => {
   const source = workspaceLayoutSource();
 

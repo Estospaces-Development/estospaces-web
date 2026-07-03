@@ -1512,6 +1512,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }));
     }, [compactCaseRailViewport, updateWorkspacePreferencesState]);
 
+    const handleOpenCustomization = useCallback(() => {
+        setCaseRailDrawerOpen(false);
+        setCustomizationOpen(true);
+    }, []);
+
     const handleToggleModuleVisibility = useCallback((module: FastTrackWorkspaceModule) => {
         updateWorkspacePreferencesState((previous) => {
             const visible = previous.visibleModules.includes(module)
@@ -3391,9 +3396,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => resolveFastTrackCaseRailLayout({
             compactViewport: compactCaseRailViewport,
             desktopRailCollapsed: workspacePreferences.caseRailCollapsed,
-            compactDrawerOpen: caseRailDrawerOpen,
+            compactDrawerOpen: caseRailDrawerOpen && !customizationOpen,
         }),
-        [caseRailDrawerOpen, compactCaseRailViewport, workspacePreferences.caseRailCollapsed],
+        [caseRailDrawerOpen, compactCaseRailViewport, customizationOpen, workspacePreferences.caseRailCollapsed],
     );
 
     const handleStageSelect = useCallback((stage: string) => {
@@ -3493,7 +3498,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 stats={headerStats}
                 onBack={() => navigate(WORKSPACE_HOME_PATH[role])}
                 onToggleRail={handleToggleRail}
-                onOpenCustomize={() => setCustomizationOpen(true)}
+                onOpenCustomize={handleOpenCustomization}
             />
 
             {recoveredCaseLink ? (
@@ -3654,7 +3659,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 currentStage={formatFastTrackCaseStage(selectedCase, role)}
                                 focus={workspaceFocus}
                                 statusSummary={workspaceStatus}
-                                onOpenCustomize={() => setCustomizationOpen(true)}
+                                onOpenCustomize={handleOpenCustomization}
                             />
 
                             <FastTrackStageStepper items={stepperItems} onSelect={handleStageSelect} />
