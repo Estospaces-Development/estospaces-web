@@ -17,3 +17,8 @@ test("manager operational providers stay mounted for every manager route", () =>
   assert.match(managerLayoutSource, /<MessagesProvider>/);
   assert.match(managerLayoutSource, /<ManagerVerificationProvider>\s*<PropertyProvider scope="manager">/);
 });
+
+test("manager layout exposes sidebar offset for nested fixed workspaces", () => {
+  assert.match(managerLayoutSource, /--workspace-sidebar-offset/);
+  assert.match(managerLayoutSource, /sidebarOpen \? '16rem' : '5rem'/);
+});

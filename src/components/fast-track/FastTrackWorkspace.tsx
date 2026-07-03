@@ -3537,7 +3537,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         className="absolute inset-0 bg-gray-950/75"
                         aria-label="Close case rail"
                     />
-                    <div className="absolute inset-y-0 left-0 z-10 w-full max-w-sm p-4">
+                    <div className="absolute inset-y-0 left-0 z-10 w-full max-w-sm p-4 lg:left-[var(--workspace-sidebar-offset,0rem)]">
                         <FastTrackCaseRail
                             role={role}
                             query={query}

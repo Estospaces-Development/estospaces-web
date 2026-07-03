@@ -85,7 +85,10 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                                         />
                                     )}
                                     <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} useSubdomain={isSubdomain} />
-                                    <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
+                                    <div
+                                        className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}
+                                        style={{ '--workspace-sidebar-offset': sidebarOpen ? '16rem' : '5rem' } as React.CSSProperties}
+                                    >
                                         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
                                         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
                                             <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">

@@ -318,6 +318,7 @@ test("compact case rail drawer sits above manager chrome without blurring the wo
 
   assert.match(source, /fixed inset-0 z-\[9999\] xl:hidden/);
   assert.match(source, /data-fast-track-case-rail-drawer/);
+  assert.match(source, /lg:left-\[var\(--workspace-sidebar-offset,0rem\)\]/);
   assert.match(source, /className="absolute inset-0 bg-gray-950\/75"/);
   assert.doesNotMatch(source, /fixed inset-0 z-40 xl:hidden/);
   assert.doesNotMatch(source, /absolute inset-0 bg-black\/30 backdrop-blur-sm/);
