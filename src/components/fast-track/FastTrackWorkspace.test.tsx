@@ -113,6 +113,7 @@ test("fast-track preview buttons open a modal with zoom controls", () => {
   assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'preview' \}\)/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
+  assert.match(source, /fixed inset-0 z-\[9999\] flex items-center justify-center/);
   assert.match(source, /aria-label="Zoom out document preview"/);
   assert.match(source, /aria-label="Reset document preview zoom"/);
   assert.match(source, /aria-label="Zoom in document preview"/);

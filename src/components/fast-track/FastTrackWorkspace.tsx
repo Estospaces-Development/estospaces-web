@@ -3699,7 +3699,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
             {previewModalOpen ? (
                 <div
-                    className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
                     role="dialog"
                     aria-modal="true"
                     aria-label={previewItem ? `Preview ${previewItem.label}` : 'Document preview'}
