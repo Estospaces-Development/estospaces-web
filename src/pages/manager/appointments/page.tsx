@@ -327,6 +327,7 @@ export default function ManagerAppointmentsPage() {
     }), [appointments]);
     const isSavingReschedule = Boolean(rescheduleTarget && actingID === rescheduleTarget.id);
     const isSavingCancel = Boolean(cancelTarget && actingID === cancelTarget.id);
+    const isCancelReasonValid = validateManagerAppointmentCancelReason(cancelReason) === null;
 
     const runAction = async (
         appointmentID: string,
@@ -867,7 +868,7 @@ export default function ManagerAppointmentsPage() {
                         <button
                             type="button"
                             onClick={submitCancel}
-                            disabled={isSavingCancel}
+                            disabled={isSavingCancel || !isCancelReasonValid}
                             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isSavingCancel && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -892,6 +893,7 @@ export default function ManagerAppointmentsPage() {
                                 }}
                                 aria-describedby={cancelReasonError ? 'manager-cancel-reason-error' : 'manager-cancel-reason-count'}
                                 disabled={isSavingCancel}
+                                maxLength={MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH}
                                 className="w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition-colors focus:border-red-300 focus:ring-2 focus:ring-red-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
                                 placeholder="Explain why this appointment needs to be cancelled."
                             />
