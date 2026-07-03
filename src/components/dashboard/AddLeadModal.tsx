@@ -123,6 +123,17 @@ const AddLeadModal = ({
         return Object.keys(newErrors).length === 0;
     };
 
+    const requiredLeadFieldsComplete = Boolean(
+        (formData.name || '').trim()
+        && (formData.email || '').trim()
+        && (formData.propertyInterested || '').trim()
+        && (formData.budget || '').trim(),
+    );
+    const isLeadSubmitDisabled = isSubmitting || !requiredLeadFieldsComplete;
+    const leadSubmitTitle = !requiredLeadFieldsComplete
+        ? 'Complete the required lead fields before saving.'
+        : undefined;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (validate()) {
@@ -362,7 +373,8 @@ const AddLeadModal = ({
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
+                            disabled={isLeadSubmitDisabled}
+                            title={leadSubmitTitle}
                             className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {isSubmitting ? 'Saving...' : existingLead ? 'Update Lead' : 'Create Lead'}

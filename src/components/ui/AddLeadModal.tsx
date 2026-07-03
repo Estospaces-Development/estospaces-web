@@ -118,6 +118,17 @@ const AddLeadModal = ({
         return Object.keys(newErrors).length === 0;
     };
 
+    const requiredLeadFieldsComplete = Boolean(
+        formData.name.trim()
+        && formData.email.trim()
+        && formData.propertyInterested.trim()
+        && formData.budget.trim(),
+    );
+    const isLeadSubmitDisabled = !requiredLeadFieldsComplete;
+    const leadSubmitTitle = !requiredLeadFieldsComplete
+        ? 'Complete the required lead fields before saving.'
+        : undefined;
+
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
         if (!validate()) {
@@ -296,7 +307,12 @@ const AddLeadModal = ({
                         <button type="button" onClick={onClose} className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
+                        <button
+                            type="submit"
+                            disabled={isLeadSubmitDisabled}
+                            title={leadSubmitTitle}
+                            className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                        >
                             {existingLead ? 'Update Lead' : 'Create Lead'}
                         </button>
                     </div>
