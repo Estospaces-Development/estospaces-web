@@ -301,3 +301,14 @@ test("fast-track filter selection cannot render a stale hidden case", () => {
     /filteredCases\.find\(\(item\) => item\.caseId === selectedCaseId\) \|\| cases\.find/,
   );
 });
+
+test("fast-track filter selection resolves from visible filtered cases", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const pendingCaseExists = filteredCases\.some\(\(item\) => item\.caseId === pendingSelectedCaseId\)/);
+  assert.match(
+    source,
+    /resolveFastTrackSelectionCaseId\(\s*filteredCases,\s*selectionParamsForResolution,\s*selectedCaseId,\s*\)/,
+  );
+  assert.doesNotMatch(source, /resolveFastTrackSelectionCaseId\(cases, selectionParamsForResolution, selectedCaseId\)/);
+});

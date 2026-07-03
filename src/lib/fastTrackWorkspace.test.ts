@@ -128,6 +128,24 @@ test('selection restores case query params after copy-paste casing and whitespac
     assert.equal(resolveFastTrackSelectionCaseId(cases, new URLSearchParams('case=%20CASE-B%20'), null), 'case-b');
 });
 
+test('filtered selection ignores hidden stale case query params', () => {
+    const visibleCompletedCases = [
+        buildCase({
+            caseId: 'completed-case',
+            workspaceFinalStatus: 'completed',
+        }),
+    ];
+
+    assert.equal(
+        resolveFastTrackSelectionCaseId(
+            visibleCompletedCases,
+            new URLSearchParams('case=active-case'),
+            'active-case',
+        ),
+        'completed-case',
+    );
+});
+
 test('selection search params replace stale case ids when a completed journey is selected', () => {
     const next = buildFastTrackSelectionSearchParams(
         new URLSearchParams('case=active-case&section=documents'),

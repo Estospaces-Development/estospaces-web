@@ -815,7 +815,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [recoveredCaseLink]);
 
     useEffect(() => {
-        if (cases.length === 0) {
+        if (filteredCases.length === 0) {
             pendingSelectedCaseIdRef.current = null;
             setSelectedCaseId(null);
             return;
@@ -823,7 +823,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const pendingSelectedCaseId = pendingSelectedCaseIdRef.current;
         if (pendingSelectedCaseId) {
-            const pendingCaseExists = cases.some((item) => item.caseId === pendingSelectedCaseId);
+            const pendingCaseExists = filteredCases.some((item) => item.caseId === pendingSelectedCaseId);
             if (pendingCaseExists) {
                 if (requestedCaseParam === pendingSelectedCaseId) {
                     pendingSelectedCaseIdRef.current = null;
@@ -836,11 +836,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             pendingSelectedCaseIdRef.current = null;
         }
 
-        const resolvedCaseId = resolveFastTrackSelectionCaseId(cases, selectionParamsForResolution, selectedCaseId);
+        const resolvedCaseId = resolveFastTrackSelectionCaseId(
+            filteredCases,
+            selectionParamsForResolution,
+            selectedCaseId,
+        );
         if (resolvedCaseId !== selectedCaseId) {
             setSelectedCaseId(resolvedCaseId);
         }
-    }, [cases, requestedCaseParam, searchParamsKey, selectedCaseId, selectionParamsForResolution]);
+    }, [filteredCases, requestedCaseParam, searchParamsKey, selectedCaseId, selectionParamsForResolution]);
 
     useEffect(() => {
         if (filteredCases.length === 0) {
