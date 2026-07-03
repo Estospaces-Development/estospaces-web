@@ -603,7 +603,13 @@ export function FastTrackWorkspaceCustomizationDrawer({
   ].join('. ');
 
   return renderFastTrackLayoutPortal(
-    <div className="fixed inset-0 z-[9999] flex justify-end bg-gray-950/75" data-fast-track-customization-drawer>
+    <div
+      className="fixed inset-0 isolate z-[2147483647] flex justify-end overflow-hidden bg-gray-950"
+      data-fast-track-customization-drawer
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fast-track-customization-title"
+    >
       <button
         type="button"
         onClick={onClose}
@@ -616,7 +622,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
               {copy.drawerEyebrow}
             </p>
-            <h3 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+            <h3 id="fast-track-customization-title" className="mt-2 text-2xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
               {copy.drawerTitle}
             </h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">

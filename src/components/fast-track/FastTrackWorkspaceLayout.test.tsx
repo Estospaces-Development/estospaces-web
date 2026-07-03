@@ -68,8 +68,12 @@ test('fast-track customization drawer sits above app chrome without blurring the
   );
 
   assert.match(markup, /data-fast-track-customization-drawer/);
-  assert.match(markup, /fixed inset-0 z-\[9999\] flex justify-end bg-gray-950\/75/);
+  assert.match(markup, /role="dialog"/);
+  assert.match(markup, /aria-modal="true"/);
+  assert.match(markup, /aria-labelledby="fast-track-customization-title"/);
+  assert.match(markup, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-gray-950/);
   assert.match(markup, /relative z-10 h-full w-full max-w-md/);
+  assert.doesNotMatch(markup, /bg-gray-950\/75/);
   assert.doesNotMatch(markup, /backdrop-blur-sm/);
 });
 

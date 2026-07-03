@@ -337,7 +337,10 @@ test("fast-track customization drawer renders above manager header through a bod
 
   assert.match(source, /createPortal\(content, document\.body\)/);
   assert.match(source, /renderFastTrackLayoutPortal\(/);
-  assert.match(source, /fixed inset-0 z-\[9999\] flex justify-end bg-gray-950\/75/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-gray-950/);
   assert.match(source, /data-fast-track-customization-drawer/);
-  assert.doesNotMatch(source, /fixed inset-0 z-\[9999\] flex justify-end bg-gray-950\/75[^"]*backdrop-blur/);
+  assert.doesNotMatch(source, /fixed inset-0[^"]*bg-gray-950\/75/);
+  assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
 });
