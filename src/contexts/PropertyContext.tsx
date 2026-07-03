@@ -290,6 +290,125 @@ export interface PropertyFilters {
   verified?: boolean;
 }
 
+const normalizePropertyFilterValue = (value?: string | number | null) =>
+  String(value ?? "").trim().toLowerCase();
+
+const propertySearchText = (property: Property) =>
+  [
+    property.id,
+    property.propertyId,
+    property.title,
+    property.description,
+    property.shortDescription,
+    property.address,
+    property.city,
+    property.state,
+    property.zipCode,
+    property.location?.addressLine1,
+    property.location?.addressLine2,
+    property.location?.city,
+    property.location?.state,
+    property.location?.postalCode,
+    property.location?.country,
+    property.propertyType,
+    property.listingType,
+    property.status,
+    property.contact?.name,
+    property.contactName,
+  ]
+    .map(normalizePropertyFilterValue)
+    .filter(Boolean)
+    .join(" ");
+
+const propertyPriceAmount = (property: Property) => {
+  if (property.price?.amount !== undefined) {
+    return property.price.amount;
+  }
+
+  return toOptionalNumber(property.priceString?.replace(/[^\d.-]/g, "")) ?? 0;
+};
+
+export const filterContextProperties = (
+  properties: Property[],
+  filters: PropertyFilters,
+) => {
+  const search = normalizePropertyFilterValue(filters.search);
+  const propertyTypes = new Set((filters.propertyType || []).map(normalizePropertyFilterValue));
+  const listingTypes = new Set((filters.listingType || []).map(normalizePropertyFilterValue));
+  const statuses = new Set((filters.status || []).map(normalizePropertyFilterValue));
+  const city = normalizePropertyFilterValue(filters.city);
+  const country = normalizePropertyFilterValue(filters.country);
+
+  return properties.filter((property) => {
+    if (search && !propertySearchText(property).includes(search)) {
+      return false;
+    }
+
+    if (propertyTypes.size > 0 && !propertyTypes.has(normalizePropertyFilterValue(property.propertyType))) {
+      return false;
+    }
+
+    if (listingTypes.size > 0 && !listingTypes.has(normalizePropertyFilterValue(property.listingType))) {
+      return false;
+    }
+
+    if (statuses.size > 0) {
+      const status = normalizePropertyFilterValue(property.status);
+      const draft = property.draft ? "draft" : "";
+      if (!statuses.has(status) && !statuses.has(draft)) {
+        return false;
+      }
+    }
+
+    const price = propertyPriceAmount(property);
+    if (filters.priceMin !== undefined && price < filters.priceMin) {
+      return false;
+    }
+    if (filters.priceMax !== undefined && price > filters.priceMax) {
+      return false;
+    }
+
+    const bedrooms = property.rooms?.bedrooms ?? property.bedrooms ?? 0;
+    if (filters.bedroomsMin !== undefined && bedrooms < filters.bedroomsMin) {
+      return false;
+    }
+    if (filters.bedroomsMax !== undefined && bedrooms > filters.bedroomsMax) {
+      return false;
+    }
+
+    const bathrooms = property.rooms?.bathrooms ?? property.bathrooms ?? 0;
+    if (filters.bathroomsMin !== undefined && bathrooms < filters.bathroomsMin) {
+      return false;
+    }
+
+    const area = property.dimensions?.totalArea ?? property.area ?? 0;
+    if (filters.areaMin !== undefined && area < filters.areaMin) {
+      return false;
+    }
+    if (filters.areaMax !== undefined && area > filters.areaMax) {
+      return false;
+    }
+
+    if (city && normalizePropertyFilterValue(property.location?.city || property.city) !== city) {
+      return false;
+    }
+
+    if (country && normalizePropertyFilterValue(property.location?.country || property.location?.countryCode) !== country) {
+      return false;
+    }
+
+    if (filters.featured !== undefined && Boolean(property.featured) !== filters.featured) {
+      return false;
+    }
+
+    if (filters.verified !== undefined && Boolean(property.verified) !== filters.verified) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
 export type SortField =
   | "createdAt"
   | "updatedAt"
@@ -865,8 +984,10 @@ export const PropertyProvider = ({
     enabled: !isAuthRoute,
   });
 
-  const filteredProperties = properties;
-  // Placeholder for actual filtering logic
+  const filteredProperties = useMemo(
+    () => filterContextProperties(properties, filters),
+    [properties, filters],
+  );
 
   const updateFilters = useCallback((nextFilters: PropertyFilters) => {
     setPagination((prev) => ({ ...prev, page: 1 }));
