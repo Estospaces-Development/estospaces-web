@@ -5,7 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThemeProvider } from '../../contexts/ThemeContext';
 import { NotificationsProvider } from '../../contexts/NotificationsContext';
-import { ManagerVerificationProvider, useManagerVerification } from '../../contexts/ManagerVerificationContext';
+import { ManagerVerificationProvider } from '../../contexts/ManagerVerificationContext';
 import { MessagesProvider } from '../../contexts/MessagesContext';
 import Sidebar from '../../components/layout/Sidebar';
 import Header from '../../components/layout/Header';
@@ -16,24 +16,6 @@ import { getLoginPath, getRedirectPath, shouldAwaitSessionResolution } from '@/l
 interface ManagerLayoutClientProps {
     children: React.ReactNode;
     isSubdomain?: boolean;
-}
-
-function ManagerOperationalProviders({ children }: { children: React.ReactNode }) {
-    const { isVerified } = useManagerVerification();
-
-    if (!isVerified) {
-        return <>{children}</>;
-    }
-
-    return (
-        <PropertyProvider scope="manager">
-            <LeadProvider>
-                <MessagesProvider>
-                    {children}
-                </MessagesProvider>
-            </LeadProvider>
-        </PropertyProvider>
-    );
 }
 
 export default function ManagerLayoutClient({ children, isSubdomain = false }: ManagerLayoutClientProps) {
@@ -90,27 +72,31 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
         <ThemeProvider>
             <NotificationsProvider>
                 <ManagerVerificationProvider>
-                    <ManagerOperationalProviders>
-                        <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
-                            {sidebarOpen && (
-                                <button
-                                    type="button"
-                                    aria-label="Close navigation"
-                                    className="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-sm lg:hidden"
-                                    onClick={() => setSidebarOpen(false)}
-                                />
-                            )}
-                            <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} useSubdomain={isSubdomain} />
-                            <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
-                                <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
-                                <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
-                                    <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">
-                                        {children}
+                    <PropertyProvider scope="manager">
+                        <LeadProvider>
+                            <MessagesProvider>
+                                <div className="min-h-screen bg-gray-50 dark:bg-black font-manager transition-colors duration-300">
+                                    {sidebarOpen && (
+                                        <button
+                                            type="button"
+                                            aria-label="Close navigation"
+                                            className="fixed inset-0 z-40 bg-gray-950/40 backdrop-blur-sm lg:hidden"
+                                            onClick={() => setSidebarOpen(false)}
+                                        />
+                                    )}
+                                    <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} useSubdomain={isSubdomain} />
+                                    <div className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}>
+                                        <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
+                                        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
+                                            <div className="mx-auto h-full w-full max-w-[1600px] min-w-0 animate-fadeIn">
+                                                {children}
+                                            </div>
+                                        </main>
                                     </div>
-                                </main>
-                            </div>
-                        </div>
-                    </ManagerOperationalProviders>
+                                </div>
+                            </MessagesProvider>
+                        </LeadProvider>
+                    </PropertyProvider>
                 </ManagerVerificationProvider>
             </NotificationsProvider>
         </ThemeProvider>

@@ -8,13 +8,12 @@ const managerLayoutSource = readFileSync(
   "utf8",
 );
 
-test("manager operational providers only mount after verification approval", () => {
-  assert.match(managerLayoutSource, /function ManagerOperationalProviders/);
-  assert.match(managerLayoutSource, /useManagerVerification\(\)/);
-  assert.match(managerLayoutSource, /const \{ isVerified \} = useManagerVerification\(\)/);
-  assert.match(managerLayoutSource, /if \(!isVerified\) \{/);
+test("manager operational providers stay mounted for every manager route", () => {
+  assert.doesNotMatch(managerLayoutSource, /function ManagerOperationalProviders/);
+  assert.doesNotMatch(managerLayoutSource, /useManagerVerification\(\)/);
+  assert.doesNotMatch(managerLayoutSource, /if \(!isVerified\) \{/);
   assert.match(managerLayoutSource, /<PropertyProvider scope="manager">/);
   assert.match(managerLayoutSource, /<LeadProvider>/);
   assert.match(managerLayoutSource, /<MessagesProvider>/);
-  assert.match(managerLayoutSource, /<ManagerOperationalProviders>/);
+  assert.match(managerLayoutSource, /<ManagerVerificationProvider>\s*<PropertyProvider scope="manager">/);
 });
