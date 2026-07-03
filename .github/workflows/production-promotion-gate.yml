@@ -1,0 +1,31 @@
+name: Production Promotion Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  merge_group:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  develop-to-main-promotion-gate:
+    name: develop-to-main-promotion-gate
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require develop as the production source branch
+        if: github.event_name == 'pull_request' && github.head_ref != 'develop'
+        run: |
+          echo "Production promotion PRs must use develop as the source branch."
+          echo "Current source branch: ${GITHUB_HEAD_REF}"
+          exit 1
+
+      - name: Confirm develop to main promotion
+        if: github.event_name == 'pull_request' && github.head_ref == 'develop'
+        run: echo "Production promotion source branch is develop."
+
+      - name: Allow merge queue validation
+        if: github.event_name == 'merge_group'
+        run: echo "Merge queue validation is allowed after protected PR checks."
