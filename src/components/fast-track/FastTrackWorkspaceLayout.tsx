@@ -38,6 +38,9 @@ function activateOnEnterOrSpace(
 }
 
 const fastTrackFocusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950';
+const fastTrackChromeOverlayStyle: React.CSSProperties = {
+  zIndex: 2147483647,
+};
 
 function renderFastTrackLayoutPortal(content: React.ReactNode) {
   if (typeof document === 'undefined') {
@@ -605,6 +608,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
   return renderFastTrackLayoutPortal(
     <div
       className="fixed inset-0 isolate z-[2147483647] flex justify-end overflow-hidden bg-gray-950"
+      style={fastTrackChromeOverlayStyle}
       data-fast-track-customization-drawer
       role="dialog"
       aria-modal="true"

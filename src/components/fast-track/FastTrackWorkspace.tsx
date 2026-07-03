@@ -120,6 +120,9 @@ type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
 const THREAD_SEND_RECOVERY_WINDOW_MS = 2 * 60 * 1000;
+const fastTrackCaseRailOverlayStyle: React.CSSProperties = {
+    zIndex: 2147483646,
+};
 
 function renderFastTrackPortal(content: React.ReactNode) {
     if (typeof document === 'undefined') {
@@ -3539,7 +3542,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             ) : null}
 
             {caseRailLayout.renderCompactDrawerRail ? renderFastTrackPortal((
-                <div className="fixed inset-0 z-[9999] xl:hidden" data-fast-track-case-rail-drawer>
+                <div
+                    className="fixed inset-0 z-[9999] xl:hidden"
+                    style={fastTrackCaseRailOverlayStyle}
+                    data-fast-track-case-rail-drawer
+                >
                     <button
                         type="button"
                         onClick={() => setCaseRailDrawerOpen(false)}

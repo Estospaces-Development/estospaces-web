@@ -326,6 +326,8 @@ test("compact case rail drawer sits above manager chrome without blurring the wo
   assert.match(source, /renderFastTrackPortal\(\(/);
   assert.match(source, /fixed inset-0 z-\[9999\] xl:hidden/);
   assert.match(source, /data-fast-track-case-rail-drawer/);
+  assert.match(source, /const fastTrackCaseRailOverlayStyle: React\.CSSProperties = \{\s*zIndex: 2147483646,/);
+  assert.match(source, /style=\{fastTrackCaseRailOverlayStyle\}/);
   assert.match(source, /lg:left-\[var\(--workspace-sidebar-offset,0rem\)\]/);
   assert.match(source, /className="absolute inset-0 bg-gray-950\/75"/);
   assert.doesNotMatch(source, /fixed inset-0 z-40 xl:hidden/);
@@ -341,6 +343,8 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.match(source, /aria-modal="true"/);
   assert.match(source, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-gray-950/);
   assert.match(source, /data-fast-track-customization-drawer/);
+  assert.match(source, /const fastTrackChromeOverlayStyle: React\.CSSProperties = \{\s*zIndex: 2147483647,/);
+  assert.match(source, /style=\{fastTrackChromeOverlayStyle\}/);
   assert.doesNotMatch(source, /fixed inset-0[^"]*bg-gray-950\/75/);
   assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
 });
