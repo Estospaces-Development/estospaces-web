@@ -3,7 +3,7 @@ import { useManagerVerification } from '@/contexts/ManagerVerificationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Shield, CheckCircle, AlertCircle, Upload, FileText, Building2, User, Clock, ChevronRight, Loader2, RefreshCw, Eye, ArrowRight, TrendingUp, Zap, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
+import type { ManagerDocument, ManagerDocumentType, ManagerProfileType } from '@/services/managerVerificationService';
 import { getManagerDocumentTypeName } from '@/services/managerVerificationService';
 import { getDocumentAccessUrl, openDocumentAccessUrl } from '@/services/documentAccessService';
 import {
@@ -17,6 +17,12 @@ const isPreviewableImageDocument = (mimeType?: string, documentUrl?: string) => 
         || documentUrl?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i),
     );
 };
+
+interface ManagerDocumentPreview {
+    title: string;
+    fileName: string;
+    url: string;
+}
 
 export default function VerificationPage() {
     const { user } = useAuth();
@@ -42,6 +48,7 @@ export default function VerificationPage() {
     const [selectedRoleForProfile, setSelectedRoleForProfile] = useState<ManagerProfileType>('broker');
     const [actionError, setActionError] = useState<string | null>(null);
     const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+    const [selectedDocumentPreview, setSelectedDocumentPreview] = useState<ManagerDocumentPreview | null>(null);
     const [showFirstTimeUploadModal, setShowFirstTimeUploadModal] = useState(false);
     const [firstTimeUploadFiles, setFirstTimeUploadFiles] = useState<Partial<Record<ManagerDocumentType, File | null>>>({});
 
@@ -253,9 +260,28 @@ export default function VerificationPage() {
         };
     }, [documents]);
 
-    const handleOpenDocument = async (documentId: string) => {
+    const handleOpenDocument = async (
+        document: ManagerDocument,
+        title: string,
+        existingPreviewUrl?: string,
+    ) => {
         setActionError(null);
-        const { error } = await openDocumentAccessUrl(documentId);
+        if (isPreviewableImageDocument(document.mime_type, document.document_url)) {
+            const resolvedPreviewUrl = existingPreviewUrl || (await getDocumentAccessUrl(document.id)).url;
+            if (!resolvedPreviewUrl) {
+                setActionError('Document preview is unavailable.');
+                return;
+            }
+
+            setSelectedDocumentPreview({
+                title,
+                fileName: document.file_name || 'Document uploaded',
+                url: resolvedPreviewUrl,
+            });
+            return;
+        }
+
+        const { error } = await openDocumentAccessUrl(document.id);
         if (error) {
             setActionError(error);
         }
@@ -571,7 +597,7 @@ export default function VerificationPage() {
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             if (doc) {
-                                                void handleOpenDocument(doc.id);
+                                                void handleOpenDocument(doc, step.title, previewUrl);
                                             }
                                         }}
                                     >
@@ -716,6 +742,44 @@ export default function VerificationPage() {
                                     Upload all documents
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedDocumentPreview && (
+                <div
+                    className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 p-4 animate-in fade-in duration-200"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="manager-verification-document-preview-title"
+                >
+                    <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-950">
+                        <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-5 dark:border-gray-800">
+                            <div>
+                                <h2 id="manager-verification-document-preview-title" className="text-lg font-black text-gray-900 dark:text-white">
+                                    {selectedDocumentPreview.title}
+                                </h2>
+                                <p className="mt-1 text-sm font-semibold text-gray-500 dark:text-gray-400">
+                                    {selectedDocumentPreview.fileName}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedDocumentPreview(null)}
+                                aria-label="Close manager verification document preview"
+                                className="rounded-xl p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-white"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="max-h-[calc(90vh-88px)] overflow-auto bg-gray-100 p-4 dark:bg-gray-900">
+                            <img
+                                src={selectedDocumentPreview.url}
+                                alt={`${selectedDocumentPreview.title} preview`}
+                                className="mx-auto max-h-[75vh] max-w-full rounded-2xl bg-white object-contain shadow-lg"
+                                onError={() => setActionError('Document preview could not be loaded.')}
+                            />
                         </div>
                     </div>
                 </div>
