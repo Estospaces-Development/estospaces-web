@@ -617,7 +617,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
       <button
         type="button"
         onClick={onClose}
-        className="flex-1 cursor-default bg-gray-950/70"
+        className="flex-1 cursor-default bg-gray-950/90 dark:bg-gray-950/95"
         data-fast-track-customization-scrim
         aria-label="Dismiss workspace customization overlay"
       />

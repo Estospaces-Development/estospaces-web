@@ -363,7 +363,7 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.match(source, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-transparent/);
   assert.match(source, /data-fast-track-customization-scrim/);
   assert.match(source, /aria-label="Dismiss workspace customization overlay"/);
-  assert.match(source, /flex-1 cursor-default bg-gray-950\/70/);
+  assert.match(source, /flex-1 cursor-default bg-gray-950\/90 dark:bg-gray-950\/95/);
   assert.equal(closeButtonLabels.length, 1);
   assert.match(source, /data-fast-track-customization-drawer/);
   assert.match(source, /h-dvh max-h-dvh w-full max-w-md overflow-y-auto overscroll-contain/);
@@ -371,4 +371,5 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.match(source, /style=\{fastTrackChromeOverlayStyle\}/);
   assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,200}aria-label="Close workspace customization drawer"/);
   assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
+  assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
 });

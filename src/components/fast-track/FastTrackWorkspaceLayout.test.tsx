@@ -75,13 +75,14 @@ test('fast-track customization drawer sits above app chrome without blurring the
   assert.match(markup, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-transparent/);
   assert.match(markup, /data-fast-track-customization-scrim/);
   assert.match(markup, /aria-label="Dismiss workspace customization overlay"/);
-  assert.match(markup, /flex-1 cursor-default bg-gray-950\/70/);
+  assert.match(markup, /flex-1 cursor-default bg-gray-950\/90 dark:bg-gray-950\/95/);
   assert.equal(closeButtonLabels.length, 1);
   assert.match(markup, /relative z-10 h-dvh max-h-dvh w-full max-w-md/);
   assert.match(markup, /shadow-2xl shadow-gray-950\/20/);
   assert.match(markup, /style="z-index:2147483647"/);
   assert.doesNotMatch(markup, /data-fast-track-customization-scrim[\s\S]{0,200}aria-label="Close workspace customization drawer"/);
   assert.doesNotMatch(markup, /backdrop-blur-sm/);
+  assert.doesNotMatch(markup, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
 });
 
 test('fast-track journey rail exposes visible focus and pagination controls', () => {
