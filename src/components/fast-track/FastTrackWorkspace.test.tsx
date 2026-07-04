@@ -354,6 +354,7 @@ test("fast-track customization closes compact case rail overlay before opening",
 
 test("fast-track customization drawer renders above manager header through a body portal", () => {
   const source = workspaceLayoutSource();
+  const closeButtonLabels = source.match(/aria-label="Close workspace customization drawer"/g) || [];
 
   assert.match(source, /createPortal\(content, document\.body\)/);
   assert.match(source, /renderFastTrackLayoutPortal\(/);
@@ -361,11 +362,13 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.match(source, /aria-modal="true"/);
   assert.match(source, /fixed inset-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-transparent/);
   assert.match(source, /data-fast-track-customization-scrim/);
-  assert.match(source, /flex-1 cursor-default bg-transparent/);
+  assert.match(source, /aria-label="Dismiss workspace customization overlay"/);
+  assert.match(source, /flex-1 cursor-default bg-gray-950\/70/);
+  assert.equal(closeButtonLabels.length, 1);
   assert.match(source, /data-fast-track-customization-drawer/);
+  assert.match(source, /h-dvh max-h-dvh w-full max-w-md overflow-y-auto overscroll-contain/);
   assert.match(source, /const fastTrackChromeOverlayStyle: React\.CSSProperties = \{\s*zIndex: 2147483647,/);
   assert.match(source, /style=\{fastTrackChromeOverlayStyle\}/);
-  assert.doesNotMatch(source, /fixed inset-0[^"]*bg-gray-950"/);
-  assert.doesNotMatch(source, /fixed inset-0[^"]*bg-gray-950\/75/);
+  assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,200}aria-label="Close workspace customization drawer"/);
   assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
 });
