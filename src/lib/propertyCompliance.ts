@@ -20,6 +20,16 @@ export const normalizePropertyComplianceCode = (code?: string | null) => {
     return normalized;
 };
 
+export const normalizePropertyComplianceEvidenceList = (
+    items: PropertyComplianceEvidence[] | PropertyComplianceEvidence | null | undefined,
+) => {
+    if (!items) {
+        return [];
+    }
+
+    return Array.isArray(items) ? items : [items];
+};
+
 const normalizeDraftStatus = (status?: string | null) => {
     const normalized = String(status || '').trim().toLowerCase();
     switch (normalized) {
@@ -36,11 +46,11 @@ const normalizeDraftStatus = (status?: string | null) => {
 };
 
 export const buildLatestPropertyComplianceEvidenceMap = (
-    items: PropertyComplianceEvidence[] | null | undefined,
+    items: PropertyComplianceEvidence[] | PropertyComplianceEvidence | null | undefined,
 ) => {
     const map = new Map<string, PropertyComplianceEvidence>();
 
-    (items || []).forEach((item) => {
+    normalizePropertyComplianceEvidenceList(items).forEach((item) => {
         const category = normalizePropertyComplianceCode(item.category);
         if (!category) {
             return;

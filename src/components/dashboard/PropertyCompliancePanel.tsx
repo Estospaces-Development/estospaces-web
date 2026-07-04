@@ -13,6 +13,7 @@ import {
     createPropertyComplianceDrafts,
     dedupeJourneyBlockers,
     getPropertyComplianceStatusLabel,
+    normalizePropertyComplianceEvidenceList,
     normalizePropertyComplianceCode,
     type PropertyComplianceEvidenceDraft,
 } from '@/lib/propertyCompliance';
@@ -76,7 +77,7 @@ export default function PropertyCompliancePanel({
             applyReadiness(initialReadiness);
             setError(result.error);
         } else {
-            setEvidence(result.data?.evidence || []);
+            setEvidence(normalizePropertyComplianceEvidenceList(result.data?.evidence));
             applyReadiness(result.data?.readiness || null);
         }
         setLoading(false);
@@ -120,7 +121,7 @@ export default function PropertyCompliancePanel({
         if (result.error) {
             setError(result.error);
         } else {
-            setEvidence(result.data?.evidence || []);
+            setEvidence(normalizePropertyComplianceEvidenceList(result.data?.evidence));
             applyReadiness(result.data?.readiness || null);
             setSuccessMessage('Compliance evidence recorded.');
         }
@@ -275,6 +276,7 @@ export default function PropertyCompliancePanel({
 
                                     <button
                                         type="button"
+                                        aria-label={`Record ${requirement.label} evidence`}
                                         onClick={() => saveEvidence(requirement.code)}
                                         disabled={isSaving}
                                         className="mt-3 inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
