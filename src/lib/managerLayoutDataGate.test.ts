@@ -20,5 +20,10 @@ test("manager operational providers stay mounted for every manager route", () =>
 
 test("manager layout exposes sidebar offset for nested fixed workspaces", () => {
   assert.match(managerLayoutSource, /--workspace-sidebar-offset/);
+  assert.match(managerLayoutSource, /--workspace-header-height/);
   assert.match(managerLayoutSource, /sidebarOpen \? '16rem' : '5rem'/);
+  assert.match(managerLayoutSource, /root\.style\.setProperty\('--workspace-sidebar-offset', sidebarOpen \? '16rem' : '5rem'\)/);
+  assert.match(managerLayoutSource, /root\.style\.setProperty\('--workspace-header-height', '4rem'\)/);
+  assert.match(managerLayoutSource, /root\.style\.removeProperty\('--workspace-sidebar-offset'\)/);
+  assert.match(managerLayoutSource, /root\.style\.removeProperty\('--workspace-header-height'\)/);
 });

@@ -39,6 +39,21 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
     }, [location.pathname]);
 
     useEffect(() => {
+        if (typeof document === 'undefined') {
+            return;
+        }
+
+        const root = document.documentElement;
+        root.style.setProperty('--workspace-sidebar-offset', sidebarOpen ? '16rem' : '5rem');
+        root.style.setProperty('--workspace-header-height', '4rem');
+
+        return () => {
+            root.style.removeProperty('--workspace-sidebar-offset');
+            root.style.removeProperty('--workspace-header-height');
+        };
+    }, [sidebarOpen]);
+
+    useEffect(() => {
         if (!sidebarOpen) {
             return;
         }
@@ -87,7 +102,10 @@ export default function ManagerLayoutClient({ children, isSubdomain = false }: M
                                     <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} useSubdomain={isSubdomain} />
                                     <div
                                         className={`flex min-h-screen min-w-0 flex-col transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}`}
-                                        style={{ '--workspace-sidebar-offset': sidebarOpen ? '16rem' : '5rem' } as React.CSSProperties}
+                                        style={{
+                                            '--workspace-sidebar-offset': sidebarOpen ? '16rem' : '5rem',
+                                            '--workspace-header-height': '4rem',
+                                        } as React.CSSProperties}
                                     >
                                         <Header onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
                                         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-4 font-manager transition-colors duration-300 dark:bg-black sm:p-6 lg:p-8">
