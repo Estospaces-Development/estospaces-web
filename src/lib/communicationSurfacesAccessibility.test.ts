@@ -13,6 +13,8 @@ test('communication surfaces hide inactive payment booking actions and label cli
   assert.doesNotMatch(userBookings, /Open payment details for booking/);
   assert.doesNotMatch(userBookings, /CreditCard/);
   assert.match(managerClients, /ariaLabel="Filter clients by status"/);
+  assert.match(managerClients, /\{ value: '', label: 'All Statuses' \}/);
+  assert.match(managerClients, /placeholder=""/);
   assert.match(select, /ariaLabel\?: string;/);
   assert.match(select, /aria-label=\{ariaLabel\}/);
 });

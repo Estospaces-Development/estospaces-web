@@ -92,13 +92,14 @@ const ClientsPage = () => {
                 </div>
                 <Select
                     options={[
+                        { value: '', label: 'All Statuses' },
                         { value: 'active', label: 'Active' },
                         { value: 'pending', label: 'Pending' },
                         { value: 'suspended', label: 'Suspended' },
                     ]}
                     value={statusFilter}
                     onChange={setStatusFilter}
-                    placeholder="All Statuses"
+                    placeholder=""
                     ariaLabel="Filter clients by status"
                     className="w-full sm:w-44"
                 />
