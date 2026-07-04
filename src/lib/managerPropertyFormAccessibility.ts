@@ -6,6 +6,7 @@ export interface ManagerPropertyFormStatusInput {
   totalSteps: number;
   currentStepTitle: string;
   errorCount: number;
+  incompleteRequiredCount?: number;
   saving: boolean;
   submissionBlocker?: string | null;
 }
@@ -48,6 +49,7 @@ export function getManagerPropertyFormStatusMessage({
   totalSteps,
   currentStepTitle,
   errorCount,
+  incompleteRequiredCount = 0,
   saving,
   submissionBlocker,
 }: ManagerPropertyFormStatusInput): string {
@@ -59,9 +61,11 @@ export function getManagerPropertyFormStatusMessage({
   }
 
   const errorMessage =
-    errorCount === 0
-      ? 'All visible fields are valid.'
-      : `${errorCount} ${errorCount === 1 ? 'field needs' : 'fields need'} attention.`;
+    errorCount > 0
+      ? `${errorCount} ${errorCount === 1 ? 'field needs' : 'fields need'} attention.`
+      : incompleteRequiredCount > 0
+        ? `${incompleteRequiredCount} required ${incompleteRequiredCount === 1 ? 'field is' : 'fields are'} still incomplete.`
+        : 'All visible fields are valid.';
 
   const blockerMessage = submissionBlocker
     ? ` Submission blocked: ${submissionBlocker}`

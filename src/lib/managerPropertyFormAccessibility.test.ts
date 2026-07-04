@@ -74,6 +74,20 @@ test('manager property form status announces the current step and errors', () =>
     }),
     'Edit property form step 5 of 5: Contact. All visible fields are valid. Submission blocked: Complete manager verification before submitting.',
   );
+
+  assert.equal(
+    getManagerPropertyFormStatusMessage({
+      mode: 'create',
+      currentStep: 1,
+      totalSteps: 5,
+      currentStepTitle: 'Basic Info',
+      errorCount: 0,
+      incompleteRequiredCount: 9,
+      saving: false,
+      submissionBlocker: 'Complete all required property details before submitting.',
+    }),
+    'Create property form step 1 of 5: Basic Info. 9 required fields are still incomplete. Submission blocked: Complete all required property details before submitting.',
+  );
 });
 
 test('manager property upload controls expose button copy and format help', () => {
@@ -150,6 +164,19 @@ test('manager property create form defaults launch currency to Indian rupees', (
   assert.doesNotMatch(
     managerPropertyFormPage,
     /code:\s*"GB",\s*name:\s*"United Kingdom",\s*currency:\s*"GBP"/,
+  );
+});
+
+test('manager property submit button is disabled until required fields are complete', () => {
+  assert.match(managerPropertyFormPage, /const\s+fullFormErrors\s*=\s*validateAllFields\(\)/);
+  assert.match(managerPropertyFormPage, /const\s+hasFullFormValidationErrors\s*=\s*fullFormErrorCount\s*>\s*0/);
+  assert.match(
+    managerPropertyFormPage,
+    /Boolean\(submissionBlocker\)\s*\|\|\s*hasFullFormValidationErrors/,
+  );
+  assert.match(
+    managerPropertyFormPage,
+    /Complete all required property details before submitting\./,
   );
 });
 

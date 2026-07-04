@@ -2014,15 +2014,21 @@ export default function AddPropertyPage() {
   const submissionBlocker = managerVerificationError
     ? null
     : getManagerPropertySubmissionBlocker(managerProfile);
+  const fullFormErrors = validateAllFields();
+  const fullFormErrorCount = Object.keys(fullFormErrors).length;
+  const hasFullFormValidationErrors = fullFormErrorCount > 0;
   const submissionBlockerId = "manager-property-submission-blocker";
   const primaryActionDescription =
-    isSubmissionAction && (managerVerificationLoading || submissionBlocker)
+    isSubmissionAction &&
+    (managerVerificationLoading || submissionBlocker || hasFullFormValidationErrors)
       ? submissionBlockerId
       : undefined;
   const primaryActionDisabled =
     saving ||
     (isSubmissionAction &&
-      (managerVerificationLoading || Boolean(submissionBlocker)));
+      (managerVerificationLoading ||
+        Boolean(submissionBlocker) ||
+        hasFullFormValidationErrors));
   const primaryButtonLabel =
     mode === "edit"
       ? isEditSubmission
@@ -2082,9 +2088,16 @@ export default function AddPropertyPage() {
     totalSteps: steps.length,
     currentStepTitle,
     errorCount: Object.keys(errors).length,
+    incompleteRequiredCount: fullFormErrorCount,
     saving,
     submissionBlocker:
-      isSubmissionAction && !managerVerificationLoading ? submissionBlocker : null,
+      isSubmissionAction && !managerVerificationLoading
+        ? submissionBlocker || (
+          hasFullFormValidationErrors
+            ? "Complete all required property details before submitting."
+            : null
+        )
+        : null,
   });
 
   return (
