@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import type { User } from '@/types';
 import {
@@ -14,6 +15,7 @@ import {
   buildAdminUserActionLabel,
   getAdminUserEmptyStateBody,
   getAdminUserEmptyStateTitle,
+  getAdminUsersRegistryTableScrollLabel,
   getAdminUserSortControlLabel,
   buildAdminUserStateDialogTitle,
   getAdminUserDisplayName,
@@ -127,6 +129,15 @@ test('admin users expose visible sort control copy', () => {
 test('admin users page title matches the admin navigation label', () => {
   assert.equal(getAdminUsersPageTitle(), 'User Management');
   assert.equal(getAdminUsersPageSubtitle(), 'Global Registry');
+});
+
+test('admin users registry table stays contained on mobile', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+
+  assert.equal(getAdminUsersRegistryTableScrollLabel(), 'Scrollable user registry table');
+  assert.match(source, /aria-label=\{getAdminUsersRegistryTableScrollLabel\(\)\}/);
+  assert.match(source, /className="w-full min-w-\[980px\] text-left"/);
+  assert.match(source, /className="min-w-0 bg-white dark:bg-gray-800 rounded-\[2rem\]/);
 });
 
 test('admin add user path opens the registration form while signed in', () => {
