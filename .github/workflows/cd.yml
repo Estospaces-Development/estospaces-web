@@ -68,9 +68,16 @@ jobs:
         run: |
           SERVICE_TARGET="${SERVICE_NAME}-${TARGET_ENV}"
           if [ "${TARGET_ENV}" = "prod" ]; then
-            HEALTH_URL="https://app.estospaces.com/login/"
+            HEALTH_URLS=(
+              "https://app.estospaces.com/health"
+              "https://admin.estospaces.com/health"
+            )
           else
             SERVICE_URL="$(gcloud run services describe "$SERVICE_TARGET" --region="${REGION}" --project="${PROJECT_ID}" --format='value(status.url)')"
-            HEALTH_URL="${SERVICE_URL}/login/"
+            HEALTH_URLS=("${SERVICE_URL}/health")
           fi
-          curl --fail --show-error --silent --location "${HEALTH_URL}" > /dev/null
+          for HEALTH_URL in "${HEALTH_URLS[@]}"; do
+            RESPONSE="$(curl --fail --show-error --silent --location "${HEALTH_URL}")"
+            echo "${RESPONSE}" | grep -q '"status":"ok"'
+            echo "${RESPONSE}" | grep -q '"service":"estospaces-web"'
+          done
