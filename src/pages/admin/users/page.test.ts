@@ -136,6 +136,8 @@ test('admin users registry table stays contained on mobile', async () => {
 
   assert.equal(getAdminUsersRegistryTableScrollLabel(), 'Scrollable user registry table');
   assert.match(source, /aria-label=\{getAdminUsersRegistryTableScrollLabel\(\)\}/);
+  assert.match(source, /aria-label="Scrollable lead reassignment table"/);
+  assert.match(source, /className="relative max-w-full overflow-x-auto overflow-y-hidden \[contain:paint\]"/);
   assert.match(source, /className="w-full min-w-\[980px\] text-left"/);
   assert.match(source, /className="min-w-0 bg-white dark:bg-gray-800 rounded-\[2rem\]/);
 });

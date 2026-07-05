@@ -627,7 +627,7 @@ function UserManagementContent() {
                     </div>
                 )}
 
-                <div className="max-w-full overflow-x-auto" tabIndex={0} aria-label="Scrollable lead reassignment table">
+                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label="Scrollable lead reassignment table">
                     <table className="w-full min-w-[760px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
@@ -788,7 +788,7 @@ function UserManagementContent() {
                     {statusMessage}
                 </p>
 
-                <div className="max-w-full overflow-x-auto" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
+                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
                     <table className="w-full min-w-[980px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
