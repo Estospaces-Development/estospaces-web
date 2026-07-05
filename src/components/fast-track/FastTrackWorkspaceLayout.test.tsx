@@ -72,18 +72,21 @@ test('fast-track customization drawer sits above app chrome without blurring the
   assert.match(markup, /role="dialog"/);
   assert.match(markup, /aria-modal="true"/);
   assert.match(markup, /aria-labelledby="fast-track-customization-title"/);
-  assert.match(markup, /fixed bottom-0 right-0 isolate z-\[2147483647\] flex justify-end overflow-hidden bg-transparent/);
+  assert.match(markup, /fixed isolate z-\[2147483647\] flex justify-end overflow-hidden/);
+  assert.match(markup, /bottom-0 left-0 right-0 top-16 bg-transparent lg:left-\[var\(--workspace-sidebar-offset,16rem\)\]/);
   assert.match(markup, /data-fast-track-customization-scrim/);
   assert.match(markup, /aria-label="Dismiss workspace customization overlay"/);
-  assert.match(markup, /flex-1 cursor-default bg-gray-950\/25 dark:bg-gray-950\/55/);
+  assert.match(markup, /flex-1 cursor-default bg-transparent/);
   assert.equal(closeButtonLabels.length, 1);
   assert.match(markup, /relative z-10 h-full max-h-full w-full max-w-md/);
+  assert.match(markup, /data-fast-track-customization-panel/);
   assert.match(markup, /shadow-2xl shadow-gray-950\/20/);
-  assert.match(markup, /style="z-index:2147483647;top:var\(--workspace-header-height, 4rem\);left:var\(--workspace-sidebar-offset, 0rem\)"/);
+  assert.match(markup, /style="z-index:2147483647"/);
   assert.doesNotMatch(markup, /h-dvh max-h-dvh/);
   assert.doesNotMatch(markup, /data-fast-track-customization-scrim[\s\S]{0,200}aria-label="Close workspace customization drawer"/);
   assert.doesNotMatch(markup, /backdrop-blur-sm/);
   assert.doesNotMatch(markup, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
+  assert.doesNotMatch(markup, /bg-gray-950\/25|bg-gray-950\/55|bg-black\/30/);
 });
 
 test('fast-track journey rail exposes visible focus and pagination controls', () => {

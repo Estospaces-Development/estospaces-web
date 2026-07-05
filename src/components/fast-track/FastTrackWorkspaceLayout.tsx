@@ -40,8 +40,6 @@ function activateOnEnterOrSpace(
 const fastTrackFocusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950';
 const fastTrackChromeOverlayStyle: React.CSSProperties = {
   zIndex: 2147483647,
-  top: 'var(--workspace-header-height, 4rem)',
-  left: 'var(--workspace-sidebar-offset, 0rem)',
 };
 
 function renderFastTrackLayoutPortal(content: React.ReactNode) {
@@ -599,6 +597,9 @@ export function FastTrackWorkspaceCustomizationDrawer({
 
   const copy = getJourneyChromeCopy(role);
   const caseRailTitle = role === 'user' ? 'Start with journeys hidden' : 'Start with case rail collapsed';
+  const drawerFrameClass = role === 'manager'
+    ? 'bottom-0 left-0 right-0 top-16 bg-transparent lg:left-[var(--workspace-sidebar-offset,16rem)]'
+    : 'inset-0 bg-transparent';
   const statusMessage = [
     `Metrics strip ${preferences.showMetricsStrip ? 'visible' : 'hidden'}`,
     role === 'user'
@@ -609,7 +610,10 @@ export function FastTrackWorkspaceCustomizationDrawer({
 
   return renderFastTrackLayoutPortal(
     <div
-      className="fixed bottom-0 right-0 isolate z-[2147483647] flex justify-end overflow-hidden bg-transparent"
+      className={cn(
+        'fixed isolate z-[2147483647] flex justify-end overflow-hidden',
+        drawerFrameClass,
+      )}
       style={fastTrackChromeOverlayStyle}
       data-fast-track-customization-drawer
       role="dialog"
@@ -619,11 +623,11 @@ export function FastTrackWorkspaceCustomizationDrawer({
       <button
         type="button"
         onClick={onClose}
-        className="flex-1 cursor-default bg-gray-950/25 dark:bg-gray-950/55"
+        className="flex-1 cursor-default bg-transparent"
         data-fast-track-customization-scrim
         aria-label="Dismiss workspace customization overlay"
       />
-      <aside className="relative z-10 h-full max-h-full w-full max-w-md overflow-y-auto overscroll-contain border-l border-gray-200 bg-white px-5 py-6 shadow-2xl shadow-gray-950/20 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/50">
+      <aside className="relative z-10 h-full max-h-full w-full max-w-md overflow-y-auto overscroll-contain border-l border-gray-200 bg-white px-5 py-6 shadow-2xl shadow-gray-950/20 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/50" data-fast-track-customization-panel>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
