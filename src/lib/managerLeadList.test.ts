@@ -8,6 +8,8 @@ import {
   isActiveManagerLeadWorkspaceCase,
   isInternalAutomationManagerLead,
   isManagerLeadLiveProcessing,
+  mapBrokerRequestOfferToManagerLead,
+  mergeBrokerRequestOffersIntoManagerLeads,
   paginateManagerLeads,
   resolveManagerLeadWorkspaceCase,
   shouldShowManagerLeadWorkspaceMissingNotice,
@@ -203,9 +205,98 @@ test("manager lead list hides internal QA titles and raw automation identifiers"
   assert.deepEqual(filterVisibleManagerLeads(leads).map((lead) => lead.id), ["real-lead"]);
 });
 
+test("manager lead list maps broker request offers into searchable client rows", () => {
+  const brokerRequest = {
+    id: "request-live-1",
+    user_id: "user-asha-1",
+    request_type: "rent",
+    location: "Chennai",
+    location_postcode: "600001",
+    budget: "650000",
+    requester_name: "Asha Tenant",
+    requester_email: "asha@example.com",
+    requester_phone: "+919900000000",
+    status: "matched",
+    dispatch_status: "broker_matched",
+    matched_broker_id: "manager-1",
+    matched_at: "2026-07-06T09:10:00Z",
+    created_at: "2026-07-06T09:00:00Z",
+    selected_property: {
+      id: "property-1",
+      title: "Lake View Home",
+      address_line_1: "12 Marina Road",
+      city: "Chennai",
+      postcode: "600001",
+      price: 650000,
+      image_urls: "",
+      property_type: "apartment",
+      listing_type: "rent",
+    },
+    matched_broker: {
+      id: "manager-1",
+      name: "Property Manager",
+      email: "manager@example.com",
+      company_name: "Estospaces",
+    },
+  };
+
+  const lead = mapBrokerRequestOfferToManagerLead(brokerRequest);
+  const merged = mergeBrokerRequestOffersIntoManagerLeads([], [brokerRequest]);
+  const searchableText = [
+    lead.lead_number,
+    lead.property?.title,
+    lead.property_name,
+    lead.propertyInterested,
+    lead.name,
+    lead.email,
+    lead.phone,
+    lead.user_id,
+    lead.broker_request_id,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  assert.equal(lead.id, "broker-request-request-live-1");
+  assert.equal(lead.source, "broker_request");
+  assert.equal(lead.status, "broker_responded");
+  assert.equal(lead.stage, "broker_matched");
+  assert.equal(lead.name, "Asha Tenant");
+  assert.equal(lead.email, "asha@example.com");
+  assert.equal(lead.user_id, "user-asha-1");
+  assert.equal(lead.broker_request_id, "request-live-1");
+  assert.equal(lead.property?.title, "Lake View Home");
+  assert.equal(merged.length, 1);
+  assert.match(searchableText, /asha tenant/);
+  assert.match(searchableText, /asha@example\.com/);
+  assert.match(searchableText, /user-asha-1/);
+  assert.match(searchableText, /request-live-1/);
+});
+
+test("manager lead list does not duplicate broker requests already represented by leads", () => {
+  const existingLead = {
+    id: "lead-selected-1",
+    broker_request_id: "request-selected-1",
+    status: "broker_responded",
+    created_at: "2026-07-06T09:00:00Z",
+    updated_at: "2026-07-06T09:00:00Z",
+  };
+  const merged = mergeBrokerRequestOffersIntoManagerLeads([existingLead], [{
+    id: "request-selected-1",
+    selected_lead_id: "lead-selected-1",
+    user_id: "user-selected-1",
+    request_type: "rent",
+    location: "Chennai",
+    requester_name: "Selected Tenant",
+    status: "matched",
+    dispatch_status: "broker_matched",
+    created_at: "2026-07-06T09:01:00Z",
+  }]);
+
+  assert.deepEqual(merged.map((lead) => lead.id), ["lead-selected-1"]);
+});
+
 test("manager lead workspace links require an active case matched to the lead", () => {
   const lead = {
     id: "lead-active",
+    broker_request_id: "request-active",
     property_id: "property-1",
     status: "broker_responded",
     documents_requested: true,
@@ -235,12 +326,21 @@ test("manager lead workspace links require an active case matched to the lead", 
       workspaceFinalStatus: "active",
       finalStatus: "in_progress",
     },
+    {
+      id: "request-case",
+      caseId: "case-request",
+      brokerRequestId: "request-active",
+      propertyId: "property-1",
+      workspaceFinalStatus: "active",
+      finalStatus: "in_progress",
+    },
   ];
 
   assert.equal(isActiveManagerLeadWorkspaceCase(cases[0]), true);
   assert.equal(isActiveManagerLeadWorkspaceCase(cases[1]), false);
   assert.equal(resolveManagerLeadWorkspaceCase(lead, cases)?.caseId, "case-active");
   assert.equal(resolveManagerLeadWorkspaceCase(lead, cases.slice(0, 2)), null);
+  assert.equal(resolveManagerLeadWorkspaceCase({ ...lead, id: "broker-request-request-active" }, [cases[3]])?.caseId, "case-request");
 });
 
 test("manager lead card explains missing live workspace instead of exposing stale navigation", () => {

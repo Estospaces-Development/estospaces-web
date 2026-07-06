@@ -16,7 +16,7 @@ import {
     usePublishWorkspaceSync,
     useWorkflowWorkspaceRefresh,
 } from '@/contexts/WorkspaceSyncContext';
-import { createManualLead, getBrokerLeads, getLeadAudit, respondToLead, syncLeadLifecycle, type Lead, type LeadAuditEntry } from '@/services/leadsService';
+import { createManualLead, getBrokerLeads, getBrokerRequestOffers, getLeadAudit, respondToLead, syncLeadLifecycle, type Lead, type LeadAuditEntry } from '@/services/leadsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { bookingsService } from '@/services/bookingsService';
 import { messagesService } from '@/services/messagesService';
@@ -27,6 +27,7 @@ import {
     filterVisibleManagerLeads,
     getManagerLeadOperationalState,
     getManagerLeadSlaRemainingSeconds,
+    mergeBrokerRequestOffersIntoManagerLeads,
     paginateManagerLeads,
     resolveManagerLeadWorkspaceCase,
     shouldShowManagerLeadWorkspaceMissingNotice,
@@ -298,14 +299,19 @@ export default function ManagerLeadsPage() {
             setError(null);
         }
         try {
-            const [result, fastTrackCasesResult] = await Promise.all([
+            const [result, brokerRequestOffersResult, fastTrackCasesResult] = await Promise.all([
                 getBrokerLeads(selectedStatus === 'all' ? undefined : selectedStatus),
+                getBrokerRequestOffers({ limit: 100, sort: 'created_at_desc', suppressErrorToast: true }),
                 getFastTrackCases({ suppressErrorToast: true }),
             ]);
             if (result.error) {
                 throw new Error(result.error);
             }
-            setLeads(result.data || []);
+            setLeads(mergeBrokerRequestOffersIntoManagerLeads(
+                result.data || [],
+                brokerRequestOffersResult.data || [],
+                selectedStatus,
+            ));
             setFastTrackCases(fastTrackCasesResult.data || []);
         } catch (fetchError: any) {
             if (!options.silent) {
@@ -399,13 +405,26 @@ export default function ManagerLeadsPage() {
 
         return mapping;
     }, [fastTrackCases]);
+    const fastTrackCaseByBrokerRequestId = useMemo(() => {
+        const mapping = new Map<string, FastTrackCase>();
+
+        fastTrackCases.forEach((caseItem) => {
+            if (caseItem.brokerRequestId) {
+                mapping.set(caseItem.brokerRequestId, caseItem);
+            }
+        });
+
+        return mapping;
+    }, [fastTrackCases]);
 
     const openConversation = useCallback(async (lead: Lead) => {
         if (!lead.user_id) {
             throw new Error('This lead does not have a linked user conversation yet.');
         }
 
-        const linkedCase = fastTrackCaseByLeadId.get(lead.id) || null;
+        const linkedCase = fastTrackCaseByLeadId.get(lead.id)
+            || (lead.broker_request_id ? fastTrackCaseByBrokerRequestId.get(lead.broker_request_id) : null)
+            || null;
 
         return messagesService.upsertDirectConversation(lead.user_id, {
             propertyId: lead.property_id,
@@ -422,7 +441,7 @@ export default function ManagerLeadsPage() {
             recipientEmail: lead.email || '',
             recipientPhone: lead.phone || '',
         });
-    }, [fastTrackCaseByLeadId, user]);
+    }, [fastTrackCaseByBrokerRequestId, fastTrackCaseByLeadId, user]);
 
     const sendLeadMessage = useCallback(async (lead: Lead, content: string) => {
         const conversation = await openConversation(lead);
