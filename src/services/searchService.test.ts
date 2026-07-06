@@ -80,11 +80,13 @@ test('core property sections map to discovery search results', () => {
             title: 'Section House',
             description: 'A section-backed property',
             price: 2400,
+            currency: 'GBP',
             property_type: 'house',
             listing_type: 'rent',
             status: 'published',
             city: 'Attur',
             postcode: 'SW1A 1AA',
+            country: 'GB',
             bedrooms: 3,
             bathrooms: 2,
             views: 9,
@@ -98,6 +100,8 @@ test('core property sections map to discovery search results', () => {
     assert.equal(section.type, 'featured');
     assert.equal(section.properties[0].title, 'Section House');
     assert.equal(section.properties[0].location, 'Attur, SW1A 1AA');
+    assert.equal(section.properties[0].currency, 'GBP');
+    assert.equal(section.properties[0].country, 'GB');
     assert.equal(section.properties[0].status, 'published');
     assert.deepEqual(section.properties[0].images, ['https://example.com/house.jpg']);
 });

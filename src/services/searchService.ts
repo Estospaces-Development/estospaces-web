@@ -34,12 +34,14 @@ type CoreProperty = {
     title?: string;
     description?: string;
     price?: number;
+    currency?: string;
     property_type?: string;
     listing_type?: string;
     status?: string;
     address_line_1?: string;
     city?: string;
     postcode?: string;
+    country?: string;
     bedrooms?: number;
     bathrooms?: number;
     property_size_sqft?: number;
@@ -146,12 +148,14 @@ const mapCorePropertyToSearchResult = (property: CoreProperty): SearchResult => 
         title: property.title || 'Property',
         description: property.description || '',
         price: toNumber(property.price),
+        currency: property.currency || '',
         property_type: property.property_type || '',
         listing_type: normalizeListingType(property.listing_type) || property.listing_type || '',
         status: property.status || '',
         location: address || property.city || property.postcode || '',
         city: property.city || '',
         postcode: property.postcode || '',
+        country: property.country || '',
         bedrooms: toNumber(property.bedrooms),
         bathrooms: toNumber(property.bathrooms),
         square_feet: toNumber(property.property_size_sqft),
@@ -416,12 +420,14 @@ export interface SearchResult {
     title: string;
     description: string;
     price: number;
+    currency?: string;
     property_type: string;
     listing_type: string;
     status?: string;
     location: string;
     city: string;
     postcode: string;
+    country?: string;
     bedrooms: number;
     bathrooms: number;
     square_feet: number;

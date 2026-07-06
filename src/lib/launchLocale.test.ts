@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   formatLaunchCurrency,
+  formatLaunchCurrencyForCountry,
   formatLaunchLocationCode,
   formatLaunchPinCode,
   formatLaunchPropertyLocation,
@@ -17,6 +18,9 @@ import {
 
 test('launch locale formats India currency and preserves India plus UK display data', () => {
   assert.equal(formatLaunchCurrency(125000), '\u20b91,25,000');
+  assert.equal(formatLaunchCurrencyForCountry(2400, { countryCode: 'GB' }), '\u00a32,400');
+  assert.equal(formatLaunchCurrencyForCountry(2400, { currencyCode: 'GBP', monthly: true }), '\u00a32,400/mo');
+  assert.equal(formatLaunchCurrencyForCountry(125000, { countryCode: 'IN' }), '\u20b91,25,000');
   assert.equal(normalizeLaunchCurrencyText('GBP 125,000'), 'GBP 125,000');
   assert.equal(normalizeLaunchCurrencyText('\u00a3125,000'), '\u00a3125,000');
   assert.equal(formatLaunchPropertyLocation('Stockmans Way, Belfast'), 'Stockmans Way, Belfast');

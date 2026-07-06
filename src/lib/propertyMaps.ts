@@ -189,7 +189,7 @@ export const getPropertyMapState = (
               coordinates.longitude,
             )
           : buildGoogleMapsUrl(pinQuery),
-      statusTitle: "Saved pin available",
+      statusTitle: "Saved map location available",
       statusDescription:
         "Click the map to open the saved property pin in Maps.",
     };
@@ -207,7 +207,7 @@ export const getPropertyMapState = (
         provider === "apple"
           ? buildAppleMapsUrl(displayAddress)
           : buildGoogleMapsUrl(displayAddress),
-      statusTitle: "Exact pin unavailable",
+      statusTitle: "Exact map location unavailable",
       statusDescription:
         "This property does not have saved coordinates yet. Open the address in Maps to continue.",
     };

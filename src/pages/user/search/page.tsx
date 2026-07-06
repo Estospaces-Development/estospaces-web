@@ -28,7 +28,7 @@ import { getLoginPath } from '@/lib/authUtils';
 import { getSavedSearchNameError, normalizeSavedSearchName } from '@/lib/savedSearchValidation';
 import { buildSearchHistoryLabel, buildSearchHistoryMeta, buildSearchHistoryUrlParams } from '@/lib/searchHistory';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     getLaunchLocationCodeLabel,
@@ -85,9 +85,7 @@ const PropertySearch = () => {
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
     const formatSearchCurrency = useCallback((amount: number) => (
-        geoMarket === 'GB'
-            ? new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0, style: 'currency', currency: 'GBP' }).format(amount)
-            : formatLaunchCurrency(amount)
+        formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
     ), [geoMarket]);
 
     // Save Search State
@@ -822,7 +820,11 @@ const PropertySearch = () => {
                                 <p className="mobile-safe-text text-sm text-gray-500 dark:text-gray-400 mb-2">{formatLaunchPropertyLocation(p.location || [p.city, p.postcode])}</p>
                                 <div className="mt-3 flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                                     <span className="text-lg font-bold text-primary">
-                                        {formatLaunchCurrency(p.price)}
+                                        {formatLaunchCurrencyForCountry(p.price, {
+                                            countryCode: p.country || geoMarket,
+                                            countryName: p.country,
+                                            currencyCode: p.currency,
+                                        })}
                                         {p.listing_type === 'rent' && <span className="text-sm font-normal text-gray-500">/mo</span>}
                                     </span>
                                     <span className="text-xs text-gray-500">{p.bedrooms} bed · {p.bathrooms} bath {p.square_feet ? `· ${p.square_feet} sqft` : ''}</span>

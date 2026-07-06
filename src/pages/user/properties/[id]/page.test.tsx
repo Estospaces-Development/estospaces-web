@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   buildPropertyFastTrackStartRequest,
+  formatPropertyDetailCurrency,
   getPropertyBrokerRequestQuery,
   getImmersiveGalleryDialogLabel,
   getPropertyDetailFallbackBackTarget,
@@ -33,6 +34,17 @@ test("sale property page exposes a submit-offer entry card", () => {
   assert.match(markup, /GBP 425,000/);
   assert.match(markup, /bg-emerald-700/);
   assert.doesNotMatch(markup, /bg-emerald-600/);
+});
+
+test("property detail formats guide price from property country and currency", () => {
+  assert.equal(
+    formatPropertyDetailCurrency(2400, { country: "GB", currency: "GBP" } as any),
+    "\u00a32,400",
+  );
+  assert.equal(
+    formatPropertyDetailCurrency(125000, { country: "India", currency: "INR" } as any),
+    "\u20b91,25,000",
+  );
 });
 
 test("property detail accepts broker request ids from dashboard and property links", () => {

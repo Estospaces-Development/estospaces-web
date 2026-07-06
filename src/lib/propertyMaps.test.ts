@@ -60,7 +60,7 @@ test("getPropertyMapState falls back to address search when coordinates are unav
   assert.equal(state.hasAddress, true);
   assert.equal(state.embedUrl, null);
   assert.match(state.externalUrl ?? "", /221B%20Baker%20Street/);
-  assert.equal(state.statusTitle, "Exact pin unavailable");
+  assert.equal(state.statusTitle, "Exact map location unavailable");
 });
 
 test("getPropertyMapState returns an unavailable state when location data is missing", () => {
@@ -156,6 +156,8 @@ test("getPropertyMapState falls back to service-address search without coordinat
   assert.equal(state.hasCoordinates, false);
   assert.equal(state.hasAddress, true);
   assert.equal(state.embedUrl, null);
+  assert.equal(state.statusTitle, "Exact map location unavailable");
+  assert.doesNotMatch(state.statusTitle, /pin/i);
   assert.equal(
     state.displayAddress,
     "221B Smoke Test Lane, London, SW1A 1AA, UK",

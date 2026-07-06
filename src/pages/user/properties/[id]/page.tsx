@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -67,7 +67,7 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
-import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 
@@ -187,6 +187,15 @@ export const getPropertyDetailDisplayAddress = (property: Property | null | unde
 
     return formatLaunchPropertyLocation(getSavedPropertyLocationLabel(property));
 };
+
+export const formatPropertyDetailCurrency = (
+    amount: number,
+    property: Pick<Property, 'country' | 'currency'> | null | undefined,
+) => formatLaunchCurrencyForCountry(amount, {
+    countryCode: property?.country,
+    countryName: property?.country,
+    currencyCode: property?.currency,
+});
 
 const toDateValue = (date: Date) => {
     const year = date.getFullYear();
@@ -1020,8 +1029,17 @@ const UserPropertyDetail = () => {
             : VIEWING_TIME_SLOTS,
         [bookedViewingSlotsByDate, viewingForm.requested_date],
     );
+    const propertyCountry = property?.country;
+    const propertyCurrencyCode = property?.currency;
+    const formatPropertyCurrency = useCallback((amount: number) => (
+        formatLaunchCurrencyForCountry(amount, {
+            countryCode: propertyCountry,
+            countryName: propertyCountry,
+            currencyCode: propertyCurrencyCode,
+        })
+    ), [propertyCountry, propertyCurrencyCode]);
     const priceLabel = typeof property?.price === 'number'
-        ? formatLaunchCurrency(property.price)
+        ? formatPropertyCurrency(property.price)
         : 'Price on request';
     const propertyTypeLabel = property?.property_type ? formatDetailLabel(property.property_type) : 'Property';
     const listingLabel = property?.listing_type ? formatDetailLabel(property.listing_type) : 'Listing';
@@ -1078,8 +1096,8 @@ const UserPropertyDetail = () => {
         { label: 'Market', value: listingLabel },
         { label: 'Condition', value: conditionLabel },
         { label: 'Availability', value: availableFromLabel },
-        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatLaunchCurrency(property.deposit_amount) : 'On request' },
-    ], [availableFromLabel, conditionLabel, listingLabel, property?.deposit_amount]);
+        { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },
+    ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
     const heroMetaItems = [
         { label: 'Condition', value: conditionLabel, icon: Sparkles },
         { label: 'Availability', value: availableFromLabel, icon: Clock },
@@ -1108,12 +1126,13 @@ const UserPropertyDetail = () => {
         {
             label: 'Maintenance',
             value: typeof property?.maintenance_charges === 'number' && property.maintenance_charges > 0
-                ? formatLaunchCurrency(property.maintenance_charges)
+                ? formatPropertyCurrency(property.maintenance_charges)
                 : 'On request',
         },
         { label: 'Address', value: propertyAddress || locationLabel },
     ], [
         locationLabel,
+        formatPropertyCurrency,
         property?.furnished,
         property?.maintenance_charges,
         property?.parking_spaces,
