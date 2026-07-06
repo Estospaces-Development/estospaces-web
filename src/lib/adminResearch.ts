@@ -73,6 +73,15 @@ export interface NormalizedResearchSummary {
     topTags: Array<{ tag: string; count: number }>;
 }
 
+export const EMPTY_RESEARCH_SUMMARY: ResearchSummary = {
+    total_sessions: 0,
+    by_track: {},
+    by_status: {},
+    high_severity_observations: 0,
+    consent_pending_reviews: 0,
+    top_tags: [],
+};
+
 export interface ResearchTrackConfig {
     id: ResearchTrack;
     title: string;
@@ -156,13 +165,29 @@ export function getResearchSessionTitleError(title: string) {
     return title.trim() ? '' : 'Title is required before saving a research session.';
 }
 
+function researchErrorText(error: unknown) {
+    const message = (error as { message?: unknown })?.message;
+    if (typeof message === 'string' && message.trim()) {
+        return message.trim();
+    }
+    return typeof error === 'string' ? error.trim() : '';
+}
+
+export function isMissingAdminResearchEndpoint(error: unknown) {
+    const message = researchErrorText(error);
+    return /Cannot\s+(GET|POST|PATCH|DELETE)\s+\/api\/v1\/admin\/research/i.test(message)
+        || (/not found|API error:\s*404/i.test(message) && /research/i.test(message));
+}
+
+export function getResearchWorkspaceErrorMessage(error: unknown) {
+    if (isMissingAdminResearchEndpoint(error)) {
+        return 'Research workspace is not available in this environment yet.';
+    }
+    return researchErrorText(error) || 'Research workspace request failed';
+}
+
 export function summarizeResearchWorkspace(summary?: ResearchSummary | null): NormalizedResearchSummary {
-    const source = summary || {
-        total_sessions: 0,
-        high_severity_observations: 0,
-        consent_pending_reviews: 0,
-        top_tags: [],
-    };
+    const source = summary || EMPTY_RESEARCH_SUMMARY;
 
     return {
         totalSessions: Number(source.total_sessions || 0),

@@ -806,23 +806,33 @@ export default function PropertyDetailPage() {
             {/* Delete Confirmation Modal */}
             {showDeleteConfirm && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Property?</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-property-title"
+                        aria-describedby="delete-property-description"
+                        className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full p-6"
+                    >
+                        <h3 id="delete-property-title" className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete Property?</h3>
+                        <p id="delete-property-description" className="text-gray-600 dark:text-gray-400 mb-6">
                             Are you sure you want to delete this property? This action cannot be undone.
                         </p>
                         <div className="flex gap-3">
                             <button
+                                type="button"
                                 onClick={() => setShowDeleteConfirm(false)}
+                                aria-label="Cancel property deletion"
                                 className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
+                                type="button"
                                 onClick={() => {
                                     handleDelete();
                                     setShowDeleteConfirm(false);
                                 }}
+                                aria-label="Confirm property deletion"
                                 className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
                             >
                                 Delete

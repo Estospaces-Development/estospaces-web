@@ -11,6 +11,7 @@ import {
     getPropertyCompliancePublishBlockerMessage,
     isPropertyOfferReady,
     isPropertyContractReady,
+    normalizePropertyComplianceEvidenceList,
     normalizePropertyComplianceCode,
 } from './propertyCompliance';
 
@@ -98,6 +99,30 @@ test('latest compliance evidence wins when multiple records exist for the same c
 
     assert.equal(evidenceMap.get('seller_instruction_record')?.id, 'newer');
     assert.equal(evidenceMap.get('seller_instruction_record')?.reference_number, 'SELL-123');
+});
+
+test('compliance evidence helpers accept a single-record API response', () => {
+    const evidence = {
+        id: 'single',
+        property_id: 'property-1',
+        category: 'epc',
+        jurisdiction: 'england',
+        status: 'completed',
+        created_by: 'manager-1',
+        updated_by: 'manager-1',
+        created_at: '2026-03-28T09:00:00Z',
+        updated_at: '2026-03-28T09:30:00Z',
+    };
+
+    assert.deepEqual(normalizePropertyComplianceEvidenceList(evidence as any), [evidence]);
+
+    const evidenceMap = buildLatestPropertyComplianceEvidenceMap(evidence as any);
+    assert.equal(evidenceMap.get('epc')?.id, 'single');
+});
+
+test('compliance evidence helpers treat missing API evidence as an empty list', () => {
+    assert.deepEqual(normalizePropertyComplianceEvidenceList(null), []);
+    assert.equal(buildLatestPropertyComplianceEvidenceMap(undefined).size, 0);
 });
 
 test('drafts normalize satisfied statuses into editable purchase-workflow values', () => {

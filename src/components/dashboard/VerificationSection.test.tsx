@@ -14,6 +14,7 @@ test("profile verification identity upload copy names accepted identity document
 
   assert.match(source, /Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter/);
   assert.match(source, /PAN\/Form 60 may be requested separately/);
+  assert.match(source, /Accepted identity documents: Aadhaar \(Aadhar\) proof, PAN\/Form 60/);
   assert.match(source, /Recent utility bill, bank statement, rent agreement/);
   assert.match(source, /description=\{verificationDocumentGuidance\.identity\}/);
 });

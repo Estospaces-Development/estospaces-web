@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -37,6 +38,17 @@ function activateOnEnterOrSpace(
 }
 
 const fastTrackFocusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950';
+const fastTrackChromeOverlayStyle: React.CSSProperties = {
+  zIndex: 2147483647,
+};
+
+function renderFastTrackLayoutPortal(content: React.ReactNode) {
+  if (typeof document === 'undefined') {
+    return content;
+  }
+
+  return createPortal(content, document.body);
+}
 
 export interface FastTrackWorkspaceStat {
   label: string;
@@ -585,6 +597,9 @@ export function FastTrackWorkspaceCustomizationDrawer({
 
   const copy = getJourneyChromeCopy(role);
   const caseRailTitle = role === 'user' ? 'Start with journeys hidden' : 'Start with case rail collapsed';
+  const drawerFrameClass = role === 'manager'
+    ? 'bottom-0 left-0 right-0 top-16 bg-transparent lg:left-[var(--workspace-sidebar-offset,16rem)]'
+    : 'inset-0 bg-transparent';
   const statusMessage = [
     `Metrics strip ${preferences.showMetricsStrip ? 'visible' : 'hidden'}`,
     role === 'user'
@@ -593,21 +608,32 @@ export function FastTrackWorkspaceCustomizationDrawer({
     `Secondary density ${preferences.secondaryDensity}`,
   ].join('. ');
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30 backdrop-blur-sm" data-fast-track-customization-drawer>
+  return renderFastTrackLayoutPortal(
+    <div
+      className={cn(
+        'fixed isolate z-[2147483647] flex justify-end overflow-hidden',
+        drawerFrameClass,
+      )}
+      style={fastTrackChromeOverlayStyle}
+      data-fast-track-customization-drawer
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="fast-track-customization-title"
+    >
       <button
         type="button"
         onClick={onClose}
-        className="flex-1 cursor-default"
-        aria-label="Close workspace customization drawer"
+        className="flex-1 cursor-default bg-transparent"
+        data-fast-track-customization-scrim
+        aria-label="Dismiss workspace customization overlay"
       />
-      <aside className="h-full w-full max-w-md overflow-y-auto border-l border-gray-200 bg-white px-5 py-6 shadow-2xl dark:border-gray-800 dark:bg-gray-950">
+      <aside className="relative z-10 h-full max-h-full w-full max-w-md overflow-y-auto overscroll-contain border-l border-gray-200 bg-white px-5 py-6 shadow-2xl shadow-gray-950/20 dark:border-gray-800 dark:bg-gray-950 dark:shadow-black/50" data-fast-track-customization-panel>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-gray-500 dark:text-gray-300">
               {copy.drawerEyebrow}
             </p>
-            <h3 className="mt-2 text-2xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
+            <h3 id="fast-track-customization-title" className="mt-2 text-2xl font-bold tracking-[-0.03em] text-gray-900 dark:text-white">
               {copy.drawerTitle}
             </h3>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
@@ -812,7 +838,7 @@ export function FastTrackWorkspaceCustomizationDrawer({
           </div>
         </div>
       </aside>
-    </div>
+    </div>,
   );
 }
 

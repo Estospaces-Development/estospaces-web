@@ -77,6 +77,16 @@ test('manual lead modal fields are label-associated and validation errors are an
     }
 });
 
+test('manual lead modal keeps submit disabled until required fields are present', () => {
+    for (const source of [dashboardLeadModal, sharedLeadModal]) {
+        assert.match(source, /const requiredLeadFieldsComplete = Boolean\(/);
+        assert.match(source, /const isLeadSubmitDisabled =/);
+        assert.match(source, /disabled=\{isLeadSubmitDisabled\}/);
+        assert.match(source, /Complete the required lead fields before saving\./);
+        assert.match(source, /disabled:cursor-not-allowed disabled:opacity-60/);
+    }
+});
+
 test('lead score input preserves empty typing state and serializes only on submit', () => {
     assert.equal(normalizeLeadScoreInputValue(''), '');
     assert.equal(normalizeLeadScoreInputValue('0100'), 100);

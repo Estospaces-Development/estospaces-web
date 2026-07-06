@@ -36,3 +36,16 @@ test('manager property detail keeps passive views local and mobile icon actions 
   assert.match(managerPropertyDetail, /aria-label="Edit property"/);
   assert.match(managerPropertyDetail, /aria-label="Delete property"/);
 });
+
+test('manager property detail delete confirmation is a named modal dialog', () => {
+  const managerPropertyDetail = readSource('src/pages/manager/dashboard/properties/[id]/page.tsx');
+
+  assert.match(managerPropertyDetail, /role="dialog"/);
+  assert.match(managerPropertyDetail, /aria-modal="true"/);
+  assert.match(managerPropertyDetail, /aria-labelledby="delete-property-title"/);
+  assert.match(managerPropertyDetail, /aria-describedby="delete-property-description"/);
+  assert.match(managerPropertyDetail, /id="delete-property-title"/);
+  assert.match(managerPropertyDetail, /id="delete-property-description"/);
+  assert.match(managerPropertyDetail, /aria-label="Cancel property deletion"/);
+  assert.match(managerPropertyDetail, /aria-label="Confirm property deletion"/);
+});

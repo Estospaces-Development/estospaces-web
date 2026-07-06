@@ -9,6 +9,7 @@ import type {
     ResearchSummary,
     ResearchTrack,
 } from '@/lib/adminResearch';
+import { EMPTY_RESEARCH_SUMMARY, isMissingAdminResearchEndpoint } from '@/lib/adminResearch';
 
 const CORE_URL = () => getServiceUrl('core');
 
@@ -54,9 +55,16 @@ export interface ResearchObservationPayload {
 }
 
 export async function getResearchSummary(): Promise<ResearchSummary> {
-    return apiFetch<ResearchSummary>(`${CORE_URL()}/api/v1/admin/research/summary`, {
-        suppressErrorToast: true,
-    });
+    try {
+        return await apiFetch<ResearchSummary>(`${CORE_URL()}/api/v1/admin/research/summary`, {
+            suppressErrorToast: true,
+        });
+    } catch (error) {
+        if (isMissingAdminResearchEndpoint(error)) {
+            return EMPTY_RESEARCH_SUMMARY;
+        }
+        throw error;
+    }
 }
 
 export async function getResearchSessions(params: { track?: ResearchTrack | 'all'; status?: ResearchStatus | 'all' } = {}): Promise<ResearchSession[]> {
@@ -68,9 +76,16 @@ export async function getResearchSessions(params: { track?: ResearchTrack | 'all
         searchParams.set('status', params.status);
     }
     const query = searchParams.toString();
-    return apiFetch<ResearchSession[]>(`${CORE_URL()}/api/v1/admin/research/sessions${query ? `?${query}` : ''}`, {
-        suppressErrorToast: true,
-    });
+    try {
+        return await apiFetch<ResearchSession[]>(`${CORE_URL()}/api/v1/admin/research/sessions${query ? `?${query}` : ''}`, {
+            suppressErrorToast: true,
+        });
+    } catch (error) {
+        if (isMissingAdminResearchEndpoint(error)) {
+            return [];
+        }
+        throw error;
+    }
 }
 
 export async function createResearchSession(payload: ResearchSessionPayload): Promise<ResearchSession> {

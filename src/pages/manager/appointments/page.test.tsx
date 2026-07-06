@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH,
@@ -9,6 +10,8 @@ import {
   validateManagerAppointmentCancelReason,
   validateManagerRescheduleForm,
 } from "./page";
+
+const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
 test("manager reschedule validation requires date and time", () => {
   assert.deepEqual(
@@ -83,4 +86,14 @@ test("manager cancellation reason validation enforces maximum length", () => {
     validateManagerAppointmentCancelReason("x".repeat(MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH + 1)),
     "Keep the cancellation reason to 500 characters or fewer.",
   );
+});
+
+test("manager cancellation modal enforces reason limit in the textarea", () => {
+  assert.match(source, /maxLength=\{MAX_MANAGER_APPOINTMENT_CANCEL_REASON_LENGTH\}/);
+  assert.match(source, /aria-describedby=\{cancelReasonError \? 'manager-cancel-reason-error' : 'manager-cancel-reason-count'\}/);
+});
+
+test("manager cancellation submit stays disabled until the reason is valid", () => {
+  assert.match(source, /const isCancelReasonValid = validateManagerAppointmentCancelReason\(cancelReason\) === null;/);
+  assert.match(source, /disabled=\{isSavingCancel \|\| !isCancelReasonValid\}/);
 });

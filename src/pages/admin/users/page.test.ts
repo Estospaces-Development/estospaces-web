@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import type { User } from '@/types';
 import {
@@ -14,9 +15,11 @@ import {
   buildAdminUserActionLabel,
   getAdminUserEmptyStateBody,
   getAdminUserEmptyStateTitle,
+  getAdminUsersRegistryTableScrollLabel,
   getAdminUserSortControlLabel,
   buildAdminUserStateDialogTitle,
   getAdminUserDisplayName,
+  isAdminLeadReassignActionDisabled,
   isLeadClosedForReassignment,
   normalizeAdminUserSearch,
   normalizeAdminUserSearchInput,
@@ -128,6 +131,17 @@ test('admin users page title matches the admin navigation label', () => {
   assert.equal(getAdminUsersPageSubtitle(), 'Global Registry');
 });
 
+test('admin users registry table stays contained on mobile', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+
+  assert.equal(getAdminUsersRegistryTableScrollLabel(), 'Scrollable user registry table');
+  assert.match(source, /aria-label=\{getAdminUsersRegistryTableScrollLabel\(\)\}/);
+  assert.match(source, /aria-label="Scrollable lead reassignment table"/);
+  assert.match(source, /className="relative max-w-full overflow-x-auto overflow-y-hidden \[contain:paint\]"/);
+  assert.match(source, /className="w-full min-w-\[980px\] text-left"/);
+  assert.match(source, /className="min-w-0 bg-white dark:bg-gray-800 rounded-\[2rem\]/);
+});
+
 test('admin add user path opens the registration form while signed in', () => {
   assert.equal(getAdminAddUserPath(), '/register?switch=true');
 });
@@ -164,6 +178,11 @@ test('admin lead reassignment helpers expose safe labels and closed-state guards
   assert.equal(validateAdminLeadReassignSelection(openLead, 'broker-current'), 'This lead is already assigned to that broker.');
   assert.equal(validateAdminLeadReassignSelection(closedLead, 'broker-new'), 'Closed leads cannot be reassigned.');
   assert.equal(validateAdminLeadReassignSelection(openLead, 'broker-new'), null);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, '', 1, false), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-current', 1, false), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-new', 0, false), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-new', 1, true), true);
+  assert.equal(isAdminLeadReassignActionDisabled(openLead, 'broker-new', 1, false), false);
 });
 
 test('admin lead reassignment load errors stay scoped to the reassignment queue', () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     AlertCircle,
     ArrowUpRight,
@@ -119,6 +120,17 @@ type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
 const FAST_TRACK_CASES_PAGE_SIZE = 12;
 const THREAD_SEND_RECOVERY_WINDOW_MS = 2 * 60 * 1000;
+const fastTrackCaseRailOverlayStyle: React.CSSProperties = {
+    zIndex: 2147483646,
+};
+
+function renderFastTrackPortal(content: React.ReactNode) {
+    if (typeof document === 'undefined') {
+        return content;
+    }
+
+    return createPortal(content, document.body);
+}
 
 export const isThreadSendTimeoutError = (message?: string | null) => (
     (message || '').trim().toLowerCase() === 'request timed out' || (message || '').toLowerCase().includes('timed out')
@@ -815,7 +827,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [recoveredCaseLink]);
 
     useEffect(() => {
-        if (cases.length === 0) {
+        if (filteredCases.length === 0) {
             pendingSelectedCaseIdRef.current = null;
             setSelectedCaseId(null);
             return;
@@ -823,7 +835,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const pendingSelectedCaseId = pendingSelectedCaseIdRef.current;
         if (pendingSelectedCaseId) {
-            const pendingCaseExists = cases.some((item) => item.caseId === pendingSelectedCaseId);
+            const pendingCaseExists = filteredCases.some((item) => item.caseId === pendingSelectedCaseId);
             if (pendingCaseExists) {
                 if (requestedCaseParam === pendingSelectedCaseId) {
                     pendingSelectedCaseIdRef.current = null;
@@ -836,11 +848,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             pendingSelectedCaseIdRef.current = null;
         }
 
-        const resolvedCaseId = resolveFastTrackSelectionCaseId(cases, selectionParamsForResolution, selectedCaseId);
+        const resolvedCaseId = resolveFastTrackSelectionCaseId(
+            filteredCases,
+            selectionParamsForResolution,
+            selectedCaseId,
+        );
         if (resolvedCaseId !== selectedCaseId) {
             setSelectedCaseId(resolvedCaseId);
         }
-    }, [cases, requestedCaseParam, searchParamsKey, selectedCaseId, selectionParamsForResolution]);
+    }, [filteredCases, requestedCaseParam, searchParamsKey, selectedCaseId, selectionParamsForResolution]);
 
     useEffect(() => {
         if (filteredCases.length === 0) {
@@ -1495,6 +1511,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             caseRailCollapsed: !previous.caseRailCollapsed,
         }));
     }, [compactCaseRailViewport, updateWorkspacePreferencesState]);
+
+    const handleOpenCustomization = useCallback(() => {
+        setCaseRailDrawerOpen(false);
+        setCustomizationOpen(true);
+    }, []);
 
     const handleToggleModuleVisibility = useCallback((module: FastTrackWorkspaceModule) => {
         updateWorkspacePreferencesState((previous) => {
@@ -3187,6 +3208,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
 
         const isApproved = managerReview?.approval_status === 'approved';
         const showForm = !isApproved && (managerReviewExpanded || !managerReview);
+        const managerReviewSubmitDisabled = managerReviewRating < 1 || managerReviewRating > 5;
 
         return (
             <div ref={managerReviewSectionRef}>
@@ -3259,7 +3281,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 </div>
                             ) : null}
                             <div className="flex flex-wrap gap-3">
-                                <ActionButton onClick={() => void handleSubmitManagerReview()} busy={managerReviewSubmitting}>
+                                <ActionButton
+                                    onClick={() => void handleSubmitManagerReview()}
+                                    busy={managerReviewSubmitting}
+                                    disabled={managerReviewSubmitDisabled}
+                                    title={managerReviewSubmitDisabled ? 'Choose a star rating before submitting feedback.' : undefined}
+                                >
                                     {managerReview ? 'Update feedback' : 'Submit feedback'}
                                 </ActionButton>
                                 {managerReview ? (
@@ -3369,9 +3396,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => resolveFastTrackCaseRailLayout({
             compactViewport: compactCaseRailViewport,
             desktopRailCollapsed: workspacePreferences.caseRailCollapsed,
-            compactDrawerOpen: caseRailDrawerOpen,
+            compactDrawerOpen: caseRailDrawerOpen && !customizationOpen,
         }),
-        [caseRailDrawerOpen, compactCaseRailViewport, workspacePreferences.caseRailCollapsed],
+        [caseRailDrawerOpen, compactCaseRailViewport, customizationOpen, workspacePreferences.caseRailCollapsed],
     );
 
     const handleStageSelect = useCallback((stage: string) => {
@@ -3471,7 +3498,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 stats={headerStats}
                 onBack={() => navigate(WORKSPACE_HOME_PATH[role])}
                 onToggleRail={handleToggleRail}
-                onOpenCustomize={() => setCustomizationOpen(true)}
+                onOpenCustomize={handleOpenCustomization}
             />
 
             {recoveredCaseLink ? (
@@ -3525,10 +3552,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             ) : null}
 
-            {caseRailLayout.renderCompactDrawerRail ? (
-                <div className="fixed inset-0 z-40 xl:hidden">
-                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-                    <div className="absolute inset-y-0 left-0 w-full max-w-sm p-4">
+            {caseRailLayout.renderCompactDrawerRail ? renderFastTrackPortal((
+                <div
+                    className="fixed inset-0 z-[9999] xl:hidden"
+                    style={fastTrackCaseRailOverlayStyle}
+                    data-fast-track-case-rail-drawer
+                >
+                    <button
+                        type="button"
+                        onClick={() => setCaseRailDrawerOpen(false)}
+                        className="absolute inset-0 bg-gray-950/75"
+                        aria-label="Close case rail"
+                    />
+                    <div className="absolute inset-y-0 left-0 z-10 w-full max-w-sm p-4 lg:left-[var(--workspace-sidebar-offset,0rem)]">
                         <FastTrackCaseRail
                             role={role}
                             query={query}
@@ -3551,14 +3587,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                             className="h-full overflow-y-auto"
                         />
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setCaseRailDrawerOpen(false)}
-                        className="absolute inset-0 -z-10"
-                        aria-label="Close case rail"
-                    />
                 </div>
-            ) : null}
+            )) : null}
 
             <div
                 className={cn(
@@ -3629,7 +3659,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 currentStage={formatFastTrackCaseStage(selectedCase, role)}
                                 focus={workspaceFocus}
                                 statusSummary={workspaceStatus}
-                                onOpenCustomize={() => setCustomizationOpen(true)}
+                                onOpenCustomize={handleOpenCustomization}
                             />
 
                             <FastTrackStageStepper items={stepperItems} onSelect={handleStageSelect} />
@@ -3694,9 +3724,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 </div>
             </div>
 
-            {previewModalOpen ? (
+            {previewModalOpen ? renderFastTrackPortal((
                 <div
-                    className="fixed inset-0 z-[80] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-gray-950/70 px-4 py-6 backdrop-blur-sm"
                     role="dialog"
                     aria-modal="true"
                     aria-label={previewItem ? `Preview ${previewItem.label}` : 'Document preview'}
@@ -3754,7 +3784,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                     </div>
                 </div>
-            ) : null}
+            )) : null}
 
             <FastTrackWorkspaceCustomizationDrawer
                 role={role}
@@ -3783,9 +3813,9 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 }))}
             />
 
-            {pendingAdminOverrideAction && selectedCase ? (
+            {pendingAdminOverrideAction && selectedCase ? renderFastTrackPortal((
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4"
                     onClick={() => {
                         if (activeAction !== pendingAdminOverrideAction.action) {
                             setPendingAdminOverrideAction(null);
@@ -3836,11 +3866,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                     </div>
                 </div>
-            ) : null}
+            )) : null}
 
-            {cancelCaseDialogOpen && selectedCase ? (
+            {cancelCaseDialogOpen && selectedCase ? renderFastTrackPortal((
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4"
                     onClick={() => {
                         if (activeAction !== 'cancel_case') {
                             setCancelCaseDialogOpen(false);
@@ -3880,7 +3910,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         </div>
                     </div>
                 </div>
-            ) : null}
+            )) : null}
         </div>
     );
 }

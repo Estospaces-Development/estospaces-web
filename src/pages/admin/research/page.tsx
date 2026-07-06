@@ -26,6 +26,7 @@ import {
     getResearchSessionTitleError,
     getResearchStatusLabel,
     getResearchTrackConfig,
+    getResearchWorkspaceErrorMessage,
     RESEARCH_STATUSES,
     RESEARCH_TRACK_CONFIGS,
     RESEARCH_TRACKS,
@@ -79,10 +80,6 @@ function toDatetimeLocal(value?: string) {
 
 function fromDatetimeLocal(value?: string) {
     return value ? new Date(value).toISOString() : undefined;
-}
-
-function researchErrorMessage(error: unknown) {
-    return error instanceof Error ? error.message : 'Research workspace request failed';
 }
 
 function trackIcon(track: string) {
@@ -142,7 +139,7 @@ export default function AdminResearchPage() {
                 return nextSessions[0]?.id || '';
             });
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             if (!silent) setLoading(false);
         }
@@ -223,7 +220,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(saved.id);
             toast.success(editingSessionId ? 'Research session updated' : 'Research session created');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -241,7 +238,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(saved.id);
             toast.success('Consent state updated');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -260,7 +257,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(saved.id);
             toast.success('Research session status updated');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -283,7 +280,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(selectedSession.id);
             toast.success('Evidence linked');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -298,7 +295,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(selectedSession.id);
             toast.success('Evidence removed');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -322,7 +319,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(selectedSession.id);
             toast.success('Observation added');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }
@@ -337,7 +334,7 @@ export default function AdminResearchPage() {
             setSelectedSessionId(selectedSession.id);
             toast.success('Observation removed');
         } catch (error) {
-            toast.error(researchErrorMessage(error));
+            toast.error(getResearchWorkspaceErrorMessage(error));
         } finally {
             setSaving(false);
         }

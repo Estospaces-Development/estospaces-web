@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { FileText, CheckCircle, Clock, AlertCircle, PenTool, Eye, RefreshCw, PackageCheck, ShieldCheck } from 'lucide-react';
 import { isPendingManagerSignature, normalizeContractStatus } from '@/lib/contractStatus';
 import {
@@ -35,6 +36,20 @@ import CreateContractModal from '@/components/manager/contracts/CreateContractMo
 import { getCreateContractEntryState } from '@/lib/contractsWorkspaceLoad';
 
 type Tab = 'all' | 'draft' | 'pending' | 'active' | 'terminated';
+
+const managerContractDetailOverlayStyle: React.CSSProperties = {
+    zIndex: 2147483647,
+    top: 'var(--workspace-header-height, 4rem)',
+    left: 'var(--workspace-sidebar-offset, 0rem)',
+};
+
+function renderManagerContractDetailPortal(content: React.ReactNode) {
+    if (typeof document === 'undefined') {
+        return content;
+    }
+
+    return createPortal(content, document.body);
+}
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
     draft: { label: 'Draft', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300', icon: <FileText size={14} /> },
@@ -698,8 +713,12 @@ export default function ManagerContractsPage() {
             )}
 
             {/* View Contract Modal */}
-            {viewContract && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={closeContractDetail}>
+            {viewContract && renderManagerContractDetailPortal(
+                <div
+                    className="fixed bottom-0 right-0 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+                    style={managerContractDetailOverlayStyle}
+                    onClick={closeContractDetail}
+                >
                     <div
                         role="dialog"
                         aria-modal="true"
@@ -888,7 +907,7 @@ export default function ManagerContractsPage() {
                             )}
                         </div>
                     </div>
-                </div>
+                </div>,
             )}
 
             {createContractTarget && (

@@ -107,12 +107,19 @@ const workspaceSource = () => readFileSync(
   "utf8",
 );
 
+const workspaceLayoutSource = () => readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "FastTrackWorkspaceLayout.tsx"),
+  "utf8",
+);
+
 test("fast-track preview buttons open a modal with zoom controls", () => {
   const source = workspaceSource();
 
   assert.match(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'preview' \}\)/);
   assert.match(source, /role="dialog"/);
   assert.match(source, /aria-modal="true"/);
+  assert.match(source, /createPortal\(content, document\.body\)/);
+  assert.match(source, /fixed inset-0 z-\[9999\] flex items-center justify-center/);
   assert.match(source, /aria-label="Zoom out document preview"/);
   assert.match(source, /aria-label="Reset document preview zoom"/);
   assert.match(source, /aria-label="Zoom in document preview"/);
@@ -241,6 +248,14 @@ test("completed manager handover is read-only with clear feedback", () => {
   assert.match(source, /No additional handover action is required from this workspace/);
 });
 
+test("manager review submit stays disabled until a star rating is selected", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const managerReviewSubmitDisabled = managerReviewRating < 1 \|\| managerReviewRating > 5;/);
+  assert.match(source, /disabled=\{managerReviewSubmitDisabled\}/);
+  assert.match(source, /Choose a star rating before submitting feedback\./);
+});
+
 test("admin fast-track workspace constrains compact layouts inside the viewport", () => {
   const source = workspaceSource();
 
@@ -300,4 +315,67 @@ test("fast-track filter selection cannot render a stale hidden case", () => {
     source,
     /filteredCases\.find\(\(item\) => item\.caseId === selectedCaseId\) \|\| cases\.find/,
   );
+});
+
+test("fast-track filter selection resolves from visible filtered cases", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const pendingCaseExists = filteredCases\.some\(\(item\) => item\.caseId === pendingSelectedCaseId\)/);
+  assert.match(
+    source,
+    /resolveFastTrackSelectionCaseId\(\s*filteredCases,\s*selectionParamsForResolution,\s*selectedCaseId,\s*\)/,
+  );
+  assert.doesNotMatch(source, /resolveFastTrackSelectionCaseId\(cases, selectionParamsForResolution, selectedCaseId\)/);
+});
+
+test("compact case rail drawer sits above manager chrome without blurring the workspace", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /renderFastTrackPortal\(\(/);
+  assert.match(source, /fixed inset-0 z-\[9999\] xl:hidden/);
+  assert.match(source, /data-fast-track-case-rail-drawer/);
+  assert.match(source, /const fastTrackCaseRailOverlayStyle: React\.CSSProperties = \{\s*zIndex: 2147483646,/);
+  assert.match(source, /style=\{fastTrackCaseRailOverlayStyle\}/);
+  assert.match(source, /lg:left-\[var\(--workspace-sidebar-offset,0rem\)\]/);
+  assert.match(source, /className="absolute inset-0 bg-gray-950\/75"/);
+  assert.doesNotMatch(source, /fixed inset-0 z-40 xl:hidden/);
+  assert.doesNotMatch(source, /absolute inset-0 bg-black\/30 backdrop-blur-sm/);
+});
+
+test("fast-track customization closes compact case rail overlay before opening", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /const handleOpenCustomization = useCallback\(\(\) => \{\s*setCaseRailDrawerOpen\(false\);\s*setCustomizationOpen\(true\);\s*\}, \[\]\);/);
+  assert.match(source, /compactDrawerOpen: caseRailDrawerOpen && !customizationOpen/);
+  assert.match(source, /\[caseRailDrawerOpen, compactCaseRailViewport, customizationOpen, workspacePreferences\.caseRailCollapsed\]/);
+  assert.match(source, /onOpenCustomize=\{handleOpenCustomization\}/);
+  assert.doesNotMatch(source, /onOpenCustomize=\{\(\) => setCustomizationOpen\(true\)\}/);
+});
+
+test("fast-track customization drawer renders above manager header through a body portal", () => {
+  const source = workspaceLayoutSource();
+  const closeButtonLabels = source.match(/aria-label="Close workspace customization drawer"/g) || [];
+
+  assert.match(source, /createPortal\(content, document\.body\)/);
+  assert.match(source, /renderFastTrackLayoutPortal\(/);
+  assert.match(source, /role="dialog"/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /fixed isolate z-\[2147483647\] flex justify-end overflow-hidden/);
+  assert.match(source, /bottom-0 left-0 right-0 top-16 bg-transparent lg:left-\[var\(--workspace-sidebar-offset,16rem\)\]/);
+  assert.match(source, /data-fast-track-customization-scrim/);
+  assert.match(source, /aria-label="Dismiss workspace customization overlay"/);
+  assert.match(source, /flex-1 cursor-default bg-transparent/);
+  assert.equal(closeButtonLabels.length, 1);
+  assert.match(source, /data-fast-track-customization-drawer/);
+  assert.match(source, /h-full max-h-full w-full max-w-md overflow-y-auto overscroll-contain/);
+  assert.match(source, /data-fast-track-customization-panel/);
+  assert.match(source, /const fastTrackChromeOverlayStyle: React\.CSSProperties = \{\s*zIndex: 2147483647,/);
+  assert.doesNotMatch(source, /top: 'var\(--workspace-header-height, 4rem\)'/);
+  assert.doesNotMatch(source, /left: 'var\(--workspace-sidebar-offset, 0rem\)'/);
+  assert.match(source, /style=\{fastTrackChromeOverlayStyle\}/);
+  assert.doesNotMatch(source, /h-dvh max-h-dvh/);
+  assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,200}aria-label="Close workspace customization drawer"/);
+  assert.doesNotMatch(source, /fixed inset-0[^"]*backdrop-blur/);
+  assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
+  assert.doesNotMatch(source, /bg-gray-950\/25|bg-gray-950\/55|bg-black\/30/);
 });

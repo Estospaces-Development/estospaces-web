@@ -13,11 +13,14 @@ test('communication surfaces hide inactive payment booking actions and label cli
   assert.doesNotMatch(userBookings, /Open payment details for booking/);
   assert.doesNotMatch(userBookings, /CreditCard/);
   assert.match(managerClients, /ariaLabel="Filter clients by status"/);
+  assert.match(managerClients, /\{ value: '', label: 'All Statuses' \}/);
+  assert.match(managerClients, /placeholder=""/);
   assert.match(select, /ariaLabel\?: string;/);
   assert.match(select, /aria-label=\{ariaLabel\}/);
 });
 
 test('launch UI does not advertise inactive payments or invoice workspaces', () => {
+  const app = readSource('src/App.tsx');
   const userBookings = readSource('src/pages/user/bookings/page.tsx');
   const promiseBanner = readSource('src/components/dashboard/PromiseBanner.tsx');
   const contactPage = readSource('src/pages/public/contact/page.tsx');
@@ -25,6 +28,10 @@ test('launch UI does not advertise inactive payments or invoice workspaces', () 
   const supportCenter = readSource('src/components/support/SupportCenter.tsx');
   const adminDashboard = readSource('src/pages/admin/dashboard/page.tsx');
 
+  assert.match(app, /path="billing\/\*" element=\{<Navigate to="\/manager\/contracts" replace \/>\}/);
+  assert.match(app, /path="dashboard\/payments\/\*" element=\{<Navigate to="\/user\/dashboard\/contracts" replace \/>\}/);
+  assert.doesNotMatch(app, /^\s*const ManagerBilling = lazyPage/m);
+  assert.doesNotMatch(app, /^\s*const UserPayments = lazyPage/m);
   assert.doesNotMatch(userBookings, /Total Paid/);
   assert.doesNotMatch(promiseBanner, /Initial payment|deposit cleared/i);
   assert.doesNotMatch(contactPage, /Payment Issue|value="payment"/);

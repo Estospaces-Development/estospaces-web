@@ -57,6 +57,10 @@ export function getAdminUserSortControlLabel(): string {
     return 'Sort users';
 }
 
+export function getAdminUsersRegistryTableScrollLabel(): string {
+    return 'Scrollable user registry table';
+}
+
 export function getAdminUsersPageTitle(): string {
     return 'User Management';
 }
@@ -162,6 +166,15 @@ export function validateAdminLeadReassignSelection(lead: Lead, brokerId: string)
         return 'This lead is already assigned to that broker.';
     }
     return null;
+}
+
+export function isAdminLeadReassignActionDisabled(
+    lead: Lead,
+    brokerId: string,
+    brokerCount: number,
+    busy: boolean,
+): boolean {
+    return busy || brokerCount === 0 || validateAdminLeadReassignSelection(lead, brokerId) !== null;
 }
 
 export function buildAdminLeadReassignLabel(lead: Lead, brokerName: string, busy: boolean): string {
@@ -482,7 +495,7 @@ function UserManagementContent() {
     };
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-500">
+        <div className="min-w-0 space-y-10 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
@@ -494,8 +507,8 @@ function UserManagementContent() {
                         {getAdminUsersPageTitle()}
                     </h1>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
+                <div className="flex w-full flex-col gap-4 sm:w-auto sm:flex-row sm:items-center">
+                    <div className="relative group w-full sm:w-auto">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
                         <input
                             type="text"
@@ -504,12 +517,12 @@ function UserManagementContent() {
                             value={searchQuery}
                             onChange={(e) => handleUserSearchChange(e.target.value)}
                             maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
-                            className="pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/10 font-bold text-sm w-64 shadow-sm transition-all"
+                            className="w-full pl-12 pr-6 py-4 bg-white dark:bg-gray-800 rounded-2xl border dark:border-gray-700 outline-none focus:ring-4 focus:ring-emerald-500/10 font-bold text-sm shadow-sm transition-all sm:w-64"
                         />
                     </div>
                     <button
                         onClick={() => navigate(getAdminAddUserPath())}
-                        className="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-2"
+                        className="flex w-full items-center justify-center gap-2 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl sm:w-auto"
                     >
                         <UserPlus size={18} /> Add User
                     </button>
@@ -519,7 +532,7 @@ function UserManagementContent() {
             {/* Hero Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat) => (
-                    <div key={stat.label} className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] border dark:border-gray-700 shadow-xl shadow-gray-200/40 dark:shadow-none flex items-center gap-6 group hover:translate-y-[-4px] transition-all">
+                    <div key={stat.label} className="min-w-0 bg-white dark:bg-gray-800 p-5 sm:p-8 rounded-[2.5rem] border dark:border-gray-700 shadow-xl shadow-gray-200/40 dark:shadow-none flex items-center gap-4 sm:gap-6 group hover:translate-y-[-4px] transition-all">
                         <div className={`p-5 rounded-2xl bg-gray-50 dark:bg-gray-900 ${stat.color} group-hover:scale-110 transition-transform`}>
                             <stat.icon size={28} />
                         </div>
@@ -537,7 +550,7 @@ function UserManagementContent() {
                 </div>
             )}
 
-            <section className="bg-white dark:bg-gray-800 rounded-[2rem] shadow-xl border dark:border-gray-700 overflow-hidden">
+            <section className="min-w-0 bg-white dark:bg-gray-800 rounded-[2rem] shadow-xl border dark:border-gray-700 overflow-hidden">
                 <div className="px-8 py-6 border-b dark:border-gray-700 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <h2 className="text-xl font-black text-gray-900 dark:text-white">Lead Reassignment</h2>
@@ -614,8 +627,8 @@ function UserManagementContent() {
                     </div>
                 )}
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label="Scrollable lead reassignment table">
+                    <table className="w-full min-w-[760px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
                                 <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Lead</th>
@@ -644,7 +657,9 @@ function UserManagementContent() {
                                     const isBusy = reassigningLeadId === lead.id;
                                     const rowError = leadReassignErrors[lead.id];
                                     const currentBrokerName = brokerNameById.get(String(lead.broker_id || '').trim()) || lead.matched_broker?.name || lead.broker_id || 'Unassigned';
-                                    const actionLabel = buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
+                                    const selectionError = validateAdminLeadReassignSelection(lead, selectedBrokerId);
+                                    const isActionDisabled = isAdminLeadReassignActionDisabled(lead, selectedBrokerId, adminBrokers.length, isBusy);
+                                    const actionLabel = selectionError || buildAdminLeadReassignLabel(lead, selectedBrokerName, isBusy);
 
                                     return (
                                         <tr key={lead.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/10 transition-colors">
@@ -689,8 +704,9 @@ function UserManagementContent() {
                                                 <button
                                                     type="button"
                                                     aria-label={actionLabel}
+                                                    title={selectionError || undefined}
                                                     onClick={() => handleLeadReassign(lead)}
-                                                    disabled={isBusy || adminBrokers.length === 0}
+                                                    disabled={isActionDisabled}
                                                     className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-600 disabled:opacity-60 dark:bg-white dark:text-gray-900"
                                                 >
                                                     {isBusy ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
@@ -718,9 +734,9 @@ function UserManagementContent() {
             </section>
 
             {/* Main Registry Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
-                <div className="px-10 py-8 border-b dark:border-gray-700 flex items-center justify-between">
-                    <div className="flex gap-8">
+            <div className="min-w-0 bg-white dark:bg-gray-800 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border dark:border-gray-700 overflow-hidden">
+                <div className="px-4 py-6 sm:px-10 sm:py-8 border-b dark:border-gray-700 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex max-w-full gap-4 overflow-x-auto sm:gap-8">
                         {['all', 'admin', 'manager', 'user'].map((tab) => (
                             <button
                                 key={tab}
@@ -772,8 +788,8 @@ function UserManagementContent() {
                     {statusMessage}
                 </p>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                <div className="relative max-w-full overflow-x-auto overflow-y-hidden [contain:paint]" tabIndex={0} aria-label={getAdminUsersRegistryTableScrollLabel()}>
+                    <table className="w-full min-w-[980px] text-left">
                         <thead>
                             <tr className="border-b dark:border-gray-700">
                                 <th className="px-10 py-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Profile</th>
@@ -881,7 +897,7 @@ function UserManagementContent() {
                 </div>
 
                 {/* Pagination Footer */}
-                <div className="border-t bg-gray-50/50 px-10 py-8 dark:border-gray-700 dark:bg-gray-900/20">
+                <div className="border-t bg-gray-50/50 px-4 py-6 sm:px-10 sm:py-8 dark:border-gray-700 dark:bg-gray-900/20">
                     <PaginationBar
                         currentPage={safeCurrentPage}
                         totalPages={totalPages}

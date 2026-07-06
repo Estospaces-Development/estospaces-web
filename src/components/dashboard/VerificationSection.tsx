@@ -381,6 +381,10 @@ const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, curre
                         <div>
                             <h2 className="text-lg font-bold text-gray-900 dark:text-white">Account verification</h2>
                             <p className="text-gray-500 dark:text-gray-400 text-sm">Gain trust and unlock premium features</p>
+                            <p className="mt-2 max-w-2xl text-xs leading-5 text-gray-500 dark:text-gray-400">
+                                Accepted identity documents: Aadhaar (Aadhar) proof, PAN/Form 60, passport,
+                                voter ID, driving licence, NREGA job card, or NPR letter.
+                            </p>
                         </div>
                     </div>
                     <div className="text-right">
