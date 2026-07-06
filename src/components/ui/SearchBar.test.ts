@@ -30,6 +30,14 @@ test('public search property type dropdown uses cleaned upward-opening options',
     assert.doesNotMatch(publicSearchSource, /filterOptions\?\.property_types \|\| \[\]\)\.map/);
 });
 
+test('location suggestions keep long dashboard results contained', () => {
+    assert.match(source, /const suggestionMenuClassName = .*min-w-\[min\(22rem,calc\(100vw-2rem\)\)\]/);
+    assert.match(source, /const suggestionOptionClassName = .*min-w-0/);
+    assert.match(source, /const suggestionLabelClassName = .*min-w-0 flex-1/);
+    assert.match(source, /const suggestionTextClassName = "truncate"/);
+    assert.match(source, /const suggestionTypeClassName = "shrink-0/);
+});
+
 test('user dashboard search uses the shared hero search type control', () => {
     assert.match(userDashboardSource, /<SearchBar[\s\S]*variant="hero"/);
     assert.match(userDashboardSource, /onSearch=\{handleDashboardSearch\}/);

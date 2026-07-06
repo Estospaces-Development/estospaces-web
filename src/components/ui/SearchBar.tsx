@@ -60,6 +60,12 @@ const priceRanges = {
     ],
 };
 
+const suggestionMenuClassName = "absolute z-50 mt-1 max-h-48 w-full min-w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-auto rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800";
+const suggestionOptionClassName = "flex w-full min-w-0 items-center justify-between gap-3 px-4 py-2 text-left text-gray-900 transition-colors hover:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700";
+const suggestionLabelClassName = "flex min-w-0 flex-1 items-center gap-2";
+const suggestionTextClassName = "truncate";
+const suggestionTypeClassName = "shrink-0 text-[10px] font-bold uppercase text-gray-400";
+
 const SearchBar: React.FC<SearchBarProps> = ({
     variant = 'full',
     initialFilters,
@@ -247,7 +253,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                             <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City, PIN code, or postcode..." className="w-full outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 bg-transparent" />
                         </div>
                         {showSuggestions && locationSuggestions.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
+                            <div className={suggestionMenuClassName}>
                                 {locationSuggestions.map((suggestion, index) => (
                                     <button
                                         key={index}
@@ -261,13 +267,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
                                             }
                                             setShowSuggestions(false);
                                         }}
-                                        className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center justify-between gap-2"
+                                        className={suggestionOptionClassName}
                                     >
-                                        <div className="flex items-center gap-2">
+                                        <div className={suggestionLabelClassName}>
                                             {suggestion.type === 'property' ? <Home size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
-                                            <span>{suggestion.text}</span>
+                                            <span className={suggestionTextClassName}>{suggestion.text}</span>
                                         </div>
-                                        <span className="text-[10px] uppercase font-bold text-gray-400">{suggestion.type}</span>
+                                        <span className={suggestionTypeClassName}>{suggestion.type}</span>
                                     </button>
                                 ))}
                             </div>
@@ -435,7 +441,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                         <input type="text" value={filters.location} onChange={(e) => { handleInputChange('location', e.target.value); setShowSuggestions(true); }} onFocus={() => setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="City, PIN code, or postcode" className="w-full pl-10 pr-4 py-2 border border-gray-100 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white" />
                         {showSuggestions && locationSuggestions.length > 0 && (
-                            <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-auto">
+                            <div className={suggestionMenuClassName}>
                                 {locationSuggestions.map((suggestion, index) => (
                                     <button
                                         key={index}
@@ -448,13 +454,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
                                             }
                                             setShowSuggestions(false);
                                         }}
-                                        className="w-full text-left px-4 py-2 hover:bg-orange-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors flex items-center justify-between gap-2"
+                                        className={suggestionOptionClassName}
                                     >
-                                        <div className="flex items-center gap-2">
+                                        <div className={suggestionLabelClassName}>
                                             {suggestion.type === 'property' ? <Home size={14} className="text-primary" /> : <MapPin size={14} className="text-primary" />}
-                                            <span>{suggestion.text}</span>
+                                            <span className={suggestionTextClassName}>{suggestion.text}</span>
                                         </div>
-                                        <span className="text-[10px] uppercase font-bold text-gray-400">{suggestion.type}</span>
+                                        <span className={suggestionTypeClassName}>{suggestion.type}</span>
                                     </button>
                                 ))}
                             </div>
