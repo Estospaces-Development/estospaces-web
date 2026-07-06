@@ -507,22 +507,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         WORKSPACE_SYNC_TAGS.CONTRACTS,
         WORKSPACE_SYNC_TAGS.PAYMENTS,
     ], []);
-    const [activeConsumerCount, setActiveConsumerCount] = useState(0);
-    const hasActiveConsumers = activeConsumerCount > 0;
-
-    const registerConsumer = useCallback(() => {
-        setActiveConsumerCount((current) => current + 1);
-
-        let released = false;
-        return () => {
-            if (released) {
-                return;
-            }
-
-            released = true;
-            setActiveConsumerCount((current) => Math.max(0, current - 1));
-        };
-    }, []);
+    const registerConsumer = useCallback(() => () => {}, []);
 
     const fetchApplications = async () => {
         if (!user) {
@@ -648,18 +633,13 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             return;
         }
 
-        if (!hasActiveConsumers) {
-            setIsLoading(false);
-            return;
-        }
-
         fetchApplications();
-    }, [hasActiveConsumers, user]);
+    }, [user]);
 
     useWorkspaceRefresh({
         tags: syncTags,
         refresh: fetchApplications,
-        enabled: Boolean(user) && hasActiveConsumers,
+        enabled: Boolean(user),
     });
 
     const createApplication = async (data: any) => {

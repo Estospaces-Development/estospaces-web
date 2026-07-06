@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as applicationsService from '@/services/applicationsService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
-import { useApplications, APPLICATION_STATUS, ApplicationsProvider, type Application } from '@/contexts/ApplicationsContext';
+import { useApplications, APPLICATION_STATUS, type Application } from '@/contexts/ApplicationsContext';
 import { useWorkflowWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import ApplicationCard from '@/components/manager/applications/ApplicationCard';
@@ -401,10 +401,8 @@ function ApplicationsContent({ initialView = 'list' }: ApplicationsContentProps)
 
 export default function ManagerApplicationsPage() {
     return (
-        <ApplicationsProvider>
-            <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Applications...</div>}>
-                <ApplicationsContent />
-            </Suspense>
-        </ApplicationsProvider>
+        <Suspense fallback={<div className="h-48 flex items-center justify-center font-bold">Loading Applications...</div>}>
+            <ApplicationsContent />
+        </Suspense>
     );
 }

@@ -69,6 +69,7 @@ import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
 import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
+import { buildWorkspacePath } from '@/lib/workspaceLinks';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -1951,7 +1952,12 @@ const UserPropertyDetail = () => {
                 },
             });
             toast.success('Rental application submitted.');
-            navigate('/user/dashboard/applications');
+            navigate(buildWorkspacePath('/user/applications', {
+                applicationId: result.data.id,
+                propertyId: property.id,
+                caseId: activeFastTrackCase?.id,
+                leadId: activeLead?.id || activeFastTrackCase?.leadId,
+            }));
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to submit the rental application.');
         } finally {

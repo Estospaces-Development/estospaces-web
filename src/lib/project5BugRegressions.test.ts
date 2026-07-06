@@ -25,6 +25,8 @@ const adminReviewsPage = readFileSync(resolve(root, 'src/pages/admin/reviews/pag
 const conversationList = readFileSync(resolve(root, 'src/components/dashboard/messaging/ConversationList.tsx'), 'utf8');
 const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspaceLayout.tsx'), 'utf8');
 const userPropertyDetailPage = readFileSync(resolve(root, 'src/pages/user/properties/[id]/page.tsx'), 'utf8');
+const applicationsContext = readFileSync(resolve(root, 'src/contexts/ApplicationsContext.tsx'), 'utf8');
+const managerApplicationsPage = readFileSync(resolve(root, 'src/pages/manager/applications/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'src/globals.css'), 'utf8');
@@ -149,6 +151,14 @@ test('direct property fast-track start refreshes manager live queue surfaces', (
     assert.match(userPropertyDetailPage, /WORKSPACE_SYNC_TAGS\.FAST_TRACK/);
     assert.match(userPropertyDetailPage, /WORKSPACE_SYNC_TAGS\.MANAGER_DASHBOARD/);
     assert.match(userPropertyDetailPage, /User started fast-track from property detail/);
+});
+
+test('rental application submission opens the real applications workspace and keeps applications fetching active', () => {
+    assert.match(userPropertyDetailPage, /buildWorkspacePath\('\/user\/applications'/);
+    assert.doesNotMatch(userPropertyDetailPage, /navigate\('\/user\/dashboard\/applications'\)/);
+    assert.doesNotMatch(managerApplicationsPage, /<ApplicationsProvider>/);
+    assert.doesNotMatch(applicationsContext, /hasActiveConsumers/);
+    assert.match(applicationsContext, /enabled:\s*Boolean\(user\)/);
 });
 
 test('transaction workspaces give search controls and contract actions clear accessible names', () => {
