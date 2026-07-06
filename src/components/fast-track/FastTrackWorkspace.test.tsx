@@ -18,6 +18,7 @@ import {
   isAdminOverrideFastTrackCase,
   isFastTrackCaseVisibleForFilter,
 } from "./FastTrackWorkspace";
+import { getCountryDocumentGuidance } from "@/lib/countryDocumentGuidance";
 import type { Message } from "@/services/messagesService";
 import type { FastTrackCase } from "@/services/fastTrackService";
 
@@ -143,11 +144,12 @@ test("fast-track PDFs avoid broken inline iframe previews", () => {
 
 test("fast-track identity upload copy names Indian identity documents", () => {
   const source = workspaceSource();
+  const indiaGuidance = getCountryDocumentGuidance("IN");
 
-  assert.match(source, /Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter/);
-  assert.match(source, /PAN card or Form 60 may be requested/);
-  assert.match(source, /prefer masked Aadhaar/);
-  assert.match(source, /clear PDF, JPG, PNG, or WebP/);
+  assert.match(indiaGuidance.identityDetail, /Aadhaar proof, PAN card or Form 60, passport, voter ID, driving licence, NREGA job card, or NPR letter/);
+  assert.match(indiaGuidance.identityDetail, /Prefer masked Aadhaar/);
+  assert.match(source, /application\/pdf,image\/jpeg,image\/png,image\/webp/);
+  assert.match(source, /documentGuidance\.identityDetail/);
 });
 
 test("case chat timeout recovery only accepts a recent matching sender message", () => {

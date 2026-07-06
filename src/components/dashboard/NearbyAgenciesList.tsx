@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapPin, Star, Building2, Loader2, Clock, BadgeCheck, Search, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { BrokerRequestRecord, getNearbyAvailableBrokers, getUserBrokerRequests, LeadBrokerSummary } from '@/services/leadsService';
 import {
     BROKER_REQUEST_WORKSPACE_EVENT,
@@ -83,7 +83,8 @@ export const NearbyBrokerCard = ({ broker, index }: { broker: LeadBrokerSummary;
 );
 
 const NearbyAgenciesList = () => {
-    const { user } = useAuth();
+    const authContext = useOptionalAuth();
+    const user = authContext?.user || null;
     const [searchParams] = useSearchParams();
     const [brokers, setBrokers] = useState<LeadBrokerSummary[]>([]);
     const [loading, setLoading] = useState(true);

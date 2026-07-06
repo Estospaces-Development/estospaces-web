@@ -19,6 +19,9 @@ export interface User {
     phone?: string;
     address?: string;
     postcode?: string;
+    country?: string;
+    countryCode?: string;
+    country_code?: string;
     user_metadata?: {
         full_name?: string;
         phone?: string;
@@ -136,6 +139,9 @@ const buildStoredUser = (rawUser: Record<string, any>, fallbackEmail = ''): User
         phone: phone || undefined,
         address: rawUser.address || undefined,
         postcode: rawUser.postcode || undefined,
+        country: rawUser.country || metadata.country || undefined,
+        countryCode: rawUser.countryCode || rawUser.country_code || metadata.countryCode || metadata.country_code || undefined,
+        country_code: rawUser.country_code || rawUser.countryCode || metadata.country_code || metadata.countryCode || undefined,
         user_metadata: {
             ...metadata,
             full_name: fullName,
@@ -181,6 +187,9 @@ const persistUser = (nextUser: User | null) => {
         last_name: nextUser.last_name,
         avatar_url: nextUser.avatar_url,
         avatar: nextUser.avatar,
+        country: nextUser.country,
+        countryCode: nextUser.countryCode,
+        country_code: nextUser.country_code,
     };
 
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedUser));
@@ -284,6 +293,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 phone: updatedProfile.phone ?? currentUser.phone,
                 address: updatedProfile.address ?? currentUser.address,
                 postcode: updatedProfile.postcode ?? currentUser.postcode,
+                country: updatedProfile.country ?? currentUser.country,
+                countryCode: updatedProfile.countryCode ?? updatedProfile.country_code ?? currentUser.countryCode,
+                country_code: updatedProfile.country_code ?? updatedProfile.countryCode ?? currentUser.country_code,
                 metadata: mergedMetadata,
                 user_metadata: mergedMetadata,
             };
@@ -487,4 +499,8 @@ export function useAuth() {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
+}
+
+export function useOptionalAuth() {
+    return useContext(AuthContext);
 }
