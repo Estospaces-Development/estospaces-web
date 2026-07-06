@@ -55,11 +55,16 @@ import {
     formatLaunchCurrency,
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
+    getLaunchLocationCodeErrorMessage,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
     isValidLaunchLocationCode,
+    isValidLaunchLocationCodeForCountry,
     LAUNCH_CURRENCY_CODE,
     normalizeLaunchLocationCode,
     normalizeLaunchLocationCodeErrorMessage,
 } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export const USER_DASHBOARD_NEAREST_AGENCY_LIMIT = 5;
 
@@ -276,6 +281,12 @@ const BrokerRequestWidget = () => {
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
     const brokerCopy = getBrokerRequestCopy(requestType);
+    const geoMarket = useUserGeoMarket(user, {
+        locationCode: activeRequest?.location_postcode || locationPostcode || user?.postcode,
+    });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationPostcode);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationPostcode);
+    const geoMarketCurrencyCode = geoMarket === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;
     const visibleNearbyBrokers = useMemo(() => limitNearestAgenciesForDashboard(nearbyBrokers), [nearbyBrokers]);
 
     useEffect(() => {
@@ -386,7 +397,7 @@ const BrokerRequestWidget = () => {
             return;
         }
 
-        if (!isValidLaunchLocationCode(trimmedPostcode)) {
+        if (!isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
             setNearbyBrokers([]);
             setIsRankingLoading(false);
             return;
@@ -427,7 +438,7 @@ const BrokerRequestWidget = () => {
             cancelled = true;
             window.clearTimeout(timer);
         };
-    }, [fastTrackEnabled, locationPostcode]);
+    }, [fastTrackEnabled, geoMarket, locationPostcode]);
 
     const refreshActiveRequest = useCallback(async () => {
         if (!activeRequest?.id) {
@@ -623,13 +634,13 @@ const BrokerRequestWidget = () => {
         e.preventDefault();
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
-        if (!trimmedPostcode || !isValidLaunchLocationCode(trimmedPostcode)) {
-            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
+        if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
+            setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
             return;
         }
         const formattedPostcode = formatLaunchBrokerLocationCode(trimmedPostcode);
         if (!formattedPostcode) {
-            setPostcodeError('Enter a valid Indian PIN code or UK postcode.');
+            setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
             return;
         }
 
@@ -1358,7 +1369,7 @@ const BrokerRequestWidget = () => {
 
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                            PIN code / postcode
+                            {locationCodeLabel}
                         </label>
                         <input
                             type="text"
@@ -1368,12 +1379,12 @@ const BrokerRequestWidget = () => {
                                 setLocationPostcode(nextValue);
                                 if (postcodeError) {
                                     const trimmedNextValue = normalizePostcode(nextValue);
-                                    if (!trimmedNextValue || isValidLaunchLocationCode(trimmedNextValue)) {
+                                    if (!trimmedNextValue || isValidLaunchLocationCodeForCountry(trimmedNextValue, geoMarket)) {
                                         setPostcodeError(null);
                                     }
                                 }
                             }}
-                            placeholder="e.g. 600001 or SW1A 1AA"
+                            placeholder={locationCodePlaceholder}
                             maxLength={8}
                             className="w-full rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm uppercase outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-900/50"
                             required
@@ -1385,10 +1396,10 @@ const BrokerRequestWidget = () => {
 
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                            Budget / Price Range
+                            Budget / Price Range ({geoMarketCurrencyCode})
                         </label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{LAUNCH_CURRENCY_CODE}</span>
+                            <span className="absolute left-3 top-2.5 text-xs font-bold text-gray-400">{geoMarketCurrencyCode}</span>
                             <input
                                 type="text"
                                 value={budget}

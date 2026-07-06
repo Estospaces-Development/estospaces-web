@@ -41,7 +41,7 @@ test("mapPropertyMutationFieldErrors translates api fields to form fields", () =
       longitude: "Longitude must be between -180 and 180",
       inclusions: "Inclusions are invalid",
       exclusions: "Exclusions are invalid",
-      postcode: "Please enter a valid Indian PIN code or UK postcode",
+      postcode: "Please enter a valid PIN code or postcode",
     }),
     {
       priceAmount: "Price must be greater than 0",
@@ -65,7 +65,7 @@ test("mapPropertyMutationFieldErrors translates api fields to form fields", () =
       longitude: "Longitude must be between -180 and 180",
       inclusions: "Inclusions are invalid",
       exclusions: "Exclusions are invalid",
-      postalCode: "Please enter a valid Indian PIN code or UK postcode",
+      postalCode: "Please enter a valid PIN code or postcode",
     },
   );
 });

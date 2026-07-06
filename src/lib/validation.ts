@@ -55,7 +55,7 @@ export const propertySchema = z.object({
         county: z.string().optional(),
         postcode: z
             .string()
-            .regex(/^([1-9]\d{5}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/i, 'Please enter a valid Indian PIN code or UK postcode'),
+            .regex(/^([1-9]\d{5}|[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})$/i, 'Please enter a valid PIN code or postcode'),
         country: z.string().default(LAUNCH_COUNTRY_NAME),
     }),
     latitude: z.number().min(-90).max(90).optional(),

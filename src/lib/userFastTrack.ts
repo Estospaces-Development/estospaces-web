@@ -4,6 +4,8 @@ import {
     FastTrackDocumentsLike,
     UserDocumentLike,
 } from './fastTrackWorkflow';
+import { getCountryDocumentGuidance } from './countryDocumentGuidance';
+import type { SupportedLaunchCountryCode } from './launchLocale';
 
 export interface UserFastTrackSelectionCase {
     caseId: string;
@@ -64,17 +66,19 @@ export const buildUserFastTrackDocumentItems = (
     userDocuments: UserDocumentLike[] = [],
     options: {
         requestActive?: boolean;
+        market?: SupportedLaunchCountryCode | null;
     } = {},
 ): UserFastTrackDocumentItem[] => {
     const requestActive = options.requestActive ?? true;
+    const guidance = getCountryDocumentGuidance(options.market);
     const resolvedDocuments = buildDocumentsFromDetails(userDocuments, documents);
     const items = buildFastTrackDocumentItems(userDocuments, resolvedDocuments);
 
     return items.map((item) => ({
         ...item,
         hint: item.id === 'identity'
-            ? 'Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN/Form 60 may be requested separately.'
-            : 'Bank statement, utility bill, or tenancy proof',
+            ? guidance.identityShort
+            : guidance.addressShort,
         uploadType: item.id,
         actionLabel: item.status === 'reupload_required'
             ? 'Upload replacement'

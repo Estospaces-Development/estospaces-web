@@ -12,8 +12,11 @@ import {
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
     normalizeLaunchLocationCode,
 } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const MANAGER_LICENSE_MAX_LENGTH = 64;
 const MANAGER_BIO_MAX_LENGTH = 1000;
@@ -71,6 +74,9 @@ export default function ManagerProfilePage() {
         licenseNumber: '',
         taxId: '',
     });
+    const geoMarket = useUserGeoMarket(user, { locationCode: formData.postcode || user?.postcode });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
     // Populate form from auth user + broker profile
     useEffect(() => {
@@ -495,14 +501,14 @@ export default function ManagerProfilePage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code / postcode</label>
+                                    <label htmlFor="manager-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{locationCodeLabel}</label>
                                     <div className="relative">
                                         <Hash size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                         <input id="manager-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange}
                                             inputMode="text"
                                             pattern="[A-Za-z0-9 ]*"
                                             maxLength={8}
-                                            placeholder="600001 or SW1A 1AA"
+                                            placeholder={locationCodePlaceholder}
                                             className={iconInputClass} />
                                     </div>
                                 </div>
@@ -575,7 +581,7 @@ export default function ManagerProfilePage() {
                                         placeholder="600001, 600, SW1A"
                                         className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-900 dark:text-gray-100 resize-none" />
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Add exact PIN codes/postcodes or area prefixes for live requests.
+                                        Add exact PIN codes or postcodes, or area prefixes, for live requests.
                                     </p>
                                 </div>
 

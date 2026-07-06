@@ -115,6 +115,8 @@ import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCop
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 type WorkspaceRole = FastTrackWorkspaceRole;
 export type FilterMode = 'all' | 'active' | 'completed' | 'cancelled';
@@ -159,11 +161,6 @@ const WORKSPACE_HOME_PATH: Record<WorkspaceRole, string> = {
     admin: '/admin/dashboard',
 };
 const FAST_TRACK_DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
-const FAST_TRACK_DOCUMENT_GUIDANCE: Record<FastTrackDocumentItem['id'], string> = {
-    identity: 'Accepted identity proof: Aadhaar proof, passport, voter ID, driving licence, NREGA job card, or NPR letter. PAN card or Form 60 may be requested for tax/KYC details. Upload a clear PDF, JPG, PNG, or WebP; prefer masked Aadhaar unless full-number verification is required.',
-    address: 'Upload a recent utility bill, bank statement, rent agreement, property tax receipt, or government address document as a clear PDF, JPG, PNG, or WebP.',
-};
-
 const STAGES: FastTrackStage[] = [
     'selected',
     'documents',
@@ -928,6 +925,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
         [filteredCases, selectedCaseId],
     );
+    const geoMarket = useUserGeoMarket(user, { countryName: selectedCase?.propertyCountry });
+    const documentGuidance = getCountryDocumentGuidance(geoMarket);
 
     useEffect(() => {
         setPendingAdminOverrideAction(null);
@@ -2480,7 +2479,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                     {canUpload ? (
                                         <>
                                             <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
-                                                {FAST_TRACK_DOCUMENT_GUIDANCE[item.id]}
+                                                {item.id === 'identity' ? documentGuidance.identityDetail : documentGuidance.addressDetail}
                                             </p>
                                         <div
                                             data-fast-track-document-upload-state={item.id}

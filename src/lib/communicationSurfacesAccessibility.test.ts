@@ -72,43 +72,46 @@ test('launch UI does not advertise inactive virtual tour workflows', () => {
   assert.match(userPropertyDetail, /Open full-screen gallery/);
 });
 
-test('launch search and broker surfaces use India and rupee defaults', () => {
+test('launch search and broker surfaces use country-aware India and UK location context', () => {
   const sources = [
     readSource('src/pages/user/search/page.tsx'),
-    readSource('src/pages/user/dashboard/discover/page.tsx'),
-    readSource('src/components/dashboard/PropertyCard.tsx'),
-    readSource('src/components/dashboard/ManagerPropertyCard.tsx'),
+    readSource('src/components/ui/SearchBar.tsx'),
     readSource('src/components/dashboard/BrokerRequestWidget.tsx'),
-    readSource('src/components/dashboard/BrokerResponseWidget.tsx'),
     readSource('src/components/dashboard/NearbyAgenciesList.tsx'),
-    readSource('src/components/dashboard/NearbyPropertiesMap.tsx'),
-    readSource('src/services/searchService.ts'),
-    readSource('src/services/propertyService.ts'),
-    readSource('src/lib/propertySearchControls.ts'),
-    readSource('src/lib/discoverMap.ts'),
-    readSource('src/pages/admin/settings/page.tsx'),
-    readSource('src/components/layout/Footer.tsx'),
-  ].join('\n');
+    readSource('src/lib/geoMarket.ts'),
+    readSource('src/lib/useGeoMarket.ts'),
+    readSource('src/lib/launchLocale.ts'),
+  ].join('\\n');
 
-  assert.doesNotMatch(sources, /£|GBP|United Kingdom properties|getPropertySections\(['"]UK['"]\)|2 Bed Flats in London|Stockmans Way|Belfast|Postcode search|Find nearest agent by postcode|Add a postcode|profile postcode|mi away|miles away|54\.5, -3/);
-  assert.match(sources, /formatLaunchCurrency/);
-  assert.match(sources, /formatLaunchPropertyText/);
+  assert.match(sources, /useUserGeoMarket/);
+  assert.match(sources, /useGeoMarket/);
+  assert.match(sources, /getLaunchLocationCodeLabel/);
+  assert.match(sources, /getLaunchLocationCodePlaceholder/);
+  assert.match(sources, /isValidLaunchLocationCodeForCountry/);
   assert.match(sources, /LAUNCH_COUNTRY_CODE/);
-  assert.match(sources, /Indian PIN code/);
+  assert.match(sources, /UK_COUNTRY_CODE/);
+  assert.match(sources, /Please enter a valid 6-digit Indian PIN code/);
+  assert.match(sources, /Please enter a valid UK postcode/);
 });
 
-test('manager launch workspaces do not expose UK profile or live-response copy', () => {
+test('profile and document surfaces reflect logged-in country context', () => {
   const sources = [
+    readSource('src/pages/user/dashboard/profile/page.tsx'),
     readSource('src/pages/manager/profile/page.tsx'),
-    readSource('src/components/dashboard/BrokerResponseWidget.tsx'),
-  ].join('\n');
+    readSource('src/pages/admin/profile/page.tsx'),
+    readSource('src/components/dashboard/VerificationSection.tsx'),
+    readSource('src/components/fast-track/FastTrackWorkspace.tsx'),
+    readSource('src/pages/user/virtual-storage/page.tsx'),
+    readSource('src/lib/countryDocumentGuidance.ts'),
+  ].join('\\n');
 
-  assert.doesNotMatch(sources, />Postcode<|BT9 7GG|Belfast|Preston|Westminster|London|\\+44|GBP|Â£|£|co\\.uk/);
-  assert.match(sources, /PIN code/);
-  assert.match(sources, /formatLaunchPropertyLocation/);
-  assert.match(sources, /companyAddress: formatOptionalLaunchPropertyLocation/);
-  assert.match(sources, /registeredOfficeAddress: formatOptionalLaunchPropertyLocation/);
-  assert.match(sources, /formatLaunchCurrency/);
+  assert.match(sources, /useUserGeoMarket/);
+  assert.match(sources, /getCountryDocumentGuidance/);
+  assert.ok(sources.includes('Aadhaar, PAN/Form 60'));
+  assert.match(sources, /British or Irish passport/);
+  assert.match(sources, /right-to-rent share code/);
+  assert.match(sources, /locationCodeLabel/);
+  assert.match(sources, /locationCodePlaceholder/);
 });
 
 test('user compact search submits Enter through the same search path as the button', () => {

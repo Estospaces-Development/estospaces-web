@@ -24,6 +24,12 @@ import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import VerificationSection from '@/components/dashboard/VerificationSection';
 import { validateFullName } from '@/lib/profileValidation';
 import { getLoginPath } from '@/lib/authUtils';
+import {
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
+    normalizeLaunchLocationCode,
+} from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -51,6 +57,9 @@ export default function ProfilePage() {
     const [savingProfile, setSavingProfile] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [profileValidationError, setProfileValidationError] = useState('');
+    const geoMarket = useUserGeoMarket(currentUser, { locationCode: formData.postcode || currentUser?.postcode });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
     const fetchStats = useCallback(async () => {
         try {
@@ -94,7 +103,7 @@ export default function ProfilePage() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => ({ ...prev, [name]: name === 'postcode' ? normalizeLaunchLocationCode(value) : value }));
         setSaveSuccess(false);
         if (name === 'fullName') {
             setProfileValidationError('');
@@ -358,7 +367,7 @@ export default function ProfilePage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                            <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">PIN code / postcode</label>
+                                            <label htmlFor="user-postcode" className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">{locationCodeLabel}</label>
                                             <div className="relative">
                                                 <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                                                 <input
@@ -368,7 +377,7 @@ export default function ProfilePage() {
                                                 value={formData.postcode}
                                                 onChange={handleInputChange}
                                                 className="w-full bg-gray-50 dark:bg-gray-900/50 border dark:border-gray-700 rounded-2xl pl-12 pr-5 py-3.5 outline-none focus:ring-2 focus:ring-orange-500 transition-all font-medium text-gray-900 dark:text-white uppercase"
-                                                placeholder="e.g. 600001 or SW1A 1AA"
+                                                placeholder={locationCodePlaceholder}
                                             />
                                         </div>
                                     </div>

@@ -31,14 +31,15 @@ import {
     formatLaunchCurrency,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
+    getLaunchLocationCodeLabel,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
-
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 const PropertySearch = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const loginPath = getLoginPath();
     const { error: showToastError } = useToast();
     const { saveProperty, removeProperty, isPropertySaved } = useSavedProperties();
@@ -79,6 +80,15 @@ const PropertySearch = () => {
         [filterOptions?.property_types],
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
+    const geoMarket = useUserGeoMarket(user, { locationCode: location || user?.postcode });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
+    const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
+    const formatSearchCurrency = useCallback((amount: number) => (
+        geoMarket === 'GB'
+            ? new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0, style: 'currency', currency: 'GBP' }).format(amount)
+            : formatLaunchCurrency(amount)
+    ), [geoMarket]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -608,12 +618,12 @@ const PropertySearch = () => {
                                 type="text"
                                 value={location}
                                 onChange={(e) => { setLocation(e.target.value); setPage(1); }}
-                                placeholder="City or postcode"
+                                placeholder={`City or ${lowerLocationCodeLabel}`}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <div>
-                            <label htmlFor="public-search-min-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Min Price ({LAUNCH_CURRENCY_SYMBOL})</label>
+                            <label htmlFor="public-search-min-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Min Price ({currencySymbol})</label>
                             <input
                                 id="public-search-min-price"
                                 type="number"
@@ -625,12 +635,12 @@ const PropertySearch = () => {
                                     setMinPrice(normalizePriceBoundInput(e.target.value));
                                     setPage(1);
                                 }}
-                                placeholder={filterOptions?.price_range?.min ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : "No min"}
+                                placeholder={filterOptions?.price_range?.min ? `Min: ${formatSearchCurrency(filterOptions.price_range.min)}` : "No min"}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>
                         <div>
-                            <label htmlFor="public-search-max-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Max Price ({LAUNCH_CURRENCY_SYMBOL})</label>
+                            <label htmlFor="public-search-max-price" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">Max Price ({currencySymbol})</label>
                             <input
                                 id="public-search-max-price"
                                 type="number"
@@ -642,7 +652,7 @@ const PropertySearch = () => {
                                     setMaxPrice(normalizePriceBoundInput(e.target.value));
                                     setPage(1);
                                 }}
-                                placeholder={filterOptions?.price_range?.max ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : "No max"}
+                                placeholder={filterOptions?.price_range?.max ? `Max: ${formatSearchCurrency(filterOptions.price_range.max)}` : "No max"}
                                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                             />
                         </div>

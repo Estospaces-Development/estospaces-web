@@ -6,6 +6,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { userService } from '@/services/userService';
 import { useToast } from '@/contexts/ToastContext';
 import { type ProfileNameErrors, validateProfileNameFields } from '@/lib/profileValidation';
+import {
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
+    normalizeLaunchLocationCode,
+} from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 export default function AdminProfilePage() {
     const { user, refreshUser } = useAuth();
@@ -24,6 +30,9 @@ export default function AdminProfilePage() {
         postcode: '',
         bio: '',
     });
+    const geoMarket = useUserGeoMarket(user, { locationCode: formData.postcode || user?.postcode });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, formData.postcode);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, formData.postcode);
 
     useEffect(() => {
         if (user) {
@@ -44,7 +53,7 @@ export default function AdminProfilePage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData(prev => ({
             ...prev,
-            [e.target.name]: e.target.value
+            [e.target.name]: e.target.name === 'postcode' ? normalizeLaunchLocationCode(e.target.value) : e.target.value
         }));
         if (e.target.name === 'firstName' || e.target.name === 'lastName') {
             setFieldErrors(prev => ({ ...prev, [e.target.name]: undefined }));
@@ -208,10 +217,10 @@ export default function AdminProfilePage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label htmlFor="admin-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">PIN code / postcode</label>
+                                    <label htmlFor="admin-postcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{locationCodeLabel}</label>
                                     <div className="relative">
                                         <Hash size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                        <input id="admin-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange} className={iconInputClass} />
+                                        <input id="admin-postcode" type="text" name="postcode" value={formData.postcode} onChange={handleChange} placeholder={locationCodePlaceholder} className={iconInputClass} />
                                     </div>
                                 </div>
                             </div>
