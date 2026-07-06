@@ -22,6 +22,11 @@ test("user search autocomplete is tied to the search field", () => {
   assert.match(searchPage, /key=\{index\}[\s\S]*?type="button"/);
 });
 
+test("user search main input uses country-aware PIN or postcode copy", () => {
+  assert.match(searchPage, /placeholder=\{`Search by \$\{lowerLocationCodeLabel\}, city, property name\.\.\.`\}/);
+  assert.doesNotMatch(searchPage, /Search by location, property name/);
+});
+
 test("user search keeps result headings in order below the page title", () => {
   assert.match(searchPage, /<h2 className="text-base font-semibold text-gray-950 dark:text-white">Search temporarily unavailable<\/h2>/);
   assert.match(searchPage, /<h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No properties found<\/h2>/);

@@ -424,7 +424,7 @@ const PropertySearch = () => {
                             if (locationSuggestions.length > 0) setShowSuggestions(true);
                         }}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        placeholder="Search by location, property name..."
+                        placeholder={`Search by ${lowerLocationCodeLabel}, city, property name...`}
                         className="w-full min-w-0 rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
                     />
                     {queryValidationMessage && (
