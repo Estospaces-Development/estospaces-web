@@ -51,14 +51,65 @@ export const getDocumentAccessBlob = async (
     }
 };
 
+const reserveDocumentWindow = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const reservedWindow = window.open('about:blank', '_blank');
+    if (!reservedWindow) {
+        return null;
+    }
+
+    try {
+        reservedWindow.opener = null;
+        reservedWindow.document.write('<!doctype html><title>Opening document...</title><body>Opening document...</body>');
+        reservedWindow.document.close();
+    } catch {
+        // Cross-browser popup handles can become write-protected; navigation below is the critical action.
+    }
+
+    return reservedWindow;
+};
+
+const closeReservedDocumentWindow = (reservedWindow: Window | null) => {
+    if (!reservedWindow || reservedWindow.closed) {
+        return;
+    }
+
+    try {
+        reservedWindow.close();
+    } catch {
+        // Best-effort cleanup only.
+    }
+};
+
+const openResolvedDocumentUrl = (reservedWindow: Window | null, url: string) => {
+    if (reservedWindow && !reservedWindow.closed) {
+        reservedWindow.location.href = url;
+        return true;
+    }
+
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    return Boolean(window.open(url, '_blank', 'noopener,noreferrer'));
+};
+
 export const openDocumentAccessUrl = async (
     documentId: string,
 ): Promise<{ error: string | null }> => {
+    const reservedWindow = reserveDocumentWindow();
     const { url, error } = await getDocumentAccessUrl(documentId);
     if (error || !url) {
+        closeReservedDocumentWindow(reservedWindow);
         return { error: error || 'Document access URL is unavailable.' };
     }
 
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (!openResolvedDocumentUrl(reservedWindow, url)) {
+        return { error: 'Document viewer was blocked. Allow pop-ups for Estospaces and try again.' };
+    }
+
     return { error: null };
 };
