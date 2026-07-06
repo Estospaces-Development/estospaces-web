@@ -106,6 +106,28 @@ test("validateManagerPropertyForm selects postcode rules from India or UK countr
   assert.equal(wrongUkCodeErrors.postalCode, "Please enter a valid UK postcode");
 });
 
+test("validateManagerPropertyForm uses country-specific required location-code copy", () => {
+  const indiaErrors = validateManagerPropertyForm({
+    ...baseValues,
+    country: "India",
+    countryId: "1",
+    countryCode: "IN",
+    postalCode: "",
+  });
+
+  assert.equal(indiaErrors.postalCode, "PIN code is required");
+
+  const ukErrors = validateManagerPropertyForm({
+    ...baseValues,
+    country: "United Kingdom",
+    countryId: "2",
+    countryCode: "GB",
+    postalCode: "",
+  });
+
+  assert.equal(ukErrors.postalCode, "Postcode is required");
+});
+
 test("validateManagerPropertyForm enforces floor relationships and optional money rules", () => {
   const fieldErrors = validateManagerPropertyForm({
     ...baseValues,

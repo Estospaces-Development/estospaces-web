@@ -1,6 +1,7 @@
 import type { ListingType } from "@/contexts/PropertyContext";
 import {
   getLaunchLocationCodeErrorMessage,
+  getLaunchLocationCodeLabel,
   isLaunchIndiaCountry,
   isLaunchUKCountry,
   isValidLaunchLocationCodeForCountry,
@@ -150,7 +151,7 @@ export function validateManagerPropertyField(
       return values.cityId || values.city.trim() ? null : "City is required";
     case "postalCode":
       if (!values.postalCode.trim()) {
-        return "PIN code or postcode is required";
+        return postalCodeRequiredMessageForCountry(values.countryCode, values.country);
       }
       if (!isValidPostalCodeForCountry(values.postalCode, values.countryCode, values.country)) {
         return postalCodeMessageForCountry(values.countryCode, values.country);
@@ -405,6 +406,13 @@ function isValidPostalCodeForCountry(value: string, countryCode: string, country
 
 function postalCodeMessageForCountry(countryCode: string, countryName: string): string {
   return getLaunchLocationCodeErrorMessage(countryCode, countryName);
+}
+
+function postalCodeRequiredMessageForCountry(countryCode: string, countryName: string): string {
+  const label = getLaunchLocationCodeLabel(countryCode, countryName);
+  return label === "PIN code / postcode"
+    ? "PIN code or postcode is required"
+    : `${label} is required`;
 }
 
 function requiresMinimumLease(listingType: ListingType): boolean {
