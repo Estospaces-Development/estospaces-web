@@ -6,7 +6,13 @@ import { Globe, Layers3, LocateFixed, Navigation, X } from 'lucide-react';
 import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { formatLaunchCurrency, formatLaunchPropertyLocation } from '@/lib/launchLocale';
+import {
+    formatLaunchCurrencyForCountry,
+    formatLaunchPropertyLocation,
+    getLaunchLocationCodeLabel,
+} from '@/lib/launchLocale';
+import { useOptionalAuth } from '@/contexts/AuthContext';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 interface UserLocation {
     latitude: number;
@@ -20,6 +26,10 @@ interface Property {
     city?: string;
     postcode?: string;
     price?: number;
+    currency?: string | null;
+    country?: string | null;
+    countryCode?: string | null;
+    country_code?: string | null;
     property_type?: string;
     latitude?: number;
     longitude?: number;
@@ -49,12 +59,37 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
     return radiusKm * c;
 };
 
-const formatCompactPrice = (price?: number) => {
-    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+const getPropertyCountryCode = (property: Property | null | undefined, fallbackMarket: string) => (
+    property?.countryCode || property?.country_code || property?.country || fallbackMarket
+);
+
+const formatPropertyPriceForMarket = (
+    property: Property | null | undefined,
+    fallbackMarket: string,
+    fallback = 'Price unavailable',
+) => {
+    if (typeof property?.price !== 'number' || !Number.isFinite(property.price) || property.price <= 0) {
+        return fallback;
+    }
+
+    return formatLaunchCurrencyForCountry(property.price, {
+        countryCode: getPropertyCountryCode(property, fallbackMarket),
+        countryName: property.country,
+        currencyCode: property.currency,
+    });
+};
+
+const formatCompactPrice = (property: Property, fallbackMarket: string) => {
+    if (typeof property.price !== 'number' || !Number.isFinite(property.price) || property.price <= 0) {
         return 'View';
     }
 
-    return formatLaunchCurrency(price, { showCode: false });
+    return formatLaunchCurrencyForCountry(property.price, {
+        countryCode: getPropertyCountryCode(property, fallbackMarket),
+        countryName: property.country,
+        currencyCode: property.currency,
+        showCode: false,
+    });
 };
 
 const createPropertyIcon = (label: string, color: string, selected: boolean) => L.divIcon({
@@ -152,6 +187,11 @@ const NearbyPropertiesMap = ({
     compact = false,
 }: NearbyPropertiesMapProps) => {
     const navigate = useNavigate();
+    const authContext = useOptionalAuth();
+    const user = authContext?.user || null;
+    const geoMarket = useUserGeoMarket(user);
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const [isMounted, setIsMounted] = useState(false);
     const [selectedPropertyID, setSelectedPropertyID] = useState<string | null>(null);
     const [isSelectionDismissed, setIsSelectionDismissed] = useState(false);
@@ -162,13 +202,9 @@ const NearbyPropertiesMap = ({
         setIsMounted(true);
     }, []);
 
-    const formatPropertyPrice = (price?: number) => {
-        if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
-            return 'Price unavailable';
-        }
-
-        return formatLaunchCurrency(price);
-    };
+    const formatPropertyPrice = (property?: Property | null) => (
+        formatPropertyPriceForMarket(property, geoMarket)
+    );
 
     const propertiesWithDistance = useMemo(() => {
         if (!Array.isArray(properties) || properties.length === 0) {
@@ -306,9 +342,9 @@ const NearbyPropertiesMap = ({
                         <div className={`flex items-center justify-center rounded-full ${compact ? 'mb-4 h-12 w-12 bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300' : 'mx-auto mb-4 h-14 w-14 bg-gray-100 dark:bg-gray-700'}`}>
                             <Navigation size={24} className={compact ? '' : 'text-gray-400 dark:text-gray-500'} />
                         </div>
-                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a PIN code to unlock the map</h3>
+                        <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${compact ? 'mb-2 text-lg' : 'mb-2 text-lg'}`}>Add a {lowerLocationCodeLabel} to unlock the map</h3>
                         <p className={`text-gray-500 dark:text-gray-400 ${compact ? 'max-w-sm text-sm leading-6' : 'text-sm'}`}>
-                            Use your profile PIN code or search a location to see nearby homes without leaving the dashboard.
+                            Use your profile {lowerLocationCodeLabel} or search a location to see nearby homes without leaving the dashboard.
                         </p>
                     </div>
                 </div>
@@ -374,7 +410,7 @@ const NearbyPropertiesMap = ({
                         <Marker
                             key={property.id}
                             position={[property.latitude as number, property.longitude as number]}
-                            icon={createPropertyIcon(formatCompactPrice(property.price), getMarkerColor(property.category), isSelected)}
+                            icon={createPropertyIcon(formatCompactPrice(property, geoMarket), getMarkerColor(property.category), isSelected)}
                             eventHandlers={{
                                 click: () => {
                                     setIsSelectionDismissed(false);
@@ -392,7 +428,7 @@ const NearbyPropertiesMap = ({
                                         {formatLaunchPropertyLocation([property.address_line_1, property.city, property.postcode])}
                                     </p>
                                     <p className="mt-2 text-sm font-bold text-orange-600">
-                                        {formatPropertyPrice(property.price)}
+                                        {formatPropertyPrice(property)}
                                         {property.property_type === 'rent' ? '/month' : ''}
                                     </p>
                                     {property.distance !== null && property.distance !== undefined ? (
@@ -508,7 +544,7 @@ const NearbyPropertiesMap = ({
 
                     <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/70">
                         <div className="flex items-center justify-between gap-3">
-                            <p className="text-lg font-bold text-orange-600">{formatPropertyPrice(selectedProperty.price)}</p>
+                            <p className="text-lg font-bold text-orange-600">{formatPropertyPrice(selectedProperty)}</p>
                             {selectedProperty.property_type ? (
                                 <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
                                     {selectedProperty.property_type}
