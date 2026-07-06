@@ -101,14 +101,20 @@ import { getManagerPropertyStatusBadge } from "@/lib/propertyStatusBadge";
 import { mapPropertyMutationFieldErrors } from "@/lib/propertyValidationErrors";
 import { VIRTUAL_TOUR_ENABLED } from "@/lib/launchFlags";
 import { getCurrencySymbol } from "@/lib/utils/currency";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  getSupportedLaunchCountry,
+  LAUNCH_COUNTRY_CODE,
+  UK_COUNTRY_CODE,
+} from "@/lib/launchLocale";
 
 // Mode type for clear distinction
 type FormMode = "create" | "edit";
 type PendingNavigationTarget = string | number;
 
-// Launch country list. India-only for this phase so new listings use rupees.
 const countries = [
-  { code: "IN", name: "India", currency: "INR" as CurrencyCode },
+  { code: LAUNCH_COUNTRY_CODE, name: "India", currency: "INR" as CurrencyCode },
+  { code: UK_COUNTRY_CODE, name: "United Kingdom", currency: "GBP" as CurrencyCode },
 ];
 
 // Property types with icons
@@ -496,6 +502,20 @@ const resolveCountryCurrency = (countryCode: string): CurrencyCode => {
   return country?.currency || "INR";
 };
 
+const resolveDefaultCountryForUser = (user?: {
+  country?: string;
+  countryCode?: string;
+  country_code?: string;
+  postcode?: string;
+} | null) => {
+  const market = getSupportedLaunchCountry(
+    user?.countryCode || user?.country_code,
+    user?.country,
+    user?.postcode,
+  );
+  return countries.find((entry) => entry.code === market) || countries[0];
+};
+
 const normalizeDateInputValue = (value?: string): string => {
   if (!value) {
     return new Date().toISOString().split("T")[0];
@@ -533,6 +553,7 @@ export default function AddPropertyPage() {
     isLoading: managerVerificationLoading,
     error: managerVerificationError,
   } = useManagerVerification();
+  const { user } = useAuth();
   const draftMediaEntityIdRef = useRef(idValue || crypto.randomUUID());
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -880,16 +901,14 @@ export default function AddPropertyPage() {
   useEffect(() => {
     if (isEditMode) return;
     if (formData.countryCode) return;
-    if (countries.length === 0) return;
-
-    const defaultCountry = countries[0];
+    const defaultCountry = resolveDefaultCountryForUser(user);
     setFormData((prev) => ({
       ...prev,
       country: defaultCountry.name,
       countryCode: defaultCountry.code,
       currency: defaultCountry.currency,
     }));
-  }, [formData.countryCode, isEditMode]);
+  }, [formData.countryCode, isEditMode, user]);
 
   // Unsaved changes warning - uses beforeunload event for browser navigation
   useEffect(() => {
