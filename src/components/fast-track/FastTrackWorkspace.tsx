@@ -319,7 +319,7 @@ export const getFastTrackDocumentUploadCopy = ({
         return {
             chooserSummary: 'No reupload selected',
             actionLabel: 'Reupload file',
-            statusMessage: 'Uploaded and visible to your manager. Preview is ready in this workspace.',
+            statusMessage: 'Uploaded and visible to your manager. Use Preview or Open when you want to review the file.',
         };
     }
 
@@ -1294,8 +1294,6 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const uploadedItem = data.documents.items.find((documentItem) => documentItem.id === item.id);
         if (uploadedItem) {
             handleDocumentFocus(uploadedItem.id);
-            setPreviewItemId(uploadedItem.id);
-            setPreviewModalOpen(true);
         }
         publishWorkspaceSync({
             source: 'mutation',
@@ -1307,8 +1305,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 propertyId: data.propertyId,
             },
         });
-        toast.success(`${item.label} uploaded.`);
-    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, revealPreviewSection, role, selectedCase, selectedFiles, toast, updateLocalCase]);
+        toast.success(`${item.label} uploaded and visible to your manager.`);
+    }, [documentNotes, handleDocumentFocus, publishWorkspaceSync, selectedCase, selectedFiles, toast, updateLocalCase]);
 
     const stageIndex = selectedCase ? STAGES.indexOf(selectedCase.stage) : -1;
     const statusChip = selectedCase ? formatStatusChip(selectedCase) : null;

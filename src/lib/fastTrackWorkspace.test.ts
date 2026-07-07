@@ -333,7 +333,7 @@ test('user handover stays actionable after manager completion until receipt is c
     assert.equal(describeFastTrackWorkspaceFocus(managerCompletedCase, 'manager'), 'Case finished');
 });
 
-test('fast-track document preview opens a modal for selected and uploaded files', () => {
+test('fast-track document preview opens a modal only from explicit preview actions', () => {
     assert.match(
         fastTrackWorkspaceComponent,
         /const canPreview = Boolean\(selectedFile \|\| item\.documentRecordId \|\| item\.fileUrl\)/,
@@ -342,9 +342,13 @@ test('fast-track document preview opens a modal for selected and uploaded files'
         fastTrackWorkspaceComponent,
         /if \(selectedFile\) \{/,
     );
-    assert.match(
+    assert.doesNotMatch(
         fastTrackWorkspaceComponent,
         /setPreviewItemId\(uploadedItem\.id\);\s*setPreviewModalOpen\(true\);/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /toast\.success\(`\$\{item\.label\} uploaded and visible to your manager\.`\);/,
     );
     assert.match(
         fastTrackWorkspaceComponent,

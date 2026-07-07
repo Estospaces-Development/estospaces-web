@@ -89,7 +89,7 @@ test("fast-track user document upload copy makes uploaded and reupload states vi
     {
       chooserSummary: "No reupload selected",
       actionLabel: "Reupload file",
-      statusMessage: "Uploaded and visible to your manager. Preview is ready in this workspace.",
+      statusMessage: "Uploaded and visible to your manager. Use Preview or Open when you want to review the file.",
     },
   );
 
