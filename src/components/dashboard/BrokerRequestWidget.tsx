@@ -480,6 +480,13 @@ const BrokerRequestWidget = () => {
             return;
         }
 
+        if (requestReplacementLocked) {
+            const message = 'Your agent match is locked. Continue with this property agent or contact support before changing it.';
+            setError(message);
+            toast.error(message);
+            return;
+        }
+
         setRematching(true);
         setError(null);
 
@@ -646,6 +653,13 @@ const BrokerRequestWidget = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (requestReplacementLocked) {
+            const message = 'Your agent match is locked. Continue with this property agent or contact support before starting another request.';
+            setError(message);
+            toast.error(message);
+            return;
+        }
+
         const trimmedPostcode = normalizePostcode(locationPostcode);
         if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
             setPostcodeError(getLaunchLocationCodeErrorMessage(geoMarket, undefined, trimmedPostcode));
@@ -709,6 +723,7 @@ const BrokerRequestWidget = () => {
     const activeRequestSeconds = secondsUntilDeadline(activeRequest?.response_deadline_at, clockNow);
     const requestIsMatched = activeRequest?.dispatch_status === 'broker_matched' || activeRequest?.status === 'matched';
     const requestIsExpired = activeRequest?.dispatch_status === 'expired' || activeRequest?.status === 'expired';
+    const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);
     const requestIsActive = Boolean(activeRequest && !requestIsMatched && !requestIsExpired);
     const dispatchWorkspaceSummary = getDispatchWorkspaceSummary(activeRequest);
     const matchedBroker = activeRequest?.matched_broker || null;
@@ -1241,7 +1256,11 @@ const BrokerRequestWidget = () => {
                                             </div>
                                         )}
 
-                                        {!selectedProperty && (
+                                        {!selectedProperty && requestReplacementLocked ? (
+                                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                                                Your property agent is locked for this request. Continue with this agent, review shared homes, or contact support before changing the match.
+                                            </div>
+                                        ) : !selectedProperty ? (
                                             <button
                                                 type="button"
                                                 onClick={() => void handleRematch()}
@@ -1251,23 +1270,25 @@ const BrokerRequestWidget = () => {
                                                 {rematching && <Loader2 size={15} className="animate-spin" />}
                                                 {rematching ? 'Finding another agent...' : 'Find another agent'}
                                             </button>
-                                        )}
+                                        ) : null}
                                     </div>
                                 )}
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setActiveRequest(null);
-                                        setError(null);
-                                        publishBrokerRequestWorkspaceSelection(null);
-                                        navigate('/user/dashboard', { replace: true });
-                                    }}
-                                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
-                                >
-                                    <Radio size={14} />
-                                    {brokerCopy.restartRequestLabel}
-                                </button>
+                                {!requestReplacementLocked && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setActiveRequest(null);
+                                            setError(null);
+                                            publishBrokerRequestWorkspaceSelection(null);
+                                            navigate('/user/dashboard', { replace: true });
+                                        }}
+                                        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                    >
+                                        <Radio size={14} />
+                                        {brokerCopy.restartRequestLabel}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -1358,6 +1379,11 @@ const BrokerRequestWidget = () => {
                 {requestIsActive && (
                     <div className="rounded-xl border border-orange-100 bg-orange-50/60 p-3 text-sm text-gray-700 dark:border-orange-900/30 dark:bg-orange-950/20 dark:text-gray-200">
                         An agent request is already running. You can still adjust the form below and start a new one if your needs change.
+                    </div>
+                )}
+                {requestReplacementLocked && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                        Agent match locked. New requests are paused here so your confirmed property agent is not replaced accidentally.
                     </div>
                 )}
 
@@ -1490,7 +1516,7 @@ const BrokerRequestWidget = () => {
 
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || requestReplacementLocked}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                     {loading ? (
@@ -1500,7 +1526,9 @@ const BrokerRequestWidget = () => {
                     )}
                     {loading
                         ? 'Sending request...'
-                        : requestIsActive
+                        : requestReplacementLocked
+                            ? 'Agent match locked'
+                            : requestIsActive
                             ? brokerCopy.requestFormActionAgain
                             : activeRequest
                                 ? brokerCopy.requestFormActionAgain

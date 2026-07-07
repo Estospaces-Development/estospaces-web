@@ -21,6 +21,18 @@ test('user dashboard broker request opt-in checkbox exposes an accessible name',
   assert.match(brokerRequestWidget, /aria-label=\{brokerCopy\.useDispatchTitle\}/);
 });
 
+
+test('matched broker requests lock replacement actions until support intervention', () => {
+  const brokerRequestWidget = readSource('src/components/dashboard/BrokerRequestWidget.tsx');
+
+  assert.ok(brokerRequestWidget.includes('const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);'));
+  assert.ok(brokerRequestWidget.includes("Your agent match is locked. Continue with this property agent or contact support before changing it."));
+  assert.ok(brokerRequestWidget.includes('disabled={loading || requestReplacementLocked}'));
+  assert.ok(brokerRequestWidget.includes("? 'Agent match locked'"));
+  assert.ok(brokerRequestWidget.includes('{!requestReplacementLocked && ('));
+  assert.ok(brokerRequestWidget.includes('Agent match locked. New requests are paused here so your confirmed property agent is not replaced accidentally.'));
+});
+
 test('manager header global search routes into the lead desk search state', () => {
   const header = readSource('src/components/layout/Header.tsx');
   const managerLeads = readSource('src/pages/manager/leads/page.tsx');
