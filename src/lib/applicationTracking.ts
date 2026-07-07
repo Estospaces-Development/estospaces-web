@@ -90,7 +90,6 @@ export const getApplicationTimelineTimestamp = (
 
 export const hasTimelinePropertyDetails = (context: TimelinePropertyContextInput | null | undefined) => (
     Boolean(
-        normalizeTimelineText(context?.title) ||
         normalizeTimelineText(context?.address) ||
         parseTimelinePrice(context?.price) ||
         hasTimelineImage(context?.image),

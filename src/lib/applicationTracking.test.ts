@@ -180,6 +180,18 @@ test('timeline property context treats empty legacy snapshots and zero prices as
     );
 });
 
+test('timeline property context does not treat a title-only legacy snapshot as recovered details', () => {
+    assert.equal(
+        hasTimelinePropertyDetails({
+            title: 'QA LIVE 24H CANCEL 2026-05-05T20-21-55-620Z',
+            address: null,
+            price: null,
+            image: '',
+        }),
+        false,
+    );
+});
+
 test('timeline property context hydrates broken legacy application snapshots from real property data', () => {
     const resolved = resolveTimelinePropertyContext(
         {
