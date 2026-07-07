@@ -650,15 +650,31 @@ const BrokerRequestWidget = () => {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (requestReplacementLocked) {
-            const message = 'Your agent match is locked. Continue with this property agent or contact support before starting another request.';
+    const handleLockedMatchAction = () => {
+        if (!activeRequest?.id) {
+            const message = 'Your matched agent request could not be reopened. Please refresh and try again.';
             setError(message);
             toast.error(message);
             return;
         }
+
+        publishBrokerRequestWorkspaceSelection(activeRequest.id);
+
+        if (activeRequest.selected_fast_track_case_id) {
+            navigate(`/user/dashboard/fast-track?case=${activeRequest.selected_fast_track_case_id}`);
+            return;
+        }
+
+        if (selectedProperty) {
+            navigate(`/user/properties/${selectedProperty.id}?fast-track=1&broker-request=${activeRequest.id}`);
+            return;
+        }
+
+        navigate(buildBrokerRequestWorkspacePath(activeRequest.id));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
         const trimmedPostcode = normalizePostcode(locationPostcode);
         if (!trimmedPostcode || !isValidLaunchLocationCodeForCountry(trimmedPostcode, geoMarket)) {
@@ -732,6 +748,11 @@ const BrokerRequestWidget = () => {
     const selectedProperty = activeRequest?.selected_property
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
+    const lockedRequestActionLabel = activeRequest?.selected_fast_track_case_id
+        ? 'Continue in fast-track'
+        : selectedProperty
+            ? 'Start fast-track with selected home'
+            : 'Continue with locked agent';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
         const filtered = sharedProperties.filter((share) => {
@@ -1515,8 +1536,9 @@ const BrokerRequestWidget = () => {
                 )}
 
                 <button
-                    type="submit"
-                    disabled={loading || requestReplacementLocked}
+                    type={requestReplacementLocked ? 'button' : 'submit'}
+                    onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}
+                    disabled={loading}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                     {loading ? (
@@ -1527,7 +1549,7 @@ const BrokerRequestWidget = () => {
                     {loading
                         ? 'Sending request...'
                         : requestReplacementLocked
-                            ? 'Agent match locked'
+                            ? lockedRequestActionLabel
                             : requestIsActive
                             ? brokerCopy.requestFormActionAgain
                             : activeRequest

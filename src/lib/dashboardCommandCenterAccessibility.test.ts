@@ -27,8 +27,12 @@ test('matched broker requests lock replacement actions until support interventio
 
   assert.ok(brokerRequestWidget.includes('const requestReplacementLocked = Boolean(requestIsMatched && !requestIsExpired);'));
   assert.ok(brokerRequestWidget.includes("Your agent match is locked. Continue with this property agent or contact support before changing it."));
-  assert.ok(brokerRequestWidget.includes('disabled={loading || requestReplacementLocked}'));
-  assert.ok(brokerRequestWidget.includes("? 'Agent match locked'"));
+  assert.ok(brokerRequestWidget.includes("type={requestReplacementLocked ? 'button' : 'submit'}"));
+  assert.ok(brokerRequestWidget.includes('onClick={requestReplacementLocked ? handleLockedMatchAction : undefined}'));
+  assert.ok(brokerRequestWidget.includes('Continue with locked agent'));
+  assert.ok(brokerRequestWidget.includes('navigate(buildBrokerRequestWorkspacePath(activeRequest.id));'));
+  assert.ok(brokerRequestWidget.includes('? lockedRequestActionLabel'));
+  assert.doesNotMatch(brokerRequestWidget, /disabled=\{loading \|\| requestReplacementLocked\}/);
   assert.ok(brokerRequestWidget.includes('{!requestReplacementLocked && ('));
   assert.ok(brokerRequestWidget.includes('Agent match locked. New requests are paused here so your confirmed property agent is not replaced accidentally.'));
 });
