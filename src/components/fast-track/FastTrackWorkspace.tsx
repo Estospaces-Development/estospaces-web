@@ -950,6 +950,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     );
     const isManagerReviewEligible = role === 'user'
         && isFastTrackManagerReviewEligible(selectedCase);
+    const shouldHoldUserDocumentsUntilManagerResponse = role === 'user'
+        && selectedCase?.stage === 'documents'
+        && !isFastTrackManagerReviewEligible(selectedCase);
+    const effectiveVisibleStage = shouldHoldUserDocumentsUntilManagerResponse ? 'selected' : visibleStage;
 
     useEffect(() => {
         if (!documentDraftStorageKey) {
@@ -1066,13 +1070,29 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [toast]);
 
     const workspaceFocus = useMemo(
-        () => (selectedCase ? describeFastTrackWorkspaceFocus(selectedCase, role) : ''),
-        [role, selectedCase],
+        () => {
+            if (!selectedCase) {
+                return '';
+            }
+            if (shouldHoldUserDocumentsUntilManagerResponse) {
+                return 'Waiting for manager response';
+            }
+            return describeFastTrackWorkspaceFocus(selectedCase, role);
+        },
+        [role, selectedCase, shouldHoldUserDocumentsUntilManagerResponse],
     );
 
     const workspaceStatus = useMemo(
-        () => (selectedCase ? describeFastTrackWorkspaceStatus(selectedCase, role) : ''),
-        [role, selectedCase],
+        () => {
+            if (!selectedCase) {
+                return '';
+            }
+            if (shouldHoldUserDocumentsUntilManagerResponse) {
+                return 'Your manager will request documents here after they respond. You do not need to upload files yet.';
+            }
+            return describeFastTrackWorkspaceStatus(selectedCase, role);
+        },
+        [role, selectedCase, shouldHoldUserDocumentsUntilManagerResponse],
     );
 
     const updateLocalCase = useCallback((nextCase: FastTrackCase) => {
@@ -3383,7 +3403,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return null;
         }
 
-        switch (visibleStage) {
+        switch (effectiveVisibleStage) {
             case 'documents':
                 return renderDocumentsStage();
             case 'viewing':
@@ -3483,12 +3503,12 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                     ? formatStageLabel(stage, selectedCase.journeyMode, role)
                     : formatStageLabel(stage, 'rent', role),
                 icon: <Icon size={16} />,
-                active: visibleStage === stage,
+                active: effectiveVisibleStage === stage,
                 complete: selectedCase?.workspaceFinalStatus === 'completed' || stageIndex > index,
                 current: selectedCase?.stage === stage,
             };
         }),
-        [role, selectedCase, stageIndex, visibleStage],
+        [role, selectedCase, stageIndex, effectiveVisibleStage],
     );
 
     const selectedCaseSubtitle = selectedCase

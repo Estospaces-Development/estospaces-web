@@ -326,7 +326,8 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
 test('manager review eligibility waits for assignment and manager interaction', () => {
     assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: undefined })), false);
     assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'selected' })), false);
-    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'documents' })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'documents' })), false);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'viewing' })), true);
     assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', workspaceFinalStatus: 'completed' })), true);
     assert.equal(isFastTrackManagerReviewEligible(buildCase({
         managerId: 'manager-1',

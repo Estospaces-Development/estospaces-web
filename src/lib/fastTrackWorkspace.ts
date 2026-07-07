@@ -30,7 +30,7 @@ export const isFastTrackManagerReviewEligible = (fastTrackCase: FastTrackCase | 
         return true;
     }
 
-    if (fastTrackCase.stage !== 'selected') {
+    if (['viewing', 'decision', 'agreement', 'handover'].includes(fastTrackCase.stage)) {
         return true;
     }
 
