@@ -40,6 +40,10 @@ export const hasStableActivityTimestamp = (date: Date | null | undefined) => (
     Boolean(date && Number.isFinite(date.getTime()) && date.getTime() > UNAVAILABLE_ACTIVITY_TIMESTAMP)
 );
 
+export const getApplicationTimelineTimestamp = (
+    application: { created_at?: ActivityTimestampCandidate; submitted_at?: ActivityTimestampCandidate; updated_at?: ActivityTimestampCandidate },
+) => getStableActivityTimestamp(application.created_at, application.submitted_at, application.updated_at);
+
 export const isLiveBrokerRequest = (
     request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,
 ) => {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+    getApplicationTimelineTimestamp,
     getStableActivityTimestamp,
     getBrokerRequestTrackingSummary,
     hasStableActivityTimestamp,
@@ -145,4 +146,21 @@ test('activity timestamp parser ignores invalid values before using fallback rec
     const timestamp = parseActivityTimestamp('not-a-date', '2026-03-25T09:15:00.000Z');
 
     assert.equal(timestamp?.toISOString(), '2026-03-25T09:15:00.000Z');
+});
+
+test('application timeline cards prefer submission date over refreshed update date', () => {
+    const timestamp = getApplicationTimelineTimestamp({
+        created_at: '2026-05-05T19:43:08.367Z',
+        updated_at: '2026-07-07T05:58:00.000Z',
+    });
+
+    assert.equal(timestamp.toISOString(), '2026-05-05T19:43:08.367Z');
+});
+
+test('application timeline cards fall back to updated date when submission date is missing', () => {
+    const timestamp = getApplicationTimelineTimestamp({
+        updated_at: '2026-07-07T05:58:00.000Z',
+    });
+
+    assert.equal(timestamp.toISOString(), '2026-07-07T05:58:00.000Z');
 });

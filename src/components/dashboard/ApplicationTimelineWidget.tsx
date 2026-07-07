@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
+    getApplicationTimelineTimestamp,
     getBrokerRequestTrackingSummary,
     getStableActivityTimestamp,
     hasStableActivityTimestamp,
@@ -360,7 +361,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: summary.currentStageNumber,
                         totalStages: summary.totalStages,
                         progress: summary.progress,
-                        lastUpdated: getStableActivityTimestamp(app.updated_at, app.created_at),
+                        lastUpdated: getApplicationTimelineTimestamp(app),
                         nextAction: summary.nextAction,
                         estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
                         property: {
