@@ -745,6 +745,11 @@ const BrokerRequestWidget = () => {
     const matchedBroker = activeRequest?.matched_broker || null;
     const matchedExperienceSteps = requestIsMatched && activeRequest ? getMatchedExperienceSteps(activeRequest) : [];
     const sharedProperties = activeRequest?.property_shares || [];
+    const availableSharedProperties = useMemo(
+        () => sharedProperties.filter((share) => Boolean(share.property)),
+        [sharedProperties],
+    );
+    const staleSharedPropertiesCount = sharedProperties.length - availableSharedProperties.length;
     const selectedProperty = activeRequest?.selected_property
         || sharedProperties.find((share) => share.status === 'selected' || share.property_id === activeRequest?.selected_property_id)?.property
         || null;
@@ -755,11 +760,14 @@ const BrokerRequestWidget = () => {
             : 'Continue with locked agent';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
-        const filtered = sharedProperties.filter((share) => {
+        const filtered = availableSharedProperties.filter((share) => {
+            const property = share.property;
+            if (!property) {
+                return false;
+            }
             if (!search) {
                 return true;
             }
-            const property = share.property;
             return [
                 property?.title,
                 property?.city,
@@ -785,7 +793,7 @@ const BrokerRequestWidget = () => {
         });
 
         return filtered.slice(0, SHARED_HOME_CHOICE_LIMIT);
-    }, [sharedHomeSearch, sharedHomeSort, sharedProperties]);
+    }, [availableSharedProperties, sharedHomeSearch, sharedHomeSort]);
     const handoffMinutesRemaining = formatMinutesUntil(activeRequest?.handoff_due_at, clockNow);
     const workspaceTone = requestIsMatched
         ? 'border-emerald-200 bg-white shadow-sm dark:border-emerald-900/40 dark:bg-gray-900'
@@ -1075,21 +1083,25 @@ const BrokerRequestWidget = () => {
                                                 <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">
                                                     {selectedProperty
                                                         ? 'Your chosen home is ready'
-                                                        : sharedProperties.length > 0
-                                                            ? `${sharedProperties.length} home choice${sharedProperties.length === 1 ? '' : 's'} ready to review`
-                                                            : 'Waiting for home choices'}
+                                                        : availableSharedProperties.length > 0
+                                                            ? `${availableSharedProperties.length} home choice${availableSharedProperties.length === 1 ? '' : 's'} ready to review`
+                                                            : staleSharedPropertiesCount > 0
+                                                                ? 'Home choices need refresh'
+                                                                : 'Waiting for home choices'}
                                                 </p>
                                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                                                     {selectedProperty
                                                         ? 'Open your chosen home or continue your 24-hour journey.'
-                                                        : sharedProperties.length > 0
+                                                        : availableSharedProperties.length > 0
                                                             ? 'Choose one of the homes below to start your 24-hour journey.'
-                                                            : handoffMinutesRemaining !== null
-                                                                ? `Your property agent should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
-                                                                : 'Your property agent is preparing home choices for this request.'}
+                                                            : staleSharedPropertiesCount > 0
+                                                                ? 'The shared home is no longer available. Ask your property agent to refresh the shortlist before starting a 24-hour journey.'
+                                                                : handoffMinutesRemaining !== null
+                                                                    ? `Your property agent should share options within about ${handoffMinutesRemaining} minute${handoffMinutesRemaining === 1 ? '' : 's'}.`
+                                                                    : 'Your property agent is preparing home choices for this request.'}
                                                 </p>
                                             </div>
-                                            {handoffMinutesRemaining !== null && !selectedProperty && sharedProperties.length === 0 && (
+                                            {handoffMinutesRemaining !== null && !selectedProperty && availableSharedProperties.length === 0 && staleSharedPropertiesCount === 0 && (
                                                 <div className="rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-right dark:border-orange-900/30 dark:bg-orange-950/20">
                                                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-500">Shortlist due</p>
                                                     <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
@@ -1156,7 +1168,7 @@ const BrokerRequestWidget = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : sharedProperties.length > 0 ? (
+                                        ) : availableSharedProperties.length > 0 ? (
                                             <div className="mt-4 space-y-3">
                                                 <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
                                                     <label className="relative block">
@@ -1188,7 +1200,7 @@ const BrokerRequestWidget = () => {
                                                     </label>
                                                 </div>
                                                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                                                    Showing {visibleSharedProperties.length} of {sharedProperties.length} shared homes
+                                                    Showing {visibleSharedProperties.length} of {availableSharedProperties.length} shared homes
                                                 </p>
                                                 {visibleSharedProperties.map((share, shareIndex) => {
                                                         const property = share.property;
@@ -1270,6 +1282,10 @@ const BrokerRequestWidget = () => {
                                                             </div>
                                                         );
                                                     })}
+                                            </div>
+                                        ) : staleSharedPropertiesCount > 0 ? (
+                                            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+                                                The shared home is no longer available. Ask your property agent to refresh the shortlist before starting a 24-hour journey.
                                             </div>
                                         ) : (
                                             <div className="mt-4 rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm text-orange-900 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-100">
