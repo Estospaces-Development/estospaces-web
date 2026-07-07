@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, CalendarCheck, CalendarClock, CheckCircle2, Clock3, FileText, Loader2, MapPin, RefreshCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingsService, type Viewing } from '@/services/bookingsService';
@@ -36,6 +36,10 @@ const FILTERS = [
     { value: 'completed', label: 'Completed' },
     { value: 'cancelled', label: 'Cancelled' },
 ];
+
+type FetchAppointmentsOptions = {
+    background?: boolean;
+};
 
 function formatDateTime(dateTime: string) {
     const parsed = new Date(dateTime);
@@ -202,6 +206,7 @@ export default function ManagerAppointmentsPage() {
     const [appointments, setAppointments] = useState<Viewing[]>([]);
     const [fastTrackCases, setFastTrackCases] = useState<FastTrackCase[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
@@ -219,10 +224,15 @@ export default function ManagerAppointmentsPage() {
         manager_notes: '',
     });
     const [rescheduleFormErrors, setRescheduleFormErrors] = useState<ManagerRescheduleValidationErrors>({});
+    const hasLoadedAppointmentsRef = useRef(false);
 
-    const fetchAppointments = async () => {
-        setLoading(true);
-        setError(null);
+    const fetchAppointments = useCallback(async (options: FetchAppointmentsOptions = {}) => {
+        const shouldBlockForLoad = !options.background && !hasLoadedAppointmentsRef.current;
+        if (shouldBlockForLoad) {
+            setLoading(true);
+        } else {
+            setIsRefreshing(true);
+        }
         try {
             const [viewingsData, fastTrackCasesResult] = await Promise.all([
                 bookingsService.getViewings(),
@@ -230,17 +240,26 @@ export default function ManagerAppointmentsPage() {
             ]);
             setAppointments(viewingsData);
             setFastTrackCases(fastTrackCasesResult.data || []);
+            setError(null);
+            hasLoadedAppointmentsRef.current = true;
         } catch (fetchError: any) {
-            setError(fetchError?.message || 'Failed to load appointments');
-            setAppointments([]);
+            if (shouldBlockForLoad || !hasLoadedAppointmentsRef.current) {
+                setError(fetchError?.message || 'Failed to load appointments');
+                setAppointments([]);
+            } else {
+                console.error('Failed to refresh appointments', fetchError);
+            }
         } finally {
-            setLoading(false);
+            if (shouldBlockForLoad) {
+                setLoading(false);
+            }
+            setIsRefreshing(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        fetchAppointments();
-    }, []);
+        void fetchAppointments();
+    }, [fetchAppointments]);
 
     useWorkflowWorkspaceRefresh({
         tags: [
@@ -249,7 +268,7 @@ export default function ManagerAppointmentsPage() {
             WORKSPACE_SYNC_TAGS.FAST_TRACK,
             WORKSPACE_SYNC_TAGS.VERIFICATIONS,
         ],
-        refresh: fetchAppointments,
+        refresh: () => fetchAppointments({ background: true }),
     });
 
     const rawCaseId = searchParams.get('case');
@@ -380,7 +399,7 @@ export default function ManagerAppointmentsPage() {
                     propertyId: appointment?.property_id,
                 },
             });
-            await fetchAppointments();
+            await fetchAppointments({ background: true });
         } catch (actionError: any) {
             toast.error(actionError?.message || 'Unable to update this appointment.');
         } finally {
@@ -513,11 +532,14 @@ export default function ManagerAppointmentsPage() {
                     </p>
                 </div>
                 <button
-                    onClick={fetchAppointments}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
+                    onClick={() => {
+                        void fetchAppointments({ background: true });
+                    }}
+                    disabled={loading || isRefreshing}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-black dark:text-gray-200 dark:hover:bg-gray-900"
                 >
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Refreshing' : 'Refresh'}
                 </button>
             </div>
 
@@ -609,7 +631,7 @@ export default function ManagerAppointmentsPage() {
                                             caseItem.caseId === nextCase.caseId ? nextCase : caseItem
                                         )));
                                     }}
-                                    onRefresh={fetchAppointments}
+                                    onRefresh={() => fetchAppointments({ background: true })}
                                 />
                             </div>
                         )}
@@ -922,7 +944,7 @@ export default function ManagerAppointmentsPage() {
                         source: 'appointment',
                     }}
                     onUpdated={async () => {
-                        await fetchAppointments();
+                        await fetchAppointments({ background: true });
                     }}
                     onClose={() => {
                         setVerificationTarget(null);

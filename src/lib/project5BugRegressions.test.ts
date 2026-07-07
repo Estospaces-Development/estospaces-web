@@ -174,6 +174,14 @@ test('transaction workspaces give search controls and contract actions clear acc
     assert.match(userContractsPage, /aria-label=\{`Open property workspace for \$\{item\.propertyTitle\}`\}/);
 });
 
+test('manager appointments keep records visible during background refreshes', () => {
+    assert.match(managerAppointmentsPage, /const \[isRefreshing, setIsRefreshing\] = useState\(false\)/);
+    assert.match(managerAppointmentsPage, /const shouldBlockForLoad = !options\.background && !hasLoadedAppointmentsRef\.current/);
+    assert.match(managerAppointmentsPage, /refresh: \(\) => fetchAppointments\(\{ background: true \}\)/);
+    assert.match(managerAppointmentsPage, /onRefresh=\{\(\) => fetchAppointments\(\{ background: true \}\)\}/);
+    assert.doesNotMatch(managerAppointmentsPage, /refresh: fetchAppointments/);
+});
+
 test('admin dashboard recent notifications expose a search control', () => {
     assert.match(adminDashboardPage, /recentNotificationSearch/);
     assert.match(adminDashboardPage, /htmlFor="recent-notification-search"/);
