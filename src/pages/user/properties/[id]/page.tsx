@@ -43,6 +43,7 @@ import {
     buildFastTrackVerificationContent,
     filterDocumentsForLead,
     getFastTrackStartAction,
+    isActiveFastTrackCase,
     normalizeWorkspaceDocuments,
 } from '@/lib/fastTrackWorkflow';
 import {
@@ -1107,13 +1108,18 @@ const UserPropertyDetail = () => {
         { label: 'Availability', value: availableFromLabel },
         { label: 'Deposit', value: typeof property?.deposit_amount === 'number' && property.deposit_amount > 0 ? formatPropertyCurrency(property.deposit_amount) : 'On request' },
     ], [availableFromLabel, conditionLabel, formatPropertyCurrency, listingLabel, property?.deposit_amount]);
+    const hasActiveFastTrackJourney = isActiveFastTrackCase(activeFastTrackCase);
+    const fastTrackSidebarActionLabel = hasActiveFastTrackJourney ? 'Continue 24-hour journey' : '24-hour fast track';
+    const fastTrackPrimaryActionLabel = hasActiveFastTrackJourney ? 'Continue 24-Hour Fast Track' : 'Start 24-Hour Fast Track';
+    const fastTrackBusyActionLabel = hasActiveFastTrackJourney ? 'Opening Fast-Track...' : 'Starting Fast-Track...';
+    const fastTrackConciergeActionLabel = hasActiveFastTrackJourney ? 'Continue your fast-track workspace' : '10-minute live broker response';
     const heroMetaItems = [
         { label: 'Condition', value: conditionLabel, icon: Sparkles },
         { label: 'Availability', value: availableFromLabel, icon: Clock },
         { label: 'Gallery', value: `${images.length} photo${images.length === 1 ? '' : 's'}`, icon: ImageIcon },
     ];
     const conciergeHighlights = [
-        { label: 'Response window', value: '10-minute live broker response', icon: Clock },
+        { label: 'Response window', value: fastTrackConciergeActionLabel, icon: Clock },
         { label: 'Private access', value: 'Message the broker directly', icon: MessageCircle },
         { label: 'Tour booking', value: 'Reserve a slot in minutes', icon: CalendarDays },
     ];
@@ -1662,8 +1668,8 @@ const UserPropertyDetail = () => {
     const liveLeadStageLabel = liveLeadPanelLabels.stage;
     const liveLeadDeadlineLabel = liveLeadPanelLabels.deadline;
     const liveLeadDispatchLabel =
-        activeFastTrackCase?.workspaceFinalStatus === 'active' || activeFastTrackCase?.finalStatus === 'in_progress'
-            ? formatLeadStage(activeFastTrackCase.stage)
+        hasActiveFastTrackJourney
+            ? formatLeadStage(activeFastTrackCase?.stage)
             : formatLeadStage(activeLead?.dispatch_status || (activeLead?.matched_broker ? 'broker_matched' : 'matching'));
     const liveLeadBrokerLabel =
         activeLead?.matched_broker?.name ||
@@ -2328,7 +2334,7 @@ const UserPropertyDetail = () => {
                                                 className="inline-flex items-center gap-2 rounded-[1.1rem] border border-stone-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white"
                                             >
                                                 {isStartingFastTrack ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} className="text-orange-500" />}
-                                                <span>{isStartingFastTrack ? 'Checking live status...' : '24-hour fast track'}</span>
+                                                <span>{isStartingFastTrack ? 'Checking live status...' : fastTrackSidebarActionLabel}</span>
                                             </button>
                                 </div>
                             </div>
@@ -2710,7 +2716,7 @@ const UserPropertyDetail = () => {
                                 disabled={isStartingFastTrack}
                                 className="w-full rounded-[1.35rem] bg-orange-500 py-4 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {isStartingFastTrack ? 'Starting Fast-Track...' : 'Start 24-Hour Fast Track'}
+                                {isStartingFastTrack ? fastTrackBusyActionLabel : fastTrackPrimaryActionLabel}
                             </button>
                             <button
                                 type="button"

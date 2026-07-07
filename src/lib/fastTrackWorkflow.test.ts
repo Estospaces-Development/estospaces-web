@@ -256,6 +256,14 @@ test('existing active lead without case creates the missing case', () => {
         ),
         'resume_existing_case',
     );
+
+    assert.equal(
+        getFastTrackStartAction(
+            { status: 'pending_broker_response' },
+            { workspaceFinalStatus: 'active', finalStatus: 'active' },
+        ),
+        'resume_existing_case',
+    );
 });
 
 test('fast-track completion helper accepts both final status and completed journey steps', () => {

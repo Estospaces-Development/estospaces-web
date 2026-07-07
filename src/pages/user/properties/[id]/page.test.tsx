@@ -266,3 +266,11 @@ test("viewing concierge highlight rows are actionable buttons", () => {
   assert.match(propertyDetailSource, /<button\n\s+key=\{item\.label\}/);
   assert.match(propertyDetailSource, /ref=\{viewingFormRef\}/);
 });
+
+test("property detail fast-track CTA resumes active broker-request journeys instead of advertising a new start", () => {
+  assert.match(propertyDetailSource, /const hasActiveFastTrackJourney = isActiveFastTrackCase\(activeFastTrackCase\);/);
+  assert.match(propertyDetailSource, /Continue 24-hour journey/);
+  assert.match(propertyDetailSource, /Continue 24-Hour Fast Track/);
+  assert.match(propertyDetailSource, /fastTrackConciergeActionLabel/);
+  assert.doesNotMatch(propertyDetailSource, /activeFastTrackCase\?\.workspaceFinalStatus === 'active' \|\| activeFastTrackCase\?\.finalStatus === 'in_progress'/);
+});

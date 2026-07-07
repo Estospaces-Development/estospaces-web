@@ -42,6 +42,7 @@ export interface FastTrackCaseLike {
     backendCurrentStep?: string;
     currentStep?: string;
     finalStatus?: string;
+    workspaceFinalStatus?: string;
     hoursRemaining?: number;
     journeyType?: 'rent' | 'buy';
     jurisdiction?: string;
@@ -139,6 +140,13 @@ export type FastTrackStartAction =
     | 'resume_existing_case'
     | 'create_case_for_existing_lead'
     | 'create_lead_and_case';
+
+export const isActiveFastTrackCase = (
+    fastTrackCase: FastTrackCaseLike | null | undefined,
+) => (
+    fastTrackCase?.workspaceFinalStatus === 'active'
+    || fastTrackCase?.finalStatus === 'in_progress'
+);
 
 const CLOSED_LEAD_STATUSES = new Set(['closed_won', 'closed_lost', 'cancelled']);
 const REUPLOAD_STATUSES = new Set(['reupload_required', 'rejected']);
@@ -836,7 +844,7 @@ export const getFastTrackStartAction = (
     lead: LeadLike | null,
     fastTrackCase: FastTrackCaseLike | null,
 ): FastTrackStartAction => {
-    if (fastTrackCase?.finalStatus === 'in_progress') {
+    if (isActiveFastTrackCase(fastTrackCase)) {
         return 'resume_existing_case';
     }
 
@@ -851,7 +859,7 @@ export const isFastTrackCaseOverdue = (
     fastTrackCase: FastTrackCaseLike | null | undefined,
 ) => Boolean(
     fastTrackCase
-    && fastTrackCase.finalStatus === 'in_progress'
+    && isActiveFastTrackCase(fastTrackCase)
     && Number(fastTrackCase.hoursRemaining ?? 0) <= 0,
 );
 
