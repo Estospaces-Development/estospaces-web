@@ -403,6 +403,8 @@ export const describeFastTrackWorkspaceStatus = (
                 ? fastTrackCase.journeyMode === 'sale'
                     ? 'Your purchase journey moves through offer review, memorandum, solicitor conveyancing, exchange, completion, and keys in one place.'
                     : 'The team will open the next step here. You stay in this journey from start to finish.'
-                : 'Claim the case if needed, then open documents here so the rest of the journey stays on one page.';
+                : fastTrackCase.managerId
+                    ? 'This case is assigned. Open documents here so the rest of the journey stays on one page.'
+                    : 'Claim the case, then open documents here so the rest of the journey stays on one page.';
     }
 };

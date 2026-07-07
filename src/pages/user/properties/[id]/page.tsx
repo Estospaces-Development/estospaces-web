@@ -161,14 +161,13 @@ export const buildPropertyFastTrackStartRequest = ({
 
     const brokerRequestId = brokerRequestQuery || lead?.broker_request_id || undefined;
     const startsFromBrokerRequest = Boolean(brokerRequestId);
+    const managerId = lead?.matched_broker_id || lead?.broker_id || property.manager_id || undefined;
 
     return {
         property_id: property.id,
         broker_request_id: brokerRequestId,
         lead_id: startsFromBrokerRequest ? undefined : lead?.id,
-        manager_id: startsFromBrokerRequest
-            ? undefined
-            : lead?.matched_broker_id || lead?.broker_id || property.manager_id,
+        manager_id: managerId,
         client_id: clientId,
         client_name: clientName,
         property_title: property.title,

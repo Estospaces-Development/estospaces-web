@@ -2343,7 +2343,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-300">Participants</p>
                         <p className="mt-2 text-base font-semibold text-gray-900 dark:text-white">{selectedCase.clientName}</p>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                            Manager: {selectedCase.managerId ? 'Assigned' : 'Waiting for claim'}
+                            Manager: {selectedCase.managerId ? 'Assigned to this workspace' : 'Waiting for claim'}
                         </p>
                     </div>
                 </div>

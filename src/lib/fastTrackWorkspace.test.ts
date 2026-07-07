@@ -312,6 +312,14 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     });
     assert.equal(describeFastTrackWorkspaceFocus(completedHandoverCase, 'user'), 'Your journey is complete');
     assert.equal(describeFastTrackWorkspaceStatus(completedHandoverCase, 'user'), 'Every step is complete. You can keep this page for records and updates.');
+
+    const assignedSelectedCase = buildCase({ stage: 'selected', managerId: 'manager-1' });
+    assert.equal(describeFastTrackWorkspaceFocus(assignedSelectedCase, 'manager'), 'Start documents');
+    assert.doesNotMatch(describeFastTrackWorkspaceStatus(assignedSelectedCase, 'manager'), /Claim/i);
+
+    const unassignedSelectedCase = buildCase({ stage: 'selected', managerId: undefined });
+    assert.equal(describeFastTrackWorkspaceFocus(unassignedSelectedCase, 'manager'), 'Claim and start');
+    assert.match(describeFastTrackWorkspaceStatus(unassignedSelectedCase, 'manager'), /Claim the case/i);
 });
 
 test('user handover stays actionable after manager completion until receipt is confirmed', () => {

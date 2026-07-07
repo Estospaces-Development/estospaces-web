@@ -104,7 +104,7 @@ test("direct rental property fast-track start keeps lead and manager context", (
   });
 });
 
-test("broker-selected rental fast-track start lets backend resolve selected lead and manager", () => {
+test("broker-selected rental fast-track start sends the resolved manager while backend resolves the selected lead", () => {
   const request = buildPropertyFastTrackStartRequest({
     property: {
       id: "property-rent-2",
@@ -127,7 +127,7 @@ test("broker-selected rental fast-track start lets backend resolve selected lead
   assert.equal(request?.property_type, "rent");
   assert.equal(request?.listing_type, "rent");
   assert.equal(request?.lead_id, undefined);
-  assert.equal(request?.manager_id, undefined);
+  assert.equal(request?.manager_id, "manager-stale-lead");
 });
 
 test("sale offer amount input accepts ordinary round-pound offers", () => {
