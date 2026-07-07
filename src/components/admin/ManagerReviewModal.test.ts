@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { MANAGER_REVIEW_CLOSE_LABEL } from './ManagerReviewModal';
+import { getManagerReviewAuditLog, MANAGER_REVIEW_CLOSE_LABEL } from './ManagerReviewModal';
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(path.resolve(testDir, 'ManagerReviewModal.tsx'), 'utf8');
@@ -36,6 +36,22 @@ test('manager review modal treats approved profile documents as approved for sta
     assert.match(source, /const effectiveDocuments = documents\.map/);
     assert.match(source, /getManagerApprovalBlocker\(profile, effectiveDocuments\)/);
     assert.match(source, /effectiveDocuments\.map/);
+});
+
+test('manager review modal backfills an activity entry for legacy approved managers', () => {
+    const auditLog = getManagerReviewAuditLog({
+        id: 'manager-1',
+        profile_type: 'broker',
+        verification_status: 'approved',
+        submitted_at: '2026-07-07T10:00:00Z',
+    } as any, []);
+
+    assert.equal(auditLog.length, 1);
+    assert.equal(auditLog[0].action_type, 'manager_approved');
+    assert.equal(auditLog[0].actor_role, 'system');
+    assert.equal(auditLog[0].created_at, '2026-07-07T10:00:00Z');
+    assert.match(source, /const effectiveAuditLog = getManagerReviewAuditLog\(profile, auditLog\)/);
+    assert.match(source, /\{effectiveAuditLog\.length\}/);
 });
 
 test('manager review modal requires meaningful rejection reupload and revocation reasons', () => {
