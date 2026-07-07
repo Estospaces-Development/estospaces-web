@@ -124,6 +124,18 @@ const getRentStageSummary = (application: any) => {
     }
 };
 
+const INTERNAL_TIMELINE_CARD_TITLE_PATTERN = /\b(codex|project\s*5|fast\s*track|manual\s*ft|e2e|mobile\s+live\s+approval)\b/i;
+const INTERNAL_TIMELINE_CARD_ID_PATTERN = /(\d{4}-\d{2}-\d{2}T\d{2}[-:]\d{2}[-:]\d{2}|\bmobile-live-\d+\b|\b\d{10,}\b|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4})/i;
+const getTimelineCardTitle = (item: ApplicationItem) => {
+    const title = String(item.property.title || '').trim();
+
+    if (title && !(INTERNAL_TIMELINE_CARD_TITLE_PATTERN.test(title) && INTERNAL_TIMELINE_CARD_ID_PATTERN.test(title))) {
+        return title;
+    }
+
+    return item.property.city || 'Property application';
+};
+
 const getSaleStageSummary = (currentStage?: string, status?: string) => {
     if (currentStage === 'completion' || status === 'completed') {
         return { currentStage: 'Ready to complete', currentStageNumber: 5, totalStages: 5, progress: 100, nextAction: 'Review the latest update' };
@@ -941,7 +953,7 @@ const ApplicationTimelineWidget = () => {
                                             {item.property.image_urls[0] && !failedImages[item.id] ? (
                                                 <img
                                                     src={item.property.image_urls[0]}
-                                                    alt={item.property.title}
+                                                    alt={getTimelineCardTitle(item)}
                                                     className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100 dark:bg-gray-700"
                                                     onError={() => {
                                                         setFailedImages((previous) => ({ ...previous, [item.id]: true }));
@@ -959,7 +971,7 @@ const ApplicationTimelineWidget = () => {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between mb-2">
                                                 <div>
-                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{item.property.title}</h3>
+                                                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{getTimelineCardTitle(item)}</h3>
                                                     <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5"><MapPin size={14} />{item.property.city || 'Location unavailable'}</p>
                                                 </div>
                                                 <div className="text-right">
