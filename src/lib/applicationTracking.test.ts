@@ -192,6 +192,26 @@ test('timeline property context does not treat a title-only legacy snapshot as r
     );
 });
 
+test('timeline property context hides generated mobile live application titles', () => {
+    const resolved = resolveTimelinePropertyContext(
+        {
+            title: 'Mobile Live Approval mobile-live-1781121818495034',
+            address: 'London',
+            price: 2650,
+        },
+        null,
+    );
+
+    assert.deepEqual(resolved, {
+        title: undefined,
+        address: 'London',
+        price: 2650,
+        country: undefined,
+        currency: undefined,
+        image: undefined,
+    });
+});
+
 test('timeline property context hydrates broken legacy application snapshots from real property data', () => {
     const resolved = resolveTimelinePropertyContext(
         {

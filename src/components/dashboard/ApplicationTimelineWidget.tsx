@@ -391,7 +391,7 @@ const ApplicationTimelineWidget = () => {
                         estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
                         property: {
                             id: app.property_id,
-                            title: String(property.title || missingPropertyCopy.title || 'Property application'),
+                            title: String(property.title || property.address || missingPropertyCopy.title || 'Property application'),
                             city: String(property.address || missingPropertyCopy.address || '') || null,
                             price: typeof property.price === 'number' ? property.price : null,
                             priceLabel: missingPropertyCopy.priceLabel,

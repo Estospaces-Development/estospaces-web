@@ -39,6 +39,21 @@ const UNAVAILABLE_ACTIVITY_TIMESTAMP = 0;
 const normalizeStatus = (value?: string | null) => String(value || '').trim().toLowerCase();
 const CLOSED_REQUEST_STATUSES = new Set(['expired', 'cancelled', 'closed', 'resolved', 'archived', 'completed']);
 const normalizeTimelineText = (value: unknown) => String(value || '').trim() || undefined;
+const INTERNAL_TIMELINE_TITLE_PATTERN = /\b(codex|project\s*5|fast\s*track|manual\s*ft|e2e|mobile\s+live\s+approval)\b/i;
+const INTERNAL_TIMELINE_ID_PATTERN = /(\d{4}-\d{2}-\d{2}T\d{2}[-:]\d{2}[-:]\d{2}|\bmobile-live-\d+\b|\b\d{10,}\b|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4})/i;
+const normalizeTimelineTitle = (value: unknown) => {
+    const title = normalizeTimelineText(value);
+
+    if (!title) {
+        return undefined;
+    }
+
+    if (INTERNAL_TIMELINE_TITLE_PATTERN.test(title) && INTERNAL_TIMELINE_ID_PATTERN.test(title)) {
+        return undefined;
+    }
+
+    return title;
+};
 const hasTimelineImage = (value: unknown) => {
     if (Array.isArray(value)) {
         return value.some((item) => normalizeTimelineText(item));
@@ -100,7 +115,7 @@ export const resolveTimelinePropertyContext = (
     primary: TimelinePropertyContextInput | null | undefined,
     fallback: TimelinePropertyContextInput | null | undefined,
 ): TimelinePropertyContext => ({
-    title: normalizeTimelineText(primary?.title) || normalizeTimelineText(fallback?.title),
+    title: normalizeTimelineTitle(primary?.title) || normalizeTimelineTitle(fallback?.title),
     address: normalizeTimelineText(primary?.address) || normalizeTimelineText(fallback?.address),
     price: parseTimelinePrice(primary?.price) ?? parseTimelinePrice(fallback?.price),
     country: normalizeTimelineText(primary?.country) || normalizeTimelineText(fallback?.country),
