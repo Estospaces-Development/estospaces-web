@@ -394,3 +394,13 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
   assert.doesNotMatch(source, /bg-gray-950\/25|bg-gray-950\/55|bg-black\/30/);
 });
+
+
+test("fast-track viewing response actions are mutually exclusive", () => {
+  const source = workspaceSource();
+
+  assert.ok(source.includes("getFastTrackViewingResponseConflictMessage(selectedCase, 'confirm_viewing')"));
+  assert.ok(source.includes("getFastTrackViewingResponseConflictMessage(selectedCase, 'request_viewing_change')"));
+  assert.ok(source.includes("disabled={confirmViewingDisabled}"));
+  assert.ok(source.includes("disabled={requestViewingChangeDisabled}"));
+});

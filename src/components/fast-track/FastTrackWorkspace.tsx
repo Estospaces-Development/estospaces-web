@@ -81,6 +81,7 @@ import {
     managerReviewsService,
     type ManagerReview,
 } from '@/services/managerReviewsService';
+import { getFastTrackViewingResponseConflictMessage } from '@/lib/fastTrackCompanion';
 import {
     DELETED_FAST_TRACK_CASE_MESSAGE,
     sanitizeWorkspaceCaseId,
@@ -1200,13 +1201,19 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             return;
         }
 
+        const viewingConflict = getFastTrackViewingResponseConflictMessage(selectedCase, action);
+        if (viewingConflict) {
+            toast.error(viewingConflict);
+            return;
+        }
+
         if (isAdminOverrideFastTrackCase(role, selectedCase)) {
             setPendingAdminOverrideAction({ action, payload, successMessage });
             return;
         }
 
         void executeFastTrackAction(action, payload, successMessage);
-    }, [executeFastTrackAction, role, selectedCase]);
+    }, [executeFastTrackAction, role, selectedCase, toast]);
 
     const handleConfirmAdminOverrideAction = useCallback(() => {
         if (!pendingAdminOverrideAction) {
@@ -2652,6 +2659,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         if (role === 'user') {
+            const confirmViewingConflict = getFastTrackViewingResponseConflictMessage(selectedCase, 'confirm_viewing');
+            const requestViewingChangeConflict = getFastTrackViewingResponseConflictMessage(selectedCase, 'request_viewing_change');
+            const confirmViewingDisabled = activeAction === 'confirm_viewing' || selectedCase.viewing.confirmedByUser || Boolean(confirmViewingConflict);
+            const requestViewingChangeDisabled = activeAction === 'request_viewing_change' || !requestChangeNote.trim() || Boolean(requestViewingChangeConflict);
+
             return (
                 <SectionShell
                     title={getJourneyStageLabel('viewing', selectedCase.journeyMode, role)}
@@ -2694,6 +2706,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         <ActionButton
                             onClick={() => void runAction('confirm_viewing', {}, 'Viewing confirmed.')}
                             busy={activeAction === 'confirm_viewing'}
+                            disabled={confirmViewingDisabled}
+                            title={confirmViewingConflict || (selectedCase.viewing.confirmedByUser ? 'Viewing is already confirmed.' : undefined)}
                         >
                             Confirm viewing
                         </ActionButton>
@@ -2705,7 +2719,8 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 'Viewing change request saved.',
                             )}
                             busy={activeAction === 'request_viewing_change'}
-                            disabled={!requestChangeNote.trim()}
+                            disabled={requestViewingChangeDisabled}
+                            title={requestViewingChangeConflict || (!requestChangeNote.trim() ? 'Add a short note before requesting a change.' : undefined)}
                         >
                             Request change
                         </ActionButton>

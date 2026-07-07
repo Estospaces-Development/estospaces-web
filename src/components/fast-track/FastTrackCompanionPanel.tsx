@@ -12,6 +12,7 @@ import { usePublishWorkspaceSync } from "@/contexts/WorkspaceSyncContext";
 import {
   buildFastTrackCompanionWorkspacePath,
   describeFastTrackCompanionSummary,
+  getFastTrackViewingResponseConflictMessage,
   describeFastTrackStageLabel,
   FAST_TRACK_COMPANION_SYNC_TAGS,
   syncFastTrackCompanionAction,
@@ -209,6 +210,11 @@ export default function FastTrackCompanionPanel({
 
   const renderViewingActions = () => {
     if (role === "user") {
+      const confirmViewingConflict = getFastTrackViewingResponseConflictMessage(fastTrackCase, "confirm_viewing");
+      const requestViewingChangeConflict = getFastTrackViewingResponseConflictMessage(fastTrackCase, "request_viewing_change");
+      const confirmViewingDisabled = activeAction === "confirm_viewing" || fastTrackCase.viewing.confirmedByUser || Boolean(confirmViewingConflict);
+      const requestViewingChangeDisabled = activeAction === "request_viewing_change" || !requestChangeNote.trim() || Boolean(requestViewingChangeConflict);
+
       return (
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-300">
@@ -237,7 +243,8 @@ export default function FastTrackCompanionPanel({
             <button
               type="button"
               onClick={() => void runAction("confirm_viewing", {}, "Viewing confirmed.")}
-              disabled={activeAction === "confirm_viewing" || fastTrackCase.viewing.confirmedByUser}
+              disabled={confirmViewingDisabled}
+              title={confirmViewingConflict || (fastTrackCase.viewing.confirmedByUser ? "Viewing is already confirmed." : undefined)}
               className="inline-flex items-center gap-2 rounded-2xl bg-orange-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {activeAction === "confirm_viewing" ? (
@@ -256,9 +263,8 @@ export default function FastTrackCompanionPanel({
                   "Viewing change request saved.",
                 )
               }
-              disabled={
-                activeAction === "request_viewing_change" || !requestChangeNote.trim()
-              }
+              disabled={requestViewingChangeDisabled}
+              title={requestViewingChangeConflict || (!requestChangeNote.trim() ? "Add a short note before requesting a change." : undefined)}
               className="rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
             >
               Request change
