@@ -18,6 +18,7 @@ import {
     getFastTrackDecisionGuard,
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
+    isFastTrackManagerReviewEligible,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
@@ -320,6 +321,34 @@ test('workspace focus and status copy stays single-workspace oriented', () => {
     const unassignedSelectedCase = buildCase({ stage: 'selected', managerId: undefined });
     assert.equal(describeFastTrackWorkspaceFocus(unassignedSelectedCase, 'manager'), 'Claim and start');
     assert.match(describeFastTrackWorkspaceStatus(unassignedSelectedCase, 'manager'), /Claim the case/i);
+});
+
+test('manager review eligibility waits for assignment and manager interaction', () => {
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: undefined })), false);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'selected' })), false);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', stage: 'documents' })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({ managerId: 'manager-1', workspaceFinalStatus: 'completed' })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({
+        managerId: 'manager-1',
+        stage: 'selected',
+        activity: [{ id: 'activity-1', type: 'case_updated', message: 'Manager responded', actorRole: 'manager', createdAt: '2026-07-07T00:00:00Z' }],
+    })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({
+        managerId: 'manager-1',
+        stage: 'selected',
+        documents: {
+            identityProof: 'verified',
+            addressProof: 'pending',
+            allUploaded: false,
+            allApproved: false,
+            items: [{ id: 'identity', label: 'Identity', status: 'approved', reviewedAt: '2026-07-07T00:00:00Z' }],
+        },
+    })), true);
+    assert.equal(isFastTrackManagerReviewEligible(buildCase({
+        managerId: 'manager-1',
+        stage: 'documents',
+        workspaceFinalStatus: 'cancelled',
+    })), false);
 });
 
 test('user handover stays actionable after manager completion until receipt is confirmed', () => {

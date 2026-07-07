@@ -21,6 +21,36 @@ export const isFastTrackCaseComplete = (fastTrackCase: FastTrackCase | null | un
     )
 );
 
+export const isFastTrackManagerReviewEligible = (fastTrackCase: FastTrackCase | null | undefined) => {
+    if (!fastTrackCase?.managerId || fastTrackCase.workspaceFinalStatus === 'cancelled') {
+        return false;
+    }
+
+    if (isFastTrackCaseComplete(fastTrackCase)) {
+        return true;
+    }
+
+    if (fastTrackCase.stage !== 'selected') {
+        return true;
+    }
+
+    if (fastTrackCase.activity.some((item) => String(item.actorRole || '').trim().toLowerCase() === 'manager')) {
+        return true;
+    }
+
+    if (fastTrackCase.documents.items.some((item) => item.reviewedAt || item.reviewedBy)) {
+        return true;
+    }
+
+    return Boolean(
+        fastTrackCase.viewing.scheduledAt
+        || fastTrackCase.viewing.status !== 'pending'
+        || fastTrackCase.decision.status !== 'pending'
+        || fastTrackCase.agreement.status !== 'pending'
+        || fastTrackCase.handover.status !== 'pending'
+    );
+};
+
 export const canUserConfirmFastTrackHandover = (fastTrackCase: FastTrackCase | null | undefined) => {
     const handoverStatus = String(fastTrackCase?.handover.status || '').trim().toLowerCase();
     return Boolean(

@@ -43,6 +43,7 @@ import {
     getFastTrackFinalDecisionGuard,
     isFastTrackDocumentDraftDirty,
     isFastTrackCaseCompleteForRole,
+    isFastTrackManagerReviewEligible,
     resolveFastTrackDocumentSearchParam,
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
@@ -948,8 +949,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         [role, selectedCase?.caseId],
     );
     const isManagerReviewEligible = role === 'user'
-        && Boolean(selectedCase?.managerId)
-        && selectedCase?.workspaceFinalStatus !== 'cancelled';
+        && isFastTrackManagerReviewEligible(selectedCase);
 
     useEffect(() => {
         if (!documentDraftStorageKey) {
