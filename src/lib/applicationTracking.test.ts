@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+    getStableActivityTimestamp,
     getBrokerRequestTrackingSummary,
+    hasStableActivityTimestamp,
     isLiveBrokerRequest,
+    parseActivityTimestamp,
 } from './applicationTracking';
 
 test('live broker requests stay visible until they expire', () => {
@@ -120,4 +123,26 @@ test('broker request tracking summary reflects matching progress', () => {
             nextAction: 'Open live fast-track',
         },
     );
+});
+
+test('activity timestamps use record timestamps instead of the current clock', () => {
+    const first = getStableActivityTimestamp('2026-03-25T09:05:00.000Z');
+    const second = getStableActivityTimestamp('2026-03-25T09:10:00.000Z');
+
+    assert.equal(first.toISOString(), '2026-03-25T09:05:00.000Z');
+    assert.equal(second.toISOString(), '2026-03-25T09:10:00.000Z');
+    assert.notEqual(first.getTime(), second.getTime());
+});
+
+test('activity timestamps stay unavailable when backend dates are missing', () => {
+    const timestamp = getStableActivityTimestamp(undefined, null, '');
+
+    assert.equal(timestamp.getTime(), 0);
+    assert.equal(hasStableActivityTimestamp(timestamp), false);
+});
+
+test('activity timestamp parser ignores invalid values before using fallback record dates', () => {
+    const timestamp = parseActivityTimestamp('not-a-date', '2026-03-25T09:15:00.000Z');
+
+    assert.equal(timestamp?.toISOString(), '2026-03-25T09:15:00.000Z');
 });

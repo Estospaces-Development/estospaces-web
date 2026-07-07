@@ -8,7 +8,12 @@ import {
     ExternalLink, Send, Radio, UserCheck, Search, SlidersHorizontal
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/applicationTracking';
+import {
+    getBrokerRequestTrackingSummary,
+    getStableActivityTimestamp,
+    hasStableActivityTimestamp,
+    isLiveBrokerRequest,
+} from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
@@ -175,6 +180,12 @@ const formatPropertyPrice = (
     });
 };
 
+const formatLastUpdatedLabel = (date: Date) => (
+    hasStableActivityTimestamp(date)
+        ? `Updated ${formatDistanceToNow(date, { addSuffix: true })}`
+        : 'Updated date unavailable'
+);
+
 const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
     const typeStyles = {
         milestone: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800',
@@ -186,7 +197,9 @@ const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
     return (
         <div className="flex items-start gap-3 text-sm">
             <div className="flex-shrink-0 w-20 text-right text-xs text-gray-400 pt-0.5">
-                {formatDistanceToNow(event.date, { addSuffix: true })}
+                {hasStableActivityTimestamp(event.date)
+                    ? formatDistanceToNow(event.date, { addSuffix: true })
+                    : 'Date unavailable'}
             </div>
             <div className={`flex-1 px-3 py-2 rounded-lg border ${typeStyles[event.type] || typeStyles.info}`}>
                 {event.event}
@@ -347,7 +360,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: summary.currentStageNumber,
                         totalStages: summary.totalStages,
                         progress: summary.progress,
-                        lastUpdated: new Date(app.updated_at),
+                        lastUpdated: getStableActivityTimestamp(app.updated_at, app.created_at),
                         nextAction: summary.nextAction,
                         estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
                         property: {
@@ -373,7 +386,7 @@ const ApplicationTimelineWidget = () => {
                         const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                         const requestTimeline: TimelineEventType[] = [
                             {
-                                date: new Date(request.created_at || request.updated_at || Date.now()),
+                                date: getStableActivityTimestamp(request.created_at, request.updated_at),
                                 event: 'Property agent help requested',
                                 type: 'milestone',
                             },
@@ -381,13 +394,13 @@ const ApplicationTimelineWidget = () => {
 
                         if (request.matched_broker?.name) {
                             requestTimeline.push({
-                                date: new Date(request.matched_at || request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.matched_at, request.updated_at, request.created_at),
                                 event: `${request.matched_broker.name} accepted your request`,
                                 type: 'success',
                             });
                         } else {
                             requestTimeline.push({
-                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.updated_at, request.created_at),
                                 event: 'We are checking nearby property agents for you',
                                 type: 'info',
                             });
@@ -395,7 +408,7 @@ const ApplicationTimelineWidget = () => {
 
                         if ((request.property_shares?.length || 0) > 0) {
                             requestTimeline.push({
-                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.updated_at, request.created_at),
                                 event: `${request.property_shares?.length || 0} home choice${request.property_shares?.length === 1 ? '' : 's'} ready to review`,
                                 type: 'action',
                             });
@@ -403,7 +416,7 @@ const ApplicationTimelineWidget = () => {
 
                         if (request.selected_property?.title || request.selected_property_id) {
                             requestTimeline.push({
-                                date: new Date(request.updated_at || request.created_at || Date.now()),
+                                date: getStableActivityTimestamp(request.updated_at, request.created_at),
                                 event: request.selected_property?.title
                                     ? `${request.selected_property.title} selected for the 24-hour journey`
                                     : 'A home has been selected for the 24-hour journey',
@@ -419,7 +432,7 @@ const ApplicationTimelineWidget = () => {
                             currentStageNumber: summary.currentStageNumber,
                             totalStages: summary.totalStages,
                             progress: summary.progress,
-                            lastUpdated: new Date(request.updated_at || request.created_at || Date.now()),
+                            lastUpdated: getStableActivityTimestamp(request.updated_at, request.created_at),
                             nextAction: summary.nextAction,
                             estimatedCompletion: 'Property agent search is live',
                             property: {
@@ -474,7 +487,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: Math.min(stageIndex + 1, 3),
                         totalStages: 3,
                         progress,
-                        lastUpdated: new Date(viewing.scheduled_at || viewing.created_at || Date.now()),
+                        lastUpdated: getStableActivityTimestamp(viewing.scheduled_at, viewing.created_at),
                         viewingDate: viewing.scheduled_at ? new Date(viewing.scheduled_at) : undefined,
                         nextAction: status === 'confirmed' ? 'Attend the viewing' : status === 'completed' ? 'Review the next step' : 'Confirm viewing time',
                         estimatedCompletion: viewing.scheduled_at ? `Scheduled ${new Date(viewing.scheduled_at).toLocaleString('en-GB')}` : 'Viewing request is live',
@@ -497,12 +510,12 @@ const ApplicationTimelineWidget = () => {
                         })),
                         timeline: [
                             {
-                                date: new Date(viewing.created_at || viewing.scheduled_at || Date.now()),
+                                date: getStableActivityTimestamp(viewing.created_at, viewing.scheduled_at),
                                 event: 'Viewing request created',
                                 type: 'milestone',
                             },
                             {
-                                date: new Date(viewing.scheduled_at || viewing.created_at || Date.now()),
+                                date: getStableActivityTimestamp(viewing.scheduled_at, viewing.created_at),
                                 event: currentStage,
                                 type: status === 'completed' ? 'success' : 'info',
                             },
@@ -538,7 +551,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: Math.min(stageIndex + 1, 4),
                         totalStages: 4,
                         progress,
-                        lastUpdated: new Date(contract.updated_at || contract.created_at || Date.now()),
+                        lastUpdated: getStableActivityTimestamp(contract.updated_at, contract.created_at),
                         nextAction: signed ? 'Keep contract for records' : 'Review and sign contract',
                         estimatedCompletion: contract.expires_at ? `Expires ${new Date(contract.expires_at).toLocaleDateString('en-GB')}` : 'Contract workflow is live',
                         property: {
@@ -566,12 +579,12 @@ const ApplicationTimelineWidget = () => {
                         })),
                         timeline: [
                             {
-                                date: new Date(contract.created_at || Date.now()),
+                                date: getStableActivityTimestamp(contract.created_at, contract.updated_at),
                                 event: 'Contract record created',
                                 type: 'milestone',
                             },
                             {
-                                date: new Date(contract.updated_at || contract.signed_at || contract.created_at || Date.now()),
+                                date: getStableActivityTimestamp(contract.updated_at, contract.signed_at, contract.created_at),
                                 event: currentStage,
                                 type: signed ? 'success' : 'info',
                             },
@@ -594,7 +607,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: summary.currentStageNumber,
                         totalStages: summary.totalStages,
                         progress: summary.progress,
-                        lastUpdated: new Date(progression.updated_at),
+                        lastUpdated: getStableActivityTimestamp(progression.updated_at, progression.created_at),
                         nextAction: summary.nextAction,
                         estimatedCompletion: 'Purchase progression is live',
                         property: {
@@ -612,12 +625,12 @@ const ApplicationTimelineWidget = () => {
                         })),
                         timeline: [
                             {
-                                date: new Date(progression.created_at),
+                                date: getStableActivityTimestamp(progression.created_at, progression.updated_at),
                                 event: 'Sale progression started',
                                 type: 'milestone',
                             },
                             {
-                                date: new Date(progression.updated_at),
+                                date: getStableActivityTimestamp(progression.updated_at, progression.created_at),
                                 event: `Current sale stage: ${summary.currentStage}`,
                                 type: progression.status === 'completed' ? 'success' : 'info',
                             },
@@ -647,7 +660,7 @@ const ApplicationTimelineWidget = () => {
                         currentStageNumber: ['published', 'active', 'online'].includes(prop.status) ? 3 : prop.status === 'sold' ? 5 : 1,
                         totalStages: 5,
                         progress: ['published', 'active', 'online'].includes(prop.status) ? 60 : prop.status === 'sold' ? 100 : 20,
-                        lastUpdated: new Date(prop.updated_at),
+                        lastUpdated: getStableActivityTimestamp(prop.updated_at, prop.created_at),
                         nextAction: 'Manage listing',
                         property: {
                             id: prop.id,
@@ -926,7 +939,7 @@ const ApplicationTimelineWidget = () => {
                                                     <p className="font-bold text-xl text-gray-900 dark:text-white">
                                                         {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
-                                                    <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
+                                                    <p className="text-xs text-gray-400 mt-1">{formatLastUpdatedLabel(item.lastUpdated)}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-4 mt-3">

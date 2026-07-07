@@ -8,8 +8,37 @@ export interface BrokerRequestTrackingSummary {
     nextAction: string;
 }
 
+export type ActivityTimestampCandidate = Date | string | number | null | undefined;
+
+const UNAVAILABLE_ACTIVITY_TIMESTAMP = 0;
+
 const normalizeStatus = (value?: string | null) => String(value || '').trim().toLowerCase();
 const CLOSED_REQUEST_STATUSES = new Set(['expired', 'cancelled', 'closed', 'resolved', 'archived', 'completed']);
+
+export const parseActivityTimestamp = (...candidates: ActivityTimestampCandidate[]) => {
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined || candidate === '') {
+            continue;
+        }
+
+        const date = candidate instanceof Date ? candidate : new Date(candidate);
+        const timestamp = date.getTime();
+
+        if (Number.isFinite(timestamp)) {
+            return new Date(timestamp);
+        }
+    }
+
+    return null;
+};
+
+export const getStableActivityTimestamp = (...candidates: ActivityTimestampCandidate[]) => (
+    parseActivityTimestamp(...candidates) || new Date(UNAVAILABLE_ACTIVITY_TIMESTAMP)
+);
+
+export const hasStableActivityTimestamp = (date: Date | null | undefined) => (
+    Boolean(date && Number.isFinite(date.getTime()) && date.getTime() > UNAVAILABLE_ACTIVITY_TIMESTAMP)
+);
 
 export const isLiveBrokerRequest = (
     request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,
