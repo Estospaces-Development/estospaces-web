@@ -18,6 +18,8 @@ const managerAppointmentsPage = readFileSync(resolve(root, 'src/pages/manager/ap
 const managerContractsPage = readFileSync(resolve(root, 'src/pages/manager/contracts/page.tsx'), 'utf8');
 const userApplicationFilters = readFileSync(resolve(root, 'src/components/dashboard/applications/ApplicationFilters.tsx'), 'utf8');
 const managerApplicationFilters = readFileSync(resolve(root, 'src/components/manager/applications/ApplicationFilters.tsx'), 'utf8');
+const managerApplicationStatusTracker = readFileSync(resolve(root, 'src/components/manager/applications/StatusTracker.tsx'), 'utf8');
+const userApplicationStatusTracker = readFileSync(resolve(root, 'src/components/dashboard/applications/StatusTracker.tsx'), 'utf8');
 const adminHeader = readFileSync(resolve(root, 'src/components/layout/AdminHeader.tsx'), 'utf8');
 const adminDashboardPage = readFileSync(resolve(root, 'src/pages/admin/dashboard/page.tsx'), 'utf8');
 const adminVerificationsPage = readFileSync(resolve(root, 'src/pages/admin/verifications/page.tsx'), 'utf8');
@@ -267,4 +269,15 @@ test('register page validates identity fields and persists safe draft data', asy
     );
     assert.match(registerPage, /onBlur=\{\(\) => setNameError/);
     assert.match(registerPage, /onBlur=\{\(\) => setEmailError/);
+});
+
+test('application progress tracker places documents before review', () => {
+    for (const source of [managerApplicationStatusTracker, userApplicationStatusTracker]) {
+        const documentsIndex = source.indexOf("label: 'Documents & Compliance'");
+        const reviewIndex = source.indexOf("label: 'Application Review'");
+
+        assert.ok(documentsIndex > -1);
+        assert.ok(reviewIndex > -1);
+        assert.ok(documentsIndex < reviewIndex);
+    }
 });

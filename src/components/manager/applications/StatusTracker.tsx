@@ -113,20 +113,20 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
                 description: 'A real viewing appointment is booked for this property.',
                 icon: Calendar,
                 statuses: [APPLICATION_STATUS.APPOINTMENT_BOOKED, APPLICATION_STATUS.VIEWING_SCHEDULED],
+            },            {
+                id: 'documents',
+                label: 'Documents & Compliance',
+                description: 'Referencing and legal compliance follow-up are active now.',
+                icon: FileCheck,
+                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
             },
+
             {
                 id: 'review',
                 label: 'Application Review',
                 description: 'The viewing is done and the application is being reviewed.',
                 icon: Search,
                 statuses: [APPLICATION_STATUS.VIEWING_COMPLETED, APPLICATION_STATUS.UNDER_REVIEW, APPLICATION_STATUS.VERIFICATION_IN_PROGRESS],
-            },
-            {
-                id: 'documents',
-                label: 'Documents & Compliance',
-                description: 'Referencing and legal compliance follow-up are active now.',
-                icon: FileCheck,
-                statuses: [APPLICATION_STATUS.DOCUMENTS_REQUESTED],
             },
             {
                 id: 'contract',
