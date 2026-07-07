@@ -52,7 +52,7 @@ import {
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchLocationCode,
     formatLaunchPropertyLocation,
     getLaunchLocationCodeErrorMessage,
@@ -132,12 +132,25 @@ const parsePropertyImage = (value?: string) => {
     return value;
 };
 
-const formatPropertyPrice = (price?: number) => {
+const formatPropertyPrice = (
+    property?: {
+        price?: number | null;
+        country?: string | null;
+        currency?: string | null;
+        currency_code?: string | null;
+    } | null,
+    fallbackCountry?: string | null,
+) => {
+    const price = property?.price;
     if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
         return 'Price on request';
     }
 
-    return formatLaunchCurrency(price);
+    return formatLaunchCurrencyForCountry(price, {
+        countryCode: property?.country || fallbackCountry,
+        countryName: property?.country,
+        currencyCode: property?.currency || property?.currency_code,
+    });
 };
 
 const formatPropertyAddress = (property?: {
@@ -1082,7 +1095,7 @@ const BrokerRequestWidget = () => {
                                                         <div className="rounded-2xl border border-emerald-200/80 bg-white px-4 py-3 text-left shadow-sm dark:border-emerald-900/40 dark:bg-emerald-950/30">
                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">Locked price</p>
                                                             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                                                                {formatPropertyPrice(selectedProperty.price)}
+                                                                {formatPropertyPrice(selectedProperty, geoMarket)}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -1185,7 +1198,7 @@ const BrokerRequestWidget = () => {
                                                                         <div className="rounded-2xl border border-orange-200/80 bg-orange-50 px-4 py-3 text-left dark:border-orange-900/30 dark:bg-orange-950/20">
                                                                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-orange-600 dark:text-orange-300">Guide price</p>
                                                                             <p className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                                                                                {formatPropertyPrice(property.price)}
+                                                                                {formatPropertyPrice(property, geoMarket)}
                                                                             </p>
                                                                         </div>
                                                                     </div>

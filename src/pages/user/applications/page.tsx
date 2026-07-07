@@ -46,7 +46,7 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import { messagesService } from '@/services/messagesService';
 import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackService';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
@@ -189,6 +189,11 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
     };
 
     const statusInfo = statusMap[application.status] || { label: application.status, color: 'bg-gray-100 text-gray-700' };
+    const formatApplicationPrice = (amount: number) => formatLaunchCurrencyForCountry(amount, {
+        countryCode: application.propertyCountry,
+        countryName: application.propertyCountry,
+        currencyCode: application.propertyCurrency,
+    });
 
     const handleOpenConversation = async () => {
         if (!application.managerId || !user) {
@@ -318,7 +323,7 @@ function ApplicationDetailDrawer({ application, onClose }: { application: Applic
                             </p>
                             {application.propertyPrice && (
                                 <p className="mt-2 text-xl font-black text-gray-900 dark:text-white">
-                                    {formatLaunchCurrency(application.propertyPrice)}
+                                    {formatApplicationPrice(application.propertyPrice)}
                                     <span className="text-sm font-normal text-gray-500">{application.listingType === 'rent' ? '/mo' : ''}</span>
                                 </p>
                             )}

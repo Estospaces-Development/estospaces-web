@@ -31,7 +31,7 @@ import {
     sanitizeWorkspaceCaseId,
     stripCaseSearchParam,
 } from '@/lib/fastTrackCaseContext';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 import CreateContractModal from '@/components/manager/contracts/CreateContractModal';
 import { getCreateContractEntryState } from '@/lib/contractsWorkspaceLoad';
 
@@ -418,7 +418,13 @@ export default function ManagerContractsPage() {
     ];
 
     const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-    const formatCurrency = (v?: number) => v != null ? formatLaunchCurrency(v) : '—';
+    const formatCurrency = (contract: Contract | null | undefined, value?: number) => value != null
+        ? formatLaunchCurrencyForCountry(value, {
+            countryCode: (contract as any)?.property_country || (contract as any)?.country,
+            countryName: (contract as any)?.property_country || (contract as any)?.country,
+            currencyCode: (contract as any)?.property_currency || (contract as any)?.currency,
+        })
+        : '—';
     const formatWorkflowStatus = (value?: string) => (value || 'pending').replace(/_/g, ' ');
     const tenancyPackComplete = ['served', 'completed'].includes(String(tenancyPack?.status || '').trim());
     const depositProtectionComplete = String(depositProtection?.status || '').trim() === 'completed';
@@ -653,11 +659,11 @@ export default function ManagerContractsPage() {
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                                             <div>
                                                 <span className="text-gray-400 dark:text-gray-500 text-xs">Rent</span>
-                                                <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(contract.monthly_rent)}/mo</p>
+                                                <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(contract, contract.monthly_rent)}/mo</p>
                                             </div>
                                             <div>
                                                 <span className="text-gray-400 dark:text-gray-500 text-xs">Deposit</span>
-                                                <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(contract.deposit_amount)}</p>
+                                                <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(contract, contract.deposit_amount)}</p>
                                             </div>
                                             <div>
                                                 <span className="text-gray-400 dark:text-gray-500 text-xs">Start</span>
@@ -760,11 +766,11 @@ export default function ManagerContractsPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Monthly Rent</p>
-                                    <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(viewContract.monthly_rent)}</p>
+                                    <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(viewContract, viewContract.monthly_rent)}</p>
                                 </div>
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Security Deposit</p>
-                                    <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(viewContract.deposit_amount)}</p>
+                                    <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(viewContract, viewContract.deposit_amount)}</p>
                                 </div>
                                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Start Date</p>

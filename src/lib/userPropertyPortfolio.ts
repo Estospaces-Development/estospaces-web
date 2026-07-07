@@ -4,7 +4,7 @@ import type { Contract } from "@/types/booking";
 import { normalizeContractStatus } from "@/lib/contractStatus";
 import { buildWorkspacePath } from "@/lib/workspaceLinks";
 import { PROPERTY_PLACEHOLDER_IMAGE } from "@/lib/placeholders";
-import { formatLaunchCurrency } from "@/lib/launchLocale";
+import { formatLaunchCurrencyForCountry } from "@/lib/launchLocale";
 
 export interface UserPropertyPortfolioItem {
   id: string;
@@ -47,11 +47,24 @@ const firstString = (...values: Array<string | null | undefined>) => {
   return "";
 };
 
-const formatMoney = (amount?: number | null, suffix: string = "") => {
+const formatMoney = (
+  amount?: number | null,
+  suffix: string = "",
+  source?: {
+    property_country?: string;
+    property_currency?: string;
+    country?: string;
+    currency?: string;
+  } | null,
+) => {
   if (typeof amount !== "number" || Number.isNaN(amount)) {
     return "Price unavailable";
   }
-  return `${formatLaunchCurrency(amount)}${suffix}`;
+  return `${formatLaunchCurrencyForCountry(amount, {
+    countryCode: source?.property_country || source?.country,
+    countryName: source?.property_country || source?.country,
+    currencyCode: source?.property_currency || source?.currency,
+  })}${suffix}`;
 };
 
 const sortByMostRecent = <
@@ -177,7 +190,7 @@ export const buildUserPropertyPortfolio = ({
         "Address unavailable",
       ),
       propertyImage: toPropertyImage(application?.property_image),
-      priceLabel: formatMoney(application?.property_price),
+      priceLabel: formatMoney(application?.property_price, "", application),
       statusLabel: "Purchase completed",
       statusSummary:
         "This home is now part of your completed purchase portfolio.",
@@ -243,7 +256,7 @@ export const buildUserPropertyPortfolio = ({
         "Address unavailable",
       ),
       propertyImage: toPropertyImage(application.property_image),
-      priceLabel: formatMoney(application.property_price),
+      priceLabel: formatMoney(application.property_price, "", application),
       statusLabel: "Purchase completed",
       statusSummary:
         "This home is now part of your completed purchase portfolio.",
@@ -299,8 +312,8 @@ export const buildUserPropertyPortfolio = ({
       propertyImage: toPropertyImage(application?.property_image),
       priceLabel:
         typeof contract.monthly_rent === "number"
-          ? formatMoney(contract.monthly_rent, "/mo")
-          : formatMoney(application?.property_price, "/mo"),
+          ? formatMoney(contract.monthly_rent, "/mo", contract as any)
+          : formatMoney(application?.property_price, "/mo", application),
       statusLabel,
       statusSummary,
       timelineLabel: normalizedStatus === "active" ? "Move-in date" : "Updated",

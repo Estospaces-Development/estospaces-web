@@ -12,6 +12,7 @@ import {
     Plus
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePropertyFilter } from '@/contexts/PropertyFilterContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
@@ -31,13 +32,15 @@ import {
     readSearchUrlFilters,
 } from '@/lib/propertySearchControls';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
+    getLaunchLocationCodeLabel,
+    getLaunchLocationCodePlaceholder,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     isValidLaunchLocationCode,
-    LAUNCH_COUNTRY_CODE,
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -249,6 +252,7 @@ const buildSectionSuggestions = (properties: SearchResult[], query: string): Aut
 function DiscoverContent() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const { user } = useAuth();
     const { activeTab, setActiveTab } = usePropertyFilter();
 
     // Local state
@@ -279,6 +283,12 @@ function DiscoverContent() {
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
+    const geoMarket = useUserGeoMarket(user, { locationCode: locationQuery || searchParams.get('postcode') });
+    const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationQuery);
+    const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationQuery);
+    const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
+        countryCode: geoMarket,
+    });
 
     // Initialize filters from URL/Context
     useEffect(() => {
@@ -311,7 +321,7 @@ function DiscoverContent() {
         setLoading(true);
         setError(null);
         try {
-            const result = await searchService.getPropertySections(LAUNCH_COUNTRY_CODE);
+            const result = await searchService.getPropertySections(geoMarket);
 
             if (!result.success) {
                 setProperties([]);
@@ -364,7 +374,7 @@ function DiscoverContent() {
             fetchData();
         }, 300);
         return () => clearTimeout(timer);
-    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy]);
+    }, [searchQuery, propertyType, priceRange, beds, baths, currentPage, activeTab, locationQuery, dashboardFilter, statusFilter, sortBy, geoMarket]);
 
     // Autocomplete location suggestions
     useEffect(() => {
@@ -475,7 +485,7 @@ function DiscoverContent() {
                                 <input
                                     aria-label="Search properties"
                                     type="text"
-                                    placeholder="PIN code, postcode, street, or property name..."
+                                    placeholder={`${locationCodeLabel}, street, or property name (${locationCodePlaceholder})`}
                                     value={searchQuery}
                                     onChange={(e) => {
                                         setSearchQuery(normalizeSearchQueryInput(e.target.value));
@@ -530,7 +540,7 @@ function DiscoverContent() {
                                 <input
                                     id="discover-location"
                                     type="text"
-                                    placeholder="City or Town"
+                                    placeholder={`City, town, or ${locationCodeLabel.toLowerCase()}`}
                                     value={locationQuery}
                                     onChange={(e) => {
                                         setLocationQuery(e.target.value);
@@ -550,7 +560,7 @@ function DiscoverContent() {
                                     id="discover-min-price"
                                     type="number"
                                     aria-label="Min Price"
-                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatLaunchCurrency(filterOptions.price_range.min)}` : "Min"}
+                                    placeholder={filterOptions?.price_range?.min ? `Min: ${formatDiscoveryCurrency(filterOptions.price_range.min)}` : "Min"}
                                     value={priceRange.min}
                                     min={0}
                                     max={priceRange.max || filterOptions?.price_range?.max}
@@ -569,7 +579,7 @@ function DiscoverContent() {
                                     id="discover-max-price"
                                     type="number"
                                     aria-label="Max Price"
-                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatLaunchCurrency(filterOptions.price_range.max)}` : "Max"}
+                                    placeholder={filterOptions?.price_range?.max ? `Max: ${formatDiscoveryCurrency(filterOptions.price_range.max)}` : "Max"}
                                     value={priceRange.max}
                                     min={0}
                                     max={filterOptions?.price_range?.max}

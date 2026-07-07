@@ -1032,7 +1032,7 @@ export default function AddPropertyPage() {
         status: (property.status || "draft") as PropertyStatus,
 
         priceAmount: property.price?.amount || 0,
-        currency: property.price?.currency || "USD",
+        currency: property.price?.currency || resolveCountryCurrency(property.location?.countryCode || ""),
         negotiable: property.price?.negotiable || false,
 
         addressLine1: property.location?.addressLine1 || property.address || "",

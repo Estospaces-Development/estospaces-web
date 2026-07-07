@@ -12,7 +12,7 @@ import { getBrokerRequestTrackingSummary, isLiveBrokerRequest } from '@/lib/appl
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getPropertyImages } from '@/lib/propertyImages';
 import PaginationBar from '@/components/ui/PaginationBar';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 // --- Types & Interfaces ---
 
@@ -51,6 +51,8 @@ interface ApplicationItem {
         city: string | null;
         price: number | null;
         priceLabel?: string;
+        country?: string | null;
+        currency?: string | null;
         image_urls: string[];
     };
     broker?: {
@@ -158,12 +160,19 @@ const StageIcon: React.FC<{ stage: Stage; size?: number }> = ({ stage, size = 20
     return <IconComponent size={size} />;
 };
 
-const formatPropertyPrice = (price: number | null | undefined) => {
+const formatPropertyPrice = (
+    price: number | null | undefined,
+    property?: { country?: string | null; currency?: string | null },
+) => {
     if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
         return 'Price unavailable';
     }
 
-    return formatLaunchCurrency(price);
+    return formatLaunchCurrencyForCountry(price, {
+        countryCode: property?.country,
+        countryName: property?.country,
+        currencyCode: property?.currency,
+    });
 };
 
 const TimelineEvent: React.FC<{ event: TimelineEventType }> = ({ event }) => {
@@ -247,6 +256,8 @@ const ApplicationTimelineWidget = () => {
                     title?: string;
                     address?: string;
                     price?: number;
+                    country?: string;
+                    currency?: string;
                     image?: unknown;
                 }>();
 
@@ -259,6 +270,8 @@ const ApplicationTimelineWidget = () => {
                         title: app.property_title,
                         address: app.property_address,
                         price: app.property_price,
+                        country: app.property_country,
+                        currency: app.property_currency,
                         image: app.property_image,
                     });
                 });
@@ -272,6 +285,8 @@ const ApplicationTimelineWidget = () => {
                         title: viewing.property_title,
                         address: viewing.property_address,
                         price: viewing.property_price,
+                        country: viewing.property_country,
+                        currency: viewing.property_currency,
                         image: viewing.property_image,
                     });
                 });
@@ -285,6 +300,8 @@ const ApplicationTimelineWidget = () => {
                         title: property.title,
                         address: buildLocationLabel(property.address_line_1, property.city, property.postcode) || property.location,
                         price: parseMoney(property.price) || undefined,
+                        country: property.country,
+                        currency: property.currency,
                         image: property.image_urls || property.images,
                     });
                 });
@@ -338,6 +355,8 @@ const ApplicationTimelineWidget = () => {
                             title: app.property_title || 'Property application',
                             city: app.property_address || null,
                             price: typeof app.property_price === 'number' ? app.property_price : null,
+                            country: app.property_country,
+                            currency: app.property_currency,
                             image_urls: toPropertyImages(app.property_image),
                         },
                         stages: stageList.map((stage, index) => ({
@@ -408,6 +427,8 @@ const ApplicationTimelineWidget = () => {
                                 title: request.selected_property?.title || (request.location ? `Property agent request for ${request.location}` : 'Property agent request'),
                                 city: request.selected_property?.city || request.location_postcode || request.location || null,
                                 price: typeof request.selected_property?.price === 'number' ? request.selected_property.price : null,
+                                country: request.selected_property?.country,
+                                currency: (request.selected_property as any)?.currency || (request.selected_property as any)?.currency_code,
                                 priceLabel: request.budget ? `Budget ${request.budget}` : 'Property agent request',
                                 image_urls: toPropertyImages(request.selected_property?.image_urls),
                             },
@@ -462,6 +483,8 @@ const ApplicationTimelineWidget = () => {
                             title: firstText(viewing.property_title, propertyContext?.title, 'Property viewing'),
                             city: buildLocationLabel(viewing.property_address) || propertyContext?.address || null,
                             price: parseMoney(viewing.property_price) || parseMoney(propertyContext?.price),
+                            country: viewing.property_country || propertyContext?.country,
+                            currency: viewing.property_currency || propertyContext?.currency,
                             image_urls: toPropertyImages(viewing.property_image || propertyContext?.image),
                         },
                         stages: [
@@ -504,6 +527,8 @@ const ApplicationTimelineWidget = () => {
                     const stageIndex = status === 'completed' ? 3 : signed ? 2 : status === 'sent' || status === 'active' ? 1 : 0;
                     const monthlyRent = parseMoney(contract.monthly_rent);
                     const depositAmount = parseMoney(contract.deposit_amount);
+                    const contractCountry = contract.property_country || contract.country || propertyContext?.country;
+                    const contractCurrency = contract.currency || contract.property_currency || propertyContext?.currency;
 
                     return {
                         id: `contract-${contract.id}`,
@@ -522,10 +547,12 @@ const ApplicationTimelineWidget = () => {
                             city: propertyContext?.address || null,
                             price: monthlyRent || depositAmount || parseMoney(propertyContext?.price),
                             priceLabel: monthlyRent
-                                ? `${formatPropertyPrice(monthlyRent)}/mo`
+                                ? `${formatPropertyPrice(monthlyRent, { country: contractCountry, currency: contractCurrency })}/mo`
                                 : depositAmount
-                                    ? `${formatPropertyPrice(depositAmount)} deposit`
+                                    ? `${formatPropertyPrice(depositAmount, { country: contractCountry, currency: contractCurrency })} deposit`
                                     : undefined,
+                            country: contractCountry,
+                            currency: contractCurrency,
                             image_urls: toPropertyImages(propertyContext?.image),
                         },
                         stages: [
@@ -575,6 +602,8 @@ const ApplicationTimelineWidget = () => {
                             title: propertyContext?.title || 'Purchase progression',
                             city: propertyContext?.address || null,
                             price: typeof propertyContext?.price === 'number' ? propertyContext.price : null,
+                            country: progression.property_country || propertyContext?.country,
+                            currency: (progression as any).property_currency || propertyContext?.currency,
                             image_urls: toPropertyImages(propertyContext?.image),
                         },
                         stages: SALE_STAGES.map((stage, index) => ({
@@ -625,6 +654,8 @@ const ApplicationTimelineWidget = () => {
                             title: prop.title,
                             city: prop.city || null,
                             price: typeof prop.price === 'number' ? prop.price : null,
+                            country: prop.country,
+                            currency: prop.currency,
                             image_urls: getPropertyImages(prop),
                         },
                         stats: { views: prop.view_count || 0, inquiries: 0, saved: prop.favorite_count || 0 },
@@ -893,7 +924,7 @@ const ApplicationTimelineWidget = () => {
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="font-bold text-xl text-gray-900 dark:text-white">
-                                                        {item.property.priceLabel || formatPropertyPrice(item.property.price)}
+                                                        {item.property.priceLabel || formatPropertyPrice(item.property.price, item.property)}
                                                     </p>
                                                     <p className="text-xs text-gray-400 mt-1">Updated {formatDistanceToNow(item.lastUpdated, { addSuffix: true })}</p>
                                                 </div>

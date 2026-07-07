@@ -37,6 +37,8 @@ type PropertyContext = {
     address?: string;
     image?: string;
     price?: number;
+    country?: string;
+    currency?: string;
     propertyType?: string;
     agentName?: string;
     agentAgency?: string;
@@ -115,6 +117,8 @@ export interface Application {
     propertyAddress?: string;
     propertyImage?: string;
     propertyPrice?: number;
+    propertyCountry?: string;
+    propertyCurrency?: string;
     propertyType?: string;
     agentName?: string;
     agentAgency?: string;
@@ -246,6 +250,8 @@ export const buildPropertyContextFromProperty = (
         address: getPropertyAddress(property),
         image: getPrimaryPropertyImage(property) || undefined,
         price: property.price,
+        country: property.country,
+        currency: property.currency,
         propertyType: property.property_type,
         agentName: property.agent_name,
         agentAgency: property.agent_company,
@@ -417,6 +423,8 @@ const mapBackendApplication = (application: BackendApplication, relatedViewing?:
         propertyAddress: application.property_address || 'Address unavailable',
         propertyImage: toImageUrl(application.property_image),
         propertyPrice: application.property_price,
+        propertyCountry: application.property_country,
+        propertyCurrency: (application as any).property_currency,
         propertyType: application.property_type || 'property',
         agentName: application.agent_name || '',
         agentAgency: application.agent_agency || '',
@@ -465,6 +473,8 @@ const mapSaleProgression = (
         propertyAddress: propertyContext?.address || 'Address unavailable',
         propertyImage: toImageUrl(propertyContext?.image),
         propertyPrice: propertyContext?.price,
+        propertyCountry: propertyContext?.country,
+        propertyCurrency: propertyContext?.currency,
         propertyType: propertyContext?.propertyType || 'property',
         agentName: propertyContext?.agentName || relatedViewing?.agent_name || '',
         agentAgency: propertyContext?.agentAgency || relatedViewing?.agent_agency || '',
@@ -546,6 +556,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 address: application.property_address,
                 image: application.property_image,
                 price: application.property_price,
+                country: application.property_country,
+                currency: (application as any).property_currency,
                 propertyType: application.property_type,
                 agentName: application.agent_name,
                 agentAgency: application.agent_agency,
@@ -564,6 +576,8 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
                 address: viewing.property_address,
                 image: viewing.property_image,
                 price: viewing.property_price,
+                country: (viewing as any).property_country,
+                currency: (viewing as any).property_currency,
                 propertyType: viewing.listing_type,
                 agentName: viewing.agent_name,
                 agentAgency: viewing.agent_agency,
@@ -664,6 +678,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             'property_type',
             'listing_type',
             'property_price',
+            'property_country',
             'agent_name',
             'agent_email',
             'agent_phone',
@@ -687,6 +702,7 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
             property_title: data.property_title || propertySnapshot.property_title,
             property_address: data.property_address || propertySnapshot.property_address,
             property_image: data.property_image || propertySnapshot.property_image,
+            property_country: data.property_country || propertySnapshot.property_country,
             property_type: data.property_type || propertySnapshot.property_type,
             listing_type: data.listing_type || propertySnapshot.listing_type,
             property_price: data.property_price ?? propertySnapshot.property_price,

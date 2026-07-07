@@ -33,7 +33,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { formatPropertyStatusLabel, getManagerPropertyStatusBadge } from '@/lib/propertyStatusBadge';
 import { getAdminPropertyDetailMedia } from '@/lib/adminPropertyDetailMedia';
 import { getAdminPropertyWorkflowFallbackLabel } from '@/lib/adminPropertyRegistry';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 const parseStringArray = (value: unknown): string[] => {
     if (Array.isArray(value)) {
@@ -67,7 +67,11 @@ const formatPrice = (property: Property) => {
         return 'Price on request';
     }
 
-    return formatLaunchCurrency(property.price);
+    return formatLaunchCurrencyForCountry(property.price, {
+        countryCode: (property as any).country || (property as any).location?.countryCode || (property as any).location?.country,
+        countryName: (property as any).country || (property as any).location?.country,
+        currencyCode: (property as any).currency,
+    });
 };
 
 const formatDate = (value?: string) => {

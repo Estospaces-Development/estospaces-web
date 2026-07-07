@@ -7,7 +7,7 @@ import { formatPropertyInventoryCaption, getManagerPropertyStatusBadge } from '@
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     normalizeLaunchCurrencyText,
@@ -33,6 +33,10 @@ interface ManagerPropertyCardProps {
         image_urls?: unknown;
         image?: string;
         image_url?: string;
+        country?: string | null;
+        countryCode?: string | null;
+        country_code?: string | null;
+        currency?: string | null;
         media?: any;
         dimensions?: {
             totalFloors?: number;
@@ -65,6 +69,17 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
         const isRentalListing =
             property.listingType === 'rent' ||
             property.type?.toLowerCase() === 'rent';
+        const formatPropertyAmount = (amount: number, currencyCode?: string | null) => (
+            formatLaunchCurrencyForCountry(amount, {
+                countryCode: property.countryCode
+                    || property.country_code
+                    || property.country
+                    || property.location?.countryCode
+                    || property.location?.country,
+                countryName: property.country || property.location?.country,
+                currencyCode: currencyCode || property.currency,
+            })
+        );
 
         if (property.priceString) {
             const normalized = normalizeLaunchCurrencyText(property.priceString);
@@ -72,12 +87,12 @@ const ManagerPropertyCard: React.FC<ManagerPropertyCardProps> = ({ property, onE
         }
 
         if (typeof price === 'object' && price !== null && 'amount' in price) {
-            const formatted = formatLaunchCurrency(price.amount);
+            const formatted = formatPropertyAmount(price.amount, price.currency);
             return isRentalListing ? `${formatted}/month` : formatted;
         }
 
         if (typeof price === 'number') {
-            const formatted = formatLaunchCurrency(price);
+            const formatted = formatPropertyAmount(price);
             return isRentalListing ? `${formatted}/month` : formatted;
         }
 

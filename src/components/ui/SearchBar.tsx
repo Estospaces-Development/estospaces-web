@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Home, IndianRupee, PoundSterling, Bed, Bath, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { searchService, FilterOptions, AutocompleteSuggestion } from '../../services/searchService';
 import {
-    formatLaunchCurrency,
+    formatLaunchCurrencyForCountry,
     getLaunchLocationCodeLabel,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
@@ -47,24 +47,33 @@ const defaultFilters: SearchFilters = {
     minBathrooms: null,
 };
 
-const priceRanges = {
-    rent: [
-        { min: null, max: 500, label: `Under ${formatLaunchCurrency(500)}` },
-        { min: 500, max: 1000, label: `${formatLaunchCurrency(500)} - ${formatLaunchCurrency(1000)}` },
-        { min: 1000, max: 1500, label: `${formatLaunchCurrency(1000)} - ${formatLaunchCurrency(1500)}` },
-        { min: 1500, max: 2000, label: `${formatLaunchCurrency(1500)} - ${formatLaunchCurrency(2000)}` },
-        { min: 2000, max: 3000, label: `${formatLaunchCurrency(2000)} - ${formatLaunchCurrency(3000)}` },
-        { min: 3000, max: null, label: `${formatLaunchCurrency(3000)}+` },
-    ],
-    sale: [
-        { min: null, max: 100000, label: `Under ${formatLaunchCurrency(100000)}` },
-        { min: 100000, max: 250000, label: `${formatLaunchCurrency(100000)} - ${formatLaunchCurrency(250000)}` },
-        { min: 250000, max: 500000, label: `${formatLaunchCurrency(250000)} - ${formatLaunchCurrency(500000)}` },
-        { min: 500000, max: 750000, label: `${formatLaunchCurrency(500000)} - ${formatLaunchCurrency(750000)}` },
-        { min: 750000, max: 1000000, label: `${formatLaunchCurrency(750000)} - ${formatLaunchCurrency(1000000)}` },
-        { min: 1000000, max: null, label: `${formatLaunchCurrency(1000000)}+` },
-    ],
+const buildSearchPriceRanges = (countryCode: string) => {
+    const format = (amount: number) => formatLaunchCurrencyForCountry(amount, {
+        countryCode,
+        showCode: false,
+    });
+
+    return {
+        rent: [
+            { min: null, max: 500, label: `Under ${format(500)}` },
+            { min: 500, max: 1000, label: `${format(500)} - ${format(1000)}` },
+            { min: 1000, max: 1500, label: `${format(1000)} - ${format(1500)}` },
+            { min: 1500, max: 2000, label: `${format(1500)} - ${format(2000)}` },
+            { min: 2000, max: 3000, label: `${format(2000)} - ${format(3000)}` },
+            { min: 3000, max: null, label: `${format(3000)}+` },
+        ],
+        sale: [
+            { min: null, max: 100000, label: `Under ${format(100000)}` },
+            { min: 100000, max: 250000, label: `${format(100000)} - ${format(250000)}` },
+            { min: 250000, max: 500000, label: `${format(250000)} - ${format(500000)}` },
+            { min: 500000, max: 750000, label: `${format(500000)} - ${format(750000)}` },
+            { min: 750000, max: 1000000, label: `${format(750000)} - ${format(1000000)}` },
+            { min: 1000000, max: null, label: `${format(1000000)}+` },
+        ],
+    };
 };
+
+const priceRanges = buildSearchPriceRanges('IN');
 
 const suggestionMenuClassName = "absolute z-50 mt-1 max-h-48 w-full min-w-[min(22rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-auto rounded-lg border border-gray-100 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800";
 const suggestionOptionClassName = "flex w-full min-w-0 items-center justify-between gap-3 px-4 py-2 text-left text-gray-900 transition-colors hover:bg-orange-50 dark:text-gray-100 dark:hover:bg-gray-700";
@@ -98,9 +107,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
     const CurrencyIcon = geoMarket === 'GB' ? PoundSterling : IndianRupee;
     const formatSearchCurrency = useCallback((amount: number) => (
-        geoMarket === 'GB'
-            ? new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0, style: 'currency', currency: 'GBP' }).format(amount)
-            : formatLaunchCurrency(amount)
+        formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
     ), [geoMarket]);
 
     // Fetch dynamic filters

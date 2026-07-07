@@ -18,6 +18,7 @@ import {
     SlidersHorizontal
 } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSavedProperties } from '@/contexts/SavedPropertiesContext';
 import PropertyCard from '@/components/dashboard/PropertyCard';
 import PropertyCardSkeleton from '@/components/dashboard/PropertyCardSkeleton';
@@ -25,7 +26,8 @@ import UserActivitySubnav from '@/components/layout/UserActivitySubnav';
 import { searchService, SavedSearch } from '@/services/searchService';
 import { useToast } from '@/contexts/ToastContext';
 import { filterAndSortSavedProperties, type SavedPropertySortOption } from '@/lib/savedPropertyState';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
 const SAVED_PROPERTY_SORT_OPTIONS: Array<{ value: SavedPropertySortOption; label: string }> = [
     { value: 'newest', label: 'Newest saved' },
@@ -306,11 +308,16 @@ function SavedSearchesTab() {
     const [searches, setSearches] = useState<SavedSearch[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { user } = useAuth();
+    const geoMarket = useUserGeoMarket(user);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const alertButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
     const { success: showToastSuccess, error: showToastError } = useToast();
     const activeAlertId = searchParams.get('alert') || '';
+    const formatSavedSearchCurrency = (amount?: number | null) => formatLaunchCurrencyForCountry(amount, {
+        countryCode: geoMarket,
+    });
 
     const fetchSearches = async () => {
         setLoading(true);
@@ -446,7 +453,7 @@ function SavedSearchesTab() {
                             )}
                             {(search.min_price || search.max_price) && (
                                 <div className="flex items-center gap-1.5">
-                                    <span>{formatLaunchCurrency(search.min_price || 0)} - {search.max_price ? formatLaunchCurrency(search.max_price) : 'Any'}</span>
+                                    <span>{formatSavedSearchCurrency(search.min_price || 0)} - {search.max_price ? formatSavedSearchCurrency(search.max_price) : 'Any'}</span>
                                 </div>
                             )}
                             {search.bedrooms && (

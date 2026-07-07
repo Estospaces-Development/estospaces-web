@@ -114,7 +114,7 @@ import {
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { formatLaunchCurrency, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -2963,7 +2963,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         {PAYMENTS_ENABLED && (selectedCase.agreement.paymentStatus === 'requested' || selectedCase.agreement.paymentStatus === 'paid') ? (
                             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Payment: {selectedCase.agreement.paymentStatus.replace(/_/g, ' ')}
-                                {selectedCase.agreement.amountDue ? ` / ${formatLaunchCurrency(selectedCase.agreement.amountDue, { showCode: true })}` : ''}
+                                {selectedCase.agreement.amountDue ? ` / ${formatLaunchCurrencyForCountry(selectedCase.agreement.amountDue, { countryCode: geoMarket, countryName: selectedCase.propertyCountry, showCode: true })}` : ''}
                             </p>
                         ) : null}
                     </div>

@@ -49,7 +49,7 @@ import {
   getFastTrackCases,
   type FastTrackCase,
 } from "@/services/fastTrackService";
-import { formatLaunchCurrency } from "@/lib/launchLocale";
+import { formatLaunchCurrencyForCountry } from "@/lib/launchLocale";
 import {
   getAMLReview,
   getBuyerQualification,
@@ -679,7 +679,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
 
   const formatPrice = (price?: number) => {
     if (price === undefined) return "Price on request";
-    return formatLaunchCurrency(price);
+    return formatLaunchCurrencyForCountry(price, {
+      countryCode: application?.propertyCountry,
+      countryName: application?.propertyCountry,
+      currencyCode: application?.propertyCurrency,
+    });
   };
 
   const handleManagerDecision = async (

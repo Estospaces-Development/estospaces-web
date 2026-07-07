@@ -50,7 +50,7 @@ import {
   usePublishWorkspaceSync,
   useWorkflowWorkspaceRefresh,
 } from "@/contexts/WorkspaceSyncContext";
-import { formatLaunchCurrency } from "@/lib/launchLocale";
+import { formatLaunchCurrencyForCountry } from "@/lib/launchLocale";
 import { WORKSPACE_SYNC_TAGS } from "@/lib/workspaceSync";
 import {
   DELETED_FAST_TRACK_CASE_MESSAGE,
@@ -60,6 +60,14 @@ import {
 } from "@/lib/fastTrackCaseContext";
 import { buildUserPropertyPortfolio } from "@/lib/userPropertyPortfolio";
 import { syncFastTrackCompanionAction } from "@/lib/fastTrackCompanion";
+
+const formatContractCurrency = (contract: Contract | null | undefined, amount?: number) => (
+  formatLaunchCurrencyForCountry(amount, {
+    countryCode: (contract as any)?.property_country || (contract as any)?.country,
+    countryName: (contract as any)?.property_country || (contract as any)?.country,
+    currencyCode: (contract as any)?.property_currency || (contract as any)?.currency,
+  })
+);
 
 export default function ContractsPage() {
   const navigate = useNavigate();
@@ -810,7 +818,7 @@ export default function ContractsPage() {
                           </span>
                           {contract.monthly_rent && (
                             <span className="text-gray-500 ml-auto font-semibold">
-                              {formatLaunchCurrency(contract.monthly_rent)}/mo
+                              {formatContractCurrency(contract, contract.monthly_rent)}/mo
                             </span>
                           )}
                         </div>
@@ -945,7 +953,7 @@ export default function ContractsPage() {
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                   {viewContract.monthly_rent
-                    ? `${formatLaunchCurrency(viewContract.monthly_rent)}/mo`
+                    ? `${formatContractCurrency(viewContract, viewContract.monthly_rent)}/mo`
                     : "TBC"}
                 </p>
               </div>
@@ -967,7 +975,7 @@ export default function ContractsPage() {
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
                   {viewContract.deposit_amount
-                    ? formatLaunchCurrency(viewContract.deposit_amount)
+                    ? formatContractCurrency(viewContract, viewContract.deposit_amount)
                     : "TBC"}
                 </p>
               </div>

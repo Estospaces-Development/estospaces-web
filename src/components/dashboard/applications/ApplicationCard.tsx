@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { canWithdrawApplicationRecord } from '@/lib/saleJourney';
 import { messagesService } from '@/services/messagesService';
-import { formatLaunchCurrency } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry } from '@/lib/launchLocale';
 
 
 
@@ -322,6 +322,11 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
     };
 
     const PropertyTypeIcon = getPropertyTypeIcon();
+    const formattedPropertyPrice = formatLaunchCurrencyForCountry(application.propertyPrice || 0, {
+        countryCode: application.propertyCountry,
+        countryName: application.propertyCountry,
+        currencyCode: application.propertyCurrency,
+    });
 
     return (
         <div
@@ -435,7 +440,7 @@ const ApplicationCard: React.FC<ApplicationCardProps> = ({ application, onClick 
                         {/* Price */}
                         <div>
                             <span className="text-lg font-bold text-gray-900 dark:text-white">
-                                {formatLaunchCurrency(application.propertyPrice || 0)}
+                                {formattedPropertyPrice}
                             </span>
                             <span className="text-sm text-gray-500 dark:text-gray-400">
                                 {application.propertyType === 'rent' ? '/month' : ''}
