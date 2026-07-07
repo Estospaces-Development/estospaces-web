@@ -673,7 +673,7 @@ const RentalApplicationEntryCard = ({
                 aria-describedby={errors.employmentStatus ? 'rental-application-employment-error' : undefined}
                 className="w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none transition focus:border-sky-500 dark:border-sky-900/50 dark:bg-zinc-950 dark:text-white"
             >
-                <option value="">Select status</option>
+                <option value="" disabled>Select status</option>
                 <option value="employed">Employed</option>
                 <option value="self_employed">Self-employed</option>
                 <option value="student">Student</option>
