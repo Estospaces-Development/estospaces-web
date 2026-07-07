@@ -19,6 +19,12 @@ export type TimelinePropertyContext = {
     image?: unknown;
 };
 
+export type MissingTimelinePropertyCopy = {
+    title?: string;
+    address?: string;
+    priceLabel?: string;
+};
+
 export type TimelinePropertyContextInput = {
     title?: unknown;
     address?: unknown;
@@ -102,6 +108,21 @@ export const resolveTimelinePropertyContext = (
     currency: normalizeTimelineText(primary?.currency) || normalizeTimelineText(fallback?.currency),
     image: hasTimelineImage(primary?.image) ? primary?.image : fallback?.image,
 });
+
+export const getMissingTimelinePropertyCopy = (
+    context: TimelinePropertyContextInput | null | undefined,
+    propertyRecordUnavailable: boolean,
+): MissingTimelinePropertyCopy => {
+    if (!propertyRecordUnavailable) {
+        return {};
+    }
+
+    return {
+        title: normalizeTimelineText(context?.title) ? undefined : 'Archived property application',
+        address: normalizeTimelineText(context?.address) ? undefined : 'Original listing no longer available',
+        priceLabel: parseTimelinePrice(context?.price) ? undefined : 'Original price not captured',
+    };
+};
 
 export const isLiveBrokerRequest = (
     request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,

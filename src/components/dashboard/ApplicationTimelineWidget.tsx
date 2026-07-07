@@ -12,6 +12,7 @@ import {
     getApplicationTimelineTimestamp,
     getBrokerRequestTrackingSummary,
     getStableActivityTimestamp,
+    getMissingTimelinePropertyCopy,
     hasStableActivityTimestamp,
     hasTimelinePropertyDetails,
     isLiveBrokerRequest,
@@ -271,6 +272,7 @@ const ApplicationTimelineWidget = () => {
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
                 const contracts = Array.isArray(contractsRes) ? contractsRes : [];
                 const propertyContextById = new Map<string, TimelinePropertyContext>();
+                const unavailablePropertyIds = new Set<string>();
                 const setPropertyContext = (
                     propertyId: string | null | undefined,
                     candidate: TimelinePropertyContext,
@@ -323,7 +325,10 @@ const ApplicationTimelineWidget = () => {
                 ].filter(Boolean))).filter((propertyId) => !hasTimelinePropertyDetails(propertyContextById.get(propertyId)));
 
                 await Promise.all(propertyIdsNeedingHydration.map(async (propertyId) => {
-                    const { data: property } = await getPropertyById(propertyId);
+                    const { data: property, error } = await getPropertyById(propertyId);
+                    if (!property && error) {
+                        unavailablePropertyIds.add(propertyId);
+                    }
                     setPropertyContext(propertyId, buildPropertyContextFromProperty(property), true);
                 }));
 
@@ -368,6 +373,10 @@ const ApplicationTimelineWidget = () => {
                         currency: app.property_currency,
                         image: app.property_image,
                     });
+                    const missingPropertyCopy = getMissingTimelinePropertyCopy(
+                        property,
+                        Boolean(app.property_id && unavailablePropertyIds.has(app.property_id)),
+                    );
 
                     return {
                         id: app.id,
@@ -382,9 +391,10 @@ const ApplicationTimelineWidget = () => {
                         estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
                         property: {
                             id: app.property_id,
-                            title: String(property.title || 'Property application'),
-                            city: String(property.address || '') || null,
+                            title: String(property.title || missingPropertyCopy.title || 'Property application'),
+                            city: String(property.address || missingPropertyCopy.address || '') || null,
                             price: typeof property.price === 'number' ? property.price : null,
+                            priceLabel: missingPropertyCopy.priceLabel,
                             country: typeof property.country === 'string' ? property.country : null,
                             currency: typeof property.currency === 'string' ? property.currency : null,
                             image_urls: toPropertyImages(property.image),

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
     getApplicationTimelineTimestamp,
-    getStableActivityTimestamp,
     getBrokerRequestTrackingSummary,
+    getMissingTimelinePropertyCopy,
+    getStableActivityTimestamp,
     hasStableActivityTimestamp,
     hasTimelinePropertyDetails,
     isLiveBrokerRequest,
@@ -202,5 +203,41 @@ test('timeline property context hydrates broken legacy application snapshots fro
         country: undefined,
         currency: undefined,
         image: ['https://cdn.example.test/property.jpg'],
+    });
+});
+
+test('timeline property context labels deleted legacy listings without fake address or price', () => {
+    const missingCopy = getMissingTimelinePropertyCopy(
+        {
+            title: 'QA LIVE 24H CANCEL 2026-05-05T20-21-55-620Z',
+            address: '',
+            price: null,
+            image: '',
+        },
+        true,
+    );
+
+    assert.deepEqual(missingCopy, {
+        title: undefined,
+        address: 'Original listing no longer available',
+        priceLabel: 'Original price not captured',
+    });
+});
+
+test('timeline property context keeps captured address and price for unavailable property records', () => {
+    const missingCopy = getMissingTimelinePropertyCopy(
+        {
+            title: 'Captured property',
+            address: '12 QA Street, Chennai, 600001',
+            price: 650000,
+            image: '',
+        },
+        true,
+    );
+
+    assert.deepEqual(missingCopy, {
+        title: undefined,
+        address: undefined,
+        priceLabel: undefined,
     });
 });

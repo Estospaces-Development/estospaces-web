@@ -301,12 +301,20 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
             } catch {
                 images = [];
             }
+            const selectedPropertyAddress = [
+                selectedProperty.address_line_1,
+                selectedProperty.city,
+                selectedProperty.postcode,
+                selectedProperty.country,
+            ].filter(Boolean).join(', ');
+            const selectedPropertyCountry = selectedProperty.country || selectedProperty.countryCode || selectedProperty.country_code || undefined;
 
             const applicationData = {
                 property_id: selectedProperty.id,
                 manager_id: selectedProperty.manager_id,
                 property_title: selectedProperty.title,
-                property_address: selectedProperty.address_line_1 || `${selectedProperty.city || ''} ${selectedProperty.postcode || ''}`.trim(),
+                property_address: selectedPropertyAddress || `${selectedProperty.city || ''} ${selectedProperty.postcode || ''}`.trim(),
+                property_country: selectedPropertyCountry,
                 property_price: selectedProperty.price,
                 property_type: selectedProperty.property_type,
                 listing_type: selectedProperty.listing_type,
