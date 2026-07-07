@@ -471,9 +471,9 @@ export function SupportCenter({ role }: SupportCenterProps) {
                 assignee_id: currentAdminId,
                 status: ticket.status === 'open' ? 'in_progress' : ticket.status,
             });
+            await fetchTickets(true);
             setSelectedTicket(updated);
             setSearchParams(new URLSearchParams({ ticket: updated.id, conversation: updated.conversation_id }), { replace: true });
-            await fetchTickets(true);
             toast.success('Ticket assigned to you');
         } catch (error: any) {
             toast.error(error.message || 'Failed to claim support ticket');
