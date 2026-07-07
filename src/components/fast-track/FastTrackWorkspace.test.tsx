@@ -394,8 +394,6 @@ test("fast-track customization drawer renders above manager header through a bod
   assert.doesNotMatch(source, /data-fast-track-customization-scrim[\s\S]{0,160}backdrop-blur/);
   assert.doesNotMatch(source, /bg-gray-950\/25|bg-gray-950\/55|bg-black\/30/);
 });
-
-
 test("fast-track viewing response actions are mutually exclusive", () => {
   const source = workspaceSource();
 

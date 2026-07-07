@@ -24,7 +24,9 @@ test("profile verification uses country-aware identity and address guidance", ()
   assert.ok(source.includes("description={verificationDocumentGuidance.identityDetail}"));
   assert.ok(source.includes("description={verificationDocumentGuidance.addressDetail}"));
   assert.ok(source.includes("verificationDocumentGuidance.firstTimeSummary"));
-  assert.ok(guidanceSource.includes("Aadhaar, PAN/Form 60, passport, voter ID, or driving licence"));
+  assert.ok(guidanceSource.includes("Aadhaar proof, PAN card or Form 60, passport, voter ID, driving licence, NREGA job card, or NPR letter"));
+  assert.ok(guidanceSource.includes("Prefer masked Aadhaar"));
+  assert.ok(guidanceSource.includes("recent utility bill, bank statement, rent agreement"));
   assert.ok(guidanceSource.includes("British or Irish passport, driving licence, BRP/BRC, or right-to-rent share code"));
   assert.ok(guidanceSource.includes("right-to-rent evidence may be required separately"));
 });
