@@ -2,6 +2,7 @@ import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getService
 import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
 import { LAUNCH_COUNTRY_CODE } from '@/lib/launchLocale';
+import { propertyTypes } from '@/lib/propertyTypeOptions';
 
 const API_URL = getServiceUrl('search');
 const CORE_API_URL = getServiceUrl('core');
@@ -185,10 +186,36 @@ const isFullLocationCodeSearch = (value: string) => {
     return /^[1-9]\d{5}$/.test(token) || /^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(token);
 };
 
+const normalizeStructuredSearchToken = (value?: string) =>
+    normalizeSearchQueryInput((value || '').replace(/[_-]+/g, ' '));
+
+const isQueryCoveredByPropertyTypeFilter = (query: string, propertyType?: string) => {
+    const normalizedQuery = normalizeStructuredSearchToken(query);
+    const normalizedPropertyType = normalizeStructuredSearchToken(propertyType);
+
+    if (!normalizedQuery || !normalizedPropertyType || normalizedPropertyType === 'all') {
+        return false;
+    }
+
+    const typeOption = propertyTypes.find((option) => (
+        normalizeStructuredSearchToken(option.value) === normalizedPropertyType
+        || normalizeStructuredSearchToken(option.label) === normalizedPropertyType
+    ));
+    const typeTerms = [
+        normalizedPropertyType,
+        normalizeStructuredSearchToken(typeOption?.value),
+        normalizeStructuredSearchToken(typeOption?.label),
+    ].filter(Boolean);
+
+    return typeTerms.includes(normalizedQuery);
+};
+
 export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<string, any>) => {
     const params = new URLSearchParams();
 
-    const normalizedQuery = normalizeSearchQueryInput(query);
+    const normalizedQuery = isQueryCoveredByPropertyTypeFilter(query, filters.propertyType)
+        ? ''
+        : normalizeSearchQueryInput(query);
     const normalizedLocation = (filters.location || '').toString().trim();
     const normalizedPostcode = (filters.postcode || '').toString().trim();
     const locationIsPostcode = isFullLocationCodeSearch(normalizedLocation);

@@ -48,7 +48,22 @@ test('core property search keeps city location as city filter', () => {
     assert.equal(params.get('city'), 'Preston');
 });
 
-test('core property search keeps keyword and city as separate filters', () => {
+test('core property search keeps non-type keyword and city as separate filters', () => {
+    const params = mapSearchFiltersToCoreQuery('Garden', {
+        location: 'Chennai',
+        propertyType: 'apartment',
+        listingType: 'rent',
+        limit: 12,
+    });
+
+    assert.equal(params.get('search'), 'garden');
+    assert.equal(params.get('city'), 'Chennai');
+    assert.equal(params.get('type'), 'apartment');
+    assert.equal(params.get('listing_type'), 'rent');
+    assert.equal(params.get('limit'), '12');
+});
+
+test('core property search does not send a keyword already covered by selected property type', () => {
     const params = mapSearchFiltersToCoreQuery('Apartment', {
         location: 'Chennai',
         propertyType: 'apartment',
@@ -56,7 +71,7 @@ test('core property search keeps keyword and city as separate filters', () => {
         limit: 12,
     });
 
-    assert.equal(params.get('search'), 'apartment');
+    assert.equal(params.get('search'), null);
     assert.equal(params.get('city'), 'Chennai');
     assert.equal(params.get('type'), 'apartment');
     assert.equal(params.get('listing_type'), 'rent');
