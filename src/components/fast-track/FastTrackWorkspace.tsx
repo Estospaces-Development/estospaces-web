@@ -1573,7 +1573,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 externalWindow.location.href = url;
                 return;
             }
-            window.open(url, '_blank', 'noopener,noreferrer');
+            const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (!openedWindow) {
+                window.location.assign(url);
+            }
         };
         const closeExternalDocumentWindow = () => {
             externalWindow?.close();
