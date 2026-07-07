@@ -16,6 +16,7 @@ import { getFastTrackCases, type FastTrackCase } from '@/services/fastTrackServi
 import { getPropertyById } from '@/services/propertyService';
 import { getSaleProgressions, type SaleProgression, updateSaleProgression } from '@/services/salesService';
 import { buildApplicationPropertySnapshot, findRelatedViewing } from '@/lib/applicationWorkflow';
+import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
 import {
     attachLinkedFastTrackCase,
     applicationStatusToFastTrackDecisionOutcome,
@@ -689,6 +690,22 @@ export const ApplicationsProvider = ({ children }: { children: React.ReactNode }
         if (missingPropertySnapshot) {
             const { data: property } = await getPropertyById(propertyId);
             propertySnapshot = buildApplicationPropertySnapshot(property);
+        }
+
+        const listingType = String(data.listing_type || propertySnapshot.listing_type || data.property_type || '').trim().toLowerCase();
+        if (listingType === 'rent') {
+            const fastTrackCasesResult = await getFastTrackCases({ suppressErrorToast: true });
+            const linkedFastTrackCase = findLinkedFastTrackCase(fastTrackCasesResult.data || [], {
+                caseId: data.fast_track_case_id || data.fastTrackCaseId,
+                fastTrackCaseId: data.fast_track_case_id || data.fastTrackCaseId,
+                leadId: data.lead_id || data.leadId,
+                propertyId,
+            });
+            const fastTrackBlocker = getRentalApplicationFastTrackBlocker(linkedFastTrackCase);
+
+            if (fastTrackBlocker) {
+                return { success: false, error: fastTrackBlocker };
+            }
         }
 
         const { data: application, error: createError } = await createBackendApplication({

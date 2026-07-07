@@ -84,3 +84,13 @@ test('rental application gate allows application-stage live cases and completed 
     null,
   );
 });
+
+test('ApplicationsContext.createApplication enforces the rental gate before backend create', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../contexts/ApplicationsContext.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /getRentalApplicationFastTrackBlocker/);
+  assert.match(source, /findLinkedFastTrackCase\(fastTrackCasesResult\.data \|\| \[\]/);
+  assert.match(source, /return \{ success: false, error: fastTrackBlocker \}/);
+  assert.ok(source.indexOf('getRentalApplicationFastTrackBlocker') < source.indexOf('createBackendApplication({'));
+});
