@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, MapPin, X, Grid3X3, List, Loader2, Home, BookmarkPlus, Bell, History, Heart, AlertCircle, ChevronDown } from 'lucide-react';
 import Select from '../../../components/ui/Select';
@@ -96,6 +96,7 @@ const PropertySearch = () => {
     const [properties, setProperties] = useState<SearchResult[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [hasLoadedSearch, setHasLoadedSearch] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
@@ -130,6 +131,7 @@ const PropertySearch = () => {
     const [searchNameError, setSearchNameError] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const latestSearchRequestRef = useRef(0);
 
     const loadSearchHistory = useCallback(async () => {
         if (!isAuthenticated) {
@@ -223,11 +225,15 @@ const PropertySearch = () => {
     ]);
 
     const fetchProperties = useCallback(async () => {
+        const requestId = latestSearchRequestRef.current + 1;
+        latestSearchRequestRef.current = requestId;
+
         if (queryValidationMessage) {
             setLoading(false);
             setError(null);
             setProperties([]);
             setTotal(0);
+            setHasLoadedSearch(true);
             return;
         }
 
@@ -250,6 +256,10 @@ const PropertySearch = () => {
                 }
             );
 
+            if (requestId !== latestSearchRequestRef.current) {
+                return;
+            }
+
             if (result.success) {
                 setProperties(result.data || []);
                 setTotal(result.pagination?.total || 0);
@@ -259,11 +269,18 @@ const PropertySearch = () => {
                 setTotal(0);
             }
         } catch {
+            if (requestId !== latestSearchRequestRef.current) {
+                return;
+            }
+
             setError('An error occurred while fetching properties.');
             setProperties([]);
             setTotal(0);
         } finally {
-            setLoading(false);
+            if (requestId === latestSearchRequestRef.current) {
+                setLoading(false);
+                setHasLoadedSearch(true);
+            }
         }
     }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage]);
 
@@ -417,11 +434,12 @@ const PropertySearch = () => {
     const friendlySearchError = error && /request header fields too large/i.test(error)
         ? 'Your browser session has stale search data. Refresh this page and try again.'
         : error;
+    const isInitialSearchLoading = loading && !hasLoadedSearch;
 
     return (
         <div className="mx-auto w-full max-w-7xl space-y-6 overflow-x-hidden px-4 pb-20 pt-5 sm:px-6 lg:px-8 animate-in fade-in duration-500">
             <p role="status" aria-live="polite" className="sr-only">
-                {searchSaveStatus || (loading ? 'Loading search results.' : `${properties.length} search results shown.`)}
+                {searchSaveStatus || (loading ? (isInitialSearchLoading ? 'Loading search results.' : 'Refreshing search results.') : `${properties.length} search results shown.`)}
             </p>
 
             {/* Search Header */}
@@ -742,7 +760,7 @@ const PropertySearch = () => {
             {/* Results Header */}
             <div className="flex flex-col items-start justify-between gap-3 min-[360px]:flex-row min-[360px]:items-center">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-white">{loading ? '...' : total}</span> properties found
+                    <span className="font-semibold text-gray-900 dark:text-white">{isInitialSearchLoading ? '...' : total}</span> properties found
                 </p>
                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded-lg p-1">
                     <label htmlFor="public-search-inline-sort" className="sr-only">Sort</label>
@@ -784,7 +802,7 @@ const PropertySearch = () => {
             </div>
 
             {/* Results Grid */}
-            {loading ? (
+            {isInitialSearchLoading ? (
                 <div className="flex justify-center flex-col items-center py-20 text-primary">
                     <Loader2 className="w-10 h-10 animate-spin mb-4" />
                     <span className="text-sm font-medium text-gray-500">Searching properties...</span>

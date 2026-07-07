@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 const root = process.cwd();
 const searchPage = readFileSync(resolve(root, "src/pages/user/search/page.tsx"), "utf8");
+const publicHeader = readFileSync(resolve(root, "src/components/layout/PublicHeader.tsx"), "utf8");
 const propertyDetailPage = readFileSync(resolve(root, "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
 test("user search exposes filter and result view state to assistive tech", () => {
@@ -31,6 +32,26 @@ test("user search keeps result headings in order below the page title", () => {
   assert.match(searchPage, /<h2 className="text-base font-semibold text-gray-950 dark:text-white">Search temporarily unavailable<\/h2>/);
   assert.match(searchPage, /<h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No properties found<\/h2>/);
   assert.match(searchPage, /<h2 className="mobile-safe-text font-semibold text-gray-900 dark:text-white mb-1 cursor-pointer"/);
+});
+
+test("public Search navbar preserves active filtered search URLs", () => {
+  assert.match(publicHeader, /const location = useLocation\(\);/);
+  assert.match(publicHeader, /const resolveNavHref = \(link: NavLink\) => \{/);
+  assert.match(publicHeader, /link\.href === '\/search' && pathname === '\/search' && location\.search/);
+  assert.ok(publicHeader.includes("return `${link.href}${location.search}`;"));
+  assert.match(publicHeader, /to=\{resolveNavHref\(link\)\}/);
+  assert.doesNotMatch(publicHeader, /to=\{link\.href\}/);
+});
+test("user search keeps settled results stable while refreshed requests are in flight", () => {
+  assert.match(searchPage, /const \[hasLoadedSearch, setHasLoadedSearch\] = useState\(false\);/);
+  assert.match(searchPage, /const latestSearchRequestRef = useRef\(0\);/);
+  assert.match(searchPage, /if \(requestId !== latestSearchRequestRef\.current\) \{/);
+  assert.match(searchPage, /const isInitialSearchLoading = loading && !hasLoadedSearch;/);
+  assert.match(searchPage, /\{isInitialSearchLoading \? '\.\.\.' : total\}/);
+  assert.match(searchPage, /\{isInitialSearchLoading \? \(/);
+  assert.match(searchPage, /Refreshing search results\./);
+  assert.doesNotMatch(searchPage, /\{loading \? '\.\.\.' : total\}/);
+  assert.doesNotMatch(searchPage, /\{loading \? \(/);
 });
 
 test("property detail action and gallery controls expose stable button state", () => {
