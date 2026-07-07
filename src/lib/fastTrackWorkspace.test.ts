@@ -380,10 +380,18 @@ test('fast-track document preview opens a modal only from explicit preview actio
     );
 });
 
-test('manager completed-case document open stays in the in-app preview modal', () => {
+test('fast-track document open launches the file separately from preview', () => {
     assert.match(
         fastTrackWorkspaceComponent,
-        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\);/,
+        /const externalWindow = openInNewTab \? window\.open\('about:blank', '_blank'\) : null/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /externalWindow\.location\.href = url;/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\);/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
@@ -399,7 +407,11 @@ test('manager completed-case document open stays in the in-app preview modal', (
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /onClick=\{\(\) => void ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)\}\s*busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
+        /onClick=\{\(\) => void handleRailOpen\(item\)\}\s*busy=\{isPreviewActionBusy\(item\.id, 'open'\)\}\s*disabled=\{!canPreview\}\s*ariaLabel=\{`Open \$\{item\.label\}`\}/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/,
     );
 });
 

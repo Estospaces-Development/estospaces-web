@@ -1564,6 +1564,20 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         const busyAction = options?.busyAction || (openInNewTab ? 'download' : openInModal ? 'preview' : 'auto');
         const busyKey = documentPreviewBusyKey(item.id, busyAction);
         const selectedFile = selectedFiles[item.id] || null;
+        const externalWindow = openInNewTab ? window.open('about:blank', '_blank') : null;
+        if (externalWindow) {
+            externalWindow.opener = null;
+        }
+        const openExternalDocumentUrl = (url: string) => {
+            if (externalWindow) {
+                externalWindow.location.href = url;
+                return;
+            }
+            window.open(url, '_blank', 'noopener,noreferrer');
+        };
+        const closeExternalDocumentWindow = () => {
+            externalWindow?.close();
+        };
         if (openInModal) {
             setPreviewModalOpen(true);
         }
@@ -1576,7 +1590,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewError(null);
             setPreviewUrl(nextUrl);
             if (openInNewTab) {
-                window.open(nextUrl, '_blank', 'noopener,noreferrer');
+                openExternalDocumentUrl(nextUrl);
             }
             if (revealInViewport) {
                 if (role === 'user') {
@@ -1591,6 +1605,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewError('This file is not attached yet.');
             setPreviewUrl(null);
             setPreviewBusyKey(null);
+            closeExternalDocumentWindow();
             if (revealInViewport) {
                 if (role === 'user') {
                     setUserDetailsOpen(true);
@@ -1612,6 +1627,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 if (access.error || !access.url) {
                     setPreviewUrl(null);
                     setPreviewError(access.error || 'Preview is unavailable for this document.');
+                    closeExternalDocumentWindow();
                     if (revealInViewport) {
                         if (role === 'user') {
                             setUserDetailsOpen(true);
@@ -1630,6 +1646,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             if (!nextUrl) {
                 setPreviewUrl(null);
                 setPreviewError('Preview is unavailable for this document.');
+                closeExternalDocumentWindow();
                 if (revealInViewport) {
                     if (role === 'user') {
                         setUserDetailsOpen(true);
@@ -1649,12 +1666,13 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             }
 
             if (openInNewTab && nextAccessUrl) {
-                window.open(nextAccessUrl, '_blank', 'noopener,noreferrer');
+                openExternalDocumentUrl(nextAccessUrl);
             }
             return nextUrl;
         } catch (error: any) {
             setPreviewUrl(null);
             setPreviewError(error?.message || 'Preview is unavailable for this document.');
+            closeExternalDocumentWindow();
             return null;
         } finally {
             setPreviewBusyKey((current) => current === busyKey ? null : current);
@@ -1666,7 +1684,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [ensureDocumentPreview]);
 
     const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' });
+        await ensureDocumentPreview(item, { openInNewTab: true, busyAction: 'open' });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {
@@ -2514,7 +2532,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                         </ActionButton>
                                         <ActionButton
                                             tone="secondary"
-                                            onClick={() => void ensureDocumentPreview(item, { openInModal: true, busyAction: 'open' })}
+                                            onClick={() => void handleRailOpen(item)}
                                             busy={isPreviewActionBusy(item.id, 'open')}
                                             disabled={!canPreview}
                                             ariaLabel={`Open ${item.label}`}

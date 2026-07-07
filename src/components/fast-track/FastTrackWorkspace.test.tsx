@@ -126,6 +126,16 @@ test("fast-track preview buttons open a modal with zoom controls", () => {
   assert.match(source, /aria-label="Zoom in document preview"/);
 });
 
+test("fast-track open buttons launch documents separately from preview", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /window\.open\('about:blank', '_blank'\)/);
+  assert.match(source, /externalWindow\.location\.href = url/);
+  assert.match(source, /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/);
+  assert.match(source, /onClick=\{\(\) => void handleRailOpen\(item\)\}/);
+  assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/);
+});
+
 test("fast-track uploaded document preview uses signed access URL without blob fetching", () => {
   const source = workspaceSource();
 
