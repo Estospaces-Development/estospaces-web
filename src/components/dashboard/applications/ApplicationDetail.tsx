@@ -410,7 +410,11 @@ const ApplicationDetail = ({ applicationId, application: initialApplication, onC
 
                 {/* Status Tracker */}
                 <div className="mb-6">
-                    <StatusTracker status={application.status} listingType={application.listingType} />
+                    <StatusTracker
+                        status={application.status}
+                        listingType={application.listingType}
+                        linkedViewingStatus={application.fastTrackCase?.viewing?.status}
+                    />
                 </div>
 
                 {/* Tabs */}

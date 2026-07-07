@@ -51,9 +51,10 @@ interface Stage {
 interface StatusTrackerProps {
     status: string;
     listingType?: string;
+    linkedViewingStatus?: string | null;
 }
 
-const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => {
+const StatusTracker = ({ status, listingType = 'sale', linkedViewingStatus }: StatusTrackerProps) => {
     const isSaleJourney = listingType !== 'rent';
 
     const getStages = (): Stage[] => {
@@ -152,7 +153,14 @@ const StatusTracker = ({ status, listingType = 'sale' }: StatusTrackerProps) => 
         }
 
         const matchedIndex = stages.findIndex((stage) => stage.statuses.includes(status));
-        return matchedIndex >= 0 ? matchedIndex : 0;
+        const nextIndex = matchedIndex >= 0 ? matchedIndex : 0;
+        const viewingIndex = stages.findIndex((stage) => stage.id === 'viewing');
+        const viewingStillPending = !isSaleJourney
+            && viewingIndex >= 0
+            && Boolean(linkedViewingStatus)
+            && String(linkedViewingStatus).trim().toLowerCase() !== 'completed';
+
+        return viewingStillPending && nextIndex > viewingIndex ? viewingIndex : nextIndex;
     };
 
     const currentStageIndex = getCurrentStageIndex();

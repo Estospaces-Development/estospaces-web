@@ -2085,6 +2085,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
             listingType={application.listingType}
             liveStage={application.liveStage}
             source={application.source}
+            linkedViewingStatus={displayApplication.fastTrackCase?.viewing?.status}
           />
         </div>
         {displayApplication.fastTrackCase && (

@@ -281,3 +281,12 @@ test('application progress tracker places documents before review', () => {
         assert.ok(documentsIndex < reviewIndex);
     }
 });
+
+
+test('application progress tracker keeps pending linked viewings current', () => {
+    for (const source of [managerApplicationStatusTracker, userApplicationStatusTracker]) {
+        assert.match(source, /linkedViewingStatus/);
+        assert.match(source, /String\(linkedViewingStatus\)\.trim\(\)\.toLowerCase\(\) !== 'completed'/);
+        assert.match(source, /viewingStillPending && nextIndex > viewingIndex \? viewingIndex : nextIndex/);
+    }
+});

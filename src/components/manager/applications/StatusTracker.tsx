@@ -21,6 +21,7 @@ interface StatusTrackerProps {
     listingType?: string;
     liveStage?: string;
     source?: string;
+    linkedViewingStatus?: string | null;
 }
 
 interface Stage {
@@ -31,7 +32,7 @@ interface Stage {
     statuses: string[];
 }
 
-const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source }) => {
+const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sale', liveStage, source, linkedViewingStatus }) => {
     const isSaleJourney = listingType !== 'rent';
     const saleDisplayStage = isSaleJourney
         ? resolveSaleJourneyDisplayStage({ source, status, liveStage })
@@ -175,7 +176,14 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status, listingType = 'sa
         }
 
         const matchedIndex = stages.findIndex((stage) => stage.statuses.includes(status));
-        return matchedIndex >= 0 ? matchedIndex : 0;
+        const nextIndex = matchedIndex >= 0 ? matchedIndex : 0;
+        const viewingIndex = stages.findIndex((stage) => stage.id === 'viewing');
+        const viewingStillPending = !isSaleJourney
+            && viewingIndex >= 0
+            && Boolean(linkedViewingStatus)
+            && String(linkedViewingStatus).trim().toLowerCase() !== 'completed';
+
+        return viewingStillPending && nextIndex > viewingIndex ? viewingIndex : nextIndex;
     };
 
     const currentStageIndex = getCurrentStageIndex();
