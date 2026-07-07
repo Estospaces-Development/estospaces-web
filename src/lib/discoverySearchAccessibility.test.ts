@@ -39,6 +39,9 @@ test("public Search navbar preserves active filtered search URLs", () => {
   assert.match(publicHeader, /const resolveNavHref = \(link: NavLink\) => \{/);
   assert.match(publicHeader, /link\.href === '\/search' && pathname === '\/search' && location\.search/);
   assert.ok(publicHeader.includes("return `${link.href}${location.search}`;"));
+  assert.match(publicHeader, /const handleNavLinkClick = \(event: React\.MouseEvent<HTMLAnchorElement>, link: NavLink\) => \{/);
+  assert.match(publicHeader, /event\.preventDefault\(\);/);
+  assert.match(publicHeader, /onClick=\{\(event\) => handleNavLinkClick\(event, link\)\}/);
   assert.match(publicHeader, /to=\{resolveNavHref\(link\)\}/);
   assert.doesNotMatch(publicHeader, /to=\{link\.href\}/);
 });
