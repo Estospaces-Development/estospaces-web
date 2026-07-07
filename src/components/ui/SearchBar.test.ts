@@ -9,12 +9,17 @@ const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/s
 const userDashboardSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
 const discoverSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 
-test('dashboard type options exclude transaction values from API filters', () => {
-    assert.deepEqual(buildPropertyTypeOptions(['rent', 'apartment', 'sale', 'villa', 'Apartment']), [
-        { value: '', label: 'All Types' },
-        { value: 'apartment', label: 'Apartment' },
-        { value: 'villa', label: 'Villa' },
-    ]);
+test('dashboard type options merge API filters with the shared property defaults', () => {
+    const options = buildPropertyTypeOptions(['rent', 'apartment', 'sale', 'villa', 'Apartment']);
+    const values = options.map((option) => option.value);
+
+    assert.equal(options[0].label, 'All Types');
+    assert.ok(values.includes('apartment'));
+    assert.ok(values.includes('house'));
+    assert.ok(values.includes('villa'));
+    assert.equal(values.filter((value) => value === 'apartment').length, 1);
+    assert.ok(!values.includes('rent'));
+    assert.ok(!values.includes('sale'));
 });
 
 test('dashboard type listbox opens upward instead of relying on native select placement', () => {
