@@ -9,6 +9,7 @@ import {
   buildPropertyFastTrackStartRequest,
   buildPropertyHeroSummary,
   formatPropertyDetailCurrency,
+  getPropertyDetailLocationLabel,
   getPropertyBrokerRequestQuery,
   getImmersiveGalleryDialogLabel,
   getPropertyDetailFallbackBackTarget,
@@ -50,6 +51,28 @@ test("property detail formats guide price from property country and currency", (
     formatPropertyDetailCurrency(125000, { country: "India", currency: "INR" } as any),
     "\u20b91,25,000",
   );
+});
+
+test("property detail location summary uses country and PIN corrected city", () => {
+  const location = getPropertyDetailLocationLabel({
+    id: "property-address-2",
+    title: "Launch rental",
+    status: "published",
+    listing_type: "rent",
+    property_type: "apartment",
+    price: 650000,
+    currency: "INR",
+    bedrooms: 2,
+    bathrooms: 2,
+    address_line_1: "Attur",
+    city: "Edinburgh",
+    postcode: "600001",
+    country: "IN",
+  } as any);
+
+  assert.equal(location, "Chennai, IN");
+  assert.doesNotMatch(location, /Edinburgh/i);
+  assert.doesNotMatch(propertyDetailSource, /formatLaunchPropertyLocation\(\[property\.city, property\.country\]\)/);
 });
 
 test("property detail hero summary uses real listing data instead of gallery guide copy", () => {

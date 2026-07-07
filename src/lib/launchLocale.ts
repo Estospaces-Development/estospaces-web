@@ -6,6 +6,23 @@ export const LAUNCH_LOCALE = "en-IN";
 export const LAUNCH_DEFAULT_CITY = "Chennai";
 export const UK_COUNTRY_CODE = "GB";
 export const UK_COUNTRY_NAME = "United Kingdom";
+const LAUNCH_CITY_BY_PIN_CODE: Record<string, string> = {
+  "600001": LAUNCH_DEFAULT_CITY,
+  "641001": "Coimbatore",
+  "625001": "Madurai",
+  "560001": "Bengaluru",
+  "570001": "Mysuru",
+  "575001": "Mangaluru",
+  "500001": "Hyderabad",
+  "506002": "Warangal",
+  "400001": "Mumbai",
+  "411001": "Pune",
+  "440001": "Nagpur",
+  "110001": "New Delhi",
+  "110075": "Dwarka",
+  "682001": "Kochi",
+  "695001": "Thiruvananthapuram",
+};
 
 export function formatLaunchCurrency(
   amount: number | null | undefined,
@@ -185,6 +202,24 @@ export function getSupportedLaunchCountry(
     return LAUNCH_COUNTRY_CODE;
   }
   return getLaunchCountryFromLocationCode(locationCode);
+}
+
+export function getLaunchCityFromPinCode(
+  value?: string | null,
+  countryCode?: string | null,
+  countryName?: string | null,
+): string | null {
+  const normalized = normalizeLaunchPinCode(value);
+  if (!isValidLaunchPinCode(normalized)) {
+    return null;
+  }
+
+  const country = getSupportedLaunchCountry(countryCode, countryName, normalized);
+  if (country !== LAUNCH_COUNTRY_CODE) {
+    return null;
+  }
+
+  return LAUNCH_CITY_BY_PIN_CODE[normalized] || null;
 }
 
 export function getLaunchLocationCodeLabel(

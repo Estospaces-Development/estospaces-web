@@ -26,6 +26,27 @@ test("property detail address preserves UK city and postcode formatting", () => 
   assert.doesNotMatch(address, /Chennai/i);
 });
 
+test("property detail address corrects stale UK city for Indian PIN code listings", () => {
+  const address = getPropertyDetailDisplayAddress({
+    id: "property-address-2",
+    title: "Launch rental",
+    status: "published",
+    listing_type: "rent",
+    property_type: "apartment",
+    price: 650000,
+    currency: "INR",
+    bedrooms: 2,
+    bathrooms: 2,
+    address_line_1: "Attur",
+    city: "Edinburgh",
+    postcode: "600001",
+    country: "IN",
+  } as any);
+
+  assert.equal(address, "Attur, Chennai, 600001");
+  assert.doesNotMatch(address, /Edinburgh|SW1A/i);
+});
+
 test("property detail wires the sanitized address into maps and contact sections", () => {
   const source = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 

@@ -69,7 +69,7 @@ import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { usePublishWorkspaceSync } from '@/contexts/WorkspaceSyncContext';
 import { getLoginPath } from '@/lib/authUtils';
 import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
-import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
+import { getSavedPropertyLocationCity, getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
 import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
 
@@ -187,6 +187,14 @@ export const getPropertyDetailDisplayAddress = (property: Property | null | unde
     }
 
     return formatLaunchPropertyLocation(getSavedPropertyLocationLabel(property));
+};
+
+export const getPropertyDetailLocationLabel = (property: Property | null | undefined) => {
+    if (!property) {
+        return 'Prime location';
+    }
+
+    return formatLaunchPropertyLocation([getSavedPropertyLocationCity(property), property.country]);
 };
 
 export const formatPropertyDetailCurrency = (
@@ -1018,9 +1026,7 @@ const UserPropertyDetail = () => {
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Interested Buyer';
     const isSaved = id ? isPropertySaved(id) : false;
     const propertyAddress = getPropertyDetailDisplayAddress(property);
-    const locationLabel = property
-        ? formatLaunchPropertyLocation([property.city, property.country])
-        : 'Prime location';
+    const locationLabel = getPropertyDetailLocationLabel(property);
     const propertyHeroSummary = useMemo(
         () => buildPropertyHeroSummary(property, locationLabel),
         [locationLabel, property],

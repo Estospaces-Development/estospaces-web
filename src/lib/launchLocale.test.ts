@@ -9,6 +9,7 @@ import {
   formatLaunchPropertyLocation,
   formatLaunchPropertyText,
   getLaunchCountryFromLocationCode,
+  getLaunchCityFromPinCode,
   getLaunchLocationCodeErrorMessage,
   getLaunchLocationCodeLabel,
   isValidLaunchLocationCodeForCountry,
@@ -31,6 +32,8 @@ test('launch locale formats India currency and preserves India plus UK display d
   assert.equal(formatLaunchPropertyText('Luxurious 3BHK in Preston - JEEVI Groups'), 'Luxurious 3BHK in Preston - JEEVI Groups');
   assert.equal(formatLaunchPinCode('600001'), '600001');
   assert.equal(formatLaunchPinCode('SW1A 1AA'), '');
+  assert.equal(getLaunchCityFromPinCode('600001', 'IN', 'India'), 'Chennai');
+  assert.equal(getLaunchCityFromPinCode('600001', 'GB', 'United Kingdom'), null);
 });
 
 test('launch locale selects India or UK from location code and country', () => {
