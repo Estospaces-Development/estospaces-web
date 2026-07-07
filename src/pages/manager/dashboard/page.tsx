@@ -455,6 +455,7 @@ function DashboardContent() {
           icon={CalendarCheck}
           iconColor="bg-emerald-500"
           trendColor="text-emerald-700"
+          onClick={() => navigate('/manager/fast-track')}
         />
         <StatCard
           title="Active Listings"
@@ -472,6 +473,7 @@ function DashboardContent() {
           icon={Eye}
           iconColor="bg-purple-500"
           trendColor="text-purple-600"
+          onClick={() => navigate('/manager/analytics')}
         />
         <StatCard
           title="Conversion Rate"
@@ -480,6 +482,7 @@ function DashboardContent() {
           icon={UserCheck}
           iconColor="bg-orange-500"
           trendColor="text-orange-600"
+          onClick={() => navigate('/manager/analytics')}
         />
       </div>
 

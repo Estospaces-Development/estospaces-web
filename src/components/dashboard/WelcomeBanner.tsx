@@ -72,6 +72,27 @@ const WelcomeBanner = ({
         fetchStats();
     }, [analytics, externalLoading, liveListingCount, user]);
 
+    const summaryItems = [
+        {
+            label: loading ? '...' : `${stats.activeProperties} Active Listings`,
+            path: '/manager/dashboard/properties',
+            dotClassName: 'bg-primary',
+            ariaLabel: 'Open active listings',
+        },
+        {
+            label: loading ? '...' : `${stats.activeLeads} Active Leads`,
+            path: '/manager/leads',
+            dotClassName: 'bg-blue-500',
+            ariaLabel: 'Open active leads',
+        },
+        {
+            label: loading ? '...' : `${stats.totalApplications} Applications`,
+            path: '/manager/applications',
+            dotClassName: 'bg-purple-500',
+            ariaLabel: 'Open applications',
+        },
+    ];
+
     return (
         <div className="mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
@@ -92,26 +113,22 @@ const WelcomeBanner = ({
 
             {/* Summary Stats */}
             <div className="flex flex-wrap items-center gap-6 mt-4 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {loading ? '...' : `${stats.activeProperties} Active Listings`}
-                    </span>
-                </div>
-                <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {loading ? '...' : `${stats.activeLeads} Active Leads`}
-                    </span>
-                </div>
-                <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>
-                <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {loading ? '...' : `${stats.totalApplications} Applications`}
-                    </span>
-                </div>
+                {summaryItems.map((item, index) => (
+                    <div key={item.path} className="contents">
+                        {index > 0 && <div className="hidden sm:block w-px h-4 bg-gray-200 dark:bg-gray-700"></div>}
+                        <button
+                            type="button"
+                            onClick={() => navigate(item.path)}
+                            aria-label={item.ariaLabel}
+                            className="flex items-center gap-2 rounded-lg px-2 py-1 text-left transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:hover:bg-gray-700"
+                        >
+                            <span className={`w-3 h-3 ${item.dotClassName} rounded-full animate-pulse`} aria-hidden="true"></span>
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {item.label}
+                            </span>
+                        </button>
+                    </div>
+                ))}
             </div>
         </div>
     );
