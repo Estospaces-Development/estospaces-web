@@ -41,6 +41,7 @@ import {
     formatLaunchLocationCode,
 } from '@/lib/launchLocale';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -280,6 +281,7 @@ function DiscoverContent() {
     const [currentPage, setCurrentPage] = useState(() => parsePositivePage(searchParams.get('page')));
 
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
+    const [globalFilterOptions, setGlobalFilterOptions] = useState<FilterOptions | null>(null);
     const [locationSuggestions, setLocationSuggestions] = useState<AutocompleteSuggestion[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
@@ -289,6 +291,16 @@ function DiscoverContent() {
     const formatDiscoveryCurrency = (amount: number) => formatLaunchCurrencyForCountry(amount, {
         countryCode: geoMarket,
     });
+    const discoverPropertyTypeOptions = useMemo(() => {
+        const propertyTypes =
+            globalFilterOptions?.property_types?.length
+                ? globalFilterOptions.property_types
+                : filterOptions?.property_types;
+
+        return buildPropertyTypeOptions(propertyTypes).map((option) => (
+            option.value === '' ? { ...option, value: 'all' } : option
+        ));
+    }, [filterOptions?.property_types, globalFilterOptions?.property_types]);
 
     // Initialize filters from URL/Context
     useEffect(() => {
@@ -298,6 +310,22 @@ function DiscoverContent() {
         else if (nextTab === 'buy') setActiveTab('buy');
         else setActiveTab('all');
     }, [searchParams, setActiveTab]);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadGlobalFilters = async () => {
+            const options = await searchService.getFilters();
+            if (isMounted && options) {
+                setGlobalFilterOptions(options);
+            }
+        };
+
+        void loadGlobalFilters();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Keep page filters synchronized with URL query parameters
     useEffect(() => {
@@ -605,9 +633,8 @@ function DiscoverContent() {
                                 }}
                                 className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-sm text-gray-900 dark:text-white"
                             >
-                                <option value="all">Any Type</option>
-                                {(filterOptions?.property_types || []).map((t: string) => (
-                                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                                {discoverPropertyTypeOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
                         </div>

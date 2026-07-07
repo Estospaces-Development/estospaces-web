@@ -7,6 +7,7 @@ import { buildPropertyTypeOptions } from '../../lib/propertyTypeOptions';
 const source = readFileSync(resolve(process.cwd(), 'src/components/ui/SearchBar.tsx'), 'utf8');
 const publicSearchSource = readFileSync(resolve(process.cwd(), 'src/pages/user/search/page.tsx'), 'utf8');
 const userDashboardSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/DashboardClient.tsx'), 'utf8');
+const discoverSource = readFileSync(resolve(process.cwd(), 'src/pages/user/dashboard/discover/page.tsx'), 'utf8');
 
 test('dashboard type options exclude transaction values from API filters', () => {
     assert.deepEqual(buildPropertyTypeOptions(['rent', 'apartment', 'sale', 'villa', 'Apartment']), [
@@ -28,6 +29,16 @@ test('public search property type dropdown uses cleaned upward-opening options',
     assert.match(publicSearchSource, /id="public-search-property-type-listbox"/);
     assert.match(publicSearchSource, /bottom-full/);
     assert.doesNotMatch(publicSearchSource, /filterOptions\?\.property_types \|\| \[\]\)\.map/);
+});
+
+test('discover property type dropdown uses the shared global filter options', () => {
+    assert.match(discoverSource, /import \{ buildPropertyTypeOptions \} from '@\/lib\/propertyTypeOptions';/);
+    assert.match(discoverSource, /const \[globalFilterOptions, setGlobalFilterOptions\] = useState<FilterOptions \| null>\(null\);/);
+    assert.match(discoverSource, /const options = await searchService\.getFilters\(\);/);
+    assert.match(discoverSource, /globalFilterOptions\?\.property_types\?\.length[\s\S]*\? globalFilterOptions\.property_types[\s\S]*: filterOptions\?\.property_types/);
+    assert.match(discoverSource, /buildPropertyTypeOptions\(propertyTypes\)\.map/);
+    assert.match(discoverSource, /discoverPropertyTypeOptions\.map\(\(option\) =>/);
+    assert.doesNotMatch(discoverSource, /\(filterOptions\?\.property_types \|\| \[\]\)\.map/);
 });
 
 test('location suggestions keep long dashboard results contained', () => {
