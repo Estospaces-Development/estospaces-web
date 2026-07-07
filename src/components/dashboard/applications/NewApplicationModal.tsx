@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    X, Loader2, Home, User, Briefcase, IndianRupee,
+    X, Loader2, Home, User, Briefcase, IndianRupee, PoundSterling,
     Phone, Mail, Building2, FileText, CheckCircle, Search,
     ArrowRight, ArrowLeft, Sparkles, MapPin, Bed, Bath, Edit2,
 } from 'lucide-react';
@@ -11,7 +11,11 @@ import { useApplications } from '@/contexts/ApplicationsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as propertyService from '@/services/propertyService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
-import { formatLaunchCurrency, LAUNCH_CURRENCY_SYMBOL } from '@/lib/launchLocale';
+import {
+    formatLaunchCurrencyForCountry,
+    getLaunchLocationCodeLabel,
+} from '@/lib/launchLocale';
+import { useUserGeoMarket } from '@/lib/useGeoMarket';
 import DateField from '@/components/ui/DateField';
 
 interface Property {
@@ -21,6 +25,10 @@ interface Property {
     address_line_1?: string;
     city?: string;
     postcode?: string;
+    country?: string | null;
+    countryCode?: string | null;
+    country_code?: string | null;
+    currency?: string | null;
     price?: number;
     property_type?: string;
     listing_type?: string;
@@ -90,6 +98,16 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
     });
 
     const [formErrors, setFormErrors] = useState<Record<string, string | null>>({});
+    const userGeoMarket = useUserGeoMarket(user, { locationCode: searchQuery || user?.postcode });
+    const applicationGeoMarket = useUserGeoMarket(user, {
+        countryCode: selectedProperty?.countryCode || selectedProperty?.country_code,
+        countryName: selectedProperty?.country,
+        locationCode: selectedProperty?.postcode || user?.postcode,
+    });
+    const locationCodeLabel = getLaunchLocationCodeLabel(userGeoMarket, undefined, searchQuery);
+    const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
+    const incomeCurrencyCode = applicationGeoMarket === 'GB' ? 'GBP' : 'INR';
+    const IncomeCurrencyIcon = applicationGeoMarket === 'GB' ? PoundSterling : IndianRupee;
 
     // Focus on search input when modal opens
     useEffect(() => {
@@ -352,6 +370,21 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
         }
     };
 
+    const formatPropertyPrice = (property: Property | null | undefined) => (
+        formatLaunchCurrencyForCountry(property?.price || 0, {
+            countryCode: property?.countryCode || property?.country_code || property?.country || applicationGeoMarket,
+            countryName: property?.country,
+            currencyCode: property?.currency,
+        })
+    );
+
+    const formatApplicationCurrency = (amount: number) => (
+        formatLaunchCurrencyForCountry(amount, {
+            countryCode: applicationGeoMarket,
+            currencyCode: incomeCurrencyCode,
+        })
+    );
+
     if (!isOpen) return null;
 
     const stepLabels = ['Select Property', 'Your Details', 'Review & Submit'];
@@ -441,7 +474,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                 onKeyDown={handleKeyDown}
-                                                placeholder="Search by name, city, PIN code, or postcode..."
+                                                placeholder={`Search by name, city, or ${lowerLocationCodeLabel}...`}
                                                 className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-100 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                                             />
                                             {loadingProperties && (
@@ -488,7 +521,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     </div>
                                                     <div className="text-right">
                                                         <p className="text-lg font-bold text-orange-600">
-                                                            {formatLaunchCurrency(property.price || 0)}
+                                                            {formatPropertyPrice(property)}
                                                         </p>
                                                         <p className="text-xs text-gray-500">
                                                             {property.listing_type === 'rent' ? '/month' : ''}
@@ -557,7 +590,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                         )}
                                                     </div>
                                                     <p className="text-xl font-bold text-orange-600 dark:text-orange-400 mt-2">
-                                                        {formatLaunchCurrency(selectedProperty.price || 0)}
+                                                        {formatPropertyPrice(selectedProperty)}
                                                         {selectedProperty.listing_type === 'rent' && <span className="text-sm font-normal">/month</span>}
                                                     </p>
                                                 </div>
@@ -601,7 +634,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                             </p>
                                                             <p className="text-xs text-gray-500 truncate">{property.city || property.postcode || 'Unknown location'}</p>
                                                             <p className="text-sm font-bold text-orange-600 mt-1">
-                                                                    {formatLaunchCurrency(property.price || 0)}
+                                                                    {formatPropertyPrice(property)}
                                                             </p>
                                                         </button>
                                                     ))}
@@ -725,10 +758,10 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
 
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                    Annual Income ({LAUNCH_CURRENCY_SYMBOL})
+                                                    Annual Income ({incomeCurrencyCode})
                                                 </label>
                                                 <div className="relative">
-                                                    <IndianRupee size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                                    <IncomeCurrencyIcon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                     <input
                                                         type="number"
                                                         name="annualIncome"
@@ -827,7 +860,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                                     {selectedProperty?.address_line_1 || selectedProperty?.city || 'Unknown location'}
                                                 </p>
                                                 <p className="text-lg font-bold text-orange-600 mt-1">
-                                                    {formatLaunchCurrency(selectedProperty?.price || 0)}
+                                                    {formatPropertyPrice(selectedProperty)}
                                                     {selectedProperty?.listing_type === 'rent' && '/month'}
                                                 </p>
                                             </div>
@@ -879,7 +912,7 @@ const NewApplicationModal = ({ isOpen, onClose, preSelectedProperty = null }: Ne
                                             <div className="flex justify-between">
                                                 <span className="text-gray-500">Income:</span>
                                                 <span className="text-gray-900 dark:text-white">
-                                                    {formData.annualIncome ? formatLaunchCurrency(parseInt(formData.annualIncome)) : '—'}
+                                                    {formData.annualIncome ? formatApplicationCurrency(parseInt(formData.annualIncome)) : '—'}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">
