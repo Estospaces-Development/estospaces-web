@@ -10,10 +10,48 @@ export interface BrokerRequestTrackingSummary {
 
 export type ActivityTimestampCandidate = Date | string | number | null | undefined;
 
+export type TimelinePropertyContext = {
+    title?: string;
+    address?: string;
+    price?: number;
+    country?: string;
+    currency?: string;
+    image?: unknown;
+};
+
+export type TimelinePropertyContextInput = {
+    title?: unknown;
+    address?: unknown;
+    price?: unknown;
+    country?: unknown;
+    currency?: unknown;
+    image?: unknown;
+};
+
 const UNAVAILABLE_ACTIVITY_TIMESTAMP = 0;
 
 const normalizeStatus = (value?: string | null) => String(value || '').trim().toLowerCase();
 const CLOSED_REQUEST_STATUSES = new Set(['expired', 'cancelled', 'closed', 'resolved', 'archived', 'completed']);
+const normalizeTimelineText = (value: unknown) => String(value || '').trim() || undefined;
+const hasTimelineImage = (value: unknown) => {
+    if (Array.isArray(value)) {
+        return value.some((item) => normalizeTimelineText(item));
+    }
+
+    return Boolean(normalizeTimelineText(value));
+};
+const parseTimelinePrice = (value: unknown) => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) && value > 0 ? value : undefined;
+    }
+
+    if (typeof value === 'string') {
+        const parsed = Number.parseFloat(value.replace(/[^0-9.]/g, ''));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    }
+
+    return undefined;
+};
 
 export const parseActivityTimestamp = (...candidates: ActivityTimestampCandidate[]) => {
     for (const candidate of candidates) {
@@ -43,6 +81,27 @@ export const hasStableActivityTimestamp = (date: Date | null | undefined) => (
 export const getApplicationTimelineTimestamp = (
     application: { created_at?: ActivityTimestampCandidate; submitted_at?: ActivityTimestampCandidate; updated_at?: ActivityTimestampCandidate },
 ) => getStableActivityTimestamp(application.created_at, application.submitted_at, application.updated_at);
+
+export const hasTimelinePropertyDetails = (context: TimelinePropertyContextInput | null | undefined) => (
+    Boolean(
+        normalizeTimelineText(context?.title) ||
+        normalizeTimelineText(context?.address) ||
+        parseTimelinePrice(context?.price) ||
+        hasTimelineImage(context?.image),
+    )
+);
+
+export const resolveTimelinePropertyContext = (
+    primary: TimelinePropertyContextInput | null | undefined,
+    fallback: TimelinePropertyContextInput | null | undefined,
+): TimelinePropertyContext => ({
+    title: normalizeTimelineText(primary?.title) || normalizeTimelineText(fallback?.title),
+    address: normalizeTimelineText(primary?.address) || normalizeTimelineText(fallback?.address),
+    price: parseTimelinePrice(primary?.price) ?? parseTimelinePrice(fallback?.price),
+    country: normalizeTimelineText(primary?.country) || normalizeTimelineText(fallback?.country),
+    currency: normalizeTimelineText(primary?.currency) || normalizeTimelineText(fallback?.currency),
+    image: hasTimelineImage(primary?.image) ? primary?.image : fallback?.image,
+});
 
 export const isLiveBrokerRequest = (
     request: Pick<BrokerRequestRecord, 'status' | 'dispatch_status'> | null | undefined,

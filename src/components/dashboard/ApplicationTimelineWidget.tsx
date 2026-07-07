@@ -13,7 +13,10 @@ import {
     getBrokerRequestTrackingSummary,
     getStableActivityTimestamp,
     hasStableActivityTimestamp,
+    hasTimelinePropertyDetails,
     isLiveBrokerRequest,
+    resolveTimelinePropertyContext,
+    type TimelinePropertyContext,
 } from '@/lib/applicationTracking';
 import { buildBrokerRequestWorkspacePath } from '@/lib/brokerRequestWorkspace';
 import { getPropertyImages } from '@/lib/propertyImages';
@@ -232,6 +235,7 @@ import { getContracts, getViewings } from '../../services/bookingsService';
 import { getSaleProgressions } from '../../services/salesService';
 import { getUserProperties } from '../../services/userPropertiesService';
 import { getUserBrokerRequests } from '../../services/leadsService';
+import { getPropertyById } from '../../services/propertyService';
 
 const ApplicationTimelineWidget = () => {
     const navigate = useNavigate();
@@ -266,21 +270,27 @@ const ApplicationTimelineWidget = () => {
 
                 const viewings = Array.isArray(viewingsRes) ? viewingsRes : [];
                 const contracts = Array.isArray(contractsRes) ? contractsRes : [];
-                const propertyContextById = new Map<string, {
-                    title?: string;
-                    address?: string;
-                    price?: number;
-                    country?: string;
-                    currency?: string;
-                    image?: unknown;
-                }>();
-
-                (appsRes.data || []).forEach((app: any) => {
-                    if (!app.property_id || propertyContextById.has(app.property_id)) {
+                const propertyContextById = new Map<string, TimelinePropertyContext>();
+                const setPropertyContext = (
+                    propertyId: string | null | undefined,
+                    candidate: TimelinePropertyContext,
+                    preferCandidate = false,
+                ) => {
+                    if (!propertyId || !hasTimelinePropertyDetails(candidate)) {
                         return;
                     }
 
-                    propertyContextById.set(app.property_id, {
+                    const existing = propertyContextById.get(propertyId);
+                    propertyContextById.set(
+                        propertyId,
+                        preferCandidate
+                            ? resolveTimelinePropertyContext(candidate, existing)
+                            : resolveTimelinePropertyContext(existing, candidate),
+                    );
+                };
+
+                (appsRes.data || []).forEach((app: any) => {
+                    setPropertyContext(app.property_id, {
                         title: app.property_title,
                         address: app.property_address,
                         price: app.property_price,
@@ -291,11 +301,7 @@ const ApplicationTimelineWidget = () => {
                 });
 
                 viewings.forEach((viewing: any) => {
-                    if (!viewing.property_id || propertyContextById.has(viewing.property_id)) {
-                        return;
-                    }
-
-                    propertyContextById.set(viewing.property_id, {
+                    setPropertyContext(viewing.property_id, {
                         title: viewing.property_title,
                         address: viewing.property_address,
                         price: viewing.property_price,
@@ -306,19 +312,20 @@ const ApplicationTimelineWidget = () => {
                 });
 
                 (propsRes.data || []).forEach((property: any) => {
-                    if (!property.id || propertyContextById.has(property.id)) {
-                        return;
-                    }
-
-                    propertyContextById.set(property.id, {
-                        title: property.title,
-                        address: buildLocationLabel(property.address_line_1, property.city, property.postcode) || property.location,
-                        price: parseMoney(property.price) || undefined,
-                        country: property.country,
-                        currency: property.currency,
-                        image: property.image_urls || property.images,
-                    });
+                    setPropertyContext(property.id, buildPropertyContextFromProperty(property), true);
                 });
+
+                const propertyIdsNeedingHydration = Array.from(new Set([
+                    ...(appsRes.data || []).map((app: any) => app.property_id),
+                    ...viewings.map((viewing: any) => viewing.property_id),
+                    ...contracts.map((contract: any) => contract.property_id),
+                    ...(saleProgressionsRes.data || []).map((progression) => progression.property_id),
+                ].filter(Boolean))).filter((propertyId) => !hasTimelinePropertyDetails(propertyContextById.get(propertyId)));
+
+                await Promise.all(propertyIdsNeedingHydration.map(async (propertyId) => {
+                    const { data: property } = await getPropertyById(propertyId);
+                    setPropertyContext(propertyId, buildPropertyContextFromProperty(property), true);
+                }));
 
                 const saleProgressionKeys = new Set(
                     (saleProgressionsRes.data || []).map((progression) =>
@@ -352,6 +359,15 @@ const ApplicationTimelineWidget = () => {
                         : getRentStageSummary(app);
                     const stageIndex = Math.max(summary.currentStageNumber - 1, 0);
                     const stageList = app.listing_type === 'sale' ? SALE_STAGES : RENT_STAGES;
+                    const propertyContext = propertyContextById.get(app.property_id);
+                    const property = resolveTimelinePropertyContext(propertyContext, {
+                        title: app.property_title,
+                        address: app.property_address,
+                        price: app.property_price,
+                        country: app.property_country,
+                        currency: app.property_currency,
+                        image: app.property_image,
+                    });
 
                     return {
                         id: app.id,
@@ -366,12 +382,12 @@ const ApplicationTimelineWidget = () => {
                         estimatedCompletion: app.listing_type === 'sale' ? 'Purchase progression is live' : 'Tenancy review is live',
                         property: {
                             id: app.property_id,
-                            title: app.property_title || 'Property application',
-                            city: app.property_address || null,
-                            price: typeof app.property_price === 'number' ? app.property_price : null,
-                            country: app.property_country,
-                            currency: app.property_currency,
-                            image_urls: toPropertyImages(app.property_image),
+                            title: String(property.title || 'Property application'),
+                            city: String(property.address || '') || null,
+                            price: typeof property.price === 'number' ? property.price : null,
+                            country: typeof property.country === 'string' ? property.country : null,
+                            currency: typeof property.currency === 'string' ? property.currency : null,
+                            image_urls: toPropertyImages(property.image),
                         },
                         stages: stageList.map((stage, index) => ({
                             ...stage,
@@ -1058,6 +1074,21 @@ const buildLocationLabel = (...values: unknown[]) => {
         .filter(Boolean);
     return parts.length > 0 ? parts.join(', ') : null;
 };
+
+const buildPropertyContextFromProperty = (property: any): TimelinePropertyContext => ({
+    title: property?.title,
+    address: buildLocationLabel(
+        property?.address_line_1,
+        property?.address_line_2,
+        property?.city,
+        property?.postcode,
+        property?.country,
+    ) || property?.location,
+    price: property?.price,
+    country: property?.country,
+    currency: property?.currency,
+    image: property?.image_urls || property?.images || property?.image_url,
+});
 
 const filterTimelineItems = (items: ApplicationItem[], filterText: string, sortBy: TimelineSort) => {
     const normalizedFilter = filterText.trim().toLowerCase();

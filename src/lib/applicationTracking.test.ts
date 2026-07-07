@@ -5,8 +5,10 @@ import {
     getStableActivityTimestamp,
     getBrokerRequestTrackingSummary,
     hasStableActivityTimestamp,
+    hasTimelinePropertyDetails,
     isLiveBrokerRequest,
     parseActivityTimestamp,
+    resolveTimelinePropertyContext,
 } from './applicationTracking';
 
 test('live broker requests stay visible until they expire', () => {
@@ -163,4 +165,42 @@ test('application timeline cards fall back to updated date when submission date 
     });
 
     assert.equal(timestamp.toISOString(), '2026-07-07T05:58:00.000Z');
+});
+
+test('timeline property context treats empty legacy snapshots and zero prices as incomplete', () => {
+    assert.equal(
+        hasTimelinePropertyDetails({
+            title: '',
+            address: '',
+            price: 0,
+            image: '',
+        }),
+        false,
+    );
+});
+
+test('timeline property context hydrates broken legacy application snapshots from real property data', () => {
+    const resolved = resolveTimelinePropertyContext(
+        {
+            title: 'Actual River View Flat',
+            address: '12 Riverside Road, London, SW1A 1AA',
+            price: 2650,
+            image: ['https://cdn.example.test/property.jpg'],
+        },
+        {
+            title: 'QA LIVE 24H CANCEL 2026-05-05T20-21-55-620Z',
+            address: '',
+            price: 0,
+            image: '',
+        },
+    );
+
+    assert.deepEqual(resolved, {
+        title: 'Actual River View Flat',
+        address: '12 Riverside Road, London, SW1A 1AA',
+        price: 2650,
+        country: undefined,
+        currency: undefined,
+        image: ['https://cdn.example.test/property.jpg'],
+    });
 });
