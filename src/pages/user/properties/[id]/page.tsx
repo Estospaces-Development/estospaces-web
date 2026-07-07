@@ -70,6 +70,7 @@ import { getLoginPath } from '@/lib/authUtils';
 import { formatLaunchCurrencyForCountry, formatLaunchPropertyLocation } from '@/lib/launchLocale';
 import { getSavedPropertyLocationLabel } from '@/lib/savedPropertyState';
 import { buildWorkspacePath } from '@/lib/workspaceLinks';
+import { getRentalApplicationFastTrackBlocker } from '@/lib/rentalApplicationGate';
 
 const VIEWING_TIME_SLOTS = [
     { value: '09:00', label: '09:00', hint: 'Early morning' },
@@ -588,6 +589,7 @@ interface RentalApplicationEntryCardProps {
     form: RentalApplicationForm;
     errors: RentalApplicationValidationErrors;
     isSubmitting: boolean;
+    submissionBlocker?: string | null;
     onChange: (field: keyof RentalApplicationForm, value: string) => void;
     onSubmit: React.FormEventHandler<HTMLFormElement>;
 }
@@ -597,6 +599,7 @@ const RentalApplicationEntryCard = ({
     form,
     errors,
     isSubmitting,
+    submissionBlocker,
     onChange,
     onSubmit,
 }: RentalApplicationEntryCardProps) => (
@@ -763,13 +766,19 @@ const RentalApplicationEntryCard = ({
             )}
         </label>
 
+        {submissionBlocker && (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+                {submissionBlocker}
+            </p>
+        )}
+
         <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || Boolean(submissionBlocker)}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.2rem] bg-sky-700 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-sky-700/20 transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
             {isSubmitting && <Loader2 size={15} className="animate-spin" />}
-            {isSubmitting ? 'Submitting application...' : 'Submit Rental Application'}
+            {isSubmitting ? 'Submitting application...' : submissionBlocker ? 'Complete Fast Track first' : 'Submit Rental Application'}
         </button>
     </form>
 );
@@ -1657,6 +1666,10 @@ const UserPropertyDetail = () => {
         activeLead?.broker_id ||
         'No broker matched yet';
     const liveLeadDocumentLabel = liveVerificationContent.documentsLabel;
+    const rentalApplicationFastTrackBlocker = useMemo(
+        () => getRentalApplicationFastTrackBlocker(activeFastTrackCase),
+        [activeFastTrackCase],
+    );
 
     const handleUploadFastTrackDocument = async (type: 'identity' | 'address', file: File) => {
         if (!ensureAuthenticated()) {
@@ -1903,6 +1916,11 @@ const UserPropertyDetail = () => {
 
         const managerId = ensureWorkflowManagerReady();
         if (!managerId) {
+            return;
+        }
+
+        if (rentalApplicationFastTrackBlocker) {
+            toast.error(rentalApplicationFastTrackBlocker);
             return;
         }
 
@@ -2712,6 +2730,7 @@ const UserPropertyDetail = () => {
                                     form={rentalApplicationForm}
                                     errors={rentalApplicationErrors}
                                     isSubmitting={isSubmittingRentalApplication}
+                                    submissionBlocker={rentalApplicationFastTrackBlocker}
                                     onChange={handleRentalApplicationChange}
                                     onSubmit={handleSubmitRentalApplication}
                                 />
