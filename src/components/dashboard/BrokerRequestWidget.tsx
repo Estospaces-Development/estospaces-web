@@ -481,7 +481,7 @@ const BrokerRequestWidget = () => {
         }
 
         if (requestReplacementLocked) {
-            const message = 'Your agent match is locked. Continue with this property agent or contact support before changing it.';
+            const message = 'Your agent match is locked. Continue with this property agent or start another request separately.';
             setError(message);
             toast.error(message);
             return;
@@ -650,6 +650,14 @@ const BrokerRequestWidget = () => {
         }
     };
 
+    const handleStartAnotherRequest = useCallback(() => {
+        setActiveRequest(null);
+        setError(null);
+        setSelectionStatusMessage('');
+        publishBrokerRequestWorkspaceSelection(null);
+        navigate('/user/dashboard', { replace: true });
+    }, [navigate]);
+
     const handleLockedMatchAction = () => {
         if (!activeRequest?.id) {
             const message = 'Your matched agent request could not be reopened. Please refresh and try again.';
@@ -757,7 +765,7 @@ const BrokerRequestWidget = () => {
         ? 'Continue in fast-track'
         : selectedProperty
             ? 'Start fast-track with selected home'
-            : 'Continue with locked agent';
+            : 'Open matched agent request';
     const visibleSharedProperties = useMemo(() => {
         const search = sharedHomeSearch.trim().toLowerCase();
         const filtered = availableSharedProperties.filter((share) => {
@@ -1295,7 +1303,7 @@ const BrokerRequestWidget = () => {
 
                                         {!selectedProperty && requestReplacementLocked ? (
                                             <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-                                                Your property agent is locked for this request. Continue with this agent, review shared homes, or contact support before changing the match.
+                                                Your property agent is locked for this request. Continue with this agent, review shared homes, or start another request without changing this match.
                                             </div>
                                         ) : !selectedProperty ? (
                                             <button
@@ -1311,21 +1319,14 @@ const BrokerRequestWidget = () => {
                                     </div>
                                 )}
 
-                                {!requestReplacementLocked && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setActiveRequest(null);
-                                            setError(null);
-                                            publishBrokerRequestWorkspaceSelection(null);
-                                            navigate('/user/dashboard', { replace: true });
-                                        }}
-                                        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
-                                    >
-                                        <Radio size={14} />
-                                        {brokerCopy.restartRequestLabel}
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleStartAnotherRequest}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-zinc-950 dark:text-gray-200 dark:hover:bg-gray-900"
+                                >
+                                    <Radio size={14} />
+                                    {brokerCopy.restartRequestLabel}
+                                </button>
                             </div>
                         </div>
                     ) : (
@@ -1420,7 +1421,7 @@ const BrokerRequestWidget = () => {
                 )}
                 {requestReplacementLocked && (
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-                        Agent match locked. New requests are paused here so your confirmed property agent is not replaced accidentally.
+                        Agent match locked. This request keeps its confirmed property agent, and you can start another request separately.
                     </div>
                 )}
 
