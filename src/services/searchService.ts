@@ -201,11 +201,10 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     }
     const combinedSearch = searchParts.join(' ').trim();
 
-    if (combinedSearch && normalizedLocation) {
-        params.append('search', locationIsPostcode ? combinedSearch : `${combinedSearch} ${normalizedLocation}`.trim());
-    } else if (combinedSearch) {
+    if (combinedSearch) {
         params.append('search', combinedSearch);
-    } else if (normalizedLocation) {
+    }
+    if (normalizedLocation && !locationIsPostcode) {
         params.append('city', normalizedLocation);
     }
 
