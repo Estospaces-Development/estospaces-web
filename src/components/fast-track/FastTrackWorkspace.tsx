@@ -1553,15 +1553,18 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         item: FastTrackDocumentItem,
         options?: {
             openInNewTab?: boolean;
+            openInSameTab?: boolean;
             revealInViewport?: boolean;
             openInModal?: boolean;
             busyAction?: FastTrackDocumentPreviewAction;
         },
     ) => {
         const openInNewTab = options?.openInNewTab === true;
+        const openInSameTab = options?.openInSameTab === true;
+        const openExternally = openInNewTab || openInSameTab;
         const revealInViewport = options?.revealInViewport === true;
         const openInModal = options?.openInModal === true;
-        const busyAction = options?.busyAction || (openInNewTab ? 'download' : openInModal ? 'preview' : 'auto');
+        const busyAction = options?.busyAction || (openExternally ? 'download' : openInModal ? 'preview' : 'auto');
         const busyKey = documentPreviewBusyKey(item.id, busyAction);
         const selectedFile = selectedFiles[item.id] || null;
         const externalWindow = openInNewTab ? window.open('about:blank', '_blank') : null;
@@ -1569,6 +1572,10 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             externalWindow.opener = null;
         }
         const openExternalDocumentUrl = (url: string) => {
+            if (openInSameTab) {
+                window.location.assign(url);
+                return;
+            }
             if (externalWindow) {
                 externalWindow.location.href = url;
                 return;
@@ -1592,7 +1599,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
             setPreviewBusyKey(null);
             setPreviewError(null);
             setPreviewUrl(nextUrl);
-            if (openInNewTab) {
+            if (openExternally) {
                 openExternalDocumentUrl(nextUrl);
             }
             if (revealInViewport) {
@@ -1668,7 +1675,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                 revealPreviewSection();
             }
 
-            if (openInNewTab && nextAccessUrl) {
+            if (openExternally && nextAccessUrl) {
                 openExternalDocumentUrl(nextAccessUrl);
             }
             return nextUrl;
@@ -1687,7 +1694,7 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     }, [ensureDocumentPreview]);
 
     const handleRailOpen = useCallback(async (item: FastTrackDocumentItem) => {
-        await ensureDocumentPreview(item, { openInNewTab: true, busyAction: 'open' });
+        await ensureDocumentPreview(item, { openInSameTab: true, busyAction: 'open' });
     }, [ensureDocumentPreview]);
 
     const updatePreviewZoom = useCallback((direction: 'in' | 'out' | 'reset') => {

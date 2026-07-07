@@ -399,7 +399,11 @@ test('fast-track document open launches the file separately from preview', () =>
     );
     assert.match(
         fastTrackWorkspaceComponent,
-        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\);/,
+        /const handleRailOpen = useCallback\(async \(item: FastTrackDocumentItem\) => \{\s*await ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\);/,
+    );
+    assert.doesNotMatch(
+        fastTrackWorkspaceComponent,
+        /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,

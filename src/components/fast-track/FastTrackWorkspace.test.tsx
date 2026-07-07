@@ -133,8 +133,9 @@ test("fast-track open buttons launch documents separately from preview", () => {
   assert.match(source, /externalWindow\.location\.href = url/);
   assert.match(source, /const openedWindow = window\.open\(url, '_blank', 'noopener,noreferrer'\)/);
   assert.match(source, /window\.location\.assign\(url\)/);
-  assert.match(source, /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/);
+  assert.match(source, /ensureDocumentPreview\(item, \{ openInSameTab: true, busyAction: 'open' \}\)/);
   assert.match(source, /onClick=\{\(\) => void handleRailOpen\(item\)\}/);
+  assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInNewTab: true, busyAction: 'open' \}\)/);
   assert.doesNotMatch(source, /ensureDocumentPreview\(item, \{ openInModal: true, busyAction: 'open' \}\)/);
 });
 
