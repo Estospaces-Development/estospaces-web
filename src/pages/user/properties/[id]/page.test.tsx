@@ -292,7 +292,7 @@ test("viewing concierge highlight rows are actionable buttons", () => {
   assert.match(propertyDetailSource, /focusViewingRequestForm/);
   assert.match(propertyDetailSource, /void handleStartFastTrack\(\)/);
   assert.match(propertyDetailSource, /void handleOpenConversation\(\)/);
-  assert.match(propertyDetailSource, /<button\n\s+key=\{item\.label\}/);
+  assert.match(propertyDetailSource, /<button\s+key=\{item\.label\}/);
   assert.match(propertyDetailSource, /ref=\{viewingFormRef\}/);
 });
 
