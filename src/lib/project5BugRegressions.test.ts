@@ -291,9 +291,10 @@ test('application progress tracker keeps pending linked viewings current', () =>
         assert.match(source, /viewingStillPending && nextIndex > viewingIndex \? viewingIndex : nextIndex/);
     }
 });
-test('manager dashboard property empty state does not show contradictory messages', () => {
+test('manager dashboard property empty state does not show duplicate summary messages', () => {
     assert.match(managerDashboardPage, /const propertySummaryText = propertyTotal > 0/);
-    assert.match(managerDashboardPage, /hasPropertyFilters\s*\? 'No properties matched the current search\.'/);
-    assert.match(managerDashboardPage, /: 'No properties yet\. Add your first property to see it here\.'/);
-    assert.match(managerDashboardPage, /<p>\{propertySummaryText\}<\/p>/);
+    assert.match(managerDashboardPage, /: '';/);
+    assert.match(managerDashboardPage, /\{propertySummaryText && <p>\{propertySummaryText\}<\/p>\}/);
+    assert.doesNotMatch(managerDashboardPage, /No properties matched the current search/);
+    assert.doesNotMatch(managerDashboardPage, /No properties yet\. Add your first property to see it here/);
 });

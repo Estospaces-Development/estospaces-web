@@ -434,9 +434,7 @@ function DashboardContent() {
   const propertyPageEnd = Math.min(propertyPage * MANAGER_PROPERTIES_PAGE_SIZE, propertyTotal);
   const propertySummaryText = propertyTotal > 0
     ? `Showing ${propertyPageStart}-${propertyPageEnd} of ${propertyTotal} properties`
-    : hasPropertyFilters
-      ? 'No properties matched the current search.'
-      : 'No properties yet. Add your first property to see it here.';
+    : '';
   const reservationKeyFor = createDuplicateSafeKeyResolver('manager-reservation');
   const fastTrackQueueKeyFor = createDuplicateSafeKeyResolver('manager-fast-track-queue');
   const propertyCardKeyFor = createDuplicateSafeKeyResolver('manager-dashboard-property');
@@ -818,7 +816,7 @@ function DashboardContent() {
               </div>
 
               <div className="mb-6 flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
-                <p>{propertySummaryText}</p>
+                {propertySummaryText && <p>{propertySummaryText}</p>}
                 <button
                   onClick={() => navigate('/manager/dashboard/properties')}
                   className="text-sm font-semibold text-orange-500 transition-colors hover:text-orange-600"
