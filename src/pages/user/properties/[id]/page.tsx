@@ -901,6 +901,7 @@ const UserPropertyDetail = () => {
     const immersiveGalleryTriggerRef = useRef<HTMLElement | null>(null);
     const wasImmersiveGalleryOpenRef = useRef(false);
     const fastTrackTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const viewingFormRef = useRef<HTMLFormElement | null>(null);
     const wasFastTrackModalOpenRef = useRef(false);
     const offerInFlightRef = useRef(false);
     const rentalApplicationInFlightRef = useRef(false);
@@ -1189,6 +1190,11 @@ const UserPropertyDetail = () => {
     };
     const closeFastTrackModal = () => {
         setIsFastTrackModalOpen(false);
+    };
+    const focusViewingRequestForm = () => {
+        viewingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const firstAvailableTimeSlot = viewingFormRef.current?.querySelector<HTMLButtonElement>('button[aria-label^="Select "]:not(:disabled)');
+        firstAvailableTimeSlot?.focus({ preventScroll: true });
     };
     const handleImmersiveGalleryMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
         const imageRect = immersiveGalleryImageRef.current?.getBoundingClientRect();
@@ -2655,20 +2661,40 @@ const UserPropertyDetail = () => {
                             <div className="mt-5 grid gap-2.5">
                                 {conciergeHighlights.map((item) => {
                                     const Icon = item.icon;
+                                    const isResponseAction = item.label === 'Response window';
+                                    const isMessageAction = item.label === 'Private access';
+                                    const isTourAction = item.label === 'Tour booking';
+                                    const isBusy = (isResponseAction && isStartingFastTrack) || (isMessageAction && isCreatingConversation);
 
                                     return (
-                                        <div
+                                        <button
                                             key={item.label}
-                                            className="flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+                                            type="button"
+                                            onClick={(event) => {
+                                                if (isResponseAction) {
+                                                    fastTrackTriggerRef.current = event.currentTarget;
+                                                    void handleStartFastTrack();
+                                                    return;
+                                                }
+                                                if (isMessageAction) {
+                                                    void handleOpenConversation();
+                                                    return;
+                                                }
+                                                if (isTourAction) {
+                                                    focusViewingRequestForm();
+                                                }
+                                            }}
+                                            disabled={isBusy}
+                                            className="group flex items-start gap-3 rounded-[1.25rem] border border-stone-200/80 bg-white px-3.5 py-3 text-left shadow-sm transition hover:border-orange-300 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-orange-800 dark:hover:bg-zinc-900/80"
                                         >
-                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-200">
-                                                <Icon size={16} />
+                                            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition group-hover:bg-orange-100 dark:bg-orange-950/40 dark:text-orange-200 dark:group-hover:bg-orange-950/70">
+                                                {isBusy ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
                                             </div>
                                             <div>
                                                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">{item.label}</p>
-                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                                                <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{isBusy ? 'Opening...' : item.value}</p>
                                             </div>
-                                        </div>
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -2737,7 +2763,7 @@ const UserPropertyDetail = () => {
                             </div>
                         )}
 
-                        <form onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
+                        <form ref={viewingFormRef} onSubmit={handleScheduleViewing} className="mt-6 w-full max-w-full scroll-mt-24 overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[#faf7f2] shadow-[0_26px_90px_-44px_rgba(15,23,42,0.28)] dark:border-zinc-800 dark:bg-zinc-950">
                             <div className="border-b border-stone-200/80 px-5 py-5 dark:border-zinc-800 md:px-6 md:py-6">
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                     <div>

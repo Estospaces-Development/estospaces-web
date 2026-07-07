@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -14,6 +16,8 @@ import {
   shouldUseBrowserHistoryForPropertyDetailBack,
 } from "./page";
 import * as propertyPage from "./page";
+
+const propertyDetailSource = readFileSync(resolve(process.cwd(), "src/pages/user/properties/[id]/page.tsx"), "utf8");
 
 test("sale property page exposes a submit-offer entry card", () => {
   const markup = renderToStaticMarkup(
@@ -250,4 +254,15 @@ test("viewing calendar out-of-month days keep contrast-safe text", () => {
   assert.doesNotMatch(tone, /text-gray-300/);
   assert.doesNotMatch(tone, /bg-transparent/);
   assert.doesNotMatch(tone, /border-transparent/);
+});
+
+test("viewing concierge highlight rows are actionable buttons", () => {
+  assert.match(propertyDetailSource, /10-minute live broker response/);
+  assert.match(propertyDetailSource, /Message the broker directly/);
+  assert.match(propertyDetailSource, /Reserve a slot in minutes/);
+  assert.match(propertyDetailSource, /focusViewingRequestForm/);
+  assert.match(propertyDetailSource, /void handleStartFastTrack\(\)/);
+  assert.match(propertyDetailSource, /void handleOpenConversation\(\)/);
+  assert.match(propertyDetailSource, /<button\n\s+key=\{item\.label\}/);
+  assert.match(propertyDetailSource, /ref=\{viewingFormRef\}/);
 });
