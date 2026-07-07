@@ -29,6 +29,7 @@ const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast
 const userPropertyDetailPage = readFileSync(resolve(root, 'src/pages/user/properties/[id]/page.tsx'), 'utf8');
 const applicationsContext = readFileSync(resolve(root, 'src/contexts/ApplicationsContext.tsx'), 'utf8');
 const managerApplicationsPage = readFileSync(resolve(root, 'src/pages/manager/applications/page.tsx'), 'utf8');
+const managerDashboardPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/page.tsx'), 'utf8');
 const managerAddPropertyPage = readFileSync(resolve(root, 'src/pages/manager/dashboard/properties/add/page.tsx'), 'utf8');
 const registerPage = readFileSync(resolve(root, 'src/pages/auth/register/page.tsx'), 'utf8');
 const globalsCss = readFileSync(resolve(root, 'src/globals.css'), 'utf8');
@@ -289,4 +290,10 @@ test('application progress tracker keeps pending linked viewings current', () =>
         assert.match(source, /String\(linkedViewingStatus\)\.trim\(\)\.toLowerCase\(\) !== 'completed'/);
         assert.match(source, /viewingStillPending && nextIndex > viewingIndex \? viewingIndex : nextIndex/);
     }
+});
+test('manager dashboard property empty state does not show contradictory messages', () => {
+    assert.match(managerDashboardPage, /const propertySummaryText = propertyTotal > 0/);
+    assert.match(managerDashboardPage, /hasPropertyFilters\s*\? 'No properties matched the current search\.'/);
+    assert.match(managerDashboardPage, /: 'No properties yet\. Add your first property to see it here\.'/);
+    assert.match(managerDashboardPage, /<p>\{propertySummaryText\}<\/p>/);
 });
