@@ -67,7 +67,9 @@ export function SupportFilters({ filters, onChange, mode }: SupportFiltersProps)
                     </p>
                 ) : (
                     <p id={searchDescriptionId} className="mt-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                        {filters.search.length}/{SUPPORT_SEARCH_MAX_LENGTH}
+                        {filters.search.length > 0
+                            ? `${filters.search.length} of ${SUPPORT_SEARCH_MAX_LENGTH} characters used`
+                            : 'Filter by subject, requester, module, or ticket text.'}
                     </p>
                 )}
             </label>
