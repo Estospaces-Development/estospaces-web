@@ -68,10 +68,16 @@ test("property detail hero summary uses real listing data instead of gallery gui
   assert.doesNotMatch(propertyDetailSource, /Start with the lead image here/);
   assert.doesNotMatch(summary, /full-screen gallery|curated photo set|distraction-free look/i);
 
-  assert.equal(
-    buildPropertyHeroSummary({ description: "  Bright home near the riverside.  " } as any, "Guwahati, India"),
-    "Bright home near the riverside.",
-  );
+  const describedSummary = buildPropertyHeroSummary({
+    property_type: "house",
+    bedrooms: 3,
+    bathrooms: 2,
+    description: "  Bright home near the riverside.  ",
+  } as any, "Guwahati, India");
+
+  assert.match(describedSummary, /house in Guwahati, India/);
+  assert.match(describedSummary, /3 bedrooms and 2 bathrooms/);
+  assert.match(describedSummary, /Bright home near the riverside\./);
 });
 
 test("property detail accepts broker request ids from dashboard and property links", () => {

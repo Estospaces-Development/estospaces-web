@@ -486,11 +486,6 @@ const formatDetailLabel = (value: string) =>
         .replace(/\b\w/g, (char) => char.toUpperCase());
 
 export function buildPropertyHeroSummary(property: Property | null | undefined, locationLabel: string) {
-    const description = property?.description?.trim().replace(/\s+/g, ' ');
-    if (description) {
-        return description;
-    }
-
     const propertyType = property?.property_type ? formatDetailLabel(property.property_type).toLowerCase() : 'property';
     const location = locationLabel || property?.city || 'this location';
     const bedroomCount = typeof property?.bedrooms === 'number' ? property.bedrooms : 0;
@@ -498,15 +493,19 @@ export function buildPropertyHeroSummary(property: Property | null | undefined, 
     const sizeText = typeof property?.property_size_sqft === 'number' && property.property_size_sqft > 0
         ? ` with ${property.property_size_sqft} sq ft of interior space`
         : '';
+    const description = property?.description?.trim().replace(/\s+/g, ' ');
     const featureText = normalizeListValue(property?.features || property?.amenities)
         .map(formatDetailLabel)
         .slice(0, 3)
         .join(', ');
+    const supportingText = description
+        || (featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.');
 
     return [
         `This ${propertyType} in ${location} offers ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'} and ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}${sizeText}.`,
-        featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.',
-    ].join(' ');
+        supportingText,
+        description && featureText ? `Highlights include ${featureText}.` : '',
+    ].filter(Boolean).join(' ');
 }
 
 const formatLeadStage = (value?: string) => {
