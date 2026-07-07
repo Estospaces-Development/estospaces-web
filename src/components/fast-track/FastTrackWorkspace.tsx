@@ -47,6 +47,7 @@ import {
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
+    shouldStartDocumentsWhenSelectingStage,
 } from '@/lib/fastTrackWorkspace';
 import {
     WORKSPACE_SYNC_INTERVALS,
@@ -3406,9 +3407,16 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         }
 
         const nextStage = stage as FastTrackStage;
+        if (shouldStartDocumentsWhenSelectingStage(selectedCase, role, nextStage)) {
+            setActiveStageOverride(nextStage);
+            setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
+            void runAction('start_documents', {}, 'Documents stage started.');
+            return;
+        }
+
         setActiveStageOverride(nextStage === selectedCase.stage ? null : nextStage);
         setSearchParams((previous) => buildFastTrackStageSearchParams(previous, nextStage));
-    }, [selectedCase, setSearchParams]);
+    }, [role, runAction, selectedCase, setSearchParams]);
 
     const handleSelectCase = useCallback((caseId: string) => {
         pendingSelectedCaseIdRef.current = caseId;

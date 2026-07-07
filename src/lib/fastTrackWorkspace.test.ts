@@ -22,6 +22,7 @@ import {
     resolveFastTrackStageSearchParam,
     resolveFastTrackSelectionCaseId,
     resolveFastTrackThreadRecipientId,
+    shouldStartDocumentsWhenSelectingStage,
 } from './fastTrackWorkspace';
 
 const fastTrackWorkspaceComponent = readFileSync(
@@ -174,6 +175,42 @@ test('document search params preserve selected address row across refresh', () =
     assert.equal(next.get('document'), 'address');
     assert.equal(resolveFastTrackDocumentSearchParam(next, ['identity', 'address']), 'address');
     assert.equal(resolveFastTrackDocumentSearchParam(new URLSearchParams('document=missing'), ['identity', 'address']), null);
+});
+
+test('manager selecting documents on an assigned selected case starts document collection', () => {
+    const selectedCase = buildCase({
+        stage: 'selected',
+        workspaceFinalStatus: 'active',
+        managerId: 'manager-1',
+    });
+
+    assert.equal(shouldStartDocumentsWhenSelectingStage(selectedCase, 'manager', 'documents'), true);
+    assert.equal(shouldStartDocumentsWhenSelectingStage(selectedCase, 'user', 'documents'), false);
+    assert.equal(shouldStartDocumentsWhenSelectingStage(selectedCase, 'manager', 'viewing'), false);
+    assert.equal(
+        shouldStartDocumentsWhenSelectingStage(
+            buildCase({ stage: 'documents', workspaceFinalStatus: 'active', managerId: 'manager-1' }),
+            'manager',
+            'documents',
+        ),
+        false,
+    );
+    assert.equal(
+        shouldStartDocumentsWhenSelectingStage(
+            buildCase({ stage: 'selected', workspaceFinalStatus: 'cancelled', managerId: 'manager-1' }),
+            'manager',
+            'documents',
+        ),
+        false,
+    );
+    assert.equal(
+        shouldStartDocumentsWhenSelectingStage(
+            buildCase({ stage: 'selected', workspaceFinalStatus: 'active', managerId: undefined }),
+            'manager',
+            'documents',
+        ),
+        false,
+    );
 });
 
 test('document draft helpers keep notes scoped to role and case', () => {

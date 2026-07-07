@@ -131,6 +131,18 @@ export const buildFastTrackStageSearchParams = (
     return next;
 };
 
+export const shouldStartDocumentsWhenSelectingStage = (
+    fastTrackCase: Pick<FastTrackCase, 'stage' | 'workspaceFinalStatus' | 'managerId'> | null | undefined,
+    role: FastTrackWorkspaceRole,
+    requestedStage: FastTrackStage,
+) => Boolean(
+    role === 'manager'
+    && requestedStage === 'documents'
+    && fastTrackCase?.stage === 'selected'
+    && fastTrackCase?.workspaceFinalStatus === 'active'
+    && fastTrackCase?.managerId
+);
+
 export const resolveFastTrackDocumentSearchParam = (
     params: URLSearchParams,
     validDocumentIds: string[] = [],
