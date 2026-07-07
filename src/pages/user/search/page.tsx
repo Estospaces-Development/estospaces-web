@@ -32,10 +32,44 @@ import {
     formatLaunchPropertyLocation,
     formatLaunchPropertyText,
     getLaunchLocationCodeLabel,
+    getSupportedLaunchCountry,
     LAUNCH_CURRENCY_SYMBOL,
 } from '@/lib/launchLocale';
 import { buildPropertyTypeOptions } from '@/lib/propertyTypeOptions';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
+
+const inferSearchGeoMarket = (location: string, properties: SearchResult[]) => {
+    const directLocationCountry = getSupportedLaunchCountry(undefined, undefined, location);
+    if (directLocationCountry) {
+        return directLocationCountry;
+    }
+
+    const normalizedLocation = location.trim().toLowerCase();
+    if (/\b(london|manchester|birmingham|bristol|leeds|liverpool|edinburgh|glasgow|cardiff|sheffield|nottingham|southampton|oxford|cambridge)\b/.test(normalizedLocation)) {
+        return 'GB';
+    }
+    if (/\b(chennai|mumbai|delhi|bengaluru|bangalore|hyderabad|pune|kolkata|ahmedabad|jaipur|kochi|coimbatore)\b/.test(normalizedLocation)) {
+        return 'IN';
+    }
+
+    for (const property of properties) {
+        const propertyCountry = getSupportedLaunchCountry(property.country, undefined, property.postcode);
+        if (propertyCountry) {
+            return propertyCountry;
+        }
+
+        const currency = String(property.currency || '').trim().toUpperCase();
+        if (currency === 'GBP') {
+            return 'GB';
+        }
+        if (currency === 'INR') {
+            return 'IN';
+        }
+    }
+
+    return null;
+};
+
 const PropertySearch = () => {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -80,7 +114,9 @@ const PropertySearch = () => {
         [filterOptions?.property_types],
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
-    const geoMarket = useUserGeoMarket(user, { locationCode: location || user?.postcode });
+    const fallbackGeoMarket = useUserGeoMarket(user, { locationCode: location || user?.postcode });
+    const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
+    const geoMarket = inferredGeoMarket || fallbackGeoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;

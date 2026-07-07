@@ -97,6 +97,12 @@ test("active user manager and admin flows avoid default launch money on property
   assert.match(discoverSource, /getLaunchLocationCodeLabel\(geoMarket/);
   assert.match(discoverSource, /formatDiscoveryCurrency/);
   assert.doesNotMatch(discoverSource, /getPropertySections\(LAUNCH_COUNTRY_CODE\)/);
+  const publicSearchSource = readSource("pages/user/search/page.tsx");
+  assert.match(publicSearchSource, /inferSearchGeoMarket/);
+  assert.match(publicSearchSource, /inferredGeoMarket \|\| fallbackGeoMarket/);
+  assert.match(publicSearchSource, /currency === 'GBP'/);
+  assert.match(publicSearchSource, /Min Price \(\{currencySymbol\}\)/);
+  assert.match(publicSearchSource, /Max Price \(\{currencySymbol\}\)/);
 
   for (const source of [brokerRequestSource, brokerResponseSource, timelineSource, savedSource, managerContractsSource, adminPropertiesSource]) {
     assert.match(source, /formatLaunchCurrencyForCountry/);
