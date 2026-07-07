@@ -574,7 +574,15 @@ export function SupportCenter({ role }: SupportCenterProps) {
                             </div>
                             <div className="rounded-[2rem] border border-orange-100 bg-white/95 p-6 shadow-sm dark:border-orange-500/15 dark:bg-gray-900/85">
                                 <div className="mb-5 flex items-center justify-between"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-orange-700 dark:text-orange-200">Transcript</p><h3 className="mt-2 text-xl font-black text-gray-950 dark:text-white">Live support conversation</h3></div>{detailLoading && <Loader2 className="h-5 w-5 animate-spin text-orange-500" />}</div>
-                                <SupportTranscript messages={messages} currentUserId={user?.id} otherLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Estospaces Support'} onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)} />
+                                <SupportTranscript
+                                    messages={messages}
+                                    currentUserId={user?.id}
+                                    requesterUserId={selectedTicket.user_id}
+                                    requesterLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Requester'}
+                                    supportLabel={isAdmin ? 'Admin' : 'Estospaces Support'}
+                                    perspective={isAdmin ? 'staff' : 'requester'}
+                                    onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)}
+                                />
                                 {canReply && <div className="mt-6"><SupportComposer value={reply} onChange={setReply} onSubmit={() => void handleReply()} onFilesSelected={(files) => void handleFiles('reply', files)} onRemoveAttachment={(localId) => void handleRemoveAttachment('reply', localId)} attachments={replyAttachments} disabled={submitting} canSubmit={Boolean(reply.trim() || replyAttachments.length > 0)} placeholder={isAdmin ? 'Reply as the Estospaces Team' : 'Reply to support'} submitLabel={submitting ? 'Sending' : 'Send reply'} /></div>}
                             </div>
                         </>
