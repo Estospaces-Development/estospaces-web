@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   buildPropertyFastTrackStartRequest,
+  buildPropertyHeroSummary,
   formatPropertyDetailCurrency,
   getPropertyBrokerRequestQuery,
   getImmersiveGalleryDialogLabel,
@@ -48,6 +49,28 @@ test("property detail formats guide price from property country and currency", (
   assert.equal(
     formatPropertyDetailCurrency(125000, { country: "India", currency: "INR" } as any),
     "\u20b91,25,000",
+  );
+});
+
+test("property detail hero summary uses real listing data instead of gallery guide copy", () => {
+  const summary = buildPropertyHeroSummary({
+    property_type: "apartment",
+    bedrooms: 2,
+    bathrooms: 1,
+    property_size_sqft: 750,
+    features: ["balcony", "near metro"],
+  } as any, "Guwahati, India");
+
+  assert.match(summary, /apartment in Guwahati, India/);
+  assert.match(summary, /2 bedrooms and 1 bathroom/);
+  assert.match(summary, /750 sq ft/);
+  assert.match(summary, /Highlights include Balcony, Near Metro\./);
+  assert.doesNotMatch(propertyDetailSource, /Start with the lead image here/);
+  assert.doesNotMatch(summary, /full-screen gallery|curated photo set|distraction-free look/i);
+
+  assert.equal(
+    buildPropertyHeroSummary({ description: "  Bright home near the riverside.  " } as any, "Guwahati, India"),
+    "Bright home near the riverside.",
   );
 });
 

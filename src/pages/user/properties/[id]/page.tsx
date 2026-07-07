@@ -485,6 +485,30 @@ const formatDetailLabel = (value: string) =>
         .trim()
         .replace(/\b\w/g, (char) => char.toUpperCase());
 
+export function buildPropertyHeroSummary(property: Property | null | undefined, locationLabel: string) {
+    const description = property?.description?.trim().replace(/\s+/g, ' ');
+    if (description) {
+        return description;
+    }
+
+    const propertyType = property?.property_type ? formatDetailLabel(property.property_type).toLowerCase() : 'property';
+    const location = locationLabel || property?.city || 'this location';
+    const bedroomCount = typeof property?.bedrooms === 'number' ? property.bedrooms : 0;
+    const bathroomCount = typeof property?.bathrooms === 'number' ? property.bathrooms : 0;
+    const sizeText = typeof property?.property_size_sqft === 'number' && property.property_size_sqft > 0
+        ? ` with ${property.property_size_sqft} sq ft of interior space`
+        : '';
+    const featureText = normalizeListValue(property?.features || property?.amenities)
+        .map(formatDetailLabel)
+        .slice(0, 3)
+        .join(', ');
+
+    return [
+        `This ${propertyType} in ${location} offers ${bedroomCount} bedroom${bedroomCount === 1 ? '' : 's'} and ${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}${sizeText}.`,
+        featureText ? `Highlights include ${featureText}.` : 'Review the full overview and details below before choosing the next step.',
+    ].join(' ');
+}
+
 const formatLeadStage = (value?: string) => {
     if (!value) {
         return 'Matching nearby brokers';
@@ -998,6 +1022,10 @@ const UserPropertyDetail = () => {
     const locationLabel = property
         ? formatLaunchPropertyLocation([property.city, property.country])
         : 'Prime location';
+    const propertyHeroSummary = useMemo(
+        () => buildPropertyHeroSummary(property, locationLabel),
+        [locationLabel, property],
+    );
     const propertyMapState = useMemo(
         () => getPropertyMapState(property ?? {}, {
             userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
@@ -2253,7 +2281,7 @@ const UserPropertyDetail = () => {
                                         <span>{propertyAddress || locationLabel}</span>
                                     </div>
                                     <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 dark:text-gray-400">
-                                        Start with the lead image here, switch between the curated photo set below, and open the full-screen gallery whenever you want a larger, distraction-free look.
+                                        {propertyHeroSummary}
                                     </p>
 
                                     {images.length > 1 ? (
