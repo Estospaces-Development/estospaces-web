@@ -91,9 +91,12 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
 
-    const fetchUsers = useCallback(async () => {
+    const fetchUsers = useCallback(async (options: { background?: boolean } = {}) => {
+        const isBackground = options.background === true;
         try {
-            setLoading(true);
+            if (!isBackground) {
+                setLoading(true);
+            }
             const { data, error } = await getPendingUserVerifications(scope);
             if (error) {
                 throw new Error(error);
@@ -103,13 +106,15 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
         } catch (err: any) {
             setLoadError(err.message || 'Failed to load verification queue');
         } finally {
-            setLoading(false);
+            if (!isBackground) {
+                setLoading(false);
+            }
             setIsRefreshing(false);
         }
     }, [scope]);
 
     useEffect(() => {
-        fetchUsers();
+        fetchUsers({ background: false });
     }, [fetchUsers]);
 
     useWorkflowWorkspaceRefresh({
@@ -124,7 +129,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                 WORKSPACE_SYNC_TAGS.USER_VERIFICATIONS,
                 WORKSPACE_SYNC_TAGS.MANAGER_VERIFICATION,
             ],
-        refresh: fetchUsers,
+        refresh: () => fetchUsers({ background: true }),
     });
 
     useEffect(() => {
@@ -135,7 +140,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        fetchUsers();
+        fetchUsers({ background: true });
     };
 
     const stats = useMemo(() => {
@@ -301,7 +306,7 @@ const UserVerificationQueue: React.FC<UserVerificationQueueProps> = ({
                     onClose={() => {
                         setSelectedUserId(null);
                         onSelectionCleared?.();
-                        fetchUsers();
+                        fetchUsers({ background: true });
                     }}
                 />
             )}

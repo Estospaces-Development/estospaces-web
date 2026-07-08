@@ -23,6 +23,7 @@ const userApplicationStatusTracker = readFileSync(resolve(root, 'src/components/
 const adminHeader = readFileSync(resolve(root, 'src/components/layout/AdminHeader.tsx'), 'utf8');
 const adminDashboardPage = readFileSync(resolve(root, 'src/pages/admin/dashboard/page.tsx'), 'utf8');
 const adminVerificationsPage = readFileSync(resolve(root, 'src/pages/admin/verifications/page.tsx'), 'utf8');
+const userVerificationQueue = readFileSync(resolve(root, 'src/components/verification/UserVerificationQueue.tsx'), 'utf8');
 const adminReviewsPage = readFileSync(resolve(root, 'src/pages/admin/reviews/page.tsx'), 'utf8');
 const conversationList = readFileSync(resolve(root, 'src/components/dashboard/messaging/ConversationList.tsx'), 'utf8');
 const fastTrackWorkspaceLayout = readFileSync(resolve(root, 'src/components/fast-track/FastTrackWorkspaceLayout.tsx'), 'utf8');
@@ -208,6 +209,16 @@ test('admin manager verification modal pauses queue refresh while reviewing', ()
     assert.match(adminVerificationsPage, /enabled:\s*selectedManagerId === null/);
     assert.match(adminVerificationsPage, /<ManagerReviewModal/);
     assert.match(adminVerificationsPage, /fetchManagers\(\);/);
+});
+
+test('admin user verification queue keeps records visible during background refreshes', () => {
+    assert.match(userVerificationQueue, /const fetchUsers = useCallback\(async \(options: \{ background\?: boolean \} = \{\}\) =>/);
+    assert.match(userVerificationQueue, /const isBackground = options\.background === true/);
+    assert.match(userVerificationQueue, /if \(!isBackground\) \{\s*setLoading\(true\);/);
+    assert.match(userVerificationQueue, /if \(!isBackground\) \{\s*setLoading\(false\);/);
+    assert.match(userVerificationQueue, /refresh: \(\) => fetchUsers\(\{ background: true \}\)/);
+    assert.match(userVerificationQueue, /fetchUsers\(\{ background: true \}\);/);
+    assert.doesNotMatch(userVerificationQueue, /refresh: fetchUsers/);
 });
 
 test('read message conversations do not render a zero unread-count badge', () => {
