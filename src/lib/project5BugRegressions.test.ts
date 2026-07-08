@@ -224,6 +224,7 @@ test('manager workspace search inputs keep typed text and caret visible in dark 
         assert.match(source, /dark:caret-white/);
         assert.match(source, /placeholder:text-gray-500/);
         assert.match(source, /dark:placeholder:text-gray-500/);
+        assert.match(source, /dark:focus:bg-gray-900/);
     }
     assert.match(conversationList, /placeholder="Search messages\.\.\."/);
     assert.match(fastTrackWorkspaceLayout, /placeholder=\{copy\.searchPlaceholder\}/);

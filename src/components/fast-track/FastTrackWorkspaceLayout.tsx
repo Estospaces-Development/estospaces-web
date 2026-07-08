@@ -264,7 +264,7 @@ export function FastTrackCaseRail({
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder={copy.searchPlaceholder}
             className={cn(
-              'h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-950 caret-gray-900 outline-none transition-colors placeholder:text-gray-500 focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-white dark:caret-white dark:placeholder:text-gray-500',
+              'h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-950 caret-gray-900 outline-none transition-colors placeholder:text-gray-500 focus:border-orange-400 focus:bg-white dark:border-gray-700 dark:bg-gray-900/60 dark:text-white dark:caret-white dark:placeholder:text-gray-500 dark:focus:bg-gray-900',
               fastTrackFocusRing,
             )}
           />
