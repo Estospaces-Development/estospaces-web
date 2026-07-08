@@ -4,6 +4,10 @@
 
 export type HostedApp = 'landing' | 'app' | 'admin';
 
+const APP_DOMAIN = 'app.estospaces.com';
+const ADMIN_DOMAIN = 'admin.estospaces.com';
+const LANDING_DOMAIN = 'estospaces.com';
+
 const ADMIN_AUTH_ROUTE_PATHS = new Set([
     '/login',
     '/forgot-password',
@@ -75,11 +79,6 @@ export const getHostConfig = () => {
     const isLocalhost = isLocalhostHost(hostname);
     const isSingleOriginHosted = isSingleOriginHostedHost(hostname);
     const origin = isLocalhost ? `http://localhost:${window.location.port}` : window.location.origin;
-    
-    // Default domains
-    const APP_DOMAIN = 'app.estospaces.com';
-    const ADMIN_DOMAIN = 'admin.estospaces.com';
-    const LANDING_DOMAIN = 'estospaces.com';
 
     const currentApp = isLocalhost ? 'app' : resolveCurrentAppFromHostname(hostname);
 
@@ -93,6 +92,22 @@ export const getHostConfig = () => {
         adminUrl: isLocalhost || isSingleOriginHosted ? origin : `https://${ADMIN_DOMAIN}`,
         landingUrl: isLocalhost || isSingleOriginHosted ? origin : `https://${LANDING_DOMAIN}`,
     };
+};
+
+export const isExternalHref = (href: string) => /^https?:\/\//i.test(href);
+
+export const getPublicHomeHref = (hostname?: string) => {
+    const resolvedHostname = hostname || (typeof window !== 'undefined' ? window.location.hostname : '');
+
+    if (!resolvedHostname || isLocalhostHost(resolvedHostname) || isSingleOriginHostedHost(resolvedHostname)) {
+        return '/home';
+    }
+
+    if (resolveCurrentAppFromHostname(resolvedHostname) === 'landing') {
+        return '/home';
+    }
+
+    return `https://${LANDING_DOMAIN}/`;
 };
 
 export const useHost = () => {

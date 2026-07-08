@@ -4,7 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 
-import AuthBrand from './AuthBrand';
+import PublicHeader from './PublicHeader';
 
 function withMockWindow(hostname: string, callback: () => void) {
   const originalWindow = globalThis.window;
@@ -34,28 +34,16 @@ function withMockWindow(hostname: string, callback: () => void) {
   }
 }
 
-test('auth brand home link has a visible keyboard focus state', () => {
-  const markup = renderToStaticMarkup(
-    <MemoryRouter>
-      <AuthBrand />
-    </MemoryRouter>,
-  );
-
-  assert.match(markup, /aria-label="Estospaces home"/);
-  assert.match(markup, /href="\/home"/);
-  assert.match(markup, /focus-visible:ring-2/);
-  assert.match(markup, /focus-visible:ring-orange-500/);
-});
-
-test('auth brand sends app custom domains back to the marketing home', () => {
+test('public header logo sends app custom domain users to the marketing home', () => {
   withMockWindow('app.estospaces.com', () => {
     const markup = renderToStaticMarkup(
-      <MemoryRouter>
-        <AuthBrand />
+      <MemoryRouter initialEntries={['/search?q=apartment&location=Guwahati']}>
+        <PublicHeader />
       </MemoryRouter>,
     );
 
+    assert.match(markup, /aria-label="Estospaces home"/);
     assert.match(markup, /href="https:\/\/estospaces\.com\/"/);
-    assert.doesNotMatch(markup, /href="\/"/);
+    assert.match(markup, /href="\/search\?q=apartment&amp;location=Guwahati"/);
   });
 });

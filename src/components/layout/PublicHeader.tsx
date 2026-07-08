@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LogIn, Menu, UserPlus, X } from 'lucide-react';
 import { getAuthPath, getLoginPath } from '@/lib/authUtils';
+import { getPublicHomeHref, isExternalHref } from '@/lib/utils/hostUtils';
 
 type NavLink = {
     href: string;
@@ -19,6 +20,8 @@ const PublicHeader = () => {
     const pathname = location.pathname;
     const loginPath = getLoginPath();
     const registerPath = getAuthPath('/register');
+    const homeHref = getPublicHomeHref();
+    const isExternalHomeHref = isExternalHref(homeHref);
 
     const navLinks: NavLink[] = [
         { href: '/search', label: 'Search' },
@@ -45,6 +48,18 @@ const PublicHeader = () => {
 
     const closeMenu = () => setIsMenuOpen(false);
 
+    const homeLinkClassName = 'flex items-center gap-2 transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+    const homeLinkContent = (
+        <>
+            <img
+                src={logoIcon}
+                alt=""
+                aria-hidden="true"
+                className="h-9 w-9 object-contain sm:h-10 sm:w-10"
+            />
+            <span className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">Estospaces</span>
+        </>
+    );
     const handleNavLinkClick = (event: React.MouseEvent<HTMLAnchorElement>, link: NavLink) => {
         if (link.href === '/search' && pathname === '/search') {
             event.preventDefault();
@@ -56,21 +71,25 @@ const PublicHeader = () => {
     return (
         <header className="fixed left-0 right-0 top-0 z-50 bg-white shadow-md dark:bg-gray-900">
             <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
-                <Link
-                    to="/"
-                    className="flex items-center gap-2 transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    aria-label="Estospaces home"
-                    onClick={closeMenu}
-                >
-                    <img
-                        src={logoIcon}
-                        alt=""
-                        aria-hidden="true"
-                        className="h-9 w-9 object-contain sm:h-10 sm:w-10"
-                    />
-                    <span className="text-lg font-bold text-gray-900 dark:text-white sm:text-xl">Estospaces</span>
-                </Link>
-
+                {isExternalHomeHref ? (
+                    <a
+                        href={homeHref}
+                        className={homeLinkClassName}
+                        aria-label="Estospaces home"
+                        onClick={closeMenu}
+                    >
+                        {homeLinkContent}
+                    </a>
+                ) : (
+                    <Link
+                        to={homeHref}
+                        className={homeLinkClassName}
+                        aria-label="Estospaces home"
+                        onClick={closeMenu}
+                    >
+                        {homeLinkContent}
+                    </Link>
+                )}
                 <div className="hidden items-center gap-8 md:flex">
                     {navLinks.map((link) =>
                         link.external ? (
