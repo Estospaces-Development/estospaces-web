@@ -2,7 +2,7 @@ import React from 'react';
 import { LifeBuoy, MessageSquareDashed } from 'lucide-react';
 import type { Message } from '@/services/messagesService';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { resolveSupportTranscriptMessagePresentation, type SupportTranscriptPerspective } from '@/lib/supportTranscript';
+import { formatSupportTimestamp, resolveSupportTranscriptMessagePresentation, type SupportTranscriptPerspective } from '@/lib/supportTranscript';
 
 interface SupportTranscriptProps {
     messages: Message[];
@@ -10,6 +10,7 @@ interface SupportTranscriptProps {
     requesterUserId?: string;
     requesterLabel?: string;
     supportLabel?: string;
+    staffUserIds?: string[];
     perspective?: SupportTranscriptPerspective;
     otherLabel?: string;
     onOpenAttachment?: (attachmentId: string) => void;
@@ -21,6 +22,7 @@ export function SupportTranscript({
     requesterUserId,
     requesterLabel = 'Requester',
     supportLabel,
+    staffUserIds,
     perspective = 'requester',
     otherLabel = 'Estospaces Support',
     onOpenAttachment,
@@ -47,6 +49,8 @@ export function SupportTranscript({
                     currentUserId,
                     requesterUserId,
                     perspective,
+                    senderRole: message.sender_role || message.sender?.role,
+                    staffUserIds,
                 });
                 const participantLabel = presentation.participant === 'requester'
                     ? requesterLabel
@@ -87,7 +91,7 @@ export function SupportTranscript({
                                 </div>
                             )}
                             <p className={`mt-2 text-xs ${presentation.emphasized ? 'text-orange-50' : 'text-gray-500 dark:text-gray-300'}`}>
-                                {new Date(message.created_at).toLocaleString()}
+                                {formatSupportTimestamp(message.created_at)}
                             </p>
                         </div>
                     </div>

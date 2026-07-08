@@ -624,6 +624,7 @@ export function SupportCenter({ role }: SupportCenterProps) {
                                     requesterUserId={selectedTicket.user_id}
                                     requesterLabel={isAdmin ? (selectedTicket.requester_context?.name || selectedTicket.requester_context?.email || 'Requester') : 'Requester'}
                                     supportLabel={isAdmin ? 'Admin' : 'Estospaces Support'}
+                                    staffUserIds={isAdmin ? adminUsers.map((adminUser) => adminUser.id) : undefined}
                                     perspective={isAdmin ? 'staff' : 'requester'}
                                     onOpenAttachment={(attachmentId) => void handleOpenAttachment(attachmentId)}
                                 />

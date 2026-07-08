@@ -16,6 +16,10 @@ export interface Message {
     id: string;
     conversation_id: string;
     sender_id: string;
+    sender_role?: string;
+    sender?: {
+        role?: string;
+    };
     content: string;
     type: 'text' | 'image' | 'file';
     attachments?: MessageAttachment[];
