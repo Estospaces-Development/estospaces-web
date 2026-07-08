@@ -55,6 +55,7 @@ test("public Search navbar preserves active filtered search URLs", () => {
   assert.doesNotMatch(publicHeader, /to=\{link\.href\}/);
 });
 test("user search keeps settled results stable while refreshed requests are in flight", () => {
+  assert.match(searchPage, /const \[loading, setLoading\] = useState\(true\);/);
   assert.match(searchPage, /const \[hasLoadedSearch, setHasLoadedSearch\] = useState\(false\);/);
   assert.match(searchPage, /const latestSearchRequestRef = useRef\(0\);/);
   assert.match(searchPage, /if \(requestId !== latestSearchRequestRef\.current\) \{/);
