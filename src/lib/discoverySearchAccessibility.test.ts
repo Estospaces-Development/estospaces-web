@@ -28,6 +28,15 @@ test("user search main input uses country-aware PIN or postcode copy", () => {
   assert.doesNotMatch(searchPage, /Search by location, property name/);
 });
 
+test("user search visibly summarizes active URL filters and broader fallback state", () => {
+  assert.match(searchPage, /const activeFilterChips = useMemo/);
+  assert.match(searchPage, /aria-label="Active search filters"/);
+  assert.match(searchPage, /Active filters/);
+  assert.match(searchPage, /const buildBroaderSearchAttempts = useCallback/);
+  assert.match(searchPage, /No exact matches for the selected budget/);
+  assert.match(searchPage, /No exact matches for this location/);
+});
+
 test("user search keeps result headings in order below the page title", () => {
   assert.match(searchPage, /<h2 className="text-base font-semibold text-gray-950 dark:text-white">Search temporarily unavailable<\/h2>/);
   assert.match(searchPage, /<h2 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No properties found<\/h2>/);

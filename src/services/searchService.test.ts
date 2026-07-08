@@ -78,6 +78,22 @@ test('core property search does not send a keyword already covered by selected p
     assert.equal(params.get('limit'), '12');
 });
 
+test('core property search keeps city type and price filters without duplicating type keyword', () => {
+    const params = mapSearchFiltersToCoreQuery('apartment', {
+        location: 'Guwahati',
+        propertyType: 'apartment',
+        minPrice: 300000,
+        maxPrice: 400000,
+        limit: 12,
+    });
+
+    assert.equal(params.get('search'), null);
+    assert.equal(params.get('city'), 'Guwahati');
+    assert.equal(params.get('type'), 'apartment');
+    assert.equal(params.get('min_price'), '300000');
+    assert.equal(params.get('max_price'), '400000');
+});
+
 test('core property search normalizes route-loaded query text', () => {
     const params = mapSearchFiltersToCoreQuery('  ATTUR   ATTUR  ', {
         listingType: 'sale',

@@ -109,6 +109,7 @@ const PropertySearch = () => {
     const [savingPropertyId, setSavingPropertyId] = useState<string | null>(null);
     const [searchSaveStatus, setSearchSaveStatus] = useState('');
     const filterValidationMessage = filterInputMessage || getSearchFilterValidationMessage(searchParams);
+    const [fallbackNotice, setFallbackNotice] = useState('');
     const queryValidationMessage = getSearchQueryValidationMessage(query, searchParams.has('q') || searchParams.has('keyword'));
     const propertyTypeOptions = useMemo(
         () => buildPropertyTypeOptions(filterOptions?.property_types),
@@ -124,6 +125,70 @@ const PropertySearch = () => {
     const formatSearchCurrency = useCallback((amount: number) => (
         formatLaunchCurrencyForCountry(amount, { countryCode: geoMarket })
     ), [geoMarket]);
+
+    const activeFilterChips = useMemo(() => {
+        const chips: Array<{ label: string; value: string }> = [];
+
+        if (query) {
+            chips.push({ label: 'Keyword', value: query });
+        }
+        if (location) {
+            chips.push({ label: 'Location', value: location });
+        }
+        if (propertyType) {
+            chips.push({ label: 'Type', value: selectedPropertyType.label || propertyType });
+        }
+        if (listingType) {
+            chips.push({ label: 'Listing', value: listingType === 'sale' ? 'For Sale' : 'For Rent' });
+        }
+        if (minPrice || maxPrice) {
+            const minLabel = minPrice ? formatSearchCurrency(Number(minPrice)) : 'Any min';
+            const maxLabel = maxPrice ? formatSearchCurrency(Number(maxPrice)) : 'Any max';
+            chips.push({ label: 'Budget', value: `${minLabel} - ${maxLabel}` });
+        }
+        if (bedrooms) {
+            chips.push({ label: 'Beds', value: `${bedrooms}+` });
+        }
+        if (baths) {
+            chips.push({ label: 'Baths', value: `${baths}+` });
+        }
+
+        return chips;
+    }, [baths, bedrooms, formatSearchCurrency, listingType, location, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
+
+    const buildBroaderSearchAttempts = useCallback(() => {
+        const baseFilters = {
+            propertyType: propertyType || undefined,
+            listingType: listingType || undefined,
+            minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
+            minBathrooms: baths ? parseInt(baths) : undefined,
+            sortBy: sortBy !== 'relevance' ? sortBy : undefined,
+            page: 1,
+            limit: 12,
+        };
+        const attempts: Array<{ notice: string; filters: Record<string, any> }> = [];
+
+        if (location && (minPrice || maxPrice)) {
+            attempts.push({
+                notice: 'No exact matches for the selected budget. Showing matches in this location without the price range.',
+                filters: { ...baseFilters, location },
+            });
+        }
+        if (location) {
+            attempts.push({
+                notice: 'No exact matches for this location. Showing broader matches for the selected home criteria.',
+                filters: baseFilters,
+            });
+        }
+        if (!location && (minPrice || maxPrice)) {
+            attempts.push({
+                notice: 'No exact matches for the selected budget. Showing broader matches without the price range.',
+                filters: baseFilters,
+            });
+        }
+
+        return attempts;
+    }, [baths, bedrooms, listingType, location, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -194,6 +259,7 @@ const PropertySearch = () => {
     }, [searchParams]);
 
     useEffect(() => {
+        setFallbackNotice('');
         const next = new URLSearchParams();
         if (query) next.set('q', query);
         if (location) next.set('location', location.trim());
@@ -233,6 +299,7 @@ const PropertySearch = () => {
             setError(null);
             setProperties([]);
             setTotal(0);
+            setFallbackNotice('');
             setHasLoadedSearch(true);
             return;
         }
@@ -240,6 +307,7 @@ const PropertySearch = () => {
         setLoading(true);
         setError(null);
         try {
+            setFallbackNotice('');
             const result = await searchService.search(
                 query,
                 {
@@ -261,12 +329,30 @@ const PropertySearch = () => {
             }
 
             if (result.success) {
+                const exactResults = result.data || [];
+                if (exactResults.length === 0) {
+                    for (const attempt of buildBroaderSearchAttempts()) {
+                        const fallback = await searchService.search(query, attempt.filters);
+                        if (requestId !== latestSearchRequestRef.current) {
+                            return;
+                        }
+                        if (fallback.success && (fallback.data || []).length > 0) {
+                            setProperties(fallback.data || []);
+                            setTotal(fallback.pagination?.total || fallback.data?.length || 0);
+                            setFallbackNotice(attempt.notice);
+                            setPage(1);
+                            return;
+                        }
+                    }
+                }
+
                 setProperties(result.data || []);
                 setTotal(result.pagination?.total || 0);
             } else {
                 setError(result.error || 'Failed to fetch properties. Please try again.');
                 setProperties([]);
                 setTotal(0);
+                setFallbackNotice('');
             }
         } catch {
             if (requestId !== latestSearchRequestRef.current) {
@@ -276,13 +362,14 @@ const PropertySearch = () => {
             setError('An error occurred while fetching properties.');
             setProperties([]);
             setTotal(0);
+            setFallbackNotice('');
         } finally {
             if (requestId === latestSearchRequestRef.current) {
                 setLoading(false);
                 setHasLoadedSearch(true);
             }
         }
-    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage]);
+    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Refetch when search dependencies change (debounced)
     useEffect(() => {
@@ -375,6 +462,7 @@ const PropertySearch = () => {
         setBaths('');
         setSortBy('relevance');
         setFilterInputMessage('');
+        setFallbackNotice('');
         setPage(1);
     };
 
@@ -594,6 +682,33 @@ const PropertySearch = () => {
                 </div>
             </section>
 
+            {activeFilterChips.length > 0 && (
+                <section aria-label="Active search filters" className="rounded-xl border border-orange-100 bg-orange-50/70 px-4 py-3 dark:border-orange-900/40 dark:bg-orange-950/20">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Active filters</span>
+                            {activeFilterChips.map((chip) => (
+                                <span
+                                    key={`${chip.label}-${chip.value}`}
+                                    className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm dark:border-orange-900/50 dark:bg-zinc-900 dark:text-gray-100"
+                                >
+                                    <span className="shrink-0 text-primary">{chip.label}</span>
+                                    <span className="mobile-safe-text min-w-0 truncate">{chip.value}</span>
+                                </span>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 dark:hover:bg-zinc-900"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                            Clear filters
+                        </button>
+                    </div>
+                </section>
+            )}
+
             {filterValidationMessage && (
                 <div role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
                     {filterValidationMessage}
@@ -601,6 +716,12 @@ const PropertySearch = () => {
             )}
 
             {/* Filters Panel */}
+            {fallbackNotice && (
+                <div role="status" className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-100">
+                    {fallbackNotice}
+                </div>
+            )}
+
             {showFilters && (
                 <div id="public-search-filters" className="bg-white dark:bg-black rounded-xl border border-gray-200 dark:border-zinc-800 p-5 shadow-sm animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
