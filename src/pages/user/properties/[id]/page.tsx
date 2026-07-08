@@ -1835,8 +1835,12 @@ const UserPropertyDetail = () => {
             const normalizedMessage = message.toLowerCase();
 
             if (normalizedMessage.includes('active lead') || normalizedMessage.includes('active fast-track case')) {
-                await loadFastTrackWorkspace();
-                setIsFastTrackModalOpen(true);
+                const recoveredWorkspace = await loadFastTrackWorkspace();
+                if (recoveredWorkspace.fastTrackCase) {
+                    openFastTrackDashboard(recoveredWorkspace.fastTrackCase);
+                } else {
+                    setIsFastTrackModalOpen(true);
+                }
                 toast.success('Your live fast-track journey is already active for this property.');
             } else {
                 toast.error(message);

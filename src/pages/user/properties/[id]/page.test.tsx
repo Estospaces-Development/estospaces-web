@@ -207,6 +207,10 @@ test("property detail fast-track continue opens the live workspace route directl
     propertyDetailSource,
     /if \(startAction === 'resume_existing_case'\) \{\s*openFastTrackDashboard\(currentWorkspace\.fastTrackCase\);\s*return;\s*\}/,
   );
+  assert.match(
+    propertyDetailSource,
+    /if \(recoveredWorkspace\.fastTrackCase\) \{\s*openFastTrackDashboard\(recoveredWorkspace\.fastTrackCase\);\s*\} else \{\s*setIsFastTrackModalOpen\(true\);\s*\}/,
+  );
 });
 
 test("sale offer amount input accepts ordinary round-pound offers", () => {
