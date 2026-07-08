@@ -120,7 +120,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
         countryName: countryNameContext,
         locationCode: locationContext,
     });
-    const searchMarket = getSupportedLaunchCountry(undefined, countryNameContext, locationContext) || geoMarket;
+    const searchMarket = getSupportedLaunchCountry(undefined, undefined, locationContext)
+        || getSupportedLaunchCountry(undefined, countryNameContext)
+        || geoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(searchMarket, undefined, locationContext);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = searchMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
