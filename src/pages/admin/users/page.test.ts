@@ -142,6 +142,13 @@ test('admin users registry table stays contained on mobile', async () => {
   assert.match(source, /className="min-w-0 bg-white dark:bg-gray-800 rounded-\[2rem\]/);
 });
 
+test('admin users page keeps reassignment refresh manual or event driven', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /useWorkspaceRefresh\(\{/);
+  assert.doesNotMatch(source, /useDashboardWorkspaceRefresh/);
+});
+
 test('admin add user path opens the registration form while signed in', () => {
   assert.equal(getAdminAddUserPath(), '/register?switch=true');
 });

@@ -15,7 +15,7 @@ import { getAdminBrokers, getAllLeads, reassignLead } from '@/services/leadsServ
 import type { AdminBrokerOption, Lead } from '@/services/leadsService';
 import { User } from '@/types';
 import { useToast } from '@/contexts/ToastContext';
-import { useDashboardWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
+import { useWorkspaceRefresh } from '@/contexts/WorkspaceSyncContext';
 import { WORKSPACE_SYNC_TAGS } from '@/lib/workspaceSync';
 import { buildCsvContent } from '@/lib/csvExport';
 import PaginationBar from '@/components/ui/PaginationBar';
@@ -313,7 +313,7 @@ function UserManagementContent() {
         fetchLeadReassignmentData();
     }, [fetchLeadReassignmentData]);
 
-    useDashboardWorkspaceRefresh({
+    useWorkspaceRefresh({
         tags: [
             WORKSPACE_SYNC_TAGS.ADMIN_DASHBOARD,
             WORKSPACE_SYNC_TAGS.ADMIN_ANALYTICS,
