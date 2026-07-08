@@ -29,6 +29,7 @@ import { useUserGeoMarket } from '@/lib/useGeoMarket';
 interface VerificationSectionProps {
     userId?: string;
     currentUser?: any;
+    locationCodeOverride?: string | null;
 }
 
 type StepKey = 'email' | 'phone' | 'identity' | 'address';
@@ -63,8 +64,8 @@ const mapDocumentStatus = (status?: string): StepStatus => {
     }
 };
 
-const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser }) => {
-    const geoMarket = useUserGeoMarket(currentUser);
+const VerificationSection: React.FC<VerificationSectionProps> = ({ userId, currentUser, locationCodeOverride }) => {
+    const geoMarket = useUserGeoMarket(currentUser, { locationCode: locationCodeOverride || currentUser?.postcode });
     const verificationDocumentGuidance = getCountryDocumentGuidance(geoMarket);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

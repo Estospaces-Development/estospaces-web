@@ -295,7 +295,11 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        <VerificationSection userId={currentUser?.id} currentUser={currentUser} />
+                        <VerificationSection
+                            userId={currentUser?.id}
+                            currentUser={currentUser}
+                            locationCodeOverride={formData.postcode || currentUser?.postcode}
+                        />
                     </div>
 
                     {/* Right Side: Information Forms */}
