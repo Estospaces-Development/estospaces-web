@@ -7,6 +7,7 @@ import { getUserProperties } from '@/services/userPropertiesService';
 import { getFastTrackCases, FastTrackCase } from '@/services/fastTrackService';
 import { bookingsService, type Booking } from '@/services/bookingsService';
 import { isFastTrackCaseOverdue } from '@/lib/fastTrackWorkflow';
+import { getFastTrackDisplayTitle } from '@/lib/fastTrackDisplayTitle';
 import {
   buildManagerActiveListingsPath,
   filterManagerLivePropertyPerformance,
@@ -326,6 +327,10 @@ function DashboardContent() {
 
       return {
         ...caseItem,
+        displayTitle: getFastTrackDisplayTitle(
+          caseItem.propertyTitle,
+          caseItem.clientName ? `${caseItem.clientName}'s fast-track case` : 'Selected fast-track case',
+        ),
         summary,
         statusLabel: isOverdue ? 'Overdue' : caseItem.hoursRemaining <= 6 ? 'Closing soon' : 'In progress',
         statusTone: isOverdue
@@ -670,7 +675,7 @@ function DashboardContent() {
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{item.propertyTitle}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{item.displayTitle}</p>
                       <div className="mt-2 flex items-center gap-3">
                         <Avatar
                           userId={item.clientId}
