@@ -170,6 +170,16 @@ test("fast-track identity upload copy names Indian identity documents", () => {
   assert.match(source, /documentGuidance\.identityDetail/);
 });
 
+test("fast-track document guidance resolves missing case country from selected property", () => {
+  const source = workspaceSource();
+
+  assert.match(source, /getPropertyById\(selectedCase\.propertyId, \{ suppressErrorToast: true \}\)/);
+  assert.match(source, /selectedPropertyCountrySignal/);
+  assert.match(source, /locationCode: result\.data\.postcode/);
+  assert.match(source, /const selectedPropertyMarket = getSupportedLaunchCountry/);
+  assert.match(source, /selectedPropertyMarket \|\| geoMarket/);
+});
+
 test("case chat timeout recovery only accepts a recent matching sender message", () => {
   const sendStartedAt = new Date("2026-07-02T10:00:00Z").getTime();
   const recentMine: Message = {

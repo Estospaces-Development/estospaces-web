@@ -293,10 +293,12 @@ export const getAdminProperties = async (filters: Record<string, any> = {}) => {
  */
 export const getPropertyById = async (
   id: string,
+  options: Pick<PropertyMutationOptions, "suppressErrorToast"> = {},
 ): Promise<{ data: Property | null; error: string | null }> => {
   try {
     const data = await apiFetch<Property>(
       `${CORE_URL()}/api/v1/properties/${id}`,
+      options,
     );
     return { data, error: null };
   } catch (error: any) {

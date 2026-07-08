@@ -69,6 +69,7 @@ import {
     getFastTrackCases,
     performFastTrackAction,
 } from '@/services/fastTrackService';
+import { getPropertyById } from '@/services/propertyService';
 import { uploadDocument } from '@/services/leadsService';
 import {
     Conversation,
@@ -117,7 +118,7 @@ import {
 import { getJourneyChromeCopy, getJourneyStageLabel } from '@/lib/userJourneyCopy';
 import { cn } from '@/lib/utils';
 import { createDuplicateSafeKeyResolver } from '@/lib/reactListKeys';
-import { formatLaunchCurrencyForCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
+import { formatLaunchCurrencyForCountry, getSupportedLaunchCountry, LAUNCH_CURRENCY_CODE } from '@/lib/launchLocale';
 import { getCountryDocumentGuidance } from '@/lib/countryDocumentGuidance';
 import { useUserGeoMarket } from '@/lib/useGeoMarket';
 
@@ -524,6 +525,11 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
     const [managerReviewRating, setManagerReviewRating] = useState(0);
     const [managerReviewComment, setManagerReviewComment] = useState('');
     const [managerReviewError, setManagerReviewError] = useState<string | null>(null);
+    const [selectedPropertyCountrySignal, setSelectedPropertyCountrySignal] = useState<{
+        countryName?: string | null;
+        locationCode?: string | null;
+    } | null>(null);
+    const [selectedPropertyCountryLoading, setSelectedPropertyCountryLoading] = useState(false);
     const [recoveredCaseLink, setRecoveredCaseLink] = useState<string | null>(null);
     const [workspacePreferences, setWorkspacePreferences] = useState<FastTrackWorkspacePreferences>(
         () => defaultFastTrackWorkspacePreferences(role),
@@ -928,8 +934,56 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
         () => filteredCases.find((item) => item.caseId === selectedCaseId) || null,
         [filteredCases, selectedCaseId],
     );
-    const geoMarket = useUserGeoMarket(user, { countryName: selectedCase?.propertyCountry });
-    const documentGuidance = getCountryDocumentGuidance(geoMarket);
+    useEffect(() => {
+        setSelectedPropertyCountrySignal(null);
+
+        if (!selectedCase?.propertyId || selectedCase.propertyCountry) {
+            setSelectedPropertyCountryLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setSelectedPropertyCountryLoading(true);
+
+        const loadSelectedPropertyCountry = async () => {
+            const result = await getPropertyById(selectedCase.propertyId, { suppressErrorToast: true });
+
+            if (cancelled) {
+                return;
+            }
+
+            setSelectedPropertyCountrySignal(result.data
+                ? {
+                    countryName: result.data.country,
+                    locationCode: result.data.postcode,
+                }
+                : null);
+            setSelectedPropertyCountryLoading(false);
+        };
+
+        void loadSelectedPropertyCountry();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedCase?.caseId, selectedCase?.propertyCountry, selectedCase?.propertyId]);
+
+    const selectedPropertyCountryName = selectedCase?.propertyCountry || selectedPropertyCountrySignal?.countryName;
+    const selectedPropertyLocationCode = selectedPropertyCountrySignal?.locationCode;
+    const geoMarket = useUserGeoMarket(user, {
+        countryName: selectedPropertyCountryName,
+        locationCode: selectedPropertyLocationCode,
+    });
+    const selectedPropertyMarket = getSupportedLaunchCountry(
+        selectedPropertyCountryName,
+        selectedPropertyCountryName,
+        selectedPropertyLocationCode,
+    );
+    const documentGuidance = getCountryDocumentGuidance(
+        selectedPropertyCountryLoading && !selectedCase?.propertyCountry
+            ? selectedPropertyMarket
+            : selectedPropertyMarket || geoMarket,
+    );
 
     useEffect(() => {
         setPendingAdminOverrideAction(null);
