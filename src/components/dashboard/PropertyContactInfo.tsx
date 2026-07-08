@@ -5,6 +5,7 @@ import { Mail, Phone, Building, MapPin, Calendar, MessageCircle, Loader2 } from 
 import { useToast } from '@/contexts/ToastContext';
 import { messagesService } from '@/services/messagesService';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
+import { normalizeContactAgentPhone, validateContactAgentPhone } from '@/lib/contactAgentFormValidation';
 import Avatar from '@/components/ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -63,6 +64,9 @@ const PropertyContactInfo = ({ property, propertyAddress }: PropertyContactInfoP
         phone: '',
         message: '',
     });
+    const [contactErrors, setContactErrors] = useState({
+        phone: '',
+    });
     const defaultContactForm = useMemo(() => ({
         name: user?.user_metadata?.full_name || user?.name || '',
         email: user?.email || '',
@@ -94,12 +98,20 @@ const PropertyContactInfo = ({ property, propertyAddress }: PropertyContactInfoP
             return;
         }
 
+        const phoneError = validateContactAgentPhone(contactForm.phone);
+        if (phoneError) {
+            setContactErrors({ phone: phoneError });
+            showToastError(phoneError);
+            return;
+        }
+
+        const normalizedPhone = normalizeContactAgentPhone(contactForm.phone);
         setIsSubmitting(true);
         try {
             const messageContent = `
 Inquiry regarding: ${contactAddress || property.title || 'this property'}
 From: ${contactForm.name} (${contactForm.email})
-Phone: ${contactForm.phone || 'Not provided'}
+Phone: ${normalizedPhone || 'Not provided'}
 
 Message:
 ${contactForm.message}
@@ -117,7 +129,7 @@ ${contactForm.message}
                     propertyPrice: property.price,
                     senderName: contactForm.name,
                     senderEmail: contactForm.email,
-                    senderPhone: contactForm.phone,
+                    senderPhone: normalizedPhone,
                     recipientName: property.agent_name,
                     recipientEmail: property.agent_email,
                     recipientPhone: property.agent_phone,
@@ -127,6 +139,7 @@ ${contactForm.message}
 
             showToastSuccess('Your message has been sent to the agent.');
             setShowContactForm(false);
+            setContactErrors({ phone: '' });
             setContactForm(defaultContactForm);
         } catch (err: any) {
             showToastError('Failed to send message. Please try again later.');
@@ -263,11 +276,32 @@ ${contactForm.message}
                                 Your Phone
                             </label>
                             <input
+                                id="contact-agent-phone"
                                 type="tel"
+                                inputMode="tel"
+                                autoComplete="tel"
+                                maxLength={25}
                                 value={contactForm.phone}
-                                onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                                onChange={(e) => {
+                                    const phone = e.target.value;
+                                    setContactForm({ ...contactForm, phone });
+                                    if (contactErrors.phone) {
+                                        setContactErrors({ phone: validateContactAgentPhone(phone) || '' });
+                                    }
+                                }}
+                                aria-invalid={Boolean(contactErrors.phone)}
+                                aria-describedby={contactErrors.phone ? 'contact-agent-phone-error' : 'contact-agent-phone-help'}
                                 className="w-full rounded-[1rem] border border-stone-200 bg-stone-50 px-4 py-3 text-gray-900 outline-none transition focus:border-orange-400 dark:border-zinc-700 dark:bg-zinc-950 dark:text-gray-100"
                             />
+                            {contactErrors.phone ? (
+                                <p id="contact-agent-phone-error" role="alert" className="mt-2 text-xs text-red-500">
+                                    {contactErrors.phone}
+                                </p>
+                            ) : (
+                                <p id="contact-agent-phone-help" className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    Use digits with optional +, spaces, hyphens, or brackets.
+                                </p>
+                            )}
                         </div>
                         <div>
                             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -293,7 +327,10 @@ ${contactForm.message}
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setShowContactForm(false)}
+                                onClick={() => {
+                                    setShowContactForm(false);
+                                    setContactErrors({ phone: '' });
+                                }}
                                 className="rounded-[1rem] border border-stone-200 px-4 py-3 font-medium text-gray-700 transition hover:bg-stone-50 dark:border-zinc-700 dark:text-gray-300 dark:hover:bg-zinc-950"
                             >
                                 Cancel
