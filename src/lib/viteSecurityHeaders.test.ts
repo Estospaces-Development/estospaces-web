@@ -24,14 +24,18 @@ test('dev server sends the same release-blocking security headers as production'
   assert.match(viteConfigSource, /frame-ancestors 'none'/);
   assert.doesNotMatch(viteConfigSource, /unsafe-eval/);
   assert.match(viteConfigSource, /img-src 'self' data: blob: https: http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/);
-  assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/js\.stripe\.com/);
+  assert.match(viteConfigSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
+  assert.match(viteConfigSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
+  assert.match(viteConfigSource, /frame-src .*https:\/\/js\.stripe\.com/);
   assert.match(viteConfigSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(viteConfigSource, /connect-src 'self' http: https: ws: wss:/);
   assert.match(viteConfigSource, /headers: SECURITY_HEADERS/);
 });
 
-test('production security headers allow blob backed document previews', () => {
-  assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/js\.stripe\.com/);
+test('production security headers allow signed and blob backed document previews', () => {
+  assert.match(nginxSecurityHeadersSource, /frame-src 'self' blob: https:\/\/storage\.googleapis\.com/);
+  assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/\*\.googleusercontent\.com/);
+  assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/js\.stripe\.com/);
   assert.match(nginxSecurityHeadersSource, /frame-src .*https:\/\/cdn\.pannellum\.org/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/storage\.googleapis\.com/);
   assert.match(nginxSecurityHeadersSource, /connect-src 'self'.*https:\/\/\*\.googleusercontent\.com/);

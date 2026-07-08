@@ -408,9 +408,17 @@ test('fast-track document preview opens a modal only from explicit preview actio
         fastTrackWorkspaceComponent,
         /aria-label="Zoom in document preview"/,
     );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /<iframe\s*src=\{previewUrl\}/,
+    );
+    assert.match(
+        fastTrackWorkspaceComponent,
+        /If your browser blocks the inline PDF viewer/,
+    );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,
-        /<iframe/,
+        /<object/,
     );
     assert.doesNotMatch(
         fastTrackWorkspaceComponent,

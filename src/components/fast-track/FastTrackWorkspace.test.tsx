@@ -150,12 +150,14 @@ test("fast-track uploaded document preview uses signed access URL without blob f
   assert.match(source, /nextUrl = access\.url/);
 });
 
-test("fast-track PDFs avoid broken inline iframe previews", () => {
+test("fast-track PDFs render inside the preview modal with an external fallback", () => {
   const source = workspaceSource();
 
-  assert.doesNotMatch(source, /<iframe/);
-  assert.match(source, /PDFs open in the browser viewer/);
+  assert.match(source, /<iframe/);
+  assert.match(source, /title=\{`\$\{previewDisplayItem\.fileName \|\| previewDisplayItem\.label\} PDF preview`\}/);
+  assert.match(source, /If your browser blocks the inline PDF viewer/);
   assert.match(source, /Open PDF/);
+  assert.doesNotMatch(source, /<object/);
 });
 
 test("fast-track identity upload copy names Indian identity documents", () => {

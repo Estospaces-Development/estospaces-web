@@ -1992,18 +1992,15 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                         />
                     </div>
                 ) : previewKind === 'pdf' ? (
-                    <div className="rounded-3xl border border-gray-100 bg-white p-5 text-sm dark:border-gray-800 dark:bg-gray-950">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                            <div className="flex min-w-0 items-start gap-3">
-                                <span className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
-                                    <FileText size={18} />
+                    <div className="space-y-3 rounded-3xl border border-gray-100 bg-white p-4 text-sm dark:border-gray-800 dark:bg-gray-950">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-300">
+                                    <FileText size={17} />
                                 </span>
                                 <div className="min-w-0">
-                                    <p className="font-semibold text-gray-900 dark:text-white">PDF is ready</p>
-                                    <p className="mt-1 text-gray-500 dark:text-gray-400">
-                                        PDFs open in the browser viewer to avoid the broken embedded preview.
-                                    </p>
-                                    <p className="mt-2 truncate text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    <p className="font-semibold text-gray-900 dark:text-white">PDF preview</p>
+                                    <p className="truncate text-xs font-medium text-gray-500 dark:text-gray-400">
                                         {previewDisplayItem.fileName || previewDisplayItem.label}
                                     </p>
                                 </div>
@@ -2020,6 +2017,14 @@ export default function FastTrackWorkspace({ role }: { role: WorkspaceRole }) {
                                 Open PDF
                             </ActionButton>
                         </div>
+                        <iframe
+                            src={previewUrl}
+                            title={`${previewDisplayItem.fileName || previewDisplayItem.label} PDF preview`}
+                            className="h-[min(620px,calc(100vh-18rem))] min-h-[360px] w-full rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-gray-900"
+                        />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            If your browser blocks the inline PDF viewer, use Open PDF to view the same signed document in a new tab.
+                        </p>
                     </div>
                 ) : (
                     <div className="rounded-3xl border border-gray-100 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
