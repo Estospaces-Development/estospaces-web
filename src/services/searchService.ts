@@ -1,7 +1,7 @@
 import { apiFetch, apiFetchEnvelope, getErrorMessage, getErrorStatus, getServiceUrl } from '../lib/apiUtils';
 import { normalizePriceBoundInput, normalizeRoomBoundInput, normalizeSearchQueryInput } from '@/lib/propertySearchControls';
 import { isLocalhostHost, isSingleOriginHostedHost } from '@/lib/utils/hostUtils';
-import { LAUNCH_COUNTRY_CODE } from '@/lib/launchLocale';
+import { LAUNCH_COUNTRY_CODE, UK_COUNTRY_CODE } from '@/lib/launchLocale';
 import { propertyTypes } from '@/lib/propertyTypeOptions';
 
 const API_URL = getServiceUrl('search');
@@ -104,6 +104,23 @@ const normalizeListingType = (value?: string) => {
 };
 
 const hasFilterValue = (value: unknown) => value !== undefined && value !== null && value !== '';
+
+const normalizeCountryFilter = (...values: unknown[]) => {
+    for (const value of values) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) {
+            continue;
+        }
+        if (['india', 'in', 'ind'].includes(normalized)) {
+            return LAUNCH_COUNTRY_CODE;
+        }
+        if (['england', 'uk', 'gb', 'gbr', 'great britain', 'united kingdom'].includes(normalized)) {
+            return UK_COUNTRY_CODE;
+        }
+    }
+
+    return '';
+};
 
 const normalizePostcodeText = (value?: string) =>
     (value || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -239,6 +256,11 @@ export const mapSearchFiltersToCoreQuery = (query: string, filters: Record<strin
     if (hasFilterValue(filters.maxPrice)) params.append('max_price', String(filters.maxPrice));
     if (filters.propertyType && filters.propertyType !== 'all') params.append('type', String(filters.propertyType));
     if (filters.status) params.append('status', String(filters.status));
+
+    const country = normalizeCountryFilter(filters.country, filters.countryCode, filters.market);
+    if (country) {
+        params.append('country', country);
+    }
 
     const listingType = normalizeListingType(filters.listingType);
     if (listingType) {
@@ -424,6 +446,9 @@ const looksLikePlaceholderSuggestions = (suggestions: AutocompleteSuggestion[]) 
 
 export interface SearchFilters {
     keyword?: string;
+    country?: string;
+    countryCode?: string;
+    market?: string;
     location?: string;
     listingType?: 'all' | 'rent' | 'sale';
     status?: string;
@@ -644,6 +669,8 @@ export const searchService = {
             const listingType = normalizeListingType(filters.listingType);
             if (listingType) params.append('listing_type', listingType);
             if (filters.status) params.append('status', filters.status);
+            const country = normalizeCountryFilter(filters.country, filters.countryCode, filters.market);
+            if (country) params.append('country', country);
             if (hasFilterValue(filters.minBedrooms)) params.append('bedrooms', filters.minBedrooms.toString());
             if (hasFilterValue(filters.minBathrooms)) params.append('bathrooms', filters.minBathrooms.toString());
             if (filters.verifiedOnly) params.append('verified_only', 'true');

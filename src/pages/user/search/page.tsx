@@ -21,6 +21,7 @@ import {
     normalizeSearchQueryInput,
     getSearchQueryValidationMessage,
     readSearchUrlFilters,
+    serializeSearchMarketParam,
 } from '@/lib/propertySearchControls';
 import { buildPopularSearchTerms } from '@/lib/popularSearchChips';
 import { getPrimaryPropertyImage } from '@/lib/propertyImages';
@@ -80,6 +81,7 @@ const PropertySearch = () => {
 
     // Initialize state directly from URL params
     const [query, setQuery] = useState(() => readSearchUrlFilters(searchParams).query);
+    const [market, setMarket] = useState(() => readSearchUrlFilters(searchParams).market);
     const [location, setLocation] = useState(() => readSearchUrlFilters(searchParams).location);
     const [propertyType, setPropertyType] = useState(() => readSearchUrlFilters(searchParams).propertyType);
     const [minPrice, setMinPrice] = useState(() => readSearchUrlFilters(searchParams).minPrice);
@@ -116,9 +118,12 @@ const PropertySearch = () => {
         [filterOptions?.property_types],
     );
     const selectedPropertyType = propertyTypeOptions.find((option) => option.value === propertyType) || propertyTypeOptions[0];
-    const fallbackGeoMarket = useUserGeoMarket(user, { locationCode: location || user?.postcode });
+    const fallbackGeoMarket = useUserGeoMarket(user, {
+        countryCode: market || undefined,
+        locationCode: location || user?.postcode,
+    });
     const inferredGeoMarket = useMemo(() => inferSearchGeoMarket(location, properties), [location, properties]);
-    const geoMarket = inferredGeoMarket || fallbackGeoMarket;
+    const geoMarket = market || inferredGeoMarket || fallbackGeoMarket;
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, location);
     const lowerLocationCodeLabel = locationCodeLabel.toLowerCase();
     const currencySymbol = geoMarket === 'GB' ? '\u00a3' : LAUNCH_CURRENCY_SYMBOL;
@@ -131,6 +136,9 @@ const PropertySearch = () => {
 
         if (query) {
             chips.push({ label: 'Keyword', value: query });
+        }
+        if (market) {
+            chips.push({ label: 'Market', value: market === 'GB' ? 'England' : 'India' });
         }
         if (location) {
             chips.push({ label: 'Location', value: location });
@@ -154,10 +162,11 @@ const PropertySearch = () => {
         }
 
         return chips;
-    }, [baths, bedrooms, formatSearchCurrency, listingType, location, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
+    }, [baths, bedrooms, formatSearchCurrency, listingType, location, market, maxPrice, minPrice, propertyType, query, selectedPropertyType.label]);
 
     const buildBroaderSearchAttempts = useCallback(() => {
         const baseFilters = {
+            country: market || undefined,
             propertyType: propertyType || undefined,
             listingType: listingType || undefined,
             minBedrooms: bedrooms ? parseInt(bedrooms) : undefined,
@@ -188,7 +197,7 @@ const PropertySearch = () => {
         }
 
         return attempts;
-    }, [baths, bedrooms, listingType, location, maxPrice, minPrice, propertyType, sortBy]);
+    }, [baths, bedrooms, listingType, location, market, maxPrice, minPrice, propertyType, sortBy]);
 
     // Save Search State
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
@@ -247,6 +256,7 @@ const PropertySearch = () => {
     useEffect(() => {
         const urlFilters = readSearchUrlFilters(searchParams);
         setQuery(urlFilters.query);
+        setMarket(urlFilters.market);
         setLocation(urlFilters.location);
         setPropertyType(urlFilters.propertyType);
         setMinPrice(urlFilters.minPrice);
@@ -261,7 +271,9 @@ const PropertySearch = () => {
     useEffect(() => {
         setFallbackNotice('');
         const next = new URLSearchParams();
+        const serializedMarket = serializeSearchMarketParam(market);
         if (query) next.set('q', query);
+        if (serializedMarket) next.set('market', serializedMarket);
         if (location) next.set('location', location.trim());
         if (propertyType) next.set('propertyType', propertyType);
         if (minPrice) next.set('minPrice', minPrice);
@@ -280,6 +292,7 @@ const PropertySearch = () => {
         bedrooms,
         listingType,
         location,
+        market,
         maxPrice,
         minPrice,
         page,
@@ -312,6 +325,7 @@ const PropertySearch = () => {
                 query,
                 {
                     location: location || undefined,
+                    country: market || undefined,
                     propertyType: propertyType || undefined,
                     minPrice: minPrice ? parseInt(minPrice) : undefined,
                     maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
@@ -369,7 +383,7 @@ const PropertySearch = () => {
                 setHasLoadedSearch(true);
             }
         }
-    }, [query, location, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
+    }, [query, location, market, propertyType, minPrice, maxPrice, bedrooms, listingType, baths, sortBy, page, queryValidationMessage, buildBroaderSearchAttempts]);
 
     // Refetch when search dependencies change (debounced)
     useEffect(() => {
@@ -453,6 +467,7 @@ const PropertySearch = () => {
 
     const clearFilters = () => {
         setQuery('');
+        setMarket('');
         setLocation('');
         setPropertyType('');
         setMinPrice('');
@@ -466,7 +481,7 @@ const PropertySearch = () => {
         setPage(1);
     };
 
-    const hasFilters = query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths || sortBy !== 'relevance';
+    const hasFilters = market || query || location || propertyType || minPrice || maxPrice || bedrooms || listingType || baths || sortBy !== 'relevance';
     const applyFilters = () => {
         setPage(1);
         setShowFilters(false);

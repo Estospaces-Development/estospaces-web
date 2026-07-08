@@ -1,4 +1,9 @@
-import { LAUNCH_COUNTRY_CODE, LAUNCH_COUNTRY_NAME } from '@/lib/launchLocale';
+import {
+  LAUNCH_COUNTRY_CODE,
+  LAUNCH_COUNTRY_NAME,
+  UK_COUNTRY_CODE,
+  type SupportedLaunchCountryCode,
+} from '@/lib/launchLocale';
 
 export type PropertySearchSortValue = 'relevance' | 'newest' | 'price_asc' | 'price_desc';
 
@@ -24,6 +29,7 @@ export interface CountryAwarePropertyGroup {
 
 export interface SearchUrlFilters {
   query: string;
+  market: SupportedLaunchCountryCode | '';
   location: string;
   propertyType: string;
   minPrice: string;
@@ -146,6 +152,33 @@ function readPositivePage(value: string): number {
   return Number.isFinite(page) && page > 0 ? page : 1;
 }
 
+export function normalizeSearchMarketParam(value: string | null | undefined): SupportedLaunchCountryCode | '' {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) {
+    return '';
+  }
+
+  if (['india', 'in', 'ind'].includes(normalized)) {
+    return LAUNCH_COUNTRY_CODE;
+  }
+
+  if (['england', 'uk', 'gb', 'gbr', 'great britain', 'united kingdom'].includes(normalized)) {
+    return UK_COUNTRY_CODE;
+  }
+
+  return '';
+}
+
+export function serializeSearchMarketParam(value: SupportedLaunchCountryCode | ''): string {
+  if (value === UK_COUNTRY_CODE) {
+    return 'england';
+  }
+  if (value === LAUNCH_COUNTRY_CODE) {
+    return 'india';
+  }
+  return '';
+}
+
 function hasInvalidPriceParam(params: URLSearchParams): boolean {
   return ['minPrice', 'min_price', 'maxPrice', 'max_price'].some((name) => {
     const value = params.get(name);
@@ -167,6 +200,11 @@ function hasInvalidRoomParam(params: URLSearchParams): boolean {
   });
 }
 
+function hasInvalidMarketParam(params: URLSearchParams): boolean {
+  const value = firstParam(params, ['market', 'country', 'countryCode', 'country_code']);
+  return !!value.trim() && normalizeSearchMarketParam(value) === '';
+}
+
 export function getSearchFilterValidationMessage(params: URLSearchParams): string | null {
   const messages: string[] = [];
   const queryValidation = getSearchQueryValidationMessage(firstParam(params, ['q', 'keyword']), params.has('q') || params.has('keyword'));
@@ -184,6 +222,9 @@ export function getSearchFilterValidationMessage(params: URLSearchParams): strin
   if (hasInvalidRoomParam(params)) {
     messages.push('bedroom and bathroom values must be between 0 and 20');
   }
+  if (hasInvalidMarketParam(params)) {
+    messages.push('market must be India or England');
+  }
 
   return messages.length > 0 ? `Some search filters were adjusted: ${messages.join('; ')}.` : null;
 }
@@ -191,6 +232,7 @@ export function getSearchFilterValidationMessage(params: URLSearchParams): strin
 export function readSearchUrlFilters(params: URLSearchParams): SearchUrlFilters {
   return {
     query: normalizeSearchQueryInput(firstParam(params, ['q', 'keyword'])),
+    market: normalizeSearchMarketParam(firstParam(params, ['market', 'country', 'countryCode', 'country_code'])),
     location: firstParam(params, ['location']).trim(),
     propertyType: firstParam(params, ['propertyType', 'property_type']).trim(),
     minPrice: normalizePriceBoundInput(firstParam(params, ['minPrice', 'min_price'])),
