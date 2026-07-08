@@ -1,5 +1,9 @@
 import { apiFetch, getErrorMessage, getServiceUrl } from "@/lib/apiUtils";
 import type { ApiFetchOptions } from "@/lib/apiUtils";
+import {
+  getFastTrackCaseRemainingHours,
+  isFastTrackCaseOverdue,
+} from "@/lib/fastTrackWorkflow";
 import { PAYMENTS_ENABLED } from "@/lib/launchFlags";
 import { LAUNCH_CURRENCY_CODE } from "@/lib/launchLocale";
 import type {
@@ -143,7 +147,7 @@ interface BackendFastTrackWorkspaceCase {
     started_from?: string;
     submitted_at: string;
     expires_at?: string;
-    hours_remaining: number;
+    hours_remaining?: number;
     overdue?: boolean;
   };
   stage: FastTrackStage;
@@ -557,6 +561,25 @@ const mapBackendToFrontend = (
   const handoverStatus = workspaceFinalStatus === "completed"
     ? "completed"
     : raw.handover?.status || "pending";
+  const submittedAt = raw.header.submitted_at;
+  const expiresAt = raw.header.expires_at;
+  const rawHoursRemaining = Number(raw.header.hours_remaining);
+  const timingCase = {
+    finalStatus: toLegacyFinalStatus(workspaceFinalStatus),
+    workspaceFinalStatus,
+    submittedAt,
+    expiresAt,
+    hoursRemaining: Number.isFinite(rawHoursRemaining) ? rawHoursRemaining : undefined,
+    overdue: raw.header.overdue,
+  };
+  const hoursRemaining = workspaceFinalStatus === "completed"
+    ? 0
+    : getFastTrackCaseRemainingHours(timingCase) ?? 0;
+  const overdue = workspaceFinalStatus === "active"
+    && isFastTrackCaseOverdue({
+      ...timingCase,
+      hoursRemaining,
+    });
 
   return {
     id: raw.id,
@@ -578,10 +601,10 @@ const mapBackendToFrontend = (
     journeyMode,
     journeyType: journeyMode === "sale" ? "buy" : "rent",
     startedFrom: raw.header.started_from,
-    submittedAt: raw.header.submitted_at,
-    expiresAt: raw.header.expires_at,
-    hoursRemaining: workspaceFinalStatus === "completed" ? 0 : Number(raw.header.hours_remaining || 0),
-    overdue: workspaceFinalStatus === "active" && Boolean(raw.header.overdue),
+    submittedAt,
+    expiresAt,
+    hoursRemaining,
+    overdue,
     stage,
     currentStep: toLegacyStep(stage, workspaceFinalStatus),
     backendCurrentStep: toLegacyStep(stage, workspaceFinalStatus),
