@@ -10,7 +10,7 @@ test('manager profile exposes a confirmed avatar removal flow', () => {
     assert.match(source, /userService\.updateProfile\(\{ avatar: '' \}\)/);
     assert.match(source, /mergeCurrentUserProfile\(\{ \.\.\.\(data \|\| \{\}\), avatar: '', avatar_url: '' \}\)/);
     assert.match(source, /aria-label="Remove manager profile photo"/);
-    assert.match(source, />Remove photo</);
+    assert.match(source, /'Remove photo'/);
 });
 
 test('manager profile makes save-blocking fields visibly required', () => {
