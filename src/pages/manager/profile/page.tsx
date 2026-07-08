@@ -61,6 +61,7 @@ export default function ManagerProfilePage() {
     const [storedAvatarValue, setStoredAvatarValue] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [removingAvatar, setRemovingAvatar] = useState(false);
+    const [confirmingAvatarRemoval, setConfirmingAvatarRemoval] = useState(false);
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,6 +128,7 @@ export default function ManagerProfilePage() {
         setStoredAvatarValue(existingAvatar);
         setSelectedAvatarFile(null);
         setRemovingAvatar(false);
+        setConfirmingAvatarRemoval(false);
     }, [user, managerProfile]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -181,6 +183,7 @@ export default function ManagerProfilePage() {
         setSaveError('');
         setIsSaved(false);
         setRemovingAvatar(false);
+        setConfirmingAvatarRemoval(false);
 
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -199,6 +202,7 @@ export default function ManagerProfilePage() {
         if (uploadingImage || removingAvatar) {
             return;
         }
+        setConfirmingAvatarRemoval(false);
         avatarInputRef.current?.click();
     };
 
@@ -207,12 +211,8 @@ export default function ManagerProfilePage() {
             return;
         }
 
-        const confirmed = window.confirm('Remove your profile photo and restore the default avatar?');
-        if (!confirmed) {
-            return;
-        }
-
         setRemovingAvatar(true);
+        setConfirmingAvatarRemoval(false);
         setSaveError('');
         setIsSaved(false);
 
@@ -430,16 +430,45 @@ export default function ManagerProfilePage() {
                                 {uploadingImage ? 'Preparing image...' : removingAvatar ? 'Removing photo...' : 'Upload profile photo'}
                             </button>
                             {(profileImagePreview || storedAvatarValue || selectedAvatarFile) && (
-                                <button
-                                    type="button"
-                                    onClick={handleRemoveAvatar}
-                                    disabled={uploadingImage || removingAvatar || isLoading}
-                                    className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-wait disabled:opacity-70 dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/20"
-                                    aria-label="Remove manager profile photo"
-                                >
-                                    {removingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
-                                    {removingAvatar ? 'Removing photo...' : 'Remove photo'}
-                                </button>
+                                <div className="flex w-full max-w-xs flex-col items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setConfirmingAvatarRemoval(true)}
+                                        disabled={uploadingImage || removingAvatar || isLoading}
+                                        className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-wait disabled:opacity-70 dark:border-red-900/50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-900/20"
+                                        aria-label="Remove manager profile photo"
+                                        aria-expanded={confirmingAvatarRemoval}
+                                    >
+                                        {removingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 size={16} />}
+                                        {removingAvatar ? 'Removing photo...' : 'Remove photo'}
+                                    </button>
+                                    {confirmingAvatarRemoval && (
+                                        <div className="w-full rounded-lg border border-red-200 bg-red-50 p-3 text-left text-sm text-red-800 shadow-sm dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                                            <p className="font-semibold">Remove profile photo?</p>
+                                            <p className="mt-1 text-xs text-red-700 dark:text-red-300">This restores your default initials avatar.</p>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleRemoveAvatar}
+                                                    disabled={removingAvatar || isLoading}
+                                                    className="inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-wait disabled:opacity-70"
+                                                    aria-label="Confirm remove manager profile photo"
+                                                >
+                                                    {removingAvatar ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 size={14} />}
+                                                    Remove now
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setConfirmingAvatarRemoval(false)}
+                                                    disabled={removingAvatar}
+                                                    className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-wait disabled:opacity-70 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                             <input
                                 id="manager-avatar-upload"
