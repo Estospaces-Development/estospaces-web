@@ -23,7 +23,10 @@ import {
     updateBrokerAvailability,
 } from '@/services/leadsService';
 import { formatLeadStage, resolveLeadStage } from '@/lib/fastTrackWorkflow';
-import { sortBrokerRequestsByPriority } from '@/lib/brokerRequestSelection';
+import {
+    dedupeBrokerRequestsBySubmissionSignature,
+    sortBrokerRequestsByPriority,
+} from '@/lib/brokerRequestSelection';
 import { getUserProperties } from '@/services/userPropertiesService';
 import { PROPERTY_PLACEHOLDER_IMAGE } from '@/lib/placeholders';
 import { useToast } from '@/contexts/ToastContext';
@@ -232,7 +235,9 @@ const BrokerResponseWidget: React.FC = () => {
                 };
             });
 
-            const mappedOffers = (offersResult.data || []).map((offer) => {
+            const dedupedOffers = dedupeBrokerRequestsBySubmissionSignature(offersResult.data || []);
+
+            const mappedOffers = dedupedOffers.map((offer) => {
                 const workspaceAction = getManagerWorkspaceAction(offer);
                 const workspaceReference = formatWorkspaceReference(offer.id);
                 const hasSelectedProperty = Boolean(offer.selected_property_id || offer.selected_fast_track_case_id);
@@ -283,7 +288,7 @@ const BrokerResponseWidget: React.FC = () => {
             });
 
             setRequests([...mappedOffers, ...mappedLeads] as TrackerRequest[]);
-            setMatchedRequests(sortBrokerRequestsByPriority((offersResult.data || []).filter((offer) => (
+            setMatchedRequests(sortBrokerRequestsByPriority(dedupedOffers.filter((offer) => (
                 (offer.dispatch_status === 'broker_matched' || offer.status === 'matched')
                 && Boolean(offer.matched_broker_id)
             ))));

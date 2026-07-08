@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { BrokerRequestRecord } from '@/services/leadsService';
 import {
+    dedupeBrokerRequestsBySubmissionSignature,
     selectAutoResumeBrokerRequest,
     selectPrimaryBrokerRequest,
     selectPrimaryBrokerRequestBy,
@@ -234,6 +235,69 @@ test('selectAutoResumeBrokerRequest skips closed broker requests', () => {
     assert.equal(selected, null);
 });
 
+test('dedupeBrokerRequestsBySubmissionSignature collapses duplicate matched workspaces for the same submitted request', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'workspace-f859c836',
+            user_id: 'user-duplicate',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'Need a Chennai rental quickly',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            matched_broker_id: 'manager-1',
+            created_at: '2026-07-08T02:46:12.000Z',
+            updated_at: '2026-07-08T02:46:20.000Z',
+        }),
+        makeRequest({
+            id: 'workspace-e1a73164',
+            user_id: 'user-duplicate',
+            request_type: ' rent ',
+            location: ' chennai ',
+            location_postcode: '600 001',
+            budget: ' 650000 ',
+            details: ' Need a Chennai rental quickly ',
+            status: 'matched',
+            dispatch_status: 'broker_matched',
+            matched_broker_id: 'manager-1',
+            handoff_status: 'portfolio_shared',
+            property_shares: [{ id: 'share-1' } as any],
+            created_at: '2026-07-08T02:46:42.000Z',
+            updated_at: '2026-07-08T02:47:00.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['workspace-e1a73164']);
+});
+
+test('dedupeBrokerRequestsBySubmissionSignature keeps separate users with the same request area visible', () => {
+    const deduped = dedupeBrokerRequestsBySubmissionSignature([
+        makeRequest({
+            id: 'first-client-workspace',
+            user_id: 'first-user',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'Need a Chennai rental quickly',
+            created_at: '2026-07-08T02:46:12.000Z',
+        }),
+        makeRequest({
+            id: 'second-client-workspace',
+            user_id: 'second-user',
+            request_type: 'rent',
+            location: 'Chennai',
+            location_postcode: '600001',
+            budget: '650000',
+            details: 'Need a Chennai rental quickly',
+            created_at: '2026-07-08T02:46:25.000Z',
+        }),
+    ]);
+
+    assert.deepEqual(deduped.map((request) => request.id), ['second-client-workspace', 'first-client-workspace']);
+});
 test('sortBrokerRequestsByPriority keeps the newest matched workspace ahead of older ones', () => {
     const sorted = sortBrokerRequestsByPriority([
         makeRequest({
