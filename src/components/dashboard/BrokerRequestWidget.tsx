@@ -293,10 +293,10 @@ const BrokerRequestWidget = () => {
         ? searchParams.get('request')?.trim() || null
         : null;
     const displayName = user?.user_metadata?.full_name || user?.name || user?.email || 'Client';
-    const brokerCopy = getBrokerRequestCopy(requestType);
     const geoMarket = useUserGeoMarket(user, {
         locationCode: activeRequest?.location_postcode || locationPostcode || user?.postcode,
     });
+    const brokerCopy = getBrokerRequestCopy(requestType, geoMarket);
     const locationCodeLabel = getLaunchLocationCodeLabel(geoMarket, undefined, locationPostcode);
     const locationCodePlaceholder = getLaunchLocationCodePlaceholder(geoMarket, undefined, locationPostcode);
     const geoMarketCurrencyCode = geoMarket === 'GB' ? 'GBP' : LAUNCH_CURRENCY_CODE;

@@ -178,22 +178,26 @@ export const getDashboardSimplificationCopy = () => ({
   mapSubtitle: 'Open a marker to see the home and take the next step.',
 });
 
-const getAgentRequestActionLabel = (requestType?: string) => {
+const getAgentRequestActionLabel = (requestType?: string, countryCode?: string) => {
+  const isUkMarket = countryCode === 'GB';
+
   switch (requestType) {
     case 'rent':
-      return 'Request nearest letting agency';
+      return isUkMarket ? 'Request nearest letting agency' : 'Request nearest property agent';
     case 'sell':
       return 'Request property agent';
     default:
-      return 'Request nearest broker';
+      return 'Request nearest property agent';
   }
 };
 
-export const getBrokerRequestCopy = (requestType?: string) => ({
+export const getBrokerRequestCopy = (requestType?: string, countryCode?: string) => ({
   panelTitle: 'Ask us to help',
   panelSubtitle: 'We can find the nearest property agent and bring matching home choices back here.',
   useDispatchTitle: 'Request nearest property agent',
-  useDispatchSubtitle: 'We look for the nearest available broker or letting agency first.',
+  useDispatchSubtitle: countryCode === 'GB'
+    ? 'We look for the nearest available broker or letting agency first.'
+    : 'We look for the nearest available property agent first.',
   activeRequestEyebrow: 'Agent request',
   restartRequestLabel: 'Start another request',
   refreshRequestLabel: 'Refresh update',
@@ -201,7 +205,9 @@ export const getBrokerRequestCopy = (requestType?: string) => ({
   nearbyBrokersTitle: 'Nearest property agents',
   nearbyBrokersSubtitle: 'These are the nearest available property agents for your area.',
   nearbyBrokersLoading: 'Looking for nearby property agents...',
-  nearbyBrokersEmpty: 'Add a PIN code or postcode to see nearby property agents.',
+  nearbyBrokersEmpty: countryCode === 'GB'
+    ? 'Add a postcode to see nearby property agents.'
+    : 'Add a PIN code to see nearby property agents.',
   nearbyBrokerAvailableLabel: 'Available',
   nearbyBrokerQueuedLabel: 'Waiting',
   liveCountdownLabel: 'Response time',
@@ -209,7 +215,7 @@ export const getBrokerRequestCopy = (requestType?: string) => ({
   homeChoicesLabel: 'Home choices',
   requestReferenceLabel: 'Request reference',
   acceptedAtLabel: 'Accepted at',
-  requestFormAction: getAgentRequestActionLabel(requestType),
+  requestFormAction: getAgentRequestActionLabel(requestType, countryCode),
   requestFormActionAgain: 'Send another request',
   requestFormHelper: 'We share every update here so you always know who is responding and what happens next.',
   selectionSuccess: 'Home selected. Your 24-hour journey is ready.',
