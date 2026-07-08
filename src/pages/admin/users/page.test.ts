@@ -9,6 +9,8 @@ import {
   buildAdminLeadReassignLabel,
   buildAdminUsersCsv,
   formatAdminLeadReassignmentLoadError,
+  getAdminUsersGlobalSearchLabel,
+  getAdminUsersGlobalSearchPlaceholder,
   getAdminUsersPageSubtitle,
   getAdminUsersPageTitle,
   getAdminAddUserPath,
@@ -122,8 +124,10 @@ test('admin users CSV export keeps visible rows safe', () => {
   assert.doesNotMatch(csv, /=Command Tester, "Quoted",@danger\.example/);
 });
 
-test('admin users expose visible sort control copy', () => {
+test('admin users expose visible sort and global search control copy', () => {
   assert.equal(getAdminUserSortControlLabel(), 'Sort users');
+  assert.equal(getAdminUsersGlobalSearchLabel(), 'Search users and lead reassignment leads');
+  assert.equal(getAdminUsersGlobalSearchPlaceholder(), 'Search users and leads...');
 });
 
 test('admin users page title matches the admin navigation label', () => {
@@ -147,6 +151,14 @@ test('admin users page keeps reassignment refresh manual or event driven', async
 
   assert.match(source, /useWorkspaceRefresh\(\{/);
   assert.doesNotMatch(source, /useDashboardWorkspaceRefresh/);
+});
+
+test('admin users global search also drives lead reassignment filtering', async () => {
+  const source = await readFile(new URL('./page.tsx', import.meta.url), 'utf8');
+
+  assert.match(source, /aria-label=\{getAdminUsersGlobalSearchLabel\(\)\}/);
+  assert.match(source, /placeholder=\{getAdminUsersGlobalSearchPlaceholder\(\)\}/);
+  assert.match(source, /const normalizedValue = normalizeAdminUserSearchInput\(value\);[\s\S]*setLeadPage\(1\);[\s\S]*setSearchQuery\(normalizedValue\);[\s\S]*setLeadSearchQuery\(normalizedValue\);/);
 });
 
 test('admin add user path opens the registration form while signed in', () => {

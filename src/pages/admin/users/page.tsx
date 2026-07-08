@@ -57,6 +57,14 @@ export function getAdminUserSortControlLabel(): string {
     return 'Sort users';
 }
 
+export function getAdminUsersGlobalSearchLabel(): string {
+    return 'Search users and lead reassignment leads';
+}
+
+export function getAdminUsersGlobalSearchPlaceholder(): string {
+    return 'Search users and leads...';
+}
+
 export function getAdminUsersRegistryTableScrollLabel(): string {
     return 'Scrollable user registry table';
 }
@@ -470,8 +478,11 @@ function UserManagementContent() {
     };
 
     const handleUserSearchChange = (value: string) => {
+        const normalizedValue = normalizeAdminUserSearchInput(value);
         setCurrentPage(1);
-        setSearchQuery(normalizeAdminUserSearchInput(value));
+        setLeadPage(1);
+        setSearchQuery(normalizedValue);
+        setLeadSearchQuery(normalizedValue);
     };
 
     const handleRoleTabChange = (tab: string) => {
@@ -512,8 +523,8 @@ function UserManagementContent() {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
                         <input
                             type="text"
-                            aria-label="Search users"
-                            placeholder="Search database..."
+                            aria-label={getAdminUsersGlobalSearchLabel()}
+                            placeholder={getAdminUsersGlobalSearchPlaceholder()}
                             value={searchQuery}
                             onChange={(e) => handleUserSearchChange(e.target.value)}
                             maxLength={ADMIN_USER_SEARCH_MAX_LENGTH}
