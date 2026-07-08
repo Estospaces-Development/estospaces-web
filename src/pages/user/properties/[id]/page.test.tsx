@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   buildPropertyFastTrackStartRequest,
+  buildPropertyFastTrackDashboardPath,
   buildPropertyHeroSummary,
   formatPropertyDetailCurrency,
   getPropertyDetailLocationLabel,
@@ -180,6 +181,32 @@ test("broker-selected rental fast-track start sends the resolved manager while b
   assert.equal(request?.listing_type, "rent");
   assert.equal(request?.lead_id, undefined);
   assert.equal(request?.manager_id, "manager-stale-lead");
+});
+
+test("property detail fast-track continue opens the live workspace route directly", () => {
+  assert.equal(
+    buildPropertyFastTrackDashboardPath({
+      caseId: "case-active-1",
+      finalStatus: "in_progress",
+    }),
+    "/user/dashboard/fast-track?case=case-active-1&section=documents",
+  );
+  assert.equal(
+    buildPropertyFastTrackDashboardPath({
+      caseId: "case-done-1",
+      finalStatus: "completed",
+    }),
+    "/user/dashboard/fast-track?case=case-done-1&section=overview&celebrate=1",
+  );
+  assert.equal(
+    buildPropertyFastTrackDashboardPath(null, "case-from-query"),
+    "/user/dashboard/fast-track?case=case-from-query&section=documents",
+  );
+  assert.equal(buildPropertyFastTrackDashboardPath(null, ""), "/user/dashboard/fast-track");
+  assert.match(
+    propertyDetailSource,
+    /if \(startAction === 'resume_existing_case'\) \{\s*openFastTrackDashboard\(currentWorkspace\.fastTrackCase\);\s*return;\s*\}/,
+  );
 });
 
 test("sale offer amount input accepts ordinary round-pound offers", () => {

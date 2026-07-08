@@ -181,6 +181,29 @@ export const buildPropertyFastTrackStartRequest = ({
     };
 };
 
+type PropertyFastTrackDashboardCase = Pick<FastTrackCase, 'caseId' | 'finalStatus'> | null | undefined;
+
+export const buildPropertyFastTrackDashboardPath = (
+    fastTrackCase: PropertyFastTrackDashboardCase,
+    requestedCaseId?: string | null,
+) => {
+    const caseId = String(fastTrackCase?.caseId || requestedCaseId || '').trim();
+    if (!caseId) {
+        return '/user/dashboard/fast-track';
+    }
+
+    const path = buildWorkspacePath('/user/dashboard/fast-track', {
+        caseId,
+        section: fastTrackCase?.finalStatus === 'completed' ? 'overview' : 'documents',
+    });
+
+    if (fastTrackCase?.finalStatus !== 'completed') {
+        return path;
+    }
+
+    return `${path}${path.includes('?') ? '&' : '?'}celebrate=1`;
+};
+
 export const getPropertyDetailDisplayAddress = (property: Property | null | undefined) => {
     if (!property) {
         return '';
@@ -1647,27 +1670,8 @@ const UserPropertyDetail = () => {
         }
     };
 
-    const openFastTrackDashboard = () => {
-        if (activeFastTrackCase?.caseId) {
-            const params = new URLSearchParams({
-                case: activeFastTrackCase.caseId,
-                section: activeFastTrackCase.finalStatus === 'completed' ? 'overview' : 'documents',
-            });
-
-            if (activeFastTrackCase.finalStatus === 'completed') {
-                params.set('celebrate', '1');
-            }
-
-            navigate(`/user/dashboard/fast-track?${params.toString()}`);
-            return;
-        }
-
-        if (requestedCaseId) {
-            navigate(`/user/dashboard/fast-track?case=${requestedCaseId}`);
-            return;
-        }
-
-        navigate('/user/dashboard/fast-track');
+    const openFastTrackDashboard = (fastTrackCase: PropertyFastTrackDashboardCase = activeFastTrackCase) => {
+        navigate(buildPropertyFastTrackDashboardPath(fastTrackCase, requestedCaseId));
     };
     const leadScopedDocuments = useMemo(
         () => filterDocumentsForLead(userDocuments, activeFastTrackCase?.leadId || activeLead?.id),
@@ -1758,7 +1762,7 @@ const UserPropertyDetail = () => {
             const startAction = getFastTrackStartAction(currentWorkspace.lead, currentWorkspace.fastTrackCase);
 
             if (startAction === 'resume_existing_case') {
-                setIsFastTrackModalOpen(true);
+                openFastTrackDashboard(currentWorkspace.fastTrackCase);
                 return;
             }
             let leadToUse = currentWorkspace.lead;
@@ -1791,9 +1795,10 @@ const UserPropertyDetail = () => {
             }
 
             const createdFastTrackCase = fastTrackResult.data;
+            let selectedFastTrackCase = createdFastTrackCase;
             try {
                 const refreshedWorkspace = await loadFastTrackWorkspace();
-                const selectedFastTrackCase = resolveCreatedPropertyFastTrackCase(
+                selectedFastTrackCase = resolveCreatedPropertyFastTrackCase(
                     createdFastTrackCase,
                     refreshedWorkspace.fastTrackCase,
                 );
@@ -1823,8 +1828,8 @@ const UserPropertyDetail = () => {
                     propertyId: property.id,
                 },
             });
-            setIsFastTrackModalOpen(true);
             toast.success('Fast-track started. You can track the roadmap and upload supporting files here.');
+            openFastTrackDashboard(selectedFastTrackCase);
         } catch (actionError: any) {
             const message = actionError?.message || 'Unable to start fast-track right now.';
             const normalizedMessage = message.toLowerCase();
@@ -2753,7 +2758,7 @@ const UserPropertyDetail = () => {
                             </button>
                             <button
                                 type="button"
-                                onClick={openFastTrackDashboard}
+                                onClick={() => openFastTrackDashboard()}
                                 className="w-full rounded-[1.35rem] border border-stone-200 bg-white py-4 font-semibold text-gray-900 transition hover:border-orange-300 hover:bg-orange-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                             >
                                 Open live workspace
